@@ -23,4 +23,4 @@ class XCandidate(Candidate):
     a class that represents a null ranking
     """
     def __init__(self):
-        super.__init__('x', group='x')
+        super().__init__(name='x', group='x')
