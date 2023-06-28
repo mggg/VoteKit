@@ -24,4 +24,5 @@ def test_outcome_immutable():
     # not that important to test this since it is implemented by pydantic
     # but provided as a check that we remembered to set allow_mutation = False
     orig = Outcome(remaining={"A"})
-    orig.remaining = {"A", "B", "C"}
+    with pytest.raises(TypeError):
+        orig.remaining = {"A", "B", "C"}
