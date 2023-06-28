@@ -8,6 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.9"
 pandas = "^2.0.2"
+mypy = "^1.4.1"
+pydantic = "^1.10.9"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -20,3 +22,6 @@ pre-commit = "^3.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
