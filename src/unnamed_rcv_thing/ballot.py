@@ -1,5 +1,7 @@
+from typing_extensions import override
 from pydantic import BaseModel
 from typing import Optional
+import numpy as np
 
 
 class Ballot(BaseModel):
@@ -15,6 +17,15 @@ class Ballot(BaseModel):
     weight: float
     voters: Optional[list[str]] = None
 
+    @override
+    def __eq__(self, __value: object) -> bool:
+        if isinstance(__value, Ballot):
+            return np.array_equal(self.ranking, __value.ranking)
+        return False
+    
+    def __hash__(self):
+        return hash(tuple(self.ranking))
+    
     # def __init__(self, ranking, weight, id):
     #     """
     #     Args:
@@ -38,3 +49,8 @@ class Ballot(BaseModel):
 
 
 # Pydantic format
+
+if __name__ == '__main__':
+    ballots1 = {Ballot(id=None, ranking=['c', np.nan, np.nan], weight=1.0, voters=['a'])}
+    ballots2 = {Ballot(id=None, ranking=['c', np.nan, np.nan], weight=1.0, voters=['a'])}
+    print(ballots1 == ballots2)

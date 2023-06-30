@@ -1,6 +1,8 @@
+from typing_extensions import override
 from unnamed_rcv_thing.ballot import Ballot
-from typing import List, Optional
+from typing import List, Optional, Set
 from pydantic import BaseModel, validator
+import numpy as np
 
 # from functools import cache
 
@@ -11,7 +13,8 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: List[Ballot]
+    #TODO: ask if ballots should be a set, define an equality function
+    ballots: Set[Ballot]
     candidates: Optional[list] = None
 
     @validator("candidates")
@@ -40,6 +43,10 @@ class PreferenceProfile(BaseModel):
 
         return list(unique_cands)
 
+    @override
+    def __eq__(self, __value: object) -> bool:
+        return isinstance(__value, PreferenceProfile) and self.ballots == __value.ballots
+
     # class Config:
     #     arbitrary_types_allowed = True
 
@@ -53,3 +60,10 @@ class PreferenceProfile(BaseModel):
     #     self.ballots = ballots
     #     self.candidates = candidates
     #     self.ballot_weights = [b.score for b in ballots]
+
+if __name__ == '__main__':
+    ballots1 = {Ballot(id=None, ranking=['c', np.nan, np.nan], weight=1.0, voters=['a'])}
+    ballots2 = {Ballot(id=None, ranking=['c', np.nan, np.nan], weight=1.0, voters=['a'])}
+    prof1 = PreferenceProfile(ballots=ballots1)
+    prof2 = PreferenceProfile(ballots=ballots2)
+    print(prof1 == prof2)
