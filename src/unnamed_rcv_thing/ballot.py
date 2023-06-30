@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from fractions import Fraction
 
 
 class Ballot(BaseModel):
@@ -12,8 +13,11 @@ class Ballot(BaseModel):
 
     id: Optional[str] = None
     ranking: list
-    weight: float
+    weight: Fraction
     voters: Optional[list[str]] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     # def __init__(self, ranking, weight, id):
     #     """

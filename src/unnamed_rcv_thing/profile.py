@@ -1,5 +1,5 @@
 from unnamed_rcv_thing.ballot import Ballot
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel, validator
 
 # from functools import cache
@@ -11,7 +11,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: List[Ballot]
+    ballots: list[Ballot]
     candidates: Optional[list] = None
 
     @validator("candidates")
@@ -39,6 +39,17 @@ class PreferenceProfile(BaseModel):
             unique_cands.update(ballot.ranking)
 
         return list(unique_cands)
+
+    # can also cache
+    def num_ballots(self):
+        """
+        Assumes weights correspond to number of ballots given to a ranking
+        """
+        num_ballots = 0
+        for ballot in self.ballots:
+            num_ballots += ballot.weight
+
+        return num_ballots
 
     # class Config:
     #     arbitrary_types_allowed = True
