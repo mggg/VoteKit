@@ -36,6 +36,6 @@ class PreferenceProfile(BaseModel):
 
         unique_cands = set()
         for ballot in self.ballots:
-            unique_cands.update(ballot.ranking)
+            unique_cands.update(*ballot.ranking)
 
         return list(unique_cands)
