@@ -1,8 +1,6 @@
-from unnamed_rcv_thing.ballot import Ballot
-from typing import List, Optional
+from .ballot import Ballot
+from typing import Optional
 from pydantic import BaseModel, validator
-import numpy as np
-
 # from functools import cache
 
 
@@ -12,7 +10,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: List[Ballot]
+    ballots: list[Ballot]
     candidates: Optional[list] = None
 
     @validator("candidates")
@@ -40,11 +38,3 @@ class PreferenceProfile(BaseModel):
             unique_cands.update(ballot.ranking)
 
         return list(unique_cands)
-        
-
-if __name__ == '__main__':
-    ballots1 = [Ballot(id=None, ranking=[{'c'}, {np.nan}, {np.nan}], weight=1.0, voters={'a'})]
-    ballots2 = [Ballot(id=None, ranking=[{'c'}, {np.nan}, {np.nan}], weight=1.0, voters={'a'})]
-    prof1 = PreferenceProfile(ballots=ballots1)
-    prof2 = PreferenceProfile(ballots=ballots2)
-    print(prof1 == prof2)
