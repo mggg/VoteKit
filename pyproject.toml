@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "unnamed-rcv-thing"
+name = "votekit"
 version = "0.1.0"
-description = ""
+description = "A library for experimenting with simulated RCV elections."
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 

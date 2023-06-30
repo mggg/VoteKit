@@ -1,4 +1,4 @@
-from unnamed_rcv_thing.ballot import Ballot
+from .ballot import Ballot
 from typing import List, Optional
 from pydantic import BaseModel, validator
 
