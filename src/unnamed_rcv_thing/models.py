@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-import fractions
 
 # Example of immutable data model for results
 class Outcome(BaseModel):
@@ -30,13 +29,3 @@ class Outcome(BaseModel):
             elected=self.elected | winners,
             eliminated=self.eliminated | losers,
         )
-
-
-class Ballot(BaseModel):
-    id: str
-    candidate_ranking: dict[str, int]
-    weight: fractions.Fraction
-
-    class Config:
-        allow_mutation = False
-        arbitrary_types_allowed = True
