@@ -121,12 +121,12 @@ def test_special_char():
     assert is_equal(correct_prof.ballots, prof.ballots)
 
 
-def unnamed_ballot():
+def test_unnamed_ballot():
     with pytest.raises(ValueError):
         rank_column_csv(DATA_DIR / "unnamed.csv", id_col=0)
 
 
-def same_name():
+def test_same_name():
     with pytest.raises(DataError):
         rank_column_csv(DATA_DIR / "same_name.csv", id_col=0)
 
