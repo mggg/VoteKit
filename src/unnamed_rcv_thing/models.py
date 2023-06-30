@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 # Example of immutable data model for results
 class Outcome(BaseModel):
     """

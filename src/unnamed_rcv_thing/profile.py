@@ -1,6 +1,7 @@
 from .ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
+
 # from functools import cache
 
 

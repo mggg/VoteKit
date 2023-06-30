@@ -3,13 +3,15 @@ from .voter import Voter
 import pandas as pd
 import numpy as np
 
+
 class CSVParser:
     """
     a class that takes in a csv and parses it into a list of Candidate and Voter objects
     """
+
     # def __init__(self):
     #     self.logger = logging.getLogger()
-    
+
     # def deduplicate(self, ranking):
     #     """
     #     removes duplicates in a voter's ranking of candidates
@@ -28,7 +30,7 @@ class CSVParser:
     #         elif cand in ranking:
     #             ranking_without_dups.append(cand)
     #     return ranking_without_dups
-    
+
     def reorder_cands(self, ranking):
         """
         reorder candidates so that real ...
@@ -44,12 +46,12 @@ class CSVParser:
         for cand in ranking:
             if cand != "":
                 reordered.append(cand)
-        reordered += [''] * (len(ranking) - len(reordered))
+        reordered += [""] * (len(ranking) - len(reordered))
         return reordered
-    
+
     def make_cand(self, name, group=None):
         return Candidate(name=name, group=group)
-    
+
     def make_voter(self, ranking, name):
         """
         creates a Voter object from ranking and name in the data
@@ -64,15 +66,15 @@ class CSVParser:
         rankings = []
 
         for cand in ranking:
-            if cand == '':
+            if cand == "":
                 rankings.append(XCandidate())
             else:
                 cand = Candidate(name=cand)
                 rankings.append(cand)
-        
+
         voter = Voter(candidate_ranking=rankings, name=name)
         return voter
-    
+
     # def format_check(self):
     #     assert os.path.isfile(self.path)
     #     assert os.path.getsize(self.path) != 0
@@ -101,12 +103,11 @@ class CSVParser:
         cleaned = self.reorder_cands(cleaned)
         print(cleaned)
         return cleaned
-            
-    
+
     def parse_csv(self, path):
         voters = set()
         candidates = set()
-    
+
         df = pd.read_csv(path)
         assert not df.empty
 
@@ -122,7 +123,7 @@ class CSVParser:
         for cand in unique_cands:
             new_cand = self.make_cand(name=cand)
             candidates.add(new_cand)
-        
+
         return voters, candidates
 
         # assert os.path.isfile(self.path)
@@ -159,9 +160,10 @@ def main():
 
     # csv.parse_csv('./data/test/empty.csv')
     # csv.parse_csv('./data/test/only_cols.csv')
-    v, c = csv.parse_csv('./data/test/undervote.csv')
+    v, c = csv.parse_csv("./data/test/undervote.csv")
     for i in v:
         print([x for x in i.candidate_ranking])
+
 
 if __name__ == "__main__":
     main()

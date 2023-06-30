@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 
+
 class Ballot(BaseModel):
     """
     id (optional string): assigned ballot id
