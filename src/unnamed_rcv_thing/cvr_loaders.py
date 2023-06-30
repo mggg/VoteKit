@@ -44,7 +44,7 @@ def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfi
         ranking = [{None} if pd.isnull(c) else {c} for c in group]
         voters = None
         if id_col is not None:
-            voters = list(group_df.iloc[:, id_col])
+            voters = set(group_df.iloc[:, id_col])
         weight = len(group_df)
         b = Ballot(ranking=ranking, weight=weight, voters=voters)
         ballots.append(b)
