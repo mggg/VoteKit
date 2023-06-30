@@ -23,13 +23,15 @@ def rank_column_csv(fpath: str, id_col: int = None) -> PreferenceProfile:
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f'File with path {fpath} cannot be found')
+    
     cvr_path = pathlib.Path(fpath)
     df = pd.read_csv(cvr_path, on_bad_lines='error', encoding="utf8")
+
     if df.empty:
         raise EmptyDataError('Dataset cannot be empty')
-    if id_col and df.iloc[:, id_col].isnull().values.any():
+    if id_col is not None and df.iloc[:, id_col].isnull().values.any():
         raise ValueError(f'Missing value(s) in column at index {id_col}')
-    if id_col and not df.iloc[:, id_col].is_unique:
+    if id_col is not None and not df.iloc[:, id_col].is_unique:
         raise DataError(f'Duplicate value(s) in column at index {id_col}')
 
     ranks = list(df.columns)
