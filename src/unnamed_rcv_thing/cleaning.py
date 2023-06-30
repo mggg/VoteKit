@@ -1,5 +1,4 @@
 from unnamed_rcv_thing.profile import PreferenceProfile
-from unnamed_rcv_thing.ballot import Ballot
 from copy import deepcopy
 
 
