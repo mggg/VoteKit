@@ -1,12 +1,13 @@
 import pandas as pd
 import pathlib
 import os
+from typing import Optional
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from pandas.errors import EmptyDataError, DataError
 
 
-def rank_column_csv(fpath: str, id_col: int = None) -> PreferenceProfile:
+def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfile:
     """
     given a file path, loads cvr with ranks as columns and voters as rows
     (empty cells are treated as None)
