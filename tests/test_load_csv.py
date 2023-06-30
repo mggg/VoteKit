@@ -1,87 +1,134 @@
 from unnamed_rcv_thing.cvr_loader import CVRLoader, rank_column_csv
 from unnamed_rcv_thing.ballot import Ballot
 from unnamed_rcv_thing.profile import PreferenceProfile
-import numpy as np
 from pathlib import Path
 import pytest
-from pandas.errors import EmptyDataError
+from pandas.errors import EmptyDataError, DataError
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+
+def is_equal(b1: list[Ballot], b2: list[Ballot]) -> bool:
+    if len(b1) != len(b2):
+        return False
+    
+    for b in b1:
+        if b not in b2:
+            return False
+        
+    return True
 
 def test_empty_csv():
     p = CVRLoader(load_func=rank_column_csv)
     # example of what testing for an error looks like
     with pytest.raises(EmptyDataError):
-        p.load_cvr(DATA_DIR / "empty.csv")
+        p.load_cvr(DATA_DIR / "empty.csv", id_col=0)
 
 def test_undervote():
     p = CVRLoader(load_func=rank_column_csv)
-    prof = p.load_cvr(DATA_DIR / "undervote.csv")
-    a = Ballot(id=None, ranking=['c', np.nan, np.nan], weight=1.0, voters=['a'])
-    correct_prof = PreferenceProfile(ballots={a})
-    print(correct_prof)
-    print(prof)
-    #TODO: why does this fail?
-    # assert correct_prof.ballots == prof.ballots
+    prof = p.load_cvr(DATA_DIR / "undervote.csv", id_col=0)
+    a = Ballot(id=None, ranking=[{'c'}, {None}, {None}], weight=1.0, voters={'a'})
+    correct_prof = PreferenceProfile(ballots=[a])
     assert correct_prof == prof
+    # assert correct_prof.ballots[0].ranking == prof.ballots[0].ranking
 
 def test_only_cols():
     p = CVRLoader(load_func=rank_column_csv)
     with pytest.raises(EmptyDataError):
-        p.load_cvr(DATA_DIR / "only_cols.csv")
+        p.load_cvr(DATA_DIR / "only_cols.csv", id_col=0)
 
 def test_invalid_path():
     p = CVRLoader(load_func=rank_column_csv)
     with pytest.raises(FileNotFoundError):
-        p.load_cvr('fake_path.csv')
+        p.load_cvr('fake_path.csv', id_col=0)
 
-# def test_duplicates_candidates():
-#     p = CVRLoader(load_func=rank_column_csv)
-#     prof = p.load_cvr(DATA_DIR / "dup_cands.csv")
-#     # assert len(prof.ballots) == 3
-#     abe = Ballot(ranking=['b', 'c', 'c'], weight=1, voters=['abe'])
-#     don = Ballot(ranking=['a', 'c', 'c'], weight=1, voters=['don'])
-#     carrie = Ballot(ranking=['c', 'c', 'c'], weight=1, voters=['carrie'])
-#     correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
-#     print(prof)
-#     print(correct_prof)
-#     assert prof.ballots == correct_prof.ballots
-#     # assert prof == correct_prof
+def test_duplicates_candidates():
+    p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "dup_cands.csv", id_col=0)
+    # assert len(prof.ballots) == 3
+    abe = Ballot(ranking=[{'b'}, {'c'}, {'c'}], weight=1, voters={'abe'})
+    don = Ballot(ranking=[{'a'}, {'c'}, {'c'}], weight=1, voters={'don'})
+    carrie = Ballot(ranking=[{'c'}, {'c'}, {'c'}], weight=1, voters={'carrie'})
+    correct_prof = PreferenceProfile(ballots=[abe, don, carrie])    
+    assert is_equal(prof.ballots, correct_prof.ballots)
 
-# def test_single_row():
-#     p = CVRLoader(load_func=rank_column_csv)
-#     prof = p.load_cvr(DATA_DIR / "single_row.csv")
-#     a = Ballot(ranking=['b', 'c', 'd'], weight=1, voters=['a'])
-#     correct_prof = PreferenceProfile(ballots=[a])
-#     assert prof == correct_prof
+def test_single_row():
+    p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "single_row.csv", id_col=0)
+    a = Ballot(ranking=[{'b'}, {'c'}, {'d'}], weight=1, voters={'a'})
+    correct_prof = PreferenceProfile(ballots=[a])
+    assert is_equal(prof.ballots, correct_prof.ballots)
 
-# def test_multiple_undervotes():
-#     p = CVRLoader(load_func=rank_column_csv)
-#     prof = p.load_cvr(DATA_DIR / "mult_undervote.csv")
-#     abc = Ballot(ranking=['c,', '', ''], weight=3, voters=['abe', 'ben', 'carl'])
-#     dave = Ballot(ranking=['a', '', ''], weight=1, voters=['dave'])
-#     correct_prof = PreferenceProfile(ballots=[abc, dave])
-#     assert prof == correct_prof
+def test_multiple_undervotes():
+    p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "mult_undervote.csv", id_col=0)
+    abc = Ballot(ranking=[{'c'}, {None}, {None}], weight=3, voters={'abe', 'ben', 'carl'})
+    dave = Ballot(ranking=[{None}, {'a'}, {None}], weight=1, voters={'dave'})
+    correct_prof = PreferenceProfile(ballots=[abc, dave])
+    assert is_equal(correct_prof.ballots, prof.ballots)
+
+def test_different_undervotes():
+    p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "diff_undervote.csv", id_col=0)
+    a = Ballot(ranking=[{'c'}, {None}, {'b'}], weight=1, voters={'a'})
+    b = Ballot(ranking=[{None}, {'d'}, {None}], weight=1, voters={'b'})
+    c = Ballot(ranking=[{'e'}, {None}, {'e'}], weight=1, voters={'c'})
+    correct_prof = PreferenceProfile(ballots=[a, b, c])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def test_duplicate_ballots():
     p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "dup_ballots.csv", id_col=0)
+    a = Ballot(ranking=[{'b'}, {'c'}, {'c'}], weight=1, voters={'abe'})
+    dc = Ballot(ranking=[{'c'},{'c'},{'c'}], weight=2, voters={'don', 'carrie'})
+    correct_prof = PreferenceProfile(ballots=[a, dc])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def test_combo():
     p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "combo.csv", id_col=0)
+    abc = Ballot(ranking=[{'b'}, {'c'}, {'c'}], weight=3, voters={'abe', 'ben', 'carrie'})
+    de = Ballot(ranking=[{'c'}, {None}, {None}], weight=2, voters={'don', 'ed'})
+    correct_prof = PreferenceProfile(ballots=[abc, de])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def test_diff_candidates():
     p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "diff_cands.csv", id_col=0)
+    abe = Ballot(ranking=[{'a'}, {'b'}, {'c'}], voters={'abe'}, weight=1)
+    don = Ballot(ranking=[{'d'}, {'e'}, {'f'}], weight=1, voters={'don'})
+    carrie = Ballot(ranking=[{'g'}, {'h'}, {'i'}], weight=1, voters={'carrie'})
+    correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def test_same_candidates():
     p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "same_cands.csv", id_col=0)
+    abe = Ballot(ranking=[{'a'}, {'b'}, {'c'}], voters={'abe'}, weight=1)
+    don = Ballot(ranking=[{'c'}, {'b'}, {'a'}], weight=1, voters={'don'})
+    carrie = Ballot(ranking=[{'a'}, {'c'}, {'b'}], weight=1, voters={'carrie'})
+    correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def test_special_char():
     p = CVRLoader(load_func=rank_column_csv)
-
-def wrong_type():
-    p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr(DATA_DIR / "special_char.csv", id_col=0)
+    a1 = Ballot(ranking=[{'b@#'}, {'@#$'}, {'c'}], weight=2, voters={'a@#', '1@#'})
+    d = Ballot(ranking=[{'!23'}, {'c'}, {'c'}], weight=1, voters={'d#$'})
+    correct_prof = PreferenceProfile(ballots=[a1, d])
+    assert is_equal(correct_prof.ballots, prof.ballots)
 
 def unnamed_ballot():
     p = CVRLoader(load_func=rank_column_csv)
-    # TODO: this should fail right?
+    with pytest.raises(ValueError):
+        p.load_cvr(DATA_DIR / "unnamed.csv", id_col=0)
+
+def same_name():
+    p = CVRLoader(load_func=rank_column_csv)
+    with pytest.raises(DataError):
+        p.load_cvr(DATA_DIR / "same_name.csv", id_col=0)
+
+# def malformed_rows():
+#     p = CVRLoader(load_func=rank_column_csv)
+#     # p.load_cvr(DATA_DIR / "malformed.csv")
+#     # print(p)
