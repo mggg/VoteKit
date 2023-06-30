@@ -8,7 +8,8 @@ class Candidate:
         """
         Args:
             name (string): name of candidate
-            group (string, optional): a category that the candidate belongs to (ex. ‘Fringe’). Defaults to None.
+            group (string, optional): a category that the candidate belongs to 
+            (ex. ‘Fringe’). Defaults to None.
         """
         self.id = uuid.uuid4()
         self.name = name

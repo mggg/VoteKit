@@ -1,6 +1,5 @@
 from .candidate import Candidate, XCandidate
 from .voter import Voter
-import csv, sys, logging, os
 import pandas as pd
 import numpy as np
 
@@ -11,24 +10,24 @@ class CSVParser:
     # def __init__(self):
     #     self.logger = logging.getLogger()
     
-    def deduplicate(self, ranking):
-        """
-        removes duplicates in a voter's ranking of candidates
-        ex. ['c1', 'c1', 'c2] -> ['c1', '', 'c2']
+    # def deduplicate(self, ranking):
+    #     """
+    #     removes duplicates in a voter's ranking of candidates
+    #     ex. ['c1', 'c1', 'c2] -> ['c1', '', 'c2']
 
-        Args:
-            ranking (list of string): the candidates ordered by voter's ranking
+    #     Args:
+    #         ranking (list of string): the candidates ordered by voter's ranking
 
-        Returns:
-            a list of string: the ranking of candidates without duplicates
-        """
-        ranking_without_dups = []
-        for cand in ranking:
-            if cand in ranking and cand in ranking_without_dups:
-                ranking_without_dups.append('')
-            elif cand in ranking:
-                ranking_without_dups.append(cand)
-        return ranking_without_dups
+    #     Returns:
+    #         a list of string: the ranking of candidates without duplicates
+    #     """
+    #     ranking_without_dups = []
+    #     for cand in ranking:
+    #         if cand in ranking and cand in ranking_without_dups:
+    #             ranking_without_dups.append('')
+    #         elif cand in ranking:
+    #             ranking_without_dups.append(cand)
+    #     return ranking_without_dups
     
     def reorder_cands(self, ranking):
         """
