@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional
-from fractions import Fraction
 
 
 class Ballot(BaseModel):
@@ -12,33 +11,6 @@ class Ballot(BaseModel):
     """
 
     id: Optional[str] = None
-    ranking: list
-    weight: Fraction
-    voters: Optional[list[str]] = None
-
-    class Config:
-        arbitrary_types_allowed = True
-
-    # def __init__(self, ranking, weight, id):
-    #     """
-    #     Args:
-    #         voters (list of Voter): _description_
-    #         candidate_ranking (list of Candidate): _description_
-    #         score (int, optional): assigned weight to the ballot.
-
-    #     self.id = id
-    #     self.weight = weight
-    #     self.ranking = ranking
-    #     # self.voters = voters
-
-    # self.is_spoiled = False
-
-    # if score:
-    #     self.score = score
-    # else:
-    #     self.score = len(voters)
-
-    # TODO: define equality for Ballot and iterable
-
-
-# Pydantic format
+    ranking: list[set]
+    weight: float
+    voters: Optional[set[str]] = None
