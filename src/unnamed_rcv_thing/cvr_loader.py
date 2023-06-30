@@ -1,5 +1,6 @@
 import pandas as pd
-import pathlib, os
+import pathlib
+import os
 from pydantic import BaseModel
 from typing import Callable
 from unnamed_rcv_thing.profile import PreferenceProfile
@@ -38,9 +39,9 @@ class CVRLoader(BaseModel):
         df = pd.read_csv(cvr_path, on_bad_lines='error', encoding="utf8")
         if df.empty:
             raise EmptyDataError('Dataset cannot be empty')
-        if id_col != None and df.iloc[:, id_col].isnull().values.any():
+        if id_col and df.iloc[:, id_col].isnull().values.any():
             raise ValueError(f'Missing value(s) in column at index {id_col}')
-        if id_col != None and not df.iloc[:, id_col].is_unique:
+        if id_col and not df.iloc[:, id_col].is_unique:
             raise DataError(f'Duplicate value(s) in column at index {id_col}')
 
         return self.load_func(fpath, id_col)
@@ -61,7 +62,7 @@ def rank_column_csv(fpath: str, id_col: int = None) -> PreferenceProfile:
     df = pd.read_csv(cvr_path, on_bad_lines='error', encoding="utf8")
 
     ranks = list(df.columns)
-    if id_col != None:
+    if id_col is not None:
         ranks.remove(df.columns[id_col])
     grouped = df.groupby(ranks, dropna=False)
     ballots = []
@@ -70,7 +71,7 @@ def rank_column_csv(fpath: str, id_col: int = None) -> PreferenceProfile:
         group = [None if pd.isnull(c) else c for c in group]
         ranking = list({c} for c in list(group))
         voters = None
-        if id_col != None:
+        if id_col is not None:
             voters = list(group_df.iloc[:, id_col])
         weight = len(group_df)
         b = Ballot(ranking=ranking, weight=weight, voters=voters)

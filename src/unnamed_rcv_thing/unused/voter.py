@@ -9,7 +9,8 @@ class Voter:
         Args:
             name (string, option): name of the voter. Defaults to ''
             candidate_ranking (list of Candidate): the candidates ordered by the voter's ranking
-            candidate_scores (list of double, optional):  the weights the voter assigns to each candidate's ranking. Defaults to None.
+            candidate_scores (list of double, optional): 
+            the weights the voter assigns to each candidate's ranking. Defaults to None.
         """
         self.id = uuid.uuid4()
         self.name = name

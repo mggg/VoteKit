@@ -1,6 +1,5 @@
 from .candidate import Candidate, XCandidate
 from .voter import Voter
-import csv, sys, logging, os
 import pandas as pd
 import numpy as np
 
