@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 # Example of immutable data model for results
 class Outcome(BaseModel):
     """
@@ -19,7 +20,7 @@ class Outcome(BaseModel):
     class Config:
         allow_mutation = False
 
-    def add_winners_and_losers(self, winners: set[str], losers: set[str]):
+    def add_winners_and_losers(self, winners: set[str], losers: set[str]) -> "Outcome":
         # example method, feel free to delete if not useful
         if not winners.issubset(self.remaining) or not losers.issubset(self.remaining):
             missing = (winners - self.remaining) | (losers - self.remaining)
