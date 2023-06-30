@@ -23,6 +23,8 @@ class CVRLoader(BaseModel):
         df = pd.read_csv(cvr_path, encoding="utf8")
         if df.empty:
             raise EmptyDataError('Dataset cannot be empty')
+        
+        #TODO: add a missing header function
 
         return self.load_func(fpath)
 
@@ -37,20 +39,24 @@ def rank_column_csv(fpath: str) -> PreferenceProfile:
 
     cvr_path = pathlib.Path(fpath)
     df = pd.read_csv(cvr_path, encoding="utf8")
-    grouped = df.groupby(list(df.columns[1:]))
+    grouped = df.groupby(list(df.columns[1:]), dropna=False)
     ballots = []
 
     for group, group_df in grouped:
+        # print(group)
+        # print(group_df)
         ranking = list(group)
         voters = list(group_df.iloc[:, 0])
         weight = len(group_df)
-        b = Ballot(ranking, weight, voters)
+        b = Ballot(ranking=ranking, weight=weight, voters=voters)
         ballots.append(b)
     
     return PreferenceProfile(ballots=ballots)
 
 if __name__ == '__main__':
     p = CVRLoader(load_func=rank_column_csv)
+    prof = p.load_cvr("/Users/jenniferwang/Projects/unnamed_rcv_thing/tests/data/undervote.csv")
+    # print(prof)
     # # example of what testing for an error looks like
     # with pytest.raises(EmptyDataError):
     #     p.parse_csv(DATA_DIR / "empty.csv")
