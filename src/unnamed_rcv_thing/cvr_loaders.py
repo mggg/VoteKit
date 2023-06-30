@@ -39,8 +39,7 @@ def rank_column_csv(fpath: str, id_col: int = None) -> PreferenceProfile:
     ballots = []
 
     for group, group_df in grouped:
-        group = [None if pd.isnull(c) else c for c in group]
-        ranking = list({c} for c in list(group))
+        ranking = [{None} if pd.isnull(c) else {c} for c in group]
         voters = None
         if id_col is not None:
             voters = list(group_df.iloc[:, id_col])
