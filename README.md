@@ -8,6 +8,6 @@ To get up and running, run `poetry install` from within the project directory to
 
 Once you've run `poetry install`, if you run `poetry run pre-commit install` it will install code linting hooks that will run on every commit.  This helps ensure code quality.
 
-To run tests run `poetry run pytest`
+To run tests run `poetry run pytest` or `./run_tests.sh` (the latter will generate a coverage report).
 
 To release, run `poetry publish --build`
