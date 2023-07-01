@@ -34,7 +34,7 @@ class PreferenceProfile(BaseModel):
         if self.candidates is not None:
             return self.candidates
 
-        unique_cands = set()
+        unique_cands: set = set()
         for ballot in self.ballots:
             unique_cands.update(*ballot.ranking)
 

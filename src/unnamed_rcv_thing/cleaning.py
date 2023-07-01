@@ -2,7 +2,7 @@ from unnamed_rcv_thing.profile import PreferenceProfile
 from copy import deepcopy
 
 
-def remove_empty_ballots(pp: PreferenceProfile, keep_candidates: bool = False):
+def remove_empty_ballots(pp: PreferenceProfile, keep_candidates: bool = False) -> PreferenceProfile:
     """
     Returns a preference profile which is the input pp without empty ballots.
     keep_candidates: use old set of candidates, even if some no longer appear
