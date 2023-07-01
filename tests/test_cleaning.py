@@ -1,6 +1,6 @@
-from unnamed_rcv_thing.profile import PreferenceProfile
-from unnamed_rcv_thing.ballot import Ballot
-from unnamed_rcv_thing.cleaning import remove_empty_ballots
+from votekit.profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.cleaning import remove_empty_ballots
 
 
 def test_remove_empty_ballots():

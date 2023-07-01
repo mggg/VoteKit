@@ -1,6 +1,6 @@
-from unnamed_rcv_thing.cvr_loaders import rank_column_csv
-from unnamed_rcv_thing.ballot import Ballot
-from unnamed_rcv_thing.profile import PreferenceProfile
+from votekit.cvr_loaders import rank_column_csv
+from votekit.ballot import Ballot
+from votekit.profile import PreferenceProfile
 from pathlib import Path
 import pytest
 from pandas.errors import EmptyDataError, DataError

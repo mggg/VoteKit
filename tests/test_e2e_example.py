@@ -1,7 +1,7 @@
-# from unnamed_rcv_thing.loaders import load_csv
-# from unnamed_rcv_thing.cleaning import clean_rule1, clean_rule2
-# from unnamed_rcv_thing.elections import run_election, RCVStep
-# from unnamed_rcv_thing.visualization import plot_results
+# from votekit.loaders import load_csv
+# from votekit.cleaning import clean_rule1, clean_rule2
+# from votekit.elections import run_election, RCVStep
+# from votekit.visualization import plot_results
 
 
 # def test_e2e_simple():
