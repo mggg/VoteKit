@@ -1,5 +1,5 @@
 import pytest
-from unnamed_rcv_thing.models import Outcome
+from votekit.models import Outcome
 
 
 def test_outcome_promote_winners():

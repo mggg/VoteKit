@@ -1,5 +1,5 @@
-from unnamed_rcv_thing.profile import PreferenceProfile
-from unnamed_rcv_thing.ballot import Ballot
+from votekit.profile import PreferenceProfile
+from votekit.ballot import Ballot
 
 
 def test_unique_cands():

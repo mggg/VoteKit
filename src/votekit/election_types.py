@@ -1,9 +1,8 @@
-from unnamed_rcv_thing.election import Election
-from unnamed_rcv_thing.profile import PreferenceProfile
-from unnamed_rcv_thing.ballot import Ballot
-from unnamed_rcv_thing.models import Outcome
+from .election import Election
+from .profile import PreferenceProfile
+from .ballot import Ballot
+from .models import Outcome
 from typing import Callable
-from fractions import Fraction
 import random
 
 
@@ -12,8 +11,8 @@ class STV(Election):
 
         self.profile = profile
         self.transfer = transfer
-        self.elected = []
-        self.eliminated = []
+        self.elected = list[str]
+        self.eliminated = list[str]
         self.seats = seats
         self.threshold = self.get_threshold()
 
@@ -140,10 +139,12 @@ def gen_fake_ballots(ranks, cands, voters, weights=None):
 # while not outcome.is_complete():
 #     outcome = e.run_step()
 
-fakes = gen_fake_ballots(3, ["a", "b", "c", "d", "e"], 45)
+# testing code
 
-ballot_lst = []
-for ranking, weight in fakes.items():
-    ballot_lst.append(Ballot(ranking=ranking, weight=Fraction(weight)))
+# fakes = gen_fake_ballots(3, ["a", "b", "c", "d", "e"], 45)
 
-pp = PreferenceProfile(ballots=ballot_lst)
+# ballot_lst = []
+# for ranking, weight in fakes.items():
+#     ballot_lst.append(Ballot(ranking=ranking, weight=Fraction(weight)))
+
+# pp = PreferenceProfile(ballots=ballot_lst)
