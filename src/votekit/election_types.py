@@ -3,7 +3,6 @@ from .profile import PreferenceProfile
 from .ballot import Ballot
 from .models import Outcome
 from typing import Callable
-from fractions import Fraction
 import random
 
 
