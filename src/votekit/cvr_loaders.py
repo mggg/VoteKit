@@ -27,7 +27,7 @@ def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfi
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
 
     cvr_path = pathlib.Path(fpath)
-    df = pd.read_csv(cvr_path, on_bad_lines="error", encoding="utf8")
+    df = pd.read_csv(cvr_path, on_bad_lines="error", encoding="utf8", index_col=False)
 
     if df.empty:
         raise EmptyDataError("Dataset cannot be empty")
