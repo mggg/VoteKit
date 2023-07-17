@@ -20,3 +20,17 @@ def remove_empty_ballots(
         pp_clean = PreferenceProfile(ballots=ballots_nonempty)
 
     return pp_clean
+
+
+
+def tes_rule(pp: PreferenceProfile, keep_candidates: bool = False
+) -> PreferenceProfile:
+
+    '''
+    Fake function
+    '''
+
+    if keep_candidates is True:
+        return pp 
+
+
