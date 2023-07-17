@@ -50,6 +50,23 @@ class PreferenceProfile(BaseModel):
             num_ballots += ballot.weight
 
         return num_ballots
+        
+    def to_dict(self):
+        di = {}
+        for ballot in self.ballots:
+            if ballot.ranking not in di.keys():
+                di[ballot.ranking] = ballot.weight
+            else:
+                di[ballot.ranking]+= ballot.weight
+        return di
+
+    def from_dict(self):
+        li = []
+        di = self.to_dict()
+        for r in di.keys():
+            li.append(Ballot(ranking = r,weight = di[r]))
+        return li
+    
 
     # class Config:
     #     arbitrary_types_allowed = True
