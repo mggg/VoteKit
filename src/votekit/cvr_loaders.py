@@ -5,6 +5,7 @@ from typing import Optional
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from pandas.errors import EmptyDataError, DataError
+from fractions import Fraction
 
 
 def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfile:
@@ -48,7 +49,7 @@ def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfi
         if id_col is not None:
             voters = set(group_df.iloc[:, id_col])
         weight = len(group_df)
-        b = Ballot(ranking=ranking, weight=weight, voters=voters)
+        b = Ballot(ranking=ranking, weight=Fraction(weight), voters=voters)
         ballots.append(b)
 
     return PreferenceProfile(ballots=ballots)

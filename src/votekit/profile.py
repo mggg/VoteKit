@@ -27,7 +27,8 @@ class PreferenceProfile(BaseModel):
         return self.ballots
 
     # @cache
-    def get_candidates(self) -> list:
+    # fix type casting error 
+    def get_candidates(self) -> list[set]:
         """
         Returns list of unique candidates
         """
@@ -56,16 +57,16 @@ class PreferenceProfile(BaseModel):
         Converts balots to dictionary with keys, ranking and 
         and values, total weight per ranking 
         '''
-        di = {}
+        di: dict = {}
         for ballot in self.ballots:
             if ballot.ranking not in di.keys():
                 di[ballot.ranking] = ballot.weight
-            else:
-                di[ballot.ranking]+= ballot.weight
+            di[ballot.ranking]+= ballot.weight
+
         return di
 
     
-
+    
     # class Config:
     #     arbitrary_types_allowed = True
 
