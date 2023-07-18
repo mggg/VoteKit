@@ -27,11 +27,12 @@ def remove_empty_ballots(
 
 
 def clean(
-    pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
+    pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot] = None
 ) -> PreferenceProfile:
     """
     General cleaning function that takes a preference profile and applies a
     cleaning function to each ballot and merges the ballots with the same ranking
+    used primarily when only the ballot ranking needs to be cleaned
     Args:
         pp (PreferenceProfile): preference profile to be cleaned
         clean_ballot_func (Callable[[list[Ballot]], list[Ballot]]): function that
@@ -42,16 +43,25 @@ def clean(
     """
 
     # apply cleaning function to clean all ballots
-    cleaned = map(clean_ballot_func, pp.ballots)
+    """
+    1) [a, a, b, c], [a, b, b, c], [a, b, c], [a, d, c]
+    2) [a, b, c], [a, b, c], [a, b, c], [a, d, c]
+    3) [[[a, b, c], [a, b, c], [a, b, c]], [[a, d, c]]]
+    4) [[a, b, c], [a, d, c]]
+    """
 
-    # group ballots that have the same ranking after cleaning
+    # 2 clean each ballot
+    cleaned = pp.ballots
+    if clean_ballot_func is not None:
+        cleaned = map(clean_ballot_func, pp.ballots)
+
+    # 3 group ballots that have the same ranking after cleaning
     grouped_ballots = [
         list(result)
         for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
     ]
-    # print('grouped: ',  grouped_ballots)
 
-    # merge ballots in the same groups
+    # 4 merge ballots in the same groups
     new_ballots = [merge_ballots(b) for b in grouped_ballots]
 
     return PreferenceProfile(ballots=new_ballots)
@@ -73,6 +83,25 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
         voters = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
         voters = set(voters)
     return Ballot(ranking=ranking, voters=voters, weight=float(weight))
+
+
+def overvote(pp: PreferenceProfile) -> PreferenceProfile:
+    """
+    Returns a preference profile which truncates overvotes then recommutes
+    total votes for each ballot permutation. Examples:
+    ['A','B','B'] -> ['A', 'B']
+    ['A', 'B', 'A'] -> ['A', 'B']
+    """
+    updated_BL = []
+    for ballot in deepcopy(pp.get_ballots()):
+        updated_ranking = []
+        for rank in ballot.ranking:
+            if rank not in updated_ranking:
+                updated_ranking.append(rank)
+        updated_ballotRank = Ballot(ranking=updated_ranking, weight=ballot.weight)
+        updated_BL.append(updated_ballotRank)
+    pp_clean = PreferenceProfile(ballots=updated_BL)
+    return clean(pp_clean)
 
 
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
