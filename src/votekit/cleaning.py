@@ -27,7 +27,7 @@ def remove_empty_ballots(
 
 
 def clean(
-    pp: PreferenceProfile, clean_ballot_func: Callable[[list[Ballot]], list[Ballot]]
+    pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
 ) -> PreferenceProfile:
     """
     General cleaning function that takes a preference profile and applies a
