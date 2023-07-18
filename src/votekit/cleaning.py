@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import Callable
 from itertools import groupby
 from functools import reduce
+from fractions import Fraction
 
 
 def remove_empty_ballots(
@@ -82,7 +83,7 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     if len(voters_to_merge) > 0:
         voters = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
         voters = set(voters)
-    return Ballot(ranking=ranking, voters=voters, weight=float(weight))
+    return Ballot(ranking=ranking, voters=voters, weight=Fraction(weight))
 
 
 def overvote(pp: PreferenceProfile) -> PreferenceProfile:
@@ -130,7 +131,7 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
                 dedup_ranking.append(cand)
         new_ballot = Ballot(
             id=ballot.id,
-            weight=float(ballot.weight),
+            weight=Fraction(ballot.weight),
             ranking=dedup_ranking,
             voters=ballot.voters,
         )
