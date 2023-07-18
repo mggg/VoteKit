@@ -15,7 +15,7 @@ class Outcome(BaseModel):
     remaining: set[str]
     elected: set[str] = set()
     eliminated: set[str] = set()
-    votes: Optional[dict]
+    votes: Optional[dict] = None
     # TODO: re-add this
     # rankings: list[set[str]]
 

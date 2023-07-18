@@ -3,6 +3,7 @@ from .ballot import Ballot
 from .models import Outcome
 from typing import Callable
 import random
+from fractions import Fraction
 
 
 class STV:
@@ -26,8 +27,7 @@ class STV:
         """
         Determines if the number of seats has been met to call election
         """
-        if len(self.elected) == self.seats:
-            return True
+        return len(self.elected) == self.seats
 
     def run_step(self, profile: PreferenceProfile) -> tuple[PreferenceProfile, Outcome]:
         """
@@ -47,7 +47,7 @@ class STV:
             return profile, Outcome(
                 elected=self.elected,
                 eliminated=self.eliminated,
-                remaining=candidates,
+                remaining=set(candidates),
                 votes=fp_votes,
             )
 
@@ -85,7 +85,7 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
     votes = {}
 
     for candidate in candidates:
-        weight = 0
+        weight = Fraction(0)
         for ballot in ballots:
             if ballot.ranking and ballot.ranking[0] == {candidate}:
                 weight += ballot.weight
