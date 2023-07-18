@@ -29,6 +29,17 @@ def remove_empty_ballots(
 def clean(
     pp: PreferenceProfile, clean_ballot_func: Callable[[list[Ballot]], list[Ballot]]
 ) -> PreferenceProfile:
+    """
+    General cleaning function that takes a preference profile and applies a
+    cleaning function to each ballot and merges the ballots with the same ranking
+    Args:
+        pp (PreferenceProfile): preference profile to be cleaned
+        clean_ballot_func (Callable[[list[Ballot]], list[Ballot]]): function that
+        takes a list of ballots and cleans them
+
+    Returns:
+        PreferenceProfile: a cleaned preference profile
+    """
 
     # apply cleaning function to clean all ballots
     cleaned = map(clean_ballot_func, pp.ballots)
@@ -47,6 +58,13 @@ def clean(
 
 
 def merge_ballots(ballots: list[Ballot]) -> Ballot:
+    """
+    takes a list of ballots and merge them
+    Args:
+        ballots (list[Ballot]): a list of ballots with the same ranking
+    Returns:
+        Ballot: a ballot with the same ranking and aggregated weight and voters
+    """
     weight = sum(b.weight for b in ballots)
     ranking = ballots[0].ranking
     voters_to_merge = [b.voters for b in ballots if b.voters]
@@ -57,42 +75,37 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     return Ballot(ranking=ranking, voters=voters, weight=float(weight))
 
 
-def _deduplicate_ballots(ballot: Ballot) -> Ballot:
-    print("ballot here", ballot)
-    ranking = ballot.ranking
-    dedup_ranking = []
-    for cand in ranking:
-        if cand in ranking and cand not in dedup_ranking:
-            dedup_ranking.append(cand)
-    new_ballot = Ballot(
-        id=ballot.id,
-        weight=float(ballot.weight),
-        ranking=dedup_ranking,
-        voters=ballot.voters,
-    )
-
-    return new_ballot
-
-
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
-    pp_clean = clean(pp=pp, clean_ballot_func=_deduplicate_ballots)
-    return pp_clean
-
     """
-    removes duplicates in a voter's ranking of candidates
-    ex. ['c1', 'c1', 'c2] -> ['c1', '', 'c2']
-
+    takes a preference profile and deduplicates its ballots
     Args:
-        ranking (list of string): the candidates ordered by voter's ranking
+        pp (PreferenceProfile): a preference profile with ballot duplicates
 
     Returns:
-        a list of string: the ranking of candidates without duplicates
+        PreferenceProfile: a preference profile without duplicates
     """
 
-    # ranking_without_dups = []
-    # for cand in ranking:
-    #     if cand in ranking and cand in ranking_without_dups:
-    #         ranking_without_dups.append('')
-    #     elif cand in ranking:
-    #         ranking_without_dups.append(cand)
-    # return ranking_without_dups
+    def _deduplicate_ballots(ballot: Ballot) -> Ballot:
+        """
+        takes a ballot and deduplicates its rankings
+        Args:
+            ballot (Ballot): a ballot with duplicates in its ranking
+
+        Returns:
+            Ballot: a ballot without duplicates
+        """
+        ranking = ballot.ranking
+        dedup_ranking = []
+        for cand in ranking:
+            if cand in ranking and cand not in dedup_ranking:
+                dedup_ranking.append(cand)
+        new_ballot = Ballot(
+            id=ballot.id,
+            weight=float(ballot.weight),
+            ranking=dedup_ranking,
+            voters=ballot.voters,
+        )
+        return new_ballot
+
+    pp_clean = clean(pp=pp, clean_ballot_func=_deduplicate_ballots)
+    return pp_clean
