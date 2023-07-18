@@ -27,7 +27,7 @@ def remove_empty_ballots(
     return pp_clean
 
 
-def clean(
+def _clean(
     pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot] = None
 ) -> PreferenceProfile:
     """
@@ -78,6 +78,8 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     return Ballot(ranking=ranking, voters=voters, weight=Fraction(weight))
 
 
+# TODO: Brenda will replace this function with the function she wrote,
+# TODO: change to keep ranks so that we'll have None
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
     """
     takes a preference profile and deduplicates its ballots
@@ -101,6 +103,7 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         dedup_ranking = []
         for cand in ranking:
             if cand in ranking and cand not in dedup_ranking:
+                # dedup_ranking.append({None})
                 dedup_ranking.append(cand)
         new_ballot = Ballot(
             id=ballot.id,
@@ -110,5 +113,5 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         )
         return new_ballot
 
-    pp_clean = clean(pp=pp, clean_ballot_func=deduplicate_ballots)
+    pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
     return pp_clean

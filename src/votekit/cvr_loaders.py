@@ -10,6 +10,7 @@ from fractions import Fraction
 
 def rank_column_csv(
     fpath: str,
+    *,
     weight_col: Optional[int] = None,
     delimiter: Optional[str] = None,
     id_col: Optional[int] = None,
