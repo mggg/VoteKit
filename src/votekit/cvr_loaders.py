@@ -67,12 +67,3 @@ def rank_column_csv(
         ballots.append(b)
 
     return PreferenceProfile(ballots=ballots)
-
-
-# def weight_rank_txt(fpath: str,
-# delimiter: str = '0', id_col: Optional[int] = None) -> PreferenceProfile:
-#     if not os.path.isfile(fpath):
-#         raise FileNotFoundError(f"File with path {fpath} cannot be found")
-
-#     cvr_path = pathlib.Path(fpath)
-#     df = pd.read_csv(cvr_path, on_bad_lines="error", encoding="utf8", index_col=False)
