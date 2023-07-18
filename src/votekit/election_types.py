@@ -1,14 +1,12 @@
-from .election import Election
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from .models import Outcome
 from typing import Callable
-from pydantic import BaseModel
 import random
+from fractions import Fraction
 
 
 class STV:
-
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
         self.profile = profile
         self.transfer = transfer
@@ -29,13 +27,12 @@ class STV:
         """
         Determines if the number of seats has been met to call election
         """
-        if len(self.elected) == self.seats:
-            return True
+        return len(self.elected) == self.seats
 
     def run_step(self, profile: PreferenceProfile) -> tuple[PreferenceProfile, Outcome]:
-        '''
+        """
         Simulates one round an STV election
-        '''
+        """
         candidates: list = profile.get_candidates()
         ballots: list = profile.get_ballots()
         fp_votes: dict = compute_votes(candidates, ballots)
@@ -46,11 +43,11 @@ class STV:
         # if number of remaining candidates equals number of remaining seats
         if len(candidates) == self.seats - len(self.elected):
             # TODO: sort remaing candidates by vote share
-            self.elected.update(set(candidates)) 
+            self.elected.update(set(candidates))
             return profile, Outcome(
                 elected=self.elected,
                 eliminated=self.eliminated,
-                remaining=candidates,
+                remaining=set(candidates),
                 votes=fp_votes,
             )
 
@@ -58,7 +55,7 @@ class STV:
             if fp_votes[candidate] >= self.threshold:
                 self.elected.add(candidate)
                 candidates.remove(candidate)
-                print('winner', candidate)
+                print("winner", candidate)
                 ballots = self.transfer(candidate, ballots, fp_votes, self.threshold)
 
         if not self.is_complete():
@@ -70,7 +67,7 @@ class STV:
             lp_cand = random.choice(lp_candidates)
             ballots = remove_cand(lp_cand, ballots)
             candidates.remove(lp_cand)
-            print('loser', lp_cand)
+            print("loser", lp_cand)
             self.eliminated.add(lp_cand)
 
         return PreferenceProfile(ballots=ballots), Outcome(
@@ -88,17 +85,18 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
     votes = {}
 
     for candidate in candidates:
-        weight = 0
+        weight = Fraction(0)
         for ballot in ballots:
             if ballot.ranking and ballot.ranking[0] == {candidate}:
                 weight += ballot.weight
         votes[candidate] = weight
 
-    return votes 
+    return votes
 
 
-def fractional_transfer(winner: str, ballots: list[Ballot],
-                                votes: dict, threshold: int) -> list[Ballot]:
+def fractional_transfer(
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+) -> list[Ballot]:
     # find the transfer value, add tranfer value to weights of vballots
     # that listed the elected in first place, remove that cand and shift
     # everything up, recomputing first-place votes

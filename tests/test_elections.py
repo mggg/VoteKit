@@ -1,9 +1,13 @@
 from votekit.election_types import compute_votes
 from votekit.cvr_loaders import rank_column_csv
+from pathlib import Path
 
 
-test_profile = rank_column_csv("data/ten_ballot.csv")
-mn_profile = rank_column_csv("data/mn_clean_ballots.csv")
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+
+test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
+mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
 def test_max_votes_toy():
