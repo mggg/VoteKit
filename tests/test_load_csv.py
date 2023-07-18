@@ -6,7 +6,7 @@ import pytest
 from pandas.errors import EmptyDataError, DataError
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = BASE_DIR / "data/csv/"
 
 
 def is_equal(b1: list[Ballot], b2: list[Ballot]) -> bool:

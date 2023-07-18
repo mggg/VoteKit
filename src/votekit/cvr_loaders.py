@@ -7,7 +7,12 @@ from .ballot import Ballot
 from pandas.errors import EmptyDataError, DataError
 
 
-def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfile:
+def rank_column_csv(
+    fpath: str,
+    weight_col: Optional[int] = None,
+    delimiter: Optional[str] = None,
+    id_col: Optional[int] = None,
+) -> PreferenceProfile:
     """
     given a file path, loads cvr with ranks as columns and voters as rows
     (empty cells are treated as None)
@@ -21,13 +26,20 @@ def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfi
         ValueError: if the voter id column has missing values
         DataError: if the voter id column has duplicate values
     Returns:
-        PreferenceProfile: a preference schedule that represents all the ballots in the elction
+        PreferenceProfile: a preference schedule that
+        represents all the ballots in the elction
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
 
     cvr_path = pathlib.Path(fpath)
-    df = pd.read_csv(cvr_path, on_bad_lines="error", encoding="utf8", index_col=False)
+    df = pd.read_csv(
+        cvr_path,
+        on_bad_lines="error",
+        encoding="utf8",
+        index_col=False,
+        delimiter=delimiter,
+    )
 
     if df.empty:
         raise EmptyDataError("Dataset cannot be empty")
@@ -48,7 +60,18 @@ def rank_column_csv(fpath: str, id_col: Optional[int] = None) -> PreferenceProfi
         if id_col is not None:
             voters = set(group_df.iloc[:, id_col])
         weight = len(group_df)
+        if weight_col is not None:
+            weight = sum(group_df.iloc[:, weight_col])
         b = Ballot(ranking=ranking, weight=weight, voters=voters)
         ballots.append(b)
 
     return PreferenceProfile(ballots=ballots)
+
+
+# def weight_rank_txt(fpath: str,
+# delimiter: str = '0', id_col: Optional[int] = None) -> PreferenceProfile:
+#     if not os.path.isfile(fpath):
+#         raise FileNotFoundError(f"File with path {fpath} cannot be found")
+
+#     cvr_path = pathlib.Path(fpath)
+#     df = pd.read_csv(cvr_path, on_bad_lines="error", encoding="utf8", index_col=False)

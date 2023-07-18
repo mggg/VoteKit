@@ -1,16 +1,91 @@
 from votekit.profile import PreferenceProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_empty_ballots
+from votekit.cleaning import remove_empty_ballots, deduplicate_profiles
 
 
 def test_remove_empty_ballots():
     profile = PreferenceProfile(
         ballots=[
-            Ballot(ranking=[{'A'}, {'B'}, {'C'}], weight=1),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1),
             Ballot(ranking=[], weight=1),
         ]
     )
     profile_cleaned = remove_empty_ballots(profile)
     assert len(profile_cleaned.get_ballots()) == 1
     ballot = profile_cleaned.get_ballots()[0]
-    assert ballot.ranking == [{'A'}, {'B'}, {'C'}]
+    assert ballot.ranking == [{"A"}, {"B"}, {"C"}]
+
+
+def test_deduplicate_single():
+    dirty = PreferenceProfile(
+        ballots=[Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)]
+    )
+    profile_res = deduplicate_profiles(dirty)
+    cleaned = PreferenceProfile(
+        ballots=[Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1)]
+    )
+    assert cleaned == profile_res
+
+
+def test_deduplicate_mult_voters_same_rankings():
+    dirty = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1, voters={"tom"}),
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1, voters={"andy"}),
+        ]
+    )
+    profile_res = deduplicate_profiles(dirty)
+    cleaned = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=2, voters={"tom", "andy"})
+        ]
+    )
+    assert cleaned == profile_res
+
+
+def test_deduplicate_mult_voters_diff_rankings():
+    dirty = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"B"}], weight=1, voters={"tom"}),
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1, voters={"andy"}),
+        ]
+    )
+    profile_res = deduplicate_profiles(dirty)
+    cleaned = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}], weight=1, voters={"tom"}),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1, voters={"andy"}),
+        ]
+    )
+    assert cleaned == profile_res
+
+
+def test_deduplicate_mult_voters_ties():
+    dirty = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"C", "A"}, {"A", "C"}, {"B"}], weight=1, voters={"tom"}),
+            Ballot(ranking=[{"A", "C"}, {"C", "A"}, {"B"}], weight=1, voters={"andy"}),
+        ]
+    )
+    profile_res = deduplicate_profiles(dirty)
+    cleaned = PreferenceProfile(
+        ballots=[Ballot(ranking=[{"C", "A"}, {"B"}], weight=2, voters={"tom", "andy"})]
+    )
+    assert cleaned == profile_res
+
+
+def test_deduplicate_no_voters_diff_rankings():
+    dirty = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"B"}], weight=1),
+            Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1),
+        ]
+    )
+    profile_res = deduplicate_profiles(dirty)
+    cleaned = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}], weight=1),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1),
+        ]
+    )
+    assert cleaned == profile_res
