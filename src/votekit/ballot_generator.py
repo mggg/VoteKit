@@ -23,7 +23,7 @@ Cambridge
 class Ballot_Generator(BaseModel):
 
     number_of_ballots: int
-    candidate_list: list
+    candidate_list: list[set]
     ballot_length: Optional[int]
     candidate_to_slate: Optional[dict]
     pref_interval_by_race: Optional[dict] = None  # race: {candidate : interval length}
@@ -33,6 +33,11 @@ class Ballot_Generator(BaseModel):
     def generate_ballots(self) -> PreferenceProfile:
         pass
 
+    @staticmethod
+    def cand_list_to_set(candidate_list):
+        return [set(cand) for cand in candidate_list]
+
+    @staticmethod
     def ballot_pool_to_profile(ballot_pool, candidate_list):
         ballot_weights = {}
         for ballot in ballot_pool:
