@@ -42,7 +42,6 @@ def _clean(
     Returns:
         PreferenceProfile: a cleaned preference profile
     """
-
     # apply cleaning function to clean all ballots
     cleaned = pp.ballots
     if clean_ballot_func is not None:
@@ -114,4 +113,23 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         return new_ballot
 
     pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
+    return pp_clean
+
+
+def undervote_profile(pp: PreferenceProfile) -> PreferenceProfile:
+    """
+    takes a ballot and truncates its rankings in the case.
+    Args:
+        ballot (Ballot): a ballot with empty ranks in a particular ranking list
+
+    Returns:
+        Ballot: a ballot without emptinesss
+    """
+
+    def undervote(ballot: Ballot) -> Ballot:
+        rank_list = ballot.ranking
+        cleaned_rank_list = [rank for rank in rank_list if " " not in rank]
+        return cleaned_rank_list
+
+    pp_clean = _clean(pp=pp, clean_ballot_func=undervote)
     return pp_clean
