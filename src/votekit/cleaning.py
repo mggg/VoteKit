@@ -1,8 +1,10 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from copy import deepcopy
+from typing import Callable
+from itertools import groupby
+from functools import reduce
 from fractions import Fraction
-from typing import Union
 
 
 def remove_empty_ballots(
@@ -25,48 +27,91 @@ def remove_empty_ballots(
     return pp_clean
 
 
-def remove_noncands(
-    profile: PreferenceProfile, non_cands: list[str]
+def _clean(
+    pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot] = None
 ) -> PreferenceProfile:
     """
-    Removes user-assigned non-candidates from ballots
-
-    Inputs:
-        profile (PreferenceProfile): uncleaned preference profile
-        non_cands (list of strings): non-candidates items to be removed
+    General cleaning function that takes a preference profile and applies a
+    cleaning function to each ballot and merges the ballots with the same ranking
+    used primarily when only the ballot ranking needs to be cleaned
+    Args:
+        pp (PreferenceProfile): preference profile to be cleaned
+        clean_ballot_func (Callable[[list[Ballot]], list[Ballot]]): function that
+        takes a list of ballots and cleans them
 
     Returns:
-        PrefernceProfile: profile with non-candidates removed
+        PreferenceProfile: a cleaned preference profile
     """
 
-    def remove_from_ballots(ballot: Ballot, non_cands: Union[str, list[str]]) -> Ballot:
-        """
-        Removes non-candidiates from ballot objects
-        """
+    # apply cleaning function to clean all ballots
+    cleaned = pp.ballots
+    if clean_ballot_func is not None:
+        cleaned = map(clean_ballot_func, pp.ballots)
 
-        # TODO: adjust so string and list of strings are acceptable inputes
-        if type(non_cands) == str:
-            remove = str(non_cands)
-        elif type(non_cands) == list:
-            remove = []
-            for item in non_cands:
-                remove.append({item})
+    # group ballots that have the same ranking after cleaning
+    grouped_ballots = [
+        list(result)
+        for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
+    ]
 
+    # merge ballots in the same groups
+    new_ballots = [merge_ballots(b) for b in grouped_ballots]
+
+    return PreferenceProfile(ballots=new_ballots)
+
+
+def merge_ballots(ballots: list[Ballot]) -> Ballot:
+    """
+    takes a list of ballots and merge them
+    Args:
+        ballots (list[Ballot]): a list of ballots with the same ranking
+    Returns:
+        Ballot: a ballot with the same ranking and aggregated weight and voters
+    """
+    weight = sum(b.weight for b in ballots)
+    ranking = ballots[0].ranking
+    voters_to_merge = [b.voters for b in ballots if b.voters]
+    voters = None
+    if len(voters_to_merge) > 0:
+        voters = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
+        voters = set(voters)
+    return Ballot(ranking=ranking, voters=voters, weight=Fraction(weight))
+
+
+# TODO: Brenda will replace this function with the function she wrote,
+# TODO: change to keep ranks so that we'll have None
+def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
+    """
+    takes a preference profile and deduplicates its ballots
+    Args:
+        pp (PreferenceProfile): a preference profile with ballot duplicates
+
+    Returns:
+        PreferenceProfile: a preference profile without duplicates
+    """
+
+    def deduplicate_ballots(ballot: Ballot) -> Ballot:
+        """
+        takes a ballot and deduplicates its rankings
+        Args:
+            ballot (Ballot): a ballot with duplicates in its ranking
+
+        Returns:
+            Ballot: a ballot without duplicates
+        """
         ranking = ballot.ranking
-        clean_ranking = []
+        dedup_ranking = []
         for cand in ranking:
-            if cand not in non_cands and clean_ranking:
-                clean_ranking.append(cand)
+            if cand in ranking and cand not in dedup_ranking:
+                # dedup_ranking.append({None})
+                dedup_ranking.append(cand)
+        new_ballot = Ballot(
+            id=ballot.id,
+            weight=Fraction(ballot.weight),
+            ranking=dedup_ranking,
+            voters=ballot.voters,
+        )
+        return new_ballot
 
-        # make sure ranking is not empty
-        if cand:
-            clean_ballot = Ballot(
-                id=ballot.id,
-                ranking=clean_ranking,
-                weight=Fraction(ballot.weight),
-                voters=ballot.voters,
-            )
-
-        return clean_ballot
-
-    ## TODO: Intergrate with Jen's _clean function
+    pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
+    return pp_clean
