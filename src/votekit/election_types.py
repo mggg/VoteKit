@@ -6,6 +6,8 @@ from typing import Callable
 import random
 
 
+
+
 class STV(Election):
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
 
