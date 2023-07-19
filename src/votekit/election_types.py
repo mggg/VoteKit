@@ -60,7 +60,6 @@ class STV:
                 candidate for candidate, votes in fp_votes.items() if votes == lp_votes
             ]
             # is this how to break ties, can be different based on locality
-            print(f"Eliminated: {lp_candidates}")
             lp_cand = random.choice(lp_candidates)
             ballots = remove_cand(lp_cand, ballots)
             candidates.remove(lp_cand)

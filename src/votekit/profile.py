@@ -55,8 +55,8 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self) -> dict:
         """
-        Converts balots to dictionary with keys, ranking, tuple and
-        and values, total weight per ranking
+        Converts ballots to dictionary with keys (ranking) and values
+        the corresponding total weights
         """
         di: dict = {}
         for ballot in self.ballots:

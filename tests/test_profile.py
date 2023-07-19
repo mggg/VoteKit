@@ -26,14 +26,11 @@ def test_unique_cands():
     assert len(cands) == len(unique_cands)
 
 
-def test_updates_in_place():
+def test_updates_not_in_place():
     before = test_profile.get_ballots()
     remove = "a"
-    after = remove_cand(remove, before)
+    remove_cand(remove, before)
     assert remove in test_profile.get_candidates()
-    for ballot in after:
-        if remove in ballot.ranking:
-            assert remove in ballot.ranking
 
 
 def test_to_dict():
