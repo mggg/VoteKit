@@ -78,6 +78,79 @@ class STV:
         )
 
 
+class Borda:
+    def __init__(self, profile: PreferenceProfile, seats: int, borda_weights: list):
+
+        self.profile = profile
+        self.borda_weights = borda_weights
+        self.seats = seats
+
+    def run_borda_step(self):
+        """
+        Simulates a complete Borda election
+        """
+
+        borda_scores = {}  # {candidate : int borda_score}
+        candidate_rank_freq = (
+            {}
+        )  # {candidate : [1st rank total, 2nd rank total,..., n rank total]}
+        candidates_ballots = {}  # {candidate : [ballots mentioning candidate]}
+
+        for ballot in self.profile.get_ballots():
+            frequency = ballot.weight
+            index = 0
+            for candidate in ballot.ranking:
+                candidate = str(candidate)
+
+                if candidate not in candidate_rank_freq:
+                    candidate_rank_freq[candidate] = [
+                        0 for _ in range(len(ballot.ranking))
+                    ]
+                    candidate_rank_freq[candidate][index] = frequency
+                else:
+                    candidate_rank_freq[candidate][index] += frequency
+                if candidate not in candidates_ballots:
+                    candidates_ballots[candidate] = []
+                    candidates_ballots[candidate].append(ballot)
+                else:
+                    candidates_ballots[candidate].append(ballot)
+                index += 1
+
+        for key in candidate_rank_freq:
+            borda_scores[key] = sum(
+                [x * y for x, y in zip(candidate_rank_freq[key], self.borda_weights)]
+            )
+
+        sorted_borda = sorted(borda_scores, key=borda_scores.get, reverse=True)
+
+        winners = sorted_borda[: self.seats]
+
+        # get winner_votes
+        # TO-DO: Adjust Outcome class to new args
+        winner_votes = {}
+        for winner in winners:
+            winner_votes[winner] = candidates_ballots[winner]
+
+        return PreferenceProfile(ballots=self.profile.get_ballots()), Outcome(
+            remaining=set(),
+            elected=set(winners),
+            eliminated=set(sorted_borda[self.seats :]),
+        )
+
+        # return PreferenceProfile(ballots=profile.get_ballots(), Outcome(
+        #     curr_round=1,
+        #     elected=winners,
+        #     eliminated=sorted_borda[seats:],
+        #     remaining=[],
+        #     profile=profile,
+        #     winner_votes=winner_votes,
+        #     previous=None
+        # )
+
+    def run_borda_election(self):
+        return self.run_borda_step()[1]
+
+
 def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
     """
     Computes first place votes for all candidates in a preference profile
