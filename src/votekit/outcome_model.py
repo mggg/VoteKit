@@ -25,11 +25,11 @@ class Outcome():
         self.eliminated = eliminated
         self.remaining = remaining
         self.profile = profile
-        self.winner_vote = winner_votes
+        self.winner_votes = winner_votes
         self.previous = previous
 
-    #class Config:
-     #   allow_mutation = False
+    class Config:
+        allow_mutation = False
 
     def get_curr_round(self) -> int:
         return self.curr_round
@@ -93,6 +93,7 @@ class Outcome():
             eliminated=list(set(self.eliminated) | losers)
         )
     """
+    
 
     
     # THIS ASSUMES BALLOTS DON'T CHANGE BY ROUND!
@@ -109,7 +110,7 @@ class Outcome():
         allcandidates = len(prevOutcome1.remaining) + len(prevOutcome1.get_all_winners()) + len(prevOutcome1.get_all_eliminated())
         return remaining_diff / allcandidates
     
-    def changed_rankings(self, Outcome) -> dict: # {str candidate : (oldRank, newRank)}
+    def changed_rankings(self) -> dict: # {str candidate : (oldRank, newRank)}
         """
         Returns dict of (key) string candidates who changed ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
@@ -117,14 +118,13 @@ class Outcome():
             raise ValueError("This is the first round, cannot compare previous ranking")
         
         else:
-            curr_ranking = self.get_rankings()
             prev_ranking = self.previous.get_rankings()
-        
+            curr_ranking = self.get_rankings()
             if curr_ranking == prev_ranking:
                 return {}
         
             changes = {}
-            for index, candidate in enumerate(curr_rankings):
+            for index, candidate in enumerate(curr_ranking):
                 if candidate != prev_ranking[index]:
                     prev_rank = prev_ranking.index(candidate)
                     changes[candidate] = (prev_rank, index)
