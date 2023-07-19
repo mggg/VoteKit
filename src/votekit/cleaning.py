@@ -44,6 +44,7 @@ def _clean(
     """
 
     # apply cleaning function to clean all ballots
+
     if clean_ballot_func is not None:
         cleaned = map(clean_ballot_func, pp.ballots)
 
