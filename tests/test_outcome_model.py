@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, r"C:\Users\malav\OneDrive\Desktop\mggg\VoteKit-Mala\src\votekit")
+sys.path.insert(0, r"C:\Users\malav\OneDrive\Desktop\mggg\VoteKit\src\votekit")
 import pytest
 
 from outcome_model import Outcome
@@ -37,14 +37,14 @@ wins = [[], [], ['B']]
 los = [[], ['C'], ['A', 'C']]
 ranks = [['A', 'B', 'C'], ['B', 'A', 'C'], ['B', 'A', 'C']]
 
-changes = [{'A':(0,1), 'B':(1,0)}, {}]
+changes = [{'A':(0,1), 'B':(1,0)}, None]
 def test_outcome_get_attributes():
     
     for i in range(3):
-        assert rounds[i].get_curr_round() == rds[i]
-        assert rounds[i].get_elected() == elects[i]
-        assert rounds[i].get_eliminated() == elims[i]
-        assert rounds[i].get_remaining() == remains[i]
+        assert rounds[i].curr_round == rds[i]
+        assert rounds[i].elected == elects[i]
+        assert rounds[i].eliminated == elims[i]
+        assert rounds[i].remaining == remains[i]
     
     #orig = Outcome(remaining=["A", "B", "C"])
     #new = orig.add_winners_and_losers({"B"}, {"A"})
