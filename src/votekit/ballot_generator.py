@@ -24,9 +24,9 @@ class Ballot_Generator(BaseModel):
 
     number_of_ballots: int
     candidate_list: list[set]
-    ballot_length: Optional[int]
-    candidate_to_slate: Optional[dict]
-    pref_interval_by_race: Optional[dict] = None  # race: {candidate : interval length}
+    ballot_length: Optional[int]  # = len(self.candidate_list)
+    slate_to_candidate: Optional[dict]  # race: [candidate]
+    pref_interval_by_slate: Optional[dict] = None  # race: {candidate : interval length}
     demo_breakdown: Optional[dict] = None  # race: percentage
 
     @abstractmethod
@@ -52,10 +52,14 @@ class Ballot_Generator(BaseModel):
 class IC(Ballot_Generator):
     def generate_ballots(self) -> PreferenceProfile:
         perm_set = it.permutations(self.candidate_list)
+        #
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
 
         ballot_pool = []
+        # TODO: why not just generate ballots from a uniform distribution like this
+        #  ballot = list(choice(cand_list, ballot_length, p=cand_support_vec, replace=False))
+        # instead of permutating all the candidates and then sampling
 
         for _ in range(self.number_of_ballots):
             index = random.randint(0, len(perm_rankings) - 1)
@@ -87,7 +91,7 @@ class PlackettLuce(Ballot_Generator):
         self,
         *,
         number_of_ballots: int,
-        candidate_list: list,
+        candidate_list: list[set],
         ballot_length: Optional[int],
         candidate_to_slate: dict,
         pref_interval_by_race: dict,
@@ -109,28 +113,32 @@ class PlackettLuce(Ballot_Generator):
         # if self.pref_interval_by_race is None:
         #     raise ValueError('preference interval by demographic is needed for Plackett Luce')
 
-        # TODO: what to do with candidate_to_slate?
+        # TODO: what to do with candidate_to_slate? add dirchlet sample option?s
 
         ballots_list = []
-        cand_list = self.candidate_list.sort()
 
         for race in self.demo_breakdown.keys():
             # number of voters in this race/block
             num_ballots_race = int(self.number_of_ballots * self.demo_breakdown[race])
-            pref_interval = dict(sorted(self.pref_interval_by_race[race].items()))
+            pref_interval_dict = self.pref_interval_by_slate[race]
             # creates the interval of probabilities for candidates supported by this block
-            cand_support_vec = list(pref_interval.values())
-            ballot_length = (
-                self.ballot_length if self.ballot_length is not None else len(cand_list)
-            )
-            for j in range(num_ballots_race):  # change to ballot length if not None
+            cand_support_vec = [
+                pref_interval_dict[cand] for cand in self.candidate_list
+            ]
+
+            for _ in range(num_ballots_race):
                 ballot = list(
-                    choice(cand_list, ballot_length, p=cand_support_vec, replace=False)
+                    choice(
+                        self.candidate_list,
+                        self.ballot_length,
+                        p=cand_support_vec,
+                        replace=False,
+                    )
                 )
                 ballots_list.append(ballot)
 
         pp = self.ballot_pool_to_profile(
-            ballot_pool=ballots_list, candidate_list=cand_list
+            ballot_pool=ballots_list, candidate_list=self.candidate_list
         )
         return pp
 
@@ -171,7 +179,50 @@ class BradleyTerry(Ballot_Generator):
 
 class AlternatingCrossover(Ballot_Generator):
     def generate_ballots(self) -> PreferenceProfile:
-        pass
+        # assumes only two slates?
+        ballots_list = []
+
+        for slate in self.demo_breakdown.keys():
+            num_ballots_race = int(self.number_of_ballots * self.demo_breakdown[slate])
+            crossover_dict = self.slate_to_crossover_rate[slate]
+            pref_interval_dict = self.pref_interval_by_slate[slate]
+
+            for opposing_slate in crossover_dict.keys():
+                crossover_rate = crossover_dict[opposing_slate]
+                crossover_ballots = crossover_rate * num_ballots_race
+
+                opposing_cands = self.slate_to_candidate[opposing_slate]
+                bloc_cands = self.slate_to_candidate[slate]
+
+                for _ in range(crossover_ballots):
+                    pref_for_opposing = [
+                        pref_interval_dict[cand] for cand in opposing_cands
+                    ]
+                    pref_for_bloc = [pref_interval_dict[cand] for cand in bloc_cands]
+
+                    bloc_cands = list(
+                        choice(self.candidate_list, p=pref_for_bloc, replace=False)
+                    )
+                    opposing_cands = list(
+                        choice(self.candidate_list, p=pref_for_opposing, replace=False)
+                    )
+
+                    ballot = bloc_cands
+                    if slate != opposing_slate:  # alternate
+                        ballot = [
+                            item
+                            for sublist in zip(opposing_cands, bloc_cands)
+                            for item in sublist
+                        ]
+
+                    # check that ballot_length is shorter than total number of cands
+                    ballot = ballot[: self.ballot_length]
+                    ballots_list.append(ballot)
+
+        pp = self.ballot_pool_to_profile(
+            ballot_pool=ballots_list, candidate_list=self.candidate_list
+        )
+        return pp
 
 
 class CambridgeSampler(Ballot_Generator):
