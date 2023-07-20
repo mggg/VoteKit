@@ -80,7 +80,6 @@ class STV:
 
 class Borda:
     def __init__(self, profile: PreferenceProfile, seats: int, borda_weights: list):
-
         self.profile = profile
         self.borda_weights = borda_weights
         self.seats = seats
@@ -196,6 +195,3 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
         ballots[n].ranking = new_ranking
 
     return ballots
-
-
-print("hello")
