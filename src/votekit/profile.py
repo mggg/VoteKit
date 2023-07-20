@@ -58,14 +58,14 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self) -> dict:
         """
-        Converts balots to dictionary with keys, ranking and
-        and values, total weight per ranking
+        Converts ballots to dictionary with keys (ranking) and values
+        the corresponding total weights
         """
         di: dict = {}
         for ballot in self.ballots:
-            if ballot.ranking not in di.keys():
-                di[ballot.ranking] = ballot.weight
-            di[ballot.ranking] += ballot.weight
+            if str(ballot.ranking) not in di.keys():
+                di[str(ballot.ranking)] = Fraction(0)
+            di[str(ballot.ranking)] += ballot.weight
 
         return di
 
