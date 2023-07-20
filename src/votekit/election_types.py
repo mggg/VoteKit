@@ -196,3 +196,6 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
         ballots[n].ranking = new_ranking
 
     return ballots
+
+
+print("hello")
