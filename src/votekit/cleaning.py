@@ -121,7 +121,8 @@ def remove_noncands(
     profile: PreferenceProfile, non_cands: list[str]
 ) -> PreferenceProfile:
     """
-    Removes user-assigned non-candidates from ballots
+    Removes user-assigned non-candidates from ballots, deletes ballots
+    that are empty as a result of the removal
 
     Inputs:
         profile (PreferenceProfile): uncleaned preference profile
