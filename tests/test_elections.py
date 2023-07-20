@@ -8,7 +8,6 @@ DATA_DIR = BASE_DIR / "data"
 
 test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
-undervote = rank_column_csv(DATA_DIR / "diff_undervote.csv")
 
 
 def test_max_votes_toy():
