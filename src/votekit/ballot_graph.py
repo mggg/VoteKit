@@ -1,30 +1,28 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from collections import Counter
 from profile import PreferenceProfile
 from distinctipy import get_colors
 from ballot import Ballot
-from typing import Optional, Callable
-from pydantic import BaseModel, validator
+from functools import cache
+from typing import Callable
 
-
-def build_graph(n):
-
+@cache
+def build_graph(n: int):
     Gc = nx.Graph()
 
         # base cases
+    
     if n==1:
-        Gc.add_nodes_from([(1)])
+        Gc.add_nodes_from([(1,)])
+      
     elif n==2:
         Gc.add_nodes_from([(1,2),(2,1)])
         Gc.add_edges_from([((1,2), (2,1))])
+      
 
-    else:
+    elif n>2:
             
-        if n-1 not in Graphs.keys(): 
-            # make the adjacency graph of size (n - 1)
-            build_graph(n-1)
-        G_prev = Graphs[n-1]
+        G_prev = build_graph(n-1)
         for i in range(1,n+1):
                 # add the node for the bullet vote i
             Gc.add_node(tuple([i]))
@@ -58,11 +56,10 @@ def build_graph(n):
 
         Gc.add_edges_from(new_edges)
 
-    Graphs[n] = Gc
     return Gc
 
 
-def relabel(gr, new_label, num_cands):
+def relabel(gr:nx.Graph, new_label: int, num_cands:int):
     node_map = {}
     graph_nodes = list(gr.nodes)
 
@@ -80,42 +77,23 @@ def relabel(gr, new_label, num_cands):
     return nx.relabel_nodes(gr, node_map)
 
 
-Graphs = {}
 
 
 class BallotGraph():
-    profile: PreferenceProfile
-    ballot_dict: dict
-    num_cands: int
-    num_voters: int
-    
-    
-    def __init__(self,profile):
+
+    def __init__(self,profile: PreferenceProfile):
+        self.num_cands = len(profile.get_candidates())
         self.profile = profile
         self.ballot_dict= profile.to_dict()
-        
-        #cand_list = []
-        #for key in ballot_dict.keys():
-        #    for i in key:
-        #        cand_list.append(i)
-      
-        self.num_cands = len(self.profile.get_candidates())
-        
-        if self.num_cands not in Graphs.keys():
-            build_graph(self.num_cands)
-        
-        
-        all_ballots = Graphs[self.num_cands].nodes
+        Gc = build_graph(self.num_cands)
+        all_ballots = Gc.nodes
         di = {}
         for ballot in all_ballots:
             di[ballot] = 0
         
-        self.ballot_dict = di | ballot_dict
-        
-        
+        self.ballot_dict = di | self.ballot_dict
         self.clean()
-        
-        self.num_voters = sum(ballot_dict.values())
+        self.num_voters = sum(self.ballot_dict.values())
         
         
     def clean(self): #deletes empty ballots, changes n-1 length ballots to n length ballots and updates counts
@@ -132,68 +110,58 @@ class BallotGraph():
                         break
                 
         
-    def visualize(self, neighborhoods = {}):
-        Gc = Graphs[self.num_cands]    
-        if neighborhoods == {}:
-            self.clean()
-            WHITE = (1,1,1)
-            BLACK=(0,0,0)
-            cols = get_colors(self.num_cands, [WHITE,BLACK])
-            node_cols = []
-            ballots = list(Gc.nodes)
+    def visualize(self, neighborhoods:dict = None):##visualize the whole election or select neighborhoods in the election. TODO: change this so that neighborhoods can have any neighborhood, not just heavy balls, also there's something wrong with the shades
+        Gc = build_graph(self.num_cands)  
+        WHITE = (1,1,1)
+        BLACK=(0,0,0)
+        node_cols = []
         
-            for bal in Gc.nodes:
-                if self.ballot_dict[bal]!=0:
-                    i = self.profile.get_candidates().index(bal[0])
-                    node_cols.append(cols[i])
-                else:
-                    node_cols.append(WHITE)
-            ##want to include number of votes as part of labels,  color ballots with 0 votes grey
-        
-            nx.draw_networkx(Gc,with_labels = True, node_color = node_cols)
-            
+        if neighborhoods==None:
+            k = self.num_cands
         else:
-            WHITE = (1,1,1)
-            BLACK = (0,0,0)
-            cols = get_colors(len(neighborhoods), [WHITE, BLACK])
-            node_cols = []
-            centers = list(neighborhoods.keys())
+            k = len(neighborhoods)
             
-            for bal in Gc.nodes:
-                found = False
-                for i in range(len(centers)):    
-                    weight = (neighborhoods[centers[i]])[1]
-                    if bal in (neighborhoods[centers[i]])[0].nodes:
-                        node_cols.append(tuple([(1-self.ballot_dict[bal]/weight)*x for x in cols[i]]))
-                        found = True
-                        break ##breaks the inner for loop
-                if not found:
-                    node_cols.append(WHITE)
-            nx.draw_networkx(Gc, with_labels = True, node_color = node_cols)
+        cols = get_colors(k, [WHITE, BLACK])
+        
+        self.clean()
+        for bal in Gc.nodes:
+            i=-1
+            color=WHITE
+            weight = self.num_voters
+            
+            if neighborhoods==None:
+                if self.ballot_dict[bal]!=0:
+                    i=(self.profile.get_candidates()).index(bal[0])
+                    
+            else:
+                for c in neighborhoods.keys():
+                    if bal in (neighborhoods[c])[0].nodes:
+                        weight = (neighborhoods[c])[1]
+                        i = (list(neighborhoods.keys())).index(c)
+                        break
+            if i!=-1:
+                color = tuple([(1-self.ballot_dict[bal]/weight)*x for x in cols[i]])
+            
+            node_cols.append(color)
+        
+        nx.draw_networkx(Gc, with_labels = True, node_color = node_cols)
+        plt.show()
         return
             
         
-    def distance_between_subsets(self, A,B):
-        return min([nx.shortest_path_length(Graphs[self.num_cands], a, b) for a in A.nodes for b in B.nodes])
+    def distance_between_subsets(self, A:nx.Graph,B: nx.Graph):
+        return min([nx.shortest_path_length(build_graph(self.num_cands), a, b) for a in A.nodes for b in B.nodes])
         
     @staticmethod
-    def show_all_ballot_types(n):
-        if n not in Graphs.keys():
-            build_graph(n)
-        Gc = Graphs[n]
+    def show_all_ballot_types(n:int):
+        Gc = build_graph(n)
         nx.draw(Gc, with_labels = True)
         plt.show()
   
-    def compare(self, new_pref: profile, dist_type: Callable):
-        return  ##to be completed
+    def subgraph_neighborhood(self,center,radius:int = 2):
+        return nx.ego_graph(build_graph(self.num_cands),center,radius)
     
-    def compare_rcv_results(self, new_pref):
-        return ##to be completed
-    
-    def subgraph_neighborhood(self,center,radius = 2):
-        return nx.ego_graph(Graphs[self.num_cands],center,radius)
-    
-    def k_heaviest_neighborhoods(self, k=2, radius=2):
+    def k_heaviest_neighborhoods(self, k: int= 2, radius: int =2):
         cast_ballots = set([x for x in self.ballot_dict.keys() if self.ballot_dict[x] > 0]) ##has 
             
         max_balls = {}
@@ -221,6 +189,13 @@ class BallotGraph():
             cast_ballots =  cast_ballots.difference(set(max_ball.nodes))
                 
         return max_balls
+    
+    def compare(self, new_pref: PreferenceProfile, dist_type: Callable=None):
+        raise NotImplementedError("Not yet built")
+    
+    def compare_rcv_results(self, new_pref: PreferenceProfile):
+        raise NotImplementedError("Not yet built")
+    
 
    
 
