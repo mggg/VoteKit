@@ -37,7 +37,8 @@ def test_blt():
 # Runs STV on 17 ward council elections from Edinburgh in 2017.
 # Results were checked by hand against reported results from
 # https://www.edinburgh.gov.uk/election-results
-# /local-government-election-results#:~:text=Ward%201%20%2D%20Almond,Democrats%20%2D%20elected%20at%20stage%20one
+# /local-government-election-results#:~:text=Ward%201%20%2D%20Almond,
+# Democrats%20%2D%20elected%20at%20stage%20one
 # All were found to be correct.
 def test_edinburgh_elections():
 
