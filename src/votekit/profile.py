@@ -1,6 +1,5 @@
-from ballot import Ballot
+from .ballot import Ballot
 
-# TODO: change back to .ballot
 
 from typing import Optional
 from pydantic import BaseModel, validator

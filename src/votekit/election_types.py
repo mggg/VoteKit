@@ -1,8 +1,7 @@
-from profile import PreferenceProfile
+from .profile import PreferenceProfile
 from .ballot import Ballot
-from models import Outcome
+from .models import Outcome
 
-# TODO: change back to .profile, .ballot, .models
 
 from typing import Callable
 import random
@@ -10,20 +9,29 @@ from fractions import Fraction
 
 
 class STV:
-    def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        transfer: Callable,
+        seats: int,
+        quota: Callable = "droop",
+    ):
         self.profile = profile
         self.transfer = transfer
         self.elected: set = set()
         self.eliminated: set = set()
         self.seats = seats
-        self.threshold = self.get_threshold()
+        self.threshold = self.get_threshold(quota)
 
     # can cache since it will not change throughout rounds
-    def get_threshold(self) -> int:
-        """
-        Droop qouta
-        """
-        return int(self.profile.num_ballots() / (self.seats + 1) + 1)
+    def get_threshold(self, quota: str) -> int:
+        quota = quota.lower()
+        if quota == "droop":
+            return int(self.profile.num_ballots() / (self.seats + 1) + 1)
+        elif quota == "hare":
+            return int(self.profile.num_ballots() / self.seats)
+        else:
+            raise ValueError("Misspelled or unknown quota type")
 
     # change name of this function and reverse bool
     def is_complete(self) -> bool:

@@ -1,12 +1,18 @@
-# TODO: move tests folder back to main repo
-from cvr_loaders import rank_column_csv, blt
-from election_types import STV, fractional_transfer
+from votekit.cvr_loaders import rank_column_csv, blt
+from votekit.election_types import STV, fractional_transfer
 import os
+import pytest
+
+from pathlib import Path
+from pandas.errors import EmptyDataError, DataError
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
 
 
 def test_mn_clean_ballots():
 
-    mn_profile = rank_column_csv("tests/data/mn_clean_ballots.csv")
+    mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
     election = STV(mn_profile, fractional_transfer, seats=1)
 
@@ -18,7 +24,7 @@ def test_mn_clean_ballots():
 
 def test_blt():
 
-    pp, seats = blt("tests\data\edinburgh17\edinburgh17-01.blt")
+    pp, seats = blt(DATA_DIR / "edinburgh17/edinburgh17-01.blt")
 
     election = STV(pp, fractional_transfer, seats=seats)
 
@@ -35,7 +41,7 @@ def test_blt():
 # All were found to be correct.
 def test_edinburgh_elections():
 
-    dir_path = "tests\data\edinburgh17"
+    dir_path = DATA_DIR / "edinburgh17"
     for file_name in os.listdir(dir_path):
         pp, seats = blt(os.path.join(dir_path, file_name))
 
@@ -50,15 +56,18 @@ def test_edinburgh_elections():
 
 # todo: change to pytest formatting
 def test_empty_file_blt():
-    pp, seats = blt("tests\data\empty.blt")
+    with pytest.raises(EmptyDataError):
+        pp, seats = blt(DATA_DIR / "empty.blt")
 
 
 def test_bad_metadata_blt():
-    pp, seats = blt("tests/data/bad_metadata.blt")
+    with pytest.raises(DataError):
+        pp, seats = blt(DATA_DIR / "bad_metadata.blt")
 
 
 def test_incorrect_metadata_blt():
-    pp, seats = blt("tests/data/candidate_metadata_conflict.blt")
+    with pytest.raises(DataError):
+        pp, seats = blt(DATA_DIR / "candidate_metadata_conflict.blt")
 
 
 # mn_clean_ballots_test()

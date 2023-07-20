@@ -2,10 +2,8 @@ import pandas as pd
 import pathlib
 import os
 from typing import Optional
-from profile import PreferenceProfile
-from ballot import Ballot
-
-# TODO: change back to .profile, .ballot
+from .profile import PreferenceProfile
+from .ballot import Ballot
 
 from pandas.errors import EmptyDataError, DataError
 from fractions import Fraction
@@ -68,7 +66,7 @@ def blt(fpath: str) -> tuple[PreferenceProfile, int]:
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
     if os.path.getsize(fpath) == 0:
-        raise DataError("Dataset cannot be empty")
+        raise EmptyDataError("Dataset cannot be empty")
 
     with open(fpath, "r") as file:
         for i, line in enumerate(file):

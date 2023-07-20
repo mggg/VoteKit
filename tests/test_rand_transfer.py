@@ -1,7 +1,16 @@
-from cvr_loaders import blt
-from ballot import Ballot
-from election_types import STV, random_transfer, fractional_transfer, compute_votes
+from votekit.cvr_loaders import blt
+from votekit.ballot import Ballot
+from votekit.election_types import (
+    STV,
+    random_transfer,
+    fractional_transfer,
+    compute_votes,
+)
 from fractions import Fraction
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
 
 
 def test_rand_transfer_func_mock_data():
@@ -41,7 +50,7 @@ def test_rand_transfer_assert():
 
 def test_rand_transfer_edinburgh():
 
-    pp, seats = blt("tests\data\edinburgh17\edinburgh17-01.blt")
+    pp, seats = blt(DATA_DIR / "edinburgh17/edinburgh17-01.blt")
 
     rand_transfer_election = STV(pp, random_transfer, seats=seats)
 
@@ -52,7 +61,7 @@ def test_rand_transfer_edinburgh():
 
     # run election with fractional transfer and see if you get the same result
     # (possible that this will fail sometimes but usually should succeed)
-    pp, seats = blt("tests\data\edinburgh17\edinburgh17-01.blt")
+    pp, seats = blt(DATA_DIR / "edinburgh17/edinburgh17-01.blt")
 
     frac_transfer_election = STV(pp, fractional_transfer, seats=seats)
 
