@@ -60,6 +60,7 @@ class Outcome(BaseModel):
         if self.profile:
             return self.profile
         elif not self.previous:
+
             raise ValueError("No profile found")
         else:
             return self.previous.get_profile()
@@ -73,7 +74,7 @@ class Outcome(BaseModel):
             return self.previous.get_round_outcome(roundNum)
         else:
             raise ValueError("Round number out of range")
-        
+
 
     ###############################################################################################
 
@@ -90,11 +91,14 @@ class Outcome(BaseModel):
     # )
 
     def difference_remaining_candidates(
+
         self, prevOutcome1: 'Outcome', prevOutcome2: 'Outcome'
+
     ) -> float:
         """returns the fractional difference in number of
         remaining candidates; assumes ballots don't change by round
         """
+
         if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
             raise ValueError("Profile missing")
         # check if from same contest
@@ -112,6 +116,7 @@ class Outcome(BaseModel):
             
 
     def changed_rankings(self) -> Optional[dict]:
+
         """returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
@@ -124,7 +129,6 @@ class Outcome(BaseModel):
             curr_ranking = self.get_rankings()
             if curr_ranking == prev_ranking:
                 print("No changes in ranking")
-                
 
             changes = {}
             for index, candidate in enumerate(curr_ranking):
