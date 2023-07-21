@@ -77,7 +77,7 @@ class IC(Ballot_Generator):
     #     super().__init__(**data)
 
     def generate_ballots(self) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidates)
+        perm_set = it.permutations(self.candidates, self.ballot_length)
         #
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
@@ -96,7 +96,7 @@ class IC(Ballot_Generator):
 
 class IAC(Ballot_Generator):
     def generate_ballots(self) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidates)
+        perm_set = it.permutations(self.candidates, self.ballot_length)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
 
