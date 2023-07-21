@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 # Example of immutable data model for results
@@ -14,7 +15,7 @@ class Outcome(BaseModel):
     remaining: set[str]
     elected: set[str] = set()
     eliminated: set[str] = set()
-    votes: dict
+    votes: Optional[dict] = None
     # TODO: re-add this
     # rankings: list[set[str]]
 

@@ -1,6 +1,7 @@
 from .ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
+from fractions import Fraction
 
 # from functools import cache
 
@@ -27,7 +28,8 @@ class PreferenceProfile(BaseModel):
         return self.ballots
 
     # @cache
-    def get_candidates(self) -> list:
+    # fix type casting error
+    def get_candidates(self) -> list[set]:
         """
         Returns list of unique candidates
         """
@@ -41,35 +43,31 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self):
+    def num_ballots(self) -> Fraction:
         """
         Assumes weights correspond to number of ballots given to a ranking
         """
-        num_ballots = 0
+        num_ballots = Fraction(0)
         for ballot in self.ballots:
             num_ballots += ballot.weight
 
         return num_ballots
-        
-    def to_dict(self):
-        di = {}
+
+    def to_dict(self) -> dict:
+        """
+        Converts ballots to dictionary with keys (ranking) and values
+        the corresponding total weights
+        """
+        di: dict = {}
         for ballot in self.ballots:
-            if ballot.ranking not in di.keys():
-                di[ballot.ranking] = ballot.weight
-            else:
-                di[ballot.ranking]+= ballot.weight
+            if str(ballot.ranking) not in di.keys():
+                di[str(ballot.ranking)] = Fraction(0)
+            di[str(ballot.ranking)] += ballot.weight
+
         return di
 
-    def from_dict(self):
-        li = []
-        di = self.to_dict()
-        for r in di.keys():
-            li.append(Ballot(ranking = r,weight = di[r]))
-        return li
-    
-
-    # class Config:
-    #     arbitrary_types_allowed = True
+    class Config:
+        arbitrary_types_allowed = True
 
     # def __init__(self, ballots, candidates):
     #     """
