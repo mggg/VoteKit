@@ -1,3 +1,5 @@
+# import sys
+# sys.path.insert(0, r"C:\Users\malav\OneDrive\Desktop\mggg\VoteKit\src\votekit")
 # import pytest
 
 from outcome_model import Outcome
