@@ -55,13 +55,13 @@ class Outcome(BaseModel):
         """returns all candidates in order of their ranking at the end of the current round"""
         return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
-    def get_profile(self) -> PreferenceProfile:
+    def get_profile(self):
         """returns the election profile if it has been stored in any round upto the current one"""
         if self.profile:
             return self.profile
         elif not self.previous:
             print("No profile found")
-            return
+            
         else:
             return self.previous.get_profile()
 
@@ -88,7 +88,7 @@ class Outcome(BaseModel):
     # )
 
     def difference_remaining_candidates(
-        self, prevOutcome1: PreferenceProfile, prevOutcome2: PreferenceProfile
+        self, prevOutcome1: Outcome, prevOutcome2: Outcome
     ) -> float:
         """returns the fractional difference in number of
         remaining candidates; assumes ballots don't change by round
@@ -105,7 +105,7 @@ class Outcome(BaseModel):
         allcandidates = len(prevOutcome1.get_profile().get_candidates())
         return remaining_diff / allcandidates
 
-    def changed_rankings(self) -> Optional[dict]:
+    def changed_rankings(self):
         """returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
@@ -118,7 +118,7 @@ class Outcome(BaseModel):
             curr_ranking = self.get_rankings()
             if curr_ranking == prev_ranking:
                 print("No changes in ranking")
-                return
+                
 
             changes = {}
             for index, candidate in enumerate(curr_ranking):
