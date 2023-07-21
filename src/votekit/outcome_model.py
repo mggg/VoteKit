@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from profile import PreferenceProfile
+from .profile import PreferenceProfile
 from typing import Optional
 
 
@@ -71,7 +71,7 @@ class Outcome(BaseModel):
         if self.curr_round == roundNum:
             return {"elected": self.elected, "eliminated": self.eliminated}
         else:
-            self.previous.get_round_outcome(roundNum)
+            return self.previous.get_round_outcome(roundNum)
 
     ###############################################################################################
 
@@ -105,7 +105,7 @@ class Outcome(BaseModel):
         allcandidates = len(prevOutcome1.get_profile().get_candidates())
         return remaining_diff / allcandidates
 
-    def changed_rankings(self) -> dict:
+    def changed_rankings(self) -> Optional[dict]:
         """returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
