@@ -89,7 +89,7 @@ class Outcome(BaseModel):
     # )
 
     def difference_remaining_candidates(
-        self, prevOutcome1: Optional["Outcome"], prevOutcome2: Optional["Outcome"]
+        self, prevOutcome1: "Outcome", prevOutcome2: "Outcome"
     ) -> float:
         """returns the fractional difference in number of
         remaining candidates; assumes ballots don't change by round
