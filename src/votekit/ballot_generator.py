@@ -22,6 +22,7 @@ Cambridge
 
 class Ballot_Generator(BaseModel):
 
+    # cand is a set
     number_of_ballots: int
     candidate_list: list[set]
     ballot_length: Optional[int]  # = len(self.candidate_list)
@@ -144,37 +145,49 @@ class PlackettLuce(Ballot_Generator):
 
 
 class BradleyTerry(Ballot_Generator):
+    def calc_prob(self, ranking: list[set], cand_support: dict(set, float)) -> float:
+        prob = 1
+        for i in range(len(ranking)):
+            cand_i = ranking[i]
+            greater_cand_support = cand_support[cand_i]
+            for j in range(i, len(ranking)):
+                cand_j = ranking[j]
+                cand_support = cand_support[cand_j]
+                prob *= greater_cand_support / (greater_cand_support + cand_support)
+        return prob
+
     def generate_ballots(self) -> PreferenceProfile:
-        ...
-        # n=len(self.candidate_list)
-        # k=0
-        # permutations = list(it.permutations(self.candidate_list))
-        # for combo in permutations: ##computes (inverse of) the constant of proportionality
-        #     m=1
-        #     for i in range(n):
-        #         for j in range(i+1,n):
-        #             l=0
-        #             for race in self.voter_proportion_by_race.keys():
-        #                 l = l+self.voter_proportion_by_race[race]
-        # *(self.cand_support_interval[race][combo[i]]
-        # /(self.cand_support_interval[race][combo[i]]+self.cand_support_interval[race][combo[j]]))
-        #             if j!=i:
-        #                 m=m*l
-        #     k=k+m
-        # weights = []
-        # for combo in permutations:
-        #     prob=1
-        #     for i in range(n):
-        #         for j in range(i+1,n):
-        #             l=0
-        #     for race in self.voter_proportion_by_race.keys():
-        #         l = l+self.voter_proportion_by_race[race]
-        # *(self.cand_support_interval[race][combo[i]]
-        # /( self.cand_support_interval[race][combo[i]]+self.cand_support_interval[race][combo[j]]))
-        #     prob=prob*l
-        #     weights.append(prob/k)##we're giving each permutation of cand_list a weight
-        #     x = choice(range(len(permutations)), self.num_ballots, replace=True, p = weights)
-        #     return list(permutations[i] for i in x)
+
+        permutations = list(it.permutations(self.candidate_list, self.ballot_length))
+        ballots_list = []
+
+        for slate in self.demo_breakdown.keys():
+            num_ballots_slate = int(self.number_of_ballots * self.demo_breakdown[slate])
+            pref_interval_dict = self.pref_interval_by_slate[slate]
+            cand_support_vec = [
+                pref_interval_dict[cand] for cand in self.candidate_list
+            ]
+
+            ranking_to_prob = {}
+            for ranking in permutations:
+                prob = self.calc_prob(ranking=ranking, cand_support=cand_support_vec)
+                ranking_to_prob[ranking] = prob
+
+            ballots = list(
+                choice(
+                    ranking_to_prob.keys(),
+                    num_ballots_slate,
+                    p=ranking_to_prob.values(),
+                    replace=True,
+                )
+            )
+
+            ballots_list = ballots_list + ballots
+
+        pp = self.ballot_pool_to_profile(
+            ballot_pool=ballots_list, candidate_list=self.candidate_list
+        )
+        return pp
 
 
 class AlternatingCrossover(Ballot_Generator):
