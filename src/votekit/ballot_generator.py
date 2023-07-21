@@ -24,11 +24,16 @@ class Ballot_Generator(BaseModel):
 
     # cand is a set
     number_of_ballots: int
-    candidate_list: list[set]
-    ballot_length: Optional[int]  # = len(self.candidate_list)
-    slate_to_candidate: Optional[dict]  # race: [candidate]
-    pref_interval_by_slate: Optional[dict] = None  # race: {candidate : interval length}
-    demo_breakdown: Optional[dict] = None  # race: percentage
+    candidates: list
+    ballot_length: Optional[int]
+    # slate_to_candidate: Optional[dict]  # race: [candidate]
+    # pref_interval_by_slate: Optional[dict] = None  # race: {candidate : interval length}
+    # demo_breakdown: Optional[dict] = None  # race: percentage
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.ballot_length = len(self.candidate_list)
+        self.candidate_list = Ballot_Generator.cand_list_set(self.candiates)
 
     @abstractmethod
     def generate_ballots(self) -> PreferenceProfile:
@@ -90,37 +95,29 @@ class IAC(Ballot_Generator):
 class PlackettLuce(Ballot_Generator):
     def __init__(
         self,
-        *,
         number_of_ballots: int,
         candidate_list: list[set],
-        ballot_length: Optional[int],
-        candidate_to_slate: dict,
-        pref_interval_by_race: dict,
-        demo_breakdown: dict
+        pref_interval_by_slate: dict,
+        slate_voter_prop: dict,
     ):
-        # TODO: can I override the signature like this?
+        # Call the parent class's __init__ method to handle common parameters
         super().__init__(
-            number_of_ballots=number_of_ballots,
-            candidate_list=candidate_list,
-            ballot_length=ballot_length,
-            pref_interval_by_race=pref_interval_by_race,
-            demo_breakdown=demo_breakdown,
-            candidate_to_slate=candidate_to_slate,
+            number_of_ballots=number_of_ballots, candidate_list=candidate_list
         )
 
+        # Assign additional parameters specific to PlackettLuce
+        self.pref_interval_by_slate = pref_interval_by_slate
+        self.slate_voter_prop = slate_voter_prop
+
     def generate_ballots(self) -> PreferenceProfile:
-        # if self.demo_breakdown is None:
-        #     raise ValueError('demographic breakdown is needed for Plackett Luce')
-        # if self.pref_interval_by_race is None:
-        #     raise ValueError('preference interval by demographic is needed for Plackett Luce')
 
         # TODO: what to do with candidate_to_slate? add dirchlet sample option?s
 
         ballots_list = []
 
-        for race in self.demo_breakdown.keys():
+        for race in self.slate_voter_prop.keys():
             # number of voters in this race/block
-            num_ballots_race = int(self.number_of_ballots * self.demo_breakdown[race])
+            num_ballots_race = int(self.number_of_ballots * self.slate_voter_prop[race])
             pref_interval_dict = self.pref_interval_by_slate[race]
             # creates the interval of probabilities for candidates supported by this block
             cand_support_vec = [
@@ -145,6 +142,24 @@ class PlackettLuce(Ballot_Generator):
 
 
 class BradleyTerry(Ballot_Generator):
+    def __init__(
+        self,
+        number_of_ballots: int,
+        candidate_list: list[set],
+        # slate_to_candidate: dict,
+        pref_interval_by_slate: dict,
+        slate_voter_prop: dict,
+    ):
+        # Call the parent class's __init__ method to handle common parameters
+        super().__init__(
+            number_of_ballots=number_of_ballots, candidate_list=candidate_list
+        )
+
+        # Assign additional parameters specific to Bradley Terry
+        # self.slate_to_candidate = slate_to_candidate
+        self.pref_interval_by_slate = pref_interval_by_slate
+        self.slate_voter_prop = slate_voter_prop
+
     def calc_prob(self, ranking: list[set], cand_support: dict(set, float)) -> float:
         prob = 1
         for i in range(len(ranking)):
@@ -161,8 +176,10 @@ class BradleyTerry(Ballot_Generator):
         permutations = list(it.permutations(self.candidate_list, self.ballot_length))
         ballots_list = []
 
-        for slate in self.demo_breakdown.keys():
-            num_ballots_slate = int(self.number_of_ballots * self.demo_breakdown[slate])
+        for slate in self.slate_voter_prop.keys():
+            num_ballots_slate = int(
+                self.number_of_ballots * self.slate_voter_prop[slate]
+            )
             pref_interval_dict = self.pref_interval_by_slate[slate]
             cand_support_vec = [
                 pref_interval_dict[cand] for cand in self.candidate_list
@@ -191,13 +208,35 @@ class BradleyTerry(Ballot_Generator):
 
 
 class AlternatingCrossover(Ballot_Generator):
+    def __init__(
+        self,
+        number_of_ballots: int,
+        candidate_list: list[set],
+        slate_to_candidate: dict,
+        pref_interval_by_slate: dict,
+        slate_voter_prop: dict,
+        slate_crossover_rate: dict,
+    ):
+        # Call the parent class's __init__ method to handle common parameters
+        super().__init__(
+            number_of_ballots=number_of_ballots, candidate_list=candidate_list
+        )
+
+        # Assign additional parameters specific to
+        self.slate_to_candidate = slate_to_candidate
+        self.pref_interval_by_slate = pref_interval_by_slate
+        self.slate_voter_prop = slate_voter_prop
+        self.slate_crossover_rate = slate_crossover_rate
+
     def generate_ballots(self) -> PreferenceProfile:
         # assumes only two slates?
         ballots_list = []
 
-        for slate in self.demo_breakdown.keys():
-            num_ballots_race = int(self.number_of_ballots * self.demo_breakdown[slate])
-            crossover_dict = self.slate_to_crossover_rate[slate]
+        for slate in self.slate_voter_prop.keys():
+            num_ballots_race = int(
+                self.number_of_ballots * self.slate_voter_prop[slate]
+            )
+            crossover_dict = self.slate_crossover_rate[slate]
             pref_interval_dict = self.pref_interval_by_slate[slate]
 
             for opposing_slate in crossover_dict.keys():
@@ -267,3 +306,7 @@ class OneDimSpatial(Ballot_Generator):
 #     @override
 #     def generate_ballots() -> PreferenceProfile:
 #         pass
+
+
+if __name__ == "__main__":
+    ...
