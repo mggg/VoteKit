@@ -1,4 +1,4 @@
-from .ballot import Ballot
+from ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
 
@@ -15,10 +15,10 @@ class PreferenceProfile(BaseModel):
     candidates: Optional[list] = None
 
     @validator("candidates")
-    def cands_must_be_unique(cls, cands: list) -> list:
-        if not len(set(cands)) == len(cands):
+    def cands_must_be_unique(cls, candidates: list) -> list:
+        if not len(set(candidates)) == len(candidates):
             raise ValueError("all candidates must be unique")
-        return cands
+        return candidates
 
     def get_ballots(self) -> list[Ballot]:
         """
