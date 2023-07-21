@@ -53,16 +53,11 @@ class Ballot_Generator:
         ranking_counts = {}
         ballot_list = []
 
-        print(ballot_pool)
-
         for ranking in ballot_pool:
             tuple_rank = tuple(ranking)
-            if tuple_rank not in ranking_counts:
-                ranking_counts[tuple_rank] = 1
-            else:
-                ranking_counts[tuple_rank] = ranking_counts[tuple_rank] + 1
-            # set_tuple = tuple(frozenset(my_set) for my_set in ranking)
-            # ranking_counts[set_tuple] = ranking_counts.get(set_tuple, 0) + 1
+            ranking_counts[tuple_rank] = (
+                ranking_counts[tuple_rank] + 1 if tuple_rank in ranking_counts else 1
+            )
 
         for ranking, count in ranking_counts.items():
             rank = [set(cand) for cand in ranking]
@@ -72,10 +67,6 @@ class Ballot_Generator:
 
 
 class IC(Ballot_Generator):
-
-    # def __init__(self, **data):
-    #     super().__init__(**data)
-
     def generate_ballots(self) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
         #
@@ -113,18 +104,9 @@ class IAC(Ballot_Generator):
 
 
 class PlackettLuce(Ballot_Generator):
-    def __init__(
-        self,
-        number_of_ballots: int,
-        candidates: list,
-        pref_interval_by_slate: dict,
-        slate_voter_prop: dict,
-        **data
-    ):
+    def __init__(self, pref_interval_by_slate: dict, slate_voter_prop: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(
-            number_of_ballots=number_of_ballots, candidates=candidates, **data
-        )
+        super().__init__(**data)
 
         # Assign additional parameters specific to PlackettLuce
         self.pref_interval_by_slate = pref_interval_by_slate
@@ -162,16 +144,9 @@ class PlackettLuce(Ballot_Generator):
 
 
 class BradleyTerry(Ballot_Generator):
-    def __init__(
-        self,
-        number_of_ballots: int,
-        # slate_to_candidate: dict,
-        candidates: list,
-        pref_interval_by_slate: dict,
-        slate_voter_prop: dict,
-    ):
+    def __init__(self, pref_interval_by_slate: dict, slate_voter_prop: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(number_of_ballots=number_of_ballots, candidates=candidates)
+        super().__init__(**data)
 
         # Assign additional parameters specific to Bradley Terry
         # self.slate_to_candidate = slate_to_candidate
@@ -226,15 +201,14 @@ class BradleyTerry(Ballot_Generator):
 class AlternatingCrossover(Ballot_Generator):
     def __init__(
         self,
-        number_of_ballots: int,
-        candidates: list,
         slate_to_candidate: dict,
         pref_interval_by_slate: dict,
         slate_voter_prop: dict,
         slate_crossover_rate: dict,
+        **data
     ):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(number_of_ballots=number_of_ballots, candidates=candidates)
+        super().__init__(**data)
 
         # Assign additional parameters specific to
         self.slate_to_candidate = slate_to_candidate
@@ -322,7 +296,6 @@ class OneDimSpatial(Ballot_Generator):
 
 
 if __name__ == "__main__":
-    ...
     candidates = ["a", "b", "c"]
     number_of_ballots = 5
     ballot_length = 2
@@ -331,15 +304,21 @@ if __name__ == "__main__":
         "black": {"a": 0.2, "b": 0.5, "c": 0.3},
     }
     slate_voter_prop = {"white": 0.8, "black": 0.2}
+
     # gen = IC(number_of_ballots=number_of_ballots,
     #  candidates=candidates, ballot_length=ballot_length)
-    gen = IAC(
+
+    # gen = IAC(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=ballot_length,
+    # )
+
+    gen = PlackettLuce(
         number_of_ballots=number_of_ballots,
         candidates=candidates,
-        ballot_length=ballot_length,
+        ballot_length=2,
+        pref_interval_by_slate=pref_interval_by_slate,
+        slate_voter_prop=slate_voter_prop,
     )
-    # gen = PlackettLuce(
-    #     number_of_ballots=number_of_ballots, candidates=candidates, ballot_length=2,
-    #     pref_interval_by_slate=pref_interval_by_slate, slate_voter_prop=slate_voter_prop
-    # )
     print(gen.generate_ballots())
