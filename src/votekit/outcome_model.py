@@ -55,23 +55,25 @@ class Outcome(BaseModel):
         """returns all candidates in order of their ranking at the end of the current round"""
         return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
-    def get_profile(self):
+    def get_profile(self) -> PreferenceProfile:
         """returns the election profile if it has been stored in any round upto the current one"""
         if self.profile:
             return self.profile
         elif not self.previous:
-            print("No profile found")
-            
+            raise ValueError("No profile found")
         else:
             return self.previous.get_profile()
 
-    def get_round_outcome(self, roundNum: int) -> dict:
+    def get_round_outcome(self, roundNum: int)-> dict:
         # {'elected':list[str], 'eliminated':list[str]}
         """returns a dictionary with elected and eliminated candidates"""
         if self.curr_round == roundNum:
             return {"elected": self.elected, "eliminated": self.eliminated}
-        else:
+        elif self.previous:
             return self.previous.get_round_outcome(roundNum)
+        else:
+            raise ValueError("Round number out of range")
+        
 
     ###############################################################################################
 
@@ -88,24 +90,28 @@ class Outcome(BaseModel):
     # )
 
     def difference_remaining_candidates(
-        self, prevOutcome1: Outcome, prevOutcome2: Outcome
+        self, prevOutcome1: 'Outcome', prevOutcome2: 'Outcome'
     ) -> float:
         """returns the fractional difference in number of
         remaining candidates; assumes ballots don't change by round
         """
+        if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
+            raise ValueError("Profile missing")
         # check if from same contest
-        if set(prevOutcome1.get_profile().ballots) != set(
+        elif set(prevOutcome1.get_profile().ballots) != set(
             prevOutcome2.get_profile().ballots
-        ):
+            ):
             raise ValueError("Cannot compare outcomes from different elections")
 
         remaining_diff = len(
-            (prevOutcome1.remaining).difference(prevOutcome2.remaining)
+        (set(prevOutcome1.remaining)).difference(prevOutcome2.remaining)
         )
         allcandidates = len(prevOutcome1.get_profile().get_candidates())
         return remaining_diff / allcandidates
+        
+            
 
-    def changed_rankings(self):
+    def changed_rankings(self) -> Optional[dict]:
         """returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
