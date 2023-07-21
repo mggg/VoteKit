@@ -37,32 +37,35 @@ class Ballot_Generator:
         self.ballot_length = (
             ballot_length if ballot_length is not None else len(candidates)
         )
-        self.candidate_list = Ballot_Generator.cand_list_to_set(candidates)
+        # self.candidate_list = Ballot_Generator.list_to_set(candidates)
         self.candidates = candidates
 
     @abstractmethod
     def generate_ballots(self) -> PreferenceProfile:
         pass
 
-    @staticmethod
-    def cand_list_to_set(candidate_list):
-        return [set(cand) for cand in candidate_list]
+    # @staticmethod
+    # def list_to_set(candidates):
+    #     return [set(cand) for cand in candidates]
 
     @staticmethod
     def ballot_pool_to_profile(ballot_pool, candidates):
         ranking_counts = {}
         ballot_list = []
 
+        print(ballot_pool)
+
         for ranking in ballot_pool:
-            set_tuple = tuple(frozenset(my_set) for my_set in ranking)
-            ranking_counts[set_tuple] = ranking_counts.get(set_tuple, 0) + 1
+            tuple_rank = tuple(ranking)
+            if tuple_rank not in ranking_counts:
+                ranking_counts[tuple_rank] = 1
+            else:
+                ranking_counts[tuple_rank] = ranking_counts[tuple_rank] + 1
+            # set_tuple = tuple(frozenset(my_set) for my_set in ranking)
+            # ranking_counts[set_tuple] = ranking_counts.get(set_tuple, 0) + 1
 
         for ranking, count in ranking_counts.items():
-            rank = [
-                set(frozenset_item)
-                for tuple_item in ranking
-                for frozenset_item in tuple_item
-            ]
+            rank = [set(cand) for cand in ranking]
             b = Ballot(ranking=rank, weight=Fraction(count))
             ballot_list.append(b)
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
@@ -74,7 +77,7 @@ class IC(Ballot_Generator):
     #     super().__init__(**data)
 
     def generate_ballots(self) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidate_list)
+        perm_set = it.permutations(self.candidates)
         #
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
@@ -93,7 +96,7 @@ class IC(Ballot_Generator):
 
 class IAC(Ballot_Generator):
     def generate_ballots(self) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidate_list)
+        perm_set = it.permutations(self.candidates)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
 
@@ -113,13 +116,14 @@ class PlackettLuce(Ballot_Generator):
     def __init__(
         self,
         number_of_ballots: int,
-        candidate_list: list[set],
+        candidates: list,
         pref_interval_by_slate: dict,
         slate_voter_prop: dict,
+        **data
     ):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(
-            number_of_ballots=number_of_ballots, candidate_list=candidate_list
+            number_of_ballots=number_of_ballots, candidates=candidates, **data
         )
 
         # Assign additional parameters specific to PlackettLuce
@@ -137,23 +141,22 @@ class PlackettLuce(Ballot_Generator):
             num_ballots_race = int(self.number_of_ballots * self.slate_voter_prop[race])
             pref_interval_dict = self.pref_interval_by_slate[race]
             # creates the interval of probabilities for candidates supported by this block
-            cand_support_vec = [
-                pref_interval_dict[cand] for cand in self.candidate_list
-            ]
+            cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
 
             for _ in range(num_ballots_race):
                 ballot = list(
                     choice(
-                        self.candidate_list,
+                        self.candidates,
                         self.ballot_length,
                         p=cand_support_vec,
                         replace=False,
                     )
                 )
+                # ballot = Ballot_Generator.list_to_set(ballot)
                 ballots_list.append(ballot)
 
         pp = self.ballot_pool_to_profile(
-            ballot_pool=ballots_list, candidate_list=self.candidates
+            ballot_pool=ballots_list, candidates=self.candidates
         )
         return pp
 
@@ -162,15 +165,13 @@ class BradleyTerry(Ballot_Generator):
     def __init__(
         self,
         number_of_ballots: int,
-        candidate_list: list[set],
         # slate_to_candidate: dict,
+        candidates: list,
         pref_interval_by_slate: dict,
         slate_voter_prop: dict,
     ):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(
-            number_of_ballots=number_of_ballots, candidate_list=candidate_list
-        )
+        super().__init__(number_of_ballots=number_of_ballots, candidates=candidates)
 
         # Assign additional parameters specific to Bradley Terry
         # self.slate_to_candidate = slate_to_candidate
@@ -190,7 +191,7 @@ class BradleyTerry(Ballot_Generator):
 
     def generate_ballots(self) -> PreferenceProfile:
 
-        permutations = list(it.permutations(self.candidate_list, self.ballot_length))
+        permutations = list(it.permutations(self.candidates, self.ballot_length))
         ballots_list = []
 
         for slate in self.slate_voter_prop.keys():
@@ -198,9 +199,7 @@ class BradleyTerry(Ballot_Generator):
                 self.number_of_ballots * self.slate_voter_prop[slate]
             )
             pref_interval_dict = self.pref_interval_by_slate[slate]
-            cand_support_vec = [
-                pref_interval_dict[cand] for cand in self.candidate_list
-            ]
+            cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
 
             ranking_to_prob = {}
             for ranking in permutations:
@@ -219,7 +218,7 @@ class BradleyTerry(Ballot_Generator):
             ballots_list = ballots_list + ballots
 
         pp = self.ballot_pool_to_profile(
-            ballot_pool=ballots_list, candidate_list=self.candidates
+            ballot_pool=ballots_list, candidates=self.candidates
         )
         return pp
 
@@ -228,16 +227,14 @@ class AlternatingCrossover(Ballot_Generator):
     def __init__(
         self,
         number_of_ballots: int,
-        candidate_list: list[set],
+        candidates: list,
         slate_to_candidate: dict,
         pref_interval_by_slate: dict,
         slate_voter_prop: dict,
         slate_crossover_rate: dict,
     ):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(
-            number_of_ballots=number_of_ballots, candidate_list=candidate_list
-        )
+        super().__init__(number_of_ballots=number_of_ballots, candidates=candidates)
 
         # Assign additional parameters specific to
         self.slate_to_candidate = slate_to_candidate
@@ -270,10 +267,10 @@ class AlternatingCrossover(Ballot_Generator):
                     pref_for_bloc = [pref_interval_dict[cand] for cand in bloc_cands]
 
                     bloc_cands = list(
-                        choice(self.candidate_list, p=pref_for_bloc, replace=False)
+                        choice(self.candidates, p=pref_for_bloc, replace=False)
                     )
                     opposing_cands = list(
-                        choice(self.candidate_list, p=pref_for_opposing, replace=False)
+                        choice(self.candidates, p=pref_for_opposing, replace=False)
                     )
 
                     ballot = bloc_cands
@@ -289,7 +286,7 @@ class AlternatingCrossover(Ballot_Generator):
                     ballots_list.append(ballot)
 
         pp = self.ballot_pool_to_profile(
-            ballot_pool=ballots_list, candidate_list=self.candidates
+            ballot_pool=ballots_list, candidates=self.candidates
         )
         return pp
 
@@ -302,8 +299,7 @@ class CambridgeSampler(Ballot_Generator):
 class OneDimSpatial(Ballot_Generator):
     def generate_ballots(self) -> PreferenceProfile:
         candidate_position_dict = {
-            c: np.random.normal(1, 0, len(self.candidate_list))
-            for c in self.candidate_list
+            c: np.random.normal(1, 0, len(self.candidates)) for c in self.candidates
         }
         voter_positions = np.random.normal(1, 0, self.number_of_ballots)
 
@@ -328,9 +324,22 @@ class OneDimSpatial(Ballot_Generator):
 if __name__ == "__main__":
     ...
     candidates = ["a", "b", "c"]
-    number_of_ballots = 3
+    number_of_ballots = 5
     ballot_length = 2
-    gen = IC(
-        number_of_ballots=number_of_ballots, candidates=candidates, ballot_length=2
+    pref_interval_by_slate = {
+        "white": {"a": 0.1, "b": 0.5, "c": 0.4},
+        "black": {"a": 0.2, "b": 0.5, "c": 0.3},
+    }
+    slate_voter_prop = {"white": 0.8, "black": 0.2}
+    # gen = IC(number_of_ballots=number_of_ballots,
+    #  candidates=candidates, ballot_length=ballot_length)
+    gen = IAC(
+        number_of_ballots=number_of_ballots,
+        candidates=candidates,
+        ballot_length=ballot_length,
     )
+    # gen = PlackettLuce(
+    #     number_of_ballots=number_of_ballots, candidates=candidates, ballot_length=2,
+    #     pref_interval_by_slate=pref_interval_by_slate, slate_voter_prop=slate_voter_prop
+    # )
     print(gen.generate_ballots())
