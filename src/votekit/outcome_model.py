@@ -88,25 +88,25 @@ class Outcome(BaseModel):
     #     eliminated=list(set(self.eliminated) | losers)
     # )
 
-    def difference_remaining_candidates(
-        self, prevOutcome1: "Outcome", prevOutcome2: "Outcome"
-    ) -> float:
-        """returns the fractional difference in number of
-        remaining candidates; assumes ballots don't change by round
-        """
-        if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
-            raise ValueError("Profile missing")
-        # check if from same contest
-        elif set(prevOutcome1.get_profile().ballots) != set(
-            prevOutcome2.get_profile().ballots
-        ):
-            raise ValueError("Cannot compare outcomes from different elections")
+    # def difference_remaining_candidates(
+    #    self, prevOutcome1: 'Outcome', prevOutcome2: 'Outcome'
+    # ) -> float:
+    #    """returns the fractional difference in number of
+    #    remaining candidates; assumes ballots don't change by round
+    #    """
+    #    if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
+    #        raise ValueError("Profile missing")
+    #    # check if from same contest
+    #    elif set(prevOutcome1.get_profile().ballots) != set(
+    #        prevOutcome2.get_profile().ballots
+    #        ):
+    #        raise ValueError("Cannot compare outcomes from different elections")
 
-        remaining_diff = len(
-            (set(prevOutcome1.remaining)).difference(prevOutcome2.remaining)
-        )
-        allcandidates = len(prevOutcome1.get_profile().get_candidates())
-        return remaining_diff / allcandidates
+    #    remaining_diff = len(
+    #    (set(prevOutcome1.remaining)).difference(prevOutcome2.remaining)
+    #    )
+    #    allcandidates = len(prevOutcome1.get_profile().get_candidates())
+    #    return remaining_diff / allcandidates
 
     def changed_rankings(self) -> Optional[dict]:
         """returns dict of (key) string candidates who changed
