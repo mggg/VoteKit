@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from profile import PreferenceProfile
+from .profile import PreferenceProfile
 from typing import Optional
 
 
@@ -60,8 +60,7 @@ class Outcome(BaseModel):
         if self.profile:
             return self.profile
         elif not self.previous:
-            print("No profile found")
-            return
+            raise ValueError("No profile found")
         else:
             return self.previous.get_profile()
 
@@ -70,8 +69,10 @@ class Outcome(BaseModel):
         """returns a dictionary with elected and eliminated candidates"""
         if self.curr_round == roundNum:
             return {"elected": self.elected, "eliminated": self.eliminated}
+        elif self.previous:
+            return self.previous.get_round_outcome(roundNum)
         else:
-            self.previous.get_round_outcome(roundNum)
+            raise ValueError("Round number out of range")
 
     ###############################################################################################
 
@@ -88,24 +89,26 @@ class Outcome(BaseModel):
     # )
 
     def difference_remaining_candidates(
-        self, prevOutcome1: PreferenceProfile, prevOutcome2: PreferenceProfile
+        self, prevOutcome1: Optional["Outcome"], prevOutcome2: Optional["Outcome"]
     ) -> float:
         """returns the fractional difference in number of
         remaining candidates; assumes ballots don't change by round
         """
+        if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
+            raise ValueError("Profile missing")
         # check if from same contest
-        if set(prevOutcome1.get_profile().ballots) != set(
+        elif set(prevOutcome1.get_profile().ballots) != set(
             prevOutcome2.get_profile().ballots
         ):
             raise ValueError("Cannot compare outcomes from different elections")
 
         remaining_diff = len(
-            (prevOutcome1.remaining).difference(prevOutcome2.remaining)
+            (set(prevOutcome1.remaining)).difference(prevOutcome2.remaining)
         )
         allcandidates = len(prevOutcome1.get_profile().get_candidates())
         return remaining_diff / allcandidates
 
-    def changed_rankings(self) -> dict:
+    def changed_rankings(self) -> Optional[dict]:
         """returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
@@ -118,7 +121,6 @@ class Outcome(BaseModel):
             curr_ranking = self.get_rankings()
             if curr_ranking == prev_ranking:
                 print("No changes in ranking")
-                return
 
             changes = {}
             for index, candidate in enumerate(curr_ranking):
