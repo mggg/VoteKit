@@ -147,6 +147,10 @@ class Borda:
         # )
 
     def run_borda_election(self):
+        profile, outcome = self.run_borda_step()
+        return outcome 
+     
+    
         return self.run_borda_step()[1]
 
 
