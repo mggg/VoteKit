@@ -27,7 +27,7 @@ class Outcome(BaseModel):
     elected: list[str] = []
     eliminated: list[str] = []
     remaining: list[str] = []
-    pofile: Optional[PreferenceProfile] = None
+    profile: Optional[PreferenceProfile] = None
     winner_votes: Optional[dict] = None
     previous: Optional["Outcome"] = None
 
