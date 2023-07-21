@@ -6,7 +6,8 @@ from outcome_model import Outcome
 from profile import PreferenceProfile
 from ballot import Ballot
 
-##TODO: this is from Scottish 3-cand ward_03 data, pref should be tested later after we integrate Outcome with election_types
+##TODO: this is from Scottish 3-cand ward_03 data, 
+#pref should be tested later after we integrate Outcome with election_types
 di = {
     (2,): 52,
     (1,): 36,
