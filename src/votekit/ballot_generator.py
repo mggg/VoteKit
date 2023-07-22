@@ -63,6 +63,7 @@ class Ballot_Generator:
             rank = [set(cand) for cand in ranking]
             b = Ballot(ranking=rank, weight=Fraction(count))
             ballot_list.append(b)
+
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
 
 
@@ -148,21 +149,35 @@ class BradleyTerry(Ballot_Generator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        # Assign additional parameters specific to Bradley Terry
-        # self.slate_to_candidate = slate_to_candidate
+        # Assign additional parameters specific to Bradley Terrys
         self.pref_interval_by_slate = pref_interval_by_slate
         self.slate_voter_prop = slate_voter_prop
 
-    def _calc_prob(self, ranking: list[set], cand_support: dict) -> float:
-        prob = 1
-        for i in range(len(ranking)):
-            cand_i = ranking[i]
-            greater_cand_support = cand_support[cand_i]
-            for j in range(i, len(ranking)):
-                cand_j = ranking[j]
-                cand_support = cand_support[cand_j]
-                prob *= greater_cand_support / (greater_cand_support + cand_support)
-        return prob
+    def _calc_prob(self, permutations: list[list], cand_support_dict: dict) -> float:
+        ranking_to_prob = {}
+        for ranking in permutations:
+            prob = 1
+            for i in range(len(ranking)):
+                cand_i = ranking[i]
+                greater_cand_support = cand_support_dict[cand_i]
+                for j in range(i, len(ranking)):
+                    cand_j = ranking[j]
+                    cand_support = cand_support_dict[cand_j]
+                    prob *= greater_cand_support / (greater_cand_support + cand_support)
+            ranking_to_prob[ranking] = prob
+        return ranking_to_prob
+
+    # def _dp_calc_prob(self, ranking, prob_mat):
+    #     prob = 1
+    #     i = 0
+    #     j = 1
+    #     if i == len(ranking):
+    #         return prob
+    #     if j == len(ranking):
+    #         i += 1
+    #         j = i + 1
+    #     prob *= prob_mat[i][j]
+    #     j += 1
 
     def generate_ballots(self) -> PreferenceProfile:
 
@@ -174,23 +189,28 @@ class BradleyTerry(Ballot_Generator):
                 self.number_of_ballots * self.slate_voter_prop[slate]
             )
             pref_interval_dict = self.pref_interval_by_slate[slate]
-            cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
+            # cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
 
-            ranking_to_prob = {}
-            for ranking in permutations:
-                prob = self._calc_prob(ranking=ranking, cand_support=cand_support_vec)
-                ranking_to_prob[ranking] = prob
-
-            ballots = list(
-                choice(
-                    ranking_to_prob.keys(),
-                    num_ballots_slate,
-                    p=ranking_to_prob.values(),
-                    replace=True,
-                )
+            ranking_to_prob = self._calc_prob(
+                permutations=permutations, cand_support_dict=pref_interval_dict
             )
 
+            indices = range(len(ranking_to_prob))
+            prob_distrib = list(ranking_to_prob.values())
+            prob_distrib = [float(p) / sum(prob_distrib) for p in prob_distrib]
+
+            ballots_indices = choice(
+                indices,
+                num_ballots_slate,
+                p=prob_distrib,
+                replace=True,
+            )
+
+            rankings = list(ranking_to_prob.keys())
+            ballots = [rankings[i] for i in ballots_indices]
+
             ballots_list = ballots_list + ballots
+            print("list", ballots_list)
 
         pp = self.ballot_pool_to_profile(
             ballot_pool=ballots_list, candidates=self.candidates
@@ -210,7 +230,7 @@ class AlternatingCrossover(Ballot_Generator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        # Assign additional parameters specific to
+        # Assign additional parameters specific to AC
         self.slate_to_candidate = slate_to_candidate
         self.pref_interval_by_slate = pref_interval_by_slate
         self.slate_voter_prop = slate_voter_prop
@@ -314,11 +334,28 @@ if __name__ == "__main__":
     #     ballot_length=ballot_length,
     # )
 
-    gen = PlackettLuce(
+    # gen = PlackettLuce(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=2,
+    #     pref_interval_by_slate=pref_interval_by_slate,
+    #     slate_voter_prop=slate_voter_prop,
+    # )
+
+    gen = BradleyTerry(
         number_of_ballots=number_of_ballots,
         candidates=candidates,
         ballot_length=2,
         pref_interval_by_slate=pref_interval_by_slate,
         slate_voter_prop=slate_voter_prop,
     )
-    print(gen.generate_ballots())
+
+    res = gen.generate_ballots()
+    print(res)
+    print(len(res.ballots))
+
+    # a = pref_interval_by_slate['white']
+    # prob = np.array(list(a.values()))
+    # prob_mat = [[p1 / (p1 + p2) for p2 in prob] for p1 in prob]
+    # print(prob_mat)
+    # b = pref_interval_by_slate['black']
