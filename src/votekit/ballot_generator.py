@@ -7,6 +7,7 @@ from numpy.random import choice
 import itertools as it
 import random
 import numpy as np
+from itertools import zip_longest
 
 """
 IC
@@ -237,46 +238,93 @@ class AlternatingCrossover(Ballot_Generator):
         self.slate_crossover_rate = slate_crossover_rate
 
     def generate_ballots(self) -> PreferenceProfile:
-        # assumes only two slates?
+
+        # TODO: do some assertion checking,
+        # like slate in slate_crossover == slate_voter_prop, and slate_to_cand,
+        # basically all the places where we use one key for every dict
+
         ballots_list = []
 
         for slate in self.slate_voter_prop.keys():
+
+            # TODO: need to address a case that num ballots is not even number
             num_ballots_race = int(
                 self.number_of_ballots * self.slate_voter_prop[slate]
             )
+            # print(num_ballots_race)
             crossover_dict = self.slate_crossover_rate[slate]
             pref_interval_dict = self.pref_interval_by_slate[slate]
 
             for opposing_slate in crossover_dict.keys():
                 crossover_rate = crossover_dict[opposing_slate]
-                crossover_ballots = crossover_rate * num_ballots_race
+                # print('xrate ', crossover_rate)
+                crossover_ballots = int(crossover_rate * num_ballots_race)
+
+                # print('num_ballots ', crossover_ballots)
 
                 opposing_cands = self.slate_to_candidate[opposing_slate]
                 bloc_cands = self.slate_to_candidate[slate]
+
+                # print('og op cands: ', opposing_cands)
+                # print('og bloc cands: ', bloc_cands)
 
                 for _ in range(crossover_ballots):
                     pref_for_opposing = [
                         pref_interval_dict[cand] for cand in opposing_cands
                     ]
+                    pref_for_opposing = [
+                        p / sum(pref_for_opposing) for p in pref_for_opposing
+                    ]
+
                     pref_for_bloc = [pref_interval_dict[cand] for cand in bloc_cands]
+                    pref_for_bloc = [p / sum(pref_for_bloc) for p in pref_for_bloc]
+
+                    # print('p op', pref_for_opposing)
+                    # print('p bloc', pref_for_bloc)
 
                     bloc_cands = list(
-                        choice(self.candidates, p=pref_for_bloc, replace=False)
+                        choice(
+                            bloc_cands,
+                            p=pref_for_bloc,
+                            size=len(bloc_cands),
+                            replace=False,
+                        )
                     )
                     opposing_cands = list(
-                        choice(self.candidates, p=pref_for_opposing, replace=False)
+                        choice(
+                            opposing_cands,
+                            size=len(opposing_cands),
+                            p=pref_for_opposing,
+                            replace=False,
+                        )
                     )
 
-                    ballot = bloc_cands
+                    # print('op cands: ', opposing_cands)
+                    # print('bloc cands: ', bloc_cands)
+
+                    # TODO: if there aren't enough candidates for a bloc,
+                    # do we rank only the bloc candidates, or the bloc candidates and the others
+                    # to fill the slots
+
                     if slate != opposing_slate:  # alternate
+                        # ballot = [None]*(len(opposing_cands)+len(bloc_cands))
                         ballot = [
                             item
-                            for sublist in zip(opposing_cands, bloc_cands)
-                            for item in sublist
+                            for pair in zip_longest(opposing_cands, bloc_cands)
+                            for item in pair
+                            if item is not None
                         ]
+                        # print('opposing ', ballot)
+
+                    print(ballot)
 
                     # check that ballot_length is shorter than total number of cands
-                    ballot = ballot[: self.ballot_length]
+                    # ballot = ballot[: self.ballot_length+1]
+                    ballots_list.append(ballot)
+
+                for _ in range(num_ballots_race - crossover_ballots):
+                    ballot = bloc_cands + opposing_cands
+                    # ballot = ballot[: self.ballot_length+1]
                     ballots_list.append(ballot)
 
         pp = self.ballot_pool_to_profile(
@@ -323,7 +371,7 @@ if __name__ == "__main__":
         "white": {"a": 0.1, "b": 0.5, "c": 0.4},
         "black": {"a": 0.2, "b": 0.5, "c": 0.3},
     }
-    slate_voter_prop = {"white": 0.8, "black": 0.2}
+    slate_voter_prop = {"white": 0.5, "black": 0.5}
 
     # gen = IC(number_of_ballots=number_of_ballots,
     #  candidates=candidates, ballot_length=ballot_length)
@@ -342,17 +390,30 @@ if __name__ == "__main__":
     #     slate_voter_prop=slate_voter_prop,
     # )
 
-    gen = BradleyTerry(
+    # gen = BradleyTerry(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=2,
+    #     pref_interval_by_slate=pref_interval_by_slate,
+    #     slate_voter_prop=slate_voter_prop,
+    # )
+
+    slate_crossover_rate = {"white": {"black": 0.5}, "black": {"white": 0.8}}
+
+    slate_to_candidate = {"white": ["a", "b"], "black": ["c"]}
+
+    gen = AlternatingCrossover(
         number_of_ballots=number_of_ballots,
         candidates=candidates,
-        ballot_length=2,
+        ballot_length=3,
         pref_interval_by_slate=pref_interval_by_slate,
         slate_voter_prop=slate_voter_prop,
+        slate_to_candidate=slate_to_candidate,
+        slate_crossover_rate=slate_crossover_rate,
     )
 
     res = gen.generate_ballots()
     print(res)
-    print(len(res.ballots))
 
     # a = pref_interval_by_slate['white']
     # prob = np.array(list(a.values()))
