@@ -17,6 +17,8 @@ class STV:
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
         self.transfer: Callable = transfer
         self.seats: int = seats
+        self.threshold: float = self.get_threshold()
+
         fp_votes = compute_votes(profile.get_candidates(), profile.get_ballots())
         fp_order = [
             y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
@@ -25,8 +27,6 @@ class STV:
         self.election_state: ElectionState = ElectionState(
             curr_round=0, elected=[], eliminated=[], remaining=fp_order, profile=profile
         )
-
-        self.threshold: float = self.get_threshold()
 
     # can cache since it will not change throughout rounds
     def get_threshold(self) -> int:
