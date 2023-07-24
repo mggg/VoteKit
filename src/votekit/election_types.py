@@ -1,98 +1,125 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
-from .models import Outcome
+from .election_state import ElectionState
 from typing import Callable
 import random
 from fractions import Fraction
 from copy import deepcopy
 
-
+##We're not passing winner_votes to outcome right now
+# If we want to track which candidate each ballot is ultimately going to, we need to do more.
+# TODO:
+# 1. winner_votes to election_state is supposed to have all the ballots in the
+# initial profile that ended up going to any elected candidate.
+# Bit tricky since all of our methods work with current state of profile not the initial
+# 2. integrate Cincinatti transfer
 class STV:
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
-        self.profile = profile
-        self.transfer = transfer
-        self.elected: set = set()
-        self.eliminated: set = set()
-        self.seats = seats
-        self.threshold = self.get_threshold()
+        self.transfer: Callable = transfer
+        self.seats: int = seats
+
+        fp_votes = compute_votes(profile.get_candidates(), profile.get_ballots())
+        fp_order = [
+            y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        self.election_state: ElectionState = ElectionState(
+            curr_round=0, elected=[], eliminated=[], remaining=fp_order, profile=profile
+        )
+        self.threshold: float = self.get_threshold()
 
     # can cache since it will not change throughout rounds
     def get_threshold(self) -> int:
         """
-        Droop qouta
+        Droop quota
         """
-        return int(self.profile.num_ballots() / (self.seats + 1) + 1)
+        return int(self.election_state.profile.num_ballots() / (self.seats + 1) + 1)
 
     def next_round(self) -> bool:
         """
         Determines if the number of seats has been met to call election
         """
-        return len(self.elected) != self.seats
+        return len(self.election_state.get_all_winners()) != self.seats
 
-    def run_step(self, profile: PreferenceProfile) -> tuple[PreferenceProfile, Outcome]:
+    def run_step(self) -> ElectionState:
         """
         Simulates one round an STV election
         """
-        candidates: list = profile.get_candidates()
-        ballots: list = profile.get_ballots()
-        fp_votes: dict = compute_votes(candidates, ballots)
+        ##TODO:must change the way we pass winner_votes
+        remaining: list = self.election_state.remaining
+        ballots: list = self.election_state.profile.get_ballots()
+        fp_votes: dict = compute_votes(remaining, ballots)
+        fp_order = [
+            y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
+        ]
+        elected = []
+        eliminated = []
 
-        # if number of remaining candidates equals number of remaining seats
-        if len(candidates) == self.seats - len(self.elected):
-            # TODO: sort remaing candidates by vote share
-            self.elected.update(set(candidates))
-            return profile, Outcome(
-                elected=self.elected,
-                eliminated=self.eliminated,
-                remaining=set(candidates),
-                votes=fp_votes,
-            )
+        # if number of remaining candidates equals number of remaining seats, everyone is elected
+        if len(remaining) == self.seats - len(self.election_state.get_all_winners()):
+            elected = fp_order
+            remaining = []
+            ballots = []
+            # TODO: sort remaining candidates by vote share
 
-        for candidate in candidates:
-            if fp_votes[candidate] >= self.threshold:
-                self.elected.add(candidate)
-                candidates.remove(candidate)
-                ballots = self.transfer(candidate, ballots, fp_votes, self.threshold)
-
-        if self.next_round():
+        # elect all candidates who crossed threshold
+        elif fp_votes[fp_order[0]] >= self.threshold:
+            for candidate in fp_order:
+                if fp_votes[candidate] >= self.threshold:
+                    elected.append(candidate)
+                    remaining.remove(candidate)
+                    ballots = self.transfer(
+                        candidate, ballots, fp_votes, self.threshold
+                    )
+        # since no one has crossed threshold, eliminate one of the people
+        # with least first place votes
+        else:
             lp_votes = min(fp_votes.values())
             lp_candidates = [
-                candidate for candidate, votes in fp_votes.items() if votes == lp_votes
+                candidate for candidate in fp_order if fp_votes[candidate] == lp_votes
             ]
             # is this how to break ties, can be different based on locality
-            lp_cand = random.choice(lp_candidates)
-            ballots = remove_cand(lp_cand, ballots)
-            candidates.remove(lp_cand)
-            self.eliminated.add(lp_cand)
+            eliminated.append(random.choice(lp_candidates))
+            ballots = remove_cand(eliminated[0], ballots)
+            remaining.remove(eliminated[0])
 
-        return PreferenceProfile(ballots=ballots), Outcome(
-            elected=self.elected,
-            eliminated=self.eliminated,
-            remaining=set(candidates),
-            votes=fp_votes,
+        self.election_state = ElectionState(
+            curr_round=self.election_state.curr_round + 1,
+            elected=elected,
+            eliminated=eliminated,
+            remaining=remaining,
+            profile=PreferenceProfile(ballots=ballots),
+            previous=self.election_state,
         )
+        return self.election_state
 
-    def run_election(self) -> Outcome:
+    def run_election(self) -> ElectionState:
         """
         Runs complete STV election
         """
-        profile = deepcopy(self.profile)
-
         if not self.next_round():
             raise ValueError(
                 f"Length of elected set equal to number of seats ({self.seats})"
             )
 
         while self.next_round():
-            profile, outcome = self.run_step(profile)
+            self.run_step()
 
-        return outcome
+        return self.election_state
+
+    def get_init_profile(self):
+        "returns the initial profile of the election"
+        state = self.election_state
+        while state.previous:
+            state = state.previous
+        return state.profile
 
 
 ## Election Helper Functions
 
 
 def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
+    # sourcery skip: instance-method-first-arg-name
     """
     Computes first place votes for all candidates in a preference profile
     """
@@ -111,7 +138,7 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
 def fractional_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
-    # find the transfer value, add tranfer value to weights of vballots
+    # find the transfer value, add transfer value to weights of ballots
     # that listed the elected in first place, remove that cand and shift
     # everything up, recomputing first-place votes
     transfer_value = (votes[winner] - threshold) / votes[winner]
@@ -120,9 +147,7 @@ def fractional_transfer(
         if ballot.ranking and ballot.ranking[0] == {winner}:
             ballot.weight = ballot.weight * transfer_value
 
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
+    return remove_cand(winner, ballots)
 
 
 def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
@@ -132,10 +157,9 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
     update = deepcopy(ballots)
 
     for n, ballot in enumerate(update):
-        new_ranking = []
-        for candidate in ballot.ranking:
-            if candidate != {removed_cand}:
-                new_ranking.append(candidate)
+        new_ranking = [
+            candidate for candidate in ballot.ranking if candidate != {removed_cand}
+        ]
         update[n].ranking = new_ranking
 
     return update
