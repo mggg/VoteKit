@@ -1,6 +1,6 @@
-from .profile import PreferenceProfile
-from .ballot import Ballot
-from .models import Outcome
+from votekit.profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.models import Outcome
 from typing import Callable
 import random
 from fractions import Fraction
@@ -55,7 +55,6 @@ class STV:
             if fp_votes[candidate] >= self.threshold:
                 self.elected.add(candidate)
                 candidates.remove(candidate)
-                print("winner", candidate)
                 ballots = self.transfer(candidate, ballots, fp_votes, self.threshold)
 
         if not self.is_complete():
@@ -67,7 +66,7 @@ class STV:
             lp_cand = random.choice(lp_candidates)
             ballots = remove_cand(lp_cand, ballots)
             candidates.remove(lp_cand)
-            print("loser", lp_cand)
+            # print("loser", lp_cand)
             self.eliminated.add(lp_cand)
 
         return PreferenceProfile(ballots=ballots), Outcome(
@@ -76,6 +75,76 @@ class STV:
             remaining=set(candidates),
             votes=fp_votes,
         )
+
+
+# TO:DO update election to modified election_state class
+class SequentialRCV:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.profile = profile
+        self.seats = seats
+        self.elected: set = set()
+        self.outcome = Outcome(
+            elected=[],
+            eliminated=[],
+            remaining=[],
+            profile=self.profile,
+            winner_vote=None,
+            previous=None,
+        )
+
+    def run_seqRCV_step(self, old_profile: PreferenceProfile):
+        """
+        Simulates a single step of the sequential RCV contest
+        """
+        singleSTVrun = STV(old_profile, transfer=seqRCV_transfer, seats=1)
+        runOutcome = singleSTVrun.run_step(old_profile)[1]
+        elected_cand = runOutcome.elected
+        for ele in elected_cand:
+            elected_cand = ele
+
+        # Removes elected candidate from Ballot List
+        updated_ballots = remove_cand(elected_cand, old_profile.get_ballots())
+
+        # Updates profile with removed candidates
+        updated_profile = PreferenceProfile(ballots=updated_ballots)
+
+        return updated_profile, runOutcome
+
+    def run_seqRCV_election(self):
+        """
+        Simulates a complete sequential RCV contest
+        """
+        elected_cands = set()
+        eliminated_cands = set()
+        old_profile = self.profile
+        outcomes = []
+        while len(elected_cands) < self.seats:
+            step_result = self.run_seqRCV_step(old_profile)
+            updated_profile = step_result[0]
+            outcomes.append(step_result[1])
+            elected_cands.add(str(step_result[1].elected))
+            eliminated_cands.add(str(step_result[1].eliminated))
+            old_profile = updated_profile
+
+        if elected_cands == {"set()"}:
+            elected_cands = set()
+        else:
+            elected_cands = {element.strip("{'}") for element in elected_cands}
+            elected_cands = set(elected_cands)
+        if eliminated_cands == {"set()"}:
+            eliminated_cands = set()
+        else:
+            eliminated_cands = {element.strip("{'}") for element in eliminated_cands}
+            eliminated_cands = set(eliminated_cands)
+
+        final_outcome = Outcome(
+            elected=elected_cands,
+            eliminated=eliminated_cands,
+            remaining=step_result[1].remaining,
+            votes=None,  # Andrew: scary idk what to do here yet
+        )
+
+        return final_outcome
 
 
 class Borda:
@@ -124,16 +193,28 @@ class Borda:
 
         winners = sorted_borda[: self.seats]
 
-        # get winner_votes
         # TO-DO: Adjust Outcome class to new args
         winner_votes = {}
         for winner in winners:
             winner_votes[winner] = candidates_ballots[winner]
 
+        elected_cands = set(winners)
+        eliminated_cands = set(sorted_borda[self.seats :])
+        if elected_cands == {"set()"}:
+            elected_cands = set()
+        else:
+            elected_cands = {element.strip("{'}") for element in elected_cands}
+            elected_cands = set(elected_cands)
+        if eliminated_cands == {"set()"}:
+            eliminated_cands = set()
+        else:
+            eliminated_cands = {element.strip("{'}") for element in eliminated_cands}
+            eliminated_cands = set(eliminated_cands)
+
         return PreferenceProfile(ballots=self.profile.get_ballots()), Outcome(
             remaining=set(),
-            elected=set(winners),
-            eliminated=set(sorted_borda[self.seats :]),
+            elected=elected_cands,
+            eliminated=eliminated_cands,
         )
 
         # return PreferenceProfile(ballots=profile.get_ballots(), Outcome(
@@ -147,7 +228,8 @@ class Borda:
         # )
 
     def run_borda_election(self):
-        return self.run_borda_step()[1]
+        profile, outcome = self.run_borda_step()
+        return outcome
 
 
 def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
@@ -181,6 +263,15 @@ def fractional_transfer(
     transfered = remove_cand(winner, ballots)
 
     return transfered
+
+
+def seqRCV_transfer(
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+) -> list[Ballot]:
+    """
+    Doesn't transfer votes, useful for Sequential RCV election
+    """
+    return ballots
 
 
 def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
