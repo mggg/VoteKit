@@ -64,26 +64,27 @@ def test_irv_winner_mn():
     irv = STV(mn_profile, fractional_transfer, 1)
     outcome = irv.run_election()
     winner = "BETSY HODGES"
-    assert {winner} == outcome.elected
+    assert [winner] == outcome.get_all_winners()
 
 
 def test_stv_winner_mn():
     irv = STV(mn_profile, fractional_transfer, 3)
     outcome = irv.run_election()
-    winners = {"BETSY HODGES", "MARK ANDREW", "DON SAMUELS"}
-    assert winners == outcome.elected
+    winners = ["BETSY HODGES", "MARK ANDREW", "DON SAMUELS"]
+    assert winners == outcome.get_all_winners()
 
 
 def test_runstep_seats_full_at_start():
     mock = STV(test_profile, fractional_transfer, 9)
-    step, out = mock.run_step(test_profile)
+    step = mock.run_step().profile
     assert step == test_profile
 
 
 def test_runstep_update_inplace_mn():
     irv = STV(mn_profile, fractional_transfer, 1)
-    step, out = irv.run_step(mn_profile)
+    out = irv.run_step()
+    step = out.profile
     last = "JOHN CHARLES WILSON"
     assert step != mn_profile
     assert last not in step.get_candidates()
-    assert {last} == out.eliminated
+    assert [last] == out.eliminated
