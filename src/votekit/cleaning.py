@@ -129,7 +129,12 @@ def undervote_profile(pp: PreferenceProfile) -> PreferenceProfile:
     def undervote(ballot: Ballot) -> Ballot:
         rank_list = ballot.ranking
         cleaned_rank_list = [rank for rank in rank_list if " " not in rank]
-        return cleaned_rank_list
+        return Ballot(
+            id=ballot.id,
+            ranking=cleaned_rank_list,
+            weight=Fraction(ballot.weight),
+            voters=ballot.voters,
+        )
 
     pp_clean = _clean(pp=pp, clean_ballot_func=undervote)
     return pp_clean
