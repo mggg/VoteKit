@@ -5,7 +5,6 @@ from typing import Callable
 import random
 from fractions import Fraction
 from copy import deepcopy
-from .election import Election
 
 ##We're not passing winner_votes to outcome right now
 # If we want to track which candidate each ballot is ultimately going to, we need to do more.
@@ -14,7 +13,7 @@ from .election import Election
 # initial profile that ended up going to any elected candidate.
 # Bit tricky since all of our methods work with current state of profile not the initial
 # 2. integrate Cincinatti transfer
-class STV(Election):
+class STV:
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
         self.transfer: Callable = transfer
         self.seats: int = seats
@@ -48,7 +47,7 @@ class STV(Election):
         """
         ##TODO:must change the way we pass winner_votes
         remaining: list = self.election_state.remaining
-        ballots: list = self.election_state.get_profile().get_ballots()
+        ballots: list = self.election_state.profile.get_ballots()
         fp_votes: dict = compute_votes(remaining, ballots)
         fp_order = [
             y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
