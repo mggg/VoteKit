@@ -9,7 +9,7 @@ from typing import Optional
 # Example of immutable data model for results
 
 
-class Outcome(BaseModel):
+class ElectionState(BaseModel):
     """
     curr_round (an Int): current round number
     elected (a list of Candidate): candidates who pass a certain threshold to win an election
@@ -26,10 +26,10 @@ class Outcome(BaseModel):
     curr_round: int
     elected: list[str] = []
     eliminated: list[str] = []
-    remaining: list[str] = []
-    profile: Optional[PreferenceProfile] = None
+    remaining: Optional[list] = None
+    profile: PreferenceProfile
     winner_votes: Optional[dict] = None
-    previous: Optional["Outcome"] = None
+    previous: Optional["ElectionState"] = None
 
     class Config:
         allow_mutation = False
@@ -53,16 +53,14 @@ class Outcome(BaseModel):
 
     def get_rankings(self) -> list[str]:
         """returns all candidates in order of their ranking at the end of the current round"""
-        return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+        if self.remaining:
+            return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+
+        return self.get_all_winners() + self.get_all_eliminated()
 
     def get_profile(self) -> PreferenceProfile:
-        """returns the election profile if it has been stored in any round upto the current one"""
-        if self.profile:
-            return self.profile
-        elif not self.previous:
-            raise ValueError("No profile found")
-        else:
-            return self.previous.get_profile()
+        """returns the election profile if it has been stored in any round up to the current one"""
+        return self.profile
 
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[str], 'eliminated':list[str]}

@@ -44,6 +44,13 @@ def test_remove_cand_not_inplace():
     assert ballots != new_ballots
 
 
+def test_remove_fake_cand():
+    remove = "z"
+    ballots = test_profile.get_ballots()
+    new_ballots = remove_cand(remove, ballots)
+    assert ballots == new_ballots
+
+
 def test_remove_and_shift():
     remove = "a"
     ballots = test_profile.get_ballots()
@@ -71,3 +78,12 @@ def test_runstep_seats_full_at_start():
     mock = STV(test_profile, fractional_transfer, 9)
     step, out = mock.run_step(test_profile)
     assert step == test_profile
+
+
+def test_runstep_update_inplace_mn():
+    irv = STV(mn_profile, fractional_transfer, 1)
+    step, out = irv.run_step(mn_profile)
+    last = "JOHN CHARLES WILSON"
+    assert step != mn_profile
+    assert last not in step.get_candidates()
+    assert {last} == out.eliminated
