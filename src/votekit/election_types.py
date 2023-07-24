@@ -5,16 +5,16 @@ from typing import Callable
 import random
 from fractions import Fraction
 from copy import deepcopy
+from .election import Election
 
-##The winner_votes that we're passing to election_model so far is
-# just the first place votes based on the current value of profile (not the initial one).
+##We're not passing winner_votes to outcome right now
 # If we want to track which candidate each ballot is ultimately going to, we need to do more.
 # TODO:
 # 1. winner_votes to election_state is supposed to have all the ballots in the
 # initial profile that ended up going to any elected candidate.
 # Bit tricky since all of our methods work with current state of profile not the initial
 # 2. integrate Cincinatti transfer
-class STV:
+class STV(Election):
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
         self.transfer: Callable = transfer
         self.seats: int = seats
@@ -42,7 +42,7 @@ class STV:
         """
         return len(self.election_state.get_all_winners()) != self.seats
 
-    def run_step(self):
+    def run_step(self) -> ElectionState:
         """
         Simulates one round an STV election
         """
@@ -92,6 +92,7 @@ class STV:
             profile=PreferenceProfile(ballots=ballots),
             previous=self.election_state,
         )
+        return self.election_state
 
     def run_election(self) -> ElectionState:
         """
@@ -108,6 +109,7 @@ class STV:
         return self.election_state
 
     def get_init_profile(self):
+        "returns the initial profile of the election"
         state = self.election_state
         while state.previous:
             state = state.previous
