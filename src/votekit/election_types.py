@@ -129,7 +129,7 @@ class Borda:
                 # adds Borda score to candidate
                 if candidate not in borda_scores:
                     borda_scores[candidate] = 0
-                if (rank + 1) <= len(self.borda_weightsborda_weights):
+                if (rank + 1) <= len(self.borda_weights):
                     borda_scores[candidate] += frequency * self.borda_weights[rank]
 
                 rank += 1
