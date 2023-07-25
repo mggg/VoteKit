@@ -13,7 +13,7 @@ def test_max_votes_toy():
     max_cand = "a"
     cands = test_profile.get_candidates()
     ballots = test_profile.get_ballots()
-    results = compute_votes(cands, ballots)
+    results = compute_votes(cands, ballots)[0]
     max_votes = [
         candidate
         for candidate, votes in results.items()
@@ -27,7 +27,7 @@ def test_min_votes_mn():
     min_cand = "JOHN CHARLES WILSON"
     cands = mn_profile.get_candidates()
     ballots = mn_profile.get_ballots()
-    results = compute_votes(cands, ballots)
+    results = compute_votes(cands, ballots)[0]
     max_votes = [
         candidate
         for candidate, votes in results.items()
