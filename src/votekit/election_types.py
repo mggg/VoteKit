@@ -87,6 +87,71 @@ class STV:
             profile, outcome = self.run_step(profile)
 
         return outcome
+    
+  class Approval:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=profile.get_candidates(),
+            profile=profile,
+            winner_votes={},
+            previous=None
+        )
+        self.seats = seats
+
+
+    def run_approval_step(self):
+        """
+        Simulates a complete Approval Voting election, take N winners with most approval votes
+        """
+        
+        approval_scores = {} # {candidate : [num times ranked 1st, num times ranked 2nd, ...]}
+        candidates_ballots = {}  # {candidate : [ballots that ranked candidate at all]}
+        
+        for ballot in self.state.profile.get_ballots():
+            weight = ballot.weight
+            for candidate in ballot.ranking:
+                candidate = str(candidate)
+                
+                # populates approval_scores
+                if candidate not in approval_scores:
+                    approval_scores[candidate] = 0
+                approval_scores[candidate] += weight
+                
+                # populates candidates_ballots (for ElectionState's winner_votes)
+                if candidate not in candidates_ballots:
+                    candidates_ballots[candidate] = []
+                candidates_ballots[candidate].append(ballot) # adds ballot where candidate was ranked
+
+        # Identifies winners (elected) and losers (eliminated)
+        sorted_approvals = sorted(approval_scores, key=approval_scores.get, reverse=True)
+        winners = sorted_approvals[: self.seats]
+        losers = sorted_approvals[self.seats :]    
+        
+        # Create winner_votes dict for ElectionState object
+        winner_ballots = {}
+        for candidate in winners:
+            winner_ballots[candidate] = candidates_ballots[candidate]
+        
+        # New final state object
+        self.state = ElectionState(
+            elected=winners,
+            eliminated=losers,
+            remaining=[],
+            profile=self.state.profile,
+            curr_round=(self.state.curr_round + 1),
+            winner_votes=winner_ballots,
+            previous=self.state
+        )
+        return self.state
+        
+
+    def run_approval_election(self):
+        final_state = self.run_approval_step()
+        return final_state
+  
 
 
 ## Election Helper Functions
@@ -139,3 +204,4 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
         update[n].ranking = new_ranking
 
     return update
+
