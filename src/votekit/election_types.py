@@ -15,16 +15,15 @@ from copy import deepcopy
 # 2. integrate Cincinatti transfer
 class STV:
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
+        self.__profile = profile
         self.transfer: Callable = transfer
         self.seats: int = seats
-
-        fp_votes = compute_votes(profile.get_candidates(), profile.get_ballots())
-        fp_order = [
-            y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
-        ]
-
         self.election_state: ElectionState = ElectionState(
-            curr_round=0, elected=[], eliminated=[], remaining=fp_order, profile=profile
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=compute_votes(profile.get_candidates(), profile.get_ballots())[1],
+            profile=profile,
         )
         self.threshold: float = self.get_threshold()
 
@@ -46,12 +45,11 @@ class STV:
         Simulates one round an STV election
         """
         ##TODO:must change the way we pass winner_votes
-        remaining: list = self.election_state.remaining
-        ballots: list = self.election_state.profile.get_ballots()
-        fp_votes: dict = compute_votes(remaining, ballots)
-        fp_order = [
-            y[0] for y in sorted(fp_votes.items(), key=lambda x: x[1], reverse=True)
-        ]
+        remaining: list[str] = self.election_state.remaining
+        ballots: list[Ballot] = self.election_state.profile.get_ballots()
+        fp_votes: dict
+        fp_order: list[str]
+        fp_votes, fp_order = compute_votes(remaining, ballots)
         elected = []
         eliminated = []
 
@@ -73,15 +71,16 @@ class STV:
                     )
         # since no one has crossed threshold, eliminate one of the people
         # with least first place votes
-        else:
+        elif self.next_round():
             lp_votes = min(fp_votes.values())
             lp_candidates = [
                 candidate for candidate in fp_order if fp_votes[candidate] == lp_votes
             ]
             # is this how to break ties, can be different based on locality
-            eliminated.append(random.choice(lp_candidates))
-            ballots = remove_cand(eliminated[0], ballots)
-            remaining.remove(eliminated[0])
+            lp_cand = random.choice(lp_candidates)
+            eliminated.append(lp_cand)
+            ballots = remove_cand(lp_cand, ballots)
+            remaining.remove(lp_cand)
 
         self.election_state = ElectionState(
             curr_round=self.election_state.curr_round + 1,
@@ -109,22 +108,17 @@ class STV:
 
     def get_init_profile(self):
         "returns the initial profile of the election"
-        state = self.election_state
-        while state.previous:
-            state = state.previous
-        return state.profile
+        return self.__profile
 
 
 ## Election Helper Functions
 
 
-def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
-    # sourcery skip: instance-method-first-arg-name
+def compute_votes(candidates: list, ballots: list[Ballot]) -> tuple[dict, list]:
     """
     Computes first place votes for all candidates in a preference profile
     """
     votes = {}
-
     for candidate in candidates:
         weight = Fraction(0)
         for ballot in ballots:
@@ -132,7 +126,9 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
                 weight += ballot.weight
         votes[candidate] = weight
 
-    return votes
+    order = [y[0] for y in sorted(votes.items(), key=lambda x: x[1], reverse=True)]
+
+    return votes, order
 
 
 def fractional_transfer(
