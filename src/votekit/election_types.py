@@ -79,7 +79,13 @@ from fractions import Fraction
 
 
 class Borda:
-    def __init__(self, profile: PreferenceProfile, seats: int, borda_weights: list):
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        borda_weights: list = None,
+        standard: bool = True,
+    ):
         self.state = ElectionState(
             curr_round=0,
             elected=[],
@@ -89,20 +95,23 @@ class Borda:
             winner_votes={},
             previous=None,
         )
-        self.borda_weights = borda_weights
         self.seats = seats
+
+        self.num_cands = len(self.state.profile.get_candidates())
+
+        if borda_weights is None:
+            self.borda_weights = [i for i in range(self.num_cands, 0, -1)]
+        else:
+            self.borda_weights = borda_weights
+
+        self.standard = standard
 
     def run_borda_step(self):
         """
         Simulates a complete Borda election
         """
-
         borda_scores = {}  # {candidate : int borda_score}
-        candidate_rank_freq = (
-            {}
-        )  # {candidate : [num times ranked 1st, num times ranked 2nd, ...]}
         candidates_ballots = {}  # {candidate : [ballots that ranked candidate at all]}
-        num_cands = len(self.state.profile.get_candidates())
 
         # Populates dicts: candidate_rank_freq, candidates_ballots
         for ballot in self.state.profile.get_ballots():
@@ -110,16 +119,6 @@ class Borda:
             rank = 0
             for candidate in ballot.ranking:
                 candidate = str(candidate)
-
-                # populates candidate_rank_freq
-                if candidate not in candidate_rank_freq:
-                    candidate_rank_freq[candidate] = [0] * num_cands
-
-                candidate_rank_freq[candidate][
-                    rank
-                ] += frequency  # adds num times (weight) ballot ranked candidate at rankNum
-
-                # populates candidates_ballots (for ElectionState's winner_votes)
                 if candidate not in candidates_ballots:
                     candidates_ballots[candidate] = []
                 candidates_ballots[candidate].append(
@@ -133,6 +132,32 @@ class Borda:
                     borda_scores[candidate] += frequency * self.borda_weights[rank]
 
                 rank += 1
+
+            if self.standard is True:
+                if rank < (len(self.borda_weights) + 1):
+                    # X find total remaining borda points
+                    remaining_points = sum(self.borda_weights[rank:])
+
+                    # Y find unranked candidates by the ballot
+
+                    ballot_ranking = [
+                        item for subset in ballot.ranking for item in subset
+                    ]
+                    remaining_cands = list(
+                        set(self.state.profile.get_candidates()) - set(ballot_ranking)
+                    )
+
+                    # borda_scores[all remaining candidates] = X / Y
+                    for candidate in remaining_cands:
+                        candidate = str(set(candidate))
+                        if candidate not in borda_scores:
+                            borda_scores[candidate] = frequency * (
+                                remaining_points / len(remaining_cands)
+                            )
+                        else:
+                            borda_scores[candidate] += frequency * (
+                                remaining_points / len(remaining_cands)
+                            )
 
         # Identifies Borda winners (elected) and losers (eliminated)
         sorted_borda = sorted(borda_scores, key=borda_scores.get, reverse=True)
