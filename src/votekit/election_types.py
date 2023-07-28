@@ -1,10 +1,13 @@
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
-from votekit.election_state import ElectionState
+from .profile import PreferenceProfile
+from .ballot import Ballot
+from .election_state import ElectionState
 
 # from typing import Callable
+from typing import Optional
+
 # import random
 from fractions import Fraction
+from copy import deepcopy
 
 
 # class STV:
@@ -23,14 +26,13 @@ from fractions import Fraction
 #         """
 #         return int(self.profile.num_ballots() / (self.seats + 1) + 1)
 
-#     # change name of this function and reverse bool
-#     def is_complete(self) -> bool:
+#     def next_round(self) -> bool:
 #         """
 #         Determines if the number of seats has been met to call election
 #         """
-#         return len(self.elected) == self.seats
+#         return len(self.elected) != self.seats
 
-#     def run_step(self, profile: PreferenceProfile) -> tuple[PreferenceProfile, Outcome]:
+#     def run_step(self, profile: PreferenceProfile) -> tuple[PreferenceProfile, ElectionState]:
 #         """
 #         Simulates one round an STV election
 #         """
@@ -38,14 +40,11 @@ from fractions import Fraction
 #         ballots: list = profile.get_ballots()
 #         fp_votes: dict = compute_votes(candidates, ballots)
 
-#         # print('ballots', type(ballots))
-#         # print('candidates', type(candidates))
-
 #         # if number of remaining candidates equals number of remaining seats
 #         if len(candidates) == self.seats - len(self.elected):
 #             # TODO: sort remaing candidates by vote share
 #             self.elected.update(set(candidates))
-#             return profile, Outcome(
+#             return profile, ElectionState(
 #                 elected=self.elected,
 #                 eliminated=self.eliminated,
 #                 remaining=set(candidates),
@@ -58,7 +57,7 @@ from fractions import Fraction
 #                 candidates.remove(candidate)
 #                 ballots = self.transfer(candidate, ballots, fp_votes, self.threshold)
 
-#         if not self.is_complete():
+#         if self.next_round():
 #             lp_votes = min(fp_votes.values())
 #             lp_candidates = [
 #                 candidate for candidate, votes in fp_votes.items() if votes == lp_votes
@@ -67,15 +66,33 @@ from fractions import Fraction
 #             lp_cand = random.choice(lp_candidates)
 #             ballots = remove_cand(lp_cand, ballots)
 #             candidates.remove(lp_cand)
-#             # print("loser", lp_cand)
 #             self.eliminated.add(lp_cand)
 
-#         return PreferenceProfile(ballots=ballots), Outcome(
+#         return PreferenceProfile(ballots=ballots), ElectionState(
 #             elected=self.elected,
 #             eliminated=self.eliminated,
 #             remaining=set(candidates),
 #             votes=fp_votes,
 #         )
+
+#     def run_election(self) -> ElectionState:
+#         """
+#         Runs complete STV election
+#         """
+#         profile = deepcopy(self.profile)
+
+#         if not self.next_round():
+#             raise ValueError(
+#                 f"Length of elected set equal to number of seats ({self.seats})"
+#             )
+
+#         while self.next_round():
+#             profile, outcome = self.run_step(profile)
+
+#         return outcome
+
+
+## Election Helper Functions
 
 
 class Borda:
@@ -83,7 +100,7 @@ class Borda:
         self,
         profile: PreferenceProfile,
         seats: int,
-        borda_weights: list = None,
+        borda_weights: Optional[list] = None,
         standard: bool = True,
     ):
         self.state = ElectionState(
@@ -232,11 +249,13 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
     """
     Removes candidate from ranking of the ballots
     """
-    for n, ballot in enumerate(ballots):
+    update = deepcopy(ballots)
+
+    for n, ballot in enumerate(update):
         new_ranking = []
         for candidate in ballot.ranking:
             if candidate != {removed_cand}:
                 new_ranking.append(candidate)
-        ballots[n].ranking = new_ranking
+        update[n].ranking = new_ranking
 
-    return ballots
+    return update
