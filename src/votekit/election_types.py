@@ -16,16 +16,16 @@ from copy import deepcopy
 class STV:
     def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
         self.__profile = profile
-        self.transfer: Callable = transfer
-        self.seats: int = seats
-        self.election_state: ElectionState = ElectionState(
+        self.transfer = transfer
+        self.seats = seats
+        self.election_state = ElectionState(
             curr_round=0,
             elected=[],
             eliminated=[],
-            remaining=compute_votes(profile.get_candidates(), profile.get_ballots())[1],
+            remaining=[cand for cand,votes in compute_votes(profile.get_candidates(), profile.get_ballots())], 
             profile=profile,
-        )
-        self.threshold: float = self.get_threshold()
+        ) 
+        self.threshold = self.get_threshold()
 
     # can cache since it will not change throughout rounds
     def get_threshold(self) -> int:
@@ -47,34 +47,33 @@ class STV:
         ##TODO:must change the way we pass winner_votes
         remaining: list[str] = self.election_state.remaining
         ballots: list[Ballot] = self.election_state.profile.get_ballots()
-        fp_votes: dict
-        fp_order: list[str]
-        fp_votes, fp_order = compute_votes(remaining, ballots)
+        fp_votes = compute_votes(remaining, ballots) ##fp means first place
         elected = []
         eliminated = []
 
         # if number of remaining candidates equals number of remaining seats, everyone is elected
-        if len(remaining) == self.seats - len(self.election_state.get_all_winners()):
-            elected = fp_order
+        if len(remaining) == self.seats - len(self.election_state.get_all_winners()): 
+            elected = [cand for cand,votes in fp_votes]
             remaining = []
             ballots = []
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[fp_order[0]] >= self.threshold:
-            for candidate in fp_order:
-                if fp_votes[candidate] >= self.threshold:
+        elif fp_votes[0][1] >= self.threshold: ##double index needed since fp_votes is a list of tuples. 
+            #Enough to check first element since fp_votes is ordered by votes
+            for candidate,votes in fp_votes:
+                if votes >= self.threshold:
                     elected.append(candidate)
                     remaining.remove(candidate)
                     ballots = self.transfer(
-                        candidate, ballots, fp_votes, self.threshold
+                        candidate, ballots, {cand:votes for cand,votes in fp_votes}, self.threshold
                     )
         # since no one has crossed threshold, eliminate one of the people
         # with least first place votes
         elif self.next_round():
-            lp_votes = min(fp_votes.values())
+            lp_votes = min([votes for cand,votes in fp_votes])
             lp_candidates = [
-                candidate for candidate in fp_order if fp_votes[candidate] == lp_votes
+                candidate for candidate,votes in fp_votes if votes == lp_votes
             ]
             # is this how to break ties, can be different based on locality
             lp_cand = random.choice(lp_candidates)
@@ -114,7 +113,7 @@ class STV:
 ## Election Helper Functions
 
 
-def compute_votes(candidates: list, ballots: list[Ballot]) -> tuple[dict, list]:
+def compute_votes(candidates: list, ballots: list[Ballot]) -> list:
     """
     Computes first place votes for all candidates in a preference profile
     """
@@ -126,9 +125,9 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> tuple[dict, list]:
                 weight += ballot.weight
         votes[candidate] = weight
 
-    order = [y[0] for y in sorted(votes.items(), key=lambda x: x[1], reverse=True)]
+    ordered = sorted(votes.items(), key=lambda x: x[1], reverse=True)
 
-    return votes, order
+    return ordered
 
 
 def fractional_transfer(
