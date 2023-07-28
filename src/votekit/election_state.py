@@ -116,5 +116,5 @@ class ElectionState(BaseModel):
         changes = {}
         for index, candidate in curr_ranking.items():
             if prev_ranking[candidate] != index:
-                changes[candidate] = (prev_ranking[candidate}, index)
+                changes[candidate] = (prev_ranking[candidate], index)
         return changes
