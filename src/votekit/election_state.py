@@ -108,14 +108,13 @@ class ElectionState(BaseModel):
         if not self.previous:
             raise ValueError("This is the first round, cannot compare previous ranking")
 
-        prev_ranking = self.previous.get_rankings()
-        curr_ranking = self.get_rankings()
+        prev_ranking = {cand:index for index,cand in enumerate(self.previous.get_rankings())}
+        curr_ranking = {cand:index for index,cand in enumerate(self.get_rankings())}
         if curr_ranking == prev_ranking:
-            print("No changes in ranking")
+            return {}
 
         changes = {}
-        for index, candidate in enumerate(curr_ranking):
-            if candidate != prev_ranking[index]:
-                prev_rank = prev_ranking.index(candidate)
-                changes[candidate] = (prev_rank, index)
+        for index, candidate in curr_ranking.items():
+            if prev_ranking[candidate] != index:
+                changes[candidate] = (prev_ranking[candidate}, index)
         return changes
