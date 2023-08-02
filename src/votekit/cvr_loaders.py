@@ -154,4 +154,3 @@ def blt(fpath: str) -> tuple[PreferenceProfile, int]:
                 ]
 
                 return PreferenceProfile(ballots=ballots, candidates=names), seats
-    raise Exception(f"Undetermined error parsing file '{fpath}'.")
