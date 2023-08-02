@@ -162,7 +162,7 @@ def random_transfer(
     ]
 
     surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots = ballots + surplus_ballots
+    ballots +=  surplus_ballots
 
     transfered = remove_cand(winner, ballots)
 
