@@ -151,7 +151,7 @@ def random_transfer(
             # note: under random transfer, weights should always be integers
             for _ in range(int(ballot.weight)):
                 weight_1_ballots.append(
-                    Ballot(ranking=ballot.ranking, weight=Fraction(1))
+                    Ballot(id=ballot.id, ranking=ballot.ranking, weight=Fraction(1), voters=ballot.voters) 
                 )
 
     # remove winner's ballots
