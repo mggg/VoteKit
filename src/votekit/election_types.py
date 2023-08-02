@@ -15,7 +15,7 @@ class STV:
         profile: PreferenceProfile,
         transfer: Callable,
         seats: int,
-        quota: Callable = "droop",
+        quota: Optional[str] = 'droop'
     ):
         self.profile = profile
         self.transfer = transfer
