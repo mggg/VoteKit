@@ -72,8 +72,7 @@ def rank_column_csv(
 
 
 def blt(fpath: str) -> tuple[PreferenceProfile, int]:
-    """
-    given a blt file path, loads cvr. (blt is text-like format used for scottish election data)
+    """given a blt file path, loads cvr. (blt is text-like format used for scottish election data)
     the first line of the file is metadata recording the number of candidates and seats,
     followed by ballot data (first number in row is ballot weight),
     followed by candidate data (order corresponds to number in ballots),
@@ -113,7 +112,7 @@ def blt(fpath: str) -> tuple[PreferenceProfile, int]:
                     )
                 seats = metadata[1]
             # read in ballots, cleaning out rankings labeled '0' (designating end of line)
-            if numbers:
+            elif numbers:
                 ballot = [int(vote) for vote in s.split(" ")]
                 num_votes = ballot[0]
                 # ballots terminate with a single row with the character '0'

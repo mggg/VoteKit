@@ -3,7 +3,7 @@ from .ballot import Ballot
 from .models import Outcome
 
 
-from typing import Callable
+from typing import Callable, Optional
 import random
 from fractions import Fraction
 from copy import deepcopy
@@ -15,7 +15,7 @@ class STV:
         profile: PreferenceProfile,
         transfer: Callable,
         seats: int,
-        quota: Optional[str] = 'droop'
+        quota: Optional[str] = "droop",
     ):
         self.profile = profile
         self.transfer = transfer
@@ -151,7 +151,12 @@ def random_transfer(
             # note: under random transfer, weights should always be integers
             for _ in range(int(ballot.weight)):
                 weight_1_ballots.append(
-                    Ballot(id=ballot.id, ranking=ballot.ranking, weight=Fraction(1), voters=ballot.voters) 
+                    Ballot(
+                        id=ballot.id,
+                        ranking=ballot.ranking,
+                        weight=Fraction(1),
+                        voters=ballot.voters,
+                    )
                 )
 
     # remove winner's ballots
@@ -162,7 +167,7 @@ def random_transfer(
     ]
 
     surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots +=  surplus_ballots
+    ballots += surplus_ballots
 
     transfered = remove_cand(winner, ballots)
 
