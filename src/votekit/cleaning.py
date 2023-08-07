@@ -44,7 +44,6 @@ def _clean(
     """
 
     # apply cleaning function to clean all ballots
-
     if clean_ballot_func is not None:
         cleaned = map(clean_ballot_func, pp.ballots)
 
@@ -115,3 +114,62 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
 
     pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
     return pp_clean
+
+
+## TODO: typehints so that non_cands inputs is str or list of strs
+def remove_noncands(
+    profile: PreferenceProfile, non_cands: list[str]
+) -> PreferenceProfile:
+    """
+    Removes user-assigned non-candidates from ballots, deletes ballots
+    that are empty as a result of the removal
+
+    Inputs:
+        profile (PreferenceProfile): uncleaned preference profile
+        non_cands (list of strings): non-candidates items to be removed
+
+    Returns:
+        PrefernceProfile: profile with non-candidates removed
+    """
+
+    def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
+        """
+        Removes non-candidiates from ballot objects
+        """
+        # TODO: adjust so string and list of strings are acceptable inputes
+
+        to_remove = []
+        for item in non_cands:
+            to_remove.append({item})
+
+        ranking = ballot.ranking
+        clean_ranking = []
+        for cand in ranking:
+            if cand not in to_remove and cand not in clean_ranking:
+                clean_ranking.append(cand)
+
+        if clean_ranking:
+            clean_ballot = Ballot(
+                id=ballot.id,
+                ranking=clean_ranking,
+                weight=Fraction(ballot.weight),
+                voters=ballot.voters,
+            )
+
+        return clean_ballot
+
+    cleaned = [
+        remove_from_ballots(ballot, non_cands)
+        for ballot in profile.ballots
+        if remove_from_ballots(ballot, non_cands)
+    ]
+
+    grouped_ballots = [
+        list(result)
+        for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
+    ]
+
+    # merge ballots in the same groups
+    new_ballots = [merge_ballots(b) for b in grouped_ballots]
+
+    return PreferenceProfile(ballots=new_ballots)

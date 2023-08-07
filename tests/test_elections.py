@@ -1,11 +1,15 @@
-from votekit.election_types import compute_votes, remove_cand, fractional_transfer, STV
-from votekit.cvr_loaders import rank_column_csv
+from votekit.election_types import (
+    compute_votes,
+    remove_cand,
+    fractional_transfer,
+    STV,
+)  # type:ignore
+from votekit.cvr_loaders import rank_column_csv  # type:ignore
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
-
 test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
@@ -14,7 +18,7 @@ def test_max_votes_toy():
     max_cand = "a"
     cands = test_profile.get_candidates()
     ballots = test_profile.get_ballots()
-    results = compute_votes(cands, ballots)
+    results = {cand: votes for cand, votes in compute_votes(cands, ballots)}
     max_votes = [
         candidate
         for candidate, votes in results.items()
@@ -28,7 +32,7 @@ def test_min_votes_mn():
     min_cand = "JOHN CHARLES WILSON"
     cands = mn_profile.get_candidates()
     ballots = mn_profile.get_ballots()
-    results = compute_votes(cands, ballots)
+    results = {cand: votes for cand, votes in compute_votes(cands, ballots)}
     max_votes = [
         candidate
         for candidate, votes in results.items()
@@ -44,6 +48,13 @@ def test_remove_cand_not_inplace():
     assert ballots != new_ballots
 
 
+def test_remove_fake_cand():
+    remove = "z"
+    ballots = test_profile.get_ballots()
+    new_ballots = remove_cand(remove, ballots)
+    assert ballots == new_ballots
+
+
 def test_remove_and_shift():
     remove = "a"
     ballots = test_profile.get_ballots()
@@ -57,17 +68,27 @@ def test_irv_winner_mn():
     irv = STV(mn_profile, fractional_transfer, 1)
     outcome = irv.run_election()
     winner = "BETSY HODGES"
-    assert {winner} == outcome.elected
+    assert [winner] == outcome.elected
 
 
 def test_stv_winner_mn():
     irv = STV(mn_profile, fractional_transfer, 3)
     outcome = irv.run_election()
-    winners = {"BETSY HODGES", "MARK ANDREW", "DON SAMUELS"}
-    assert winners == outcome.elected
+    winners = ["BETSY HODGES", "MARK ANDREW", "DON SAMUELS"]
+    assert winners == outcome.get_all_winners()
 
 
 def test_runstep_seats_full_at_start():
     mock = STV(test_profile, fractional_transfer, 9)
-    step, out = mock.run_step(test_profile)
+    step = mock.get_init_profile()
     assert step == test_profile
+
+
+def test_runstep_update_inplace_mn():
+    irv = STV(mn_profile, fractional_transfer, 1)
+    out = irv.run_step()
+    step = out.profile
+    last = "JOHN CHARLES WILSON"
+    assert step != mn_profile
+    assert last not in step.get_candidates()
+    assert last == out.get_all_eliminated()[0]
