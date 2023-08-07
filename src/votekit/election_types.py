@@ -1,7 +1,7 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from .election_state import ElectionState
-from typing import Callable, Optional
+from typing import Callable
 import random
 from fractions import Fraction
 from copy import deepcopy
@@ -14,11 +14,11 @@ class STV:
     """
 
     def __init__(
-        self, 
-        profile: PreferenceProfile, 
-        transfer: Callable, 
+        self,
+        profile: PreferenceProfile,
+        transfer: Callable,
         seats: int,
-        quota: Optional[str] = "droop"
+        quota: str = "droop",
     ):
         """
         profile (PreferenceProfile): initial perference profile
@@ -46,9 +46,9 @@ class STV:
     def get_threshold(self, quota: str) -> int:
         quota = quota.lower()
         if quota == "droop":
-            return int(self.profile.num_ballots() / (self.seats + 1) + 1)
+            return int(self.__profile.num_ballots() / (self.seats + 1) + 1)
         elif quota == "hare":
-            return int(self.profile.num_ballots() / self.seats)
+            return int(self.__profile.num_ballots() / self.seats)
         else:
             raise ValueError("Misspelled or unknown quota type")
 
@@ -170,6 +170,7 @@ def fractional_transfer(
 
     return remove_cand(winner, ballots)
 
+
 def random_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
@@ -205,6 +206,7 @@ def random_transfer(
     transfered = remove_cand(winner, ballots)
 
     return transfered
+
 
 def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
     """
