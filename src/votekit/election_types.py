@@ -1,6 +1,6 @@
-from .profile import PreferenceProfile
-from .ballot import Ballot
-from .election_state import ElectionState
+from votekit.profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.election_state import ElectionState
 
 # from typing import Callable
 from typing import Optional
