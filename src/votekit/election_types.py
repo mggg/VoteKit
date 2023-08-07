@@ -1,7 +1,7 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from .election_state import ElectionState
-from typing import Callable
+from typing import Callable, Optional
 import random
 from fractions import Fraction
 from copy import deepcopy
