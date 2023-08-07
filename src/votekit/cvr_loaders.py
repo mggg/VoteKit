@@ -144,7 +144,7 @@ def blt(fpath: str) -> tuple[PreferenceProfile, int]:
                 # map candidate numbers onto their names and convert ballots to PP format
                 for i, name in enumerate(names):
                     name_map[i + 1] = name
-                ballots = [
+                clean_ballots = [
                     Ballot(
                         ranking=[{name_map[cand]} for cand in ballot[0]],
                         weight=Fraction(ballot[1]),
@@ -152,4 +152,4 @@ def blt(fpath: str) -> tuple[PreferenceProfile, int]:
                     for ballot in ballots
                 ]
 
-                return PreferenceProfile(ballots=ballots, candidates=names), seats
+        return PreferenceProfile(ballots=clean_ballots, candidates=names), seats
