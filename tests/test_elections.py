@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = BASE_DIR / "data/csv"
 test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
