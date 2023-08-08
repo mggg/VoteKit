@@ -5,6 +5,7 @@ from votekit.election_types import (
     random_transfer,
     STV,
     Borda,
+    SequentialRCV,
 )  # type:ignore
 from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
 from pathlib import Path
@@ -194,4 +195,31 @@ def test_toy_Borda():
     toy_pp = PreferenceProfile(ballots=ballot_list)
     borda_election = Borda(toy_pp, seats=5)
     toy_winners = borda_election.run_borda_election().get_all_winners()
+    assert known_winners == toy_winners
+
+
+# ---------------------------------------------------------------------------
+#                        Sequential RCV Tests
+# ---------------------------------------------------------------------------
+
+
+def test_toy_rcv():
+    """
+    example toy election taken from David McCune's code with known winners c and d
+    """
+    known_winners = ["c", "d"]
+    ballot_list = [
+        Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(1799)),
+        Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}], weight=Fraction(1801)),
+        Ballot(ranking=[{"a"}, {"c"}, {"d"}], weight=Fraction(100)),
+        Ballot(ranking=[{"b"}, {"c"}, {"a"}, {"d"}], weight=Fraction(901)),
+        Ballot(ranking=[{"b"}, {"d"}], weight=Fraction(900)),
+        Ballot(ranking=[{"c"}, {"b"}, {"d"}, {"a"}], weight=Fraction(498)),
+        Ballot(ranking=[{"c"}, {"d"}, {"a"}], weight=Fraction(2000)),
+        Ballot(ranking=[{"d"}, {"b"}], weight=Fraction(1400)),
+        Ballot(ranking=[{"d"}, {"c"}], weight=Fraction(601)),
+    ]
+    toy_pp = PreferenceProfile(ballots=ballot_list)
+    seq_RCV = SequentialRCV(profile=toy_pp, seats=2)
+    toy_winners = seq_RCV.run_election().get_all_winners()
     assert known_winners == toy_winners
