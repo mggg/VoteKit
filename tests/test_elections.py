@@ -2,16 +2,64 @@ from votekit.election_types import (
     compute_votes,
     remove_cand,
     fractional_transfer,
+    random_transfer,
     STV,
 )  # type:ignore
-from votekit.cvr_loaders import rank_column_csv  # type:ignore
+from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
 from pathlib import Path
+import pytest
+from fractions import Fraction
+from votekit.ballot import Ballot
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = BASE_DIR / "data/csv"
+BLT_DIR = BASE_DIR / "data/txt/"
+
+
 test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
+
+
+def test_droop_default_parameter():
+
+    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+
+    election = STV(pp, fractional_transfer, seats=seats)
+
+    droop_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / (4 + 1)) + 1
+
+    assert election.threshold == droop_quota
+
+
+def test_droop_inputed_parameter():
+
+    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+
+    election = STV(pp, fractional_transfer, seats=seats, quota="Droop")
+
+    droop_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / (4 + 1)) + 1
+
+    assert election.threshold == droop_quota
+
+
+def test_quota_misspelled_parameter():
+
+    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+
+    with pytest.raises(ValueError):
+        _ = STV(pp, fractional_transfer, seats=seats, quota="droops")
+
+
+def test_hare_quota():
+
+    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+
+    election = STV(pp, fractional_transfer, seats=seats, quota="hare")
+
+    hare_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / 4)
+
+    assert election.threshold == hare_quota
 
 
 def test_max_votes_toy():
@@ -92,3 +140,37 @@ def test_runstep_update_inplace_mn():
     assert step != mn_profile
     assert last not in step.get_candidates()
     assert last == out.get_all_eliminated()[0]
+
+def test_rand_transfer_func_mock_data():
+    winner = "A"
+    ballots = [
+        Ballot(ranking=({"A"}, {"C"}, {"B"}), weight=Fraction(2)),
+        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1)),
+    ]
+    votes = {"A": 3}
+    threshold = 1
+
+    ballots_after_transfer = random_transfer(
+        winner=winner, ballots=ballots, votes=votes, threshold=threshold
+    )
+
+    counts = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
+
+    assert counts[0].votes == Fraction(1) or counts[0].votes == Fraction(2)
+
+
+def test_rand_transfer_assert():
+    winner = "A"
+    ballots = [
+        Ballot(ranking=({"A"}, {"C"}, {"B"}), weight=Fraction(1000)),
+        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1000)),
+    ]
+    votes = {"A": 2000}
+    threshold = 1000
+
+    ballots_after_transfer = random_transfer(
+        winner=winner, ballots=ballots, votes=votes, threshold=threshold
+    )
+    counts = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
+
+    assert 400 < counts[0].votes < 600
