@@ -133,7 +133,7 @@ class STV:
 
 class SequentialRCV:
     """
-    Stimulates a Sequential RCV election
+    class to run Sequential RCV election
     """
 
     def __init__(self, profile: PreferenceProfile, seats: int):
@@ -154,7 +154,7 @@ class SequentialRCV:
     def run_step(self, old_profile: PreferenceProfile) -> ElectionState:
         """
         Simulates a single step of the sequential RCV contest
-        which is an IRV election run on the current set of candidates
+        which is a full IRV election run on the current set of candidates
         """
         old_election_state = self.election_state
 
