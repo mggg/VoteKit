@@ -3,12 +3,6 @@ from .profile import PreferenceProfile
 from typing import Optional
 
 
-# 1. is add_winners_and_losers necessary? --A: probabably not
-# 2. do we want anything more?]
-# 3. RCV cruncher: inspiration for functions--> statistics functions/things
-# Example of immutable data model for results
-
-
 class ElectionState(BaseModel):
     """
     curr_round (an Int): current round number
@@ -26,7 +20,7 @@ class ElectionState(BaseModel):
     curr_round: int
     elected: list[str] = []
     eliminated: list[str] = []
-    remaining: Optional[list] = None
+    remaining: list[str] = []
     profile: PreferenceProfile
     winner_votes: Optional[dict] = None
     previous: Optional["ElectionState"] = None
@@ -53,14 +47,8 @@ class ElectionState(BaseModel):
 
     def get_rankings(self) -> list[str]:
         """returns all candidates in order of their ranking at the end of the current round"""
-        if self.remaining:
-            return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
-        return self.get_all_winners() + self.get_all_eliminated()
-
-    def get_profile(self) -> PreferenceProfile:
-        """returns the election profile if it has been stored in any round up to the current one"""
-        return self.profile
+        return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[str], 'eliminated':list[str]}
@@ -71,6 +59,29 @@ class ElectionState(BaseModel):
             return self.previous.get_round_outcome(roundNum)
         else:
             raise ValueError("Round number out of range")
+
+    def changed_rankings(self) -> dict:
+        """returns dict of (key) string candidates who changed
+        ranking from previous round and (value) a tuple of (prevRank, newRank)
+        """
+
+        if not self.previous:
+            raise ValueError("This is the first round, cannot compare previous ranking")
+
+        prev_ranking: dict = {
+            cand: index for index, cand in enumerate(self.previous.get_rankings())
+        }
+        curr_ranking: dict = {
+            cand: index for index, cand in enumerate(self.get_rankings())
+        }
+        if curr_ranking == prev_ranking:
+            return {}
+
+        changes = {}
+        for candidate, index in curr_ranking.items():
+            if prev_ranking[candidate] != index:
+                changes[candidate] = (prev_ranking[candidate], index)
+        return changes
 
     ###############################################################################################
 
@@ -105,24 +116,3 @@ class ElectionState(BaseModel):
     #        )
     #        allcandidates = len(prevOutcome1.get_profile().get_candidates())
     #        return remaining_diff / allcandidates
-
-    def changed_rankings(self) -> Optional[dict]:
-        """returns dict of (key) string candidates who changed
-        ranking from previous round and (value) a tuple of (prevRank, newRank)
-        """
-
-        if not self.previous:
-            raise ValueError("This is the first round, cannot compare previous ranking")
-
-        else:
-            prev_ranking = self.previous.get_rankings()
-            curr_ranking = self.get_rankings()
-            if curr_ranking == prev_ranking:
-                print("No changes in ranking")
-
-            changes = {}
-            for index, candidate in enumerate(curr_ranking):
-                if candidate != prev_ranking[index]:
-                    prev_rank = prev_ranking.index(candidate)
-                    changes[candidate] = (prev_rank, index)
-            return changes
