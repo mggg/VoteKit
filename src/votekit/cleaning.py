@@ -178,10 +178,10 @@ def undervote_profile(pp: PreferenceProfile) -> PreferenceProfile:
     """
     takes a ballot and truncates its rankings in the case.
     Args:
-        ballot (Ballot): a ballot with empty ranks in a particular ranking list
+        ballot (Ballot): a ballot with empty slots in a particular ranking list
 
     Returns:
-        Ballot: a ballot without emptinesss
+        Ballot: a truncated ballot without empty slots
     """
 
     def undervote(ballot: Ballot) -> Ballot:
