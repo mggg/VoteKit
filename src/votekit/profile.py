@@ -1,6 +1,7 @@
 from .ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
+from fractions import Fraction
 
 # from functools import cache
 
@@ -51,8 +52,21 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    # class Config:
-    #     arbitrary_types_allowed = True
+    def to_dict(self) -> dict:
+        """
+        Converts ballots to dictionary with keys (ranking) and values
+        the corresponding total weights
+        """
+        di: dict = {}
+        for ballot in self.ballots:
+            if str(ballot.ranking) not in di.keys():
+                di[str(ballot.ranking)] = Fraction(0)
+            di[str(ballot.ranking)] += ballot.weight
+
+        return di
+
+    class Config:
+        arbitrary_types_allowed = True
 
     # def __init__(self, ballots, candidates):
     #     """

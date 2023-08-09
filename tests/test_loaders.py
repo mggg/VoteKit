@@ -1,4 +1,4 @@
-from votekit.cvr_loaders import rank_column_csv
+from votekit.cvr_loaders import rank_column_csv, blt
 from votekit.ballot import Ballot
 from votekit.profile import PreferenceProfile
 from pathlib import Path
@@ -6,8 +6,10 @@ import pytest
 from pandas.errors import EmptyDataError, DataError
 from fractions import Fraction
 
+
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data/csv/"
+CSV_DIR = BASE_DIR / "data/csv/"
+BLT_DIR = BASE_DIR / "data/txt/"
 
 
 def is_equal(b1: list[Ballot], b2: list[Ballot]) -> bool:
@@ -21,11 +23,11 @@ def is_equal(b1: list[Ballot], b2: list[Ballot]) -> bool:
 
 def test_empty_csv():
     with pytest.raises(EmptyDataError):
-        rank_column_csv(DATA_DIR / "empty.csv", id_col=0)
+        rank_column_csv(CSV_DIR / "empty.csv", id_col=0)
 
 
 def test_undervote():
-    prof = rank_column_csv(DATA_DIR / "undervote.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "undervote.csv", id_col=0)
     a = Ballot(
         id=None, ranking=[{"c"}, {None}, {None}], weight=Fraction(1), voters={"a"}
     )
@@ -36,7 +38,7 @@ def test_undervote():
 
 def test_only_cols():
     with pytest.raises(EmptyDataError):
-        rank_column_csv(DATA_DIR / "only_cols.csv", id_col=0)
+        rank_column_csv(CSV_DIR / "only_cols.csv", id_col=0)
 
 
 def test_invalid_path():
@@ -45,7 +47,7 @@ def test_invalid_path():
 
 
 def test_duplicates_candidates():
-    prof = rank_column_csv(DATA_DIR / "dup_cands.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "dup_cands.csv", id_col=0)
     # assert len(prof.ballots) == 3
     abe = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=Fraction(1), voters={"abe"})
     don = Ballot(ranking=[{"a"}, {"c"}, {"c"}], weight=Fraction(1), voters={"don"})
@@ -57,14 +59,14 @@ def test_duplicates_candidates():
 
 
 def test_single_row():
-    prof = rank_column_csv(DATA_DIR / "single_row.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "single_row.csv", id_col=0)
     a = Ballot(ranking=[{"b"}, {"c"}, {"d"}], weight=Fraction(1), voters={"a"})
     correct_prof = PreferenceProfile(ballots=[a])
     assert is_equal(prof.ballots, correct_prof.ballots)
 
 
 def test_multiple_undervotes():
-    prof = rank_column_csv(DATA_DIR / "mult_undervote.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "mult_undervote.csv", id_col=0)
     abc = Ballot(
         ranking=[{"c"}, {None}, {None}],
         weight=Fraction(3),
@@ -76,7 +78,7 @@ def test_multiple_undervotes():
 
 
 def test_different_undervotes():
-    prof = rank_column_csv(DATA_DIR / "diff_undervote.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "diff_undervote.csv", id_col=0)
     a = Ballot(ranking=[{"c"}, {None}, {"b"}], weight=Fraction(1), voters={"a"})
     b = Ballot(ranking=[{None}, {"d"}, {None}], weight=Fraction(1), voters={"b"})
     c = Ballot(ranking=[{"e"}, {None}, {"e"}], weight=Fraction(1), voters={"c"})
@@ -85,7 +87,7 @@ def test_different_undervotes():
 
 
 def test_duplicate_ballots():
-    prof = rank_column_csv(DATA_DIR / "dup_ballots.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "dup_ballots.csv", id_col=0)
     a = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=Fraction(1), voters={"abe"})
     dc = Ballot(
         ranking=[{"c"}, {"c"}, {"c"}], weight=Fraction(2), voters={"don", "carrie"}
@@ -95,7 +97,7 @@ def test_duplicate_ballots():
 
 
 def test_combo():
-    prof = rank_column_csv(DATA_DIR / "combo.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "combo.csv", id_col=0)
     abc = Ballot(
         ranking=[{"b"}, {"c"}, {"c"}],
         weight=Fraction(3),
@@ -109,7 +111,7 @@ def test_combo():
 
 
 def test_diff_candidates():
-    prof = rank_column_csv(DATA_DIR / "diff_cands.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "diff_cands.csv", id_col=0)
     abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voters={"abe"}, weight=Fraction(1))
     don = Ballot(ranking=[{"d"}, {"e"}, {"f"}], weight=Fraction(1), voters={"don"})
     carrie = Ballot(
@@ -120,7 +122,7 @@ def test_diff_candidates():
 
 
 def test_same_candidates():
-    prof = rank_column_csv(DATA_DIR / "same_cands.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "same_cands.csv", id_col=0)
     abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voters={"abe"}, weight=Fraction(1))
     don = Ballot(ranking=[{"c"}, {"b"}, {"a"}], weight=Fraction(1), voters={"don"})
     carrie = Ballot(
@@ -131,7 +133,7 @@ def test_same_candidates():
 
 
 def test_special_char():
-    prof = rank_column_csv(DATA_DIR / "special_char.csv", id_col=0)
+    prof = rank_column_csv(CSV_DIR / "special_char.csv", id_col=0)
     a1 = Ballot(
         ranking=[{"b@#"}, {"@#$"}, {"c"}], weight=Fraction(2), voters={"a@#", "1@#"}
     )
@@ -142,15 +144,35 @@ def test_special_char():
 
 def test_unnamed_ballot():
     with pytest.raises(ValueError):
-        rank_column_csv(DATA_DIR / "unnamed.csv", id_col=0)
+        rank_column_csv(CSV_DIR / "unnamed.csv", id_col=0)
 
 
 def test_same_name():
     with pytest.raises(DataError):
-        rank_column_csv(DATA_DIR / "same_name.csv", id_col=0)
+        rank_column_csv(CSV_DIR / "same_name.csv", id_col=0)
 
 
 # def malformed_rows():
 #     p = CVRLoader(load_func=rank_column_csv)
 #     # p.load_cvr(DATA_DIR / "malformed.csv")
 #     # print(p)
+
+
+def test_blt_seats_parse():
+    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    assert seats == 4
+
+
+def test_empty_file_blt():
+    with pytest.raises(EmptyDataError):
+        pp, seats = blt(BLT_DIR / "empty.blt")
+
+
+def test_bad_metadata_blt():
+    with pytest.raises(DataError):
+        pp, seats = blt(BLT_DIR / "bad_metadata.blt")
+
+
+def test_incorrect_metadata_blt():
+    with pytest.raises(DataError):
+        pp, seats = blt(BLT_DIR / "candidate_metadata_conflict.blt")
