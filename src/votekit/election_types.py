@@ -1,6 +1,6 @@
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
-from votekit.election_state import ElectionState
+from .profile import PreferenceProfile
+from .ballot import Ballot
+from .election_state import ElectionState
 from typing import Callable, Iterable
 import random
 from fractions import Fraction
@@ -147,7 +147,7 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
 
 
 def remove_cand_set(removed_set: Iterable[str], ballots: list[Ballot]) -> list[Ballot]:
-    new_ballot_list = ballots
+    new_ballot_list = ballots.copy()
     for cand in removed_set:
         new_ballot_list = remove_cand(cand, new_ballot_list)
     return new_ballot_list

@@ -1,12 +1,12 @@
-from votekit.election_types import compute_votes, remove_cand, fractional_transfer, STV
-from votekit.cvr_loaders import rank_column_csv
+from .election_types import compute_votes, remove_cand, fractional_transfer, STV
+from .cvr_loaders import rank_column_csv
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 
-test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
+test_profile = rank_column_csv(DATA_DIR / "test_election_A.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 

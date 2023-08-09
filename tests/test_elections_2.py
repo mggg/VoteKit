@@ -1,7 +1,7 @@
-import votekit.election_types as et
-from votekit.profile import PreferenceProfile
-from votekit.election_state import ElectionState
-from votekit.cvr_loaders import rank_column_csv
+from .election_types import Bloc, SNTV, SNTV_STV_Hybrid, fractional_transfer
+from .profile import PreferenceProfile
+from .election_state import ElectionState
+from .cvr_loaders import rank_column_csv
 
 from pathlib import Path
 
@@ -23,23 +23,23 @@ def equal_electionstates(state1, state2):
 
 
 def compare_io_bloc(profile, seats, target_state):
-    bloc_election = et.Bloc(profile=profile, seats=seats)
+    bloc_election = Bloc(profile=profile, seats=seats)
     outcome = bloc_election.run_election()
     return equal_electionstates(outcome, target_state)
 
 
 def compare_io_sntv(profile, seats, target_state):
-    sntv_election = et.SNTV(profile=profile, seats=seats)
+    sntv_election = SNTV(profile=profile, seats=seats)
     outcome = sntv_election.run_election()
     return equal_electionstates(outcome, target_state)
 
 
 def compare_io_hybrid(profile, r1_cutoff, seats, target_state):
-    hybrid_election = et.SNTV_STV_Hybrid(
+    hybrid_election = SNTV_STV_Hybrid(
         profile=profile,
         r1_cutoff=r1_cutoff,
         seats=seats,
-        transfer=et.fractional_transfer,
+        transfer=fractional_transfer,
     )
     outcome = hybrid_election.run_election()
     return equal_electionstates(outcome, target_state)

@@ -1,4 +1,4 @@
-from ballot import Ballot
+from .ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
 from fractions import Fraction
@@ -12,7 +12,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot]
+    ballots: list[Ballot] = list()
     candidates: Optional[list] = None
 
     @validator("candidates")
