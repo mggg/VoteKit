@@ -43,6 +43,7 @@ class BallotGenerator:
     ):
         self.number_of_ballots = number_of_ballots
         if isinstance(candidates, dict):
+            self.slate_to_candidate = candidates
             self.candidates = list(
                 {cand for cands in candidates.values() for cand in cands}
             )
@@ -52,9 +53,14 @@ class BallotGenerator:
             ballot_length if ballot_length is not None else len(self.candidates)
         )
 
-        if hyperparameters and isinstance(candidates, dict):  # add type error
-            self.set_params(candidates, **hyperparameters)
-            self.parameterized = True
+        if hyperparameters:
+            if isinstance(candidates, dict):  # add type error
+                self.set_params(candidates, **hyperparameters)
+                self.parameterized = True
+            else:
+                raise TypeError(
+                    "'candidates' must be dictionary when hyperparameters are set"
+                )
 
     @abstractmethod
     def generate_profile(self) -> PreferenceProfile:
@@ -91,9 +97,10 @@ class BallotGenerator:
         crossover: dict = {},
     ) -> None:
         """
-        Generates perference intervals for slates  based on pararmeters and specified models.
-
+        Generates perference intervals for slates based on pararmeters and specified models.
         """
+        if sum(blocs.values()) != 1.0:
+            raise ValueError(f"bloc proportions ({blocs.values()}) do not equal 1")
 
         def _preference_interval(
             alphas: dict, cohesion: int, bloc: str, candidates: dict
@@ -133,7 +140,6 @@ class BallotGenerator:
 
         self.pref_interval_by_slate = interval_by_slate
         self.slate_voter_prop = blocs
-        self.slate_to_candidate = candidates
         self.slate_crossover_rate = crossover
 
 
@@ -283,7 +289,7 @@ class AlternatingCrossover(BallotGenerator):
         pref_interval_by_slate: dict = {},
         slate_voter_prop: dict = {},
         slate_crossover_rate: dict = {},
-        **data
+        **data,
     ):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -402,7 +408,7 @@ class CambridgeSampler(BallotGenerator):
         pref_interval_by_slate: dict = {},
         slate_voter_prop: dict = {},
         slate_crossover_rate: dict = {},
-        **data
+        **data,
     ):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
