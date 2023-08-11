@@ -1,34 +1,53 @@
-from pydantic import BaseModel
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Union, Any
+from .profile import PreferenceProfile
+from .election_state import ElectionState
+from .ballot_generator import BallotGenerator
 
 
-# Example of immutable data model for results
-class Outcome(BaseModel):
+class Simulation(ABC):
     """
-    elected (a set of Candidate): candidates who pass a certain threshold to win an election
-    eliminated (a set of Candidate): candidates who were eliminated (lost in the election)
-    remaining (a set of Candidate): candidates who are still in the running
-    rankings (a list of a set of Candidate): ranking of candidates with sets representing ties
+    Base class for model complex elections or statewide simulations as
+    done in MGGG's RCV research.
     """
 
-    # TODO: replace these with list/set[Candidate] once candidate is well-defined?
-    remaining: set[str]
-    elected: set[str] = set()
-    eliminated: set[str] = set()
-    votes: Optional[dict] = None
-    # TODO: re-add this
-    # rankings: list[set[str]]
+    def __init__(self, ballots: Union[PreferenceProfile, dict] = None):
+        if ballots:
+            self.ballots = ballots
 
-    class Config:
-        allow_mutation = False
+    @abstractmethod
+    def run_simulation(self) -> Any:
+        """
+        User written function to feed parameters into election simulation
+        """
+        pass
 
-    def add_winners_and_losers(self, winners: set[str], losers: set[str]) -> "Outcome":
-        # example method, feel free to delete if not useful
-        if not winners.issubset(self.remaining) or not losers.issubset(self.remaining):
-            missing = (winners - self.remaining) | (losers - self.remaining)
-            raise ValueError(f"Cannot promote winners, {missing} not in remaining")
-        return Outcome(
-            remaining=self.remaining - winners - losers,
-            elected=self.elected | winners,
-            eliminated=self.eliminated | losers,
-        )
+    @abstractmethod
+    def sim_election(self) -> ElectionState:
+        """
+        Runs election(s) with specified parameters.
+        """
+        pass
+
+    def generate_ballots(
+        self, num_ballots: int, candidates: Union[list, dict], params: dict
+    ) -> list[tuple[Any, PreferenceProfile]]:
+        """
+        Function that generates perference profiles if ballot generator model
+        is assigned to the class.
+
+        Can be overridden based on user needs.
+        """
+        if isinstance(self.ballots, PreferenceProfile):
+            raise TypeError("No generator assigned to produce ballots")
+
+        ballots = []
+        for model_name, model in self.ballots.items():
+            generator: BallotGenerator = model(
+                number_of_ballots=num_ballots,
+                candidates=candidates,
+                hyperparameters=params,
+            )
+            ballots.append((model_name, generator.generate_profile()))
+
+        return ballots
