@@ -9,9 +9,13 @@ class Simulation(ABC):
     """
     Base class for model complex elections or statewide simulations as
     done in MGGG's RCV research.
+
+    *Attributes*
+
+        Ballots: PreferenceProfile or dictionary of ballot generators
     """
 
-    def __init__(self, ballots: Union[PreferenceProfile, dict] = None):
+    def __init__(self, ballots: Union[PreferenceProfile, dict, None] = None):
         if ballots:
             self.ballots = ballots
 
@@ -23,7 +27,7 @@ class Simulation(ABC):
         pass
 
     @abstractmethod
-    def sim_election(self) -> ElectionState:
+    def sim_election(self) -> Union[ElectionState, list]:
         """
         Runs election(s) with specified parameters.
         """
@@ -33,8 +37,8 @@ class Simulation(ABC):
         self, num_ballots: int, candidates: Union[list, dict], params: dict
     ) -> list[tuple[Any, PreferenceProfile]]:
         """
-        Function that generates perference profiles if ballot generator model
-        is assigned to the class.
+        Generates perference profiles if ballot generator models
+        are assigned to the class.
 
         Can be overridden based on user needs.
         """
