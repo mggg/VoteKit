@@ -72,6 +72,3 @@ def plot_MDS(
     plt.title("MDS Plot for Pair Wise Election Distances")
     plt.show()
     return plt
-
-
-# Test:
