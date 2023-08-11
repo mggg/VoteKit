@@ -1,6 +1,4 @@
 from .ballot import Ballot
-
-
 from typing import Optional
 from pydantic import BaseModel, validator
 from fractions import Fraction
@@ -56,17 +54,21 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    def to_dict(self) -> dict:
+    def to_dict(self, standardize: bool) -> dict:
         """
         Converts ballots to dictionary with keys (ranking) and values
-        the corresponding total weights
+        the corresponding total weights \n
+        input: standardize to model an election distribution
         """
+        num_ballots = self.num_ballots()
         di: dict = {}
         for ballot in self.ballots:
             if str(ballot.ranking) not in di.keys():
                 di[str(ballot.ranking)] = Fraction(0)
-            di[str(ballot.ranking)] += ballot.weight
-
+            if standardize is True:
+                di[str(ballot.ranking)] += ballot.weight / num_ballots
+            else:
+                di[str(ballot.ranking)] += ballot.weight
         return di
 
     class Config:
