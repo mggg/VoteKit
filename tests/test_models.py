@@ -1,28 +1,50 @@
 import pytest
-from votekit.models import Outcome
+from votekit.models import Simulation
+from votekit.ballot_generator import PlackettLuce, BradleyTerry, AlternatingCrossover
+from votekit.profile import PreferenceProfile
+from unittest.mock import MagicMock
 
 
-def test_outcome_promote_winners():
-    orig = Outcome(remaining=["A", "B", "C"])
-    new = orig.add_winners_and_losers({"B"}, {"A"})
-    assert new.elected == {"B"}
-    assert new.eliminated == {"A"}
-    assert new.remaining == {"C"}
+class DummyGenerated(Simulation):
+    ballots = {"PL": PlackettLuce, "BT": BradleyTerry, "AC": AlternatingCrossover}
+
+    def run_simulation():
+        pass
+
+    def sim_election():
+        pass
 
 
-def test_outcome_promote_winners_error():
-    orig = Outcome(remaining=["A", "B", "C"])
-    with pytest.raises(ValueError) as exc:
-        orig.add_winners_and_losers({"D"}, {"E"})
+class DummyActual(Simulation):
+    ballots = MagicMock(spec=PreferenceProfile)
 
-    # ensure error message mentions both bad candidates
-    assert "D" in str(exc.value)
-    assert "E" in str(exc.value)
+    def run_simulation():
+        pass
+
+    def sim_election():
+        pass
 
 
-def test_outcome_immutable():
-    # not that important to test this since it is implemented by pydantic
-    # but provided as a check that we remembered to set allow_mutation = False
-    orig = Outcome(remaining={"A"})
+def test_gen_ballots():
+    model = DummyGenerated()
+    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    specs = {
+        "blocs": {"R": 0.6, "D": 0.4},
+        "cohesion": {"R": 0.7, "D": 0.6},
+        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
+        "crossover": {"R": {"D": 0.5}, "D": {"R": 0.6}},
+    }
+    profiles = model.generate_ballots(num_ballots=10, candidates=cands, params=specs)
+    name, model = profiles[0]
+    assert name == "PL"
+    assert isinstance(model, PreferenceProfile)
+    # check that a profile exists for each ballot generator
+    assert len(profiles) == 3
+
+
+def test_gen_with_real_data():
+    model = DummyActual()
+    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    params = {}
     with pytest.raises(TypeError):
-        orig.remaining = {"A", "B", "C"}
+        model.generate_ballots(num_ballots=10, candidates=cands, hyperparams=params)
