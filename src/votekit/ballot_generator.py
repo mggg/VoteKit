@@ -272,7 +272,7 @@ class AlternatingCrossover(BallotGenerator):
             bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc
             (ex. {race: 0.5})
             bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc
-            (ex. {race: 0.5})
+            (ex. {race: {other_race: 0.5}})
         """
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -283,7 +283,7 @@ class AlternatingCrossover(BallotGenerator):
         self.bloc_voter_prop = bloc_voter_prop
         self.bloc_crossover_rate = bloc_crossover_rate
 
-        assert sum(bloc_crossover_rate.values()) == 1
+        # assert sum(bloc_crossover_rate.values()) == 1
         assert sum(bloc_voter_prop.values()) == 1
 
     def generate_profile(self) -> PreferenceProfile:
@@ -538,18 +538,32 @@ if __name__ == "__main__":
 
     slate_to_candidate = {"white": ["a", "b"], "black": ["c"]}
 
-    gen = AlternatingCrossover(
-        number_of_ballots=number_of_ballots,
-        candidates=candidates,
-        ballot_length=3,
-        pref_interval_by_bloc=pref_interval_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidate=slate_to_candidate,
-        bloc_crossover_rate=bloc_crossover_rate,
-    )
+    # gen = AlternatingCrossover(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=3,
+    #     pref_interval_by_bloc=pref_interval_by_bloc,
+    #     bloc_voter_prop=bloc_voter_prop,
+    #     slate_to_candidate=slate_to_candidate,
+    #     bloc_crossover_rate=bloc_crossover_rate,
+    # )
 
-    res = gen.generate_profile()
-    print(res)
+    # res = gen.generate_profile()
+    # print(res)
+
+    ac = AlternatingCrossover(
+        number_of_ballots=100,
+        candidates=["W1", "W2", "C1", "C2"],
+        ballot_length=None,
+        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        pref_interval_by_bloc={
+            "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
+            "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
+        },
+        bloc_voter_prop={"W": 0.7, "C": 0.3},
+        bloc_crossover_rate={"W": {"C": 0.3}, "C": {"W": 0.1}},
+    )
+    profile = ac.generate_profile()
 
     # a = pref_interval_by_bloc['white']
     # prob = np.array(list(a.values()))
