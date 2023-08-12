@@ -150,7 +150,7 @@ def test_ic_distribution():
     # Set-up
     number_of_ballots = 1000
     ballot_length = 4
-    candidates = ["A", "B", "C", "D"]
+    candidates = ["W1", "W2", "C1", "C2"]
 
     # Find ballot probs
     possible_rankings = it.permutations(candidates, ballot_length)
@@ -174,7 +174,7 @@ def test_ic_distribution():
 def test_iac_completion():
     number_of_ballots = 1000
     ballot_length = 4
-    candidates = ["A", "B", "C", "D"]
+    candidates = ["W1", "W2", "C1", "C2"]
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, ballot_length))
@@ -202,7 +202,7 @@ def test_PL_distribution():
     # Set-up
     number_of_ballots = 1000
     ballot_length = 4
-    candidates = ["A", "B", "C", "D"]
+    candidates = ["W1", "W2", "C1", "C2"]
     ballot_length = None
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
@@ -247,7 +247,7 @@ def test_BT_distribution():
     # Set-up
     number_of_ballots = 1000
     ballot_length = 4
-    candidates = ["A", "B", "C", "D"]
+    candidates = ["W1", "W2", "C1", "C2"]
     ballot_length = None
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
@@ -323,9 +323,9 @@ def test_AC_distribution():
     # Set-up
     number_of_ballots = 1000
     ballot_length = 4
-    candidates = ["A", "B", "C", "D"]
+    candidates = ["W1", "W2", "C1", "C2"]
     ballot_length = None
-    slate_to_candidate = {"W": ["A", "B"], "C": ["C", "D"]}
+    slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     # TODO: change this to be cand to slate
     cand_to_slate = {
         candidate: slate
