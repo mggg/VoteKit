@@ -189,6 +189,8 @@ class BradleyTerry(BallotGenerator):
         self.pref_interval_by_bloc = pref_interval_by_bloc
         self.bloc_voter_prop = bloc_voter_prop
 
+    # TODO: convert to dynamic programming method of calculation
+
     def _calc_prob(self, permutations: list[list], cand_support_dict: dict) -> dict:
         """
         given a list of rankings and the preference interval,
@@ -221,7 +223,7 @@ class BradleyTerry(BallotGenerator):
         ballot_pool = []
 
         for bloc in self.bloc_voter_prop.keys():
-            num_ballots_slate = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             ranking_to_prob = self._calc_prob(
@@ -234,7 +236,7 @@ class BradleyTerry(BallotGenerator):
 
             ballots_indices = choice(
                 indices,
-                num_ballots_slate,
+                num_ballots,
                 p=prob_distrib,
                 replace=True,
             )
@@ -295,19 +297,19 @@ class AlternatingCrossover(BallotGenerator):
         for bloc in self.bloc_voter_prop.keys():
 
             # TODO: need to address a case that num ballots is not even number
-            num_ballots_bloc = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
             crossover_dict = self.bloc_crossover_rate[bloc]
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
-            # generates crossover ballots from each bloc (allows for more than two blocs)
+            # generates crossover ballots from each bloc (allowing for more than two blocs)
             for opposing_slate in crossover_dict.keys():
                 crossover_rate = crossover_dict[opposing_slate]
-                crossover_ballots = int(crossover_rate * num_ballots_bloc)
+                num_crossover_ballots = int(crossover_rate * num_ballots)
 
                 opposing_cands = self.slate_to_candidate[opposing_slate]
                 bloc_cands = self.slate_to_candidate[bloc]
 
-                for _ in range(crossover_ballots):
+                for _ in range(num_crossover_ballots):
                     pref_for_opposing = [
                         pref_interval_dict[cand] for cand in opposing_cands
                     ]
@@ -354,7 +356,7 @@ class AlternatingCrossover(BallotGenerator):
                     ballot_pool.append(ballot)
 
                 # Bloc ballots
-                for _ in range(num_ballots_bloc - crossover_ballots):
+                for _ in range(num_ballots - num_crossover_ballots):
                     ballot = bloc_cands + opposing_cands
                     ballot_pool.append(ballot)
 
