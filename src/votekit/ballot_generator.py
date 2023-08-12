@@ -191,13 +191,13 @@ class BradleyTerry(BallotGenerator):
 
     # TODO: convert to dynamic programming method of calculation
 
-    def _calc_prob(self, permutations: list[list], cand_support_dict: dict) -> dict:
+    def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
         """
         given a list of rankings and the preference interval,
         calculates the probability of observing each ranking
 
         Args:
-            permutations (list[list]): a list of permuted rankings
+            permutations (list[tuple]): a list of permuted rankings
             cand_support_dict (dict): a mapping from candidate to their
             support (preference interval)
 
@@ -550,20 +550,6 @@ if __name__ == "__main__":
 
     # res = gen.generate_profile()
     # print(res)
-
-    ac = AlternatingCrossover(
-        number_of_ballots=100,
-        candidates=["W1", "W2", "C1", "C2"],
-        ballot_length=None,
-        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_interval_by_bloc={
-            "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
-            "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        bloc_crossover_rate={"W": {"C": 0.3}, "C": {"W": 0.1}},
-    )
-    profile = ac.generate_profile()
 
     # a = pref_interval_by_bloc['white']
     # prob = np.array(list(a.values()))
