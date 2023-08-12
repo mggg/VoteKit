@@ -15,6 +15,13 @@ class PreferenceProfile(BaseModel):
     ballots: list[Ballot] = list()
     candidates: Optional[list] = None
 
+    def __eq__(self, other):
+        if isinstance(other, PreferenceProfile):
+            for ballot in self.ballots:
+                if ballot not in other.ballots:
+                    return False
+        return True
+
     @validator("candidates")
     def cands_must_be_unique(cls, cands: list) -> list:
         if not len(set(cands)) == len(cands):

@@ -24,8 +24,8 @@ class ElectionState(BaseModel):
     """
 
     curr_round: int
-    elected: list[str] = []
-    eliminated: list[str] = []
+    elected: list = []
+    eliminated: list = []
     remaining: Optional[list] = None
     profile: PreferenceProfile
     winner_votes: Optional[dict] = None
@@ -34,14 +34,14 @@ class ElectionState(BaseModel):
     class Config:
         allow_mutation = False
 
-    def get_all_winners(self) -> list[str]:
+    def get_all_winners(self) -> list:
         """returns all winners from all rounds so far in order of first elected to last elected"""
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
             return self.elected
 
-    def get_all_eliminated(self) -> list[str]:
+    def get_all_eliminated(self) -> list:
         """returns all winners from all rounds so
         far in order of last eliminated to first eliminated
         """
@@ -51,7 +51,7 @@ class ElectionState(BaseModel):
             elim += self.previous.get_all_eliminated()
         return elim
 
-    def get_rankings(self) -> list[str]:
+    def get_rankings(self) -> list:
         """returns all candidates in order of their ranking at the end of the current round"""
         if self.remaining:
             return self.get_all_winners() + self.remaining + self.get_all_eliminated()

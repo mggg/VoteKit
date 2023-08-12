@@ -1,6 +1,8 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from .election_state import ElectionState
+from .graphs import PairwiseComparisonGraph
+from .metrics import borda_scores
 from typing import Callable, Iterable
 import random
 from fractions import Fraction
@@ -92,65 +94,6 @@ class STV:
         while self.next_round():
             outcome = self.run_step()
         return outcome
-
-
-## Election Helper Functions
-
-
-def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
-    """
-    Computes first place votes for all candidates in a preference profile
-    """
-    votes = {}
-
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if ballot.ranking and ballot.ranking[0] == {candidate}:
-                weight += ballot.weight
-        votes[candidate] = weight
-
-    return votes
-
-
-def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    # find the transfer value, add tranfer value to weights of vballots
-    # that listed the elected in first place, remove that cand and shift
-    # everything up, recomputing first-place votes
-    transfer_value = (votes[winner] - threshold) / votes[winner]
-
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
-
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
-
-
-def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
-    """
-    Removes candidate from ranking of the ballots
-    """
-    update = deepcopy(ballots)
-
-    for n, ballot in enumerate(update):
-        new_ranking = []
-        for candidate in ballot.ranking:
-            if candidate != {removed_cand}:
-                new_ranking.append(candidate)
-        update[n].ranking = new_ranking
-
-    return update
-
-
-def remove_cand_set(removed_set: Iterable[str], ballots: list[Ballot]) -> list[Ballot]:
-    new_ballot_list = ballots.copy()
-    for cand in removed_set:
-        new_ballot_list = remove_cand(cand, new_ballot_list)
-    return new_ballot_list
 
 
 class Limited:
@@ -348,3 +291,137 @@ class TopTwo:
     def run_election(self) -> ElectionState:
         outcome = self.run_step()
         return outcome
+
+
+class DominatingSets:
+    def __init__(self, profile: PreferenceProfile):
+        self.state = ElectionState(curr_round=0, profile=profile)
+
+    """Dominating sets: Return the tiers of candidates by dominating set,
+    which is a set of candidates such that every candidate in the set wins 
+    head to head comparisons against candidates outside of it"""
+
+    def run_step(self) -> ElectionState:
+        pwc_graph = PairwiseComparisonGraph(self.state.profile)
+        dominating_tiers = pwc_graph.dominating_tiers()
+        if len(dominating_tiers) == 1:
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=list(),
+                eliminated=dominating_tiers,
+                remaining=set(),
+                profile=PreferenceProfile(),
+                previous=self.state,
+            )
+        else:
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=[set(dominating_tiers[0])],
+                eliminated=dominating_tiers[1:][::-1],
+                remaining=set(),
+                profile=PreferenceProfile(),
+                previous=self.state,
+            )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class CondoBorda:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+
+    """Condo-Borda: Condo-Borda returns candidates ordered by dominating set,
+    but breaks ties between candidates """
+
+    def run_step(self) -> ElectionState:
+        pwc_graph = PairwiseComparisonGraph(self.state.profile)
+        dominating_tiers = pwc_graph.dominating_tiers()
+        candidate_borda = borda_scores(self.state.profile)
+        ranking = []
+        for dt in dominating_tiers:
+            ranking += order_candidates_by_borda(dt, candidate_borda)
+
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=ranking[: self.seats],
+            eliminated=ranking[self.seats :],
+            remaining=set(),
+            profile=PreferenceProfile(),
+            previous=self.state,
+        )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+# Election Helper Functions
+def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
+    """
+    Computes first place votes for all candidates in a preference profile
+    """
+    votes = {}
+
+    for candidate in candidates:
+        weight = Fraction(0)
+        for ballot in ballots:
+            if ballot.ranking and ballot.ranking[0] == {candidate}:
+                weight += ballot.weight
+        votes[candidate] = weight
+
+    return votes
+
+
+def fractional_transfer(
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+) -> list[Ballot]:
+    # find the transfer value, add tranfer value to weights of vballots
+    # that listed the elected in first place, remove that cand and shift
+    # everything up, recomputing first-place votes
+    transfer_value = (votes[winner] - threshold) / votes[winner]
+
+    for ballot in ballots:
+        if ballot.ranking and ballot.ranking[0] == {winner}:
+            ballot.weight = ballot.weight * transfer_value
+
+    transfered = remove_cand(winner, ballots)
+
+    return transfered
+
+
+def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
+    """
+    Removes candidate from ranking of the ballots
+    """
+    update = deepcopy(ballots)
+
+    for n, ballot in enumerate(update):
+        new_ranking = []
+        for candidate in ballot.ranking:
+            if candidate != {removed_cand}:
+                new_ranking.append(candidate)
+        update[n].ranking = new_ranking
+
+    return update
+
+
+def remove_cand_set(removed_set: Iterable[str], ballots: list[Ballot]) -> list[Ballot]:
+    new_ballot_list = ballots.copy()
+    for cand in removed_set:
+        new_ballot_list = remove_cand(cand, new_ballot_list)
+    return new_ballot_list
+
+
+def order_candidates_by_borda(candidate_set, candidate_borda):
+    # Sort the candidates in candidate_set based on their Borda values
+    ordered_candidates = sorted(
+        candidate_set,
+        key=lambda candidate: candidate_borda.get(candidate, 0),
+        reverse=True,
+    )
+    return ordered_candidates
