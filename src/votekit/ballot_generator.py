@@ -30,7 +30,7 @@ class BallotGenerator:
     # candidates: list
     # ballot_length: Optional[int]
     # slate_to_candidate: Optional[dict]  # race: [candidate]
-    # pref_interval_by_slate: Optional[dict] = None  # race: {candidate : interval length}
+    # pref_interval_by_bloc: Optional[dict] = None  # race: {candidate : interval length}
     # demo_breakdown: Optional[dict] = None  # race: percentage
 
     def __init__(
@@ -48,7 +48,6 @@ class BallotGenerator:
         self.ballot_length = (
             ballot_length if ballot_length is not None else len(candidates)
         )
-        # self.candidate_list = BallotGenerator.list_to_set(candidates)
         self.candidates = candidates
 
     @abstractmethod
@@ -120,12 +119,12 @@ class IAC(BallotGenerator):
 
 
 class PlackettLuce(BallotGenerator):
-    def __init__(self, pref_interval_by_slate: dict, bloc_voter_prop: dict, **data):
+    def __init__(self, pref_interval_by_bloc: dict, bloc_voter_prop: dict, **data):
         """
         Plackett Luce Ballot Generation Model
 
         Args:
-            pref_interval_by_slate (dict): a mapping of slate to preference interval
+            pref_interval_by_bloc (dict): a mapping of slate to preference interval
             (ex. {race: {candidate : interval length}})
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
@@ -134,21 +133,24 @@ class PlackettLuce(BallotGenerator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
+        assert sum(bloc_voter_prop.values()) == 1
+        # TODO: assert if pref interval also sums up to 1?
+
         # Assign additional parameters specific to PlackettLuce
-        self.pref_interval_by_slate = pref_interval_by_slate
+        self.pref_interval_by_bloc = pref_interval_by_bloc
         self.bloc_voter_prop = bloc_voter_prop
 
     def generate_profile(self) -> PreferenceProfile:
         ballot_pool = []
 
-        for race in self.bloc_voter_prop.keys():
-            # number of voters in this race/block
-            num_ballots_race = int(self.number_of_ballots * self.bloc_voter_prop[race])
-            pref_interval_dict = self.pref_interval_by_slate[race]
+        for bloc in self.bloc_voter_prop.keys():
+            # number of voters in this bloc
+            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
             # creates the interval of probabilities for candidates supported by this block
             cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
 
-            for _ in range(num_ballots_race):
+            for _ in range(num_ballots):
                 # generates ranking based on probability distribution of candidate support
                 ballot = list(
                     choice(
@@ -168,12 +170,12 @@ class PlackettLuce(BallotGenerator):
 
 
 class BradleyTerry(BallotGenerator):
-    def __init__(self, pref_interval_by_slate: dict, bloc_voter_prop: dict, **data):
+    def __init__(self, pref_interval_by_bloc: dict, bloc_voter_prop: dict, **data):
         """
         Bradley Terry Ballot Generation Model
 
         Args:
-            pref_interval_by_slate (dict): a mapping of slate to preference interval
+            pref_interval_by_bloc (dict): a mapping of slate to preference interval
             (ex. {race: {candidate : interval length}})
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
@@ -181,8 +183,10 @@ class BradleyTerry(BallotGenerator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
+        assert sum(bloc_voter_prop.values()) == 1
+
         # Assign additional parameters specific to Bradley Terrys
-        self.pref_interval_by_slate = pref_interval_by_slate
+        self.pref_interval_by_bloc = pref_interval_by_bloc
         self.bloc_voter_prop = bloc_voter_prop
 
     def _calc_prob(self, permutations: list[list], cand_support_dict: dict) -> dict:
@@ -192,10 +196,11 @@ class BradleyTerry(BallotGenerator):
 
         Args:
             permutations (list[list]): a list of permuted rankings
-            cand_support_dict (dict): a mapping from
+            cand_support_dict (dict): a mapping from candidate to their
+            support (preference interval)
 
         Returns:
-            dict: _description_
+            dict: a mapping of the rankings to their probability
         """
         ranking_to_prob = {}
         for ranking in permutations:
@@ -215,11 +220,9 @@ class BradleyTerry(BallotGenerator):
         permutations = list(it.permutations(self.candidates, self.ballot_length))
         ballot_pool = []
 
-        for slate in self.bloc_voter_prop.keys():
-            num_ballots_slate = int(
-                self.number_of_ballots * self.bloc_voter_prop[slate]
-            )
-            pref_interval_dict = self.pref_interval_by_slate[slate]
+        for bloc in self.bloc_voter_prop.keys():
+            num_ballots_slate = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             ranking_to_prob = self._calc_prob(
                 permutations=permutations, cand_support_dict=pref_interval_dict
@@ -274,9 +277,12 @@ class AlternatingCrossover(BallotGenerator):
 
         # Assign additional parameters specific to AC
         self.slate_to_candidate = slate_to_candidate
-        self.pref_interval_by_slate = pref_interval_by_bloc
+        self.pref_interval_by_bloc = pref_interval_by_bloc
         self.bloc_voter_prop = bloc_voter_prop
         self.bloc_crossover_rate = bloc_crossover_rate
+
+        assert sum(bloc_crossover_rate.values()) == 1
+        assert sum(bloc_voter_prop.values()) == 1
 
     def generate_profile(self) -> PreferenceProfile:
 
@@ -291,7 +297,7 @@ class AlternatingCrossover(BallotGenerator):
             # TODO: need to address a case that num ballots is not even number
             num_ballots_bloc = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
             crossover_dict = self.bloc_crossover_rate[bloc]
-            pref_interval_dict = self.pref_interval_by_slate[bloc]
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             # generates crossover ballots from each bloc (allows for more than two blocs)
             for opposing_slate in crossover_dict.keys():
@@ -362,7 +368,7 @@ class CambridgeSampler(BallotGenerator):
     def __init__(
         self,
         slate_to_candidate: dict,
-        pref_interval_by_slate: dict,
+        pref_interval_by_bloc: dict,
         bloc_voter_prop: dict,
         bloc_crossover_rate: dict,
         path: Path,
@@ -373,7 +379,7 @@ class CambridgeSampler(BallotGenerator):
 
         # Assign additional parameters specific to
         self.slate_to_candidate = slate_to_candidate
-        self.pref_interval_by_slate = pref_interval_by_slate
+        self.pref_interval_by_bloc = pref_interval_by_bloc
         self.bloc_voter_prop = bloc_voter_prop
         self.bloc_crossover_rate = bloc_crossover_rate
         self.path = path
@@ -413,7 +419,7 @@ class CambridgeSampler(BallotGenerator):
             }
 
             bloc_voters = int(self.bloc_voter_prop[bloc] * self.number_of_ballots)
-            pref_interval_dict = self.pref_interval_by_slate[bloc]
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
             for _ in range(bloc_voters):
                 first_choice = np.random.choice(
                     [bloc, opp_bloc],
@@ -489,3 +495,62 @@ class OneDimSpatial(BallotGenerator):
 #     @override
 #     def generate_profile() -> PreferenceProfile:
 #         pass
+
+
+if __name__ == "__main__":
+    candidates = ["a", "b", "c"]
+    number_of_ballots = 5
+    ballot_length = 2
+    pref_interval_by_bloc = {
+        "white": {"a": 0.1, "b": 0.5, "c": 0.4},
+        "black": {"a": 0.2, "b": 0.5, "c": 0.3},
+    }
+    bloc_voter_prop = {"white": 0.5, "black": 0.5}
+
+    # gen = IC(number_of_ballots=number_of_ballots,
+    #  candidates=candidates, ballot_length=ballot_length)
+
+    # gen = IAC(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=ballot_length,
+    # )
+
+    # gen = PlackettLuce(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=2,
+    #     pref_interval_by_bloc=pref_interval_by_bloc,
+    #     bloc_voter_prop=bloc_voter_prop,
+    # )
+
+    # gen = BradleyTerry(
+    #     number_of_ballots=number_of_ballots,
+    #     candidates=candidates,
+    #     ballot_length=2,
+    #     pref_interval_by_bloc=pref_interval_by_bloc,
+    #     bloc_voter_prop=bloc_voter_prop,
+    # )
+
+    bloc_crossover_rate = {"white": {"black": 0.5}, "black": {"white": 0.8}}
+
+    slate_to_candidate = {"white": ["a", "b"], "black": ["c"]}
+
+    gen = AlternatingCrossover(
+        number_of_ballots=number_of_ballots,
+        candidates=candidates,
+        ballot_length=3,
+        pref_interval_by_bloc=pref_interval_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        slate_to_candidate=slate_to_candidate,
+        bloc_crossover_rate=bloc_crossover_rate,
+    )
+
+    res = gen.generate_profile()
+    print(res)
+
+    # a = pref_interval_by_bloc['white']
+    # prob = np.array(list(a.values()))
+    # prob_mat = [[p1 / (p1 + p2) for p2 in prob] for p1 in prob]
+    # print(prob_mat)
+    # b = pref_interval_by_bloc['black']
