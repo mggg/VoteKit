@@ -10,6 +10,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 from itertools import zip_longest
+import math
 
 """
 IC
@@ -53,6 +54,10 @@ class BallotGenerator:
     @abstractmethod
     def generate_profile(self) -> PreferenceProfile:
         pass
+
+    def round_num(self, num: float) -> int:
+        rand = random.randint(0, 1)
+        return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod
     def ballot_pool_to_profile(ballot_pool, candidates) -> PreferenceProfile:
@@ -145,7 +150,9 @@ class PlackettLuce(BallotGenerator):
 
         for bloc in self.bloc_voter_prop.keys():
             # number of voters in this bloc
-            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = self.round_num(
+                self.number_of_ballots * self.bloc_voter_prop[bloc]
+            )
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
             # creates the interval of probabilities for candidates supported by this block
             cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
@@ -226,7 +233,9 @@ class BradleyTerry(BallotGenerator):
         ballot_pool = []
 
         for bloc in self.bloc_voter_prop.keys():
-            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = self.round_num(
+                self.number_of_ballots * self.bloc_voter_prop[bloc]
+            )
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             ranking_to_prob = self._calc_prob(
@@ -300,14 +309,16 @@ class AlternatingCrossover(BallotGenerator):
         for bloc in self.bloc_voter_prop.keys():
 
             # TODO: need to address a case that num ballots is not even number
-            num_ballots = int(self.number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = self.round_num(
+                self.number_of_ballots * self.bloc_voter_prop[bloc]
+            )
             crossover_dict = self.bloc_crossover_rate[bloc]
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             # generates crossover ballots from each bloc (allowing for more than two blocs)
             for opposing_slate in crossover_dict.keys():
                 crossover_rate = crossover_dict[opposing_slate]
-                num_crossover_ballots = int(crossover_rate * num_ballots)
+                num_crossover_ballots = self.round_num(crossover_rate * num_ballots)
 
                 opposing_cands = self.slate_to_candidate[opposing_slate]
                 bloc_cands = self.slate_to_candidate[bloc]
@@ -423,7 +434,9 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == opp_bloc
             }
 
-            bloc_voters = int(self.bloc_voter_prop[bloc] * self.number_of_ballots)
+            bloc_voters = self.round_num(
+                self.bloc_voter_prop[bloc] * self.number_of_ballots
+            )
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
             for _ in range(bloc_voters):
                 first_choice = np.random.choice(
@@ -494,12 +507,6 @@ class OneDimSpatial(BallotGenerator):
             ballot_pool.append(candidate_order)
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
-
-
-# class TwoDimSpatial(BallotGenerator):
-#     @override
-#     def generate_profile() -> PreferenceProfile:
-#         pass
 
 
 if __name__ == "__main__":
