@@ -160,17 +160,10 @@ def do_ballot_probs_match_ballot_dist(
         if not (
             int(ballot_conf_dict[b][0]) <= ballot_weight <= int(ballot_conf_dict[b][1])
         ):
-            # print('prob', ballot_prob_dict[b])
-            # print('lower', int(ballot_conf_dict[b][0]))
-            # print(ballot_weight)
-            # print('upper', int(ballot_conf_dict[b][1]))
-            # return False
             failed += 1
 
     n_factorial = math.factorial(n)
     stdev = np.sqrt(n_factorial * alpha * (1 - alpha))
-    # print(failed)
-    # print((n_factorial * (1- alpha) + 2 * stdev))
     return failed < (n_factorial * (1 - alpha) + 2 * stdev)
 
 
