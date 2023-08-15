@@ -53,6 +53,8 @@ class BallotGenerator:
             ballot_length if ballot_length is not None else len(self.candidates)
         )
 
+        self.parameterized = False
+
         if hyperparameters:
             if isinstance(candidates, dict):  # add type error
                 self.set_params(candidates, **hyperparameters)
