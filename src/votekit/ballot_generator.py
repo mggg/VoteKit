@@ -56,7 +56,7 @@ class BallotGenerator:
         pass
 
     def round_num(self, num: float) -> int:
-        rand = random.randint(0, 1)
+        rand = np.random.random()
         return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod
