@@ -6,11 +6,12 @@ authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.9,<3.12"
 pandas = "^2.0.2"
 mypy = "^1.4.1"
 pydantic = "^1.10.9"
 pandas-stubs = "^2.0.2.230605"
+scipy = "^1.11.1"
 
 
 [tool.poetry.group.dev.dependencies]

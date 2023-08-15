@@ -206,12 +206,15 @@ class BradleyTerry(BallotGenerator):
         """
         ranking_to_prob = {}
         for ranking in permutations:
+            print(len(ranking))
             prob = 1
             for i in range(len(ranking)):
                 cand_i = ranking[i]
+                print(cand_i)
                 greater_cand_support = cand_support_dict[cand_i]
-                for j in range(i, len(ranking)):
+                for j in range(i + 1, len(ranking)):
                     cand_j = ranking[j]
+                    print(cand_j)
                     cand_support = cand_support_dict[cand_j]
                     prob *= greater_cand_support / (greater_cand_support + cand_support)
             ranking_to_prob[ranking] = prob
