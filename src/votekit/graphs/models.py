@@ -112,7 +112,7 @@ class BallotGraph(Graph):
         if not self.node_data:
             self.node_data = {ballot: 0 for ballot in self.graph.nodes}
 
-        self.num_voters: int = sum(self.node_data.values())
+        self.num_voters = sum(self.node_data.values())
 
     # def _clean(self):
     #     """deletes empty ballots, changes n-1 length ballots
@@ -222,11 +222,10 @@ class BallotGraph(Graph):
                     ballot_node, list(self.cand_num.values())
                 )
 
-            ballot_node = tuple(ballot_node)
-            if ballot_node in self.graph.nodes:
-                self.graph.nodes[ballot_node]["weight"] += ballot.weight
-                self.graph.nodes[ballot_node]["cast"] = True
-                self.node_data[ballot_node] += ballot.weight
+            if tuple(ballot_node) in self.graph.nodes:
+                self.graph.nodes[tuple(ballot_node)]["weight"] += ballot.weight
+                self.graph.nodes[tuple(ballot_node)]["cast"] = True
+                self.node_data[tuple(ballot_node)] += ballot.weight
 
         if not complete:
             partial = nx.Graph()
