@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from distinctipy import get_colors  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
 import networkx as nx  # type: ignore
+from functools import cache
 
 
 class Graph(ABC):
@@ -40,7 +41,7 @@ class Graph(ABC):
         """Returns dict of k ball neighborhoods of
         given radius with their centers and weights
         """
-        if not self.node_data:
+        if not self.node_data or sum(self.node_data.values()) == 0:
             raise TypeError("no weights assigned to graph")
 
         cast_ballots = {x for x in self.node_data.keys() if self.node_data[x] > 0}
@@ -86,9 +87,10 @@ class BallotGraph(Graph):
         source: Union[PreferenceProfile, int, list],
         complete: Optional[bool] = True,
     ):
+        super().__init__()
 
         self.profile = None
-        self.graph = None
+        self.candidates = None
 
         if isinstance(source, int):
             self.graph = self.build_graph(source)
@@ -97,6 +99,7 @@ class BallotGraph(Graph):
         if isinstance(source, list):
             self.num_cands = len(source)
             self.graph = self.build_graph(len(source))
+            self.candidates = source
 
         if isinstance(source, PreferenceProfile):
             self.profile = source
@@ -151,23 +154,23 @@ class BallotGraph(Graph):
         Gc = nx.Graph()
         # base cases
         if n == 1:
-            Gc.add_nodes_from([(1)])
+            Gc.add_nodes_from([(1)], weight=0, cast=False)
 
         elif n == 2:
-            Gc.add_nodes_from([(1, 2), (2, 1)])
+            Gc.add_nodes_from([(1, 2), (2, 1)], weight=0, cast=False)
             Gc.add_edges_from([((1, 2), (2, 1))])
 
         elif n > 2:
             G_prev = self.build_graph(n - 1)
             for i in range(1, n + 1):
                 # add the node for the bullet vote i
-                Gc.add_node((i,))
+                Gc.add_node((i,), weight=0, cast=False)
 
                 # make the subgraph for the ballots where i is ranked first
                 G_corner = self._relabel(G_prev, i, n)
 
                 # add the components from that graph to the larger graph
-                Gc.add_nodes_from(G_corner.nodes)
+                Gc.add_nodes_from(G_corner.nodes, weight=0, cast=False)
                 Gc.add_edges_from(G_corner.edges)
 
                 # connect the bullet vote node to the appropriate vertices
@@ -190,8 +193,6 @@ class BallotGraph(Graph):
     def from_profile(
         self, profile: PreferenceProfile, complete: Optional[bool] = True
     ) -> nx.Graph:
-        # should this return the graph and are ballots (3, 2, 1) and
-        # (3, 2) in a three candidate election the same
         """
         Updates existing graph based on cast ballots from a PreferenceProfile,
         or creates graph based on PreferenceProfile
@@ -202,9 +203,9 @@ class BallotGraph(Graph):
         if not self.num_voters:
             self.num_voters = profile.num_ballots()
 
-        cands = profile.get_candidates()
+        self.candidates = profile.get_candidates()
         ballots = profile.get_ballots()
-        cand_num = self.number_cands(cands)
+        self.cand_num = self.number_cands(tuple(self.candidates))
         self.node_data = {ballot: 0 for ballot in self.graph.nodes}
 
         for ballot in ballots:
@@ -215,24 +216,63 @@ class BallotGraph(Graph):
                         "ballots must be cleaned to resolve ties"
                     )  # still unsure about ties
                 for cand in position:
-                    ballot_node.append(cand_num[cand])
-            if tuple(ballot_node) in self.graph.nodes:
-                self.graph.nodes[tuple(ballot_node)]["weight"] = ballot.weight
-                self.graph.nodes[tuple(ballot_node)]["cast"] = True
-                self.node_data[tuple(ballot_node)] += ballot.weight
+                    ballot_node.append(self.cand_num[cand])
+            if len(ballot_node) == len(self.candidates) - 1:
+                ballot_node = self.fix_short_ballot(
+                    ballot_node, list(self.cand_num.values())
+                )
+
+            ballot_node = tuple(ballot_node)
+            if ballot_node in self.graph.nodes:
+                self.graph.nodes[ballot_node]["weight"] += ballot.weight
+                self.graph.nodes[ballot_node]["cast"] = True
+                self.node_data[ballot_node] += ballot.weight
 
         if not complete:
             partial = nx.Graph()
             for node in self.graph.nodes:
-                if "cast" in self.graph.nodes[node]:
-                    partial.add_node(node)
+                if self.graph.nodes[node]["cast"]:
+                    partial.add_node(
+                        node,
+                        weight=self.graph.nodes[node]["weight"],
+                        cast=self.graph.nodes[node]["cast"],
+                    )
 
             self.graph = partial
 
         return self.graph
 
-    @staticmethod
-    def number_cands(cands: list) -> dict:
+    def fix_short_ballot(self, ballot: list, candidates: list) -> list:
+        """
+        Appends short ballots of n-1 length to add to BallotGraph
+        """
+        missing = set(candidates).difference(set(ballot))
+
+        return ballot + list(missing)
+
+    def label_cands(self, candidates):
+        """
+        Assigns candidate labels to ballot graph for plotting.
+
+        Returns: a dictionary with keys, the index  of a node and values, the
+        ballot with candidate names.
+        """
+
+        candidate_numbers = self.number_cands(tuple(candidates))
+
+        cand_dict = {value: key for key, value in candidate_numbers.items()}
+
+        cand_labels = {}
+        for node in self.graph.nodes:
+            ballot = []
+            for num in node:
+                ballot.append(cand_dict[num])
+            cand_labels[node] = tuple(ballot)
+
+        return cand_labels
+
+    @cache
+    def number_cands(self, cands: tuple) -> dict:
         """
         Assigns numerical marker to candidates
         """
@@ -242,7 +282,7 @@ class BallotGraph(Graph):
 
         return legend
 
-    def plot(self, neighborhoods: Optional[dict] = {}):
+    def plot(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
         """visualize the whole election or select neighborhoods in the election."""
         # TODO: change this so that neighborhoods can have any neighborhood
         # not just heavy balls, also there's something wrong with the shades
@@ -250,6 +290,7 @@ class BallotGraph(Graph):
         GREY = (0.44, 0.5, 0.56)
         BLACK = (0, 0, 0)
         node_cols: list = []
+        node_labels = None
 
         k = len(neighborhoods) if neighborhoods else self.num_cands
         cols = get_colors(
@@ -268,13 +309,22 @@ class BallotGraph(Graph):
                         i = (list(neighborhoods.keys())).index(center)
                         break
             elif self.node_data[ballot] != 0 and self.profile:
-                i = (self.profile.get_candidates()).index(ballot[0])
+                print(ballot)
+                i = (list(self.cand_num.values())).index(ballot[0])
 
             if "weight" in ballot:
                 color = tuple(ballot.weight * x for x in cols[i])
             node_cols.append(color)
 
-        nx.draw_networkx(Gc, with_labels=True, node_color=node_cols)
+        if labels:
+            if not self.candidates:
+                raise ValueError("no candidate names assigned")
+            if self.candidates:
+                node_labels = self.label_cands(self.candidates)
+            elif self.profile:
+                node_labels = self.label_cands(self.profile.get_candidates())
+
+        nx.draw_networkx(Gc, with_labels=True, node_color=node_cols, labels=node_labels)
         plt.show()
 
     # TODO
