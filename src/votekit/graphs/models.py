@@ -20,6 +20,10 @@ class Graph(ABC):
     def build_graph(self, *args: Any, **kwargs: Any) -> nx.Graph:
         pass
 
+    @abstractmethod
+    def plot(self, *args: Any, **kwags: Any):
+        pass
+
     def distance_between_subsets(self, A: nx.Graph, B: nx.Graph):
         """Returns distance between A,B"""
         Gc = self.graph
@@ -80,24 +84,30 @@ class BallotGraph(Graph):
         source: Union[PreferenceProfile, int, list],
         complete: Optional[bool] = True,
     ):
+
+        self.profile = None
+        self.graph = None
+
         if isinstance(source, int):
             self.graph = self.build_graph(source)
             self.num_cands = source
 
         if isinstance(source, PreferenceProfile):
             self.profile = source
+            self.num_voters = source.num_ballots()
             self.num_cands = len(source.get_candidates())
-            self.ballot_dict: dict = source.to_dict()
+            if not self.graph:
+                self.graph = self.build_graph(len(source.get_candidates()))
             self.graph = self.from_profile(source, complete)
 
         if isinstance(source, list):
             self.num_cands = len(source)
             self.graph = self.build_graph(len(source))
 
-        all_ballots = self.graph.nodes
-        self.ballot_dict = {ballot: 0 for ballot in all_ballots}
+        # all_ballots = self.graph.nodes
+        # self.ballot_dict = {ballot: 0 for ballot in all_ballots}
         # self._clean()
-        self.num_voters: int = sum(self.ballot_dict.values())
+        # self.num_voters: int = sum(self.ballot_dict.values())
 
     def _clean(self):
         """deletes empty ballots, changes n-1 length ballots
@@ -132,7 +142,7 @@ class BallotGraph(Graph):
 
         return nx.relabel_nodes(gr, node_map)
 
-    def build_graph(self, n: int) -> nx.Graph:
+    def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
         """
         Builds graph of all possible ballots given a number of candiates
         """
@@ -175,7 +185,9 @@ class BallotGraph(Graph):
 
         return Gc
 
-    def from_profile(self, profile: PreferenceProfile, complete: Optional[bool] = True):
+    def from_profile(
+        self, profile: PreferenceProfile, complete: Optional[bool] = True
+    ) -> nx.Graph:  # should this return the graph
         """
         Updates existing graph based on cast ballots from a PreferenceProfile,
         or creates graph based on PreferenceProfile
@@ -183,9 +195,12 @@ class BallotGraph(Graph):
         if not self.profile:
             self.profile = profile
 
-        if not self.graph:
-            num_cands = len(profile.get_candidates())
-            self.graph = self.build_graph(num_cands)
+        # if not self.graph:
+        #     num_cands = len(profile.get_candidates())
+        #     self.graph = self.build_graph(num_cands)
+
+        if not self.num_voters:
+            self.num_voters = profile.num_ballots()
 
         cands = profile.get_candidates()
         ballots = profile.get_ballots()
@@ -200,15 +215,19 @@ class BallotGraph(Graph):
                     )  # still unsure about ties
                 for cand in position:
                     ballot_node.append(cand_num[cand])
-            if ballot_node in self.graph.nodes:
+            if tuple(ballot_node) in self.graph.nodes:
                 self.graph.nodes[tuple(ballot_node)]["weight"] = ballot.weight
                 self.graph.nodes[tuple(ballot_node)]["cast"] = True
 
-        # removes uncast nodes from graph
         if not complete:
+            partial = nx.Graph()
             for node in self.graph.nodes:
-                if "cast" not in node:
-                    self.graph.remove_node(node)
+                if "cast" in self.graph.nodes[node]:
+                    partial.add_node(node)
+
+            self.graph = partial
+
+        return self.graph
 
     @staticmethod
     def number_cands(cands: list) -> dict:
@@ -217,41 +236,42 @@ class BallotGraph(Graph):
         """
         legend = {}
         for idx, cand in enumerate(cands):
-            legend[cand] = idx
+            legend[cand] = idx + 1
 
         return legend
 
-    def visualize(self, neighborhoods: Optional[dict] = {}):  ##
+    def plot(self, neighborhoods: Optional[dict] = {}):
         """visualize the whole election or select neighborhoods in the election."""
         # TODO: change this so that neighborhoods can have any neighborhood
         # not just heavy balls, also there's something wrong with the shades
         Gc = self.graph
-        WHITE = (1, 1, 1)
+        GREY = (0.44, 0.5, 0.56)
         BLACK = (0, 0, 0)
         node_cols: list = []
 
         k = len(neighborhoods) if neighborhoods else self.num_cands
         cols = get_colors(
-            k, [WHITE, BLACK], pastel_factor=0.7
+            k, [GREY, BLACK], pastel_factor=0.7
         )  # redo the colors to match MGGG lab
 
         self._clean()
-        for bal in Gc.nodes:
+        for ballot in Gc.nodes:
             i = -1
-            color: tuple = WHITE
-            weight = self.num_voters
+            color: tuple = GREY
 
             if neighborhoods:
                 for c in neighborhoods.keys():
-                    if bal in (neighborhoods[c])[0].nodes:
-                        weight = (neighborhoods[c])[1]
+                    if ballot in (neighborhoods[c])[0].nodes:
+                        # weight = (neighborhoods[c])[1]
                         i = (list(neighborhoods.keys())).index(c)
                         break
-            elif self.ballot_dict[bal] != 0:
-                i = (self.profile.get_candidates()).index(bal[0])
+            elif self.ballot_dict[ballot] != 0 and self.profile:
+                i = (self.profile.get_candidates()).index(ballot[0])
 
-            if i != -1:
-                color = tuple((1 - self.ballot_dict[bal] / weight) * x for x in cols[i])
+            if "weight" in ballot:
+                color = tuple(
+                    (1 - ballot.weight / self.num_voters) * x for x in cols[i]
+                )
             node_cols.append(color)
 
         nx.draw_networkx(Gc, with_labels=True, node_color=node_cols)
