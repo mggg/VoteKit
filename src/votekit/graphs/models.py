@@ -14,7 +14,7 @@ class Graph(ABC):
 
     def __init__(self, graph: nx.Graph = None):
         self.graph = graph
-        self.ballot_dict: dict = {}
+        self.node_data: dict = {}  # store node to avoid acessing Nx.graph
 
     @abstractmethod
     def build_graph(self, *args: Any, **kwargs: Any) -> nx.Graph:
@@ -40,7 +40,10 @@ class Graph(ABC):
         """Returns dict of k ball neighborhoods of
         given radius with their centers and weights
         """
-        cast_ballots = {x for x in self.ballot_dict.keys() if self.ballot_dict[x] > 0}
+        if not self.node_data:
+            raise TypeError("no weights assigned to graph")
+
+        cast_ballots = {x for x in self.node_data.keys() if self.node_data[x] > 0}
 
         max_balls = {}
 
@@ -53,7 +56,7 @@ class Graph(ABC):
                 relevant = cast_ballots.intersection(
                     set(ball.nodes)
                 )  ##cast ballots inside the ball
-                tmp = sum(self.ballot_dict[node] for node in relevant)
+                tmp = sum(self.node_data[node] for node in relevant)
                 if tmp > weight:
                     weight = tmp
                     max_center = center
@@ -76,7 +79,6 @@ class BallotGraph(Graph):
         source: (PreferenceProfile, number of candidates, or list of candiates),
                 data to create graph from
         complete: (Optional[bool]) build complete graph or incomplete
-
     """
 
     def __init__(
@@ -92,6 +94,10 @@ class BallotGraph(Graph):
             self.graph = self.build_graph(source)
             self.num_cands = source
 
+        if isinstance(source, list):
+            self.num_cands = len(source)
+            self.graph = self.build_graph(len(source))
+
         if isinstance(source, PreferenceProfile):
             self.profile = source
             self.num_voters = source.num_ballots()
@@ -100,30 +106,26 @@ class BallotGraph(Graph):
                 self.graph = self.build_graph(len(source.get_candidates()))
             self.graph = self.from_profile(source, complete)
 
-        if isinstance(source, list):
-            self.num_cands = len(source)
-            self.graph = self.build_graph(len(source))
+        if not self.node_data:
+            self.node_data = {ballot: 0 for ballot in self.graph.nodes}
 
-        # all_ballots = self.graph.nodes
-        # self.ballot_dict = {ballot: 0 for ballot in all_ballots}
-        # self._clean()
-        # self.num_voters: int = sum(self.ballot_dict.values())
+        self.num_voters: int = sum(self.node_data.values())
 
-    def _clean(self):
-        """deletes empty ballots, changes n-1 length ballots
-        to n length ballots and updates counts
-        """
-        di = self.ballot_dict.copy()
+    # def _clean(self):
+    #     """deletes empty ballots, changes n-1 length ballots
+    #     to n length ballots and updates counts
+    #     """
+    #     di = self.node_data.copy()
 
-        for ballot in di.keys():
-            if len(ballot) == 0:
-                self.ballot_dict.pop(ballot)
-            elif len(ballot) == self.num_cands - 1:
-                for i in self.profile.get_candidates():
-                    if i not in ballot:
-                        self.ballot_dict[ballot + (i,)] += di[ballot]
-                        self.ballot_dict.pop(ballot)
-                        break
+    #     for ballot in di.keys():
+    #         if len(ballot) == 0:
+    #             self.node_data.pop(ballot)
+    #         elif len(ballot) == self.num_cands - 1:
+    #             for i in self.profile.get_candidates():
+    #                 if i not in ballot:
+    #                     self.node_data[ballot + (i,)] += di[ballot]
+    #                     self.node_data.pop(ballot)
+    #                     break
 
     def _relabel(self, gr: nx.Graph, new_label: int, num_cands: int) -> nx.Graph:
         """Relabels nodes in gr based on new_label"""
@@ -187,7 +189,9 @@ class BallotGraph(Graph):
 
     def from_profile(
         self, profile: PreferenceProfile, complete: Optional[bool] = True
-    ) -> nx.Graph:  # should this return the graph
+    ) -> nx.Graph:
+        # should this return the graph and are ballots (3, 2, 1) and
+        # (3, 2) in a three candidate election the same
         """
         Updates existing graph based on cast ballots from a PreferenceProfile,
         or creates graph based on PreferenceProfile
@@ -195,16 +199,13 @@ class BallotGraph(Graph):
         if not self.profile:
             self.profile = profile
 
-        # if not self.graph:
-        #     num_cands = len(profile.get_candidates())
-        #     self.graph = self.build_graph(num_cands)
-
         if not self.num_voters:
             self.num_voters = profile.num_ballots()
 
         cands = profile.get_candidates()
         ballots = profile.get_ballots()
         cand_num = self.number_cands(cands)
+        self.node_data = {ballot: 0 for ballot in self.graph.nodes}
 
         for ballot in ballots:
             ballot_node = []
@@ -218,6 +219,7 @@ class BallotGraph(Graph):
             if tuple(ballot_node) in self.graph.nodes:
                 self.graph.nodes[tuple(ballot_node)]["weight"] = ballot.weight
                 self.graph.nodes[tuple(ballot_node)]["cast"] = True
+                self.node_data[tuple(ballot_node)] += ballot.weight
 
         if not complete:
             partial = nx.Graph()
@@ -254,34 +256,30 @@ class BallotGraph(Graph):
             k, [GREY, BLACK], pastel_factor=0.7
         )  # redo the colors to match MGGG lab
 
-        self._clean()
+        # self._clean()
         for ballot in Gc.nodes:
             i = -1
             color: tuple = GREY
 
             if neighborhoods:
-                for c in neighborhoods.keys():
-                    if ballot in (neighborhoods[c])[0].nodes:
-                        # weight = (neighborhoods[c])[1]
-                        i = (list(neighborhoods.keys())).index(c)
+                for center, neighborhood in neighborhoods.items():
+                    neighbors, _ = neighborhood
+                    if ballot in neighbors:
+                        i = (list(neighborhoods.keys())).index(center)
                         break
-            elif self.ballot_dict[ballot] != 0 and self.profile:
+            elif self.node_data[ballot] != 0 and self.profile:
                 i = (self.profile.get_candidates()).index(ballot[0])
 
             if "weight" in ballot:
-                color = tuple(
-                    (1 - ballot.weight / self.num_voters) * x for x in cols[i]
-                )
+                color = tuple(ballot.weight * x for x in cols[i])
             node_cols.append(color)
 
         nx.draw_networkx(Gc, with_labels=True, node_color=node_cols)
         plt.show()
 
-    def show_all_ballot_types(self):
-        """Draws graph with all possible ballot types, nodes all have same color"""
-        Gc = self.graph
-        nx.draw(Gc, with_labels=True)
-        plt.show()
+    # TODO
+    # add ability to replace number labels with candidate names?
+    # redo K-heaviest neighborhoods, add optional weight paramater
 
     # what are these functions supposed to do?
     def compare(self, new_pref: PreferenceProfile, dist_type: Callable):
@@ -291,9 +289,6 @@ class BallotGraph(Graph):
     def compare_rcv_results(self, new_pref: PreferenceProfile):
         """compares election results of current and new profle"""
         raise NotImplementedError("Not yet built")
-
-
-## TODO
 
 
 class PairwiseGraph(Graph):
