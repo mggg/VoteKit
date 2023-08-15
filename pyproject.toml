@@ -12,7 +12,7 @@ mypy = "^1.4.1"
 pydantic = "^1.10.9"
 pandas-stubs = "^2.0.2.230605"
 networkx = "^3.1"
-matplotlib = "^3.5.2"
+matplotlib = "3.5.2"
 
 
 [tool.poetry.group.dev.dependencies]
