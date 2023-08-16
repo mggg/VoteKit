@@ -4,6 +4,8 @@ from pydantic import BaseModel, validator
 from fractions import Fraction
 import pandas as pd
 
+pd.set_option("display.colheader_justify", "left")
+
 
 class PreferenceProfile(BaseModel):
     """
@@ -84,11 +86,12 @@ class PreferenceProfile(BaseModel):
                     else:
                         part.append(cand)
             ballots.append(tuple(part))
-            weights.append(ballot.weight)
+            weights.append(int(ballot.weight))
 
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
+        df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
         df["Voter Share"] = df["Weight"] / df["Weight"].sum()
-
+        df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df
 
     def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
@@ -125,9 +128,9 @@ class PreferenceProfile(BaseModel):
             self.df = self.create_df()
 
         if len(self.df) < 15:
-            return self.head(n=len(self.df)).to_string()
+            return self.head(n=len(self.df)).to_string(index=False)
 
-        return self.head(n=15).to_string()
+        return self.head(n=15).to_string(index=False)
 
     # set repr to print outputs
     __repr__ = __str__
