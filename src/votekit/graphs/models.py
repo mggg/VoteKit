@@ -113,22 +113,6 @@ class BallotGraph(Graph):
 
         self.num_voters = sum(self.node_data.values())
 
-    # def _clean(self):
-    #     """deletes empty ballots, changes n-1 length ballots
-    #     to n length ballots and updates counts
-    #     """
-    #     di = self.node_data.copy()
-
-    #     for ballot in di.keys():
-    #         if len(ballot) == 0:
-    #             self.node_data.pop(ballot)
-    #         elif len(ballot) == self.num_cands - 1:
-    #             for i in self.profile.get_candidates():
-    #                 if i not in ballot:
-    #                     self.node_data[ballot + (i,)] += di[ballot]
-    #                     self.node_data.pop(ballot)
-    #                     break
-
     def _relabel(self, gr: nx.Graph, new_label: int, num_cands: int) -> nx.Graph:
         """Relabels nodes in gr based on new_label"""
         node_map = {}
@@ -323,10 +307,6 @@ class BallotGraph(Graph):
                 node_labels = self.label_cands(self.profile.get_candidates())
 
         nx.draw_networkx(Gc, with_labels=True, node_color=node_cols, labels=node_labels)
-
-    # TODO
-    # add ability to replace number labels with candidate names?
-    # redo K-heaviest neighborhoods, add optional weight paramater
 
     # what are these functions supposed to do?
     def compare(self, new_pref: PreferenceProfile, dist_type: Callable):

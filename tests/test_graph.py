@@ -81,3 +81,11 @@ def test_labels_no_cands():
     test = BallotGraph(3)
     with pytest.raises(ValueError):
         test.plot(labels=True)
+
+
+def test_fix_short_ballots_strings():
+    graph = BallotGraph(2)
+    cands = ["A", "B", "C"]
+    ballot = ["A", "B"]
+    fixed = graph.fix_short_ballot(ballot, cands)
+    assert fixed == cands
