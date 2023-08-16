@@ -11,6 +11,8 @@ pandas = "^2.0.2"
 mypy = "^1.4.1"
 pydantic = "^1.10.9"
 pandas-stubs = "^2.0.2.230605"
+sklearn = "^0.0.post7"
+pot = "0.9.0"
 
 
 [tool.poetry.group.dev.dependencies]

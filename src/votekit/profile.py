@@ -65,7 +65,7 @@ class PreferenceProfile(BaseModel):
         for ballot in self.ballots:
             if str(ballot.ranking) not in di.keys():
                 di[str(ballot.ranking)] = Fraction(0)
-            if standardize is True:
+            if standardize:
                 di[str(ballot.ranking)] += ballot.weight / num_ballots
             else:
                 di[str(ballot.ranking)] += ballot.weight
