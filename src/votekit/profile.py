@@ -1,12 +1,8 @@
 from .ballot import Ballot
-
-
 from typing import Optional
 from pydantic import BaseModel, validator
 from fractions import Fraction
-
-
-# from functools import cache
+import pandas as pd
 
 
 class PreferenceProfile(BaseModel):
@@ -17,6 +13,7 @@ class PreferenceProfile(BaseModel):
 
     ballots: list[Ballot]
     candidates: Optional[list] = None
+    df: pd.DataFrame = pd.DataFrame()
 
     @validator("candidates")
     def cands_must_be_unique(cls, cands: list) -> list:
@@ -72,13 +69,65 @@ class PreferenceProfile(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    # def __init__(self, ballots, candidates):
-    #     """
-    #     Args:
-    #         ballots (list of Ballot): a list of ballots in the election
-    #         candidates (list of Candidates): a list of candidates in the election
-    #     """
-    #     self.id = uuid.uuid4()
-    #     self.ballots = ballots
-    #     self.candidates = candidates
-    #     self.ballot_weights = [b.score for b in ballots]
+    def create_df(self) -> pd.DataFrame:
+        """
+        Creates DF for display and building plots
+        """
+        weights = []
+        ballots = []
+        for ballot in self.ballots:
+            part = []
+            for ranking in ballot.ranking:
+                for cand in ranking:
+                    if len(ranking) > 2:
+                        part.append(f"{cand} (Tie)")
+                    else:
+                        part.append(cand)
+            ballots.append(tuple(part))
+            weights.append(ballot.weight)
+
+        df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
+        df["Voter Share"] = df["Weight"] / df["Weight"].sum()
+
+        return df
+
+    def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+        """
+        Displays top-n ballots in profile based on weight
+        """
+        if self.df.empty:
+            self.df = self.create_df()
+
+        df = self.df.sort_values(by="Weight", ascending=False)
+        if not percents:
+            return df.drop(columns="Voter Share").head(n)
+
+        return df.head(n)
+
+    def tail(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+        """
+        Displays bottom-n ballots in profile based on weight
+        """
+        if self.df.empty:
+            self.df = self.create_df()
+
+        df = self.df.sort_values(by="Weight", ascending=True)
+        if not percents:
+            return df.drop(columns="Voter Share").head(n)
+
+        return df.head(n)
+
+    def __str__(self) -> str:
+        """
+        Displays top 15 or whole profiles
+        """
+        if self.df.empty:
+            self.df = self.create_df()
+
+        if len(self.df) < 15:
+            return self.head(n=len(self.df)).to_string()
+
+        return self.head(n=15).to_string()
+
+    # set repr to print outputs
+    __repr__ = __str__
