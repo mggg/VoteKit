@@ -2,7 +2,6 @@ from ..profile import PreferenceProfile
 from typing import Callable, Optional, Union, Any
 from abc import ABC, abstractmethod
 from distinctipy import get_colors  # type: ignore
-import matplotlib.pyplot as plt  # type: ignore
 import networkx as nx  # type: ignore
 from functools import cache
 
@@ -324,7 +323,6 @@ class BallotGraph(Graph):
                 node_labels = self.label_cands(self.profile.get_candidates())
 
         nx.draw_networkx(Gc, with_labels=True, node_color=node_cols, labels=node_labels)
-        plt.show()
 
     # TODO
     # add ability to replace number labels with candidate names?
