@@ -179,6 +179,7 @@ class Borda:
         """
         borda_scores = {}  # {candidate : int borda_score}
         candidates_ballots = {}  # {candidate : [ballots that ranked candidate at all]}
+        all_candidates = self.state.profile.get_candidates()
 
         # Populates dicts: candidate_rank_freq, candidates_ballots
         for ballot in self.state.profile.get_ballots():
@@ -210,9 +211,7 @@ class Borda:
                     ballot_ranking = [
                         item for subset in ballot.ranking for item in subset
                     ]
-                    remaining_cands = list(
-                        set(self.state.profile.get_candidates()) - set(ballot_ranking)
-                    )
+                    remaining_cands = list(set(all_candidates) - set(ballot_ranking))
 
                     # borda_scores[all remaining candidates] = X / Y
                     for candidate in remaining_cands:
