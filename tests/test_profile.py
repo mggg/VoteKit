@@ -33,7 +33,36 @@ def test_updates_not_in_place():
     assert remove in test_profile.get_candidates()
 
 
-def test_to_dict():
-    rv = test_profile.to_dict()
-    assert rv["[{'a'}, {'b'}, {'c'}]"] == Fraction(2, 1)
-    assert rv["[{'b'}, {'a'}, {'e'}]"] == Fraction(1, 1)
+def test_create_df():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
+        ]
+    )
+    df = profile.create_df()
+    assert len(df) == 2
+
+
+def test_vote_share_with_zeros():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(0)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(0)),
+        ]
+    )
+    df = profile.create_df()
+    assert sum(df["Voter Share"]) == 0
+
+
+def test_df_percents():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
+        ]
+    )
+    rv = profile.head(2, percents=True)
+    assert "Voter Share" in rv
+    rv = profile.head(2)
+    assert "Voter Share" not in rv
