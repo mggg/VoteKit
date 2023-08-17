@@ -4,8 +4,8 @@ from .election_state import ElectionState
 from typing import Callable, Optional
 import random
 from fractions import Fraction
-from copy import deepcopy
 from collections import namedtuple
+import pickle
 
 
 class STV:
@@ -336,7 +336,7 @@ def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
     """
     Removes candidate from ranking of the ballots
     """
-    update = deepcopy(ballots)
+    update = pickle.loads(pickle.dumps(ballots, -1))
 
     for n, ballot in enumerate(update):
         new_ranking = [
