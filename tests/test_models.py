@@ -1,6 +1,6 @@
 import pytest
 from votekit.models import Simulation
-from votekit.ballot_generator_OLD import (
+from votekit.ballot_generator import (
     PlackettLuce,
     BradleyTerry,
     AlternatingCrossover,

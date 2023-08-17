@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union, Any
 from .profile import PreferenceProfile
 from .election_state import ElectionState
-from .ballot_generator_OLD import BallotGenerator
+from .ballot_generator import BallotGenerator
 
 
 class Simulation(ABC):
@@ -18,8 +18,6 @@ class Simulation(ABC):
     def __init__(self, ballots: Union[PreferenceProfile, dict, None] = None):
         if ballots:
             self.ballots = ballots
-        else:
-            self.ballots = {}
 
     @abstractmethod
     def run_simulation(self) -> Any:
@@ -50,10 +48,9 @@ class Simulation(ABC):
         ballots = []
         for model_name, model in self.ballots.items():
             generator: BallotGenerator = model(
-                number_of_ballots=num_ballots,
                 candidates=candidates,
-                hyperparameters=params,
+                hyperparams=params,
             )
-            ballots.append((model_name, generator.generate_profile()))
+            ballots.append((model_name, generator.generate_profile(num_ballots)))
 
         return ballots
