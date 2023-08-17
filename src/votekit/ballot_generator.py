@@ -394,6 +394,23 @@ class AlternatingCrossover(BallotGenerator):
         return pp
 
 
+class OneDimSpatial(BallotGenerator):
+    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
+        candidate_position_dict = {c: np.random.normal(0, 1) for c in self.candidates}
+        voter_positions = np.random.normal(0, 1, number_of_ballots)
+
+        ballot_pool = []
+
+        for vp in voter_positions:
+            distance_dict = {
+                c: abs(v - vp) for c, v, in candidate_position_dict.items()
+            }
+            candidate_order = sorted(distance_dict, key=distance_dict.get)
+            ballot_pool.append(candidate_order)
+
+        return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+
+
 class CambridgeSampler(BallotGenerator):
     def __init__(
         self,
@@ -419,12 +436,8 @@ class CambridgeSampler(BallotGenerator):
             DATA_DIR = BASE_DIR / "tests/data/"
             self.path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
-    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
+    def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
 
-        # Load the ballot_type frequencies used in the Cambridge model
-        # dict of form
-        # {(cand_race1, cand_race1, ...): num_ballots, }
-        # e.g. {('W', 'C', 'C'): 15, ('C', 'W', 'C', 'W'): 9, ...}
         with open(self.path, "rb") as pickle_file:
             ballot_frequencies = pickle.load(pickle_file)
 
@@ -432,9 +445,13 @@ class CambridgeSampler(BallotGenerator):
 
         blocs = self.slate_to_candidate.keys()
         for bloc in blocs:
+            # compute the number of voters in this bloc
+            bloc_voters = self.round_num(self.bloc_voter_prop[bloc] * number_of_ballots)
+
+            # store the opposition bloc
             opp_bloc = next(iter(set(blocs).difference(set(bloc))))
 
-            # bloc or opp-first probabilities for each ballot variant
+            # compute how many ballots list a bloc candidate first
             bloc_first_count = sum(
                 [
                     freq
@@ -442,6 +459,13 @@ class CambridgeSampler(BallotGenerator):
                     if ballot[0] == bloc
                 ]
             )
+
+            # Compute the pref interval for this bloc
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
+
+            # compute the relative probabilities of each ballot
+            # sorted by ones where the ballot lists the bloc first
+            # and those that list the opp first
             prob_ballot_given_bloc_first = {
                 ballot: freq / bloc_first_count
                 for ballot, freq in ballot_frequencies.items()
@@ -453,9 +477,10 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == opp_bloc
             }
 
-            bloc_voters = self.round_num(self.bloc_voter_prop[bloc] * number_of_ballots)
-            pref_interval_dict = self.pref_interval_by_bloc[bloc]
+            # Generate ballots
             for _ in range(bloc_voters):
+                # Randomly choose first choice based off
+                # bloc crossover rate
                 first_choice = np.random.choice(
                     [bloc, opp_bloc],
                     p=[
@@ -463,6 +488,8 @@ class CambridgeSampler(BallotGenerator):
                         self.bloc_crossover_rate[bloc][opp_bloc],
                     ],
                 )
+                # Based on first choice, randomly choose
+                # ballots weighted by Cambridge frequency
                 if first_choice == bloc:
                     bloc_ordering = random.choices(
                         list(prob_ballot_given_bloc_first.keys()),
@@ -492,35 +519,20 @@ class CambridgeSampler(BallotGenerator):
                     c for c in pl_ordering if c in self.slate_to_candidate[opp_bloc]
                 ]
 
+                # Fill in the bloc slots as determined
+                # With the candidate ordering generated with PL
                 full_ballot = []
                 for b in bloc_ordering:
                     if b == bloc:
                         if ordered_bloc_slate:
-                            full_ballot.append(ordered_bloc_slate.pop())
+                            full_ballot.append(ordered_bloc_slate.pop(0))
                     else:
                         if ordered_opp_slate:
-                            full_ballot.append(ordered_opp_slate.pop())
+                            full_ballot.append(ordered_opp_slate.pop(0))
 
-                ballot_pool.append(full_ballot)
+                ballot_pool.append(tuple(full_ballot))
 
         pp = self.ballot_pool_to_profile(
             ballot_pool=ballot_pool, candidates=self.candidates
         )
         return pp
-
-
-class OneDimSpatial(BallotGenerator):
-    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
-        candidate_position_dict = {c: np.random.normal(0, 1) for c in self.candidates}
-        voter_positions = np.random.normal(0, 1, number_of_ballots)
-
-        ballot_pool = []
-
-        for vp in voter_positions:
-            distance_dict = {
-                c: abs(v - vp) for c, v, in candidate_position_dict.items()
-            }
-            candidate_order = sorted(distance_dict, key=distance_dict.get)
-            ballot_pool.append(candidate_order)
-
-        return self.ballot_pool_to_profile(ballot_pool, self.candidates)
