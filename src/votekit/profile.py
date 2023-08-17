@@ -87,11 +87,11 @@ class PreferenceProfile(BaseModel):
             weights.append(int(ballot.weight))
 
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
-        df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
+        # df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
         df["Voter Share"] = df["Weight"] / df["Weight"].sum()
         # fill nans with zero for edge cases
         df["Voter Share"] = df["Voter Share"].fillna(0.0)
-        df["Weight"] = df["Weight"].astype(str).str.rjust(3)
+        # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df
 
     def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
@@ -103,9 +103,9 @@ class PreferenceProfile(BaseModel):
 
         df = self.df.sort_values(by="Weight", ascending=False)
         if not percents:
-            return df.drop(columns="Voter Share").head(n)
+            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
 
-        return df.head(n)
+        return df.head(n).reset_index(drop=True)
 
     def tail(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
         """
@@ -116,9 +116,9 @@ class PreferenceProfile(BaseModel):
 
         df = self.df.sort_values(by="Weight", ascending=True)
         if not percents:
-            return df.drop(columns="Voter Share").head(n)
+            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
 
-        return df.head(n)
+        return df.head(n).reset_index(drop=True)
 
     def __str__(self) -> str:
         """
@@ -128,9 +128,9 @@ class PreferenceProfile(BaseModel):
             self.df = self.create_df()
 
         if len(self.df) < 15:
-            return self.head(n=len(self.df)).to_string(index=False)
+            return self.head(n=len(self.df)).to_string(index=False, justify="justify")
 
-        return self.head(n=15).to_string(index=False)
+        return self.head(n=15).to_string(index=False, justify="justify")
 
     # set repr to print outputs
     __repr__ = __str__

@@ -110,9 +110,9 @@ class ElectionState(BaseModel):
 
     def __str__(self):
         show = self.status()
-        show["Round"] = show["Round"].astype(str).str.rjust(3)
-        show["Status"] = show["Status"].str.ljust(10)
-        return show.to_string(index=False, justify="left")
+        # show["Round"] = show["Round"].astype(str).str.rjust(3)
+        # show["Status"] = show["Status"].str.ljust(10)
+        return show.to_string(index=False, justify="justify")
 
     __repr__ = __str__
 
