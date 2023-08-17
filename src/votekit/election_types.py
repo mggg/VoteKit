@@ -213,7 +213,6 @@ class Borda:
         getting the most amount of points followed by the second ranked, and third ranked... \n
         standard: runs a standardized Borda Election. If a voter casts a short ballot, points
         are fractionally distributed to remaining candidates
-
         """
         self.state = ElectionState(
             curr_round=0,
@@ -235,7 +234,7 @@ class Borda:
 
         self.standard = standard
 
-    def run_borda_step(self):
+    def run_borda_step(self) -> ElectionState:
         """
         Simulates a full Borda election
         """
@@ -310,7 +309,7 @@ class Borda:
         )
         return self.state
 
-    def run_borda_election(self):
+    def run_borda_election(self) -> ElectionState:
         """
         Function will also run a full borda election
         """
