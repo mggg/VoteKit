@@ -7,7 +7,7 @@ import pandas as pd
 
 class PreferenceProfile(BaseModel):
     """
-    ballots (list of allots): ballots from an election
+    ballots (list of ballots): ballots from an election
     candidates (list): list of candidates, can be user defined
     """
 
@@ -16,10 +16,10 @@ class PreferenceProfile(BaseModel):
     df: pd.DataFrame = pd.DataFrame()
 
     @validator("candidates")
-    def cands_must_be_unique(cls, cands: list) -> list:
-        if not len(set(cands)) == len(cands):
+    def cands_must_be_unique(cls, candidates: list) -> list:
+        if not len(set(candidates)) == len(candidates):
             raise ValueError("all candidates must be unique")
-        return cands
+        return candidates
 
     def get_ballots(self) -> list[Ballot]:
         """
@@ -28,8 +28,7 @@ class PreferenceProfile(BaseModel):
         return self.ballots
 
     # @cache
-    # fix type casting error
-    def get_candidates(self) -> list[set]:
+    def get_candidates(self) -> list:
         """
         Returns list of unique candidates
         """
@@ -43,11 +42,11 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self) -> Fraction:
+    def num_ballots(self):
         """
         Assumes weights correspond to number of ballots given to a ranking
         """
-        num_ballots = Fraction(0)
+        num_ballots = 0
         for ballot in self.ballots:
             num_ballots += ballot.weight
 
