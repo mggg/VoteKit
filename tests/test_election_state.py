@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from votekit.ballot import Ballot  # type: ignore
 from fractions import Fraction
 import pytest
+import pandas as pd
 
 ##TODO: use Scottish 3-cand ward_03 data,
 
@@ -40,7 +41,6 @@ round_2 = ElectionState(
     elected=["B"],
     eliminated=[],
     remaining=["A"],
-    winner_votes={"B": [{"C"}, {"B"}, {"A"}]},
     profile=pref_2,
     previous=round_1,
 )
@@ -53,6 +53,15 @@ remains = [["A", "B", "C"], ["B", "A"], ["A"]]
 wins = [[], [], ["B"]]
 los = [[], ["C"], ["C"]]
 ranks = [["A", "B", "C"], ["B", "A", "C"], ["B", "A", "C"]]
+
+
+correct_status = pd.DataFrame(
+    {
+        "Candidate": ["A", "B", "C"],
+        "Status": ["Remaining", "Elected", "Eliminated"],
+        "Round": [2, 2, 1],
+    }
+)
 
 
 def test_get_attributes():
@@ -119,7 +128,7 @@ def test_round_previous():
     )
 
     results = second.get_round_outcome(roundNum=1)
-    assert results == {"elected": ["A", "B"], "eliminated": ["C"]}
+    assert results == {"Elected": ["A", "B"], "Eliminated": ["C"]}
 
 
 def test_round_outcome_error():
@@ -206,10 +215,89 @@ def test_ranking_w_remaing():
     assert rank == ["A", "B", "D", "F", "E", "C"]
 
 
-##TODO: the rest of this
-def test_round_outcome():
-    pass
+def test_status_df_post_election():
+    df = round_2.status()
+    assert (
+        df.sort_values(by="Candidate", ascending=True)
+        .reset_index(drop=True)
+        .equals(correct_status)
+    )
 
 
-def test_difference_remaining_candidates():
-    pass
+def test_status_df_one_round():
+    first = ElectionState(
+        curr_round=1,
+        elected=["A", "B"],
+        remaining=["F"],
+        eliminated=["C"],
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    df = first.status()
+    assert (
+        df.sort_values(by="Candidate", ascending=True)
+        .reset_index(drop=True)
+        .equals(
+            pd.DataFrame(
+                {
+                    "Candidate": ["A", "B", "C", "F"],
+                    "Status": ["Elected", "Elected", "Eliminated", "Remaining"],
+                    "Round": [1, 1, 1, 1],
+                }
+            )
+        )
+    )
+
+
+def test_status_no_remaing():
+    first = ElectionState(
+        curr_round=1,
+        elected=["A", "B"],
+        remaining=["F"],
+        eliminated=["C"],
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    second = ElectionState(
+        curr_round=2,
+        elected=["D", "F"],
+        eliminated=["E"],
+        profile=MagicMock(spec=PreferenceProfile),
+        previous=first,
+    )
+
+    correct = pd.DataFrame(
+        {
+            "Candidate": ["A", "B", "C", "D", "E", "F"],
+            "Status": [
+                "Elected",
+                "Elected",
+                "Eliminated",
+                "Elected",
+                "Eliminated",
+                "Elected",
+            ],
+            "Round": [1, 1, 1, 2, 2, 2],
+        }
+    )
+
+    df = second.status().sort_values(by="Candidate", ascending=True)
+    assert df.reset_index(drop=True).equals(correct)
+
+
+def test_status_missing_fields():
+    rd = ElectionState(
+        curr_round=1,
+        elected=["D", "F"],
+        eliminated=["E"],
+        profile=MagicMock(spec=PreferenceProfile),
+        previous=None,
+    )
+    df = rd.status().sort_values(by="Candidate", ascending=True)
+    assert df.reset_index(drop=True).equals(
+        pd.DataFrame(
+            {
+                "Candidate": ["D", "E", "F"],
+                "Status": ["Elected", "Eliminated", "Elected"],
+                "Round": [1, 1, 1],
+            }
+        )
+    )
