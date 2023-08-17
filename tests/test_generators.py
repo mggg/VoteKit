@@ -1,4 +1,8 @@
-from votekit.ballot_generator import PlackettLuce, BradleyTerry, AlternatingCrossover
+from votekit.ballot_generator_OLD import (
+    PlackettLuce,
+    BradleyTerry,
+    AlternatingCrossover,
+)
 from votekit.profile import PreferenceProfile
 import pytest
 import math
@@ -27,6 +31,7 @@ def test_setparams_pl():
 
 
 def test_bad_cands_input():
+    # construct hyperparmeters with candidates not assigned to a bloc/slate
     with pytest.raises(TypeError):
         PlackettLuce(number_of_ballots=3, candidates=cands_lst, hyperparameters=twobloc)
 

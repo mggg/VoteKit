@@ -1,6 +1,10 @@
 import pytest
 from votekit.models import Simulation
-from votekit.ballot_generator import PlackettLuce, BradleyTerry, AlternatingCrossover
+from votekit.ballot_generator_OLD import (
+    PlackettLuce,
+    BradleyTerry,
+    AlternatingCrossover,
+)
 from votekit.profile import PreferenceProfile
 from unittest.mock import MagicMock
 
