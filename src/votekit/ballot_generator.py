@@ -83,8 +83,8 @@ class BallotGenerator:
         Returns:
             PreferenceProfile: a preference profile representing the ballots in the election
         """
-        ranking_counts = {}
-        ballot_list = []
+        ranking_counts: dict[tuple, int] = {}
+        ballot_list: list[Ballot] = []
 
         for ranking in ballot_pool:
             tuple_rank = tuple(ranking)
@@ -248,7 +248,7 @@ class BradleyTerry(BallotGenerator):
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
 
         permutations = list(it.permutations(self.candidates, self.ballot_length))
-        ballot_pool = []
+        ballot_pool: list[list] = []
 
         for bloc in self.bloc_voter_prop.keys():
             num_ballots = self.round_num(number_of_ballots * self.bloc_voter_prop[bloc])
@@ -405,7 +405,7 @@ class OneDimSpatial(BallotGenerator):
             distance_dict = {
                 c: abs(v - vp) for c, v, in candidate_position_dict.items()
             }
-            candidate_order = sorted(distance_dict, key=distance_dict.get)
+            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
             ballot_pool.append(candidate_order)
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
