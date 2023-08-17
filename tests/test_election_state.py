@@ -11,6 +11,7 @@ import pandas as pd
 b1 = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(250, 1))
 b2 = Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=Fraction(200, 1))
 b3 = Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(100, 1))
+
 ballots_2 = [b1, b2, b3]
 pref_0 = PreferenceProfile(ballots=ballots_2)
 pref_1 = PreferenceProfile(
