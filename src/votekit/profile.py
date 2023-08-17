@@ -125,7 +125,7 @@ class PreferenceProfile(BaseModel):
         Displays top 15 or whole profiles
         """
         if self.df.empty:
-            self.dff = self.create_df()
+            self.df = self.create_df()
 
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
