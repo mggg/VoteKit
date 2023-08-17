@@ -1,8 +1,8 @@
 from votekit.profile import PreferenceProfile
 from votekit.graphs.models import BallotGraph
 import numpy as np
-import ot
-import networkx as nx
+import ot  # type: ignore
+import networkx as nx  # type: ignore
 from typing import Union, Optional
 
 # TODO: Update em_dist to manually create graph in the function. Graph should be able to handle

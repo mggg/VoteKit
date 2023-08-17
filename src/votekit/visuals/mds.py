@@ -1,9 +1,9 @@
 from votekit.profile import PreferenceProfile
 from typing import Optional, Callable
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
 from typing import Dict
-from sklearn import manifold
+from sklearn import manifold  # type: ignore
 
 # Helper function for MDS Plot
 def distance_matrix(
