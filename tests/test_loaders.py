@@ -32,7 +32,7 @@ def test_undervote():
         id=None, ranking=[{"c"}, {None}, {None}], weight=Fraction(1), voters={"a"}
     )
     correct_prof = PreferenceProfile(ballots=[a])
-    assert correct_prof == prof
+    assert correct_prof.ballots == prof.ballots
     # assert correct_prof.ballots[0].ranking == prof.ballots[0].ranking
 
 

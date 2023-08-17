@@ -92,7 +92,7 @@ class PreferenceProfile(BaseModel):
         # fill nans with zero for edge cases
         df["Voter Share"] = df["Voter Share"].fillna(0.0)
         # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
-        return df
+        return df.reset_index(drop=True)
 
     def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
         """
@@ -125,7 +125,7 @@ class PreferenceProfile(BaseModel):
         Displays top 15 or whole profiles
         """
         if self.df.empty:
-            self.df = self.create_df()
+            self.dff = self.create_df()
 
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
