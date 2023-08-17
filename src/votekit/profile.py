@@ -56,19 +56,26 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self, standardize: bool) -> dict:
         """
-        Converts ballots to dictionary with keys (ranking) and values
+        Converts ballots to dictionary with keys tuple(ranking) and values
         the corresponding total weights \n
         input: standardize to model an election distribution
         """
         num_ballots = self.num_ballots()
         di: dict = {}
         for ballot in self.ballots:
-            if str(ballot.ranking) not in di.keys():
-                di[str(ballot.ranking)] = Fraction(0)
-            if standardize:
-                di[str(ballot.ranking)] += ballot.weight / num_ballots
+            rank_tuple = tuple(next(iter(item)) for item in ballot.ranking)
+            # print(rank_tuple)
+            if rank_tuple not in di.keys():
+                if standardize:
+                    di[rank_tuple] = ballot.weight / num_ballots
+                else:
+                    di[rank_tuple] = ballot.weight
+
             else:
-                di[str(ballot.ranking)] += ballot.weight
+                if standardize:
+                    di[rank_tuple] += ballot.weight / num_ballots
+                else:
+                    di[rank_tuple] += ballot.weight
         return di
 
     class Config:
