@@ -89,6 +89,8 @@ class PreferenceProfile(BaseModel):
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
         df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
         df["Voter Share"] = df["Weight"] / df["Weight"].sum()
+        # fill nans with zero for edge cases
+        df["Voter Share"] = df["Voter Share"].fillna(0.0)
         df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df
 
