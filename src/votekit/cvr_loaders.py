@@ -24,6 +24,9 @@ def rank_column_csv(
     (if voter ids are missing, we're currently not assigning ids)
     Args:
         fpath (str): path to cvr file
+        weight_col (int, optional): the column position for ballot weights
+        if parsing Scottish elections like cvrs
+        delimiter (str): the character that breaks up rows
         id_col (int, optional): index for the column with voter ids
     Raises:
         FileNotFoundError: if fpath is invalid
