@@ -3,30 +3,21 @@ from typing import Optional
 from pydantic import BaseModel, validator
 from fractions import Fraction
 
-# from functools import cache
-
 
 class PreferenceProfile(BaseModel):
     """
-    ballots (list of allots): ballots from an election
+    ballots (list of ballots): ballots from an election
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot] = list()
+    ballots: Optional[list] = None
     candidates: Optional[list] = None
 
-    def __eq__(self, other):
-        if isinstance(other, PreferenceProfile):
-            for ballot in self.ballots:
-                if ballot not in other.ballots:
-                    return False
-        return True
-
     @validator("candidates")
-    def cands_must_be_unique(cls, cands: list) -> list:
-        if not len(set(cands)) == len(cands):
+    def cands_must_be_unique(cls, candidates: list) -> list:
+        if not len(set(candidates)) == len(candidates):
             raise ValueError("all candidates must be unique")
-        return cands
+        return candidates
 
     def get_ballots(self) -> list[Ballot]:
         """
@@ -35,8 +26,7 @@ class PreferenceProfile(BaseModel):
         return self.ballots
 
     # @cache
-    # fix type casting error
-    def get_candidates(self) -> list[set]:
+    def get_candidates(self) -> list:
         """
         Returns list of unique candidates
         """
@@ -50,11 +40,11 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self) -> Fraction:
+    def num_ballots(self):
         """
         Assumes weights correspond to number of ballots given to a ranking
         """
-        num_ballots = Fraction(0)
+        num_ballots = 0
         for ballot in self.ballots:
             num_ballots += ballot.weight
 
@@ -76,13 +66,34 @@ class PreferenceProfile(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    # def __init__(self, ballots, candidates):
-    #     """
-    #     Args:
-    #         ballots (list of Ballot): a list of ballots in the election
-    #         candidates (list of Candidates): a list of candidates in the election
-    #     """
-    #     self.id = uuid.uuid4()
-    #     self.ballots = ballots
-    #     self.candidates = candidates
-    #     self.ballot_weights = [b.score for b in ballots]
+    def condense_ballots(self):
+        class_vector = []
+        seen_rankings = []
+        for ballot in self.ballots:
+            if ballot.ranking not in seen_rankings:
+                seen_rankings.append(ballot.ranking)
+            class_vector.append(seen_rankings.index(ballot.ranking))
+
+        new_ballot_list = []
+        for i, ranking in enumerate(seen_rankings):
+            total_weight = 0
+            for j in range(len(class_vector)):
+                if class_vector[j] == i:
+                    total_weight += self.ballots[j].weight
+            new_ballot_list.append(
+                Ballot(ranking=ranking, weight=Fraction(total_weight))
+            )
+        self.ballots = new_ballot_list
+
+    def __eq__(self, other):
+        if not isinstance(other, PreferenceProfile):
+            return False
+        self.condense_ballots()
+        other.condense_ballots()
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        return True

@@ -3,7 +3,7 @@ from .ballot import Ballot
 from .election_state import ElectionState
 from .graphs import PairwiseComparisonGraph
 from .metrics import borda_scores
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union
 import random
 from fractions import Fraction
 from copy import deepcopy
@@ -148,7 +148,7 @@ class Limited:
         cands_removed = set(elected).union(set(eliminated))
         remaining = set(profile.get_candidates()).difference(cands_removed)
         profile_remaining = PreferenceProfile(
-            ballots=remove_cand_set(cands_removed, profile.get_ballots())
+            ballots=remove_cand(cands_removed, profile.get_ballots())
         )
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
@@ -229,7 +229,7 @@ class SNTV_STV_Hybrid:
             # Therefore we should not add any winners, but rather
             # set the SNTV winners as remaining candidates and update pref profiles
             new_profile = PreferenceProfile(
-                ballots=remove_cand_set(round_state.eliminated, profile.get_ballots())
+                ballots=remove_cand(round_state.eliminated, profile.get_ballots())
             )
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
@@ -394,27 +394,23 @@ def fractional_transfer(
     return transfered
 
 
-def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
-    """
-    Removes candidate from ranking of the ballots
-    """
-    update = deepcopy(ballots)
+def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
+    remove_set = {}
+    if isinstance(removed, str):
+        remove_set = {removed}
+    elif isinstance(removed, Iterable):
+        remove_set = set(removed)
 
+    update = deepcopy(ballots)
     for n, ballot in enumerate(update):
         new_ranking = []
-        for candidate in ballot.ranking:
-            if candidate != {removed_cand}:
-                new_ranking.append(candidate)
+        for s in ballot.ranking:
+            new_s = s.difference(remove_set)
+            if len(new_s) > 0:
+                new_ranking.append(new_s)
         update[n].ranking = new_ranking
 
     return update
-
-
-def remove_cand_set(removed_set: Iterable[str], ballots: list[Ballot]) -> list[Ballot]:
-    new_ballot_list = ballots.copy()
-    for cand in removed_set:
-        new_ballot_list = remove_cand(cand, new_ballot_list)
-    return new_ballot_list
 
 
 def order_candidates_by_borda(candidate_set, candidate_borda):

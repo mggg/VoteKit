@@ -50,12 +50,12 @@ def test_pwcg_ballot_fill():
             id=None, ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)
         ),
     ]
+
     for perm in list(it.permutations([{"B"}, {"C"}, {"D"}, {"E"}])):
         perm_ballot = Ballot(id=None, ranking=[{"A"}] + list(perm), weight=Fraction(1))
         target_ballot_list.append(perm_ballot)
     target_filled_ballots = PreferenceProfile(ballots=target_ballot_list)
-    print(filled_ballots)
-    print(target_filled_ballots)
+
     assert filled_ballots == target_filled_ballots
 
 

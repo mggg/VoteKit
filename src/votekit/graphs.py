@@ -57,7 +57,7 @@ class PairwiseComparisonGraph:
 
     def compute_pairwise_dict(self) -> dict:
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
-        cand_pairs = list(combinations(self.candidates, 2))
+        cand_pairs = combinations(self.candidates, 2)
 
         for pair in cand_pairs:
             cand_a, cand_b = pair[0], pair[1]
@@ -80,7 +80,7 @@ class PairwiseComparisonGraph:
             G.add_edge(e[0], e[1], weight=self.pairwise_dict[e])
         return G
 
-    def draw(self, show=True, outfile=None):
+    def draw(self, outfile=None):
         G = self.pairwise_graph
 
         pos = nx.circular_layout(G)
@@ -108,10 +108,10 @@ class PairwiseComparisonGraph:
             G, pos, edge_labels=edge_labels, label_pos=0.5, font_size=10
         )
         # Out stuff
-        if show:
-            plt.show()
         if outfile is not None:
             plt.savefig(outfile)
+        else:
+            plt.show()
         plt.close()
 
     # More complicated Requests
@@ -140,23 +140,3 @@ class PairwiseComparisonGraph:
                 tier_dict[v] = {k}
         tier_list = [tier_dict[k] for k in sorted(tier_dict.keys(), reverse=True)]
         return tier_list
-
-
-if __name__ == "__main__":
-    ballot_list = [
-        Ballot(
-            id=None, ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)
-        ),
-        Ballot(
-            id=None, ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)
-        ),
-        Ballot(
-            id=None, ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)
-        ),
-    ]
-    profile = PreferenceProfile(ballots=ballot_list)
-
-    pcg = PairwiseComparisonGraph(profile=profile, ballot_length=3)
-    print(pcg.has_condorcet())
-    print(pcg.dominating_tiers())
-    pcg.draw(show=True)
