@@ -4,8 +4,6 @@ from pydantic import BaseModel, validator
 from fractions import Fraction
 import pandas as pd
 
-pd.set_option("display.colheader_justify", "left")
-
 
 class PreferenceProfile(BaseModel):
     """
