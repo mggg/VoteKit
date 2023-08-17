@@ -159,7 +159,6 @@ class Borda:
             eliminated=[],
             remaining=[],
             profile=profile,
-            winner_votes={},
             previous=None,
         )
         self.seats = seats
@@ -242,7 +241,6 @@ class Borda:
             remaining=[],
             profile=self.state.profile,
             curr_round=(self.state.curr_round + 1),
-            winner_votes=winner_ballots,
             previous=self.state,
         )
         return self.state
