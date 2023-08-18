@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "votekit"
-version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+version = "0.0.0"
+description = "A Swiss Army Knife for computational social choice research"
+authors = ["engineering@mggg.org"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
