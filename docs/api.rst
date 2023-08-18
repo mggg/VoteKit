@@ -6,6 +6,12 @@ API Reference
 .. contents:: Table of Contents
     :local:
 
+Test
+----
+.. autofunction:: io.open
+.. autofunction:: src.votekit.cleaning.remove_empty_ballots
+.. autofunction:: print
+
 Ballots
 -------
 .. autoclass:: src.votekit.ballot.Ballot
