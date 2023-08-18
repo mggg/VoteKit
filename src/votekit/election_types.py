@@ -181,7 +181,7 @@ class Limited:
         elected = ordered_results[: self.seats]
         eliminated = ordered_results[self.seats :][::-1]
         cands_removed = set(elected).union(set(eliminated))
-        remaining = set(profile.get_candidates()).difference(cands_removed)
+        remaining = list(set(profile.get_candidates()).difference(cands_removed))
         profile_remaining = PreferenceProfile(
             ballots=remove_cand(cands_removed, profile.get_ballots())
         )
@@ -294,14 +294,14 @@ class SNTV_STV_Hybrid:
         elif stage == "STV":
             self.stage = "Complete"
 
-        self.state = new_state
-        return new_state
+        self.state = new_state  # type: ignore
+        return new_state  # type: ignore
 
     def run_election(self) -> ElectionState:
         outcome = None
         while self.stage != "Complete":
             outcome = self.run_step(self.stage)
-        return outcome
+        return outcome  # type: ignore
 
 
 class TopTwo:
@@ -344,7 +344,7 @@ class DominatingSets:
                 curr_round=self.state.curr_round + 1,
                 elected=list(),
                 eliminated=dominating_tiers,
-                remaining=set(),
+                remaining=list(),
                 profile=PreferenceProfile(),
                 previous=self.state,
             )
@@ -353,7 +353,7 @@ class DominatingSets:
                 curr_round=self.state.curr_round + 1,
                 elected=[set(dominating_tiers[0])],
                 eliminated=dominating_tiers[1:][::-1],
-                remaining=set(),
+                remaining=list(),
                 profile=PreferenceProfile(),
                 previous=self.state,
             )
@@ -384,7 +384,7 @@ class CondoBorda:
             curr_round=self.state.curr_round + 1,
             elected=ranking[: self.seats],
             eliminated=ranking[self.seats :],
-            remaining=set(),
+            remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
         )
@@ -473,7 +473,9 @@ def random_transfer(
 
 
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
-    remove_set = {}
+    """
+    Removes candidate from ballots
+    """
     if isinstance(removed, str):
         remove_set = {removed}
     elif isinstance(removed, Iterable):
@@ -491,8 +493,10 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     return update
 
 
-def order_candidates_by_borda(candidate_set, candidate_borda):
-    # Sort the candidates in candidate_set based on their Borda values
+def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
+    """
+    Sort the candidates in candidate_set based on their Borda values
+    """
     ordered_candidates = sorted(
         candidate_set,
         key=lambda candidate: candidate_borda.get(candidate, 0),

@@ -1,7 +1,7 @@
 from fractions import Fraction
 from itertools import permutations, combinations
-import networkx as nx
-import matplotlib.pyplot as plt
+import networkx as nx  # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
 
 from ..ballot import Ballot
 from ..profile import PreferenceProfile
@@ -82,7 +82,7 @@ class PairwiseComparisonGraph(Graph):
             G.add_edge(e[0], e[1], weight=self.pairwise_dict[e])
         return G
 
-    def plot(self, outfile=None):
+    def draw(self, outfile=None):
         G = self.pairwise_graph
 
         pos = nx.circular_layout(G)
@@ -134,7 +134,7 @@ class PairwiseComparisonGraph(Graph):
             beat_set_size_dict[cand] = len(beat_set)
 
         # We want to return candidates sorted and grouped by beat set size
-        tier_dict = {}
+        tier_dict: dict = {}
         for k, v in beat_set_size_dict.items():
             if v in tier_dict.keys():
                 tier_dict[v].add(k)

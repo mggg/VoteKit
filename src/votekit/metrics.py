@@ -12,7 +12,7 @@ def borda_scores(
     if score_vector is None:
         score_vector = list(range(ballot_length, 0, -1))
 
-    candidate_borda = {c: 0 for c in candidates}
+    candidate_borda = {c: Fraction(0) for c in candidates}
     for ballot in profile.ballots:
         current_ind = 0
         candidates_covered = []

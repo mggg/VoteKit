@@ -21,7 +21,7 @@ class Graph(ABC):
         pass
 
     @abstractmethod
-    def plot(self, *args: Any, **kwags: Any):
+    def draw(self, *args: Any, **kwags: Any):
         pass
 
     def distance_between_subsets(self, A: nx.Graph, B: nx.Graph):
@@ -264,7 +264,7 @@ class BallotGraph(Graph):
 
         return legend
 
-    def plot(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
+    def draw(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
         """visualize the whole election or select neighborhoods in the election."""
         # TODO: change this so that neighborhoods can have any neighborhood
         # not just heavy balls, also there's something wrong with the shades

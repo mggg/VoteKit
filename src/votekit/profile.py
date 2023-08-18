@@ -11,7 +11,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot] = None
+    ballots: list[Ballot] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
