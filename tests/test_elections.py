@@ -1,8 +1,6 @@
 from votekit.election_types import (
-    compute_votes,
     remove_cand,
-    fractional_transfer,
-    random_transfer,
+    compute_votes,
     STV,
     Borda,
 )  # type:ignore
@@ -12,6 +10,7 @@ import pytest
 from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.profile import PreferenceProfile
+from votekit.utils import fractional_transfer, random_transfer
 
 
 BASE_DIR = Path(__file__).resolve().parent
