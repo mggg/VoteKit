@@ -6,56 +6,56 @@ API Reference
 .. contents:: Table of Contents
     :local:
 
-.. Ballot
-.. -----------
-.. .. automodule:: ballot 
-..     :members:
-..     :show-inheritance:
-
-.. Ballot Generator
-.. -----------
-.. .. automodule:: ballot_generator 
-..     :members:
-..     :show-inheritance:
-
-.. Cleaning
-.. -----------
-.. .. automodule:: cleaning 
-..     :members:
-..     :show-inheritance:
-
-CVR Loaders
+Ballot
 -----------
-.. automodule:: cvr_loaders 
+.. automodule:: votekit.ballot 
     :members:
     :show-inheritance:
 
-.. Election State
-.. -----------
-.. .. automodule:: election_state 
-..     :members:
-..     :show-inheritance:
+Ballot Generator
+-----------
+.. automodule:: votekit.ballot_generator 
+    :members:
+    :show-inheritance:
 
-.. Election Types
-.. -----------
-.. .. automodule:: election_types 
-..     :members:
-..     :show-inheritance:
+Cleaning
+-----------
+.. automodule:: votekit.cleaning 
+    :members:
+    :show-inheritance:
 
-.. Metrics
-.. -----------
-.. .. automodule:: metrics 
-..     :members:
-..     :show-inheritance:
+CVR Loaders
+-----------
+.. automodule:: votekit.cvr_loaders 
+    :members:
+    :show-inheritance:
 
-.. Models
-.. -----------
-.. .. automodule:: models 
-..     :members:
-..     :show-inheritance:
+Election State
+-----------
+.. automodule:: votekit.election_state 
+    :members:
+    :show-inheritance:
 
-.. Profile
-.. -----------
-.. .. automodule:: profile 
-..     :members:
-..     :show-inheritance:
+Election Types
+-----------
+.. automodule:: votekit.election_types 
+    :members:
+    :show-inheritance:
+
+Metrics
+-----------
+.. automodule:: votekit.metrics 
+    :members:
+    :show-inheritance:
+
+Models
+-----------
+.. automodule:: votekit.models 
+    :members:
+    :show-inheritance:
+
+Profile
+-----------
+.. automodule:: votekit.profile 
+    :members:
+    :show-inheritance:
