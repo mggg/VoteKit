@@ -6,17 +6,17 @@ API Reference
 .. contents:: Table of Contents
     :local:
 
-Ballot
------------
-.. automodule:: ballot 
-    :members:
-    :show-inheritance:
+.. Ballot
+.. -----------
+.. .. automodule:: ballot 
+..     :members:
+..     :show-inheritance:
 
-Ballot Generator
------------
-.. automodule:: ballot_generator 
-    :members:
-    :show-inheritance:
+.. Ballot Generator
+.. -----------
+.. .. automodule:: ballot_generator 
+..     :members:
+..     :show-inheritance:
 
 .. Cleaning
 .. -----------
@@ -24,11 +24,11 @@ Ballot Generator
 ..     :members:
 ..     :show-inheritance:
 
-.. CVR Loaders
-.. -----------
-.. .. automodule:: cvr_loaders 
-..     :members:
-..     :show-inheritance:
+CVR Loaders
+-----------
+.. automodule:: cvr_loaders 
+    :members:
+    :show-inheritance:
 
 .. Election State
 .. -----------
