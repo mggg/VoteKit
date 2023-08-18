@@ -8,4 +8,10 @@ API Reference
 
 Ballots
 -------
-.. autoclass:: votekit.ballot
+.. autoclass:: votekit.ballot.Ballot
+
+CVR Loaders
+-----------
+.. automodule:: votekit.cvr_loaders
+    :members:
+    :show-inheritance:
