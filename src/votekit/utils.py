@@ -44,9 +44,7 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
                     weight += ballot.weight
             else:
                 if candidate in ballot.ranking[0]:  # ties
-                    print(ballot.ranking[0])
                     weight += ballot.weight / len(ballot.ranking[0])
-                    print(weight)
         votes[candidate] = weight
 
     ordered = [
@@ -131,14 +129,10 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     return update
 
 
-def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
-    """
-    Sort the candidates in candidate_set based on their Borda values
-    """
+def order_candidates_by_borda(candidate_set, candidate_borda):
+    # Sort the candidates in candidate_set based on their Borda values
     ordered_candidates = sorted(
-        candidate_set,
-        key=lambda candidate: candidate_borda.get(candidate, 0),
-        reverse=True,
+        candidate_set, key=lambda candidate: (-candidate_borda[candidate], candidate)
     )
     return ordered_candidates
 
@@ -176,4 +170,38 @@ def mentions(profile: PreferenceProfile) -> dict:
     return mentions
 
 
-## Add borda scores from Zach's pr
+def borda_scores(
+    profile: PreferenceProfile, ballot_length=None, score_vector=None
+) -> dict:
+    candidates = profile.get_candidates()
+    if ballot_length is None:
+        ballot_length = max([len(ballot.ranking) for ballot in profile.ballots])
+    if score_vector is None:
+        score_vector = list(range(ballot_length, 0, -1))
+
+    candidate_borda = {c: Fraction(0) for c in candidates}
+    for ballot in profile.ballots:
+        current_ind = 0
+        candidates_covered = []
+        for s in ballot.ranking:
+            position_size = len(s)
+            local_score_vector = score_vector[current_ind : current_ind + position_size]
+            borda_allocation = sum(local_score_vector) / position_size
+            for c in s:
+                candidate_borda[c] += Fraction(borda_allocation) * ballot.weight
+            current_ind += position_size
+            candidates_covered += list(s)
+
+        # If ballot was incomplete, evenly allocation remaining points
+        if current_ind < len(score_vector):
+            remainder_cands = set(candidates).difference(set(candidates_covered))
+            remainder_score_vector = score_vector[current_ind:]
+            remainder_borda_allocation = sum(remainder_score_vector) / len(
+                remainder_cands
+            )
+            for c in remainder_cands:
+                candidate_borda[c] += (
+                    Fraction(remainder_borda_allocation) * ballot.weight
+                )
+
+    return candidate_borda

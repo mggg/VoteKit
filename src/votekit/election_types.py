@@ -5,11 +5,11 @@ from .utils import (
     remove_cand,
     fractional_transfer,
     order_candidates_by_borda,
+    borda_scores,
 )
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from .metrics import borda_scores
-from typing import Callable
+from typing import Callable, Optional
 import random
 from fractions import Fraction
 import itertools as it
@@ -437,3 +437,40 @@ class Plurality:
         )
 
     run_election = run_step
+
+
+class Borda:
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        score_vector: Optional[list[Fraction]],
+    ):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+        self.score_vector = score_vector
+
+    """Borda: Borda is a positional voting system that assigns a decreasing 
+    number of points to candidates based on order and a score vector.
+    The conventional score vector is linear (n, n-1, ... 1)"""
+
+    def run_step(self) -> ElectionState:
+        candidates = self.state.profile.get_candidates()
+        borda_dict = borda_scores(
+            profile=self.state.profile, score_vector=self.score_vector
+        )
+        ranking = order_candidates_by_borda(set(candidates), borda_dict)
+
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=ranking[: self.seats],
+            eliminated=ranking[self.seats :][::-1],
+            remaining=list(),
+            profile=PreferenceProfile(),
+            previous=self.state,
+        )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
