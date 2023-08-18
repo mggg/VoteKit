@@ -1,6 +1,11 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
-from .utils import compute_votes, remove_cand, fractional_transfer
+from .utils import (
+    compute_votes,
+    remove_cand,
+    fractional_transfer,
+    order_candidates_by_borda,
+)
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from .metrics import borda_scores
@@ -432,15 +437,3 @@ class Plurality:
         )
 
     run_election = run_step
-
-
-def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
-    """
-    Sort the candidates in candidate_set based on their Borda values
-    """
-    ordered_candidates = sorted(
-        candidate_set,
-        key=lambda candidate: candidate_borda.get(candidate, 0),
-        reverse=True,
-    )
-    return ordered_candidates

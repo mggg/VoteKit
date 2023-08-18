@@ -1,4 +1,5 @@
 from .ballot import Ballot
+from typing import Union, Iterable
 from .profile import PreferenceProfile
 from fractions import Fraction
 from collections import namedtuple
@@ -109,19 +110,37 @@ def random_transfer(
     return transfered
 
 
-def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
+def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
     """
-    Removes candidate from ranking of the ballots
+    Removes candidate from ballots
     """
-    update = deepcopy(ballots)
+    if isinstance(removed, str):
+        remove_set = {removed}
+    elif isinstance(removed, Iterable):
+        remove_set = set(removed)
 
+    update = deepcopy(ballots)
     for n, ballot in enumerate(update):
-        new_ranking = [
-            candidate for candidate in ballot.ranking if candidate != {removed_cand}
-        ]
+        new_ranking = []
+        for s in ballot.ranking:
+            new_s = s.difference(remove_set)
+            if len(new_s) > 0:
+                new_ranking.append(new_s)
         update[n].ranking = new_ranking
 
     return update
+
+
+def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
+    """
+    Sort the candidates in candidate_set based on their Borda values
+    """
+    ordered_candidates = sorted(
+        candidate_set,
+        key=lambda candidate: candidate_borda.get(candidate, 0),
+        reverse=True,
+    )
+    return ordered_candidates
 
 
 # Summmary Stat functions

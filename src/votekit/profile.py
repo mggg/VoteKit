@@ -153,21 +153,6 @@ class PreferenceProfile(BaseModel):
     # set repr to print outputs
     __repr__ = __str__
 
-
-def sum_row(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Computes sum total for weight and voter share column
-    """
-    sum_row = {
-        "Ballot": "",
-        "Weight": df["Weight"].sum(),
-        "Voter Share": df["Voter Share"].sum(),
-    }
-
-    df.loc["Totals"] = sum_row  # type: ignore
-
-    return df.fillna("")
-
     def condense_ballots(self):
         class_vector = []
         seen_rankings = []
@@ -199,3 +184,18 @@ def sum_row(df: pd.DataFrame) -> pd.DataFrame:
             if b not in other.ballots:
                 return False
         return True
+
+
+def sum_row(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes sum total for weight and voter share column
+    """
+    sum_row = {
+        "Ballot": "",
+        "Weight": df["Weight"].sum(),
+        "Voter Share": df["Voter Share"].sum(),
+    }
+
+    df.loc["Totals"] = sum_row  # type: ignore
+
+    return df.fillna("")
