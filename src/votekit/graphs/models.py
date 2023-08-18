@@ -1,7 +1,7 @@
 from ..profile import PreferenceProfile
+from ..utils import COLOR_LIST
 from typing import Callable, Optional, Union, Any
 from abc import ABC, abstractmethod
-from distinctipy import get_colors  # type: ignore
 import networkx as nx  # type: ignore
 from functools import cache
 
@@ -270,14 +270,13 @@ class BallotGraph(Graph):
         # not just heavy balls, also there's something wrong with the shades
         Gc = self.graph
         GREY = (0.44, 0.5, 0.56)
-        BLACK = (0, 0, 0)
         node_cols: list = []
         node_labels = None
 
         k = len(neighborhoods) if neighborhoods else self.num_cands
-        cols = get_colors(
-            k, [GREY, BLACK], pastel_factor=0.7
-        )  # redo the colors to match MGGG lab
+        if k > len(COLOR_LIST):
+            raise ValueError("Number of neighborhoods exceeds colors for plotting")
+        cols = COLOR_LIST[:k]
 
         # self._clean()
         for ballot in Gc.nodes:

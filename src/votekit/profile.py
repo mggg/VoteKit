@@ -93,38 +93,57 @@ class PreferenceProfile(BaseModel):
         # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df.reset_index(drop=True)
 
-    def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+    def head(
+        self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
+    ) -> pd.DataFrame:
         """
         Displays top-n ballots in profile based on weight
         """
         if self.df.empty:
             self.df = self.create_df()
 
-        df = self.df.sort_values(by="Weight", ascending=False)
+        df = (
+            self.df.sort_values(by="Weight", ascending=False)
+            .head(n)
+            .reset_index(drop=True)
+        )
+
+        if totals:
+            df = sum_row(df)
+
         if not percents:
-            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
+            return df.drop(columns="Voter Share")
 
-        return df.head(n).reset_index(drop=True)
+        return df
 
-    def tail(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+    def tail(
+        self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
+    ) -> pd.DataFrame:
         """
         Displays bottom-n ballots in profile based on weight
         """
         if self.df.empty:
             self.df = self.create_df()
 
-        df = self.df.sort_values(by="Weight", ascending=True)
-        if not percents:
-            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
+        df = (
+            self.df.sort_values(by="Weight", ascending=False)
+            .head(n)
+            .reset_index(drop=True)
+        )
+        if totals:
+            df = sum_row(df)
 
-        return df.head(n).reset_index(drop=True)
+        if not percents:
+            return df.drop(columns="Voter Share")
+
+        return df
 
     def __str__(self) -> str:
         """
         Displays top 15 or whole profiles
         """
         if self.df.empty:
-            self.dff = self.create_df()
+            self.df = self.create_df()
 
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
@@ -165,3 +184,18 @@ class PreferenceProfile(BaseModel):
             if b not in other.ballots:
                 return False
         return True
+
+
+def sum_row(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes sum total for weight and voter share column
+    """
+    sum_row = {
+        "Ballot": "",
+        "Weight": df["Weight"].sum(),
+        "Voter Share": df["Voter Share"].sum(),
+    }
+
+    df.loc["Totals"] = sum_row  # type: ignore
+
+    return df.fillna("")

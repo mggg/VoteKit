@@ -102,7 +102,7 @@ def test_Cambridge_completion():
 def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
     # Calculate the mean and standard deviation of the binomial distribution
     mean = n_attempts * probability
-    std_dev = np.sqrt(n_attempts * probability * (1 - probability))
+    std_dev = math.sqrt(n_attempts * probability * (1 - probability))
 
     # Calculate the confidence interval
     z_score = stats.norm.ppf((1 + alpha) / 2)  # Z-score for 99% confidence level
@@ -143,7 +143,7 @@ def do_ballot_probs_match_ballot_dist(
             failed += 1
 
     n_factorial = math.factorial(n)
-    stdev = np.sqrt(n_factorial * alpha * (1 - alpha))
+    stdev = math.sqrt(n_factorial * alpha * (1 - alpha))
     return failed < (n_factorial * (1 - alpha) + 2 * stdev)
 
 
@@ -156,7 +156,7 @@ def test_ic_distribution():
     # Find ballot probs
     possible_rankings = it.permutations(candidates, ballot_length)
     ballot_prob_dict = {
-        b: 1 / np.math.factorial(len(candidates)) for b in possible_rankings
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
     # Generate ballots
@@ -606,7 +606,7 @@ def compute_pl_prob(perm, interval):
     prob = 1
     for c in perm:
         if sum(pref_interval.values()) == 0:
-            prob *= 1 / np.math.factorial(len(pref_interval))
+            prob *= 1 / math.factorial(len(pref_interval))
         else:
             prob *= pref_interval[c] / sum(pref_interval.values())
         del pref_interval[c]

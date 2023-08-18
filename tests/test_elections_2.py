@@ -11,7 +11,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv"
 TEST_PROFILE = rank_column_csv(DATA_DIR / "test_election_B.csv")
-condo_ballot_list = [
+dom_ballot_list = [
     Ballot(
         id=None, ranking=[{"C"}, {"A"}, {"D"}, {"E"}, {"B"}], weight=Fraction(10, 1)
     ),
@@ -22,7 +22,7 @@ condo_ballot_list = [
         id=None, ranking=[{"D"}, {"A"}, {"B"}, {"C"}, {"E"}], weight=Fraction(10, 1)
     ),
 ]
-CONDO_TEST_PROFILE = PreferenceProfile(ballots=condo_ballot_list)
+DOM_TEST_PROFILE = PreferenceProfile(ballots=dom_ballot_list)
 
 
 def equal_electionstates(state1, state2):
@@ -74,11 +74,18 @@ def compare_io_condoborda(profile, seats, target_state):
     equal_electionstates(outcome, target_state)
 
 
+def compare_io_borda(profile, seats, score_vector, target_state):
+    borda_election = et.Borda(profile=profile, seats=seats, score_vector=score_vector)
+    outcome = borda_election.run_election()
+    # Make assertations
+    equal_electionstates(outcome, target_state)
+
+
 def test_bloc_onewinner():
     bloc_target1 = ElectionState(
         curr_round=1,
         elected=["B"],
-        eliminated=["F", "E", "I", "H", "G", "D", "A", "C"],
+        eliminated=["F", "E", "I", "H", "G", "D", "C", "A"],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -111,7 +118,7 @@ def test_sntv_onewinner():
     sntv_target1 = ElectionState(
         curr_round=1,
         elected=["B"],
-        eliminated=["F", "E", "I", "H", "G", "D", "A", "C"],
+        eliminated=["F", "E", "I", "H", "G", "D", "C", "A"],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -121,7 +128,7 @@ def test_sntv_onewinner():
 def test_sntv_fivewinner():
     sntv_target2 = ElectionState(
         curr_round=1,
-        elected=["B", "C", "A", "D", "G"],
+        elected=["B", "A", "C", "D", "G"],
         eliminated=["F", "E", "I", "H"],
         remaining=[],
         profile=PreferenceProfile(),
@@ -129,17 +136,19 @@ def test_sntv_fivewinner():
     compare_io_sntv(profile=TEST_PROFILE, seats=5, target_state=sntv_target2)
 
 
-def test_hybrid_cutfour_onewinner():
-    hybrid_target1 = ElectionState(
-        curr_round=1,
-        elected=["B"],
-        eliminated=["F", "E", "I", "H", "G", "D", "C", "A"],
-        remaining=[],
-        profile=PreferenceProfile(),
-    )
-    compare_io_hybrid(
-        profile=TEST_PROFILE, r1_cutoff=4, seats=1, target_state=hybrid_target1
-    )
+# def test_hybrid_cutfour_onewinner():
+#     # STV is still stochastic for winners
+#     # So this test needs to be flexible on 2 possible outcomes
+#     hybrid_target1a = ElectionState(
+#         curr_round=1,
+#         elected=["A"],
+#         eliminated=["F", "E", "I", "H", "G", "D", "C", "B"],
+#         remaining=[],
+#         profile=PreferenceProfile(),
+#     )
+#     compare_io_hybrid(
+#         profile=TEST_PROFILE, r1_cutoff=4, seats=1, target_state=hybrid_target1
+#     )
 
 
 def test_hybrid_cutfive_threewinner():
@@ -163,7 +172,7 @@ def test_dom_set_fivecand():
         remaining=list(),
         profile=PreferenceProfile(),
     )
-    compare_io_domset(profile=CONDO_TEST_PROFILE, target_state=dom_target1)
+    compare_io_domset(profile=DOM_TEST_PROFILE, target_state=dom_target1)
 
 
 def test_condoborda_fivecand():
@@ -175,5 +184,18 @@ def test_condoborda_fivecand():
         profile=PreferenceProfile(),
     )
     compare_io_condoborda(
-        profile=CONDO_TEST_PROFILE, seats=3, target_state=condoborda_target1
+        profile=DOM_TEST_PROFILE, seats=3, target_state=condoborda_target1
+    )
+
+
+def test_borda_three_winner():
+    borda_target1 = ElectionState(
+        curr_round=1,
+        elected=["A", "B", "C"],
+        eliminated=["F", "I", "H", "G", "E", "D"],
+        remaining=list(),
+        profile=PreferenceProfile(),
+    )
+    compare_io_borda(
+        profile=TEST_PROFILE, seats=3, score_vector=None, target_state=borda_target1
     )

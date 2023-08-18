@@ -13,7 +13,6 @@ mypy = "^1.4.1"
 pydantic = "^1.10.9"
 pandas-stubs = "^2.0.2.230605"
 networkx = "^3.1"
-distinctipy = "^1.2.2"
 jinja2 = "^3.1.2"
 matplotlib = "^3.7.2"
 

@@ -1,15 +1,19 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
+from .utils import (
+    compute_votes,
+    remove_cand,
+    fractional_transfer,
+    order_candidates_by_borda,
+    borda_scores,
+)
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from .metrics import borda_scores
-from typing import Callable, Iterable, Union
+from typing import Callable, Optional
 import random
 from fractions import Fraction
-from copy import deepcopy
 import itertools as it
 import numpy as np
-from collections import namedtuple
 
 
 class STV:
@@ -82,7 +86,7 @@ class STV:
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[0].votes >= self.threshold:
+        elif fp_votes[0][1] >= self.threshold:
             for candidate, votes in fp_votes:
                 if votes >= self.threshold:
                     elected.append(candidate)
@@ -395,111 +399,78 @@ class CondoBorda:
         return outcome
 
 
-# Election Helper Functions
-CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
-
-
-def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
+class Plurality:
     """
-    Computes first place votes for all candidates in a preference profile
-    """
-    votes = {}
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if ballot.ranking and ballot.ranking[0] == {candidate}:
-                weight += ballot.weight
-        votes[candidate] = weight
-
-    ordered = [
-        CandidateVotes(cand=key, votes=value)
-        for key, value in sorted(votes.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    return ordered
-
-
-def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Calculates fractional transfer from winner, then removes winner
-    from the list of ballots
-    """
-    transfer_value = (votes[winner] - threshold) / votes[winner]
-
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
-
-    return remove_cand(winner, ballots)
-
-
-def random_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
+    Single or multi-winner plurality election
     """
 
-    # turn all of winner's ballots into (multiple) ballots of weight 1
-    weight_1_ballots = []
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            # note: under random transfer, weights should always be integers
-            for _ in range(int(ballot.weight)):
-                weight_1_ballots.append(
-                    Ballot(
-                        id=ballot.id,
-                        ranking=ballot.ranking,
-                        weight=Fraction(1),
-                        voters=ballot.voters,
-                    )
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.seats = seats
+        self.election_state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=[
+                cand
+                for cand, votes in compute_votes(
+                    profile.get_candidates(), profile.get_ballots()
                 )
+            ],
+            profile=profile,
+        )
+        self.__profile = profile
 
-    # remove winner's ballots
-    ballots = [
-        ballot
-        for ballot in ballots
-        if not (ballot.ranking and ballot.ranking[0] == {winner})
-    ]
+    def run_step(self):
+        """
+        Simulate 'step' of a plurarity election
+        """
+        candidates = self.__profile.get_candidates()
+        ballots = self.__profile.get_ballots()
+        results = compute_votes(candidates, ballots)
 
-    surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots += surplus_ballots
+        return ElectionState(
+            curr_round=1,
+            elected=[result.cand for result in results[: self.seats]],
+            eliminated=[result.cand for result in results[self.seats :]],
+            remaining=[],
+            profile=self.__profile,
+        )
 
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
-
-
-def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
-    """
-    Removes candidate from ballots
-    """
-    if isinstance(removed, str):
-        remove_set = {removed}
-    elif isinstance(removed, Iterable):
-        remove_set = set(removed)
-
-    update = deepcopy(ballots)
-    for n, ballot in enumerate(update):
-        new_ranking = []
-        for s in ballot.ranking:
-            new_s = s.difference(remove_set)
-            if len(new_s) > 0:
-                new_ranking.append(new_s)
-        update[n].ranking = new_ranking
-
-    return update
+    run_election = run_step
 
 
-def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
-    """
-    Sort the candidates in candidate_set based on their Borda values
-    """
-    ordered_candidates = sorted(
-        candidate_set,
-        key=lambda candidate: candidate_borda.get(candidate, 0),
-        reverse=True,
-    )
-    return ordered_candidates
+class Borda:
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        score_vector: Optional[list[Fraction]],
+    ):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+        self.score_vector = score_vector
+
+    """Borda: Borda is a positional voting system that assigns a decreasing 
+    number of points to candidates based on order and a score vector.
+    The conventional score vector is linear (n, n-1, ... 1)"""
+
+    def run_step(self) -> ElectionState:
+        candidates = self.state.profile.get_candidates()
+        borda_dict = borda_scores(
+            profile=self.state.profile, score_vector=self.score_vector
+        )
+        ranking = order_candidates_by_borda(set(candidates), borda_dict)
+
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=ranking[: self.seats],
+            eliminated=ranking[self.seats :][::-1],
+            remaining=list(),
+            profile=PreferenceProfile(),
+            previous=self.state,
+        )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
