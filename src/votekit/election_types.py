@@ -1,7 +1,7 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
 from .election_state import ElectionState
-from .graphs import PairwiseComparisonGraph
+from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from .metrics import borda_scores
 from typing import Callable, Iterable, Union
 import random
@@ -9,6 +9,7 @@ from fractions import Fraction
 from copy import deepcopy
 import itertools as it
 import numpy as np
+from collections import namedtuple
 
 
 class STV:
@@ -60,7 +61,6 @@ class STV:
         Determines if the number of seats has been met to call election
         """
         return len(self.election_state.get_all_winners()) != self.seats
-      
 
     def run_step(self) -> ElectionState:
         """
@@ -125,10 +125,9 @@ class STV:
                 f"Length of elected set equal to number of seats ({self.seats})"
             )
 
-
         while self.next_round():
             self.run_step()
-            
+
         return self.election_state
 
 
@@ -211,14 +210,12 @@ class Bloc:
     The m-approval score of a candidate is equal to the number of voters who rank this 
     candidate among their m top ranked candidates. """
 
-
     def run_step(self) -> ElectionState:
         limited_equivalent = Limited(
             profile=self.state.profile, seats=self.seats, k=self.seats
         )
         outcome = limited_equivalent.run_election()
         return outcome
-
 
     def run_election(self) -> ElectionState:
         outcome = self.run_step()
@@ -400,6 +397,7 @@ class CondoBorda:
 
 # Election Helper Functions
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
+
 
 def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
     """

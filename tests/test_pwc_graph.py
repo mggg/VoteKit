@@ -1,6 +1,6 @@
 from votekit.ballot import Ballot
 from votekit.profile import PreferenceProfile
-from votekit.graphs import PairwiseComparisonGraph
+from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 
 from fractions import Fraction
 import networkx as nx
@@ -99,9 +99,9 @@ def test_pairwise_dict():
     assert pwcg_pairwise_dict == target_pairwise_dict
 
 
-def test_graph_gen():
+def test_graph_build():
     pwcg = PairwiseComparisonGraph(SIMPLE_TEST_PROFILE)
-    pwcg_graph = pwcg.generate_graph()
+    pwcg_graph = pwcg.build_graph()
 
     target_graph = nx.DiGraph()
     target_graph.add_nodes_from(["A", "B", "C"])

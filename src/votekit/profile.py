@@ -11,7 +11,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot]
+    ballots: list[Ballot] = None
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
@@ -92,7 +92,7 @@ class PreferenceProfile(BaseModel):
         df["Voter Share"] = df["Voter Share"].fillna(0.0)
         # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df.reset_index(drop=True)
-      
+
     def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
         """
         Displays top-n ballots in profile based on weight
@@ -133,7 +133,7 @@ class PreferenceProfile(BaseModel):
 
     # set repr to print outputs
     __repr__ = __str__
-    
+
     def condense_ballots(self):
         class_vector = []
         seen_rankings = []

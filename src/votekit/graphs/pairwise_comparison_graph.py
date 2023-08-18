@@ -1,12 +1,14 @@
-from .ballot import Ballot
-from .profile import PreferenceProfile
 from fractions import Fraction
 from itertools import permutations, combinations
 import networkx as nx
 import matplotlib.pyplot as plt
 
+from ..ballot import Ballot
+from ..profile import PreferenceProfile
+from .models import Graph
 
-class PairwiseComparisonGraph:
+
+class PairwiseComparisonGraph(Graph):
     def __init__(self, profile: PreferenceProfile, ballot_length=None):
         self.ballot_length = ballot_length
         if ballot_length is None:
@@ -15,7 +17,7 @@ class PairwiseComparisonGraph:
         self.profile = full_profile
         self.candidates = self.profile.get_candidates()
         self.pairwise_dict = self.compute_pairwise_dict()
-        self.pairwise_graph = self.generate_graph()
+        self.pairwise_graph = self.build_graph()
 
     # Function to fill in incomplete ballots for pairwise comparison
     def ballot_fill(self, profile: PreferenceProfile, ballot_length: int):
@@ -73,14 +75,14 @@ class PairwiseComparisonGraph:
 
         return pairwise_dict
 
-    def generate_graph(self) -> nx.DiGraph:
+    def build_graph(self) -> nx.DiGraph:
         G = nx.DiGraph()
         G.add_nodes_from(self.candidates)
         for e in self.pairwise_dict.keys():
             G.add_edge(e[0], e[1], weight=self.pairwise_dict[e])
         return G
 
-    def draw(self, outfile=None):
+    def plot(self, outfile=None):
         G = self.pairwise_graph
 
         pos = nx.circular_layout(G)
