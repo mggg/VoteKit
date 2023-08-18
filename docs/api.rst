@@ -1,17 +1,17 @@
 API Reference
 =============
 
-.. module:: votekit
+.. module:: src 
 
 .. contents:: Table of Contents
     :local:
 
 Ballots
 -------
-.. autoclass:: votekit.ballot.Ballot
+.. autoclass:: src.votekit.ballot.Ballot
 
 CVR Loaders
 -----------
-.. automodule:: votekit.cvr_loaders
+.. automodule:: src.votekit.cvr_loaders
     :members:
     :show-inheritance:
