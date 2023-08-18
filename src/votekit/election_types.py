@@ -249,3 +249,43 @@ class Borda:
         """
         final_state = self.run_borda_step()
         return final_state
+
+
+class Plurality:
+    """
+    Single or multi-winner plurality election
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.seats = seats
+        self.election_state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=[
+                cand
+                for cand, votes in compute_votes(
+                    profile.get_candidates(), profile.get_ballots()
+                )
+            ],
+            profile=profile,
+        )
+        self.__profile = profile
+
+    def run_step(self):
+        """
+        Simulate 'step' of a plurarity election
+        """
+        candidates = self.__profile.get_candidates()
+        ballots = self.__profile.get_ballots()
+        results = compute_votes(candidates, ballots)
+
+        return ElectionState(
+            curr_round=1,
+            elected=[result.cand for result in results[: self.seats]],
+            eliminated=[result.cand for result in results[self.seats :]],
+            remaining=[],
+            profile=self.__profile,
+        )
+
+    run_election = run_step

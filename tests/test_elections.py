@@ -1,4 +1,4 @@
-from votekit.election_types import STV, Borda
+from votekit.election_types import STV, Borda, Plurality
 from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
 from pathlib import Path
 import pytest
@@ -176,6 +176,32 @@ def test_rand_transfer_assert():
     counts = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
 
     assert 400 < counts[0].votes < 600
+
+
+def test_plurality():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voters={"tom"}),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
+        ]
+    )
+    election = Plurality(profile, seats=1)
+    results = election.run_election()
+    assert results.get_all_winners() == ["A"]
+
+
+def test_plurality_multi_winner():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"D"}, {"B"}], weight=Fraction(1), voters={"tom"}),
+            Ballot(ranking=[{"C"}, {"B"}, {"C"}], weight=Fraction(2), voters={"andy"}),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
+        ]
+    )
+    election = Plurality(profile, seats=3)
+    results = election.run_election()
+    assert results.get_all_winners() == ["A", "C", "D"]
 
 
 # ---------------------------------------------------------------------------
