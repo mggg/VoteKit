@@ -1,3 +1,5 @@
+import sys
+
 # Configuration file for the Sphinx documentation builder.
 
 # -- Project information
@@ -10,6 +12,7 @@ release = "0.0.1"
 version = "0.0.1"
 
 # -- General configuration
+sys.path.append("../src/")
 
 extensions = [
     "sphinx.ext.duration",
