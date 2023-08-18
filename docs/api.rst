@@ -6,18 +6,56 @@ API Reference
 .. contents:: Table of Contents
     :local:
 
-Ballots
--------
-.. autoclass:: votekit.ballot.Ballot
+Ballot
+-----------
+.. automodule:: ballot 
+    :members:
+    :show-inheritance:
 
-VoteKit
--------
-.. automodule:: votekit
-  :members:
-  :show-inheritance:
+Ballot Generator
+-----------
+.. automodule:: ballot_generator 
+    :members:
+    :show-inheritance:
+
+Cleaning
+-----------
+.. automodule:: cleaning 
+    :members:
+    :show-inheritance:
 
 CVR Loaders
 -----------
-.. automodule:: votekit.cvr_loaders
+.. automodule:: cvr_loaders 
+    :members:
+    :show-inheritance:
+
+Election State
+-----------
+.. automodule:: election_state 
+    :members:
+    :show-inheritance:
+
+Election Types
+-----------
+.. automodule:: election_types 
+    :members:
+    :show-inheritance:
+
+Metrics
+-----------
+.. automodule:: metrics 
+    :members:
+    :show-inheritance:
+
+Models
+-----------
+.. automodule:: models 
+    :members:
+    :show-inheritance:
+
+Profile
+-----------
+.. automodule:: profile 
     :members:
     :show-inheritance:
