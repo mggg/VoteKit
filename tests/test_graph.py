@@ -80,7 +80,7 @@ def test_k_neighborhoods():
 def test_labels_no_cands():
     test = BallotGraph(3)
     with pytest.raises(ValueError):
-        test.plot(labels=True)
+        test.draw(labels=True)
 
 
 def test_fix_short_ballots_strings():
