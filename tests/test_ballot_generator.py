@@ -590,8 +590,8 @@ def test_Cambridge_distribution():
                             )
 
     # Now see if ballot prob dict is right
-    test_profile = cs.generate_profile(number_of_ballots=10000)
-    return do_ballot_probs_match_ballot_dist(
+    test_profile = cs.generate_profile(number_of_ballots=5000)
+    assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict=ballot_prob_dict,
         generated_profile=test_profile,
         n=len(candidates),
