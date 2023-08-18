@@ -11,7 +11,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot]
+    ballots: list[Ballot] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
@@ -167,3 +167,35 @@ def sum_row(df: pd.DataFrame) -> pd.DataFrame:
     df.loc["Totals"] = sum_row  # type: ignore
 
     return df.fillna("")
+
+    def condense_ballots(self):
+        class_vector = []
+        seen_rankings = []
+        for ballot in self.ballots:
+            if ballot.ranking not in seen_rankings:
+                seen_rankings.append(ballot.ranking)
+            class_vector.append(seen_rankings.index(ballot.ranking))
+
+        new_ballot_list = []
+        for i, ranking in enumerate(seen_rankings):
+            total_weight = 0
+            for j in range(len(class_vector)):
+                if class_vector[j] == i:
+                    total_weight += self.ballots[j].weight
+            new_ballot_list.append(
+                Ballot(ranking=ranking, weight=Fraction(total_weight))
+            )
+        self.ballots = new_ballot_list
+
+    def __eq__(self, other):
+        if not isinstance(other, PreferenceProfile):
+            return False
+        self.condense_ballots()
+        other.condense_ballots()
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        return True

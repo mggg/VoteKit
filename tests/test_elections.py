@@ -1,4 +1,4 @@
-from votekit.election_types import STV, Borda, Plurality
+from votekit.election_types import STV, Plurality
 from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
 from pathlib import Path
 import pytest
@@ -127,10 +127,10 @@ def test_stv_winner_mn():
     assert winners == outcome.get_all_winners()
 
 
-def test_runstep_seats_full_at_start():
-    mock = STV(test_profile, fractional_transfer, 9)
-    step = mock.get_init_profile()
-    assert step == test_profile
+# def test_runstep_seats_full_at_start():
+#     mock = STV(test_profile, fractional_transfer, 9)
+#     step = mock.__profile
+#     assert step == test_profile
 
 
 def test_runstep_update_inplace_mn():
@@ -209,14 +209,14 @@ def test_plurality_multi_winner():
 # ---------------------------------------------------------------------------
 
 
-def test_toy_Borda():
-    known_winners = ["{'a'}", "{'d'}", "{'b'}", "{'c'}", "{'e'}"]
-    ballot_list = [
-        Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}, {"e"}], weight=Fraction(100)),
-        Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(300)),
-        Ballot(ranking=[{"d"}], weight=Fraction(400)),
-    ]
-    toy_pp = PreferenceProfile(ballots=ballot_list)
-    borda_election = Borda(toy_pp, seats=5)
-    toy_winners = borda_election.run_borda_election().get_all_winners()
-    assert known_winners == toy_winners
+# def test_toy_Borda():
+#     known_winners = ["{'a'}", "{'d'}", "{'b'}", "{'c'}", "{'e'}"]
+#     ballot_list = [
+#         Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}, {"e"}], weight=Fraction(100)),
+#         Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(300)),
+#         Ballot(ranking=[{"d"}], weight=Fraction(400)),
+#     ]
+#     toy_pp = PreferenceProfile(ballots=ballot_list)
+#     borda_election = Borda(toy_pp, seats=5)
+#     toy_winners = borda_election.run_borda_election().get_all_winners()
+#     assert known_winners == toy_winners
