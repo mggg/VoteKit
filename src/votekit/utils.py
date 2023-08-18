@@ -36,14 +36,15 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
     for candidate in candidates:
         weight = Fraction(0)
         for ballot in ballots:
-            first = ballot.ranking[0]
-            if ballot.ranking and len(first) == 1:
-                if first == {candidate}:
+            if not ballot.ranking:
+                continue
+            if len(ballot.ranking[0]) == 1:
+                if ballot.ranking[0] == {candidate}:
                     weight += ballot.weight
             else:
-                if candidate in first:  # ties
-                    print(first)
-                    weight += ballot.weight / len(first)
+                if candidate in ballot.ranking[0]:  # ties
+                    print(ballot.ranking[0])
+                    weight += ballot.weight / len(ballot.ranking[0])
                     print(weight)
         votes[candidate] = weight
 

@@ -1,11 +1,9 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
+from .utils import compute_votes, remove_cand
 from .election_state import ElectionState
 from typing import Callable, Optional
 import random
-from fractions import Fraction
-from copy import deepcopy
-from collections import namedtuple
 
 
 class STV:
@@ -78,7 +76,7 @@ class STV:
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[0].votes >= self.threshold:
+        elif fp_votes[0][1] >= self.threshold:
             for candidate, votes in fp_votes:
                 if votes >= self.threshold:
                     elected.append(candidate)
@@ -251,95 +249,3 @@ class Borda:
         """
         final_state = self.run_borda_step()
         return final_state
-
-
-## Election Helper Functions
-CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
-
-
-def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
-    """
-    Computes first place votes for all candidates in a preference profile
-    """
-    votes = {}
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if ballot.ranking and ballot.ranking[0] == {candidate}:
-                weight += ballot.weight
-        votes[candidate] = weight
-
-    ordered = [
-        CandidateVotes(cand=key, votes=value)
-        for key, value in sorted(votes.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    return ordered
-
-
-def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Calculates fractional transfer from winner, then removes winner
-    from the list of ballots
-    """
-    transfer_value = (votes[winner] - threshold) / votes[winner]
-
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
-
-    return remove_cand(winner, ballots)
-
-
-def random_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
-    """
-
-    # turn all of winner's ballots into (multiple) ballots of weight 1
-    weight_1_ballots = []
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            # note: under random transfer, weights should always be integers
-            for _ in range(int(ballot.weight)):
-                weight_1_ballots.append(
-                    Ballot(
-                        id=ballot.id,
-                        ranking=ballot.ranking,
-                        weight=Fraction(1),
-                        voters=ballot.voters,
-                    )
-                )
-
-    # remove winner's ballots
-    ballots = [
-        ballot
-        for ballot in ballots
-        if not (ballot.ranking and ballot.ranking[0] == {winner})
-    ]
-
-    surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots += surplus_ballots
-
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
-
-
-def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
-    """
-    Removes candidate from ranking of the ballots
-    """
-    update = deepcopy(ballots)
-
-    for n, ballot in enumerate(update):
-        new_ranking = [
-            candidate for candidate in ballot.ranking if candidate != {removed_cand}
-        ]
-        update[n].ranking = new_ranking
-
-    return update

@@ -1,16 +1,16 @@
-from votekit.election_types import (
-    remove_cand,
-    compute_votes,
-    STV,
-    Borda,
-)  # type:ignore
+from votekit.election_types import STV, Borda
 from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
 from pathlib import Path
 import pytest
 from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.profile import PreferenceProfile
-from votekit.utils import fractional_transfer, random_transfer
+from votekit.utils import (
+    fractional_transfer,
+    random_transfer,
+    remove_cand,
+    compute_votes,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
