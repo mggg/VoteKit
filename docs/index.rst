@@ -5,3 +5,9 @@ Welcome to VoteKit's documentation!
 
 .. note::
    This project is under active development.
+
+.. toctree::
+    :caption: API Reference
+    :maxdepth: 2
+
+    api
