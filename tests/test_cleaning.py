@@ -25,7 +25,7 @@ def test_deduplicate_single():
     cleaned = PreferenceProfile(
         ballots=[Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1))]
     )
-    assert cleaned == profile_res
+    assert cleaned.ballots == profile_res.ballots
 
 
 def test_deduplicate_mult_voters_same_rankings():
@@ -51,7 +51,7 @@ def test_deduplicate_mult_voters_same_rankings():
             )
         ]
     )
-    assert cleaned == profile_res
+    assert cleaned.ballots == profile_res.ballots
 
 
 def test_deduplicate_mult_voters_diff_rankings():
@@ -74,7 +74,7 @@ def test_deduplicate_mult_voters_diff_rankings():
             Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
         ]
     )
-    assert cleaned == profile_res
+    assert cleaned.ballots == profile_res.ballots
 
 
 def test_deduplicate_mult_voters_ties():
@@ -100,7 +100,7 @@ def test_deduplicate_mult_voters_ties():
             )
         ]
     )
-    assert cleaned == profile_res
+    assert cleaned.ballots == profile_res.ballots
 
 
 def test_deduplicate_no_voters_diff_rankings():
@@ -117,4 +117,4 @@ def test_deduplicate_no_voters_diff_rankings():
             Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1)),
         ]
     )
-    assert cleaned == profile_res
+    assert cleaned.ballots == profile_res.ballots

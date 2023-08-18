@@ -12,88 +12,124 @@ import numpy as np
 
 
 class STV:
-    def __init__(self, profile: PreferenceProfile, transfer: Callable, seats: int):
-        self.state = ElectionState(curr_round=0, profile=profile)
+    """
+    Class for single-winner IRV and multi-winner STV elections
+    """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        transfer: Callable,
+        seats: int,
+        quota: str = "droop",
+    ):
+        """
+        profile (PreferenceProfile): initial perference profile
+        transfer (function): vote transfer method such as fractional transfer
+        seats (int): number of winners/size of committee
+        """
+        self.__profile = profile
         self.transfer = transfer
         self.seats = seats
-        self.threshold = self.get_threshold()
+        self.election_state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=[
+                cand
+                for cand, votes in compute_votes(
+                    profile.get_candidates(), profile.get_ballots()
+                )
+            ],
+            profile=profile,
+        )
+        self.threshold = self.get_threshold(quota)
 
     # can cache since it will not change throughout rounds
-    def get_threshold(self) -> int:
-        """
-        Droop qouta
-        """
-        return int(self.state.profile.num_ballots() / (self.seats + 1) + 1)
+    def get_threshold(self, quota: str) -> int:
+        quota = quota.lower()
+        if quota == "droop":
+            return int(self.__profile.num_ballots() / (self.seats + 1) + 1)
+        elif quota == "hare":
+            return int(self.__profile.num_ballots() / self.seats)
+        else:
+            raise ValueError("Misspelled or unknown quota type")
 
     def next_round(self) -> bool:
         """
         Determines if the number of seats has been met to call election
         """
-        return len(self.state.get_all_winners()) != self.seats
+        return len(self.election_state.get_all_winners()) != self.seats
+      
 
     def run_step(self) -> ElectionState:
         """
         Simulates one round an STV election
         """
-        candidates: list = self.state.profile.get_candidates()
-        ballots: list = self.state.profile.get_ballots()
-        fp_votes: dict = compute_votes(candidates, ballots)
+        ##TODO:must change the way we pass winner_votes
+        remaining: list[str] = self.election_state.remaining
+        ballots: list[Ballot] = self.election_state.profile.get_ballots()
+        fp_votes = compute_votes(remaining, ballots)  ##fp means first place
+        elected = []
+        eliminated = []
 
-        print(fp_votes)
-        round_elected = list()
-        round_eliminated = list()
+        # if number of remaining candidates equals number of remaining seats,
+        # everyone is elected
+        if len(remaining) == self.seats - len(self.election_state.get_all_winners()):
+            elected = [cand for cand, votes in fp_votes]
+            remaining = []
+            ballots = []
+            # TODO: sort remaining candidates by vote share
 
-        # if number of remaining candidates equals number of remaining seats
-        if len(candidates) == self.seats - len(self.state.get_all_winners()):
-            round_elected = sorted(fp_votes, key=lambda x: (-fp_votes[x], x))
-        else:
-            for candidate in sorted(fp_votes, key=lambda x: (-fp_votes[x], x)):
-                if fp_votes[candidate] >= self.threshold:
-                    round_elected.append(candidate)
+        # elect all candidates who crossed threshold
+        elif fp_votes[0].votes >= self.threshold:
+            for candidate, votes in fp_votes:
+                if votes >= self.threshold:
+                    elected.append(candidate)
+                    remaining.remove(candidate)
                     ballots = self.transfer(
-                        candidate, ballots, fp_votes, self.threshold
+                        candidate,
+                        ballots,
+                        {cand: votes for cand, votes in fp_votes},
+                        self.threshold,
                     )
+        # since no one has crossed threshold, eliminate one of the people
+        # with least first place votes
+        elif self.next_round():
+            lp_votes = min([votes for cand, votes in fp_votes])
+            lp_candidates = [
+                candidate for candidate, votes in fp_votes if votes == lp_votes
+            ]
+            # is this how to break ties, can be different based on locality
+            lp_cand = random.choice(lp_candidates)
+            eliminated.append(lp_cand)
+            ballots = remove_cand(lp_cand, ballots)
+            remaining.remove(lp_cand)
 
-            if self.next_round():
-                lp_votes = min(fp_votes.values())
-                lp_candidates = [
-                    candidate
-                    for candidate, votes in fp_votes.items()
-                    if votes == lp_votes
-                ]
-                # is this how to break ties, can be different based on locality
-                lp_cand = random.choice(lp_candidates)
-                ballots = remove_cand(lp_cand, ballots)
-                round_eliminated.append(lp_cand)
-
-        cands_removed = set(round_elected).union(set(round_eliminated))
-        round_remaining = set(candidates).difference(cands_removed)
-        new_state = ElectionState(
-            curr_round=self.state.curr_round + 1,
-            elected=round_elected,
-            eliminated=round_eliminated,
-            remaining=round_remaining,
+        self.election_state = ElectionState(
+            curr_round=self.election_state.curr_round + 1,
+            elected=elected,
+            eliminated=eliminated,
+            remaining=remaining,
             profile=PreferenceProfile(ballots=ballots),
-            votes=fp_votes,
-            previous=self.state,
+            previous=self.election_state,
         )
-        self.state = new_state
-        return new_state
+        return self.election_state
 
     def run_election(self) -> ElectionState:
         """
         Runs complete STV election
         """
-
         if not self.next_round():
             raise ValueError(
                 f"Length of elected set equal to number of seats ({self.seats})"
             )
 
-        outcome = None
+
         while self.next_round():
-            outcome = self.run_step()
-        return outcome
+            self.run_step()
+            
+        return self.election_state
 
 
 class Limited:
@@ -175,12 +211,14 @@ class Bloc:
     The m-approval score of a candidate is equal to the number of voters who rank this 
     candidate among their m top ranked candidates. """
 
+
     def run_step(self) -> ElectionState:
         limited_equivalent = Limited(
             profile=self.state.profile, seats=self.seats, k=self.seats
         )
         outcome = limited_equivalent.run_election()
         return outcome
+
 
     def run_election(self) -> ElectionState:
         outcome = self.run_step()
@@ -361,12 +399,11 @@ class CondoBorda:
 
 
 # Election Helper Functions
-def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
+def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
     """
     Computes first place votes for all candidates in a preference profile
     """
     votes = {}
-
     for candidate in candidates:
         weight = Fraction(0)
         for ballot in ballots:
@@ -374,20 +411,61 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> dict:
                 weight += ballot.weight
         votes[candidate] = weight
 
-    return votes
+    ordered = [
+        CandidateVotes(cand=key, votes=value)
+        for key, value in sorted(votes.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    return ordered
 
 
 def fractional_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
-    # find the transfer value, add tranfer value to weights of vballots
-    # that listed the elected in first place, remove that cand and shift
-    # everything up, recomputing first-place votes
+    """
+    Calculates fractional transfer from winner, then removes winner
+    from the list of ballots
+    """
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
     for ballot in ballots:
         if ballot.ranking and ballot.ranking[0] == {winner}:
             ballot.weight = ballot.weight * transfer_value
+
+    return remove_cand(winner, ballots)
+
+
+def random_transfer(
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+) -> list[Ballot]:
+    """
+    Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
+    """
+
+    # turn all of winner's ballots into (multiple) ballots of weight 1
+    weight_1_ballots = []
+    for ballot in ballots:
+        if ballot.ranking and ballot.ranking[0] == {winner}:
+            # note: under random transfer, weights should always be integers
+            for _ in range(int(ballot.weight)):
+                weight_1_ballots.append(
+                    Ballot(
+                        id=ballot.id,
+                        ranking=ballot.ranking,
+                        weight=Fraction(1),
+                        voters=ballot.voters,
+                    )
+                )
+
+    # remove winner's ballots
+    ballots = [
+        ballot
+        for ballot in ballots
+        if not (ballot.ranking and ballot.ranking[0] == {winner})
+    ]
+
+    surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
+    ballots += surplus_ballots
 
     transfered = remove_cand(winner, ballots)
 

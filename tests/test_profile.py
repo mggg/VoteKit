@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = BASE_DIR / "data/csv/"
 
 test_profile = rank_column_csv(DATA_DIR / "test_election_A.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
@@ -67,3 +67,38 @@ def test_profile_equals():
         ]
     )
     assert profile1 == profile2
+
+    
+def test_create_df():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
+        ]
+    )
+    df = profile.create_df()
+    assert len(df) == 2
+
+
+def test_vote_share_with_zeros():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(0)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(0)),
+        ]
+    )
+    df = profile.create_df()
+    assert sum(df["Voter Share"]) == 0
+
+
+def test_df_percents():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1)),
+            Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
+        ]
+    )
+    rv = profile.head(2, percents=True)
+    assert "Voter Share" in rv
+    rv = profile.head(2)
+    assert "Voter Share" not in rv

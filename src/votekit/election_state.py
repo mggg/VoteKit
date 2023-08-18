@@ -1,12 +1,9 @@
 from pydantic import BaseModel
 from .profile import PreferenceProfile
 from typing import Optional
+import pandas as pd
 
-
-# 1. is add_winners_and_losers necessary? --A: probabably not
-# 2. do we want anything more?]
-# 3. RCV cruncher: inspiration for functions--> statistics functions/things
-# Example of immutable data model for results
+pd.set_option("display.colheader_justify", "left")
 
 
 class ElectionState(BaseModel):
@@ -23,25 +20,24 @@ class ElectionState(BaseModel):
     previous: an instance of Outcome representing the previous round
     """
 
-    curr_round: int
-    elected: list = []
-    eliminated: list = []
-    remaining: Optional[list] = None
+    curr_round: int = 0
+    elected: list[str] = []
+    eliminated: list[str] = []
+    remaining: list[str] = []
     profile: PreferenceProfile
-    winner_votes: Optional[dict] = None
     previous: Optional["ElectionState"] = None
 
     class Config:
         allow_mutation = False
 
-    def get_all_winners(self) -> list:
+    def get_all_winners(self) -> list[str]:
         """returns all winners from all rounds so far in order of first elected to last elected"""
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
             return self.elected
 
-    def get_all_eliminated(self) -> list:
+    def get_all_eliminated(self) -> list[str]:
         """returns all winners from all rounds so
         far in order of last eliminated to first eliminated
         """
@@ -51,26 +47,74 @@ class ElectionState(BaseModel):
             elim += self.previous.get_all_eliminated()
         return elim
 
-    def get_rankings(self) -> list:
+    def get_rankings(self) -> list[str]:
         """returns all candidates in order of their ranking at the end of the current round"""
-        if self.remaining:
-            return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
-        return self.get_all_winners() + self.get_all_eliminated()
-
-    def get_profile(self) -> PreferenceProfile:
-        """returns the election profile if it has been stored in any round up to the current one"""
-        return self.profile
+        return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[str], 'eliminated':list[str]}
         """returns a dictionary with elected and eliminated candidates"""
         if self.curr_round == roundNum:
-            return {"elected": self.elected, "eliminated": self.eliminated}
+            return {"Elected": self.elected, "Eliminated": self.eliminated}
         elif self.previous:
             return self.previous.get_round_outcome(roundNum)
         else:
             raise ValueError("Round number out of range")
+
+    def changed_rankings(self) -> dict:
+        """returns dict of (key) string candidates who changed
+        ranking from previous round and (value) a tuple of (prevRank, newRank)
+        """
+
+        if not self.previous:
+            raise ValueError("This is the first round, cannot compare previous ranking")
+
+        prev_ranking: dict = {
+            cand: index for index, cand in enumerate(self.previous.get_rankings())
+        }
+        curr_ranking: dict = {
+            cand: index for index, cand in enumerate(self.get_rankings())
+        }
+        if curr_ranking == prev_ranking:
+            return {}
+
+        changes = {}
+        for candidate, index in curr_ranking.items():
+            if prev_ranking[candidate] != index:
+                changes[candidate] = (prev_ranking[candidate], index)
+        return changes
+
+    def status(self) -> pd.DataFrame:
+        """
+        Returns dataframe displaying candidate, status (elected, eliminated,
+        remaining)
+        """
+        all_cands = self.get_rankings()
+        status_df = pd.DataFrame(
+            {
+                "Candidate": all_cands,
+                "Status": ["Remaining"] * len(all_cands),
+                "Round": [self.curr_round] * len(all_cands),
+            }
+        )
+
+        for round in range(1, self.curr_round + 1):
+            results = self.get_round_outcome(round)
+            for status, candidates in results.items():
+                for cand in candidates:
+                    status_df.loc[status_df["Candidate"] == cand, "Status"] = status
+                    status_df.loc[status_df["Candidate"] == cand, "Round"] = round
+
+        return status_df
+
+    def __str__(self):
+        show = self.status()
+        # show["Round"] = show["Round"].astype(str).str.rjust(3)
+        # show["Status"] = show["Status"].str.ljust(10)
+        return show.to_string(index=False, justify="justify")
+
+    __repr__ = __str__
 
     ###############################################################################################
 
@@ -94,7 +138,7 @@ class ElectionState(BaseModel):
     #       """
     #       if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
     #           raise ValueError("Profile missing")
-    # check if from same contest
+    # check if from same conshow
     #        elif set(prevOutcome1.get_profile().ballots) != set(
     #            prevOutcome2.get_profile().ballots
     #        ):
@@ -105,24 +149,3 @@ class ElectionState(BaseModel):
     #        )
     #        allcandidates = len(prevOutcome1.get_profile().get_candidates())
     #        return remaining_diff / allcandidates
-
-    def changed_rankings(self) -> Optional[dict]:
-        """returns dict of (key) string candidates who changed
-        ranking from previous round and (value) a tuple of (prevRank, newRank)
-        """
-
-        if not self.previous:
-            raise ValueError("This is the first round, cannot compare previous ranking")
-
-        else:
-            prev_ranking = self.previous.get_rankings()
-            curr_ranking = self.get_rankings()
-            if curr_ranking == prev_ranking:
-                print("No changes in ranking")
-
-            changes = {}
-            for index, candidate in enumerate(curr_ranking):
-                if candidate != prev_ranking[index]:
-                    prev_rank = prev_ranking.index(candidate)
-                    changes[candidate] = (prev_rank, index)
-            return changes
