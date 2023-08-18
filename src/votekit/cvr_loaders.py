@@ -4,7 +4,6 @@ import os
 from typing import Optional
 from .profile import PreferenceProfile
 from .ballot import Ballot
-
 from pandas.errors import EmptyDataError, DataError
 from fractions import Fraction
 
