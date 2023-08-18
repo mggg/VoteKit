@@ -399,6 +399,8 @@ class CondoBorda:
 
 
 # Election Helper Functions
+CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
+
 def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
     """
     Computes first place votes for all candidates in a preference profile
