@@ -30,3 +30,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100
+
+[project.urls]
+repository = "https://github.com/mggg/VoteKit"
