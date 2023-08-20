@@ -1,6 +1,9 @@
 from pydantic import BaseModel
 from .profile import PreferenceProfile
 from typing import Optional
+import pandas as pd
+
+pd.set_option("display.colheader_justify", "left")
 
 
 class ElectionState(BaseModel):
@@ -17,12 +20,11 @@ class ElectionState(BaseModel):
     previous: an instance of Outcome representing the previous round
     """
 
-    curr_round: int
-    elected: list[str] = []
-    eliminated: list[str] = []
-    remaining: list[str] = []
+    curr_round: int = 0
+    elected: list = []
+    eliminated: list = []
+    remaining: list = []
     profile: PreferenceProfile
-    winner_votes: Optional[dict] = None
     previous: Optional["ElectionState"] = None
 
     class Config:
@@ -54,7 +56,7 @@ class ElectionState(BaseModel):
         # {'elected':list[str], 'eliminated':list[str]}
         """returns a dictionary with elected and eliminated candidates"""
         if self.curr_round == roundNum:
-            return {"elected": self.elected, "eliminated": self.eliminated}
+            return {"Elected": self.elected, "Eliminated": self.eliminated}
         elif self.previous:
             return self.previous.get_round_outcome(roundNum)
         else:
@@ -83,6 +85,37 @@ class ElectionState(BaseModel):
                 changes[candidate] = (prev_ranking[candidate], index)
         return changes
 
+    def status(self) -> pd.DataFrame:
+        """
+        Returns dataframe displaying candidate, status (elected, eliminated,
+        remaining)
+        """
+        all_cands = self.get_rankings()
+        status_df = pd.DataFrame(
+            {
+                "Candidate": all_cands,
+                "Status": ["Remaining"] * len(all_cands),
+                "Round": [self.curr_round] * len(all_cands),
+            }
+        )
+
+        for round in range(1, self.curr_round + 1):
+            results = self.get_round_outcome(round)
+            for status, candidates in results.items():
+                for cand in candidates:
+                    status_df.loc[status_df["Candidate"] == cand, "Status"] = status
+                    status_df.loc[status_df["Candidate"] == cand, "Round"] = round
+
+        return status_df
+
+    def __str__(self):
+        show = self.status()
+        # show["Round"] = show["Round"].astype(str).str.rjust(3)
+        # show["Status"] = show["Status"].str.ljust(10)
+        return show.to_string(index=False, justify="justify")
+
+    __repr__ = __str__
+
     ###############################################################################################
 
     # def add_winners_and_losers(self, winners: set[str], losers: set[str]) -> "Outcome":
@@ -105,7 +138,7 @@ class ElectionState(BaseModel):
     #       """
     #       if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
     #           raise ValueError("Profile missing")
-    # check if from same contest
+    # check if from same conshow
     #        elif set(prevOutcome1.get_profile().ballots) != set(
     #            prevOutcome2.get_profile().ballots
     #        ):

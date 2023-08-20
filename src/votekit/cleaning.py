@@ -116,6 +116,35 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
     return pp_clean
 
 
+def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
+    """
+    Removes non-candidiates from ballot objects.
+    :param ballot: :class:`Ballot`
+    :param non_cands: :class:`list`[:class:`str`]
+    :rtype: :class:`Ballot`
+    """
+    # TODO: adjust so string and list of strings are acceptable inputes
+
+    to_remove = []
+    for item in non_cands:
+        to_remove.append({item})
+
+    ranking = ballot.ranking
+    clean_ranking = []
+    for cand in ranking:
+        if cand not in to_remove and cand not in clean_ranking:
+            clean_ranking.append(cand)
+
+    clean_ballot = Ballot(
+        id=ballot.id,
+        ranking=clean_ranking,
+        weight=Fraction(ballot.weight),
+        voters=ballot.voters,
+    )
+
+    return clean_ballot
+
+
 ## TODO: typehints so that non_cands inputs is str or list of strs
 def remove_noncands(
     profile: PreferenceProfile, non_cands: list[str]
@@ -128,40 +157,10 @@ def remove_noncands(
     :return: A profile with non-candidates removed.
     :rtype: :class:`PreferenceProfile`
     """
-
-    def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
-        """
-        Removes non-candidiates from ballot objects.
-        :param ballot: :class:`Ballot`
-        :param non_cands: :class:`list`[:class:`str`]
-        :rtype: :class:`Ballot`
-        """
-        # TODO: adjust so string and list of strings are acceptable inputes
-
-        to_remove = []
-        for item in non_cands:
-            to_remove.append({item})
-
-        ranking = ballot.ranking
-        clean_ranking = []
-        for cand in ranking:
-            if cand not in to_remove and cand not in clean_ranking:
-                clean_ranking.append(cand)
-
-        if clean_ranking:
-            clean_ballot = Ballot(
-                id=ballot.id,
-                ranking=clean_ranking,
-                weight=Fraction(ballot.weight),
-                voters=ballot.voters,
-            )
-
-        return clean_ballot
-
     cleaned = [
         remove_from_ballots(ballot, non_cands)
         for ballot in profile.ballots
-        if remove_from_ballots(ballot, non_cands)
+        if remove_from_ballots(ballot, non_cands).ranking
     ]
 
     grouped_ballots = [
