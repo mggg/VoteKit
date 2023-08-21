@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "votekit"
-version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+version = "0.0.0"
+description = "A Swiss Army Knife for computational social choice research"
+authors = ["MGGG <engineering@mggg.org>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -15,8 +15,8 @@ pandas-stubs = "^2.0.2.230605"
 scikit-learn = "^1.3.0"
 pot = "0.9.0"
 networkx = "^3.1"
-distinctipy = "^1.2.2"
 jinja2 = "^3.1.2"
+matplotlib = "^3.7.2"
 
 
 [tool.poetry.group.dev.dependencies]

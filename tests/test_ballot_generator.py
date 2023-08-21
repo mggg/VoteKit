@@ -1,8 +1,8 @@
 from pathlib import Path
 import pickle
 from votekit.ballot_generator import (
-    IC,
-    IAC,
+    ImpartialAnonymousCulture,
+    ImpartialCulture,
     PlackettLuce,
     BradleyTerry,
     AlternatingCrossover,
@@ -15,16 +15,19 @@ import numpy as np
 import itertools as it
 import scipy.stats as stats
 import votekit.ballot_generator as bg
+import pytest
 
 
 def test_IC_completion():
-    ic = IC(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)
+    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)
     profile = ic.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
 
 
 def test_IAC_completion():
-    iac = IAC(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)
+    iac = ImpartialAnonymousCulture(
+        candidates=["W1", "W2", "C1", "C2"], ballot_length=None
+    )
     profile = iac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
 
@@ -99,7 +102,7 @@ def test_Cambridge_completion():
 def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
     # Calculate the mean and standard deviation of the binomial distribution
     mean = n_attempts * probability
-    std_dev = np.sqrt(n_attempts * probability * (1 - probability))
+    std_dev = math.sqrt(n_attempts * probability * (1 - probability))
 
     # Calculate the confidence interval
     z_score = stats.norm.ppf((1 + alpha) / 2)  # Z-score for 99% confidence level
@@ -140,7 +143,7 @@ def do_ballot_probs_match_ballot_dist(
             failed += 1
 
     n_factorial = math.factorial(n)
-    stdev = np.sqrt(n_factorial * alpha * (1 - alpha))
+    stdev = math.sqrt(n_factorial * alpha * (1 - alpha))
     return failed < (n_factorial * (1 - alpha) + 2 * stdev)
 
 
@@ -153,11 +156,11 @@ def test_ic_distribution():
     # Find ballot probs
     possible_rankings = it.permutations(candidates, ballot_length)
     ballot_prob_dict = {
-        b: 1 / np.math.factorial(len(candidates)) for b in possible_rankings
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
     # Generate ballots
-    generated_profile = IC(
+    generated_profile = ImpartialCulture(
         ballot_length=ballot_length,
         candidates=candidates,
     ).generate_profile(number_of_ballots=number_of_ballots)
@@ -590,8 +593,8 @@ def test_Cambridge_distribution():
                             )
 
     # Now see if ballot prob dict is right
-    test_profile = cs.generate_profile(number_of_ballots=10000)
-    return do_ballot_probs_match_ballot_dist(
+    test_profile = cs.generate_profile(number_of_ballots=5000)
+    assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict=ballot_prob_dict,
         generated_profile=test_profile,
         n=len(candidates),
@@ -603,7 +606,7 @@ def compute_pl_prob(perm, interval):
     prob = 1
     for c in perm:
         if sum(pref_interval.values()) == 0:
-            prob *= 1 / np.math.factorial(len(pref_interval))
+            prob *= 1 / math.factorial(len(pref_interval))
         else:
             prob *= pref_interval[c] / sum(pref_interval.values())
         del pref_interval[c]
@@ -620,3 +623,81 @@ def bloc_order_probs_slate_first(slate, ballot_frequencies):
         if ballot[0] == slate
     }
     return prob_ballot_given_slate_first
+
+
+twobloc = {
+    "blocs": {"R": 0.6, "D": 0.4},
+    "cohesion": {"R": 0.7, "D": 0.6},
+    "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
+}
+
+cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+cands_lst = ["A", "B", "C"]
+
+test_slate = {"R": {"A1": 0.1, "B1": 0.5, "C1": 0.4}, "D": {"A2": 0.2, "B2": 0.5}}
+test_voter_prop = {"R": 0.5, "D": 0.5}
+
+
+def test_setparams_pl():
+    pl = PlackettLuce(candidates=cands, hyperparams=twobloc)
+    # check params were set
+    assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+    interval = pl.pref_interval_by_bloc
+    # check if intervals add up to one
+    assert math.isclose(sum(interval["R"].values()), 1)
+    assert math.isclose(sum(interval["D"].values()), 1)
+
+
+def test_bad_cands_input():
+    # construct hyperparmeters with candidates not assigned to a bloc/slate
+    with pytest.raises(TypeError):
+        PlackettLuce(candidates=cands_lst, hyperparams=twobloc)
+
+
+def test_pl_both_inputs():
+    gen = PlackettLuce(
+        candidates=cands,
+        pref_interval_by_bloc=test_slate,
+        bloc_voter_prop=test_voter_prop,
+        hyperparams=twobloc,
+    )
+    # check that this attribute matches hyperparam input
+    assert gen.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+
+
+def test_bt_single_bloc():
+    bloc = {
+        "blocs": {"R": 1.0},
+        "cohesion": {"R": 0.7},
+        "alphas": {"R": {"R": 0.5, "D": 1}},
+    }
+    cands = {"R": ["X", "Y", "Z"], "D": ["A", "B"]}
+
+    gen = BradleyTerry(candidates=cands, hyperparams=bloc)
+    interval = gen.pref_interval_by_bloc
+    assert math.isclose(sum(interval["R"].values()), 1)
+
+
+def test_incorrect_blocs():
+    params = {
+        "blocs": {"R": 0.7, "D": 0.4},
+        "cohesion": {"R": 0.7, "D": 0.6},
+        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
+    }
+    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    with pytest.raises(ValueError):
+        PlackettLuce(candidates=cands, hyperparams=params)
+
+
+def test_ac_profile_from_params():
+    params = {
+        "blocs": {"R": 0.6, "D": 0.4},
+        "cohesion": {"R": 0.7, "D": 0.6},
+        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
+        "crossover": {"R": {"D": 0.5}, "D": {"R": 0.6}},
+    }
+    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    ac = AlternatingCrossover(candidates=cands, hyperparams=params)
+    ballots = ac.generate_profile(3)
+    assert isinstance(ballots, PreferenceProfile)

@@ -1,0 +1,11 @@
+rank 1,rank 2,rank 3
+a,b,c
+d,e,f
+g,h,i
+a,c,b
+a,d,f
+b,a,e
+a,e,b
+i,b,a
+a,d,e
+a,b,c

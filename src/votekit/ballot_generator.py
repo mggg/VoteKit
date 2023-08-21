@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from fractions import Fraction
-from typing import Optional
+from typing import Optional, Union
 from votekit.profile import PreferenceProfile
 from votekit.ballot import Ballot
 from numpy.random import choice
@@ -33,7 +33,12 @@ class BallotGenerator:
     # pref_interval_by_bloc: Optional[dict] = None  # race: {candidate : interval length}
     # demo_breakdown: Optional[dict] = None  # race: percentage
 
-    def __init__(self, candidates: list, ballot_length: Optional[int]):
+    def __init__(
+        self,
+        candidates: Union[list, dict],
+        ballot_length: Optional[int] = None,
+        hyperparams: Optional[dict] = {},
+    ):
         """
         Base class for ballot generation models
 
@@ -45,7 +50,27 @@ class BallotGenerator:
         self.ballot_length = (
             ballot_length if ballot_length is not None else len(candidates)
         )
-        self.candidates = candidates
+        if isinstance(candidates, dict):
+            self.slate_to_candidate = candidates
+            self.candidates = list(
+                {cand for cands in candidates.values() for cand in cands}
+            )
+        else:
+            self.candidates = candidates
+        self.ballot_length = (
+            ballot_length if ballot_length is not None else len(self.candidates)
+        )
+
+        self.parameterized = False
+
+        if hyperparams:
+            if isinstance(candidates, dict):  # add type error
+                self.set_params(candidates, **hyperparams)
+                self.parameterized = True
+            else:
+                raise TypeError(
+                    "'candidates' must be dictionary when hyperparameters are set"
+                )
 
     @abstractmethod
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
@@ -99,8 +124,62 @@ class BallotGenerator:
 
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
 
+    def set_params(
+        self,
+        candidates: dict,  # add type error for list here
+        blocs: dict,
+        cohesion: dict,
+        alphas: dict,
+        crossover: dict = {},
+    ) -> None:
+        """
+        Generates perference intervals for slates based on pararmeters and specified models.
+        """
+        if sum(blocs.values()) != 1.0:
+            raise ValueError(f"bloc proportions ({blocs.values()}) do not equal 1")
 
-class IC(BallotGenerator):
+        def _preference_interval(
+            alphas: dict, cohesion: int, bloc: str, candidates: dict
+        ) -> dict:
+            """
+            Creates a preference interval for bloc of votes (e.g. W or POC)
+
+            Inputs:
+                alphas: dict of alpha parameters for Dirichlet distribution mapped to a
+                    group (e.g. support for POC, or support for W)
+                cohesion: support for candidates
+                candidates dict: list of candidates mapped to their group
+
+            Returns: perference interval, a dictionary with candidates mapped to
+                their intervals
+            """
+            intervals = {}
+
+            for group, alpha in alphas.items():
+                num_cands = len(candidates[group])
+                probs = list(np.random.dirichlet([alpha] * num_cands))
+                for prob, cand in zip(probs, candidates[group]):
+                    if group == bloc:  # e.g W for W cands
+                        pi = cohesion
+                    else:  # e.g W for POC cands
+                        pi = 1 - cohesion
+                    intervals[cand] = pi * prob
+
+            return intervals
+
+        interval_by_bloc = {}
+        for bloc in blocs:
+            interval = _preference_interval(
+                alphas[bloc], cohesion[bloc], bloc, candidates
+            )
+            interval_by_bloc[bloc] = interval
+
+        self.pref_interval_by_bloc = interval_by_bloc
+        self.bloc_voter_prop = blocs
+        self.bloc_crossover_rate = crossover
+
+
+class ImpartialCulture(BallotGenerator):
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
@@ -115,7 +194,7 @@ class IC(BallotGenerator):
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
 
-class IAC(BallotGenerator):
+class ImpartialAnonymousCulture(BallotGenerator):
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
@@ -136,7 +215,7 @@ class IAC(BallotGenerator):
 
 
 class PlackettLuce(BallotGenerator):
-    def __init__(self, pref_interval_by_bloc: dict, bloc_voter_prop: dict, **data):
+    def __init__(self, pref_interval_by_bloc=None, bloc_voter_prop=None, **data):
         """
         Plackett Luce Ballot Generation Model
 
@@ -146,21 +225,25 @@ class PlackettLuce(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
+        if not pref_interval_by_bloc:
+            self.pref_interval_by_slate: dict = {}
+            self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        if round(sum(bloc_voter_prop.values())) != 1:
-            raise ValueError("Voter proportion for blocs must sum to 1")
-        for interval in pref_interval_by_bloc.values():
-            if round(sum(interval.values())) != 1:
-                raise ValueError("Preference interval for candidates must sum to 1")
-        if bloc_voter_prop.keys() != pref_interval_by_bloc.keys():
-            raise ValueError("slates and blocs are not the same")
-
         # Assign additional parameters specific to PlackettLuce
-        self.pref_interval_by_bloc = pref_interval_by_bloc
-        self.bloc_voter_prop = bloc_voter_prop
+        if not self.parameterized:
+            if round(sum(bloc_voter_prop.values())) != 1:
+                raise ValueError("Voter proportion for blocs must sum to 1")
+            for interval in pref_interval_by_bloc.values():
+                if round(sum(interval.values())) != 1:
+                    raise ValueError("Preference interval for candidates must sum to 1")
+            if bloc_voter_prop.keys() != pref_interval_by_bloc.keys():
+                raise ValueError("slates and blocs are not the same")
+
+            self.pref_interval_by_bloc = pref_interval_by_bloc
+            self.bloc_voter_prop = bloc_voter_prop
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         ballot_pool = []
@@ -192,7 +275,7 @@ class PlackettLuce(BallotGenerator):
 
 
 class BradleyTerry(BallotGenerator):
-    def __init__(self, pref_interval_by_bloc: dict, bloc_voter_prop: dict, **data):
+    def __init__(self, pref_interval_by_bloc=None, bloc_voter_prop=None, **data):
         """
         Bradley Terry Ballot Generation Model
 
@@ -202,20 +285,26 @@ class BradleyTerry(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
+
+        if not pref_interval_by_bloc:
+            self.pref_interval_by_bloc: dict = {}
+            self.bloc_voter_prop: dict = {}
+
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        if round(sum(bloc_voter_prop.values())) != 1:
-            raise ValueError("Voter proportion for blocs must sum to 1")
-        for interval in pref_interval_by_bloc.values():
-            if round(sum(interval.values())) != 1:
-                raise ValueError("Preference interval for candidates must sum to 1")
-        if bloc_voter_prop.keys() != pref_interval_by_bloc.keys():
-            raise ValueError("slates and blocs are not the same")
+        if not self.parameterized:
+            if round(sum(bloc_voter_prop.values())) != 1:
+                raise ValueError("Voter proportion for blocs must sum to 1")
+            for interval in pref_interval_by_bloc.values():
+                if round(sum(interval.values())) != 1:
+                    raise ValueError("Preference interval for candidates must sum to 1")
+            if bloc_voter_prop.keys() != pref_interval_by_bloc.keys():
+                raise ValueError("slates and blocs are not the same")
 
-        # Assign additional parameters specific to Bradley Terrys
-        self.pref_interval_by_bloc = pref_interval_by_bloc
-        self.bloc_voter_prop = bloc_voter_prop
+            # Assign additional parameters specific to Bradley Terrys
+            self.pref_interval_by_bloc = pref_interval_by_bloc
+            self.bloc_voter_prop = bloc_voter_prop
 
     # TODO: convert to dynamic programming method of calculation
 
@@ -283,10 +372,10 @@ class BradleyTerry(BallotGenerator):
 class AlternatingCrossover(BallotGenerator):
     def __init__(
         self,
-        slate_to_candidate: dict,
-        pref_interval_by_bloc: dict,
-        bloc_voter_prop: dict,
-        bloc_crossover_rate: dict,
+        slate_to_candidate=None,
+        pref_interval_by_bloc=None,
+        bloc_voter_prop=None,
+        bloc_crossover_rate=None,
         **data,
     ):
         """
@@ -302,26 +391,33 @@ class AlternatingCrossover(BallotGenerator):
             bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc
             (ex. {race: {other_race: 0.5}})
         """
+        if not pref_interval_by_bloc:
+            self.slate_to_candidate: dict = {}
+            self.pref_interval_by_bloc: dict = {}
+            self.bloc_voter_prop: dict = {}
+            self.bloc_crossover_rate: dict = {}
+
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
         # Assign additional parameters specific to AC
-        self.slate_to_candidate = slate_to_candidate
-        self.pref_interval_by_bloc = pref_interval_by_bloc
-        self.bloc_voter_prop = bloc_voter_prop
-        self.bloc_crossover_rate = bloc_crossover_rate
+        if not self.parameterized:
+            if round(sum(bloc_voter_prop.values())) != 1:
+                raise ValueError("Voter proportion for blocs must sum to 1")
+            for interval in pref_interval_by_bloc.values():
+                if round(sum(interval.values())) != 1:
+                    raise ValueError("Preference interval for candidates must sum to 1")
+            if (
+                slate_to_candidate.keys()
+                != bloc_voter_prop.keys()
+                != pref_interval_by_bloc.keys()
+            ):
+                raise ValueError("slates and blocs are not the same")
 
-        if round(sum(bloc_voter_prop.values())) != 1:
-            raise ValueError("Voter proportion for blocs must sum to 1")
-        for interval in pref_interval_by_bloc.values():
-            if round(sum(interval.values())) != 1:
-                raise ValueError("Preference interval for candidates must sum to 1")
-        if (
-            slate_to_candidate.keys()
-            != bloc_voter_prop.keys()
-            != pref_interval_by_bloc.keys()
-        ):
-            raise ValueError("slates and blocs are not the same")
+            self.slate_to_candidate = slate_to_candidate
+            self.pref_interval_by_bloc = pref_interval_by_bloc
+            self.bloc_voter_prop = bloc_voter_prop
+            self.bloc_crossover_rate = bloc_crossover_rate
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
 
@@ -414,21 +510,28 @@ class OneDimSpatial(BallotGenerator):
 class CambridgeSampler(BallotGenerator):
     def __init__(
         self,
-        slate_to_candidate: dict,
-        pref_interval_by_bloc: dict,
-        bloc_voter_prop: dict,
-        bloc_crossover_rate: dict,
+        slate_to_candidate=None,
+        pref_interval_by_bloc=None,
+        bloc_voter_prop=None,
+        bloc_crossover_rate=None,
         path: Optional[Path] = None,
         **data,
     ):
+        if not pref_interval_by_bloc:
+            self.slate_to_candidate: dict = {}
+            self.pref_interval_by_bloc: dict = {}
+            self.bloc_voter_prop: dict = {}
+            self.bloc_crossover_rate: dict = {}
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
         # Assign additional parameters specific to
-        self.slate_to_candidate = slate_to_candidate
-        self.pref_interval_by_bloc = pref_interval_by_bloc
-        self.bloc_voter_prop = bloc_voter_prop
-        self.bloc_crossover_rate = bloc_crossover_rate
+        if not self.parameterized:
+            self.slate_to_candidate = slate_to_candidate
+            self.pref_interval_by_bloc = pref_interval_by_bloc
+            self.bloc_voter_prop = bloc_voter_prop
+            self.bloc_crossover_rate = bloc_crossover_rate
+
         if path:
             self.path = path
         else:

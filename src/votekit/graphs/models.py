@@ -1,7 +1,7 @@
 from ..profile import PreferenceProfile
+from ..utils import COLOR_LIST
 from typing import Callable, Optional, Union, Any
 from abc import ABC, abstractmethod
-from distinctipy import get_colors  # type: ignore
 import networkx as nx  # type: ignore
 from functools import cache
 
@@ -21,7 +21,7 @@ class Graph(ABC):
         pass
 
     @abstractmethod
-    def plot(self, *args: Any, **kwags: Any):
+    def draw(self, *args: Any, **kwags: Any):
         pass
 
     def distance_between_subsets(self, A: nx.Graph, B: nx.Graph):
@@ -264,20 +264,19 @@ class BallotGraph(Graph):
 
         return legend
 
-    def plot(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
+    def draw(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
         """visualize the whole election or select neighborhoods in the election."""
         # TODO: change this so that neighborhoods can have any neighborhood
         # not just heavy balls, also there's something wrong with the shades
         Gc = self.graph
         GREY = (0.44, 0.5, 0.56)
-        BLACK = (0, 0, 0)
         node_cols: list = []
         node_labels = None
 
         k = len(neighborhoods) if neighborhoods else self.num_cands
-        cols = get_colors(
-            k, [GREY, BLACK], pastel_factor=0.7
-        )  # redo the colors to match MGGG lab
+        if k > len(COLOR_LIST):
+            raise ValueError("Number of neighborhoods exceeds colors for plotting")
+        cols = COLOR_LIST[:k]
 
         # self._clean()
         for ballot in Gc.nodes:

@@ -19,9 +19,9 @@ class ElectionState(BaseModel):
     """
 
     curr_round: int = 0
-    elected: list[str] = []
-    eliminated: list[str] = []
-    remaining: list[str] = []
+    elected: list = []
+    eliminated: list = []
+    remaining: list = []
     profile: PreferenceProfile
     previous: Optional["ElectionState"] = None
 

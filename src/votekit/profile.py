@@ -2,6 +2,7 @@ from .ballot import Ballot
 from typing import Optional
 from pydantic import BaseModel, validator
 import pandas as pd
+from fractions import Fraction
 
 
 class PreferenceProfile(BaseModel):
@@ -10,7 +11,7 @@ class PreferenceProfile(BaseModel):
     candidates (list): list of candidates, can be user defined
     """
 
-    ballots: list[Ballot]
+    ballots: list[Ballot] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
@@ -103,38 +104,57 @@ class PreferenceProfile(BaseModel):
         # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
         return df.reset_index(drop=True)
 
-    def head(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+    def head(
+        self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
+    ) -> pd.DataFrame:
         """
         Displays top-n ballots in profile based on weight
         """
         if self.df.empty:
             self.df = self.create_df()
 
-        df = self.df.sort_values(by="Weight", ascending=False)
+        df = (
+            self.df.sort_values(by="Weight", ascending=False)
+            .head(n)
+            .reset_index(drop=True)
+        )
+
+        if totals:
+            df = sum_row(df)
+
         if not percents:
-            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
+            return df.drop(columns="Voter Share")
 
-        return df.head(n).reset_index(drop=True)
+        return df
 
-    def tail(self, n: int, percents: Optional[bool] = False) -> pd.DataFrame:
+    def tail(
+        self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
+    ) -> pd.DataFrame:
         """
         Displays bottom-n ballots in profile based on weight
         """
         if self.df.empty:
             self.df = self.create_df()
 
-        df = self.df.sort_values(by="Weight", ascending=True)
-        if not percents:
-            return df.drop(columns="Voter Share").head(n).reset_index(drop=True)
+        df = (
+            self.df.sort_values(by="Weight", ascending=False)
+            .head(n)
+            .reset_index(drop=True)
+        )
+        if totals:
+            df = sum_row(df)
 
-        return df.head(n).reset_index(drop=True)
+        if not percents:
+            return df.drop(columns="Voter Share")
+
+        return df
 
     def __str__(self) -> str:
         """
         Displays top 15 or whole profiles
         """
         if self.df.empty:
-            self.dff = self.create_df()
+            self.df = self.create_df()
 
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
@@ -143,3 +163,50 @@ class PreferenceProfile(BaseModel):
 
     # set repr to print outputs
     __repr__ = __str__
+
+    def condense_ballots(self):
+        class_vector = []
+        seen_rankings = []
+        for ballot in self.ballots:
+            if ballot.ranking not in seen_rankings:
+                seen_rankings.append(ballot.ranking)
+            class_vector.append(seen_rankings.index(ballot.ranking))
+
+        new_ballot_list = []
+        for i, ranking in enumerate(seen_rankings):
+            total_weight = 0
+            for j in range(len(class_vector)):
+                if class_vector[j] == i:
+                    total_weight += self.ballots[j].weight
+            new_ballot_list.append(
+                Ballot(ranking=ranking, weight=Fraction(total_weight))
+            )
+        self.ballots = new_ballot_list
+
+    def __eq__(self, other):
+        if not isinstance(other, PreferenceProfile):
+            return False
+        self.condense_ballots()
+        other.condense_ballots()
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        for b in self.ballots:
+            if b not in other.ballots:
+                return False
+        return True
+
+
+def sum_row(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes sum total for weight and voter share column
+    """
+    sum_row = {
+        "Ballot": "",
+        "Weight": df["Weight"].sum(),
+        "Voter Share": df["Voter Share"].sum(),
+    }
+
+    df.loc["Totals"] = sum_row  # type: ignore
+
+    return df.fillna("")

@@ -1,11 +1,19 @@
 from .profile import PreferenceProfile
 from .ballot import Ballot
+from .utils import (
+    compute_votes,
+    remove_cand,
+    fractional_transfer,
+    order_candidates_by_borda,
+    borda_scores,
+)
 from .election_state import ElectionState
+from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from typing import Callable, Optional
 import random
 from fractions import Fraction
-from copy import deepcopy
-from collections import namedtuple
+import itertools as it
+import numpy as np
 
 
 class STV:
@@ -78,7 +86,7 @@ class STV:
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[0].votes >= self.threshold:
+        elif fp_votes[0][1] >= self.threshold:
             for candidate, votes in fp_votes:
                 if votes >= self.threshold:
                     elected.append(candidate)
@@ -126,9 +134,309 @@ class STV:
 
         return self.election_state
 
-    def get_init_profile(self):
-        "returns the initial profile of the election"
-        return self.__profile
+
+class Limited:
+    def __init__(self, profile: PreferenceProfile, seats: int, k: int):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+        self.k = k
+
+    """Limited: This rule returns the m (seats) candidates with the highest k-approval scores. 
+    The k-approval score of a candidate is equal to the number of voters who rank this 
+    candidate among their k top ranked candidates. """
+
+    def run_step(self) -> ElectionState:
+        profile = self.state.profile
+        candidates = profile.get_candidates()
+        candidate_approvals = {c: Fraction(0) for c in candidates}
+
+        for ballot in profile.get_ballots():
+            # First we have to determine which candidates are approved
+            # i.e. in first k ranks on a ballot
+            approvals = []
+            for i, cand_set in enumerate(ballot.ranking):
+                # If list of total candidates before and including current set
+                # are less than seat count, all candidates are approved
+                if len(list(it.chain(*ballot.ranking[: i + 1]))) < self.k:
+                    approvals.extend(list(cand_set))
+                # If list of total candidates before current set
+                # are greater than seat count, no candidates are approved
+                elif len(list(it.chain(*ballot.ranking[:i]))) > self.k:
+                    approvals.extend([])
+                # Else we know the cutoff is in the set, we compute and randomly
+                # select the number of candidates we can select
+                else:
+                    accepted = len(list(it.chain(*ballot.ranking[:i])))
+                    num_to_allow = self.k - accepted
+                    approvals.extend(
+                        np.random.choice(list(cand_set), num_to_allow, replace=False)
+                    )
+
+            # Add approval votes equal to ballot weight (i.e. number of voters with this ballot)
+            for cand in approvals:
+                candidate_approvals[cand] += ballot.weight
+
+        # Order candidates by number of approval votes received
+        ordered_results = sorted(
+            candidate_approvals, key=lambda x: (-candidate_approvals[x], x)
+        )
+
+        # Construct ElectionState information
+        elected = ordered_results[: self.seats]
+        eliminated = ordered_results[self.seats :][::-1]
+        cands_removed = set(elected).union(set(eliminated))
+        remaining = list(set(profile.get_candidates()).difference(cands_removed))
+        profile_remaining = PreferenceProfile(
+            ballots=remove_cand(cands_removed, profile.get_ballots())
+        )
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=elected,
+            eliminated=eliminated,
+            remaining=remaining,
+            profile=profile_remaining,
+            previous=self.state,
+        )
+        self.state = new_state
+        return self.state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class Bloc:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+
+    """Bloc: This rule returns the m candidates with the highest m-approval scores. 
+    The m-approval score of a candidate is equal to the number of voters who rank this 
+    candidate among their m top ranked candidates. """
+
+    def run_step(self) -> ElectionState:
+        limited_equivalent = Limited(
+            profile=self.state.profile, seats=self.seats, k=self.seats
+        )
+        outcome = limited_equivalent.run_election()
+        return outcome
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class SNTV:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+
+    """Single nontransferable vote (SNTV): SNTV returns k candidates with the highest
+    Plurality scores """
+
+    def run_step(self) -> ElectionState:
+        limited_equivalent = Limited(profile=self.state.profile, seats=self.seats, k=1)
+        outcome = limited_equivalent.run_election()
+        return outcome
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class SNTV_STV_Hybrid:
+    def __init__(
+        self, profile: PreferenceProfile, transfer: Callable, r1_cutoff: int, seats: int
+    ):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.transfer = transfer
+        self.r1_cutoff = r1_cutoff
+        self.seats = seats
+        self.stage = "SNTV"  # SNTV, switches to STV, then Complete
+
+    """SNTV-IRV Hybrid: This method first runs SNTV to a cutoff r1_cutoff, then
+    runs STV to pick a committee with a given number of seats."""
+
+    def run_step(self, stage: str) -> ElectionState:
+        profile = self.state.profile
+
+        new_state = None
+        if stage == "SNTV":
+            round_state = SNTV(profile=profile, seats=self.r1_cutoff).run_election()
+
+            # The STV election will be run on the new election state
+            # Therefore we should not add any winners, but rather
+            # set the SNTV winners as remaining candidates and update pref profiles
+            new_profile = PreferenceProfile(
+                ballots=remove_cand(round_state.eliminated, profile.get_ballots())
+            )
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=list(),
+                eliminated=round_state.eliminated,
+                remaining=new_profile.get_candidates(),
+                profile=new_profile,
+                previous=self.state,
+            )
+        elif stage == "STV":
+            round_state = STV(
+                profile=profile, transfer=self.transfer, seats=self.seats
+            ).run_election()
+            # Since get_all_eliminated returns reversed eliminations
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=round_state.get_all_winners(),
+                eliminated=round_state.get_all_eliminated()[::-1],
+                remaining=round_state.remaining,
+                profile=round_state.profile,
+                previous=self.state,
+            )
+
+        # Update election stage to cue next run step
+        if stage == "SNTV":
+            self.stage = "STV"
+        elif stage == "STV":
+            self.stage = "Complete"
+
+        self.state = new_state  # type: ignore
+        return new_state  # type: ignore
+
+    def run_election(self) -> ElectionState:
+        outcome = None
+        while self.stage != "Complete":
+            outcome = self.run_step(self.stage)
+        return outcome  # type: ignore
+
+
+class TopTwo:
+    def __init__(self, profile: PreferenceProfile):
+        self.state = ElectionState(curr_round=0, profile=profile)
+
+    """Top Two: Top two eliminates all but the top two plurality vote getters,
+    and then conducts a runoff between them, reallocating other ballots."""
+
+    def run_step(self) -> ElectionState:
+        # Top 2 is equivalent to a hybrid election for one seat
+        # with a cutoff of 2 for the runoff
+        hybrid_equivalent = SNTV_STV_Hybrid(
+            profile=self.state.profile,
+            transfer=fractional_transfer,
+            r1_cutoff=2,
+            seats=1,
+        )
+        outcome = hybrid_equivalent.run_election()
+        return outcome
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class DominatingSets:
+    def __init__(self, profile: PreferenceProfile):
+        self.state = ElectionState(curr_round=0, profile=profile)
+
+    """Dominating sets: Return the tiers of candidates by dominating set,
+    which is a set of candidates such that every candidate in the set wins 
+    head to head comparisons against candidates outside of it"""
+
+    def run_step(self) -> ElectionState:
+        pwc_graph = PairwiseComparisonGraph(self.state.profile)
+        dominating_tiers = pwc_graph.dominating_tiers()
+        if len(dominating_tiers) == 1:
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=list(),
+                eliminated=dominating_tiers,
+                remaining=list(),
+                profile=PreferenceProfile(),
+                previous=self.state,
+            )
+        else:
+            new_state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=[set(dominating_tiers[0])],
+                eliminated=dominating_tiers[1:][::-1],
+                remaining=list(),
+                profile=PreferenceProfile(),
+                previous=self.state,
+            )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class CondoBorda:
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.state = ElectionState(curr_round=0, profile=profile)
+        self.seats = seats
+
+    """Condo-Borda: Condo-Borda returns candidates ordered by dominating set,
+    but breaks ties between candidates """
+
+    def run_step(self) -> ElectionState:
+        pwc_graph = PairwiseComparisonGraph(self.state.profile)
+        dominating_tiers = pwc_graph.dominating_tiers()
+        candidate_borda = borda_scores(self.state.profile)
+        ranking = []
+        for dt in dominating_tiers:
+            ranking += order_candidates_by_borda(dt, candidate_borda)
+
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=ranking[: self.seats],
+            eliminated=ranking[self.seats :],
+            remaining=list(),
+            profile=PreferenceProfile(),
+            previous=self.state,
+        )
+        return new_state
+
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
+
+
+class Plurality:
+    """
+    Single or multi-winner plurality election
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        self.seats = seats
+        self.election_state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=[
+                cand
+                for cand, votes in compute_votes(
+                    profile.get_candidates(), profile.get_ballots()
+                )
+            ],
+            profile=profile,
+        )
+        self.__profile = profile
+
+    def run_step(self):
+        """
+        Simulate 'step' of a plurarity election
+        """
+        candidates = self.__profile.get_candidates()
+        ballots = self.__profile.get_ballots()
+        results = compute_votes(candidates, ballots)
+
+        return ElectionState(
+            curr_round=1,
+            elected=[result.cand for result in results[: self.seats]],
+            eliminated=[result.cand for result in results[self.seats :]],
+            remaining=[],
+            profile=self.__profile,
+        )
+
+    run_election = run_step
 
 
 class SequentialRCV:
@@ -194,203 +502,43 @@ class SequentialRCV:
 
 
 class Borda:
-    """
-    Class to run a Borda Election
-    """
-
     def __init__(
         self,
         profile: PreferenceProfile,
         seats: int,
-        borda_weights: Optional[list] = None,
-        standard: bool = True,
+        score_vector: Optional[list[Fraction]],
     ):
-        """
-        profile (PreferenceProfile): initial perference profile \n
-        seats (int): number of winners/size of committee \n
-        borda_weights: Weights given to each rank. If empty,the weights are
-        a reversed emuterated numbering of candidates with the first ranked candidate
-        getting the most amount of points followed by the second ranked, and third ranked... \n
-        standard: runs a standardized Borda Election. If a voter casts a short ballot, points
-        are fractionally distributed to remaining candidates
-        """
-        self.state = ElectionState(
-            curr_round=0,
-            elected=[],
-            eliminated=[],
-            remaining=[],
-            profile=profile,
-            previous=None,
-        )
+        self.state = ElectionState(curr_round=0, profile=profile)
         self.seats = seats
+        self.score_vector = score_vector
 
-        self.num_cands = len(self.state.profile.get_candidates())
+    """Borda: Borda is a positional voting system that assigns a decreasing 
+    number of points to candidates based on order and a score vector.
+    The conventional score vector is linear (n, n-1, ... 1)"""
 
-        if borda_weights is None:
-            self.borda_weights = [i for i in range(self.num_cands, 0, -1)]
-        else:
-            self.borda_weights = borda_weights
+    def run_step(self) -> ElectionState:
+        candidates = self.state.profile.get_candidates()
+        borda_dict = borda_scores(
+            profile=self.state.profile, score_vector=self.score_vector
+        )
+        ranking = order_candidates_by_borda(set(candidates), borda_dict)
 
-        self.standard = standard
-
-    def run_borda_step(self) -> ElectionState:
-        """
-        Simulates a full Borda election
-        """
-        borda_scores = {}  # {candidate : int borda_score}
-        candidates_ballots = {}  # {candidate : [ballots that ranked candidate at all]}
-        all_candidates = self.state.profile.get_candidates()
-
-        # Populates dicts: candidate_rank_freq, candidates_ballots
-        for ballot in self.state.profile.get_ballots():
-            frequency = ballot.weight
-            rank = 0
-            for candidate in ballot.ranking:
-                candidate = str(candidate)
-                if candidate not in candidates_ballots:
-                    candidates_ballots[candidate] = []
-                candidates_ballots[candidate].append(
-                    ballot
-                )  # adds ballot where candidate was ranked
-
-                # adds Borda score to candidate
-                if candidate not in borda_scores:
-                    borda_scores[candidate] = 0
-                if (rank + 1) <= len(self.borda_weights):
-                    borda_scores[candidate] += frequency * self.borda_weights[rank]
-
-                rank += 1
-
-            if self.standard is True:
-                if rank < (len(self.borda_weights) + 1):
-                    # X find total remaining borda points
-                    remaining_points = sum(self.borda_weights[rank:])
-
-                    # Y find unranked candidates by the ballot
-
-                    ballot_ranking = [
-                        item for subset in ballot.ranking for item in subset
-                    ]
-                    remaining_cands = list(set(all_candidates) - set(ballot_ranking))
-
-                    # borda_scores[all remaining candidates] = X / Y
-                    for candidate in remaining_cands:
-                        candidate = str(set(candidate))
-                        if candidate not in borda_scores:
-                            borda_scores[candidate] = frequency * (
-                                remaining_points / len(remaining_cands)
-                            )
-                        else:
-                            borda_scores[candidate] += frequency * (
-                                remaining_points / len(remaining_cands)
-                            )
-
-        # Identifies Borda winners (elected) and losers (eliminated)
-        sorted_borda = sorted(borda_scores, key=borda_scores.get, reverse=True)
-        winners = sorted_borda[: self.seats]
-        losers = sorted_borda[self.seats :]
-
-        # Create winner_votes dict for ElectionState object
-        winner_ballots = {}
-        for candidate in winners:
-            winner_ballots[candidate] = candidates_ballots[candidate]
-
-        # New final state object
-        self.state = ElectionState(
-            elected=winners,
-            eliminated=losers,
-            remaining=[],
-            profile=self.state.profile,
-            curr_round=(self.state.curr_round + 1),
+        new_state = ElectionState(
+            curr_round=self.state.curr_round + 1,
+            elected=ranking[: self.seats],
+            eliminated=ranking[self.seats :][::-1],
+            remaining=list(),
+            profile=PreferenceProfile(),
             previous=self.state,
         )
-        return self.state
+        return new_state
 
-    def run_borda_election(self) -> ElectionState:
-        """
-        Function will also run a full borda election
-        """
-        final_state = self.run_borda_step()
-        return final_state
+    def run_election(self) -> ElectionState:
+        outcome = self.run_step()
+        return outcome
 
 
-## Election Helper Functions
-CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
-
-
-def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
-    """
-    Computes first place votes for all candidates in a preference profile
-    """
-    votes = {}
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if ballot.ranking and ballot.ranking[0] == {candidate}:
-                weight += ballot.weight
-        votes[candidate] = weight
-
-    ordered = [
-        CandidateVotes(cand=key, votes=value)
-        for key, value in sorted(votes.items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    return ordered
-
-
-def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Calculates fractional transfer from winner, then removes winner
-    from the list of ballots
-    """
-    transfer_value = (votes[winner] - threshold) / votes[winner]
-
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
-
-    return remove_cand(winner, ballots)
-
-
-def random_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
-    """
-
-    # turn all of winner's ballots into (multiple) ballots of weight 1
-    weight_1_ballots = []
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            # note: under random transfer, weights should always be integers
-            for _ in range(int(ballot.weight)):
-                weight_1_ballots.append(
-                    Ballot(
-                        id=ballot.id,
-                        ranking=ballot.ranking,
-                        weight=Fraction(1),
-                        voters=ballot.voters,
-                    )
-                )
-
-    # remove winner's ballots
-    ballots = [
-        ballot
-        for ballot in ballots
-        if not (ballot.ranking and ballot.ranking[0] == {winner})
-    ]
-
-    surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots += surplus_ballots
-
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
-
-
+# Helper function for seqRCV
 def seqRCV_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
@@ -400,18 +548,3 @@ def seqRCV_transfer(
     output: same ballot list
     """
     return ballots
-
-
-def remove_cand(removed_cand: str, ballots: list[Ballot]) -> list[Ballot]:
-    """
-    Removes candidate from ranking of the ballots
-    """
-    update = deepcopy(ballots)
-
-    for n, ballot in enumerate(update):
-        new_ranking = [
-            candidate for candidate in ballot.ranking if candidate != {removed_cand}
-        ]
-        update[n].ranking = new_ranking
-
-    return update
