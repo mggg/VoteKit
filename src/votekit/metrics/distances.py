@@ -5,9 +5,6 @@ import ot  # type: ignore
 import networkx as nx  # type: ignore
 from typing import Union, Optional
 
-# TODO: Update em_dist to manually create graph in the function. Graph should be able to handle
-# or incomplete ballost
-
 
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
@@ -68,8 +65,7 @@ def lp_dist(
 
 
 # helper functions
-
-
+# these functions comvert a list of preference profiles into distribution arrays
 def profilePairs_to_arrays(
     pp1: PreferenceProfile, pp2: PreferenceProfile
 ) -> tuple[list[float], list[float]]:

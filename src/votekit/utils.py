@@ -108,6 +108,17 @@ def random_transfer(
     return transfered
 
 
+def seqRCV_transfer(
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+) -> list[Ballot]:
+    """
+    Useful for a Sequential RCV election which does not use a transfer method ballots \n
+    ballots: list of ballots \n
+    output: same ballot list
+    """
+    return ballots
+
+
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
     """
     Removes candidate from ballots

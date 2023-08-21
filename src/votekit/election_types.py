@@ -6,6 +6,7 @@ from .utils import (
     fractional_transfer,
     order_candidates_by_borda,
     borda_scores,
+    seqRCV_transfer,
 )
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
@@ -491,7 +492,7 @@ class SequentialRCV:
         Will run rounds of elections until elected seats fill
         """
         old_profile = self.profile
-        elected = []
+        elected = []  # type: ignore
         seqRCV_step = self.election_state
 
         while len(elected) < self.seats:
@@ -536,15 +537,3 @@ class Borda:
     def run_election(self) -> ElectionState:
         outcome = self.run_step()
         return outcome
-
-
-# Helper function for seqRCV
-def seqRCV_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Useful for a Sequential RCV election which does not use a transfer method ballots \n
-    ballots: list of ballots \n
-    output: same ballot list
-    """
-    return ballots
