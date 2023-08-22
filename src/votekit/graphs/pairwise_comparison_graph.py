@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt  # type: ignore
 
 from ..ballot import Ballot
 from ..pref_profile import PreferenceProfile
-from .models import Graph
+from .base_graph import Graph
 
 
 class PairwiseComparisonGraph(Graph):

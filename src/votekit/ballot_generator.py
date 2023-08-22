@@ -11,17 +11,6 @@ import pickle
 from pathlib import Path
 import math
 
-"""
-IC
-IAC
-1d spatial
-2d spatial
-PL
-BT
-AC
-Cambridge
-"""
-
 
 class BallotGenerator:
 
@@ -226,7 +215,7 @@ class PlackettLuce(BallotGenerator):
             (ex. {race: voter proportion})
         """
         if not pref_interval_by_bloc:
-            self.pref_interval_by_slate: dict = {}
+            self.pref_interval_by_bloc: dict = {}
             self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
