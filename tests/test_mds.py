@@ -1,6 +1,6 @@
 from votekit.plots.mds import plot_MDS  # type: ignore
 from votekit.ballot import Ballot  # type: ignore
-from votekit.profile import PreferenceProfile  # type: ignore
+from votekit.pref_profile import PreferenceProfile  # type: ignore
 from votekit.ballot_generator import BradleyTerry, PlackettLuce  # type: ignore
 from votekit.metrics.distances import earth_mover_dist, lp_dist  # type: ignore
 from fractions import Fraction

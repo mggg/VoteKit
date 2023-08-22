@@ -1,10 +1,11 @@
-from votekit.cvr_loaders import rank_column_csv, blt
-from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
+from fractions import Fraction
+from pandas.errors import EmptyDataError, DataError
 from pathlib import Path
 import pytest
-from pandas.errors import EmptyDataError, DataError
-from fractions import Fraction
+
+from votekit.ballot import Ballot
+from votekit.cvr_loaders import rank_column_csv, blt
+from votekit.pref_profile import PreferenceProfile
 
 
 BASE_DIR = Path(__file__).resolve().parent

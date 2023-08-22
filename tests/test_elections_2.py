@@ -1,11 +1,11 @@
-import votekit.election_types as et
-from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
-from votekit.election_state import ElectionState
-from votekit.cvr_loaders import rank_column_csv
-
 from fractions import Fraction
 from pathlib import Path
+
+from votekit.ballot import Ballot
+from votekit.cvr_loaders import rank_column_csv
+from votekit.election_state import ElectionState
+import votekit.election_types as et
+from votekit.pref_profile import PreferenceProfile
 
 
 BASE_DIR = Path(__file__).resolve().parent

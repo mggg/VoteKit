@@ -1,9 +1,10 @@
-from votekit.profile import PreferenceProfile
-from votekit.election_types import remove_cand
-from votekit.cvr_loaders import rank_column_csv
-from votekit.ballot import Ballot
 from fractions import Fraction
 from pathlib import Path
+
+from votekit.ballot import Ballot
+from votekit.cvr_loaders import rank_column_csv
+from votekit.election_types import remove_cand
+from votekit.pref_profile import PreferenceProfile
 
 
 BASE_DIR = Path(__file__).resolve().parent

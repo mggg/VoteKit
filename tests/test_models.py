@@ -1,12 +1,13 @@
 import pytest
-from votekit.models import Simulation
+from unittest.mock import MagicMock
+
 from votekit.ballot_generator import (
     PlackettLuce,
     BradleyTerry,
     AlternatingCrossover,
 )
-from votekit.profile import PreferenceProfile
-from unittest.mock import MagicMock
+from votekit.models import Simulation
+from votekit.pref_profile import PreferenceProfile
 
 
 class DummyGenerated(Simulation):

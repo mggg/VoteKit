@@ -1,11 +1,11 @@
-from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
-from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-
 from fractions import Fraction
+import itertools as it
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
-import itertools as it
+
+from votekit.ballot import Ballot
+from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
+from votekit.pref_profile import PreferenceProfile
 
 
 ballot_list = [

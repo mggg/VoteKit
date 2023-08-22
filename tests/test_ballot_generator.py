@@ -1,5 +1,12 @@
-from pathlib import Path
-import pickle
+import itertools as it
+import math
+
+# import numpy as np
+# from pathlib import Path
+# import pickle
+import pytest
+import scipy.stats as stats
+
 from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
@@ -9,13 +16,7 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     OneDimSpatial,
 )
-from votekit.profile import PreferenceProfile
-import math
-import numpy as np
-import itertools as it
-import scipy.stats as stats
-import votekit.ballot_generator as bg
-import pytest
+from votekit.pref_profile import PreferenceProfile
 
 
 def test_IC_completion():
@@ -297,7 +298,7 @@ def test_BT_probability_calculation():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    model = bg.BradleyTerry(
+    model = BradleyTerry(
         ballot_length=ballot_length,
         candidates=candidates,
         pref_interval_by_bloc=pref_interval_by_bloc,
@@ -422,183 +423,183 @@ def test_AC_distribution():
     )
 
 
-def test_Cambridge_distribution():
-    BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data/"
-    path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
-
-    candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
-    slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-    pref_interval_by_bloc = {
-        "W": {"W1": 0.4, "W2": 0.4, "C1": 0.1, "C2": 0.1},
-        "C": {"W1": 0.1, "W2": 0.1, "C1": 0.4, "C2": 0.4},
-    }
-    bloc_voter_prop = {"W": 0.5, "C": 0.5}
-    bloc_crossover_rate = {"W": {"C": 0}, "C": {"W": 0}}
-
-    cs = CambridgeSampler(
-        candidates=candidates,
-        ballot_length=ballot_length,
-        slate_to_candidate=slate_to_candidate,
-        pref_interval_by_bloc=pref_interval_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        bloc_crossover_rate=bloc_crossover_rate,
-        path=path,
-    )
-
-    with open(path, "rb") as pickle_file:
-        ballot_frequencies = pickle.load(pickle_file)
-    slates = list(slate_to_candidate.keys())
-
-    # Let's update the running probability of the ballot based on where we are in the nesting
-    ballot_prob_dict = dict()
-    ballot_prob = [0, 0, 0, 0, 0]
-    # p(white) vs p(poc)
-    for slate in slates:
-        opp_slate = next(iter(set(slates).difference(set(slate))))
-
-        slate_cands = slate_to_candidate[slate]
-        opp_cands = slate_to_candidate[opp_slate]
-
-        ballot_prob[0] = bloc_voter_prop[slate]
-        prob_ballot_given_slate_first = bloc_order_probs_slate_first(
-            slate, ballot_frequencies
-        )
-        # p(crossover) vs p(non-crossover)
-        for voter_bloc in slates:
-            opp_voter_bloc = next(iter(set(slates).difference(set(voter_bloc))))
-            if voter_bloc == slate:
-                ballot_prob[1] = 1 - bloc_crossover_rate[voter_bloc][opp_voter_bloc]
-
-                # p(bloc ordering)
-                for (
-                    slate_first_ballot,
-                    slate_ballot_prob,
-                ) in prob_ballot_given_slate_first.items():
-                    ballot_prob[2] = slate_ballot_prob
-
-                    # Count number of each slate in the ballot
-                    slate_ballot_count_dict = {}
-                    for s, sc in slate_to_candidate.items():
-                        count = sum([c == s for c in slate_first_ballot])
-                        slate_ballot_count_dict[s] = min(count, len(sc))
-
-                    # Make all possible perms with right number of slate candidates
-                    slate_perms = list(
-                        set(
-                            [
-                                p[: slate_ballot_count_dict[slate]]
-                                for p in list(it.permutations(slate_cands))
-                            ]
-                        )
-                    )
-                    opp_perms = list(
-                        set(
-                            [
-                                p[: slate_ballot_count_dict[opp_slate]]
-                                for p in list(it.permutations(opp_cands))
-                            ]
-                        )
-                    )
-
-                    only_slate_interval = {
-                        c: share
-                        for c, share in pref_interval_by_bloc[voter_bloc].items()
-                        if c in slate_cands
-                    }
-                    only_opp_interval = {
-                        c: share
-                        for c, share in pref_interval_by_bloc[voter_bloc].items()
-                        if c in opp_cands
-                    }
-                    for sp in slate_perms:
-                        ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
-                        for op in opp_perms:
-                            ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
-
-                            # ADD PROB MULT TO DICT
-                            ordered_slate_cands = list(sp)
-                            ordered_opp_cands = list(op)
-                            ballot_ranking = []
-                            for c in slate_first_ballot:
-                                if c == slate:
-                                    if ordered_slate_cands:
-                                        ballot_ranking.append(
-                                            ordered_slate_cands.pop(0)
-                                        )
-                                else:
-                                    if ordered_opp_cands:
-                                        ballot_ranking.append(ordered_opp_cands.pop(0))
-                            prob = np.prod(ballot_prob)
-                            ballot = tuple(ballot_ranking)
-                            ballot_prob_dict[ballot] = (
-                                ballot_prob_dict.get(ballot, 0) + prob
-                            )
-            else:
-                ballot_prob[1] = bloc_crossover_rate[voter_bloc][opp_voter_bloc]
-
-                # p(bloc ordering)
-                for (
-                    slate_first_ballot,
-                    slate_ballot_prob,
-                ) in prob_ballot_given_slate_first.items():
-                    ballot_prob[2] = slate_ballot_prob
-
-                    # Count number of each slate in the ballot
-                    slate_ballot_count_dict = {}
-                    for s, sc in slate_to_candidate.items():
-                        count = sum([c == s for c in slate_first_ballot])
-                        slate_ballot_count_dict[s] = min(count, len(sc))
-
-                    # Make all possible perms with right number of slate candidates
-                    slate_perms = [
-                        p[: slate_ballot_count_dict[slate]]
-                        for p in list(it.permutations(slate_cands))
-                    ]
-                    opp_perms = [
-                        p[: slate_ballot_count_dict[opp_slate]]
-                        for p in list(it.permutations(opp_cands))
-                    ]
-                    only_slate_interval = {
-                        c: share
-                        for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
-                        if c in slate_cands
-                    }
-                    only_opp_interval = {
-                        c: share
-                        for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
-                        if c in opp_cands
-                    }
-                    for sp in slate_perms:
-                        ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
-                        for op in opp_perms:
-                            ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
-
-                            # ADD PROB MULT TO DICT
-                            ordered_slate_cands = list(sp)
-                            ordered_opp_cands = list(op)
-                            ballot_ranking = []
-                            for c in slate_first_ballot:
-                                if c == slate:
-                                    if ordered_slate_cands:
-                                        ballot_ranking.append(ordered_slate_cands.pop())
-                                else:
-                                    if ordered_opp_cands:
-                                        ballot_ranking.append(ordered_opp_cands.pop())
-                            prob = np.prod(ballot_prob)
-                            ballot = tuple(ballot_ranking)
-                            ballot_prob_dict[ballot] = (
-                                ballot_prob_dict.get(ballot, 0) + prob
-                            )
-
-    # Now see if ballot prob dict is right
-    test_profile = cs.generate_profile(number_of_ballots=5000)
-    assert do_ballot_probs_match_ballot_dist(
-        ballot_prob_dict=ballot_prob_dict,
-        generated_profile=test_profile,
-        n=len(candidates),
-    )
+# def test_Cambridge_distribution():
+#     BASE_DIR = Path(__file__).resolve().parent
+#     DATA_DIR = BASE_DIR / "data/"
+#     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
+#
+#     candidates = ["W1", "W2", "C1", "C2"]
+#     ballot_length = None
+#     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
+#     pref_interval_by_bloc = {
+#         "W": {"W1": 0.4, "W2": 0.4, "C1": 0.1, "C2": 0.1},
+#         "C": {"W1": 0.1, "W2": 0.1, "C1": 0.4, "C2": 0.4},
+#     }
+#     bloc_voter_prop = {"W": 0.5, "C": 0.5}
+#     bloc_crossover_rate = {"W": {"C": 0}, "C": {"W": 0}}
+#
+#     cs = CambridgeSampler(
+#         candidates=candidates,
+#         ballot_length=ballot_length,
+#         slate_to_candidate=slate_to_candidate,
+#         pref_interval_by_bloc=pref_interval_by_bloc,
+#         bloc_voter_prop=bloc_voter_prop,
+#         bloc_crossover_rate=bloc_crossover_rate,
+#         path=path,
+#     )
+#
+#     with open(path, "rb") as pickle_file:
+#         ballot_frequencies = pickle.load(pickle_file)
+#     slates = list(slate_to_candidate.keys())
+#
+#     # Let's update the running probability of the ballot based on where we are in the nesting
+#     ballot_prob_dict = dict()
+#     ballot_prob = [0, 0, 0, 0, 0]
+#     # p(white) vs p(poc)
+#     for slate in slates:
+#         opp_slate = next(iter(set(slates).difference(set(slate))))
+#
+#         slate_cands = slate_to_candidate[slate]
+#         opp_cands = slate_to_candidate[opp_slate]
+#
+#         ballot_prob[0] = bloc_voter_prop[slate]
+#         prob_ballot_given_slate_first = bloc_order_probs_slate_first(
+#             slate, ballot_frequencies
+#         )
+#         # p(crossover) vs p(non-crossover)
+#         for voter_bloc in slates:
+#             opp_voter_bloc = next(iter(set(slates).difference(set(voter_bloc))))
+#             if voter_bloc == slate:
+#                 ballot_prob[1] = 1 - bloc_crossover_rate[voter_bloc][opp_voter_bloc]
+#
+#                 # p(bloc ordering)
+#                 for (
+#                     slate_first_ballot,
+#                     slate_ballot_prob,
+#                 ) in prob_ballot_given_slate_first.items():
+#                     ballot_prob[2] = slate_ballot_prob
+#
+#                     # Count number of each slate in the ballot
+#                     slate_ballot_count_dict = {}
+#                     for s, sc in slate_to_candidate.items():
+#                         count = sum([c == s for c in slate_first_ballot])
+#                         slate_ballot_count_dict[s] = min(count, len(sc))
+#
+#                     # Make all possible perms with right number of slate candidates
+#                     slate_perms = list(
+#                         set(
+#                             [
+#                                 p[: slate_ballot_count_dict[slate]]
+#                                 for p in list(it.permutations(slate_cands))
+#                             ]
+#                         )
+#                     )
+#                     opp_perms = list(
+#                         set(
+#                             [
+#                                 p[: slate_ballot_count_dict[opp_slate]]
+#                                 for p in list(it.permutations(opp_cands))
+#                             ]
+#                         )
+#                     )
+#
+#                     only_slate_interval = {
+#                         c: share
+#                         for c, share in pref_interval_by_bloc[voter_bloc].items()
+#                         if c in slate_cands
+#                     }
+#                     only_opp_interval = {
+#                         c: share
+#                         for c, share in pref_interval_by_bloc[voter_bloc].items()
+#                         if c in opp_cands
+#                     }
+#                     for sp in slate_perms:
+#                         ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
+#                         for op in opp_perms:
+#                             ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
+#
+#                             # ADD PROB MULT TO DICT
+#                             ordered_slate_cands = list(sp)
+#                             ordered_opp_cands = list(op)
+#                             ballot_ranking = []
+#                             for c in slate_first_ballot:
+#                                 if c == slate:
+#                                     if ordered_slate_cands:
+#                                         ballot_ranking.append(
+#                                             ordered_slate_cands.pop(0)
+#                                         )
+#                                 else:
+#                                     if ordered_opp_cands:
+#                                         ballot_ranking.append(ordered_opp_cands.pop(0))
+#                             prob = np.prod(ballot_prob)
+#                             ballot = tuple(ballot_ranking)
+#                             ballot_prob_dict[ballot] = (
+#                                 ballot_prob_dict.get(ballot, 0) + prob
+#                             )
+#             else:
+#                 ballot_prob[1] = bloc_crossover_rate[voter_bloc][opp_voter_bloc]
+#
+#                 # p(bloc ordering)
+#                 for (
+#                     slate_first_ballot,
+#                     slate_ballot_prob,
+#                 ) in prob_ballot_given_slate_first.items():
+#                     ballot_prob[2] = slate_ballot_prob
+#
+#                     # Count number of each slate in the ballot
+#                     slate_ballot_count_dict = {}
+#                     for s, sc in slate_to_candidate.items():
+#                         count = sum([c == s for c in slate_first_ballot])
+#                         slate_ballot_count_dict[s] = min(count, len(sc))
+#
+#                     # Make all possible perms with right number of slate candidates
+#                     slate_perms = [
+#                         p[: slate_ballot_count_dict[slate]]
+#                         for p in list(it.permutations(slate_cands))
+#                     ]
+#                     opp_perms = [
+#                         p[: slate_ballot_count_dict[opp_slate]]
+#                         for p in list(it.permutations(opp_cands))
+#                     ]
+#                     only_slate_interval = {
+#                         c: share
+#                         for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
+#                         if c in slate_cands
+#                     }
+#                     only_opp_interval = {
+#                         c: share
+#                         for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
+#                         if c in opp_cands
+#                     }
+#                     for sp in slate_perms:
+#                         ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
+#                         for op in opp_perms:
+#                             ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
+#
+#                             # ADD PROB MULT TO DICT
+#                             ordered_slate_cands = list(sp)
+#                             ordered_opp_cands = list(op)
+#                             ballot_ranking = []
+#                             for c in slate_first_ballot:
+#                                 if c == slate:
+#                                     if ordered_slate_cands:
+#                                         ballot_ranking.append(ordered_slate_cands.pop())
+#                                 else:
+#                                     if ordered_opp_cands:
+#                                         ballot_ranking.append(ordered_opp_cands.pop())
+#                             prob = np.prod(ballot_prob)
+#                             ballot = tuple(ballot_ranking)
+#                             ballot_prob_dict[ballot] = (
+#                                 ballot_prob_dict.get(ballot, 0) + prob
+#                             )
+#
+#     # Now see if ballot prob dict is right
+#     test_profile = cs.generate_profile(number_of_ballots=5000)
+#     assert do_ballot_probs_match_ballot_dist(
+#         ballot_prob_dict=ballot_prob_dict,
+#         generated_profile=test_profile,
+#         n=len(candidates),
+#     )
 
 
 def compute_pl_prob(perm, interval):

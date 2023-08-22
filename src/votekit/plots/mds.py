@@ -1,4 +1,4 @@
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from typing import Optional, Callable
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
