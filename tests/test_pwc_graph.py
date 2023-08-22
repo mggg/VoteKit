@@ -1,5 +1,5 @@
 from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 
 from fractions import Fraction

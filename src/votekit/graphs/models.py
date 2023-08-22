@@ -1,4 +1,4 @@
-from ..profile import PreferenceProfile
+from ..pref_profile import PreferenceProfile
 from ..utils import COLOR_LIST
 from typing import Callable, Optional, Union, Any
 from abc import ABC, abstractmethod

@@ -1,6 +1,6 @@
 from .ballot import Ballot
 from typing import Union, Iterable
-from .profile import PreferenceProfile
+from .pref_profile import PreferenceProfile
 from fractions import Fraction
 from collections import namedtuple
 from copy import deepcopy

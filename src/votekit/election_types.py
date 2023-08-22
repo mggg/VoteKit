@@ -1,4 +1,4 @@
-from .profile import PreferenceProfile
+from .pref_profile import PreferenceProfile
 from .ballot import Ballot
 from .utils import (
     compute_votes,

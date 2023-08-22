@@ -1,4 +1,4 @@
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from votekit.election_types import remove_cand
 from votekit.cvr_loaders import rank_column_csv
 from votekit.ballot import Ballot
@@ -68,7 +68,7 @@ def test_profile_equals():
     )
     assert profile1 == profile2
 
-    
+
 def test_create_df():
     profile = PreferenceProfile(
         ballots=[

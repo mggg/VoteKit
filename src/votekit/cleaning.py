@@ -1,4 +1,4 @@
-from .profile import PreferenceProfile
+from .pref_profile import PreferenceProfile
 from .ballot import Ballot
 from copy import deepcopy
 from typing import Callable

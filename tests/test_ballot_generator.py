@@ -9,7 +9,7 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     OneDimSpatial,
 )
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 import math
 import numpy as np
 import itertools as it

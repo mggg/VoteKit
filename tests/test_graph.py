@@ -1,5 +1,5 @@
 from votekit.graphs.models import BallotGraph
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from fractions import Fraction
 import pytest

@@ -1,5 +1,5 @@
 from votekit.election_state import ElectionState  # type: ignore
-from votekit.profile import PreferenceProfile  # type: ignore
+from votekit.pref_profile import PreferenceProfile  # type: ignore
 from unittest.mock import MagicMock
 from votekit.ballot import Ballot  # type: ignore
 from fractions import Fraction
