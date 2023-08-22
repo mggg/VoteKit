@@ -62,18 +62,14 @@ class PreferenceProfile(BaseModel):
         di: dict = {}
         for ballot in self.ballots:
             rank_tuple = tuple(next(iter(item)) for item in ballot.ranking)
-            # print(rank_tuple)
-            if rank_tuple not in di.keys():
-                if standardize:
-                    di[rank_tuple] = ballot.weight / num_ballots
-                else:
-                    di[rank_tuple] = ballot.weight
-
+            if standardize:
+                weight = ballot.weight / num_ballots
             else:
-                if standardize:
-                    di[rank_tuple] += ballot.weight / num_ballots
-                else:
-                    di[rank_tuple] += ballot.weight
+                weight = ballot.weight
+            if rank_tuple not in di.keys():
+                di[rank_tuple] = weight
+            else:
+                di[rank_tuple] += weight
         return di
 
     class Config:

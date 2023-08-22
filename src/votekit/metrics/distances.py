@@ -12,8 +12,8 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     Assumes both elections share the same candidates
     """
     # create ballot graph
-    graph = BallotGraph(source=pp2, complete=True)
-    ballot_graph = graph.from_profile(profile=pp2, complete=True)
+    ballot_graph = BallotGraph(source=pp2, complete=True).graph
+    # ballot_graph = graph.from_profile(profile=pp2, complete=True)
 
     # Solving Earth Mover Distance
     electA_distr = np.array(em_array(pp=pp1))
@@ -44,20 +44,21 @@ def lp_dist(
     Use 'inf' for infinity norm. \n
     Assumes both elections share the same candidates.
     """
-    election_arrays = profilePairs_to_arrays(pp1, pp2)
-    electA_distr = np.array(election_arrays[0])
-    electB_distr = np.array(election_arrays[1])
+    pp_list = [pp1, pp2]
+    pp_2arry = profiles_to_ndarrys(pp_list)
+    electA = pp_2arry[:, 0]
+    electB = pp_2arry[:, 1]
 
     if isinstance(p_value, int):
         sum = 0
-        for i in range(len(electA_distr)):
-            diff = (abs(electA_distr[i] - electB_distr[i])) ** p_value
+        for i in range(len(electA)):
+            diff = (abs(electA[i] - electB[i])) ** p_value
             sum += diff
         lp_dist = sum ** (1 / p_value)
         return lp_dist
 
     elif p_value == "inf":
-        diff = [x - y for x, y in zip(electA_distr, electB_distr)]
+        diff = [abs(x - y) for x, y in zip(electA, electB)]
         return max(diff)
 
     else:
@@ -66,28 +67,41 @@ def lp_dist(
 
 # helper functions
 # these functions comvert a list of preference profiles into distribution arrays
-def profilePairs_to_arrays(
-    pp1: PreferenceProfile, pp2: PreferenceProfile
-) -> tuple[list[float], list[float]]:
+def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     """
-    Converts two elections i.e preference profiles into distribution arrays.\n
-    This is useful to compute distance between two elections
+    converts a list of perference profiles into an ndarray,
+    a matrix like object. The cols represent each profile
+    and rows are the cast ballots and each element represents
+    the frequency a ballot type occurs for a preference profile.
+    Each column will sum to one since weights are standardized.
+    This is usefule for computing election Lp distances between
+    elections.
     """
+    cast_ballots: list = []
+    profile_dicts: list[dict] = []
+    for pp in profiles:
+        election_dict = pp.to_dict(standardize=True)
+        profile_dicts.append(election_dict)
+        for key in election_dict.keys():
+            if key not in cast_ballots:
+                cast_ballots.append(key)
+    combined_dict = {ranking: 0 for ranking in cast_ballots}
+    rows = len(cast_ballots)
+    cols = len(profile_dicts)
+    electn_ndarry = np.zeros((rows, cols))
 
-    elect1 = pp1.to_dict(standardize=True)
-    elect2 = pp2.to_dict(standardize=True)
-    all_rankings = set(elect1.keys()).union(elect2.keys())
-    combined_dict = {key: 0 for key in all_rankings}
-
-    elect1 = combined_dict | elect1
-    elect2 = combined_dict | elect2
-
-    electA_distr = [float(elect1[key]) for key in sorted(elect1.keys())]
-    electB_distr = [float(elect2[key]) for key in sorted(elect2.keys())]
-    return electA_distr, electB_distr
+    for i in range(len(profile_dicts)):
+        election = combined_dict | profile_dicts[i]
+        elect_distr = [float(election[key]) for key in sorted(election.keys())]
+        electn_ndarry[:, i] = elect_distr
+    return electn_ndarry
 
 
 def em_array(pp: PreferenceProfile):
+    """
+    converts a preference profile into a distribution using
+    ballot graphs. Useful for the earthmover distance
+    """
     ballot_graph = BallotGraph(source=pp)
     node_cand_map = ballot_graph.label_cands(sorted(pp.get_candidates()))
     pp_dict = pp.to_dict(True)
