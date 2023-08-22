@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from fractions import Fraction
 from typing import Optional, Union
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
+from .pref_profile import PreferenceProfile
+from .ballot import Ballot
 from numpy.random import choice
 import itertools as it
 import random
