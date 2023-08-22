@@ -1,12 +1,14 @@
+from fractions import Fraction
+import pandas as pd
+import pytest
+from unittest.mock import MagicMock
+
+from votekit.ballot import Ballot  # type: ignore
 from votekit.election_state import ElectionState  # type: ignore
 from votekit.pref_profile import PreferenceProfile  # type: ignore
-from unittest.mock import MagicMock
-from votekit.ballot import Ballot  # type: ignore
-from fractions import Fraction
-import pytest
-import pandas as pd
 
-##TODO: use Scottish 3-cand ward_03 data,
+
+# TODO: use Scottish 3-cand ward_03 data,
 
 b1 = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(250, 1))
 b2 = Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=Fraction(200, 1))

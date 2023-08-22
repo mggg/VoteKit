@@ -1,9 +1,10 @@
+from abc import ABC, abstractmethod
+from functools import cache
+import networkx as nx  # type: ignore
+from typing import Callable, Optional, Union, Any
+
 from ..pref_profile import PreferenceProfile
 from ..utils import COLOR_LIST
-from typing import Callable, Optional, Union, Any
-from abc import ABC, abstractmethod
-import networkx as nx  # type: ignore
-from functools import cache
 
 
 class Graph(ABC):

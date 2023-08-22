@@ -1,11 +1,11 @@
 from fractions import Fraction
 from itertools import permutations, combinations
-import networkx as nx  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
+import networkx as nx  # type: ignore
 
 from ..ballot import Ballot
-from ..pref_profile import PreferenceProfile
 from .base_graph import Graph
+from ..pref_profile import PreferenceProfile
 
 
 class PairwiseComparisonGraph(Graph):

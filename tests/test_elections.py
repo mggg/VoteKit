@@ -1,9 +1,10 @@
-from votekit.election_types import STV, Plurality
-from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
+from fractions import Fraction
 from pathlib import Path
 import pytest
-from fractions import Fraction
+
 from votekit.ballot import Ballot
+from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
+from votekit.election_types import STV, Plurality
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
     fractional_transfer,

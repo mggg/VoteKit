@@ -1,10 +1,11 @@
+from copy import deepcopy
+from fractions import Fraction
+from functools import reduce
+from itertools import groupby
+from typing import Callable
+
 from .pref_profile import PreferenceProfile
 from .ballot import Ballot
-from copy import deepcopy
-from typing import Callable
-from itertools import groupby
-from functools import reduce
-from fractions import Fraction
 
 
 def remove_empty_ballots(

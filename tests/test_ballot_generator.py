@@ -1,12 +1,11 @@
-import math
 import itertools as it
-import scipy.stats as stats
-import votekit.ballot_generator as bg
-import pytest
+import math
 
 # import numpy as np
 # from pathlib import Path
 # import pickle
+import pytest
+import scipy.stats as stats
 
 from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
@@ -299,7 +298,7 @@ def test_BT_probability_calculation():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    model = bg.BradleyTerry(
+    model = BradleyTerry(
         ballot_length=ballot_length,
         candidates=candidates,
         pref_interval_by_bloc=pref_interval_by_bloc,

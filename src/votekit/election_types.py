@@ -1,5 +1,13 @@
-from .pref_profile import PreferenceProfile
+from fractions import Fraction
+import itertools as it
+import numpy as np
+import random
+from typing import Callable, Optional
+
 from .ballot import Ballot
+from .election_state import ElectionState
+from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
+from .pref_profile import PreferenceProfile
 from .utils import (
     compute_votes,
     remove_cand,
@@ -7,13 +15,6 @@ from .utils import (
     order_candidates_by_borda,
     borda_scores,
 )
-from .election_state import ElectionState
-from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from typing import Callable, Optional
-import random
-from fractions import Fraction
-import itertools as it
-import numpy as np
 
 
 class STV:

@@ -1,10 +1,12 @@
-from .ballot import Ballot
-from typing import Union, Iterable
-from .pref_profile import PreferenceProfile
-from fractions import Fraction
 from collections import namedtuple
 from copy import deepcopy
+from fractions import Fraction
 import random
+from typing import Union, Iterable
+
+from .ballot import Ballot
+from .pref_profile import PreferenceProfile
+
 
 COLOR_LIST = [
     (0.55, 0.71, 0.0),
@@ -23,8 +25,7 @@ COLOR_LIST = [
     (0.55, 0.82, 0.77),
 ]
 
-
-## Election Helper Functions
+# Election Helper Functions
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
 
