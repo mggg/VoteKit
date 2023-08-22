@@ -1,8 +1,9 @@
-from .ballot import Ballot
-from typing import Optional
-from pydantic import BaseModel, validator
 from fractions import Fraction
 import pandas as pd
+from pydantic import BaseModel, validator
+from typing import Optional
+
+from .ballot import Ballot
 
 
 class PreferenceProfile(BaseModel):

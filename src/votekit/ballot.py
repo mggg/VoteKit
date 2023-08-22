@@ -1,6 +1,6 @@
+from fractions import Fraction
 from pydantic import BaseModel
 from typing import Optional
-from fractions import Fraction
 
 
 class Ballot(BaseModel):

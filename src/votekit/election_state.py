@@ -1,7 +1,9 @@
-from pydantic import BaseModel
-from .pref_profile import PreferenceProfile
-from typing import Optional
 import pandas as pd
+from pydantic import BaseModel
+from typing import Optional
+
+from .pref_profile import PreferenceProfile
+
 
 pd.set_option("display.colheader_justify", "left")
 
