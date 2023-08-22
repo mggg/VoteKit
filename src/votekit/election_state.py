@@ -10,16 +10,14 @@ pd.set_option("display.colheader_justify", "left")
 
 class ElectionState(BaseModel):
     """
-    curr_round (an Int): current round number
-    elected (a list of Candidate): candidates who pass a certain threshold to win an election
-    eliminated (a list of Candidate): candidates who were eliminated (lost in the election)
-    remaining (a list of Candidate): candidates who are still in the running
-    rankings (a list of a set of Candidate): ranking of candidates with sets representing ties
-    profile (a PreferenceProfile): a list of ballot types
-    (schedule preferences) and their frequency of times
-    winners_votes (a Dict of candidates and list of their ballots):
-    each winner's list of ballots that elected them
-    previous: an instance of Outcome representing the previous round
+    Object that stores information on each round of a RCV election and the final outcome.
+    :param curr_round: :class:`int` : current round number. Defaults to 0 before an election.
+    :param elected: :class:`list[str]` list of candidates who pass a threshold to win an election
+    :param eliminated: :class:`list[str]` list of candidates who were eliminated
+    :param remaining: :class:`list[str]` list of candidates who are still in the running
+    :param rankings: :class: `list[set]` list ranking of candidates with sets representing ties
+    :param profile: :class:`PreferenceProfile` an instance of a preference profile object
+    :param previous: an instance of :class:`ElectionState` representing previous round
     """
 
     curr_round: int = 0
@@ -33,15 +31,19 @@ class ElectionState(BaseModel):
         allow_mutation = False
 
     def get_all_winners(self) -> list[str]:
-        """returns all winners from all rounds so far in order of first elected to last elected"""
+        """
+        Returns a list of elected candidates ordered from first round to current round.
+        :rtype: :class:`list[str]`
+        """
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
             return self.elected
 
     def get_all_eliminated(self) -> list[str]:
-        """returns all winners from all rounds so
-        far in order of last eliminated to first eliminated
+        """
+        Returns a list of eliminated candidates ordered from current round to first round
+        :rtype: :class:`list[str]`
         """
         elim = self.eliminated.copy()
         elim.reverse()
@@ -50,13 +52,19 @@ class ElectionState(BaseModel):
         return elim
 
     def get_rankings(self) -> list[str]:
-        """returns all candidates in order of their ranking at the end of the current round"""
+        """
+        Returns list of all candidates in order of their ranking after each round
+        :rtype: :class:`list[str]`
+        """
 
         return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[str], 'eliminated':list[str]}
-        """returns a dictionary with elected and eliminated candidates"""
+        """
+        returns a dictionary with elected and eliminated candidates
+        :rtype: :class:`dict`
+        """
         if self.curr_round == roundNum:
             return {"Elected": self.elected, "Eliminated": self.eliminated}
         elif self.previous:
@@ -65,8 +73,10 @@ class ElectionState(BaseModel):
             raise ValueError("Round number out of range")
 
     def changed_rankings(self) -> dict:
-        """returns dict of (key) string candidates who changed
-        ranking from previous round and (value) a tuple of (prevRank, newRank)
+        """
+        Returns dict of (key) string candidates who changed
+        ranking from previous round and (value) a tuple of (previous rank, new rank)
+        :rtype: :class:`dict`
         """
 
         if not self.previous:
@@ -91,6 +101,7 @@ class ElectionState(BaseModel):
         """
         Returns dataframe displaying candidate, status (elected, eliminated,
         remaining)
+        :rtype: :class:`DataFrame`
         """
         all_cands = self.get_rankings()
         status_df = pd.DataFrame(

@@ -14,6 +14,7 @@ from .utils import (
     fractional_transfer,
     order_candidates_by_borda,
     borda_scores,
+    seqRCV_transfer,
 )
 
 
@@ -438,6 +439,68 @@ class Plurality:
         )
 
     run_election = run_step
+
+
+class SequentialRCV:
+    """
+    class to run Sequential RCV election
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        """
+        profile (PreferenceProfile): initial perference profile
+        seats (int): number of winners/size of committee
+        """
+        self.seats = seats
+        self.profile = profile
+        self.election_state = ElectionState(
+            curr_round=0,
+            elected=[],
+            eliminated=[],
+            remaining=[],
+            profile=profile,
+        )
+
+    def run_step(self, old_profile: PreferenceProfile) -> ElectionState:
+        """
+        Simulates a single step of the sequential RCV contest
+        which is a full IRV election run on the current set of candidates
+        """
+        old_election_state = self.election_state
+
+        IRVrun = STV(old_profile, transfer=seqRCV_transfer, seats=1)
+        old_election = IRVrun.run_election()
+        elected_cand = old_election.get_all_winners()[0]
+
+        # Removes elected candidate from Ballot List
+        updated_ballots = remove_cand(elected_cand, old_profile.get_ballots())
+
+        # Updates profile with removed candidates
+        updated_profile = PreferenceProfile(ballots=updated_ballots)
+
+        self.election_state = ElectionState(
+            curr_round=old_election_state.curr_round + 1,
+            elected=list(elected_cand),
+            profile=updated_profile,
+            previous=old_election_state,
+            remaining=old_election.remaining,
+        )
+        return self.election_state
+
+    def run_election(self) -> ElectionState:
+        """
+        Simulates a complete sequential RCV contest.
+        Will run rounds of elections until elected seats fill
+        """
+        old_profile = self.profile
+        elected = []  # type: ignore
+        seqRCV_step = self.election_state
+
+        while len(elected) < self.seats:
+            seqRCV_step = self.run_step(old_profile)
+            elected.append(seqRCV_step.elected)
+            old_profile = seqRCV_step.profile
+        return seqRCV_step
 
 
 class Borda:

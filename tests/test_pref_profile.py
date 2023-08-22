@@ -35,9 +35,9 @@ def test_updates_not_in_place():
 
 
 def test_to_dict():
-    rv = test_profile.to_dict()
-    assert rv["[{'a'}, {'b'}, {'c'}]"] == Fraction(2, 1)
-    assert rv["[{'b'}, {'a'}, {'e'}]"] == Fraction(1, 1)
+    rv = test_profile.to_dict(standardize=False)
+    assert rv[("a", "b", "c")] == Fraction(2, 1)
+    assert rv[("b", "a", "e")] == Fraction(1, 1)
 
 
 def test_condense_profile():
