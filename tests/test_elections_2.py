@@ -1,6 +1,6 @@
 import votekit.election_types as et
 from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from votekit.election_state import ElectionState
 from votekit.cvr_loaders import rank_column_csv
 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from .profile import PreferenceProfile
+from .pref_profile import PreferenceProfile
 from typing import Optional
 import pandas as pd
 

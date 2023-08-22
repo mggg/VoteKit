@@ -5,7 +5,7 @@ from votekit.ballot_generator import (
     BradleyTerry,
     AlternatingCrossover,
 )
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from unittest.mock import MagicMock
 
 

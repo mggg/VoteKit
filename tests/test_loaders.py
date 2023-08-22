@@ -1,6 +1,6 @@
 from votekit.cvr_loaders import rank_column_csv, blt
 from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from pathlib import Path
 import pytest
 from pandas.errors import EmptyDataError, DataError

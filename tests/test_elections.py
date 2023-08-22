@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fractions import Fraction
 from votekit.ballot import Ballot
-from votekit.profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
     fractional_transfer,
     random_transfer,

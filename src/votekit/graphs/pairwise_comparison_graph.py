@@ -4,8 +4,8 @@ import networkx as nx  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
 
 from ..ballot import Ballot
-from ..profile import PreferenceProfile
-from .models import Graph
+from ..pref_profile import PreferenceProfile
+from .base_graph import Graph
 
 
 class PairwiseComparisonGraph(Graph):
