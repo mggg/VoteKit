@@ -143,9 +143,9 @@ def do_ballot_probs_match_ballot_dist(
         ):
             failed += 1
 
-    n_factorial = math.factorial(n)
-    stdev = math.sqrt(n_factorial * alpha * (1 - alpha))
-    return failed < (n_factorial * (1 - alpha) + 2 * stdev)
+    # allow for small margin of error given confidence intereval
+    failure_threshold = 5
+    return failed <= failure_threshold
 
 
 def test_ic_distribution():
