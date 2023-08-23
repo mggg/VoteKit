@@ -5,6 +5,7 @@ import random
 from typing import Callable, Optional
 
 from .ballot import Ballot
+from .election_base import Election
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from .pref_profile import PreferenceProfile
@@ -18,7 +19,7 @@ from .utils import (
 )
 
 
-class STV:
+class STV(Election):
     """
     Class for single-winner IRV and multi-winner STV elections
     """
@@ -29,28 +30,19 @@ class STV:
         transfer: Callable,
         seats: int,
         quota: str = "droop",
+        ties: bool = False,
     ):
         """
         profile (PreferenceProfile): initial perference profile
         transfer (function): vote transfer method such as fractional transfer
         seats (int): number of winners/size of committee
         """
-        self.__profile = profile
         self.transfer = transfer
         self.seats = seats
-        self.election_state = ElectionState(
-            curr_round=0,
-            elected=[],
-            eliminated=[],
-            remaining=[
-                cand
-                for cand, votes in compute_votes(
-                    profile.get_candidates(), profile.get_ballots()
-                )
-            ],
-            profile=profile,
-        )
         self.threshold = self.get_threshold(quota)
+
+        # let parent class handle the og profile and election state
+        super().__init__(profile, ties)
 
     # can cache since it will not change throughout rounds
     def get_threshold(self, quota: str) -> int:
@@ -66,22 +58,22 @@ class STV:
         """
         Determines if the number of seats has been met to call election
         """
-        return len(self.election_state.get_all_winners()) != self.seats
+        return len(self.state.get_all_winners()) != self.seats
 
     def run_step(self) -> ElectionState:
         """
         Simulates one round an STV election
         """
         ##TODO:must change the way we pass winner_votes
-        remaining: list[str] = self.election_state.remaining
-        ballots: list[Ballot] = self.election_state.profile.get_ballots()
+        remaining: list[str] = self.state.remaining
+        ballots: list[Ballot] = self.state.profile.get_ballots()
         fp_votes = compute_votes(remaining, ballots)  ##fp means first place
         elected = []
         eliminated = []
 
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
-        if len(remaining) == self.seats - len(self.election_state.get_all_winners()):
+        if len(remaining) == self.seats - len(self.state.get_all_winners()):
             elected = [cand for cand, votes in fp_votes]
             remaining = []
             ballots = []
@@ -112,15 +104,15 @@ class STV:
             ballots = remove_cand(lp_cand, ballots)
             remaining.remove(lp_cand)
 
-        self.election_state = ElectionState(
-            curr_round=self.election_state.curr_round + 1,
+        self.state = ElectionState(
+            curr_round=self.state.curr_round + 1,
             elected=elected,
             eliminated=eliminated,
             remaining=remaining,
             profile=PreferenceProfile(ballots=ballots),
-            previous=self.election_state,
+            previous=self.state,
         )
-        return self.election_state
+        return self.state
 
     def run_election(self) -> ElectionState:
         """
@@ -134,7 +126,7 @@ class STV:
         while self.next_round():
             self.run_step()
 
-        return self.election_state
+        return self.state
 
 
 class Limited:
