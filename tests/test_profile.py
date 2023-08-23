@@ -68,7 +68,7 @@ def test_profile_equals():
     )
     assert profile1 == profile2
 
-    
+
 def test_create_df():
     profile = PreferenceProfile(
         ballots=[
@@ -76,7 +76,7 @@ def test_create_df():
             Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
         ]
     )
-    df = profile.create_df()
+    df = profile._create_df()
     assert len(df) == 2
 
 
@@ -87,7 +87,7 @@ def test_vote_share_with_zeros():
             Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(0)),
         ]
     )
-    df = profile.create_df()
+    df = profile._create_df()
     assert sum(df["Voter Share"]) == 0
 
 

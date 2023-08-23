@@ -12,7 +12,10 @@ class Simulation(ABC):
 
     *Attributes*
 
-        Ballots: PreferenceProfile or dictionary of ballot generators
+    `Ballots`
+    :   PreferenceProfile or dictionary of ballot generators
+
+    **Methods**
     """
 
     def __init__(self, ballots: Union[PreferenceProfile, dict, None] = None):

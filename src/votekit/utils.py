@@ -28,23 +28,27 @@ COLOR_LIST = [
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
 
-def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
+def compute_votes(
+    candidates: list, ballots: list[Ballot], place: int = 0
+) -> list[CandidateVotes]:
     """
     Computes first place votes for all candidates in a preference profile
+
+    :noindex:
     """
 
     votes = {}
     for candidate in candidates:
         weight = Fraction(0)
         for ballot in ballots:
-            if not ballot.ranking:
+            if not ballot.ranking or place > len(ballot.ranking) - 1:
                 continue
-            if len(ballot.ranking[0]) == 1:
-                if ballot.ranking[0] == {candidate}:
+            if len(ballot.ranking[place]) == 1:
+                if ballot.ranking[place] == {candidate}:
                     weight += ballot.weight
             else:
-                if candidate in ballot.ranking[0]:  # ties
-                    weight += ballot.weight / len(ballot.ranking[0])
+                if candidate in ballot.ranking[place]:  # ties
+                    weight += ballot.weight / len(ballot.ranking[place])
         votes[candidate] = weight
 
     ordered = [
@@ -56,19 +60,30 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
 
 
 def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int, place: int
 ) -> list[Ballot]:
     """
     Calculates fractional transfer from winner, then removes winner
     from the list of ballots
+
+    Args:
+        winner: Candidate whose votes are transfering from
+        ballots: List of Ballot objects
+        votes: Dictionary of candidates (keys) and current vote totals (values)
+        threhold: Value required for election
+
+    Returns:
+        Updated list of Ballots
     """
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
     for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
+        if place > len(ballot.ranking) - 1:
+            continue
+        if ballot.ranking and ballot.ranking[place] == {winner}:
             ballot.weight = ballot.weight * transfer_value
 
-    return remove_cand(winner, ballots)
+    return ballots
 
 
 def random_transfer(
@@ -76,6 +91,15 @@ def random_transfer(
 ) -> list[Ballot]:
     """
     Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
+
+    Args:
+        winner: Candidate whose votes are transfering from
+        ballots: List of Ballot objects
+        votes: Dictionary of candidates (keys) and current vote totals (values)
+        threhold: Value required for election
+
+    Returns:
+        Updated list of Ballots
     """
 
     # turn all of winner's ballots into (multiple) ballots of weight 1
@@ -111,6 +135,8 @@ def random_transfer(
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
     """
     Removes candidate from ballots
+
+    :noindex:
     """
     if isinstance(removed, str):
         remove_set = {removed}
@@ -140,7 +166,13 @@ def order_candidates_by_borda(candidate_set, candidate_borda):
 # Summmary Stat functions
 def first_place_votes(profile: PreferenceProfile) -> dict:
     """
-    Wrapper for compute_votes to call on PreferenceProfile
+    Calculates first place votes given a PrefrenceProfile
+
+    Args:
+        profile: An instance of a PrefrenceProfile object
+
+    Returns:
+        Dictionary of candidates and their first place vote values
     """
     cands = profile.get_candidates()
     ballots = profile.get_ballots()
@@ -150,7 +182,13 @@ def first_place_votes(profile: PreferenceProfile) -> dict:
 
 def mentions(profile: PreferenceProfile) -> dict:
     """
-    Calculates total mentions for a candidates
+    Calculates total mentions for candidates given a PreferenceProfile
+
+    Args:
+        profile: An instance of a PrefrenceProfile object
+
+    Returns:
+        Dictionary of candidates and their mention values
     """
     mentions: dict[str, float] = {}
 
@@ -173,6 +211,15 @@ def mentions(profile: PreferenceProfile) -> dict:
 def borda_scores(
     profile: PreferenceProfile, ballot_length=None, score_vector=None
 ) -> dict:
+    """
+    Calculates Borda scores for candidates given a PreferenceProfile
+
+    Args:
+        profile: An instance of a PrefrenceProfile object
+
+    Returns:
+        Dictionary of candidates and their Borda scores
+    """
     candidates = profile.get_candidates()
     if ballot_length is None:
         ballot_length = max([len(ballot.ranking) for ballot in profile.ballots])

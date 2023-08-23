@@ -8,16 +8,33 @@ pd.set_option("display.colheader_justify", "left")
 
 class ElectionState(BaseModel):
     """
-    curr_round (an Int): current round number
-    elected (a list of Candidate): candidates who pass a certain threshold to win an election
-    eliminated (a list of Candidate): candidates who were eliminated (lost in the election)
-    remaining (a list of Candidate): candidates who are still in the running
-    rankings (a list of a set of Candidate): ranking of candidates with sets representing ties
-    profile (a PreferenceProfile): a list of ballot types
-    (schedule preferences) and their frequency of times
-    winners_votes (a Dict of candidates and list of their ballots):
-    each winner's list of ballots that elected them
-    previous: an instance of Outcome representing the previous round
+    ElectionState class, contains results information for a round or entire
+    election
+
+    **Attributes**
+
+    `curr_round`
+    :   current round number
+
+    `elected`
+    :   candidates who pass a certain threshold to win an election
+    `
+    `eliminated`
+    :   candidates who were eliminated (lost in the election)
+
+    `remaining`
+    :   candidates who are still in the running
+
+    `rankings`
+    :   ranking of candidates with sets representing ties
+
+    `profile`
+    :   PreferenceProfile object corresponding to a given election/round
+
+    `previous`
+    :   an instance of ElectionState object representing the previous round
+
+    **Methods**
     """
 
     curr_round: int = 0
@@ -31,15 +48,16 @@ class ElectionState(BaseModel):
         allow_mutation = False
 
     def get_all_winners(self) -> list[str]:
-        """returns all winners from all rounds so far in order of first elected to last elected"""
+        """Gets all winners from all rounds so far in order of first elected to last elected"""
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
             return self.elected
 
     def get_all_eliminated(self) -> list[str]:
-        """returns all winners from all rounds so
-        far in order of last eliminated to first eliminated
+        """
+        Returns all winners from all rounds so far in order of last eliminated
+        to first eliminated
         """
         elim = self.eliminated.copy()
         elim.reverse()
@@ -48,13 +66,12 @@ class ElectionState(BaseModel):
         return elim
 
     def get_rankings(self) -> list[str]:
-        """returns all candidates in order of their ranking at the end of the current round"""
+        """Returns all candidates in order of their ranking at the end of the current round"""
 
         return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
-        # {'elected':list[str], 'eliminated':list[str]}
-        """returns a dictionary with elected and eliminated candidates"""
+        """Returns a dictionary with elected and eliminated candidates"""
         if self.curr_round == roundNum:
             return {"Elected": self.elected, "Eliminated": self.eliminated}
         elif self.previous:
@@ -63,7 +80,7 @@ class ElectionState(BaseModel):
             raise ValueError("Round number out of range")
 
     def changed_rankings(self) -> dict:
-        """returns dict of (key) string candidates who changed
+        """Returns dict of (key) string candidates who changed
         ranking from previous round and (value) a tuple of (prevRank, newRank)
         """
 
@@ -88,7 +105,7 @@ class ElectionState(BaseModel):
     def status(self) -> pd.DataFrame:
         """
         Returns dataframe displaying candidate, status (elected, eliminated,
-        remaining)
+        remaining), and round number
         """
         all_cands = self.get_rankings()
         status_df = pd.DataFrame(
@@ -109,6 +126,9 @@ class ElectionState(BaseModel):
         return status_df
 
     def __str__(self):
+        """
+        Displays the round or elections status
+        """
         show = self.status()
         # show["Round"] = show["Round"].astype(str).str.rjust(3)
         # show["Status"] = show["Status"].str.ljust(10)

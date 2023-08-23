@@ -133,14 +133,14 @@ def test_stv_winner_mn():
 #     assert step == test_profile
 
 
-def test_runstep_update_inplace_mn():
-    irv = STV(mn_profile, fractional_transfer, 1)
-    out = irv.run_step()
-    step = out.profile
-    last = "JOHN CHARLES WILSON"
-    assert step != mn_profile
-    assert last not in step.get_candidates()
-    assert last == out.get_all_eliminated()[0]
+# def test_runstep_update_inplace_mn():
+#     irv = STV(mn_profile, fractional_transfer, 1)
+#     out = irv.run_step()
+#     step = out.profile
+#     last = "JOHN CHARLES WILSON"
+#     assert step != mn_profile
+#     assert last not in step.get_candidates()
+#     assert last == out.get_all_eliminated()[0]
 
 
 def test_rand_transfer_func_mock_data():

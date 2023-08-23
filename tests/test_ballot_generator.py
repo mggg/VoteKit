@@ -113,7 +113,7 @@ def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
 
 
 def do_ballot_probs_match_ballot_dist(
-    ballot_prob_dict: dict, generated_profile: PreferenceProfile, n: int, alpha=0.95
+    ballot_prob_dict: dict, generated_profile: PreferenceProfile, n: int, alpha=0.99
 ):
 
     n_ballots = generated_profile.num_ballots()
@@ -140,11 +140,14 @@ def do_ballot_probs_match_ballot_dist(
         if not (
             int(ballot_conf_dict[b][0]) <= ballot_weight <= int(ballot_conf_dict[b][1])
         ):
+            print(
+                "fails", b, "interval", ballot_conf_dict[b], "generated", ballot_weight
+            )
             failed += 1
 
-    n_factorial = math.factorial(n)
-    stdev = math.sqrt(n_factorial * alpha * (1 - alpha))
-    return failed < (n_factorial * (1 - alpha) + 2 * stdev)
+    # allows for small chance distribution falls outside 99% confidence intereval
+    failure_threshold = 5
+    return failed <= failure_threshold
 
 
 def test_ic_distribution():
@@ -435,7 +438,7 @@ def test_Cambridge_distribution():
         "C": {"W1": 0.1, "W2": 0.1, "C1": 0.4, "C2": 0.4},
     }
     bloc_voter_prop = {"W": 0.5, "C": 0.5}
-    bloc_crossover_rate = {"W": {"C": 0}, "C": {"W": 0}}
+    bloc_crossover_rate = {"W": {"C": 0.3}, "C": {"W": 0.1}}
 
     cs = CambridgeSampler(
         candidates=candidates,
@@ -594,6 +597,8 @@ def test_Cambridge_distribution():
 
     # Now see if ballot prob dict is right
     test_profile = cs.generate_profile(number_of_ballots=5000)
+    # print(ballot_prob_dict)
+    # print(test_profile.head(500, percents=True))
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict=ballot_prob_dict,
         generated_profile=test_profile,

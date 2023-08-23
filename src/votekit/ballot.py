@@ -5,10 +5,21 @@ from fractions import Fraction
 
 class Ballot(BaseModel):
     """
-    id (optional string): assigned ballot id
-    ranking (list): list of candidate ranking
-    weight (float/fraction): weight assigned to a given a ballot
-    voters (optional list): list of voters who cast a given a ballot
+    Ballot class, contains ranking and assigned weight
+
+    **Attributes**
+
+    `id`
+    :   Optionally assigned ballot id
+
+    `ranking`
+    :   list of candidate ranking
+
+    `weight`
+    :   weight assigned to a given a ballot
+
+    `voters`
+    :   list of voters who cast a given a ballot
     """
 
     id: Optional[str] = None

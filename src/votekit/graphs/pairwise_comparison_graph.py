@@ -9,6 +9,10 @@ from .models import Graph
 
 
 class PairwiseComparisonGraph(Graph):
+    """
+    TODO:
+    """
+
     def __init__(self, profile: PreferenceProfile, ballot_length=None):
         self.ballot_length = ballot_length
         if ballot_length is None:

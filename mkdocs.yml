@@ -1,0 +1,57 @@
+site_name: VoteKit
+repo_url: https://github.com/mggg/VoteKit
+repo_name: mggg/VoteKit
+
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.sections
+    - content.tabs.link
+    - content.code.copy
+
+extra_css:
+  - stylesheets/extra.css
+
+# markdown_extensions:
+#   - admonition
+#   - pymdownx.highlight
+#   - pymdownx.tabbed:
+#       alternate_style: true 
+#   - pymdownx.superfences
+#   - mkdocs-click
+#   - toc:
+#       permalink: true
+
+plugins:
+- search
+- mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: True
+            show_root_full_path: false
+            show_root_toc_entry: false
+
+nav:
+  - User Guide:
+    - 'index.md'
+  - Reference:
+    - 'api.md'
