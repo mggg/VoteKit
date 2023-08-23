@@ -1,9 +1,10 @@
-from ..profile import PreferenceProfile
-from ..utils import COLOR_LIST
-from typing import Callable, Optional, Union, Any
 from abc import ABC, abstractmethod
-import networkx as nx  # type: ignore
 from functools import cache
+import networkx as nx  # type: ignore
+from typing import Callable, Optional, Union, Any
+
+from ..pref_profile import PreferenceProfile
+from ..utils import COLOR_LIST
 
 
 class Graph(ABC):
@@ -315,12 +316,3 @@ class BallotGraph(Graph):
     def compare_rcv_results(self, new_pref: PreferenceProfile):
         """compares election results of current and new profle"""
         raise NotImplementedError("Not yet built")
-
-
-class PairwiseGraph(Graph):
-    """
-    Add what Brenda's been working on here
-    """
-
-    def build_graph(self) -> nx.Graph:
-        pass

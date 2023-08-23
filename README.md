@@ -1,6 +1,26 @@
-## Development
+## VoteKit
 
-This project requires [`poetry`](https://python-poetry.org/docs/#installation), and Python >= 3.9. (This version chosen somewhat arbitrarily.)
+`VoteKit` ia a Swiss army knife for computational social choice research.
+
+**Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
+
+
+[![PyPI version](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
+[![Test badge](https://github.com/mggg/VoteKit/workflows/Test%20&%20Lint/badge.svg)]
+
+## Installation
+Votekit can be installed through any standard package management tool:
+
+    pip install votekit
+
+or
+
+    poetry add votekit
+
+## Development
+*This project is in active development* in the [mggg/VoteKit](https://github.com/mggg/VoteKit) GitHub repository, where bug reports and feature requests, as well as contributions, are welcome.
+
+VoteKit project requires [`poetry`](https://python-poetry.org/docs/#installation), and Python >= 3.9. (This version chosen somewhat arbitrarily.)
 
 To get up and running, run `poetry install` from within the project directory to install all dependencies. This will create a `.venv` directory that will contain dependencies. You can interact with this virtualenv by running your commands prefixed with `poetry run`, or use `poetry shell` to activate the virtualenv.
 

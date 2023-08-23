@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Union, Any
-from .profile import PreferenceProfile
-from .election_state import ElectionState
+
 from .ballot_generator import BallotGenerator
+from .election_state import ElectionState
+from .pref_profile import PreferenceProfile
 
 
 class Simulation(ABC):
