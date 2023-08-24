@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any
 from itertools import permutations
 import math
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
+from .election_state import ElectionState
 
 
 class Election(ABC):
@@ -14,8 +14,13 @@ class Election(ABC):
     Includes functions to resolve input ties included in PreferenceProfile
     """
 
-    def ___init__(self, profile: PreferenceProfile, *args: Any, **kwargs: Any):
-        self.profile = None
+    def __init__(self, profile: PreferenceProfile, ties: bool = False):
+        if ties:
+            self.__profile = profile
+        else:
+            self.__profile = self.resolve_input_ties(profile)
+
+        self.state = ElectionState(curr_round=0, profile=self.__profile)
 
     @abstractmethod
     def run_step(self):
@@ -44,7 +49,7 @@ class Election(ABC):
                         num_ties += 1
 
                 resolved_ties = fix_ties(ballot)
-                new_ballots += recursively_fix_ties(resolved_ties, num_ties=1)
+                new_ballots += recursively_fix_ties(resolved_ties, num_ties)
 
         return PreferenceProfile(ballots=new_ballots)
 
@@ -61,11 +66,11 @@ def recursively_fix_ties(ballot_lst: list[Ballot], num_ties: int) -> list[Ballot
 
     # in the event multiple positions have ties
     else:
-        updated_lst = []
+        update = set()
         for ballot in ballot_lst:
-            updated_lst += fix_ties(ballot)
+            update.update(set(fix_ties(ballot)))
 
-        return recursively_fix_ties(updated_lst, num_ties - 1)
+        return recursively_fix_ties(list(update), num_ties - 1)
 
 
 def fix_ties(ballot: Ballot) -> list[Ballot]:
@@ -75,7 +80,7 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
     """
 
     ballots = []
-    for idx, rank in ballot.ranking:
+    for idx, rank in enumerate(ballot.ranking):
         if len(rank) > 1:
             for order in permutations(rank):
                 resolved = []

@@ -44,3 +44,6 @@ class Ballot(BaseModel):
                 return False
 
         return True
+
+    def __hash__(self):
+        return hash(str(self.ranking))
