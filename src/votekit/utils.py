@@ -1,5 +1,4 @@
 from collections import namedtuple
-from copy import deepcopy
 from fractions import Fraction
 import random
 from typing import Union, Iterable
@@ -128,14 +127,21 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     elif isinstance(removed, Iterable):
         remove_set = set(removed)
 
-    update = deepcopy(ballots)
-    for n, ballot in enumerate(update):
+    update = []
+    for ballot in ballots:
         new_ranking = []
         for s in ballot.ranking:
             new_s = s.difference(remove_set)
-            if len(new_s) > 0:
+            if new_s:
                 new_ranking.append(new_s)
-        update[n].ranking = new_ranking
+        update.append(
+            Ballot(
+                id=ballot.id,
+                ranking=new_ranking,
+                weight=ballot.weight,
+                voter=ballot.voters,
+            )
+        )
 
     return update
 
