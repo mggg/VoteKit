@@ -76,11 +76,11 @@ class Election(ABC):
         self.state = ElectionState(curr_round=0, profile=self._profile)
 
     @abstractmethod
-    def run_step(self):
+    def run_step(self, *args: Any, **kwargs: Any):
         pass
 
     @abstractmethod
-    def run_election(self):
+    def run_election(self, *args: Any, **kwargs: Any):
         pass
 
     def resolve_input_ties(self, profile: PreferenceProfile) -> PreferenceProfile:
