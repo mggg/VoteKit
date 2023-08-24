@@ -33,7 +33,6 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
     """
     Computes first place votes for all candidates in a preference profile
     """
-
     votes = {}
     for candidate in candidates:
         weight = Fraction(0)

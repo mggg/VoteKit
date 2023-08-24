@@ -7,10 +7,11 @@ from votekit.ballot_generator import (
     BradleyTerry,
     AlternatingCrossover,
 )
-from votekit.models import Simulation
+from votekit.models import Simulation, fix_ties, recursively_fix_ties
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
-from votekit.election_base import fix_ties, recursively_fix_ties
+from votekit.election_types import STV
+from votekit.utils import fractional_transfer
 
 
 class DummyGenerated(Simulation):
@@ -56,15 +57,6 @@ def test_gen_with_real_data():
     params = {}
     with pytest.raises(TypeError):
         model.generate_ballots(num_ballots=10, candidates=cands, hyperparams=params)
-
-
-profile = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(4)),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(3)),
-        Ballot(ranking=[{"C"}, {"B"}], weight=Fraction(2)),
-    ]
-)
 
 
 def test_single_tie():
@@ -116,3 +108,40 @@ def test_all_ties():
         )
         in complete
     )
+
+
+def test_resolve_ties_STV():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(3)),
+            Ballot(ranking=[{"C", "A"}, {"B", "D"}], weight=Fraction(2)),
+        ]
+    )
+
+    election = STV(profile, seats=1, transfer=fractional_transfer, ties=True)
+    out = election.state.profile
+    correct = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(3)),
+            Ballot(ranking=[{"C"}, {"A"}, {"B"}, {"D"}], weight=Fraction(1, 2)),
+            Ballot(ranking=[{"C"}, {"A"}, {"D"}, {"B"}], weight=Fraction(1, 2)),
+            Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}], weight=Fraction(1, 2)),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}, {"D"}], weight=Fraction(1, 2)),
+        ]
+    )
+
+    assert correct == out
+    assert len(out.get_ballots()) == 5
+
+
+def test_allow_ties_STV():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(3)),
+            Ballot(ranking=[{"C", "A"}, {"B", "D"}], weight=Fraction(2)),
+        ]
+    )
+
+    election = STV(profile, seats=1, transfer=fractional_transfer, ties=False)
+    out = election.state.profile
+    assert profile == out
