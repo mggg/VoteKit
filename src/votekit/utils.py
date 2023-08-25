@@ -41,9 +41,6 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
             if len(ballot.ranking[0]) == 1:
                 if ballot.ranking[0] == {candidate}:
                     weight += ballot.weight
-            else:
-                if candidate in ballot.ranking[0]:  # ties
-                    weight += ballot.weight / len(ballot.ranking[0])
         votes[candidate] = weight
 
     ordered = [
@@ -64,8 +61,12 @@ def fractional_transfer(
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
     for ballot in ballots:
+        new_ranking = []
         if ballot.ranking and ballot.ranking[0] == {winner}:
             ballot.weight = ballot.weight * transfer_value
+            for cand in ballot.ranking:
+                if cand != {winner}:
+                    new_ranking.append(cand)
 
     return remove_cand(winner, ballots)
 
@@ -130,18 +131,34 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     update = []
     for ballot in ballots:
         new_ranking = []
-        for s in ballot.ranking:
-            new_s = s.difference(remove_set)
-            if new_s:
-                new_ranking.append(new_s)
-        update.append(
-            Ballot(
-                id=ballot.id,
-                ranking=new_ranking,
-                weight=ballot.weight,
-                voter=ballot.voters,
+        if len(remove_set) == 1 and remove_set in ballot.ranking:
+            for s in ballot.ranking:
+                new_s = s.difference(remove_set)
+                if new_s:
+                    new_ranking.append(new_s)
+            update.append(
+                Ballot(
+                    id=ballot.id,
+                    ranking=new_ranking,
+                    weight=ballot.weight,
+                    voter=ballot.voters,
+                )
             )
-        )
+        elif len(remove_set) > 1:
+            for s in ballot.ranking:
+                new_s = s.difference(remove_set)
+                if new_s:
+                    new_ranking.append(new_s)
+            update.append(
+                Ballot(
+                    id=ballot.id,
+                    ranking=new_ranking,
+                    weight=ballot.weight,
+                    voter=ballot.voters,
+                )
+            )
+        else:
+            update.append(ballot)
 
     return update
 
