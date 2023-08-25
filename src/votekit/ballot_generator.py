@@ -113,6 +113,7 @@ class BallotGenerator:
 
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
 
+    @classmethod
     def set_params(
         self,
         candidates: dict,  # add type error for list here
@@ -168,29 +169,26 @@ class BallotGenerator:
         self.bloc_crossover_rate = crossover
 
 
-class ImpartialCulture(BallotGenerator):
-    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidates, self.ballot_length)
-        # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
-        perm_rankings = [list(value) for value in perm_set]
-
-        ballot_pool = []
-
-        for _ in range(number_of_ballots):
-            index = np.random.randint(0, len(perm_rankings) - 1)
-            ballot_pool.append(perm_rankings[index])
-
-        return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+# inputs:
+# write ballot simplex generation
+# IC - alpha of infinity
+# IAC - alpha of 1
+# bloc election vs non bloc distinction
+# BallotSimplex
 
 
-class ImpartialAnonymousCulture(BallotGenerator):
+class BallotSimplex(BallotGenerator):
+    def __init__(self, alpha: float, **data):
+        self.alpha = alpha
+        super().__init__(**data)
+
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
 
         # IAC Process is equivalent to drawing from dirichlet dist with uniform parameters
-        draw_probabilities = np.random.dirichlet([1] * len(perm_rankings))
+        draw_probabilities = np.random.dirichlet([self.alpha] * len(perm_rankings))
 
         ballot_pool = []
 
@@ -201,6 +199,16 @@ class ImpartialAnonymousCulture(BallotGenerator):
             ballot_pool.append(perm_rankings[index])
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+
+
+class ImpartialCulture(BallotSimplex):
+    def __init__(self, **data):
+        super().__init__(alpha=1e10, **data)
+
+
+class ImpartialAnonymousCulture(BallotSimplex):
+    def __init__(self, **data):
+        super().__init__(alpha=1, **data)
 
 
 class PlackettLuce(BallotGenerator):
