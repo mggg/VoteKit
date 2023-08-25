@@ -180,6 +180,13 @@ class BallotGenerator:
 
 class BallotSimplex(BallotGenerator):
     def __init__(self, alpha: float = None, point: dict = None, **data):
+        """
+        Base class for ballot generation with a ballot simplex
+        Args:
+            alpha (float, optional): alpha parameter for ballot simplex. Defaults to None.
+            point (dict, optional): a point in the ballot simplex,
+            with candidate as keys and electoral support as values. Defaults to None.
+        """
         if alpha or point:
             self.alpha = alpha
             self.point = point
