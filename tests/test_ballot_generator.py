@@ -13,6 +13,7 @@ from votekit.ballot_generator import (
     AlternatingCrossover,
     CambridgeSampler,
     OneDimSpatial,
+    BallotSimplex,
 )
 from votekit.pref_profile import PreferenceProfile
 
@@ -165,6 +166,28 @@ def test_ic_distribution():
         candidates=candidates,
     ).generate_profile(number_of_ballots=number_of_ballots)
 
+    # Test
+    assert do_ballot_probs_match_ballot_dist(
+        ballot_prob_dict, generated_profile, len(candidates)
+    )
+
+
+def test_ballot_simplex_from_point():
+    number_of_ballots = 1000
+    ballot_length = 4
+    candidates = ["W1", "W2", "C1", "C2"]
+    pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
+
+    possible_rankings = it.permutations(candidates, ballot_length)
+    ballot_prob_dict = {
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
+    }
+
+    generated_profile = (
+        BallotSimplex()
+        .fromPoint(point=pt, ballot_length=ballot_length, candidates=candidates)
+        .generate_profile(number_of_ballots=number_of_ballots)
+    )
     # Test
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict, generated_profile, len(candidates)

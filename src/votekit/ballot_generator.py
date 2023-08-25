@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from functools import reduce
 import itertools as it
 from fractions import Fraction
 import math
@@ -178,17 +179,41 @@ class BallotGenerator:
 
 
 class BallotSimplex(BallotGenerator):
-    def __init__(self, alpha: float, **data):
-        self.alpha = alpha
-        super().__init__(**data)
+    def __init__(self, alpha: float = None, point: dict = None, **data):
+        if alpha or point:
+            self.alpha = alpha
+            self.point = point
+            super().__init__(**data)
+
+    @classmethod
+    def fromPoint(cls, point: dict, **data):
+        if sum(point.values()) != 1.0:
+            raise ValueError(
+                f"probability distribution from point ({point.values()}) does not sum to 1"
+            )
+        return cls(point=point, **data)
+
+    @classmethod
+    def fromAlpha(cls, alpha: float, **data):
+        return cls(alpha=alpha, **data)
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
-        # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
+
         perm_rankings = [list(value) for value in perm_set]
 
-        # IAC Process is equivalent to drawing from dirichlet dist with uniform parameters
-        draw_probabilities = np.random.dirichlet([self.alpha] * len(perm_rankings))
+        if self.alpha:
+            draw_probabilities = np.random.dirichlet([self.alpha] * len(perm_rankings))
+        elif self.point:
+            draw_probabilities = [
+                reduce(lambda prod, cand: prod * self.point[cand], ranking, 1.0)
+                for ranking in perm_rankings
+            ]
+            draw_probabilities = [
+                prob / sum(draw_probabilities) for prob in draw_probabilities
+            ]
+        else:
+            raise AttributeError("alpha or point needs to be initialized.")
 
         ballot_pool = []
 
