@@ -403,13 +403,6 @@ class AlternatingCrossover(BallotGenerator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        # if (
-        #     slate_to_candidates.keys()
-        #     != self.bloc_voter_prop.keys()
-        #     != self.pref_interval_by_bloc.keys()
-        # ):
-        #     raise ValueError("slates and blocs are not the same")
-
         self.slate_to_candidates = slate_to_candidates
         self.bloc_crossover_rate = bloc_crossover_rate
 
