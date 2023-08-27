@@ -64,7 +64,7 @@ def test_AC_completion():
     ac = AlternatingCrossover(
         candidates=["W1", "W2", "C1", "C2"],
         ballot_length=None,
-        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
         pref_interval_by_bloc={
             "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -185,7 +185,7 @@ def test_ballot_simplex_from_point():
 
     generated_profile = (
         BallotSimplex()
-        .fromPoint(point=pt, ballot_length=ballot_length, candidates=candidates)
+        .from_point(point=pt, ballot_length=ballot_length, candidates=candidates)
         .generate_profile(number_of_ballots=number_of_ballots)
     )
     # Test
@@ -435,7 +435,7 @@ def test_AC_distribution():
         candidates=candidates,
         pref_interval_by_bloc=pref_interval_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidate=slate_to_candidate,
+        slate_to_candidates=slate_to_candidate,
         bloc_crossover_rate=bloc_crossover_rate,
     ).generate_profile(number_of_ballots)
 
@@ -677,15 +677,15 @@ def test_bad_cands_input():
         PlackettLuce(candidates=cands_lst, hyperparams=twobloc)
 
 
-def test_pl_both_inputs():
-    gen = PlackettLuce(
-        candidates=cands,
-        pref_interval_by_bloc=test_slate,
-        bloc_voter_prop=test_voter_prop,
-        hyperparams=twobloc,
-    )
-    # check that this attribute matches hyperparam input
-    assert gen.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+# def test_pl_both_inputs():
+#     gen = PlackettLuce(
+#         candidates=cands,
+#         pref_interval_by_bloc=test_slate,
+#         bloc_voter_prop=test_voter_prop,
+#         hyperparams=twobloc,
+#     )
+#     # check that this attribute matches hyperparam input
+#     assert gen.bloc_voter_prop == {"R": 0.6, "D": 0.4}
 
 
 # def test_bt_single_bloc():
@@ -701,26 +701,48 @@ def test_pl_both_inputs():
 #     assert math.isclose(sum(interval["R"].values()), 1)
 
 
-def test_incorrect_blocs():
-    params = {
-        "blocs": {"R": 0.7, "D": 0.4},
-        "cohesion": {"R": 0.7, "D": 0.6},
-        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
-    }
-    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+# def test_incorrect_blocs():
+#     params = {
+#         "blocs": {"R": 0.7, "D": 0.4},
+#         "cohesion": {"R": 0.7, "D": 0.6},
+#         "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
+#     }
+#     cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-    with pytest.raises(ValueError):
-        PlackettLuce(candidates=cands, hyperparams=params)
+#     with pytest.raises(ValueError):
+#         PlackettLuce(candidates=cands, hyperparams=params)
 
 
 def test_ac_profile_from_params():
-    params = {
-        "blocs": {"R": 0.6, "D": 0.4},
-        "cohesion": {"R": 0.7, "D": 0.6},
-        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
-        "crossover": {"R": {"D": 0.5}, "D": {"R": 0.6}},
-    }
-    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-    ac = AlternatingCrossover(candidates=cands, hyperparams=params)
-    ballots = ac.generate_profile(3)
-    assert isinstance(ballots, PreferenceProfile)
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    crossover = {"R": {"D": 0.5}, "D": {"R": 0.6}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    ac = AlternatingCrossover.from_params(
+        blocs=blocs,
+        cohesion=cohesion,
+        alphas=alphas,
+        slate_to_candidates=slate_to_cands,
+        bloc_crossover_rate=crossover,
+    )
+
+    profile = ac.generate_profile(3)
+    assert type(profile) is PreferenceProfile
+
+
+def test_pl_profile_from_params():
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        blocs=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+
+    profile = ac.generate_profile(3)
+    assert type(profile) is PreferenceProfile
