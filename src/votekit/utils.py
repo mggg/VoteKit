@@ -32,16 +32,14 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
     """
     Computes first place votes for all candidates in a preference profile
     """
-    votes = {}
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if not ballot.ranking:
-                continue
-            if len(ballot.ranking[0]) == 1:
-                if ballot.ranking[0] == {candidate}:
-                    weight += ballot.weight
-        votes[candidate] = weight
+    votes = {cand: Fraction(0) for cand in candidates}
+
+    for ballot in ballots:
+        if not ballot.ranking:
+            continue
+        first_place_cand = unset(ballot.ranking[0])
+        if len(ballot.ranking[0]) == 1:  # add value error for ties
+            votes[first_place_cand] += ballot.weight
 
     ordered = [
         CandidateVotes(cand=key, votes=value)
@@ -141,7 +139,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
                     id=ballot.id,
                     ranking=new_ranking,
                     weight=ballot.weight,
-                    voter=ballot.voters,
+                    voters=ballot.voters,
                 )
             )
         elif len(remove_set) > 1:
@@ -154,7 +152,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
                     id=ballot.id,
                     ranking=new_ranking,
                     weight=ballot.weight,
-                    voter=ballot.voters,
+                    voters=ballot.voters,
                 )
             )
         else:
@@ -239,3 +237,16 @@ def borda_scores(
                 )
 
     return candidate_borda
+
+
+def unset(input: set):
+    """
+    Removes object from set. If set has length one returns the object,
+    else returns a list of the set
+    """
+    rv = list(input)
+
+    if len(rv) == 1:
+        return rv[0]
+
+    return rv
