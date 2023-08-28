@@ -128,21 +128,10 @@ def test_stv_winner_mn():
     assert winners == outcome.get_all_winners()
 
 
-# def test_runstep_seats_full_at_start():
-#     mock = STV(test_profile, fractional_transfer, 9)
-#     step = mock.__profile
-#     assert step == test_profile
-
-## TODO: design a better test for this or just remove
-
-# def test_runstep_update_inplace_mn():
-#     irv = STV(mn_profile, fractional_transfer, 1)
-#     out = irv.run_step()
-#     step = out.profile
-#     last = "JOHN CHARLES WILSON"
-#     assert step != mn_profile
-#     assert last not in step.get_candidates()
-#     assert last == out.get_all_eliminated()[0]
+def test_runstep_seats_full_at_start():
+    mock = STV(test_profile, fractional_transfer, 9, ties=False)
+    step = mock._profile
+    assert step == test_profile
 
 
 def test_rand_transfer_func_mock_data():
@@ -204,29 +193,6 @@ def test_plurality_multi_winner():
     election = Plurality(profile, seats=3)
     results = election.run_election()
     assert results.get_all_winners() == ["A", "C", "D"]
-
-
-# ---------------------------------------------------------------------------
-#                         Borda Election Tests
-# ---------------------------------------------------------------------------
-
-
-# def test_toy_Borda():
-#     known_winners = ["{'a'}", "{'d'}", "{'b'}", "{'c'}", "{'e'}"]
-#     ballot_list = [
-#         Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}, {"e"}], weight=Fraction(100)),
-#         Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(300)),
-#         Ballot(ranking=[{"d"}], weight=Fraction(400)),
-#     ]
-#     toy_pp = PreferenceProfile(ballots=ballot_list)
-#     borda_election = Borda(toy_pp, seats=5)
-#     toy_winners = borda_election.run_borda_election().get_all_winners()
-#     assert known_winners == toy_winners
-
-
-# ---------------------------------------------------------------------------
-#                        Sequential RCV Tests
-# ---------------------------------------------------------------------------
 
 
 def test_toy_rcv():
