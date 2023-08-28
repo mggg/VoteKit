@@ -38,7 +38,10 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
         if not ballot.ranking:
             continue
         first_place_cand = unset(ballot.ranking[0])
-        if len(ballot.ranking[0]) == 1:  # add value error for ties
+        if isinstance(first_place_cand, list):
+            for cand in first_place_cand:
+                votes[cand] += ballot.weight / len(first_place_cand)
+        else:
             votes[first_place_cand] += ballot.weight
 
     ordered = [
