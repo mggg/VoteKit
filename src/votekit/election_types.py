@@ -426,7 +426,11 @@ class Plurality(Election):
             profile=self._profile,
         )
 
-    run_election = run_step
+    def run_election(self) -> ElectionState:
+        """
+        Wrapper for run_step function
+        """
+        return self.run_step()
 
 
 class SequentialRCV(Election):

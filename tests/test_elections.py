@@ -115,14 +115,14 @@ def test_remove_and_shift():
 
 
 def test_irv_winner_mn():
-    irv = STV(mn_profile, fractional_transfer, 1)
+    irv = STV(mn_profile, fractional_transfer, 1, ties=False)
     outcome = irv.run_election()
     winner = "BETSY HODGES"
     assert [winner] == outcome.elected
 
 
 def test_stv_winner_mn():
-    irv = STV(mn_profile, fractional_transfer, 3)
+    irv = STV(mn_profile, fractional_transfer, 3, ties=False)
     outcome = irv.run_election()
     winners = ["BETSY HODGES", "MARK ANDREW", "DON SAMUELS"]
     assert winners == outcome.get_all_winners()
@@ -177,7 +177,7 @@ def test_plurality():
             Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
         ]
     )
-    election = Plurality(profile, seats=1, ties=True)
+    election = Plurality(profile, seats=1, ties=False)
     results = election.run_election()
     assert results.get_all_winners() == ["A"]
 
@@ -190,7 +190,7 @@ def test_plurality_multi_winner():
             Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
         ]
     )
-    election = Plurality(profile, seats=3)
+    election = Plurality(profile, seats=3, ties=False)
     results = election.run_election()
     assert results.get_all_winners() == ["A", "C", "D"]
 
@@ -212,6 +212,6 @@ def test_toy_rcv():
         Ballot(ranking=[{"d"}, {"c"}], weight=Fraction(601)),
     ]
     toy_pp = PreferenceProfile(ballots=ballot_list)
-    seq_RCV = SequentialRCV(profile=toy_pp, seats=2)
+    seq_RCV = SequentialRCV(profile=toy_pp, seats=2, ties=False)
     toy_winners = seq_RCV.run_election().get_all_winners()
     assert known_winners == toy_winners
