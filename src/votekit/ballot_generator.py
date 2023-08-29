@@ -35,7 +35,17 @@ class BallotGenerator:
 
         Args:
             candidates (list): list of candidates in the election
-            ballot_length (Optional[int]): length of ballots to generate
+            ballot_length (Optional[int]): length of ballots to generate.
+            Defaults to the length of candidates.
+            pref_interval_by_bloc (dict[dict], optional): a mapping of slate to preference interval
+            (ex. {race: {candidate : interval length}})
+            bloc_voter_prop (dict): a mapping of slate to voter proportions
+            (ex. {race: voter proportion}). Defaults to None.
+
+        Raises:
+            ValueError: if the voter proportion for blocs don't sum to 1
+            ValueError: if preference interval for candidates must sum to 1
+            ValueError: slates and blocs are not the same
         """
 
         self.ballot_length = (
@@ -43,7 +53,7 @@ class BallotGenerator:
         )
         self.candidates = candidates
 
-        if bloc_voter_prop and pref_interval_by_bloc:
+        if bloc_voter_prop and pref_interval_by_bloc:  # PL, BT, AC, CS
             if round(sum(bloc_voter_prop.values())) != 1:
                 raise ValueError("Voter proportion for blocs must sum to 1")
             for interval in pref_interval_by_bloc.values():
@@ -58,31 +68,36 @@ class BallotGenerator:
     @classmethod
     def from_params(
         cls,
-        slate_to_candidates: dict,  # add type error for list here
-        blocs: dict,
+        slate_to_candidates: dict,
+        bloc_voter_prop: dict,
         cohesion: dict,
         alphas: dict,
         **data,
     ):
         """
-        Creates a Ballot Generator by constructing a preference interval from parameters
+        Initializes a Ballot Generator by constructing a preference interval from parameters
 
         Args:
-            slate_to_candidates (dict): _description_
-            cohesion (dict): _description_
-            alphas (dict): _description_
+            slate_to_candidate (dict): a mapping of slate to candidates
+            (ex. {race: [candidate]})
+            bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc
+            (ex. {race: 0.5})
+            cohesion (dict): cohension factor for each bloc
+            alphas (dict): alpha for the dirchlet distribution of each bloc
 
         Raises:
-            ValueError: _description_
-            ValueError: _description_
+            ValueError: if the voter proportion for blocs don't sum to 1
+            ValueError: slates and blocs are not the same
 
         Returns:
-            _type_: _description_
+            BallotGenerator: initialized ballot generator
         """
 
-        if sum(blocs.values()) != 1.0:
-            raise ValueError(f"bloc proportions ({blocs.values()}) do not equal 1")
-        if slate_to_candidates.keys() != blocs.keys():
+        if sum(bloc_voter_prop.values()) != 1.0:
+            raise ValueError(
+                f"bloc proportions ({bloc_voter_prop.values()}) do not equal 1"
+            )
+        if slate_to_candidates.keys() != bloc_voter_prop.keys():
             raise ValueError("slates and blocs are not the same")
 
         def _construct_preference_interval(
@@ -103,7 +118,7 @@ class BallotGenerator:
             return intervals
 
         interval_by_bloc = {}
-        for bloc in blocs:
+        for bloc in bloc_voter_prop:
             interval = _construct_preference_interval(
                 alphas[bloc], cohesion[bloc], bloc, slate_to_candidates
             )
@@ -119,7 +134,7 @@ class BallotGenerator:
             data["pref_interval_by_bloc"] = interval_by_bloc
 
         if "bloc_voter_prop" not in data:
-            data["bloc_voter_prop"] = blocs
+            data["bloc_voter_prop"] = bloc_voter_prop
 
         generator = cls(**data)
 
@@ -275,9 +290,6 @@ class PlackettLuce(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-        # if not pref_interval_by_bloc:
-        #     self.pref_interval_by_bloc: dict = {}
-        #     self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -322,10 +334,6 @@ class BradleyTerry(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-
-        # if not pref_interval_by_bloc:
-        #     self.pref_interval_by_bloc: dict = {}
-        #     self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)

@@ -478,7 +478,7 @@ def test_setparams_pl():
 
     pl = PlackettLuce.from_params(
         slate_to_candidates=slate_to_cands,
-        blocs=blocs,
+        bloc_voter_prop=blocs,
         cohesion=cohesion,
         alphas=alphas,
     )
@@ -490,31 +490,6 @@ def test_setparams_pl():
     assert math.isclose(sum(interval["D"].values()), 1)
 
 
-def test_pl_both_inputs():
-
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": 0.7, "D": 0.6}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    cands_lst = ["A", "B", "C"]
-    test_slate = {"R": {"A1": 0.1, "B1": 0.5, "C1": 0.4}, "D": {"A2": 0.2, "B2": 0.5}}
-    test_voter_prop = {"R": 0.5, "D": 0.5}
-
-    gen = PlackettLuce.from_params(
-        candidates=cands_lst,
-        pref_interval_by_bloc=test_slate,
-        bloc_voter_prop=test_voter_prop,
-        slate_to_candidates=slate_to_cands,
-        blocs=blocs,
-        cohesion=cohesion,
-        alphas=alphas,
-    )
-    # bloc_voter_prop will be overridden by test_voter_prop
-    assert gen.bloc_voter_prop == test_voter_prop
-
-
 def test_bt_single_bloc():
     blocs = {"R": 0.6, "D": 0.4}
     cohesion = {"R": 0.7, "D": 0.6}
@@ -523,7 +498,7 @@ def test_bt_single_bloc():
 
     gen = BradleyTerry.from_params(
         slate_to_candidates=slate_to_cands,
-        blocs=blocs,
+        bloc_voter_prop=blocs,
         cohesion=cohesion,
         alphas=alphas,
     )
@@ -540,7 +515,7 @@ def test_incorrect_blocs():
     with pytest.raises(ValueError):
         PlackettLuce.from_params(
             slate_to_candidates=slate_to_cands,
-            blocs=blocs,
+            bloc_voter_prop=blocs,
             cohesion=cohesion,
             alphas=alphas,
         )
@@ -553,7 +528,7 @@ def test_ac_profile_from_params():
     crossover = {"R": {"D": 0.5}, "D": {"R": 0.6}}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
     ac = AlternatingCrossover.from_params(
-        blocs=blocs,
+        bloc_voter_prop=blocs,
         cohesion=cohesion,
         alphas=alphas,
         slate_to_candidates=slate_to_cands,
@@ -571,7 +546,7 @@ def test_pl_profile_from_params():
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
     ac = PlackettLuce.from_params(
-        blocs=blocs,
+        bloc_voter_prop=blocs,
         slate_to_candidates=slate_to_cands,
         cohesion=cohesion,
         alphas=alphas,
