@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
+from votekit.cvr_loaders import cvr_csv, cvr_blt  # type:ignore
 from votekit.election_types import STV, Plurality, SequentialRCV
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
@@ -19,13 +19,13 @@ DATA_DIR = BASE_DIR / "data/csv"
 BLT_DIR = BASE_DIR / "data/txt/"
 
 
-test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
-mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
+test_profile = cvr_csv(DATA_DIR / "ten_ballot.csv")
+mn_profile = cvr_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
 def test_droop_default_parameter():
 
-    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = cvr_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats)
 
@@ -36,7 +36,7 @@ def test_droop_default_parameter():
 
 def test_droop_inputed_parameter():
 
-    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = cvr_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats, quota="Droop")
 
@@ -47,7 +47,7 @@ def test_droop_inputed_parameter():
 
 def test_quota_misspelled_parameter():
 
-    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = cvr_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     with pytest.raises(ValueError):
         _ = STV(pp, fractional_transfer, seats=seats, quota="droops")
@@ -55,7 +55,7 @@ def test_quota_misspelled_parameter():
 
 def test_hare_quota():
 
-    pp, seats = blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = cvr_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats, quota="hare")
 

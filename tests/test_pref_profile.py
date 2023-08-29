@@ -2,7 +2,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import rank_column_csv
+from votekit.cvr_loaders import cvr_csv
 from votekit.election_types import remove_cand
 from votekit.pref_profile import PreferenceProfile
 
@@ -10,8 +10,8 @@ from votekit.pref_profile import PreferenceProfile
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv/"
 
-test_profile = rank_column_csv(DATA_DIR / "test_election_A.csv")
-mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
+test_profile = cvr_csv(DATA_DIR / "test_election_A.csv")
+mn_profile = cvr_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
 def test_unique_cands():

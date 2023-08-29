@@ -8,10 +8,8 @@ from typing import Optional
 from .pref_profile import PreferenceProfile
 from .ballot import Ballot
 
-# TODO: update documentation for function below
 
-
-def rank_column_csv(
+def cvr_csv(
     fpath: str,
     *,
     weight_col: Optional[int] = None,
@@ -76,7 +74,7 @@ def rank_column_csv(
     return PreferenceProfile(ballots=ballots)
 
 
-def blt(fpath: str) -> tuple[PreferenceProfile, int]:
+def cvr_blt(fpath: str) -> tuple[PreferenceProfile, int]:
     """
     Loads cast vote record from .blt file.
     blt is text-like format used for scottish election data
