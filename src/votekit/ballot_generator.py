@@ -92,14 +92,14 @@ class BallotGenerator:
             raise ValueError("slates and blocs are not the same")
 
         def _construct_preference_interval(
-            alphas: dict, cohesion: int, bloc: str, candidates: dict
+            alphas: dict, cohesion: int, bloc: str, slate_to_cands: dict
         ) -> dict:
             intervals = {}
 
             for group, alpha in alphas.items():
-                num_cands = len(candidates[group])
+                num_cands = len(slate_to_cands[group])
                 probs = list(np.random.dirichlet([alpha] * num_cands))
-                for prob, cand in zip(probs, candidates[group]):
+                for prob, cand in zip(probs, slate_to_cands[group]):
                     if group == bloc:  # e.g W for W cands
                         pi = cohesion
                     else:  # e.g W for POC cands
