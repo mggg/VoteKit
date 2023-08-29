@@ -224,9 +224,12 @@ class BallotSimplex(BallotGenerator):
                 np.random.dirichlet([self.alpha] * len(perm_rankings))
             )
         elif self.point:
-            probs = [self.point[cand] for cand in self.candidates]
             draw_probabilities = [
-                reduce(lambda prod, cand: prod * probs[cand], ranking, 1.0)
+                reduce(
+                    lambda prod, cand: prod * self.point[cand] if self.point else 0,
+                    ranking,
+                    1.0,
+                )
                 for ranking in perm_rankings
             ]
             draw_probabilities = [
@@ -321,8 +324,6 @@ class BradleyTerry(BallotGenerator):
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
-
-    # TODO: convert to dynamic programming method of calculation
 
     def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
         """
