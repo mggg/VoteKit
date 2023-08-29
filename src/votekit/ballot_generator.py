@@ -109,14 +109,19 @@ class BallotGenerator:
             )
             interval_by_bloc[bloc] = interval
 
-        cands = list({cand for cands in slate_to_candidates.values() for cand in cands})
+        if "candidates" not in data:
+            cands = list(
+                {cand for cands in slate_to_candidates.values() for cand in cands}
+            )
+            data["candidates"] = cands
 
-        generator = cls(
-            candidates=cands,
-            bloc_voter_prop=blocs,
-            pref_interval_by_bloc=interval_by_bloc,
-            **data,
-        )
+        if "pref_interval_by_bloc" not in data:
+            data["pref_interval_by_bloc"] = interval_by_bloc
+
+        if "bloc_voter_prop" not in data:
+            data["bloc_voter_prop"] = blocs
+
+        generator = cls(**data)
 
         if isinstance(generator, AlternatingCrossover) or isinstance(
             generator, CambridgeSampler
