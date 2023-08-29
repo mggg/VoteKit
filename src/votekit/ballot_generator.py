@@ -187,7 +187,9 @@ class BallotGenerator:
 
 
 class BallotSimplex(BallotGenerator):
-    def __init__(self, alpha: float = None, point: dict = None, **data):
+    def __init__(
+        self, alpha: Optional[float] = None, point: Optional[dict] = None, **data
+    ):
         """
         Base class for ballot generation with a ballot simplex
         Args:
@@ -218,10 +220,13 @@ class BallotSimplex(BallotGenerator):
         perm_rankings = [list(value) for value in perm_set]
 
         if self.alpha:
-            draw_probabilities = np.random.dirichlet([self.alpha] * len(perm_rankings))
+            draw_probabilities = list(
+                np.random.dirichlet([self.alpha] * len(perm_rankings))
+            )
         elif self.point:
+            probs = [self.point[cand] for cand in self.candidates]
             draw_probabilities = [
-                reduce(lambda prod, cand: prod * self.point[cand], ranking, 1.0)
+                reduce(lambda prod, cand: prod * probs[cand], ranking, 1.0)
                 for ranking in perm_rankings
             ]
             draw_probabilities = [
@@ -497,7 +502,7 @@ class OneDimSpatial(BallotGenerator):
 class CambridgeSampler(BallotGenerator):
     def __init__(
         self,
-        slate_to_candidate=None,
+        slate_to_candidates=None,
         bloc_crossover_rate=None,
         path: Optional[Path] = None,
         **data,
@@ -506,7 +511,7 @@ class CambridgeSampler(BallotGenerator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-        self.slate_to_candidate = slate_to_candidate
+        self.slate_to_candidates = slate_to_candidates
         self.bloc_crossover_rate = bloc_crossover_rate
 
         if path:
@@ -523,7 +528,7 @@ class CambridgeSampler(BallotGenerator):
 
         ballot_pool = []
 
-        blocs = self.slate_to_candidate.keys()
+        blocs = self.slate_to_candidates.keys()
         for bloc in blocs:
             # compute the number of voters in this bloc
             bloc_voters = self.round_num(self.bloc_voter_prop[bloc] * number_of_ballots)
@@ -593,10 +598,10 @@ class CambridgeSampler(BallotGenerator):
                     )
                 )
                 ordered_bloc_slate = [
-                    c for c in pl_ordering if c in self.slate_to_candidate[bloc]
+                    c for c in pl_ordering if c in self.slate_to_candidates[bloc]
                 ]
                 ordered_opp_slate = [
-                    c for c in pl_ordering if c in self.slate_to_candidate[opp_bloc]
+                    c for c in pl_ordering if c in self.slate_to_candidates[opp_bloc]
                 ]
 
                 # Fill in the bloc slots as determined

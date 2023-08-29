@@ -87,7 +87,7 @@ def test_Cambridge_completion():
     cs = CambridgeSampler(
         candidates=["W1", "W2", "C1", "C2"],
         ballot_length=None,
-        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
         pref_interval_by_bloc={
             "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
