@@ -60,6 +60,11 @@ class BallotGenerator:
                 raise TypeError(
                     "'candidates' must be dictionary when hyperparameters are set"
                 )
+        else:
+            self.slate_to_candidate = {}
+            self.pref_interval_by_bloc: dict = {}
+            self.bloc_voter_prop: dict = {}
+            self.bloc_crossover_rate: dict = {}
 
     @abstractmethod
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
@@ -115,7 +120,7 @@ class BallotGenerator:
 
     @classmethod
     def set_params(
-        self,
+        cls,
         candidates: dict,  # add type error for list here
         blocs: dict,
         cohesion: dict,
@@ -164,9 +169,9 @@ class BallotGenerator:
             )
             interval_by_bloc[bloc] = interval
 
-        self.pref_interval_by_bloc = interval_by_bloc
-        self.bloc_voter_prop = blocs
-        self.bloc_crossover_rate = crossover
+        cls.pref_interval_by_bloc = interval_by_bloc
+        cls.bloc_voter_prop = blocs
+        cls.bloc_crossover_rate = crossover
 
 
 # inputs:
@@ -222,10 +227,6 @@ class PlackettLuce(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-        if not pref_interval_by_bloc:
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -282,10 +283,6 @@ class BradleyTerry(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-
-        if not pref_interval_by_bloc:
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -388,11 +385,6 @@ class AlternatingCrossover(BallotGenerator):
             bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc
             (ex. {race: {other_race: 0.5}})
         """
-        if not pref_interval_by_bloc:
-            self.slate_to_candidate: dict = {}
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
-            self.bloc_crossover_rate: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -514,11 +506,7 @@ class CambridgeSampler(BallotGenerator):
         path: Optional[Path] = None,
         **data,
     ):
-        if not pref_interval_by_bloc:
-            self.slate_to_candidate: dict = {}
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
-            self.bloc_crossover_rate: dict = {}
+
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
