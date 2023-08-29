@@ -5,6 +5,7 @@ import random
 from typing import Callable, Optional
 
 from .ballot import Ballot
+from .models import Election
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from .pref_profile import PreferenceProfile
@@ -18,7 +19,7 @@ from .utils import (
 )
 
 
-class STV:
+class STV(Election):
     """
     Class for single-winner IRV and multi-winner STV elections
     """
@@ -29,36 +30,27 @@ class STV:
         transfer: Callable,
         seats: int,
         quota: str = "droop",
+        ties: bool = True,
     ):
         """
         profile (PreferenceProfile): initial perference profile
         transfer (function): vote transfer method such as fractional transfer
         seats (int): number of winners/size of committee
         """
-        self.__profile = profile
+        # let parent class handle the og profile and election state
+        super().__init__(profile, ties)
+
         self.transfer = transfer
         self.seats = seats
-        self.election_state = ElectionState(
-            curr_round=0,
-            elected=[],
-            eliminated=[],
-            remaining=[
-                cand
-                for cand, votes in compute_votes(
-                    profile.get_candidates(), profile.get_ballots()
-                )
-            ],
-            profile=profile,
-        )
         self.threshold = self.get_threshold(quota)
 
     # can cache since it will not change throughout rounds
     def get_threshold(self, quota: str) -> int:
         quota = quota.lower()
         if quota == "droop":
-            return int(self.__profile.num_ballots() / (self.seats + 1) + 1)
+            return int(self._profile.num_ballots() / (self.seats + 1) + 1)
         elif quota == "hare":
-            return int(self.__profile.num_ballots() / self.seats)
+            return int(self._profile.num_ballots() / self.seats)
         else:
             raise ValueError("Misspelled or unknown quota type")
 
@@ -66,29 +58,29 @@ class STV:
         """
         Determines if the number of seats has been met to call election
         """
-        return len(self.election_state.get_all_winners()) != self.seats
+        return len(self.state.get_all_winners()) != self.seats
 
     def run_step(self) -> ElectionState:
         """
         Simulates one round an STV election
         """
         ##TODO:must change the way we pass winner_votes
-        remaining: list[str] = self.election_state.remaining
-        ballots: list[Ballot] = self.election_state.profile.get_ballots()
+        remaining: list[str] = self.state.profile.get_candidates()
+        ballots: list[Ballot] = self.state.profile.get_ballots()
         fp_votes = compute_votes(remaining, ballots)  ##fp means first place
         elected = []
         eliminated = []
 
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
-        if len(remaining) == self.seats - len(self.election_state.get_all_winners()):
+        if len(remaining) == self.seats - len(self.state.get_all_winners()):
             elected = [cand for cand, votes in fp_votes]
             remaining = []
             ballots = []
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[0][1] >= self.threshold:
+        elif fp_votes[0].votes >= self.threshold:
             for candidate, votes in fp_votes:
                 if votes >= self.threshold:
                     elected.append(candidate)
@@ -112,15 +104,15 @@ class STV:
             ballots = remove_cand(lp_cand, ballots)
             remaining.remove(lp_cand)
 
-        self.election_state = ElectionState(
-            curr_round=self.election_state.curr_round + 1,
+        self.state = ElectionState(
+            curr_round=self.state.curr_round + 1,
             elected=elected,
             eliminated=eliminated,
             remaining=remaining,
             profile=PreferenceProfile(ballots=ballots),
-            previous=self.election_state,
+            previous=self.state,
         )
-        return self.election_state
+        return self.state
 
     def run_election(self) -> ElectionState:
         """
@@ -134,12 +126,14 @@ class STV:
         while self.next_round():
             self.run_step()
 
-        return self.election_state
+        return self.state
 
 
-class Limited:
-    def __init__(self, profile: PreferenceProfile, seats: int, k: int):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class Limited(Election):
+    def __init__(
+        self, profile: PreferenceProfile, seats: int, k: int, ties: bool = True
+    ):
+        super().__init__(profile, ties)
         self.seats = seats
         self.k = k
 
@@ -207,9 +201,9 @@ class Limited:
         return outcome
 
 
-class Bloc:
-    def __init__(self, profile: PreferenceProfile, seats: int):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class Bloc(Election):
+    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
+        super().__init__(profile, ties)
         self.seats = seats
 
     """Bloc: This rule returns the m candidates with the highest m-approval scores. 
@@ -228,9 +222,9 @@ class Bloc:
         return outcome
 
 
-class SNTV:
-    def __init__(self, profile: PreferenceProfile, seats: int):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class SNTV(Election):
+    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
+        super().__init__(profile, ties)
         self.seats = seats
 
     """Single nontransferable vote (SNTV): SNTV returns k candidates with the highest
@@ -246,11 +240,16 @@ class SNTV:
         return outcome
 
 
-class SNTV_STV_Hybrid:
+class SNTV_STV_Hybrid(Election):
     def __init__(
-        self, profile: PreferenceProfile, transfer: Callable, r1_cutoff: int, seats: int
+        self,
+        profile: PreferenceProfile,
+        transfer: Callable,
+        r1_cutoff: int,
+        seats: int,
+        ties: bool = True,
     ):
-        self.state = ElectionState(curr_round=0, profile=profile)
+        super().__init__(profile, ties)
         self.transfer = transfer
         self.r1_cutoff = r1_cutoff
         self.seats = seats
@@ -310,9 +309,9 @@ class SNTV_STV_Hybrid:
         return outcome  # type: ignore
 
 
-class TopTwo:
-    def __init__(self, profile: PreferenceProfile):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class TopTwo(Election):
+    def __init__(self, profile: PreferenceProfile, ties: bool = True):
+        super().__init__(profile, ties)
 
     """Top Two: Top two eliminates all but the top two plurality vote getters,
     and then conducts a runoff between them, reallocating other ballots."""
@@ -334,9 +333,9 @@ class TopTwo:
         return outcome
 
 
-class DominatingSets:
-    def __init__(self, profile: PreferenceProfile):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class DominatingSets(Election):
+    def __init__(self, profile: PreferenceProfile, ties: bool = True):
+        super().__init__(profile, ties)
 
     """Dominating sets: Return the tiers of candidates by dominating set,
     which is a set of candidates such that every candidate in the set wins 
@@ -370,9 +369,9 @@ class DominatingSets:
         return outcome
 
 
-class CondoBorda:
-    def __init__(self, profile: PreferenceProfile, seats: int):
-        self.state = ElectionState(curr_round=0, profile=profile)
+class CondoBorda(Election):
+    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
+        super().__init__(profile, ties)
         self.seats = seats
 
     """Condo-Borda: Condo-Borda returns candidates ordered by dominating set,
@@ -401,33 +400,22 @@ class CondoBorda:
         return outcome
 
 
-class Plurality:
+class Plurality(Election):
     """
     Single or multi-winner plurality election
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int):
+    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
+
+        super().__init__(profile, ties)
         self.seats = seats
-        self.election_state = ElectionState(
-            curr_round=0,
-            elected=[],
-            eliminated=[],
-            remaining=[
-                cand
-                for cand, votes in compute_votes(
-                    profile.get_candidates(), profile.get_ballots()
-                )
-            ],
-            profile=profile,
-        )
-        self.__profile = profile
 
     def run_step(self):
         """
         Simulate 'step' of a plurarity election
         """
-        candidates = self.__profile.get_candidates()
-        ballots = self.__profile.get_ballots()
+        candidates = self._profile.get_candidates()
+        ballots = self._profile.get_ballots()
         results = compute_votes(candidates, ballots)
 
         return ElectionState(
@@ -435,38 +423,31 @@ class Plurality:
             elected=[result.cand for result in results[: self.seats]],
             eliminated=[result.cand for result in results[self.seats :]],
             remaining=[],
-            profile=self.__profile,
+            profile=self._profile,
         )
 
     run_election = run_step
 
 
-class SequentialRCV:
+class SequentialRCV(Election):
     """
     class to run Sequential RCV election
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int):
+    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
         """
         profile (PreferenceProfile): initial perference profile
         seats (int): number of winners/size of committee
         """
+        super().__init__(profile, ties)
         self.seats = seats
-        self.profile = profile
-        self.election_state = ElectionState(
-            curr_round=0,
-            elected=[],
-            eliminated=[],
-            remaining=[],
-            profile=profile,
-        )
 
     def run_step(self, old_profile: PreferenceProfile) -> ElectionState:
         """
         Simulates a single step of the sequential RCV contest
         which is a full IRV election run on the current set of candidates
         """
-        old_election_state = self.election_state
+        old_election_state = self.state
 
         IRVrun = STV(old_profile, transfer=seqRCV_transfer, seats=1)
         old_election = IRVrun.run_election()
@@ -478,23 +459,23 @@ class SequentialRCV:
         # Updates profile with removed candidates
         updated_profile = PreferenceProfile(ballots=updated_ballots)
 
-        self.election_state = ElectionState(
+        self.state = ElectionState(
             curr_round=old_election_state.curr_round + 1,
             elected=list(elected_cand),
             profile=updated_profile,
             previous=old_election_state,
             remaining=old_election.remaining,
         )
-        return self.election_state
+        return self.state
 
     def run_election(self) -> ElectionState:
         """
         Simulates a complete sequential RCV contest.
         Will run rounds of elections until elected seats fill
         """
-        old_profile = self.profile
+        old_profile = self._profile
         elected = []  # type: ignore
-        seqRCV_step = self.election_state
+        seqRCV_step = self.state
 
         while len(elected) < self.seats:
             seqRCV_step = self.run_step(old_profile)
@@ -503,14 +484,15 @@ class SequentialRCV:
         return seqRCV_step
 
 
-class Borda:
+class Borda(Election):
     def __init__(
         self,
         profile: PreferenceProfile,
         seats: int,
         score_vector: Optional[list[Fraction]],
+        ties: bool = True,
     ):
-        self.state = ElectionState(curr_round=0, profile=profile)
+        super().__init__(profile, ties)
         self.seats = seats
         self.score_vector = score_vector
 

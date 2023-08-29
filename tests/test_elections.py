@@ -187,7 +187,7 @@ def test_plurality():
             Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
         ]
     )
-    election = Plurality(profile, seats=1)
+    election = Plurality(profile, seats=1, ties=True)
     results = election.run_election()
     assert results.get_all_winners() == ["A"]
 
