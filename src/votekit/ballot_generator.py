@@ -14,15 +14,6 @@ from .pref_profile import PreferenceProfile
 
 
 class BallotGenerator:
-
-    # cand is a set
-    # number_of_ballots: int
-    # candidates: list
-    # ballot_length: Optional[int]
-    # slate_to_candidate: Optional[dict]  # race: [candidate]
-    # pref_interval_by_bloc: Optional[dict] = None  # race: {candidate : interval length}
-    # demo_breakdown: Optional[dict] = None  # race: percentage
-
     def __init__(
         self,
         candidates: list,
