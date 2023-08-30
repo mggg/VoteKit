@@ -1,6 +1,6 @@
+from fractions import Fraction
 from pydantic import BaseModel
 from typing import Optional
-from fractions import Fraction
 
 
 class Ballot(BaseModel):
@@ -54,3 +54,6 @@ class Ballot(BaseModel):
                 return False
 
         return True
+
+    def __hash__(self):
+        return hash(str(self.ranking))

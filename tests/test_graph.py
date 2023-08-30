@@ -1,9 +1,10 @@
-from votekit.graphs.ballot_graph import BallotGraph
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
 from fractions import Fraction
-import pytest
 import networkx as nx
+import pytest
+
+from votekit.ballot import Ballot
+from votekit.graphs.base_graph import BallotGraph
+from votekit.pref_profile import PreferenceProfile
 
 
 three_cand = PreferenceProfile(

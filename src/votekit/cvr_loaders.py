@@ -1,11 +1,12 @@
-import pandas as pd
-import pathlib
-import os
-from typing import Optional
-from .profile import PreferenceProfile
-from .ballot import Ballot
-from pandas.errors import EmptyDataError, DataError
 from fractions import Fraction
+import os
+import pandas as pd
+from pandas.errors import EmptyDataError, DataError
+import pathlib
+from typing import Optional
+
+from .pref_profile import PreferenceProfile
+from .ballot import Ballot
 
 # TODO: update documentation for function below
 

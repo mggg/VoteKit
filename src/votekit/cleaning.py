@@ -1,18 +1,18 @@
-from .profile import PreferenceProfile
-from .ballot import Ballot
 from copy import deepcopy
-from typing import Callable
-from itertools import groupby
-from functools import reduce
 from fractions import Fraction
+from functools import reduce
+from itertools import groupby
+from typing import Callable
+
+from .pref_profile import PreferenceProfile
+from .ballot import Ballot
 
 
 def remove_empty_ballots(
     pp: PreferenceProfile, keep_candidates: bool = False
 ) -> PreferenceProfile:
     """
-    Given a preference profile, return the same preference profile except for
-    the empty ballots (those that no voter cast).
+    Removes empty ballots from a preference profile.
     :param pp: :class:`PreferenceProfile`
     :param keep_candidates: optional :class:`bool` If True, keep all of the
     candidates from the original preference profile in the returned preference
@@ -23,13 +23,11 @@ def remove_empty_ballots(
     ballots_nonempty = [
         deepcopy(ballot) for ballot in pp.get_ballots() if ballot.ranking
     ]
-
     if keep_candidates:
         old_cands = deepcopy(pp.get_candidates())
         pp_clean = PreferenceProfile(ballots=ballots_nonempty, candidates=old_cands)
     else:
         pp_clean = PreferenceProfile(ballots=ballots_nonempty)
-
     return pp_clean
 
 
@@ -46,20 +44,16 @@ def _clean(
     :return: A cleaned preference profile
     :rtype: :class:`PreferenceProfile`
     """
-
     # apply cleaning function to clean all ballots
     if clean_ballot_func is not None:
         cleaned = map(clean_ballot_func, pp.ballots)
-
     # group ballots that have the same ranking after cleaning
     grouped_ballots = [
         list(result)
         for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
     ]
-
     # merge ballots in the same groups
     new_ballots = [merge_ballots(b) for b in grouped_ballots]
-
     return PreferenceProfile(ballots=new_ballots)
 
 
@@ -82,7 +76,7 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
 
 
 # TODO: Brenda will replace this function with the function she wrote,
-# TODO: change to keep ranks so that we'll have None
+# TODO: change to keep ranks so that we’ll have None
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
     """
     Given a preference profile, deduplicates its ballots.
@@ -162,13 +156,10 @@ def remove_noncands(
         for ballot in profile.ballots
         if remove_from_ballots(ballot, non_cands).ranking
     ]
-
     grouped_ballots = [
         list(result)
         for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
     ]
-
     # merge ballots in the same groups
     new_ballots = [merge_ballots(b) for b in grouped_ballots]
-
     return PreferenceProfile(ballots=new_ballots)

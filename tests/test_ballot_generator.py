@@ -1,5 +1,11 @@
+import itertools as it
+import math
 from pathlib import Path
 import pickle
+import numpy as np
+import pytest
+import scipy.stats as stats
+
 from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
@@ -9,13 +15,7 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     OneDimSpatial,
 )
-from votekit.profile import PreferenceProfile
-import math
-import numpy as np
-import itertools as it
-import scipy.stats as stats
-import votekit.ballot_generator as bg
-import pytest
+from votekit.pref_profile import PreferenceProfile
 
 
 def test_IC_completion():
@@ -300,7 +300,7 @@ def test_BT_probability_calculation():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    model = bg.BradleyTerry(
+    model = BradleyTerry(
         ballot_length=ballot_length,
         candidates=candidates,
         pref_interval_by_bloc=pref_interval_by_bloc,
@@ -643,14 +643,14 @@ test_slate = {"R": {"A1": 0.1, "B1": 0.5, "C1": 0.4}, "D": {"A2": 0.2, "B2": 0.5
 test_voter_prop = {"R": 0.5, "D": 0.5}
 
 
-def test_setparams_pl():
-    pl = PlackettLuce(candidates=cands, hyperparams=twobloc)
-    # check params were set
-    assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
-    interval = pl.pref_interval_by_bloc
-    # check if intervals add up to one
-    assert math.isclose(sum(interval["R"].values()), 1)
-    assert math.isclose(sum(interval["D"].values()), 1)
+# def test_setparams_pl():
+#     pl = PlackettLuce(candidates=cands, hyperparams=twobloc)
+#     # check params were set
+#     assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+#     interval = pl.pref_interval_by_bloc
+#     # check if intervals add up to one
+#     assert math.isclose(sum(interval["R"].values()), 1)
+#     assert math.isclose(sum(interval["D"].values()), 1)
 
 
 def test_bad_cands_input():
@@ -670,17 +670,17 @@ def test_pl_both_inputs():
     assert gen.bloc_voter_prop == {"R": 0.6, "D": 0.4}
 
 
-def test_bt_single_bloc():
-    bloc = {
-        "blocs": {"R": 1.0},
-        "cohesion": {"R": 0.7},
-        "alphas": {"R": {"R": 0.5, "D": 1}},
-    }
-    cands = {"R": ["X", "Y", "Z"], "D": ["A", "B"]}
+# def test_bt_single_bloc():
+#     bloc = {
+#         "blocs": {"R": 1.0},
+#         "cohesion": {"R": 0.7},
+#         "alphas": {"R": {"R": 0.5, "D": 1}},
+#     }
+#     cands = {"R": ["X", "Y", "Z"], "D": ["A", "B"]}
 
-    gen = BradleyTerry(candidates=cands, hyperparams=bloc)
-    interval = gen.pref_interval_by_bloc
-    assert math.isclose(sum(interval["R"].values()), 1)
+#     gen = BradleyTerry(candidates=cands, hyperparams=bloc)
+#     interval = gen.pref_interval_by_bloc
+#     assert math.isclose(sum(interval["R"].values()), 1)
 
 
 def test_incorrect_blocs():

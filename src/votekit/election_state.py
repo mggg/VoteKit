@@ -1,9 +1,8 @@
-from pydantic import BaseModel
-from .profile import PreferenceProfile
-from typing import Optional
 import pandas as pd
+from pydantic import BaseModel
+from typing import Optional
 
-pd.set_option("display.colheader_justify", "left")
+from .pref_profile import PreferenceProfile
 
 
 class ElectionState(BaseModel):
@@ -48,7 +47,10 @@ class ElectionState(BaseModel):
         allow_mutation = False
 
     def get_all_winners(self) -> list[str]:
-        """Gets all winners from all rounds so far in order of first elected to last elected"""
+        """
+        Returns a list of elected candidates ordered from first round to current round.
+        :rtype: :class:`list[str]`
+        """
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
@@ -56,8 +58,8 @@ class ElectionState(BaseModel):
 
     def get_all_eliminated(self) -> list[str]:
         """
-        Returns all winners from all rounds so far in order of last eliminated
-        to first eliminated
+        Returns a list of eliminated candidates ordered from current round to first round
+        :rtype: :class:`list[str]`
         """
         elim = self.eliminated.copy()
         elim.reverse()
@@ -66,12 +68,19 @@ class ElectionState(BaseModel):
         return elim
 
     def get_rankings(self) -> list[str]:
-        """Returns all candidates in order of their ranking at the end of the current round"""
+        """
+        Returns list of all candidates in order of their ranking after each round
+        :rtype: :class:`list[str]`
+        """
 
         return self.get_all_winners() + self.remaining + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
-        """Returns a dictionary with elected and eliminated candidates"""
+        # {'elected':list[str], 'eliminated':list[str]}
+        """
+        returns a dictionary with elected and eliminated candidates
+        :rtype: :class:`dict`
+        """
         if self.curr_round == roundNum:
             return {"Elected": self.elected, "Eliminated": self.eliminated}
         elif self.previous:
@@ -80,8 +89,10 @@ class ElectionState(BaseModel):
             raise ValueError("Round number out of range")
 
     def changed_rankings(self) -> dict:
-        """Returns dict of (key) string candidates who changed
-        ranking from previous round and (value) a tuple of (prevRank, newRank)
+        """
+        Returns dict of (key) string candidates who changed
+        ranking from previous round and (value) a tuple of (previous rank, new rank)
+        :rtype: :class:`dict`
         """
 
         if not self.previous:
@@ -105,7 +116,8 @@ class ElectionState(BaseModel):
     def status(self) -> pd.DataFrame:
         """
         Returns dataframe displaying candidate, status (elected, eliminated,
-        remaining), and round number
+        remaining)
+        :rtype: :class:`DataFrame`
         """
         all_cands = self.get_rankings()
         status_df = pd.DataFrame(
@@ -135,37 +147,3 @@ class ElectionState(BaseModel):
         return show.to_string(index=False, justify="justify")
 
     __repr__ = __str__
-
-    ###############################################################################################
-
-    # def add_winners_and_losers(self, winners: set[str], losers: set[str]) -> "Outcome":
-    #   # example method, feel free to delete if not useful
-    #  if not winners.issubset(self.remaining) or not losers.issubset(self.remaining):
-    #     missing = (winners.difference(set(self.remaining)) |
-    # (losersdifference(set(self.remaining)))
-    #     raise ValueError(f"Cannot promote winners, {missing} not in remaining")
-    # return Outcome(
-    #     remaining=set(self.remaining).difference(winners | losers),
-    #     elected=list(set(self.elected) | winners)
-    #     eliminated=list(set(self.eliminated) | losers)
-    # )
-
-    #   def difference_remaining_candidates(
-    #       self, prevOutcome1: "Outcome", prevOutcome2: "Outcome"
-    #   ) -> float:
-    #       """returns the fractional difference in number of
-    #       remaining candidates; assumes ballots don't change by round
-    #       """
-    #       if (not prevOutcome1.get_profile()) or (not prevOutcome2.get_profile()):
-    #           raise ValueError("Profile missing")
-    # check if from same conshow
-    #        elif set(prevOutcome1.get_profile().ballots) != set(
-    #            prevOutcome2.get_profile().ballots
-    #        ):
-    #            raise ValueError("Cannot compare outcomes from different elections")
-    #
-    #        remaining_diff = len(
-    #            (set(prevOutcome1.remaining)).difference(prevOutcome2.remaining)
-    #        )
-    #        allcandidates = len(prevOutcome1.get_profile().get_candidates())
-    #        return remaining_diff / allcandidates

@@ -1,6 +1,6 @@
-from typing import Any
 from abc import ABC, abstractmethod
 import networkx as nx  # type: ignore
+from typing import Any
 
 
 class Graph(ABC):

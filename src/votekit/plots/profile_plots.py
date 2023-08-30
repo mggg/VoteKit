@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt  # type: ignore
-from ..profile import PreferenceProfile
+from ..pref_profile import PreferenceProfile
 from ..utils import first_place_votes, mentions, COLOR_LIST, borda_scores
 from matplotlib.figure import Figure  # type: ignore
 

@@ -1,7 +1,9 @@
-from votekit.utils import mentions, first_place_votes, borda_scores
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
 from fractions import Fraction
+
+from votekit.utils import mentions, first_place_votes, borda_scores
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
+
 
 profile = PreferenceProfile(
     ballots=[

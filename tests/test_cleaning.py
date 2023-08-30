@@ -1,7 +1,8 @@
-from votekit.profile import PreferenceProfile
+from fractions import Fraction
+
+from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_empty_ballots, deduplicate_profiles, remove_noncands
-from fractions import Fraction
 
 
 def test_remove_empty_ballots():

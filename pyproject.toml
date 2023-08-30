@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "votekit"
-version = "0.0.0"
+version = "0.1.1"
 description = "A Swiss Army Knife for computational social choice research"
 authors = ["MGGG <engineering@mggg.org>"]
 readme = "README.md"
@@ -12,6 +12,8 @@ pandas = "^2.0.2"
 mypy = "^1.4.1"
 pydantic = "^1.10.9"
 pandas-stubs = "^2.0.2.230605"
+scikit-learn = "^1.3.0"
+pot = "0.9.0"
 networkx = "^3.1"
 jinja2 = "^3.1.2"
 matplotlib = "^3.7.2"
@@ -30,3 +32,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100
+
+[project.urls]
+repository = "https://github.com/mggg/VoteKit"

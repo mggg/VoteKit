@@ -1,26 +1,15 @@
 from abc import abstractmethod
-from fractions import Fraction
-from typing import Optional, Union
-from votekit.profile import PreferenceProfile
-from votekit.ballot import Ballot
-from numpy.random import choice
 import itertools as it
-import random
-import numpy as np
-import pickle
-from pathlib import Path
+from fractions import Fraction
 import math
+import numpy as np
+from pathlib import Path
+import pickle
+import random
+from typing import Optional, Union
 
-"""
-IC
-IAC
-1d spatial
-2d spatial
-PL
-BT
-AC
-Cambridge
-"""
+from .ballot import Ballot
+from .pref_profile import PreferenceProfile
 
 
 class BallotGenerator:
@@ -71,6 +60,11 @@ class BallotGenerator:
                 raise TypeError(
                     "'candidates' must be dictionary when hyperparameters are set"
                 )
+        else:
+            self.slate_to_candidate = {}
+            self.pref_interval_by_bloc: dict = {}
+            self.bloc_voter_prop: dict = {}
+            self.bloc_crossover_rate: dict = {}
 
     @abstractmethod
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
@@ -124,8 +118,9 @@ class BallotGenerator:
 
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
 
+    @classmethod
     def set_params(
-        self,
+        cls,
         candidates: dict,  # add type error for list here
         blocs: dict,
         cohesion: dict,
@@ -174,34 +169,31 @@ class BallotGenerator:
             )
             interval_by_bloc[bloc] = interval
 
-        self.pref_interval_by_bloc = interval_by_bloc
-        self.bloc_voter_prop = blocs
-        self.bloc_crossover_rate = crossover
+        cls.pref_interval_by_bloc = interval_by_bloc
+        cls.bloc_voter_prop = blocs
+        cls.bloc_crossover_rate = crossover
 
 
-class ImpartialCulture(BallotGenerator):
-    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
-        perm_set = it.permutations(self.candidates, self.ballot_length)
-        # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
-        perm_rankings = [list(value) for value in perm_set]
-
-        ballot_pool = []
-
-        for _ in range(number_of_ballots):
-            index = random.randint(0, len(perm_rankings) - 1)
-            ballot_pool.append(perm_rankings[index])
-
-        return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+# inputs:
+# write ballot simplex generation
+# IC - alpha of infinity
+# IAC - alpha of 1
+# bloc election vs non bloc distinction
+# BallotSimplex
 
 
-class ImpartialAnonymousCulture(BallotGenerator):
+class BallotSimplex(BallotGenerator):
+    def __init__(self, alpha: float, **data):
+        self.alpha = alpha
+        super().__init__(**data)
+
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         perm_set = it.permutations(self.candidates, self.ballot_length)
         # Create a list of every perm [['A', 'B', 'C'], ['A', 'C', 'B'], ...]
         perm_rankings = [list(value) for value in perm_set]
 
         # IAC Process is equivalent to drawing from dirichlet dist with uniform parameters
-        draw_probabilities = np.random.dirichlet([1] * len(perm_rankings))
+        draw_probabilities = np.random.dirichlet([self.alpha] * len(perm_rankings))
 
         ballot_pool = []
 
@@ -212,6 +204,16 @@ class ImpartialAnonymousCulture(BallotGenerator):
             ballot_pool.append(perm_rankings[index])
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+
+
+class ImpartialCulture(BallotSimplex):
+    def __init__(self, **data):
+        super().__init__(alpha=1e10, **data)
+
+
+class ImpartialAnonymousCulture(BallotSimplex):
+    def __init__(self, **data):
+        super().__init__(alpha=1, **data)
 
 
 class PlackettLuce(BallotGenerator):
@@ -225,10 +227,6 @@ class PlackettLuce(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-        if not pref_interval_by_bloc:
-            self.pref_interval_by_slate: dict = {}
-            self.bloc_voter_prop: dict = {}
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -258,7 +256,7 @@ class PlackettLuce(BallotGenerator):
             for _ in range(num_ballots):
                 # generates ranking based on probability distribution of candidate support
                 ballot = list(
-                    choice(
+                    np.random.choice(
                         self.candidates,
                         self.ballot_length,
                         p=cand_support_vec,
@@ -285,10 +283,6 @@ class BradleyTerry(BallotGenerator):
             bloc_voter_prop (dict): a mapping of slate to voter proportions
             (ex. {race: voter proportion})
         """
-
-        if not pref_interval_by_bloc:
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -351,7 +345,7 @@ class BradleyTerry(BallotGenerator):
             prob_distrib = list(ranking_to_prob.values())
             prob_distrib = [float(p) / sum(prob_distrib) for p in prob_distrib]
 
-            ballots_indices = choice(
+            ballots_indices = np.random.choice(
                 indices,
                 num_ballots,
                 p=prob_distrib,
@@ -391,11 +385,6 @@ class AlternatingCrossover(BallotGenerator):
             bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc
             (ex. {race: {other_race: 0.5}})
         """
-        if not pref_interval_by_bloc:
-            self.slate_to_candidate: dict = {}
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
-            self.bloc_crossover_rate: dict = {}
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
@@ -451,7 +440,7 @@ class AlternatingCrossover(BallotGenerator):
                     pref_for_bloc = [p / sum(pref_for_bloc) for p in pref_for_bloc]
 
                     bloc_cands = list(
-                        choice(
+                        np.random.choice(
                             bloc_cands,
                             p=pref_for_bloc,
                             size=len(bloc_cands),
@@ -459,7 +448,7 @@ class AlternatingCrossover(BallotGenerator):
                         )
                     )
                     opposing_cands = list(
-                        choice(
+                        np.random.choice(
                             opposing_cands,
                             size=len(opposing_cands),
                             p=pref_for_opposing,
@@ -517,11 +506,7 @@ class CambridgeSampler(BallotGenerator):
         path: Optional[Path] = None,
         **data,
     ):
-        if not pref_interval_by_bloc:
-            self.slate_to_candidate: dict = {}
-            self.pref_interval_by_bloc: dict = {}
-            self.bloc_voter_prop: dict = {}
-            self.bloc_crossover_rate: dict = {}
+
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -608,7 +593,7 @@ class CambridgeSampler(BallotGenerator):
 
                 # Now turn bloc ordering into candidate ordering
                 pl_ordering = list(
-                    choice(
+                    np.random.choice(
                         list(pref_interval_dict.keys()),
                         self.ballot_length,
                         p=list(pref_interval_dict.values()),

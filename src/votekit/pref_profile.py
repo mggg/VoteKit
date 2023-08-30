@@ -1,8 +1,9 @@
-from .ballot import Ballot
-from typing import Optional
-from pydantic import BaseModel, validator
 from fractions import Fraction
 import pandas as pd
+from pydantic import BaseModel, validator
+from typing import Optional
+
+from .ballot import Ballot
 
 
 class PreferenceProfile(BaseModel):
@@ -63,7 +64,7 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    def to_dict(self) -> dict:
+    def to_dict(self, standardize: bool) -> dict:
         """
         Converts ballots to dictionary with keys (ranking) and values
         the corresponding total weights
@@ -72,12 +73,18 @@ class PreferenceProfile(BaseModel):
             A dictionary with with keys (ranking) and values
             the corresponding total weights
         """
+        num_ballots = self.num_ballots()
         di: dict = {}
         for ballot in self.ballots:
-            if str(ballot.ranking) not in di.keys():
-                di[str(ballot.ranking)] = Fraction(0)
-            di[str(ballot.ranking)] += ballot.weight
-
+            rank_tuple = tuple(next(iter(item)) for item in ballot.ranking)
+            if standardize:
+                weight = ballot.weight / num_ballots
+            else:
+                weight = ballot.weight
+            if rank_tuple not in di.keys():
+                di[rank_tuple] = weight
+            else:
+                di[rank_tuple] += weight
         return di
 
     class Config:

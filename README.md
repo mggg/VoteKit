@@ -1,4 +1,4 @@
-**VoteKit** 
+## VoteKit
 
 `VoteKit` ia a Swiss army knife for computational social choice research.
 
@@ -6,7 +6,8 @@
 
 
 [![PyPI version](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
-[![Test badge](https://github.com/mggg/VoteKit/workflows/Test%20&%20Lint/badge.svg)]
+![Test badge](https://github.com/mggg/VoteKit/workflows/Test%20&%20Lint/badge.svg)
+
 ## Installation
 Votekit can be installed through any standard package management tool:
 
