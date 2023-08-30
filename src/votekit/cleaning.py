@@ -16,9 +16,9 @@ def remove_empty_ballots(
 
     Args:
         pp (PreferenceProfile): a preference profile to clean
-        keep_candidates (bool, optional): if True, keep all of the
-        candidates from the original preference profile in the returned preference
-        profile, even if some no longer appear in the returned ballots.
+        keep_candidates (bool, optional): if True, keep all of \
+            the candidates from the original preference profile \
+            in the returned preference profile.
 
     Returns:
         PreferenceProfile: a cleaned preference profile
@@ -35,7 +35,7 @@ def remove_empty_ballots(
     return pp_clean
 
 
-def _clean(
+def clean_helper(
     pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
 ) -> PreferenceProfile:
     """
@@ -45,8 +45,8 @@ def _clean(
 
     Args:
         pp (PreferenceProfile): a preference profile to clean
-        clean_ballot_func (Callable[[Ballot], Ballot]):
-        function thatm takes a list of ballots and cleans each ballot
+        clean_ballot_func (Callable[[Ballot], Ballot]): function that \
+            takes a list of ballots and cleans each ballot
 
     Returns:
         PreferenceProfile: a cleaned preference profile
@@ -120,7 +120,7 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         )
         return new_ballot
 
-    pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
+    pp_clean = clean_helper(pp=pp, clean_ballot_func=deduplicate_ballots)
     return pp_clean
 
 
