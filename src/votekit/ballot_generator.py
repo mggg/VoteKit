@@ -68,6 +68,7 @@ class BallotGenerator:
     ):
         """
         Initializes a Ballot Generator by constructing a preference interval from parameters
+        (the prior parameters will be overwrittern)
 
         Args:
             slate_to_candidate (dict): a mapping of slate to candidates
