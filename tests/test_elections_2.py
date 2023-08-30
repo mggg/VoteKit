@@ -2,7 +2,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import cvr_csv
+from votekit.cvr_loaders import load_csv
 from votekit.election_state import ElectionState
 from votekit.election_types import (
     Bloc,
@@ -18,7 +18,7 @@ from votekit.utils import fractional_transfer
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv"
-TEST_PROFILE = cvr_csv(DATA_DIR / "test_election_B.csv")
+TEST_PROFILE = load_csv(DATA_DIR / "test_election_B.csv")
 dom_ballot_list = [
     Ballot(
         id=None, ranking=[{"C"}, {"A"}, {"D"}, {"E"}, {"B"}], weight=Fraction(10, 1)

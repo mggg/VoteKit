@@ -9,7 +9,7 @@ from .pref_profile import PreferenceProfile
 from .ballot import Ballot
 
 
-def cvr_csv(
+def load_csv(
     fpath: str,
     *,
     weight_col: Optional[int] = None,
@@ -75,7 +75,7 @@ def cvr_csv(
     return PreferenceProfile(ballots=ballots)
 
 
-def cvr_blt(fpath: str) -> tuple[PreferenceProfile, int]:
+def load_blt(fpath: str) -> tuple[PreferenceProfile, int]:
     """
     Given a blt file path, loads cvr (blt is text-like format used for scottish election data)
 
