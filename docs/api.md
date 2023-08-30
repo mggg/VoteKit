@@ -5,7 +5,7 @@
     rendering:
       heading_level: 4
 
-::: votekit.profile
+::: votekit.pref_profile
     rendering:
       heading_level: 4
 
