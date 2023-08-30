@@ -14,6 +14,10 @@ from .pref_profile import PreferenceProfile
 
 
 class BallotGenerator:
+    """
+    Base class for ballot generation models
+    """
+
     def __init__(
         self,
         candidates: list,
@@ -22,8 +26,9 @@ class BallotGenerator:
         pref_interval_by_bloc=None,
         bloc_voter_prop=None,
     ):
+
         """
-        Base class for ballot generation models
+         Initializes a Ballot Generator
 
         Args:
             candidates (list): list of candidates in the election
@@ -139,6 +144,8 @@ class BallotGenerator:
     @abstractmethod
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
         """
+        Generates a preference profile
+
         Args:
             number_of_ballots (int): number of ballots to generate
         Returns:
@@ -189,20 +196,17 @@ class BallotGenerator:
         return PreferenceProfile(ballots=ballot_list, candidates=candidates)
 
 
-# inputs:
-# write ballot simplex generation
-# IC - alpha of infinity
-# IAC - alpha of 1
-# bloc election vs non bloc distinction
-# BallotSimplex
-
-
 class BallotSimplex(BallotGenerator):
+    """
+    Base class for ballot generation models
+    """
+
     def __init__(
         self, alpha: Optional[float] = None, point: Optional[dict] = None, **data
     ):
         """
-        Base class for ballot generation with a ballot simplex
+        Initializes a Ballot Simplex model
+
         Args:
             alpha (float, optional): alpha parameter for ballot simplex. Defaults to None.
             point (dict, optional): a point in the ballot simplex,
@@ -215,6 +219,18 @@ class BallotSimplex(BallotGenerator):
 
     @classmethod
     def from_point(cls, point: dict, **data):
+        """
+        Initializes a Ballot Simplex model from a point in the dirichlet distribution
+
+        Args:
+            point (dict): a mapping of candidate to candidate support
+
+        Raises:
+            ValueError: if the candidate support does not sum to 1
+
+        Returns:
+            BallotSimplex: initialized from point
+        """
         if sum(point.values()) != 1.0:
             raise ValueError(
                 f"probability distribution from point ({point.values()}) does not sum to 1"
@@ -223,6 +239,15 @@ class BallotSimplex(BallotGenerator):
 
     @classmethod
     def from_alpha(cls, alpha: float, **data):
+        """
+        Initializes a Ballot Simplex model from an alpha value for the dirichlet distribution
+
+        Args:
+            alpha (float): an alpha parameter for the dirichlet distribution
+
+        Returns:
+            BallotSimplex: initialized from alpha
+        """
         return cls(alpha=alpha, **data)
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
@@ -263,19 +288,33 @@ class BallotSimplex(BallotGenerator):
 
 
 class ImpartialCulture(BallotSimplex):
+    """
+    Impartial Culture model (child class of BallotSimplex)
+    with an alpha value of 1e10 (should be infinity theoretically)
+    """
+
     def __init__(self, **data):
         super().__init__(alpha=1e10, **data)
 
 
 class ImpartialAnonymousCulture(BallotSimplex):
+    """
+    Impartial Anonymous Culture model (child class of BallotSimplex)
+    with an alpha value of 1
+    """
+
     def __init__(self, **data):
         super().__init__(alpha=1, **data)
 
 
 class PlackettLuce(BallotGenerator):
+    """
+    Plackett Luce Ballot Generation Model (child class of BallotGenerator)
+    """
+
     def __init__(self, **data):
         """
-        Plackett Luce Ballot Generation Model
+        Initializes Plackett Luce Ballot Generation Model
 
         Args:
             pref_interval_by_bloc (dict): a mapping of slate to preference interval
@@ -317,9 +356,13 @@ class PlackettLuce(BallotGenerator):
 
 
 class BradleyTerry(BallotGenerator):
+    """
+    Bradley Terry Ballot Generation Model (child class of BallotGenerator)
+    """
+
     def __init__(self, **data):
         """
-        Bradley Terry Ballot Generation Model
+        Initializes a Bradley Terry Ballot Generation Model
 
         Args:
             pref_interval_by_bloc (dict): a mapping of slate to preference interval
@@ -393,6 +436,10 @@ class BradleyTerry(BallotGenerator):
 
 
 class AlternatingCrossover(BallotGenerator):
+    """
+    Alternating Crossover Ballot Generation Model (child class of BallotGenerator)
+    """
+
     def __init__(
         self,
         slate_to_candidates=None,
@@ -400,7 +447,7 @@ class AlternatingCrossover(BallotGenerator):
         **data,
     ):
         """
-        Alternating Crossover Ballot Generation Model
+        Initializes Alternating Crossover Ballot Generation Model
 
         Args:
             slate_to_candidate (dict): a mapping of slate to candidates
@@ -507,6 +554,10 @@ class OneDimSpatial(BallotGenerator):
 
 
 class CambridgeSampler(BallotGenerator):
+    """
+    Cambridge Sampler Ballot Generation  model (child class of BallotGenerator)
+    """
+
     def __init__(
         self,
         slate_to_candidates=None,
@@ -514,6 +565,17 @@ class CambridgeSampler(BallotGenerator):
         path: Optional[Path] = None,
         **data,
     ):
+        """
+        Initializes Cambridge Sampler Ballot Generation  model
+
+        Args:
+            slate_to_candidate (dict): a mapping of slate to candidates
+            (ex. {race: [candidate]})
+            pref_interval_by_bloc (dict): a mapping of bloc to preference interval
+            (ex. {race: {candidate : interval length}})
+            path (Optional[Path]): a path to an election data file to sample from.
+            Defaults to Cambridge elections.
+        """
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
