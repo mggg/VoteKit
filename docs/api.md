@@ -17,12 +17,10 @@
     rendering:
       heading_level: 4
 
-
 ## Cleaning
 ::: votekit.cleaning
     rendering:
       heading_level: 4
-
 
 ## CVR Loaders
 ::: votekit.cvr_loaders
@@ -30,6 +28,9 @@
       heading_level: 4
 
 ## Elections
+::: votekit.election_types
+    rendering:
+      heading_level: 4
 
 ## Metrics
 ::: votekit.utils
@@ -42,6 +43,20 @@
             - borda_scores
             - first_place_votes
             - mentions
+            - seqRCV_transfer
+
+## Utils
+::: votekit.utils
+    rendering:
+        heading_level: 4
+    options:
+        members:
+            - compute_votes
+            - remove_cand
+            - order_candidates_by_borda
+            - unset
+            - recursively_fix_ties
+            - fix_ties
 
 ## Models
 ::: votekit.models

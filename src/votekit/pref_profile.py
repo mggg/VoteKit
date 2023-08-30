@@ -54,9 +54,12 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self):
+    def num_ballots(self) -> int:
         """
-        Assumes weights correspond to number of ballots given to a ranking
+        Counts number of ballots based on assigned weight
+
+        Returns
+            Number of ballots cast
         """
         num_ballots = 0
         for ballot in self.ballots:
@@ -66,12 +69,12 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self, standardize: bool) -> dict:
         """
-        Converts ballots to dictionary with keys (ranking) and values
-        the corresponding total weights
+        Converts ballots to dictionary with rankings (keys) and the
+        corresponding total weights (values)
 
         Returns:
-            A dictionary with with keys (ranking) and values
-            the corresponding total weights
+            A dictionary with with ranking (keys) and corresponding total \n
+            weights (values)
         """
         num_ballots = self.num_ballots()
         di: dict = {}
@@ -178,7 +181,7 @@ class PreferenceProfile(BaseModel):
 
     def __str__(self) -> str:
         """
-        Displays top 15 or whole profiles
+        Displays top 15 cast ballots or entire profile
         """
         if self.df.empty:
             self.df = self._create_df()
