@@ -203,9 +203,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     return update
 
 
-def order_candidates_by_borda(
-    candidate_set: Iterable, candidate_borda: dict
-) -> Iterable:
+def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
     """
     Sorts candidates based on their Borda values
 
