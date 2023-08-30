@@ -67,36 +67,37 @@ class STV(Election):
         ##TODO:must change the way we pass winner_votes
         remaining: list[str] = self.state.profile.get_candidates()
         ballots: list[Ballot] = self.state.profile.get_ballots()
-        fp_votes = compute_votes(remaining, ballots)  ##fp means first place
+        round_votes = compute_votes(remaining, ballots)
         elected = []
         eliminated = []
 
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
         if len(remaining) == self.seats - len(self.state.get_all_winners()):
-            elected = [cand for cand, votes in fp_votes]
+            elected = [cand for cand, votes in round_votes]
             remaining = []
             ballots = []
             # TODO: sort remaining candidates by vote share
 
         # elect all candidates who crossed threshold
-        elif fp_votes[0].votes >= self.threshold:
-            for candidate, votes in fp_votes:
+        elif round_votes[0].votes >= self.threshold:
+            for candidate, votes in round_votes:
                 if votes >= self.threshold:
                     elected.append(candidate)
                     remaining.remove(candidate)
                     ballots = self.transfer(
                         candidate,
                         ballots,
-                        {cand: votes for cand, votes in fp_votes},
+                        {cand: votes for cand, votes in round_votes},
                         self.threshold,
                     )
         # since no one has crossed threshold, eliminate one of the people
         # with least first place votes
         elif self.next_round():
-            lp_votes = min([votes for cand, votes in fp_votes])
             lp_candidates = [
-                candidate for candidate, votes in fp_votes if votes == lp_votes
+                candidate
+                for candidate, votes in round_votes
+                if votes == round_votes[-1].votes
             ]
             # is this how to break ties, can be different based on locality
             lp_cand = random.choice(lp_candidates)
