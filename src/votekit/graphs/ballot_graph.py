@@ -1,5 +1,5 @@
-from .models import Graph
-from ..profile import PreferenceProfile
+from .base_graph import Graph
+from ..pref_profile import PreferenceProfile
 from ..utils import COLOR_LIST
 from typing import Optional, Union
 import networkx as nx  # type: ignore
