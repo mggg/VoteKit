@@ -17,6 +17,7 @@ class BallotGenerator:
     def __init__(
         self,
         candidates: list,
+        *,
         ballot_length: Optional[int] = None,
         pref_interval_by_bloc=None,
         bloc_voter_prop=None,
@@ -129,9 +130,7 @@ class BallotGenerator:
 
         generator = cls(**data)
 
-        if isinstance(generator, AlternatingCrossover) or isinstance(
-            generator, CambridgeSampler
-        ):
+        if isinstance(generator, (AlternatingCrossover, CambridgeSampler)):
             generator.slate_to_candidates = slate_to_candidates
 
         return generator
@@ -235,6 +234,8 @@ class BallotSimplex(BallotGenerator):
                 np.random.dirichlet([self.alpha] * len(perm_rankings))
             )
         elif self.point:
+            # calculates probabilities for each ranking
+            # using probability distribution for candidate support
             draw_probabilities = [
                 reduce(
                     lambda prod, cand: prod * self.point[cand] if self.point else 0,
