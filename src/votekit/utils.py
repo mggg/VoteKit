@@ -28,9 +28,7 @@ COLOR_LIST = [
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
 
-def compute_votes(
-    candidates: list, ballots: list[Ballot], place: int = 0
-) -> list[CandidateVotes]:
+def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
     """
     Computes first place votes for all candidates in a preference profile
 
@@ -62,7 +60,7 @@ def compute_votes(
 
 
 def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int, place: int
+    winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
     """
     Calculates fractional transfer from winner, then removes winner
@@ -87,7 +85,7 @@ def fractional_transfer(
                 if cand != {winner}:
                     new_ranking.append(cand)
 
-    return ballots
+    return remove_cand(winner, ballots)
 
 
 def random_transfer(
