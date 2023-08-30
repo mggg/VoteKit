@@ -55,7 +55,9 @@ class BallotGraph(Graph):
         self.num_voters = sum(self.node_data.values())
 
     def _relabel(self, gr: nx.Graph, new_label: int, num_cands: int) -> nx.Graph:
-        """Relabels nodes in gr based on new_label"""
+        """
+        Relabels nodes in gr based on new_label
+        """
         node_map = {}
         graph_nodes = list(gr.nodes)
 
@@ -73,9 +75,10 @@ class BallotGraph(Graph):
 
     def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
         """
-        :noindex:
-
         Builds graph of all possible ballots given a number of candiates
+
+        Args:
+            n: number of candidates per an election
         """
         Gc = nx.Graph()
         # base cases
@@ -176,10 +179,7 @@ class BallotGraph(Graph):
 
     def fix_short_ballot(self, ballot: list, candidates: list) -> list:
         """
-        :noindex:
-
         Appends short ballots of n-1 length to add to BallotGraph
-
         """
         missing = set(candidates).difference(set(ballot))
 
@@ -187,12 +187,7 @@ class BallotGraph(Graph):
 
     def label_cands(self, candidates):
         """
-        :noindex:
-
-        Assigns candidate labels to ballot graph for plotting.
-
-        Returns: a dictionary with keys, the index  of a node and values, the
-        ballot with candidate names.
+        Assigns candidate labels to ballot graph for plotting
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))

@@ -180,9 +180,8 @@ class PreferenceProfile(BaseModel):
         return df
 
     def __str__(self) -> str:
-        """
-        Displays top 15 cast ballots or entire profile
-        """
+        # Displays top 15 cast ballots or entire profile
+
         if self.df.empty:
             self.df = self._create_df()
 
