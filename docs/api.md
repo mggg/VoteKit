@@ -17,6 +17,10 @@
     rendering:
       heading_level: 4
 
+::: votekit.graphs.pairwise_comparison_graph
+    rendering:
+      heading_level: 4
+  
 ## Cleaning
 ::: votekit.cleaning
     rendering:

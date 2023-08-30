@@ -132,9 +132,8 @@ class ElectionState(BaseModel):
         return status_df
 
     def __str__(self):
-        """
-        Displays the status of a round or complete election
-        """
+        # Displays the status of a round or complete election
+
         show = self.status()
         # show["Round"] = show["Round"].astype(str).str.rjust(3)
         # show["Status"] = show["Status"].str.ljust(10)
