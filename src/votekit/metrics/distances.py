@@ -1,5 +1,5 @@
 from votekit.pref_profile import PreferenceProfile
-from votekit.graphs.base_graph import BallotGraph
+from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
 import ot  # type: ignore
 import networkx as nx  # type: ignore

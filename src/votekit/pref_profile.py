@@ -54,14 +54,14 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self) -> int:
+    def num_ballots(self) -> Fraction:
         """
         Counts number of ballots based on assigned weight
 
         Returns
             Number of ballots cast
         """
-        num_ballots = 0
+        num_ballots = Fraction(0)
         for ballot in self.ballots:
             num_ballots += ballot.weight
 
