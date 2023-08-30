@@ -32,11 +32,11 @@ class BallotGenerator:
 
         Args:
             candidates (list): list of candidates in the election
-            ballot_length (Optional[int]): length of ballots to generate.
+            ballot_length (Optional[int]): length of ballots to generate. \
             Defaults to the length of candidates.
-            pref_interval_by_bloc (dict[dict], optional): a mapping of slate to preference interval
+            pref_interval_by_bloc (dict[dict], optional): a mapping of slate to preference interval\
             (ex. {race: {candidate : interval length}})
-            bloc_voter_prop (dict): a mapping of slate to voter proportions
+            bloc_voter_prop (dict): a mapping of slate to voter proportions \
             (ex. {race: voter proportion}). Defaults to None.
 
         Raises:
@@ -72,13 +72,13 @@ class BallotGenerator:
         **data,
     ):
         """
-        Initializes a Ballot Generator by constructing a preference interval from parameters
+        Initializes a Ballot Generator by constructing a preference interval from parameters \
         (the prior parameters will be overwrittern)
 
         Args:
-            slate_to_candidate (dict): a mapping of slate to candidates
+            slate_to_candidate (dict): a mapping of slate to candidates \
             (ex. {race: [candidate]})
-            bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc
+            bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc \
             (ex. {race: 0.5})
             cohesion (dict): cohension factor for each bloc
             alphas (dict): alpha for the dirchlet distribution of each bloc
@@ -208,9 +208,9 @@ class BallotSimplex(BallotGenerator):
         Initializes a Ballot Simplex model
 
         Args:
-            alpha (float, optional): alpha parameter for ballot simplex. Defaults to None.
-            point (dict, optional): a point in the ballot simplex,
-            with candidate as keys and electoral support as values. Defaults to None.
+            alpha (float, optional): alpha parameter for ballot simplex.
+            point (dict, optional): a point in the ballot simplex, \
+            with candidate as keys and electoral support as values.
         """
         if alpha or point:
             self.alpha = alpha
@@ -317,9 +317,9 @@ class PlackettLuce(BallotGenerator):
         Initializes Plackett Luce Ballot Generation Model
 
         Args:
-            pref_interval_by_bloc (dict): a mapping of slate to preference interval
+            pref_interval_by_bloc (dict): a mapping of slate to preference interval \
             (ex. {race: {candidate : interval length}})
-            bloc_voter_prop (dict): a mapping of slate to voter proportions
+            bloc_voter_prop (dict): a mapping of slate to voter proportions \
             (ex. {race: voter proportion})
         """
 
@@ -365,9 +365,9 @@ class BradleyTerry(BallotGenerator):
         Initializes a Bradley Terry Ballot Generation Model
 
         Args:
-            pref_interval_by_bloc (dict): a mapping of slate to preference interval
+            pref_interval_by_bloc (dict): a mapping of slate to preference interval \
             (ex. {race: {candidate : interval length}})
-            bloc_voter_prop (dict): a mapping of slate to voter proportions
+            bloc_voter_prop (dict): a mapping of slate to voter proportions \
             (ex. {race: voter proportion})
         """
 
@@ -376,12 +376,12 @@ class BradleyTerry(BallotGenerator):
 
     def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
         """
-        given a list of rankings and the preference interval,
+        given a list of rankings and the preference interval, \
         calculates the probability of observing each ranking
 
         Args:
             permutations (list[tuple]): a list of permuted rankings
-            cand_support_dict (dict): a mapping from candidate to their
+            cand_support_dict (dict): a mapping from candidate to their \
             support (preference interval)
 
         Returns:
@@ -450,13 +450,13 @@ class AlternatingCrossover(BallotGenerator):
         Initializes Alternating Crossover Ballot Generation Model
 
         Args:
-            slate_to_candidate (dict): a mapping of slate to candidates
+            slate_to_candidate (dict): a mapping of slate to candidates \
             (ex. {race: [candidate]})
-            pref_interval_by_bloc (dict): a mapping of bloc to preference interval
+            pref_interval_by_bloc (dict): a mapping of bloc to preference interval \
             (ex. {race: {candidate : interval length}})
-            bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc
+            bloc_voter_prop (dict): a mapping of the percentage of total voters per bloc \
             (ex. {race: 0.5})
-            bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc
+            bloc_crossover_rate (dict): a mapping of percentage of crossover voters per bloc \
             (ex. {race: {other_race: 0.5}})
         """
         # Call the parent class's __init__ method to handle common parameters
@@ -569,11 +569,11 @@ class CambridgeSampler(BallotGenerator):
         Initializes Cambridge Sampler Ballot Generation  model
 
         Args:
-            slate_to_candidate (dict): a mapping of slate to candidates
+            slate_to_candidate (dict): a mapping of slate to candidates \
             (ex. {race: [candidate]})
-            pref_interval_by_bloc (dict): a mapping of bloc to preference interval
+            pref_interval_by_bloc (dict): a mapping of bloc to preference interval \
             (ex. {race: {candidate : interval length}})
-            path (Optional[Path]): a path to an election data file to sample from.
+            path (Optional[Path]): a path to an election data file to sample from. \
             Defaults to Cambridge elections.
         """
 
