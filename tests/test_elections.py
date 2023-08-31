@@ -4,7 +4,7 @@ import pytest
 
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import rank_column_csv, blt  # type:ignore
-from votekit.election_types import STV, Plurality, SequentialRCV
+from votekit.election_types import STV, SequentialRCV
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
     fractional_transfer,
@@ -19,7 +19,7 @@ DATA_DIR = BASE_DIR / "data/csv"
 BLT_DIR = BASE_DIR / "data/txt/"
 
 
-test_profile = rank_column_csv(DATA_DIR / "ten_ballot.csv")
+test_profile = rank_column_csv(DATA_DIR / "test_election_A.csv")
 mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
@@ -115,33 +115,23 @@ def test_remove_and_shift():
 
 
 def test_irv_winner_mn():
-    irv = STV(mn_profile, fractional_transfer, 1)
+    irv = STV(mn_profile, fractional_transfer, 1, ballot_ties=False)
     outcome = irv.run_election()
     winner = "BETSY HODGES"
-    assert [winner] == outcome.elected
+    assert [{winner}] == outcome.elected
 
 
 def test_stv_winner_mn():
-    irv = STV(mn_profile, fractional_transfer, 3)
+    irv = STV(mn_profile, fractional_transfer, 3, ballot_ties=False)
     outcome = irv.run_election()
-    winners = ["BETSY HODGES", "MARK ANDREW", "DON SAMUELS"]
+    winners = [{"BETSY HODGES"}, {"MARK ANDREW"}, {"DON SAMUELS"}]
     assert winners == outcome.get_all_winners()
 
 
-# def test_runstep_seats_full_at_start():
-#     mock = STV(test_profile, fractional_transfer, 9)
-#     step = mock.__profile
-#     assert step == test_profile
-
-
-def test_runstep_update_inplace_mn():
-    irv = STV(mn_profile, fractional_transfer, 1)
-    out = irv.run_step()
-    step = out.profile
-    last = "JOHN CHARLES WILSON"
-    assert step != mn_profile
-    assert last not in step.get_candidates()
-    assert last == out.get_all_eliminated()[0]
+def test_runstep_seats_full_at_start():
+    mock = STV(test_profile, fractional_transfer, 9, ballot_ties=False)
+    step = mock._profile
+    assert step == test_profile
 
 
 def test_rand_transfer_func_mock_data():
@@ -179,60 +169,11 @@ def test_rand_transfer_assert():
     assert 400 < counts[0].votes < 600
 
 
-def test_plurality():
-    profile = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voters={"tom"}),
-            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
-        ]
-    )
-    election = Plurality(profile, seats=1, ties=True)
-    results = election.run_election()
-    assert results.get_all_winners() == ["A"]
-
-
-def test_plurality_multi_winner():
-    profile = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"D"}, {"B"}], weight=Fraction(1), voters={"tom"}),
-            Ballot(ranking=[{"C"}, {"B"}, {"C"}], weight=Fraction(2), voters={"andy"}),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
-        ]
-    )
-    election = Plurality(profile, seats=3)
-    results = election.run_election()
-    assert results.get_all_winners() == ["A", "C", "D"]
-
-
-# ---------------------------------------------------------------------------
-#                         Borda Election Tests
-# ---------------------------------------------------------------------------
-
-
-# def test_toy_Borda():
-#     known_winners = ["{'a'}", "{'d'}", "{'b'}", "{'c'}", "{'e'}"]
-#     ballot_list = [
-#         Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}, {"e"}], weight=Fraction(100)),
-#         Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(300)),
-#         Ballot(ranking=[{"d"}], weight=Fraction(400)),
-#     ]
-#     toy_pp = PreferenceProfile(ballots=ballot_list)
-#     borda_election = Borda(toy_pp, seats=5)
-#     toy_winners = borda_election.run_borda_election().get_all_winners()
-#     assert known_winners == toy_winners
-
-
-# ---------------------------------------------------------------------------
-#                        Sequential RCV Tests
-# ---------------------------------------------------------------------------
-
-
 def test_toy_rcv():
     """
     example toy election taken from David McCune's code with known winners c and d
     """
-    known_winners = ["c", "d"]
+    known_winners = [{"c"}, {"d"}]
     ballot_list = [
         Ballot(ranking=[{"a"}, {"b"}], weight=Fraction(1799)),
         Ballot(ranking=[{"a"}, {"b"}, {"c"}, {"d"}], weight=Fraction(1801)),
@@ -245,6 +186,6 @@ def test_toy_rcv():
         Ballot(ranking=[{"d"}, {"c"}], weight=Fraction(601)),
     ]
     toy_pp = PreferenceProfile(ballots=ballot_list)
-    seq_RCV = SequentialRCV(profile=toy_pp, seats=2)
+    seq_RCV = SequentialRCV(profile=toy_pp, seats=2, ballot_ties=False)
     toy_winners = seq_RCV.run_election().get_all_winners()
     assert known_winners == toy_winners

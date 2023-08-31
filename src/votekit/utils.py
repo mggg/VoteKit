@@ -1,8 +1,8 @@
 from collections import namedtuple
-from copy import deepcopy
 from fractions import Fraction
+import numpy as np
 import random
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -32,20 +32,25 @@ CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
     """
     Computes first place votes for all candidates in a preference profile
+
+    Args:
+        candidates: List of all candidates in a PreferenceProfile
+        ballots: List of Ballot objects
+
+    Returns:
+        List of tuples (candidate, number of votes) ordered by first place votes
     """
-    votes = {}
-    for candidate in candidates:
-        weight = Fraction(0)
-        for ballot in ballots:
-            if not ballot.ranking:
-                continue
-            if len(ballot.ranking[0]) == 1:
-                if ballot.ranking[0] == {candidate}:
-                    weight += ballot.weight
-            else:
-                if candidate in ballot.ranking[0]:  # ties
-                    weight += ballot.weight / len(ballot.ranking[0])
-        votes[candidate] = weight
+    votes = {cand: Fraction(0) for cand in candidates}
+
+    for ballot in ballots:
+        if not ballot.ranking:
+            continue
+        first_place_cand = unset(ballot.ranking[0])
+        if isinstance(first_place_cand, list):
+            for cand in first_place_cand:
+                votes[cand] += ballot.weight / len(first_place_cand)
+        else:
+            votes[first_place_cand] += ballot.weight
 
     ordered = [
         CandidateVotes(cand=key, votes=value)
@@ -61,12 +66,25 @@ def fractional_transfer(
     """
     Calculates fractional transfer from winner, then removes winner
     from the list of ballots
+
+    Args:
+        winner: Candidate to transfer votes from
+        ballots: List of Ballot objects
+        votes: Contains candidates and their corresponding vote totals
+        threshold: Value required to be elected, used to calculate transfer value
+
+    Returns:
+        Modified ballots with transfered weights and the winning canidated removed
     """
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
     for ballot in ballots:
+        new_ranking = []
         if ballot.ranking and ballot.ranking[0] == {winner}:
             ballot.weight = ballot.weight * transfer_value
+            for cand in ballot.ranking:
+                if cand != {winner}:
+                    new_ranking.append(cand)
 
     return remove_cand(winner, ballots)
 
@@ -75,7 +93,16 @@ def random_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
     """
-    Cambridge/Cincinnati-style transfer where transfer ballots are selected randomly
+    Cambridge-style transfer where transfer ballots are selected randomly
+
+    Args:
+        winner: Candidate to transfer votes from
+        ballots: List of Ballot objects
+        votes: Contains candidates and their corresponding vote totals
+        threshold: Value required to be elected, used to calculate transfer value
+
+    Returns:
+        Modified ballots with transfered weights and the winning canidated removed
     """
 
     # turn all of winner's ballots into (multiple) ballots of weight 1
@@ -112,46 +139,82 @@ def seqRCV_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
     """
-    Useful for a Sequential RCV election which does not use a transfer method ballots \n
-    ballots: list of ballots \n
-    output: same ballot list
+    Transfer method Sequential RCV elections
+
+    Args:
+        winner: Candidate to transfer votes from
+        ballots: List of Ballot objects
+        votes: Contains candidates and their corresponding vote totals
+        threshold: Value required to be elected, used to calculate transfer value
+
+    Returns:
+        Original list of ballots as Sequential RCV does not transfer votes
     """
     return ballots
 
 
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
     """
-    Removes candidate from ballots
+    Removes specified candidate(s) from ballots
+
+    Args:
+        removed: Candidate or set of candidates to be removed
+        ballots: List of Ballots to remove canidate(s) from
+
+    Returns:
+        Updated list of ballots with candidate(s) removed
     """
+
     if isinstance(removed, str):
         remove_set = {removed}
     elif isinstance(removed, Iterable):
         remove_set = set(removed)
 
-    update = deepcopy(ballots)
-    for n, ballot in enumerate(update):
+    update = []
+    for ballot in ballots:
         new_ranking = []
-        for s in ballot.ranking:
-            new_s = s.difference(remove_set)
-            if len(new_s) > 0:
-                new_ranking.append(new_s)
-        update[n].ranking = new_ranking
+        if len(remove_set) == 1 and remove_set in ballot.ranking:
+            for s in ballot.ranking:
+                new_s = s.difference(remove_set)
+                if new_s:
+                    new_ranking.append(new_s)
+            update.append(
+                Ballot(
+                    id=ballot.id,
+                    ranking=new_ranking,
+                    weight=ballot.weight,
+                    voters=ballot.voters,
+                )
+            )
+        elif len(remove_set) > 1:
+            for s in ballot.ranking:
+                new_s = s.difference(remove_set)
+                if new_s:
+                    new_ranking.append(new_s)
+            update.append(
+                Ballot(
+                    id=ballot.id,
+                    ranking=new_ranking,
+                    weight=ballot.weight,
+                    voters=ballot.voters,
+                )
+            )
+        else:
+            update.append(ballot)
 
     return update
-
-
-def order_candidates_by_borda(candidate_set, candidate_borda):
-    # Sort the candidates in candidate_set based on their Borda values
-    ordered_candidates = sorted(
-        candidate_set, key=lambda candidate: (-candidate_borda[candidate], candidate)
-    )
-    return ordered_candidates
 
 
 # Summmary Stat functions
 def first_place_votes(profile: PreferenceProfile) -> dict:
     """
-    Wrapper for compute_votes to call on PreferenceProfile
+    Calculates first-place votes for a PreferenceProfile
+
+    Args:
+        profile: Inputed profile of ballots
+
+    Returns:
+        Dictionary of candidates (keys) and first place vote totals (values)
     """
     cands = profile.get_candidates()
     ballots = profile.get_ballots()
@@ -161,7 +224,13 @@ def first_place_votes(profile: PreferenceProfile) -> dict:
 
 def mentions(profile: PreferenceProfile) -> dict:
     """
-    Calculates total mentions for a candidates
+    Calculates total mentions for a PreferenceProfile
+
+    Args:
+        profile: Inputed profile of ballots
+
+    Returns:
+        Dictionary of candidates (keys) and mention totals (values)
     """
     mentions: dict[str, float] = {}
 
@@ -182,8 +251,23 @@ def mentions(profile: PreferenceProfile) -> dict:
 
 
 def borda_scores(
-    profile: PreferenceProfile, ballot_length=None, score_vector=None
+    profile: PreferenceProfile,
+    ballot_length: Optional[int] = None,
+    score_vector: Optional[list] = None,
 ) -> dict:
+    """
+    Calculates Borda scores for a PreferenceProfile
+
+    Args:
+        profile: Inputed profile of ballots
+        ballot_length: Length of a ballot, if None length of longest ballot is \n
+        is used
+        score_vector: Borda weights, if None assigned based length of the \n
+        longest ballot
+
+    Returns:
+        Dictionary of candidates (keys) and Borda scores (values)
+    """
     candidates = profile.get_candidates()
     if ballot_length is None:
         ballot_length = max([len(ballot.ranking) for ballot in profile.ballots])
@@ -216,3 +300,152 @@ def borda_scores(
                 )
 
     return candidate_borda
+
+
+def unset(input: set):
+    """
+    Removes object from set
+
+    Args:
+        input: Input set
+
+    Returns:
+        If set has length one returns the object, else returns a list
+    """
+    rv = list(input)
+
+    if len(rv) == 1:
+        return rv[0]
+
+    return rv
+
+
+def candidate_position_dict(ranking: list[set[str]]) -> dict:
+    """
+    Creates a dictionary with the integer ranking of candidates given a set ranking \n
+    i.e. A > B, C > D returns {A: 1, B: 2, C: 2, D: 4}
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+
+    Returns:
+        Dictionary of candidates (keys) and integer rankings (values)
+    """
+    candidate_positions = {}
+    position = 0
+
+    for tie_set in ranking:
+        for candidate in tie_set:
+            candidate_positions[candidate] = position
+        position += len(tie_set)
+
+    return candidate_positions
+
+
+def tie_broken_ranking(
+    ranking: list[set[str]], profile: PreferenceProfile, tiebreak: str = "none"
+) -> list[set[str]]:
+    """
+    Breaks ties in a list-of-sets ranking according to a given scheme
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+        profile: The election ballot profile
+        tiebreak: Method of tiebreak, currently supports 'none', 'random', 'borda', 'firstplace'
+
+    Returns:
+        A list-of-set ranking of candidates (tie broken down to one candidate sets unless \n
+        tiebreak = 'none')
+    """
+
+    new_ranking = []
+    if tiebreak == "none":
+        new_ranking = ranking
+    elif tiebreak == "random":
+        for s in ranking:
+            shuffled_s = list(np.random.permutation(list(s)))
+            new_ranking += [{c} for c in shuffled_s]
+    elif tiebreak == "firstplace":
+        tiebreak_scores = first_place_votes(profile)
+        for s in ranking:
+            ordered_set = scores_into_set_list(tiebreak_scores, s)
+            new_ranking += ordered_set
+    elif tiebreak == "borda":
+        tiebreak_scores = borda_scores(profile)
+        for s in ranking:
+            ordered_set = scores_into_set_list(tiebreak_scores, s)
+            new_ranking += ordered_set
+    else:
+        raise ValueError("Invalid tiebreak code was provided")
+
+    if tiebreak != "none" and any(len(s) > 1 for s in new_ranking):
+        print("Initial tiebreak was unsuccessful, performing random tiebreak")
+        new_ranking = tie_broken_ranking(
+            ranking=new_ranking, profile=profile, tiebreak="random"
+        )
+
+    return new_ranking
+
+
+def scores_into_set_list(
+    score_dict: dict, candidate_subset: Union[list[str], set[str], None] = None
+) -> list[set[str]]:
+    """
+    Sorts candidates based on a scoring dictionary (i.e Borda, First-Place)
+
+    Args:
+        score_dict: Dictionary between candidates (key) and their score (value)
+        candidate_subset: Relevant candidates to sort
+
+    Returns:
+        Candidate rankings in a list-of-sets form
+    """
+    if isinstance(candidate_subset, list):
+        candidate_subset = set(candidate_subset)
+
+    tier_dict: dict = {}
+    for k, v in score_dict.items():
+        if v in tier_dict.keys():
+            tier_dict[v].add(k)
+        else:
+            tier_dict[v] = {k}
+    tier_list = [tier_dict[k] for k in sorted(tier_dict.keys(), reverse=True)]
+    if candidate_subset is not None:
+        tier_list = [
+            t & candidate_subset for t in tier_list if len(t & candidate_subset) > 0
+        ]
+    return tier_list
+
+
+def elect_cands_from_set_ranking(
+    ranking: list[set[str]], seats: int
+) -> tuple[list[set[str]], list[set[str]]]:
+    """
+    Splits a ranking into elected and eliminated based on seats,
+    and if a tie set overlaps the desired number of seats raises a ValueError
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+        seats: Number of seats to fill
+
+    Returns:
+        A list-of-sets of elected candidates, a list-of-sets of eliminated candidates
+    """
+    cands_elected = 0
+    elected = []
+    eliminated = []
+
+    for i, s in enumerate(ranking):
+        if cands_elected + len(s) <= seats:
+            cands_elected += len(s)
+            elected.append(s)
+        else:
+            eliminated = ranking[i:]
+            break
+
+    if cands_elected != seats:
+        raise ValueError(
+            "Cannot elect correct number of candidates without breaking ties."
+        )
+
+    return elected, eliminated
