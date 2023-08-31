@@ -885,3 +885,10 @@ class Borda(Election):
         """
         self.run_step()
         return self.state
+
+
+class Pluarality(SNTV):
+    """
+    Simulates a single or multi-winner plurality election. Inherits
+    methods from SNTV to run election
+    """
