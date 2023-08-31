@@ -98,6 +98,9 @@ class BallotGenerator:
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
             raise ValueError("slates and blocs are not the same")
 
+        # TODO: write test that check preference interval sums to 1
+        # write test that checks relative ordering
+
         def _construct_preference_interval(
             alphas: dict, cohesion: int, bloc: str, slate_to_cands: dict
         ) -> dict:
@@ -105,7 +108,8 @@ class BallotGenerator:
 
             for group, alpha in alphas.items():
                 num_cands = len(slate_to_cands[group])
-                probs = list(np.random.dirichlet([alpha] * num_cands))
+                alpha = [alpha] * num_cands
+                probs = list(np.random.default_rng().dirichlet(alpha=alpha))
                 for prob, cand in zip(probs, slate_to_cands[group]):
                     if group == bloc:  # e.g W for W cands
                         pi = cohesion
@@ -211,11 +215,19 @@ class BallotSimplex(BallotGenerator):
             alpha (float, optional): alpha parameter for ballot simplex. Defaults to None.
             point (dict, optional): a point in the ballot simplex,
             with candidate as keys and electoral support as values. Defaults to None.
+
+        Raises:
+            AttributeError: if point and alpha are not initialized
         """
-        if alpha or point:
-            self.alpha = alpha
-            self.point = point
-            super().__init__(**data)
+        if alpha is None and point is None:
+            raise AttributeError("point or alpha must be initialized")
+        self.alpha = alpha
+        if alpha == float("inf"):
+            self.alpha = 1e20
+        if alpha == 0:
+            self.alpha = 1e-10
+        self.point = point
+        super().__init__(**data)
 
     @classmethod
     def from_point(cls, point: dict, **data):
@@ -248,6 +260,7 @@ class BallotSimplex(BallotGenerator):
         Returns:
             BallotSimplex: initialized from alpha
         """
+
         return cls(alpha=alpha, **data)
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
@@ -255,9 +268,9 @@ class BallotSimplex(BallotGenerator):
 
         perm_rankings = [list(value) for value in perm_set]
 
-        if self.alpha:
+        if self.alpha is not None:
             draw_probabilities = list(
-                np.random.dirichlet([self.alpha] * len(perm_rankings))
+                np.random.default_rng().dirichlet([self.alpha] * len(perm_rankings))
             )
         elif self.point:
             # calculates probabilities for each ranking
@@ -273,8 +286,6 @@ class BallotSimplex(BallotGenerator):
             draw_probabilities = [
                 prob / sum(draw_probabilities) for prob in draw_probabilities
             ]
-        else:
-            raise AttributeError("alpha or point needs to be initialized.")
 
         ballot_pool = []
 
@@ -294,7 +305,7 @@ class ImpartialCulture(BallotSimplex):
     """
 
     def __init__(self, **data):
-        super().__init__(alpha=1e10, **data)
+        super().__init__(alpha=float("inf"), **data)
 
 
 class ImpartialAnonymousCulture(BallotSimplex):

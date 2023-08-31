@@ -183,15 +183,24 @@ def test_ballot_simplex_from_point():
         b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
-    generated_profile = (
-        BallotSimplex()
-        .from_point(point=pt, ballot_length=ballot_length, candidates=candidates)
-        .generate_profile(number_of_ballots=number_of_ballots)
-    )
+    generated_profile = BallotSimplex.from_point(
+        point=pt, ballot_length=ballot_length, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
     # Test
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict, generated_profile, len(candidates)
     )
+
+
+def test_ballot_simplex_from_alpha_zero():
+    number_of_ballots = 1000
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    generated_profile = BallotSimplex.from_alpha(
+        alpha=0, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
+
+    assert len(generated_profile.ballots) == 1
 
 
 # def test_iac_distribution():
