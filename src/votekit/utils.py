@@ -1,5 +1,6 @@
 from collections import namedtuple
 from fractions import Fraction
+import numpy as np
 import random
 from typing import Union, Iterable, Optional
 
@@ -163,6 +164,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     Returns:
         Updated list of ballots with candidate(s) removed
     """
+    remove_set = {}
     if isinstance(removed, str):
         remove_set = {removed}
     elif isinstance(removed, Iterable):
@@ -201,24 +203,6 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
             update.append(ballot)
 
     return update
-
-
-def order_candidates_by_borda(candidate_set: set, candidate_borda: dict) -> list:
-    """
-    Sorts candidates based on their Borda values
-
-    Args:
-        candidate_set: Candidates to be sorted
-        candidate_borda: Dictionary of candidates and their Borda values
-
-    Returns:
-        Ordered set of candidates for based on Borda values
-    """
-    # Sort the candidates in candidate_set based on their Borda values
-    ordered_candidates = sorted(
-        candidate_set, key=lambda candidate: (-candidate_borda[candidate], candidate)
-    )
-    return ordered_candidates
 
 
 # Summmary Stat functions
@@ -278,9 +262,8 @@ def borda_scores(
         profile: Inputed profile of ballots
         ballot_length: Length of a ballot, if None length of longest ballot is \n
         is used
-        score_vector: Borda weights, if None assigned based length of longest \n
-        ballot
-
+        score_vector: Borda weights, if None assigned based length of the \n
+        longest ballot
 
     Returns:
         Dictionary of candidates (keys) and Borda scores (values)
@@ -335,3 +318,134 @@ def unset(input: set):
         return rv[0]
 
     return rv
+
+
+def candidate_position_dict(ranking: list[set[str]]) -> dict:
+    """
+    Creates a dictionary with the integer ranking of candidates given a set ranking \n
+    i.e. A > B, C > D returns {A: 1, B: 2, C: 2, D: 4}
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+
+    Returns:
+        Dictionary of candidates (keys) and integer rankings (values)
+    """
+    candidate_positions = {}
+    position = 0
+
+    for tie_set in ranking:
+        for candidate in tie_set:
+            candidate_positions[candidate] = position
+        position += len(tie_set)
+
+    return candidate_positions
+
+
+def tie_broken_ranking(
+    ranking: list[set[str]], profile: PreferenceProfile, tiebreak: str = "none"
+) -> list[set[str]]:
+    """
+    Breaks ties in a list-of-sets ranking according to a given scheme
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+        profile: The election ballot profile
+        tiebreak: Method of tiebreak, currently supports 'none', 'random', 'borda', 'firstplace'
+
+    Returns:
+        A list-of-set ranking of candidates (tie broken down to one candidate sets unless \n
+        tiebreak = 'none')
+    """
+
+    new_ranking = []
+    if tiebreak == "none":
+        new_ranking = ranking
+    elif tiebreak == "random":
+        for s in ranking:
+            shuffled_s = list(np.random.permutation(list(s)))
+            new_ranking += [{c} for c in shuffled_s]
+    elif tiebreak == "firstplace":
+        tiebreak_scores = first_place_votes(profile)
+        for s in ranking:
+            ordered_set = scores_into_set_list(tiebreak_scores, s)
+            new_ranking += ordered_set
+    elif tiebreak == "borda":
+        tiebreak_scores = borda_scores(profile)
+        for s in ranking:
+            ordered_set = scores_into_set_list(tiebreak_scores, s)
+            new_ranking += ordered_set
+    else:
+        raise ValueError("Invalid tiebreak code was provided")
+
+    if tiebreak != "none" and any(len(s) > 1 for s in new_ranking):
+        print("Initial tiebreak was unsuccessful, performing random tiebreak")
+        new_ranking = tie_broken_ranking(
+            ranking=new_ranking, profile=profile, tiebreak="random"
+        )
+
+    return new_ranking
+
+
+def scores_into_set_list(
+    score_dict: dict, candidate_subset: Union[list[str], set[str]] = None
+) -> list[set[str]]:
+    """
+    Sorts candidates based on a scoring dictionary (i.e Borda, First-Place)
+
+    Args:
+        score_dict: Dictionary between candidates (key) and their score (value)
+        candidate_subset: Relevant candidates to sort
+
+    Returns:
+        Candidate rankings in a list-of-sets form
+    """
+    if isinstance(candidate_subset, list):
+        candidate_subset = set(candidate_subset)
+
+    tier_dict: dict = {}
+    for k, v in score_dict.items():
+        if v in tier_dict.keys():
+            tier_dict[v].add(k)
+        else:
+            tier_dict[v] = {k}
+    tier_list = [tier_dict[k] for k in sorted(tier_dict.keys(), reverse=True)]
+    if candidate_subset is not None:
+        tier_list = [
+            t & candidate_subset for t in tier_list if len(t & candidate_subset) > 0
+        ]
+    return tier_list
+
+
+def elect_cands_from_set_ranking(
+    ranking: list[set[str]], seats: int
+) -> tuple[list[set[str]], list[set[str]]]:
+    """
+    Splits a ranking into elected and eliminated based on seats,
+    and if a tie set overlaps the desired number of seats raises a ValueError
+
+    Args:
+        ranking: A list-of-set ranking of candidates
+        seats: Number of seats to fill
+
+    Returns:
+        A list-of-sets of elected candidates, a list-of-sets of eliminated candidates
+    """
+    cands_elected = 0
+    elected = []
+    eliminated = []
+
+    for i, s in enumerate(ranking):
+        if cands_elected + len(s) <= seats:
+            cands_elected += len(s)
+            elected.append(s)
+        else:
+            eliminated = ranking[i:]
+            break
+
+    if cands_elected != seats:
+        raise ValueError(
+            "Cannot elect correct number of candidates without breaking ties."
+        )
+
+    return elected, eliminated

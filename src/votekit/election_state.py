@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
-
+from .utils import candidate_position_dict
 
 pd.set_option("display.colheader_justify", "left")
 
@@ -12,61 +12,65 @@ class ElectionState(BaseModel):
     """
     Object that stores information on each round of a RCV election and the final outcome.
     :param curr_round: :class:`int` : current round number. Defaults to 0 before an election.
-    :param elected: :class:`list[str]` list of candidates who pass a threshold to win an election
-    :param eliminated: :class:`list[str]` list of candidates who were eliminated
-    :param remaining: :class:`list[str]` list of candidates who are still in the running
+    :param elected: :class:`list[set[str]]` list of candidates who pass a threshold to win
+    :param eliminated: :class:`list[set[str]]` list of candidates who were eliminated
+    :param remaining: :class:`list[set[str]]` list of candidates who are still in the running
     :param rankings: :class: `list[set]` list ranking of candidates with sets representing ties
     :param profile: :class:`PreferenceProfile` an instance of a preference profile object
     :param previous: an instance of :class:`ElectionState` representing previous round
     """
 
     curr_round: int = 0
-    elected: list = []
-    eliminated: list = []
-    remaining: list = []
+    elected: list[set[str]] = []
+    eliminated: list[set[str]] = []
+    remaining: list[set[str]] = []
     profile: PreferenceProfile
     previous: Optional["ElectionState"] = None
 
     class Config:
         allow_mutation = False
 
-    def get_all_winners(self) -> list[str]:
+    def get_all_winners(self) -> list[set[str]]:
         """
         Returns a list of elected candidates ordered from first round to current round.
-        :rtype: :class:`list[str]`
+        :rtype: :class:`list[set[str]]`
         """
         if self.previous:
             return self.previous.get_all_winners() + self.elected
         else:
             return self.elected
 
-    def get_all_eliminated(self) -> list[str]:
+    def get_all_eliminated(self) -> list[set[str]]:
         """
         Returns a list of eliminated candidates ordered from current round to first round
-        :rtype: :class:`list[str]`
+        :rtype: :class:`list[set[str]]`
         """
-        elim = self.eliminated.copy()
-        elim.reverse()
         if self.previous:
-            elim += self.previous.get_all_eliminated()
-        return elim
+            return self.eliminated + self.previous.get_all_eliminated()
+        else:
+            return self.eliminated
 
-    def get_rankings(self) -> list[str]:
+    def get_rankings(self) -> list[set[str]]:
         """
         Returns list of all candidates in order of their ranking after each round
-        :rtype: :class:`list[str]`
+        :rtype: :class:`list[set[str]]`
         """
-
-        return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+        if self.remaining != [{}]:
+            return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+        else:
+            return self.get_all_winners() + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
-        # {'elected':list[str], 'eliminated':list[str]}
+        # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         returns a dictionary with elected and eliminated candidates
         :rtype: :class:`dict`
         """
         if self.curr_round == roundNum:
-            return {"Elected": self.elected, "Eliminated": self.eliminated}
+            return {
+                "Elected": [c for s in self.elected for c in s],
+                "Eliminated": [c for s in self.eliminated for c in s],
+            }
         elif self.previous:
             return self.previous.get_round_outcome(roundNum)
         else:
@@ -82,12 +86,8 @@ class ElectionState(BaseModel):
         if not self.previous:
             raise ValueError("This is the first round, cannot compare previous ranking")
 
-        prev_ranking: dict = {
-            cand: index for index, cand in enumerate(self.previous.get_rankings())
-        }
-        curr_ranking: dict = {
-            cand: index for index, cand in enumerate(self.get_rankings())
-        }
+        prev_ranking: dict = candidate_position_dict(self.previous.get_rankings())
+        curr_ranking: dict = candidate_position_dict(self.get_rankings())
         if curr_ranking == prev_ranking:
             return {}
 
@@ -103,7 +103,7 @@ class ElectionState(BaseModel):
         remaining)
         :rtype: :class:`DataFrame`
         """
-        all_cands = self.get_rankings()
+        all_cands = [c for s in self.get_rankings() for c in s]
         status_df = pd.DataFrame(
             {
                 "Candidate": all_cands,

@@ -67,8 +67,8 @@ class Election(ABC):
     Includes functions to resolve input ties included in PreferenceProfile
     """
 
-    def __init__(self, profile: PreferenceProfile, ties: bool = True):
-        if ties:
+    def __init__(self, profile: PreferenceProfile, ballot_ties: bool = True):
+        if ballot_ties:
             self._profile = self.resolve_input_ties(profile)
         else:
             self._profile = profile

@@ -118,7 +118,7 @@ def test_resolve_ties_STV():
         ]
     )
 
-    election = STV(profile, seats=1, transfer=fractional_transfer, ties=True)
+    election = STV(profile, seats=1, transfer=fractional_transfer, ballot_ties=True)
     out = election.state.profile
     correct = PreferenceProfile(
         ballots=[
@@ -142,6 +142,6 @@ def test_allow_ties_STV():
         ]
     )
 
-    election = STV(profile, seats=1, transfer=fractional_transfer, ties=False)
+    election = STV(profile, seats=1, transfer=fractional_transfer, ballot_ties=False)
     out = election.state.profile
     assert profile == out

@@ -1,8 +1,13 @@
 from fractions import Fraction
 
-from votekit.utils import mentions, first_place_votes, borda_scores
-from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
+from votekit.pref_profile import PreferenceProfile
+from votekit.utils import (
+    mentions,
+    first_place_votes,
+    borda_scores,
+    scores_into_set_list,
+)
 
 
 profile = PreferenceProfile(
@@ -90,3 +95,34 @@ def test_borda_short_ballot():
     }
 
     assert method_borda_dict == target_borda_dict
+
+
+# def test_candidate_position_dict():
+#     assert True
+
+
+# def test_tiebreak_none():
+#     assert True
+
+
+# def test_tiebreak_random():
+#     assert True
+
+
+# def test_tiebreak_firstplace():
+#     assert True
+
+
+# def test_tiebreak_borda():
+#     assert True
+
+
+def test_scores_into_set_list():
+    score_dict = {"A": 3, "B": 2, "C": 3, "D": 2, "E": -1, "F": 2.5}
+    set_order = scores_into_set_list(score_dict)
+    target_order = [{"A", "C"}, {"F"}, {"B", "D"}, {"E"}]
+    assert set_order == target_order
+
+
+# def test_elect_cands_from_set_ranking():
+#     assert True
