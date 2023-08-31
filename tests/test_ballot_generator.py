@@ -180,15 +180,24 @@ def test_ballot_simplex_from_point():
         b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
-    generated_profile = (
-        BallotSimplex()
-        .from_point(point=pt, ballot_length=ballot_length, candidates=candidates)
-        .generate_profile(number_of_ballots=number_of_ballots)
-    )
+    generated_profile = BallotSimplex.from_point(
+        point=pt, ballot_length=ballot_length, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
     # Test
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict, generated_profile, len(candidates)
     )
+
+
+def test_ballot_simplex_from_alpha_zero():
+    number_of_ballots = 1000
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    generated_profile = BallotSimplex.from_alpha(
+        alpha=0, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
+
+    assert len(generated_profile.ballots) == 1
 
 
 # def test_iac_distribution():
@@ -551,3 +560,45 @@ def test_pl_profile_from_params():
 
     profile = ac.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
+
+def test_interval_sum_from_params():
+
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+    for b in ac.pref_interval_by_bloc:
+        if not math.isclose(sum(ac.pref_interval_by_bloc[b].values()), 1):
+            assert False
+    assert True
+
+
+def test_interval_from_params():
+
+    blocs = {"R": 0.9, "D": 0.1}
+    cohesion = {"R": 0.9, "D": 0.9}
+    alphas = {"R": {"R": 1, "D": 1}, "D": {"R": 1, "D": 1}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+
+    for b in blocs:
+        pref = ac.pref_interval_by_bloc[b].values()
+        if not any(value > 0.4 for value in pref):
+            print(pref)
+            assert False
+
+    assert True

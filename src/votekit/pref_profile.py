@@ -1,3 +1,4 @@
+import csv
 from fractions import Fraction
 import pandas as pd
 from pydantic import BaseModel, validator
@@ -93,7 +94,20 @@ class PreferenceProfile(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def _create_df(self) -> pd.DataFrame:
+    def to_csv(self, fpath):
+        """
+        Saves Preference Profile to CSV
+        Args:
+            fpath (str): path to the saved csv
+        """
+        with open(fpath, "w", newline="") as csvfile:
+            fieldnames = ["weight", "ranking"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for ballot in self.ballots:
+                writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
+
+    def create_df(self) -> pd.DataFrame:
         """
         Creates DF for display and building plots
         """
