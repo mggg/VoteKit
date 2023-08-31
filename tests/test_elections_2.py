@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from votekit.cvr_loaders import rank_column_csv
+from votekit.cvr_loaders import load_csv
 from votekit.election_state import ElectionState
 import votekit.election_types as et
 from votekit.pref_profile import PreferenceProfile
@@ -8,8 +8,8 @@ from votekit.pref_profile import PreferenceProfile
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv"
-TEST_PROFILE_B = rank_column_csv(DATA_DIR / "test_election_B.csv")
-TEST_PROFILE_C = rank_column_csv(DATA_DIR / "test_election_C.csv")
+TEST_PROFILE_B = load_csv(DATA_DIR / "test_election_B.csv")
+TEST_PROFILE_C = load_csv(DATA_DIR / "test_election_C.csv")
 
 
 def equal_electionstates(state1, state2):

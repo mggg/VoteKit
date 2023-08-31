@@ -15,11 +15,11 @@ from votekit.utils import (
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data/csv"
+DATA_DIR = BASE_DIR / "data/csv/"
 BLT_DIR = BASE_DIR / "data/txt/"
 
 
-test_profile = load_blt(DATA_DIR / "test_election_A.csv")
+test_profile = load_csv(DATA_DIR / "test_election_A.csv")
 mn_profile = load_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
