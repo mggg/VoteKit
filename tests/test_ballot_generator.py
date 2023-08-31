@@ -11,6 +11,7 @@ from votekit.ballot_generator import (
     AlternatingCrossover,
     CambridgeSampler,
     OneDimSpatial,
+    BallotSimplex,
 )
 from votekit.pref_profile import PreferenceProfile
 
@@ -61,7 +62,7 @@ def test_AC_completion():
     ac = AlternatingCrossover(
         candidates=["W1", "W2", "C1", "C2"],
         ballot_length=None,
-        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
         pref_interval_by_bloc={
             "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -84,7 +85,7 @@ def test_Cambridge_completion():
     cs = CambridgeSampler(
         candidates=["W1", "W2", "C1", "C2"],
         ballot_length=None,
-        slate_to_candidate={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
         pref_interval_by_bloc={
             "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -166,6 +167,37 @@ def test_ic_distribution():
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict, generated_profile, len(candidates)
     )
+
+
+def test_ballot_simplex_from_point():
+    number_of_ballots = 1000
+    ballot_length = 4
+    candidates = ["W1", "W2", "C1", "C2"]
+    pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
+
+    possible_rankings = it.permutations(candidates, ballot_length)
+    ballot_prob_dict = {
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
+    }
+
+    generated_profile = BallotSimplex.from_point(
+        point=pt, ballot_length=ballot_length, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
+    # Test
+    assert do_ballot_probs_match_ballot_dist(
+        ballot_prob_dict, generated_profile, len(candidates)
+    )
+
+
+def test_ballot_simplex_from_alpha_zero():
+    number_of_ballots = 1000
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    generated_profile = BallotSimplex.from_alpha(
+        alpha=0, candidates=candidates
+    ).generate_profile(number_of_ballots=number_of_ballots)
+
+    assert len(generated_profile.ballots) == 1
 
 
 # def test_iac_distribution():
@@ -409,7 +441,7 @@ def test_AC_distribution():
         candidates=candidates,
         pref_interval_by_bloc=pref_interval_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidate=slate_to_candidate,
+        slate_to_candidates=slate_to_candidate,
         bloc_crossover_rate=bloc_crossover_rate,
     ).generate_profile(number_of_ballots)
 
@@ -417,185 +449,6 @@ def test_AC_distribution():
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict, generated_profile, len(candidates)
     )
-
-
-# def test_Cambridge_distribution():
-#     BASE_DIR = Path(__file__).resolve().parent
-#     DATA_DIR = BASE_DIR / "data/"
-#     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
-#
-#     candidates = ["W1", "W2", "C1", "C2"]
-#     ballot_length = None
-#     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-#     pref_interval_by_bloc = {
-#         "W": {"W1": 0.4, "W2": 0.4, "C1": 0.1, "C2": 0.1},
-#         "C": {"W1": 0.1, "W2": 0.1, "C1": 0.4, "C2": 0.4},
-#     }
-#     bloc_voter_prop = {"W": 0.5, "C": 0.5}
-#     bloc_crossover_rate = {"W": {"C": 0}, "C": {"W": 0}}
-#
-#     cs = CambridgeSampler(
-#         candidates=candidates,
-#         ballot_length=ballot_length,
-#         slate_to_candidate=slate_to_candidate,
-#         pref_interval_by_bloc=pref_interval_by_bloc,
-#         bloc_voter_prop=bloc_voter_prop,
-#         bloc_crossover_rate=bloc_crossover_rate,
-#         path=path,
-#     )
-#
-#     with open(path, "rb") as pickle_file:
-#         ballot_frequencies = pickle.load(pickle_file)
-#     slates = list(slate_to_candidate.keys())
-#
-#     # Let's update the running probability of the ballot based on where we are in the nesting
-#     ballot_prob_dict = dict()
-#     ballot_prob = [0, 0, 0, 0, 0]
-#     # p(white) vs p(poc)
-#     for slate in slates:
-#         opp_slate = next(iter(set(slates).difference(set(slate))))
-#
-#         slate_cands = slate_to_candidate[slate]
-#         opp_cands = slate_to_candidate[opp_slate]
-#
-#         ballot_prob[0] = bloc_voter_prop[slate]
-#         prob_ballot_given_slate_first = bloc_order_probs_slate_first(
-#             slate, ballot_frequencies
-#         )
-#         # p(crossover) vs p(non-crossover)
-#         for voter_bloc in slates:
-#             opp_voter_bloc = next(iter(set(slates).difference(set(voter_bloc))))
-#             if voter_bloc == slate:
-#                 ballot_prob[1] = 1 - bloc_crossover_rate[voter_bloc][opp_voter_bloc]
-#
-#                 # p(bloc ordering)
-#                 for (
-#                     slate_first_ballot,
-#                     slate_ballot_prob,
-#                 ) in prob_ballot_given_slate_first.items():
-#                     ballot_prob[2] = slate_ballot_prob
-#
-#                     # Count number of each slate in the ballot
-#                     slate_ballot_count_dict = {}
-#                     for s, sc in slate_to_candidate.items():
-#                         count = sum([c == s for c in slate_first_ballot])
-#                         slate_ballot_count_dict[s] = min(count, len(sc))
-#
-#                     # Make all possible perms with right number of slate candidates
-#                     slate_perms = list(
-#                         set(
-#                             [
-#                                 p[: slate_ballot_count_dict[slate]]
-#                                 for p in list(it.permutations(slate_cands))
-#                             ]
-#                         )
-#                     )
-#                     opp_perms = list(
-#                         set(
-#                             [
-#                                 p[: slate_ballot_count_dict[opp_slate]]
-#                                 for p in list(it.permutations(opp_cands))
-#                             ]
-#                         )
-#                     )
-#
-#                     only_slate_interval = {
-#                         c: share
-#                         for c, share in pref_interval_by_bloc[voter_bloc].items()
-#                         if c in slate_cands
-#                     }
-#                     only_opp_interval = {
-#                         c: share
-#                         for c, share in pref_interval_by_bloc[voter_bloc].items()
-#                         if c in opp_cands
-#                     }
-#                     for sp in slate_perms:
-#                         ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
-#                         for op in opp_perms:
-#                             ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
-#
-#                             # ADD PROB MULT TO DICT
-#                             ordered_slate_cands = list(sp)
-#                             ordered_opp_cands = list(op)
-#                             ballot_ranking = []
-#                             for c in slate_first_ballot:
-#                                 if c == slate:
-#                                     if ordered_slate_cands:
-#                                         ballot_ranking.append(
-#                                             ordered_slate_cands.pop(0)
-#                                         )
-#                                 else:
-#                                     if ordered_opp_cands:
-#                                         ballot_ranking.append(ordered_opp_cands.pop(0))
-#                             prob = np.prod(ballot_prob)
-#                             ballot = tuple(ballot_ranking)
-#                             ballot_prob_dict[ballot] = (
-#                                 ballot_prob_dict.get(ballot, 0) + prob
-#                             )
-#             else:
-#                 ballot_prob[1] = bloc_crossover_rate[voter_bloc][opp_voter_bloc]
-#
-#                 # p(bloc ordering)
-#                 for (
-#                     slate_first_ballot,
-#                     slate_ballot_prob,
-#                 ) in prob_ballot_given_slate_first.items():
-#                     ballot_prob[2] = slate_ballot_prob
-#
-#                     # Count number of each slate in the ballot
-#                     slate_ballot_count_dict = {}
-#                     for s, sc in slate_to_candidate.items():
-#                         count = sum([c == s for c in slate_first_ballot])
-#                         slate_ballot_count_dict[s] = min(count, len(sc))
-#
-#                     # Make all possible perms with right number of slate candidates
-#                     slate_perms = [
-#                         p[: slate_ballot_count_dict[slate]]
-#                         for p in list(it.permutations(slate_cands))
-#                     ]
-#                     opp_perms = [
-#                         p[: slate_ballot_count_dict[opp_slate]]
-#                         for p in list(it.permutations(opp_cands))
-#                     ]
-#                     only_slate_interval = {
-#                         c: share
-#                         for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
-#                         if c in slate_cands
-#                     }
-#                     only_opp_interval = {
-#                         c: share
-#                         for c, share in pref_interval_by_bloc[opp_voter_bloc].items()
-#                         if c in opp_cands
-#                     }
-#                     for sp in slate_perms:
-#                         ballot_prob[3] = compute_pl_prob(sp, only_slate_interval)
-#                         for op in opp_perms:
-#                             ballot_prob[4] = compute_pl_prob(op, only_opp_interval)
-#
-#                             # ADD PROB MULT TO DICT
-#                             ordered_slate_cands = list(sp)
-#                             ordered_opp_cands = list(op)
-#                             ballot_ranking = []
-#                             for c in slate_first_ballot:
-#                                 if c == slate:
-#                                     if ordered_slate_cands:
-#                                         ballot_ranking.append(ordered_slate_cands.pop())
-#                                 else:
-#                                     if ordered_opp_cands:
-#                                         ballot_ranking.append(ordered_opp_cands.pop())
-#                             prob = np.prod(ballot_prob)
-#                             ballot = tuple(ballot_ranking)
-#                             ballot_prob_dict[ballot] = (
-#                                 ballot_prob_dict.get(ballot, 0) + prob
-#                             )
-#
-#     # Now see if ballot prob dict is right
-#     test_profile = cs.generate_profile(number_of_ballots=5000)
-#     assert do_ballot_probs_match_ballot_dist(
-#         ballot_prob_dict=ballot_prob_dict,
-#         generated_profile=test_profile,
-#         n=len(candidates),
-#     )
 
 
 def compute_pl_prob(perm, interval):
@@ -622,79 +475,129 @@ def bloc_order_probs_slate_first(slate, ballot_frequencies):
     return prob_ballot_given_slate_first
 
 
-twobloc = {
-    "blocs": {"R": 0.6, "D": 0.4},
-    "cohesion": {"R": 0.7, "D": 0.6},
-    "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
-}
+def test_setparams_pl():
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
 
-cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-cands_lst = ["A", "B", "C"]
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-test_slate = {"R": {"A1": 0.1, "B1": 0.5, "C1": 0.4}, "D": {"A2": 0.2, "B2": 0.5}}
-test_voter_prop = {"R": 0.5, "D": 0.5}
-
-
-# def test_setparams_pl():
-#     pl = PlackettLuce(candidates=cands, hyperparams=twobloc)
-#     # check params were set
-#     assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
-#     interval = pl.pref_interval_by_bloc
-#     # check if intervals add up to one
-#     assert math.isclose(sum(interval["R"].values()), 1)
-#     assert math.isclose(sum(interval["D"].values()), 1)
-
-
-def test_bad_cands_input():
-    # construct hyperparmeters with candidates not assigned to a bloc/slate
-    with pytest.raises(TypeError):
-        PlackettLuce(candidates=cands_lst, hyperparams=twobloc)
-
-
-def test_pl_both_inputs():
-    gen = PlackettLuce(
-        candidates=cands,
-        pref_interval_by_bloc=test_slate,
-        bloc_voter_prop=test_voter_prop,
-        hyperparams=twobloc,
+    pl = PlackettLuce.from_params(
+        slate_to_candidates=slate_to_cands,
+        bloc_voter_prop=blocs,
+        cohesion=cohesion,
+        alphas=alphas,
     )
-    # check that this attribute matches hyperparam input
-    assert gen.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+    # check params were set
+    assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
+    interval = pl.pref_interval_by_bloc
+    # check if intervals add up to one
+    assert math.isclose(sum(interval["R"].values()), 1)
+    assert math.isclose(sum(interval["D"].values()), 1)
 
 
-# def test_bt_single_bloc():
-#     bloc = {
-#         "blocs": {"R": 1.0},
-#         "cohesion": {"R": 0.7},
-#         "alphas": {"R": {"R": 0.5, "D": 1}},
-#     }
-#     cands = {"R": ["X", "Y", "Z"], "D": ["A", "B"]}
+def test_bt_single_bloc():
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-#     gen = BradleyTerry(candidates=cands, hyperparams=bloc)
-#     interval = gen.pref_interval_by_bloc
-#     assert math.isclose(sum(interval["R"].values()), 1)
+    gen = BradleyTerry.from_params(
+        slate_to_candidates=slate_to_cands,
+        bloc_voter_prop=blocs,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+    interval = gen.pref_interval_by_bloc
+    assert math.isclose(sum(interval["R"].values()), 1)
 
 
 def test_incorrect_blocs():
-    params = {
-        "blocs": {"R": 0.7, "D": 0.4},
-        "cohesion": {"R": 0.7, "D": 0.6},
-        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
-    }
-    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    blocs = {"R": 0.7, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
     with pytest.raises(ValueError):
-        PlackettLuce(candidates=cands, hyperparams=params)
+        PlackettLuce.from_params(
+            slate_to_candidates=slate_to_cands,
+            bloc_voter_prop=blocs,
+            cohesion=cohesion,
+            alphas=alphas,
+        )
 
 
 def test_ac_profile_from_params():
-    params = {
-        "blocs": {"R": 0.6, "D": 0.4},
-        "cohesion": {"R": 0.7, "D": 0.6},
-        "alphas": {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}},
-        "crossover": {"R": {"D": 0.5}, "D": {"R": 0.6}},
-    }
-    cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-    ac = AlternatingCrossover(candidates=cands, hyperparams=params)
-    ballots = ac.generate_profile(3)
-    assert isinstance(ballots, PreferenceProfile)
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    crossover = {"R": {"D": 0.5}, "D": {"R": 0.6}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    ac = AlternatingCrossover.from_params(
+        bloc_voter_prop=blocs,
+        cohesion=cohesion,
+        alphas=alphas,
+        slate_to_candidates=slate_to_cands,
+        bloc_crossover_rate=crossover,
+    )
+
+    profile = ac.generate_profile(3)
+    assert type(profile) is PreferenceProfile
+
+
+def test_pl_profile_from_params():
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+
+    profile = ac.generate_profile(3)
+    assert type(profile) is PreferenceProfile
+
+
+def test_interval_sum_from_params():
+
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+    for b in ac.pref_interval_by_bloc:
+        if not math.isclose(sum(ac.pref_interval_by_bloc[b].values()), 1):
+            assert False
+    assert True
+
+
+def test_interval_from_params():
+
+    blocs = {"R": 0.9, "D": 0.1}
+    cohesion = {"R": 0.9, "D": 0.9}
+    alphas = {"R": {"R": 1, "D": 1}, "D": {"R": 1, "D": 1}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+
+    for b in blocs:
+        pref = ac.pref_interval_by_bloc[b].values()
+        if not any(value > 0.5 for value in pref):
+            assert False
+
+    assert True
