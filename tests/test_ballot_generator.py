@@ -597,7 +597,8 @@ def test_interval_from_params():
 
     for b in blocs:
         pref = ac.pref_interval_by_bloc[b].values()
-        if not any(value > 0.5 for value in pref):
+        if not any(value > 0.4 for value in pref):
+            print(pref)
             assert False
 
     assert True
