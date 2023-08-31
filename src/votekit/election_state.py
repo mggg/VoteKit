@@ -5,36 +5,19 @@ from typing import Optional
 from .pref_profile import PreferenceProfile
 from .utils import candidate_position_dict
 
+pd.set_option("display.colheader_justify", "left")
+
 
 class ElectionState(BaseModel):
     """
-    ElectionState class, contains results information for a round or entire
-    election
-
-    **Attributes**
-
-    `curr_round`
-    :   current round number
-
-    `elected`
-    :   candidates who pass a certain threshold to win an election
-    `
-    `eliminated`
-    :   candidates who were eliminated (lost in the election)
-
-    `remaining`
-    :   candidates who are still in the running
-
-    `rankings`
-    :   ranking of candidates with sets representing ties
-
-    `profile`
-    :   PreferenceProfile object corresponding to a given election/round
-
-    `previous`
-    :   an instance of ElectionState object representing the previous round
-
-    **Methods**
+    Object that stores information on each round of a RCV election and the final outcome.
+    :param curr_round: :class:`int` : current round number. Defaults to 0 before an election.
+    :param elected: :class:`list[set[str]]` list of candidates who pass a threshold to win
+    :param eliminated: :class:`list[set[str]]` list of candidates who were eliminated
+    :param remaining: :class:`list[set[str]]` list of candidates who are still in the running
+    :param rankings: :class: `list[set]` list ranking of candidates with sets representing ties
+    :param profile: :class:`PreferenceProfile` an instance of a preference profile object
+    :param previous: an instance of :class:`ElectionState` representing previous round
     """
 
     curr_round: int = 0
@@ -49,7 +32,8 @@ class ElectionState(BaseModel):
 
     def get_all_winners(self) -> list[set[str]]:
         """
-        Returns a list of elected candidates ordered from first round to current round
+        Returns a list of elected candidates ordered from first round to current round.
+        :rtype: :class:`list[set[str]]`
         """
         if self.previous:
             return self.previous.get_all_winners() + self.elected
@@ -59,6 +43,7 @@ class ElectionState(BaseModel):
     def get_all_eliminated(self) -> list[set[str]]:
         """
         Returns a list of eliminated candidates ordered from current round to first round
+        :rtype: :class:`list[set[str]]`
         """
         if self.previous:
             return self.eliminated + self.previous.get_all_eliminated()
@@ -68,6 +53,7 @@ class ElectionState(BaseModel):
     def get_rankings(self) -> list[set[str]]:
         """
         Returns list of all candidates in order of their ranking after each round
+        :rtype: :class:`list[set[str]]`
         """
         if self.remaining != [{}]:
             return self.get_all_winners() + self.remaining + self.get_all_eliminated()
@@ -77,7 +63,8 @@ class ElectionState(BaseModel):
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
-        Returns a dictionary with elected and eliminated candidates
+        returns a dictionary with elected and eliminated candidates
+        :rtype: :class:`dict`
         """
         if self.curr_round == roundNum:
             return {
@@ -91,8 +78,9 @@ class ElectionState(BaseModel):
 
     def changed_rankings(self) -> dict:
         """
-        Returns dict of (key) string candidates who changed ranking from previous
-        round and (value) a tuple of (previous rank, new rank)
+        Returns dict of (key) string candidates who changed
+        ranking from previous round and (value) a tuple of (previous rank, new rank)
+        :rtype: :class:`dict`
         """
 
         if not self.previous:
@@ -113,8 +101,9 @@ class ElectionState(BaseModel):
         """
         Returns dataframe displaying candidate, status (elected, eliminated,
         remaining)
+        :rtype: :class:`DataFrame`
         """
-        all_cands = self.get_rankings()
+        all_cands = [c for s in self.get_rankings() for c in s]
         status_df = pd.DataFrame(
             {
                 "Candidate": all_cands,
@@ -133,11 +122,7 @@ class ElectionState(BaseModel):
         return status_df
 
     def __str__(self):
-        # Displays the status of a round or complete election
-
         show = self.status()
-        # show["Round"] = show["Round"].astype(str).str.rjust(3)
-        # show["Status"] = show["Status"].str.ljust(10)
         return show.to_string(index=False, justify="justify")
 
     __repr__ = __str__
