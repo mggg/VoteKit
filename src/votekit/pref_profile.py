@@ -107,7 +107,7 @@ class PreferenceProfile(BaseModel):
             for ballot in self.ballots:
                 writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
 
-    def create_df(self) -> pd.DataFrame:
+    def _create_df(self) -> pd.DataFrame:
         """
         Creates DF for display and building plots
         """

@@ -35,4 +35,4 @@ from .utils import (  # noqa
     first_place_votes,
     borda_scores,
 )
-from .cvr_loaders import rank_column_csv, blt  # noqa
+from .cvr_loaders import load_blt, load_csv  # noqa
