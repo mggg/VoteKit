@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
+from .utils import candidate_position_dict
 
 
 class ElectionState(BaseModel):
@@ -37,16 +38,16 @@ class ElectionState(BaseModel):
     """
 
     curr_round: int = 0
-    elected: list = []
-    eliminated: list = []
-    remaining: list = []
+    elected: list[set[str]] = []
+    eliminated: list[set[str]] = []
+    remaining: list[set[str]] = []
     profile: PreferenceProfile
     previous: Optional["ElectionState"] = None
 
     class Config:
         allow_mutation = False
 
-    def get_all_winners(self) -> list[str]:
+    def get_all_winners(self) -> list[set[str]]:
         """
         Returns a list of elected candidates ordered from first round to current round
         """
@@ -55,30 +56,34 @@ class ElectionState(BaseModel):
         else:
             return self.elected
 
-    def get_all_eliminated(self) -> list[str]:
+    def get_all_eliminated(self) -> list[set[str]]:
         """
         Returns a list of eliminated candidates ordered from current round to first round
         """
-        elim = self.eliminated.copy()
-        elim.reverse()
         if self.previous:
-            elim += self.previous.get_all_eliminated()
-        return elim
+            return self.eliminated + self.previous.get_all_eliminated()
+        else:
+            return self.eliminated
 
-    def get_rankings(self) -> list[str]:
+    def get_rankings(self) -> list[set[str]]:
         """
         Returns list of all candidates in order of their ranking after each round
         """
-
-        return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+        if self.remaining != [{}]:
+            return self.get_all_winners() + self.remaining + self.get_all_eliminated()
+        else:
+            return self.get_all_winners() + self.get_all_eliminated()
 
     def get_round_outcome(self, roundNum: int) -> dict:
-        # {'elected':list[str], 'eliminated':list[str]}
+        # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         Returns a dictionary with elected and eliminated candidates
         """
         if self.curr_round == roundNum:
-            return {"Elected": self.elected, "Eliminated": self.eliminated}
+            return {
+                "Elected": [c for s in self.elected for c in s],
+                "Eliminated": [c for s in self.eliminated for c in s],
+            }
         elif self.previous:
             return self.previous.get_round_outcome(roundNum)
         else:
@@ -93,12 +98,8 @@ class ElectionState(BaseModel):
         if not self.previous:
             raise ValueError("This is the first round, cannot compare previous ranking")
 
-        prev_ranking: dict = {
-            cand: index for index, cand in enumerate(self.previous.get_rankings())
-        }
-        curr_ranking: dict = {
-            cand: index for index, cand in enumerate(self.get_rankings())
-        }
+        prev_ranking: dict = candidate_position_dict(self.previous.get_rankings())
+        curr_ranking: dict = candidate_position_dict(self.get_rankings())
         if curr_ranking == prev_ranking:
             return {}
 

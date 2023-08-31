@@ -1,10 +1,8 @@
 from fractions import Fraction
 import itertools as it
 import numpy as np
-import random
 from typing import Callable, Optional
 
-from .ballot import Ballot
 from .models import Election
 from .election_state import ElectionState
 from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
@@ -13,9 +11,12 @@ from .utils import (
     compute_votes,
     remove_cand,
     fractional_transfer,
-    order_candidates_by_borda,
     borda_scores,
     seqRCV_transfer,
+    scores_into_set_list,
+    tie_broken_ranking,
+    elect_cands_from_set_ranking,
+    first_place_votes,
 )
 
 
@@ -34,11 +35,14 @@ class STV(Election):
     `seats`
     :   number of seats to be elected
 
-    `qouta`
-    :   formula to calculate qouta (defaults to droop)
+    `quota`
+    :   formula to calculate quota (defaults to droop)
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
@@ -49,13 +53,15 @@ class STV(Election):
         transfer: Callable,
         seats: int,
         quota: str = "droop",
-        ties: bool = True,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
     ):
         # let parent class handle the og profile and election state
-        super().__init__(profile, ties)
+        super().__init__(profile, ballot_ties)
 
         self.transfer = transfer
         self.seats = seats
+        self.tiebreak = tiebreak
         self.threshold = self.get_threshold(quota)
 
     # can cache since it will not change throughout rounds
@@ -64,7 +70,7 @@ class STV(Election):
         Calculates threshold required for election
 
         Args:
-            qouta: Type of qouta formula
+            quota: Type of quota formula
 
         Returns:
             Value of the threshold
@@ -84,7 +90,10 @@ class STV(Election):
         Returns:
             True if number of seats has been met, False otherwise
         """
-        return len(self.state.get_all_winners()) != self.seats
+        cands_elected = 0
+        for s in self.state.get_all_winners():
+            cands_elected += len(s)
+        return cands_elected < self.seats
 
     def run_step(self) -> ElectionState:
         """
@@ -93,8 +102,8 @@ class STV(Election):
         Returns:
            An ElectionState object for a given round
         """
-        remaining: list[str] = self.state.profile.get_candidates()
-        ballots: list[Ballot] = self.state.profile.get_ballots()
+        remaining = self.state.profile.get_candidates()
+        ballots = self.state.profile.get_ballots()
         round_votes = compute_votes(remaining, ballots)
         elected = []
         eliminated = []
@@ -102,7 +111,7 @@ class STV(Election):
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
         if len(remaining) == self.seats - len(self.state.get_all_winners()):
-            elected = [cand for cand, votes in round_votes]
+            elected = [{cand} for cand, votes in round_votes]
             remaining = []
             ballots = []
 
@@ -110,7 +119,7 @@ class STV(Election):
         elif round_votes[0].votes >= self.threshold:
             for candidate, votes in round_votes:
                 if votes >= self.threshold:
-                    elected.append(candidate)
+                    elected.append({candidate})
                     remaining.remove(candidate)
                     ballots = self.transfer(
                         candidate,
@@ -127,10 +136,26 @@ class STV(Election):
                 if votes == round_votes[-1].votes
             ]
 
-            lp_cand = random.choice(lp_candidates)
+            lp_cand = tie_broken_ranking(
+                ranking=[set(lp_candidates)],
+                profile=self.state.profile,
+                tiebreak=self.tiebreak,
+            )[-1]
             eliminated.append(lp_cand)
             ballots = remove_cand(lp_cand, ballots)
-            remaining.remove(lp_cand)
+            remaining.remove(next(iter(lp_cand)))
+
+        if len(elected) >= 1:
+            elected = scores_into_set_list(
+                first_place_votes(self.state.profile), [c for s in elected for c in s]
+            )
+
+        # Make sure list-of-sets have non-empty elements
+        elected = [s for s in elected if s != set()]
+        eliminated = [s for s in eliminated if s != set()]
+
+        remaining = [set(remaining)]
+        remaining = [s for s in remaining if s != set()]
 
         self.state = ElectionState(
             curr_round=self.state.curr_round + 1,
@@ -177,18 +202,27 @@ class Limited(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
     def __init__(
-        self, profile: PreferenceProfile, seats: int, k: int, ties: bool = True
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        k: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
     ):
-        super().__init__(profile, ties)
+        super().__init__(profile, ballot_ties)
         self.seats = seats
         self.k = k
+        self.tiebreak = tiebreak
 
     def run_step(self) -> ElectionState:
         """
@@ -229,24 +263,19 @@ class Limited(Election):
                 candidate_approvals[cand] += ballot.weight
 
         # Order candidates by number of approval votes received
-        ordered_results = sorted(
-            candidate_approvals, key=lambda x: (-candidate_approvals[x], x)
+        ranking = scores_into_set_list(candidate_approvals)
+        ranking = tie_broken_ranking(
+            ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
         )
-
-        # Construct ElectionState information
-        elected = ordered_results[: self.seats]
-        eliminated = ordered_results[self.seats :][::-1]
-        cands_removed = set(elected).union(set(eliminated))
-        remaining = list(set(profile.get_candidates()).difference(cands_removed))
-        profile_remaining = PreferenceProfile(
-            ballots=remove_cand(cands_removed, profile.get_ballots())
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=ranking, seats=self.seats
         )
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
             eliminated=eliminated,
-            remaining=remaining,
-            profile=profile_remaining,
+            remaining=list(),
+            profile=PreferenceProfile(),
             previous=self.state,
         )
         self.state = new_state
@@ -259,8 +288,8 @@ class Limited(Election):
         Returns:
             An ElectionState object with results for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
 
 
 class Bloc(Election):
@@ -277,15 +306,25 @@ class Bloc(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
         self.seats = seats
+        self.tiebreak = tiebreak
 
     def run_step(self) -> ElectionState:
         """
@@ -295,9 +334,13 @@ class Bloc(Election):
            An ElectionState object for a Limited election
         """
         limited_equivalent = Limited(
-            profile=self.state.profile, seats=self.seats, k=self.seats
+            profile=self.state.profile,
+            seats=self.seats,
+            k=self.seats,
+            tiebreak=self.tiebreak,
         )
         outcome = limited_equivalent.run_election()
+        self.state = outcome
         return outcome
 
     def run_election(self) -> ElectionState:
@@ -307,8 +350,8 @@ class Bloc(Election):
         Returns:
             An ElectionState object with results for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
 
 
 class SNTV(Election):
@@ -324,15 +367,25 @@ class SNTV(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
         self.seats = seats
+        self.tiebreak = tiebreak
 
     def run_step(self) -> ElectionState:
         """
@@ -341,8 +394,11 @@ class SNTV(Election):
         Returns:
            An ElectionState object for a Limited election
         """
-        limited_equivalent = Limited(profile=self.state.profile, seats=self.seats, k=1)
+        limited_equivalent = Limited(
+            profile=self.state.profile, seats=self.seats, k=1, tiebreak=self.tiebreak
+        )
         outcome = limited_equivalent.run_election()
+        self.state = outcome
         return outcome
 
     def run_election(self) -> ElectionState:
@@ -352,8 +408,8 @@ class SNTV(Election):
         Returns:
             An ElectionState object with results for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
 
 
 class SNTV_STV_Hybrid(Election):
@@ -375,8 +431,11 @@ class SNTV_STV_Hybrid(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
@@ -387,12 +446,14 @@ class SNTV_STV_Hybrid(Election):
         transfer: Callable,
         r1_cutoff: int,
         seats: int,
-        ties: bool = True,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
     ):
-        super().__init__(profile, ties)
+        super().__init__(profile, ballot_ties)
         self.transfer = transfer
         self.r1_cutoff = r1_cutoff
         self.seats = seats
+        self.tiebreak = tiebreak
         self.stage = "SNTV"  # SNTV, switches to STV, then Complete
 
     def run_step(self, stage: str) -> ElectionState:
@@ -409,31 +470,38 @@ class SNTV_STV_Hybrid(Election):
 
         new_state = None
         if stage == "SNTV":
-            round_state = SNTV(profile=profile, seats=self.r1_cutoff).run_election()
+            round_state = SNTV(
+                profile=profile, seats=self.r1_cutoff, tiebreak=self.tiebreak
+            ).run_election()
 
             # The STV election will be run on the new election state
             # Therefore we should not add any winners, but rather
             # set the SNTV winners as remaining candidates and update pref profiles
             new_profile = PreferenceProfile(
-                ballots=remove_cand(round_state.eliminated, profile.get_ballots())
+                ballots=remove_cand(
+                    set().union(*round_state.eliminated), profile.get_ballots()
+                )
             )
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=list(),
                 eliminated=round_state.eliminated,
-                remaining=new_profile.get_candidates(),
+                remaining=[set(new_profile.get_candidates())],
                 profile=new_profile,
                 previous=self.state,
             )
         elif stage == "STV":
             round_state = STV(
-                profile=profile, transfer=self.transfer, seats=self.seats
+                profile=profile,
+                transfer=self.transfer,
+                seats=self.seats,
+                tiebreak=self.tiebreak,
             ).run_election()
-            # Since get_all_eliminated returns reversed eliminations
+
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=round_state.get_all_winners(),
-                eliminated=round_state.get_all_eliminated()[::-1],
+                eliminated=round_state.get_all_eliminated(),
                 remaining=round_state.remaining,
                 profile=round_state.profile,
                 previous=self.state,
@@ -455,10 +523,9 @@ class SNTV_STV_Hybrid(Election):
         Returns:
             An ElectionState object with results for a complete election
         """
-        outcome = None
         while self.stage != "Complete":
-            outcome = self.run_step(self.stage)
-        return outcome  # type: ignore
+            self.run_step(self.stage)
+        return self.state  # type: ignore
 
 
 class TopTwo(Election):
@@ -474,14 +541,23 @@ class TopTwo(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
+        self.tiebreak = tiebreak
 
     def run_step(self) -> ElectionState:
         """
@@ -495,8 +571,10 @@ class TopTwo(Election):
             transfer=fractional_transfer,
             r1_cutoff=2,
             seats=1,
+            tiebreak=self.tiebreak,
         )
         outcome = hybrid_equivalent.run_election()
+        self.state = outcome
         return outcome
 
     def run_election(self) -> ElectionState:
@@ -506,8 +584,8 @@ class TopTwo(Election):
         Returns:
             An ElectionState object for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
 
 
 class DominatingSets(Election):
@@ -521,14 +599,15 @@ class DominatingSets(Election):
     `profile`
     :   PreferenceProfile to run election on
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(self, profile: PreferenceProfile, ballot_ties: bool = True):
+        super().__init__(profile, ballot_ties)
 
     def run_step(self) -> ElectionState:
         """
@@ -553,11 +632,12 @@ class DominatingSets(Election):
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=[set(dominating_tiers[0])],
-                eliminated=dominating_tiers[1:][::-1],
+                eliminated=dominating_tiers[1:],
                 remaining=list(),
                 profile=PreferenceProfile(),
                 previous=self.state,
             )
+        self.state = new_state
         return new_state
 
     def run_election(self) -> ElectionState:
@@ -567,14 +647,14 @@ class DominatingSets(Election):
         Returns:
             An ElectionState object for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
 
 
 class CondoBorda(Election):
     """
     Condo-Borda: Elects candidates ordered by dominating set, but breaks ties
-    between candidates
+    between candidates with Borda
 
     **Attributes**
 
@@ -584,15 +664,25 @@ class CondoBorda(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
         self.seats = seats
+        self.tiebreak = tiebreak
 
     def run_step(self) -> ElectionState:
         """
@@ -604,19 +694,22 @@ class CondoBorda(Election):
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
-        candidate_borda = borda_scores(self.state.profile)
-        ranking = []
-        for dt in dominating_tiers:
-            ranking += order_candidates_by_borda(dt, candidate_borda)
+        ranking = tie_broken_ranking(
+            ranking=dominating_tiers, profile=self.state.profile, tiebreak="borda"
+        )
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=ranking, seats=self.seats
+        )
 
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
-            elected=ranking[: self.seats],
-            eliminated=ranking[self.seats :],
+            elected=elected,
+            eliminated=eliminated,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
         )
+        self.state = new_state
         return new_state
 
     def run_election(self) -> ElectionState:
@@ -626,61 +719,8 @@ class CondoBorda(Election):
         Returns:
             An ElectionState object for a complete election
         """
-        outcome = self.run_step()
-        return outcome
-
-
-class Plurality(Election):
-    """
-    Single or multi-winner plurality election
-
-    **Attributes**
-
-    `profile`
-    :   PreferenceProfile to run election on
-
-    `seats`
-    :   number of seats to be elected
-
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
-
-    **Methods**
-    """
-
-    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
-
-        super().__init__(profile, ties)
-        self.seats = seats
-
-    def run_step(self):
-        """
-        Simulates a complete Pluarality election as it is not a round-by-round
-        system
-
-        Returns:
-            An ElectionState object for a complete election
-        """
-        candidates = self._profile.get_candidates()
-        ballots = self._profile.get_ballots()
-        results = compute_votes(candidates, ballots)
-
-        return ElectionState(
-            curr_round=1,
-            elected=[result.cand for result in results[: self.seats]],
-            eliminated=[result.cand for result in results[self.seats :]],
-            remaining=[],
-            profile=self._profile,
-        )
-
-    def run_election(self) -> ElectionState:
-        """
-        Simulates a complete Pluarality election
-
-        Returns:
-            An ElectionState object for a complete election
-        """
-        return self.run_step()
+        self.run_step()
+        return self.state
 
 
 class SequentialRCV(Election):
@@ -696,15 +736,25 @@ class SequentialRCV(Election):
     `seats`
     :   number of seats to be elected
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int, ties: bool = True):
-        super().__init__(profile, ties)
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
         self.seats = seats
+        self.tiebreak = tiebreak
 
     def run_step(self, old_profile: PreferenceProfile) -> ElectionState:
         """
@@ -716,7 +766,9 @@ class SequentialRCV(Election):
         """
         old_election_state = self.state
 
-        IRVrun = STV(old_profile, transfer=seqRCV_transfer, seats=1)
+        IRVrun = STV(
+            old_profile, transfer=seqRCV_transfer, seats=1, tiebreak=self.tiebreak
+        )
         old_election = IRVrun.run_election()
         elected_cand = old_election.get_all_winners()[0]
 
@@ -728,7 +780,7 @@ class SequentialRCV(Election):
 
         self.state = ElectionState(
             curr_round=old_election_state.curr_round + 1,
-            elected=list(elected_cand),
+            elected=[elected_cand],
             profile=updated_profile,
             previous=old_election_state,
             remaining=old_election.remaining,
@@ -770,8 +822,11 @@ class Borda(Election):
     `score_vector`
     :   (Optional) weights assigned to candidate ranking
 
-    `ties`
-    :   (Optional) resolves input ties if True, else assumes ballots have no ties
+    `ballot_ties`
+    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+
+    'tiebreak'
+    :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
     """
@@ -781,10 +836,12 @@ class Borda(Election):
         profile: PreferenceProfile,
         seats: int,
         score_vector: Optional[list[Fraction]],
-        ties: bool = True,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
     ):
-        super().__init__(profile, ties)
+        super().__init__(profile, ballot_ties)
         self.seats = seats
+        self.tiebreak = tiebreak
         self.score_vector = score_vector
 
     def run_step(self) -> ElectionState:
@@ -795,20 +852,28 @@ class Borda(Election):
         Returns:
             An ElectionState object for a complete election
         """
-        candidates = self.state.profile.get_candidates()
         borda_dict = borda_scores(
             profile=self.state.profile, score_vector=self.score_vector
         )
-        ranking = order_candidates_by_borda(set(candidates), borda_dict)
+
+        ranking = scores_into_set_list(borda_dict)
+        ranking = tie_broken_ranking(
+            ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
+        )
+
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=ranking, seats=self.seats
+        )
 
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
-            elected=ranking[: self.seats],
-            eliminated=ranking[self.seats :][::-1],
+            elected=elected,
+            eliminated=eliminated,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
         )
+        self.state = new_state
         return new_state
 
     def run_election(self) -> ElectionState:
@@ -818,5 +883,5 @@ class Borda(Election):
         Returns:
             An ElectionState object for a complete election
         """
-        outcome = self.run_step()
-        return outcome
+        self.run_step()
+        return self.state
