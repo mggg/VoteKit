@@ -164,7 +164,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
     Returns:
         Updated list of ballots with candidate(s) removed
     """
-    remove_set = {}
+
     if isinstance(removed, str):
         remove_set = {removed}
     elif isinstance(removed, Iterable):
@@ -388,7 +388,7 @@ def tie_broken_ranking(
 
 
 def scores_into_set_list(
-    score_dict: dict, candidate_subset: Union[list[str], set[str]] = None
+    score_dict: dict, candidate_subset: Union[list[str], set[str], None] = None
 ) -> list[set[str]]:
     """
     Sorts candidates based on a scoring dictionary (i.e Borda, First-Place)
