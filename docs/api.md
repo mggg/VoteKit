@@ -48,6 +48,22 @@
             - first_place_votes
             - mentions
             - seqRCV_transfer
+::: votekit.metrics.distances
+    rendering:
+        heading_level: 4
+    options:
+        members:
+            - earth_mover_dist
+            - lp_dist
+            - em_array
+
+## Plotting
+::: votekit.plots.mds
+    rendering:
+        heading_level: 4
+::: votekit.plots.profile_plots
+    rendering:
+        heading_level: 4
 
 ## Utils
 ::: votekit.utils
@@ -57,17 +73,17 @@
         members:
             - compute_votes
             - remove_cand
-            - order_candidates_by_borda
             - unset
             - recursively_fix_ties
             - fix_ties
-
-## Models
-::: votekit.models
-    rendering:
-      heading_level: 4
+            - elect_cands_from_set_ranking
+            - scores_into_set_list
+            - tie_broken_ranking
+            - candidate_position_dict
 
 ## Ballot Generators
 ::: votekit.ballot_generator
-    rendinger:
-    heading_level: 4
+    rendering:
+        heading_level: 4
+
+

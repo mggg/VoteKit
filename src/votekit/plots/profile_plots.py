@@ -38,9 +38,3 @@ def plot_summary_stats(
     ax.set_ylabel(ylabel)
 
     return fig
-
-
-def accumlation_chart():
-    """
-    TODO: After 0.0.0 version release
-    """
