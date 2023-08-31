@@ -5,7 +5,7 @@ from matplotlib.figure import Figure  # type: ignore
 
 
 def plot_summary_stats(
-    profile: PreferenceProfile, stat: str, multi_color: bool = True, title: str = None
+    profile: PreferenceProfile, stat: str, multi_color: bool = True, title: str = ""
 ) -> Figure:
     """
     Plots histogram of election summary statistics
