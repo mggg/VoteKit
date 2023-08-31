@@ -1,7 +1,5 @@
 import itertools as it
 import math
-
-import numpy as np
 import pytest
 import scipy.stats as stats
 
@@ -142,9 +140,8 @@ def do_ballot_probs_match_ballot_dist(
             failed += 1
 
     # allow for small margin of error given confidence intereval
-    n_factorial = math.factorial(n)
-    stdev = np.sqrt(n_factorial * alpha * (1 - alpha))
-    return failed < (n_factorial * (1 - alpha) + 2 * stdev)
+    failure_thresold = 5
+    return failed <= failure_thresold
 
 
 def test_ic_distribution():
