@@ -563,3 +563,44 @@ def test_pl_profile_from_params():
 
     profile = ac.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
+
+def test_interval_sum_from_params():
+
+    blocs = {"R": 0.6, "D": 0.4}
+    cohesion = {"R": 0.7, "D": 0.6}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+    for b in ac.pref_interval_by_bloc:
+        if not math.isclose(sum(ac.pref_interval_by_bloc[b].values()), 1):
+            assert False
+    assert True
+
+
+def test_interval_from_params():
+
+    blocs = {"R": 0.9, "D": 0.1}
+    cohesion = {"R": 0.9, "D": 0.9}
+    alphas = {"R": {"R": 1, "D": 1}, "D": {"R": 1, "D": 1}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+
+    ac = PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        slate_to_candidates=slate_to_cands,
+        cohesion=cohesion,
+        alphas=alphas,
+    )
+
+    for b in blocs:
+        pref = ac.pref_interval_by_bloc[b].values()
+        if not any(value > 0.5 for value in pref):
+            assert False
+
+    assert True

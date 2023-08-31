@@ -98,9 +98,6 @@ class BallotGenerator:
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
             raise ValueError("slates and blocs are not the same")
 
-        # TODO: write test that check preference interval sums to 1
-        # write test that checks relative ordering
-
         def _construct_preference_interval(
             alphas: dict, cohesion: int, bloc: str, slate_to_cands: dict
         ) -> dict:
