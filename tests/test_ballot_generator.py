@@ -608,8 +608,8 @@ def test_interval_from_params():
 
 
 def test_Cambridge_distribution():
-    BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data/"
+    # BASE_DIR = Path(__file__).resolve().parent.parent
+    DATA_DIR = "src/votekit/data"
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     candidates = ["W1", "W2", "C1", "C2"]

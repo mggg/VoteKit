@@ -55,8 +55,7 @@ def test_generate_election_completion():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data/"
+    DATA_DIR = "src/votekit/data/"
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     ballot_model = bg.CambridgeSampler(
