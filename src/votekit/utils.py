@@ -262,10 +262,10 @@ def borda_scores(
 
     Args:
         profile: Inputed profile of ballots
-        ballot_length: Length of a ballot, if None length of longest ballot is \n
-        is used
-        score_vector: Borda weights, if None assigned based length of the \n
-        longest ballot
+        ballot_length: Length of a ballot, if None length of longest ballot is
+            used
+        score_vector: Borda weights, if None assigned based length of the
+            longest ballot
 
     Returns:
         Dictionary of candidates (keys) and Borda scores (values)
@@ -324,7 +324,7 @@ def unset(input_set: set) -> Any:
 
 def candidate_position_dict(ranking: list[set[str]]) -> dict:
     """
-    Creates a dictionary with the integer ranking of candidates given a set ranking \n
+    Creates a dictionary with the integer ranking of candidates given a set ranking
     i.e. A > B, C > D returns {A: 1, B: 2, C: 2, D: 4}
 
     Args:
@@ -356,8 +356,8 @@ def tie_broken_ranking(
         tiebreak: Method of tiebreak, currently supports 'none', 'random', 'borda', 'firstplace'
 
     Returns:
-        A list-of-set ranking of candidates (tie broken down to one candidate sets unless \n
-        tiebreak = 'none')
+        A list-of-set ranking of candidates (tie broken down to one candidate sets unless
+            tiebreak = 'none')
     """
 
     new_ranking = []

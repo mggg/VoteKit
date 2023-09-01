@@ -19,7 +19,6 @@ class PreferenceProfile(BaseModel):
 
     `candiates`
     :   list of candidates
-    `
 
     **Methods**
     """

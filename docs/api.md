@@ -20,19 +20,35 @@
 ::: votekit.graphs.pairwise_comparison_graph
     rendering:
       heading_level: 4
-  
-## Cleaning
-::: votekit.cleaning
-    rendering:
-      heading_level: 4
 
 ## CVR Loaders
 ::: votekit.cvr_loaders
     rendering:
       heading_level: 4
 
+## Ballot Generators
+::: votekit.ballot_generator
+    rendering:
+        heading_level: 4
+    options:
+        members:
+            - BallotGenerator
+            - BallotSimplex
+            - PlackettLuce
+            - BradleyTerry
+            - AlternatingCrossover
+            - CambridgeSampler
+            - OneDimSpatial
+            - ImpartialCulture
+            - ImpartialAnonymousCulture
+
 ## Elections
 ::: votekit.election_types
+    rendering:
+      heading_level: 4
+
+## Cleaning
+::: votekit.cleaning
     rendering:
       heading_level: 4
 
@@ -81,9 +97,5 @@
             - tie_broken_ranking
             - candidate_position_dict
 
-## Ballot Generators
-::: votekit.ballot_generator
-    rendering:
-        heading_level: 4
 
 

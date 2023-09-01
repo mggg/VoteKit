@@ -16,9 +16,8 @@ def remove_empty_ballots(
 
     Args:
         pp (PreferenceProfile): a preference profile to clean
-        keep_candidates (bool, optional): if True, keep all of \
-            the candidates from the original preference profile \
-            in the returned preference profile.
+        keep_candidates (bool, optional): if True, keep all of the candidates
+            from the original preference profile in the returned preference profile.
 
     Returns:
         PreferenceProfile: a cleaned preference profile
