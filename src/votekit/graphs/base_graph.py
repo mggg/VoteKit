@@ -291,7 +291,6 @@ class BallotGraph(Graph):
                         i = (list(neighborhoods.keys())).index(center)
                         break
             elif self.node_data[ballot] != 0 and self.profile:
-                print(ballot)
                 i = (list(self.cand_num.values())).index(ballot[0])
 
             if "weight" in ballot:
