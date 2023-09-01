@@ -594,8 +594,8 @@ class CambridgeSampler(BallotGenerator):
         if path:
             self.path = path
         else:
-            BASE_DIR = Path(__file__).resolve().parents[2]
-            DATA_DIR = BASE_DIR / "tests/data/"
+            BASE_DIR = Path(__file__).resolve().parent
+            DATA_DIR = BASE_DIR / "data/"
             self.path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
