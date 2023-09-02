@@ -18,7 +18,7 @@ from .election_types import (  # noqa
     TopTwo,
     DominatingSets,
     CondoBorda,
-    Pluarality,
+    Plurality,
 )
 from .ballot import Ballot  # noqa
 from .pref_profile import PreferenceProfile  # noqa

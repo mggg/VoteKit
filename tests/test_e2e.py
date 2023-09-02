@@ -1,14 +1,14 @@
 from pathlib import Path
+from fractions import Fraction
 
 from votekit.cvr_loaders import load_blt
 import votekit.cleaning as clean
 from votekit.election_state import ElectionState
 import votekit.ballot_generator as bg
 import votekit.election_types as elections
-
-# from votekit.pref_profile import PreferenceProfile
-
-# from votekit.utils import fractional_transfer, make_ballot
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.utils import fractional_transfer
 
 # TODO:
 # need to do one with visualizations,
@@ -76,30 +76,38 @@ def test_generate_election_completion():
     assert isinstance(outcome_borda, ElectionState)
 
 
-# def test_generate_election_diff_res():
-#     b1 = make_ballot(ranking=["A", "D", "E", "C", "B"], weight=18)
-#     b2 = make_ballot(ranking=["B", "E", "D", "C", "A"], weight=12)
-#     b3 = make_ballot(ranking=["C", "B", "E", "D", "A"], weight=10)
-#     b4 = make_ballot(ranking=["D", "C", "E", "B", "A"], weight=4)
-#     b5 = make_ballot(ranking=["E", "B", "D", "C", "A"], weight=4)
-#     b6 = make_ballot(ranking=["E", "C", "D", "B", "A"], weight=2)
-#     pp = PreferenceProfile(ballots=[b1, b2, b3, b4, b5, b6])
+def make_ballot(ranking, weight):
+    ballot_rank = []
+    for cand in ranking:
+        ballot_rank.append({cand})
 
-#     election_borda = elections.Borda(pp, 1, score_vector=None)
-#     election_irv = elections.STV(pp, fractional_transfer, 1)
-#     election_plurality = elections.Plurality(pp, seats=1, ties=False)
-#     election_seq = elections.SequentialRCV(pp, seats=1)
-#     # election_sntv = elections.SNTV(pp, seats=1)
+    return Ballot(ranking=ballot_rank, weight=Fraction(weight))
 
-#     outcome_borda = election_borda.run_election().get_all_winners()
-#     outcome_irv = election_irv.run_election().get_all_winners()
-#     outcome_plurality = election_plurality.run_election().get_all_winners()
-#     outcome_seq = election_seq.run_election().get_all_winners()
-#     # outcome_sntv = election_sntv.run_election().get_all_winners()
 
-#     print(outcome_borda)
-#     print(outcome_irv)
-#     print(outcome_plurality)
-#     print(outcome_seq)
+def test_generate_election_diff_res():
+    b1 = make_ballot(ranking=["A", "D", "E", "C", "B"], weight=18)
+    b2 = make_ballot(ranking=["B", "E", "D", "C", "A"], weight=12)
+    b3 = make_ballot(ranking=["C", "B", "E", "D", "A"], weight=10)
+    b4 = make_ballot(ranking=["D", "C", "E", "B", "A"], weight=4)
+    b5 = make_ballot(ranking=["E", "B", "D", "C", "A"], weight=4)
+    b6 = make_ballot(ranking=["E", "C", "D", "B", "A"], weight=2)
+    pp = PreferenceProfile(ballots=[b1, b2, b3, b4, b5, b6])
 
-#     assert outcome_borda != outcome_irv != outcome_plurality != outcome_seq
+    election_borda = elections.Borda(pp, 1, score_vector=None)
+    election_irv = elections.STV(pp, fractional_transfer, 1)
+    election_plurality = elections.Plurality(pp, seats=1, ballot_ties=False)
+    election_seq = elections.SequentialRCV(pp, seats=1)
+    # election_sntv = elections.SNTV(pp, seats=1)
+
+    outcome_borda = election_borda.run_election().get_all_winners()
+    outcome_irv = election_irv.run_election().get_all_winners()
+    outcome_plurality = election_plurality.run_election().get_all_winners()
+    outcome_seq = election_seq.run_election().get_all_winners()
+    # outcome_sntv = election_sntv.run_election().get_all_winners()
+
+    print(outcome_borda)
+    print(outcome_irv)
+    print(outcome_plurality)
+    print(outcome_seq)
+
+    assert outcome_borda != outcome_irv != outcome_plurality != outcome_seq

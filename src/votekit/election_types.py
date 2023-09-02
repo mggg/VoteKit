@@ -887,8 +887,19 @@ class Borda(Election):
         return self.state
 
 
-class Pluarality(SNTV):
+class Plurality(SNTV):
     """
     Simulates a single or multi-winner plurality election. Inherits
     methods from SNTV to run election
     """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
+        self.seats = seats
+        self.tiebreak = tiebreak
