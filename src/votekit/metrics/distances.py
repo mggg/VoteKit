@@ -1,5 +1,5 @@
 from votekit.pref_profile import PreferenceProfile
-from votekit.graphs.base_graph import BallotGraph
+from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
 import ot  # type: ignore
 import networkx as nx  # type: ignore
@@ -10,6 +10,13 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
     Computes the earth mover distance between two elections. \n
     Assumes both elections share the same candidates
+
+    Args:
+        pp1: Profile for first election
+        pp2: Profile for second election
+
+    Returns:
+        Earth mover distance between inputted elections
     """
     # create ballot graph
     ballot_graph = BallotGraph(source=pp2, complete=True).graph
@@ -43,6 +50,15 @@ def lp_dist(
     Computes the L_p distance between two election distributions.
     Use 'inf' for infinity norm. \n
     Assumes both elections share the same candidates.
+
+    Args:
+        pp1: Profile for first election
+        pp2: Profile for second election
+        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean \n
+            or 'inf' for Chebyshev distance
+
+    Returns:
+        Lp distance between two elections
     """
     pp_list = [pp1, pp2]
     pp_2arry = profiles_to_ndarrys(pp_list)
@@ -69,7 +85,7 @@ def lp_dist(
 # these functions comvert a list of preference profiles into distribution arrays
 def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     """
-    converts a list of perference profiles into an ndarray,
+    Converts a list of perference profiles into an ndarray,
     a matrix like object. The cols represent each profile
     and rows are the cast ballots and each element represents
     the frequency a ballot type occurs for a preference profile.
@@ -97,10 +113,15 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     return electn_ndarry
 
 
-def em_array(pp: PreferenceProfile):
+def em_array(pp: PreferenceProfile) -> list:
     """
-    converts a preference profile into a distribution using
-    ballot graphs. Useful for the earthmover distance
+    Converts a PreferenceProfile into a distribution using ballot graphs.
+
+    Args:
+        pp: Profile for a given election
+
+    Returns:
+        Distribution of ballots for an election
     """
     ballot_graph = BallotGraph(source=pp)
     node_cand_map = ballot_graph.label_cands(sorted(pp.get_candidates()))

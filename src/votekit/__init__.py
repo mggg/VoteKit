@@ -18,7 +18,7 @@ from .election_types import (  # noqa
     TopTwo,
     DominatingSets,
     CondoBorda,
-    Pluarality,
+    Plurality,
 )
 from .ballot import Ballot  # noqa
 from .pref_profile import PreferenceProfile  # noqa
@@ -35,4 +35,4 @@ from .utils import (  # noqa
     first_place_votes,
     borda_scores,
 )
-from .cvr_loaders import rank_column_csv, blt  # noqa
+from .cvr_loaders import load_blt, load_csv  # noqa

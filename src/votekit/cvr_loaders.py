@@ -8,10 +8,8 @@ from typing import Optional
 from .pref_profile import PreferenceProfile
 from .ballot import Ballot
 
-# TODO: update documentation for function below
 
-
-def rank_column_csv(
+def load_csv(
     fpath: str,
     *,
     weight_col: Optional[int] = None,
@@ -19,23 +17,24 @@ def rank_column_csv(
     id_col: Optional[int] = None,
 ) -> PreferenceProfile:
     """
-    Takes a file path and loads a cast vote record (cvr) with cast votes as cols and voters as rows.
-    Empty cells are treated as None. Currently, missing voter ids are not assigned
+    Given a file path, loads cvr with ranks as columns and voters as rows
+    (empty cells are treated as None)
 
-    :param fpath: :class:`str`: path to cvr file
-    :param weight_col: optional :class:`int` the column position for ballot weights
-    if parsing Scottish elections like cvrs
-    :param delimiter: :class:`str`: the character that breaks up rows
-    :param id_col: optional :class:`int`: index for the column with voter ids \n
+    Args:
+        fpath: Path to cvr file
+        weight_col: The column position for ballot weights
+            if parsing Scottish elections like cvrs
+        delimiter: The character that breaks up rows
+        id_col: Index for the column with voter ids
 
     Raises:
-        `FileNotFoundError`: if fpath is invalid \n
-        `EmptyDataError`: if dataset is empty \n
-        `ValueError`: if the voter id column has missing values \n
-        `DataError`: if the voter id column has duplicate values
+        FileNotFoundError: If fpath is invalid
+        EmptyDataError: If dataset is empty
+        ValueError: If the voter id column has missing values
+        DataError: If the voter id column has duplicate values
 
-    :return: A preference profile object with all cast ballots from file
-    :rtype: :class:`PreferenceProfile`
+    Returns:
+        A preference schedule that represents all the ballots in the elction
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
@@ -76,22 +75,21 @@ def rank_column_csv(
     return PreferenceProfile(ballots=ballots)
 
 
-def blt(fpath: str) -> tuple[PreferenceProfile, int]:
+def load_blt(fpath: str) -> tuple[PreferenceProfile, int]:
     """
-    Loads cast vote record from .blt file.
-    blt is text-like format used for scottish election data
-    the first line of the file is metadata recording the number of candidates and seats,
-    followed by ballot data (first number in row is ballot weight),
-    followed by candidate data (order corresponds to number in ballots),
-    followed by election location
-    :param fpath: :class:`str`: path to cvr file \n
-    Raises:\n
-    `FileNotFoundError`: if fpath is invalid \n
-    `EmptyDataError`: if dataset is empty \n
-    `DataError`: if there is missing or incorrect metadata or candidate data \n
-    :return: preference profile with all cast ballots from file and number of seats in election
-    :rtype: :class:`PreferenceProfile`  , :class:`int`
+    Given a blt file path, loads cvr (blt is text-like format used for scottish election data)
 
+    Args:
+        fpath: Path to cvr file
+
+    Raises:
+        FileNotFoundError: If fpath is invalid
+        EmptyDataError: If dataset is empty
+        DataError: If there is missing or incorrect metadata or candidate data
+
+    Returns:
+        A preference schedule representing all the ballots in the elction
+        Number of seats in the election
     """
     ballots = []
     names = []

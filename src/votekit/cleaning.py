@@ -13,13 +13,16 @@ def remove_empty_ballots(
 ) -> PreferenceProfile:
     """
     Removes empty ballots from a preference profile.
-    :param pp: :class:`PreferenceProfile`
-    :param keep_candidates: optional :class:`bool` If True, keep all of the
-    candidates from the original preference profile in the returned preference
-    profile, even if some no longer appear in the returned ballots.
-    :return: A preference profile without empty ballots.
-    :rtype: :class:`PreferenceProfile`
+
+    Args:
+        pp (PreferenceProfile): a preference profile to clean
+        keep_candidates (bool, optional): if True, keep all of the candidates
+            from the original preference profile in the returned preference profile.
+
+    Returns:
+        PreferenceProfile: a cleaned preference profile
     """
+
     ballots_nonempty = [
         deepcopy(ballot) for ballot in pp.get_ballots() if ballot.ranking
     ]
@@ -31,19 +34,23 @@ def remove_empty_ballots(
     return pp_clean
 
 
-def _clean(
+def clean_helper(
     pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
 ) -> PreferenceProfile:
     """
     General cleaning function that takes a preference profile and applies a
     cleaning function to each ballot and merges the ballots with the same ranking.
     This is used primarily when only the ballot ranking needs to be cleaned.
-    :param pp: :class:`PreferenceProfile` The preference profile to be cleaned
-    :param clean_ballot_func: :class:`Callable`[:class:`list`[:class:`Ballot`], :class:`Ballot`]
-    Function that takes a list of ballots and cleans them
-    :return: A cleaned preference profile
-    :rtype: :class:`PreferenceProfile`
+
+    Args:
+        pp (PreferenceProfile): a preference profile to clean
+        clean_ballot_func (Callable[[Ballot], Ballot]): function that \
+            takes a list of ballots and cleans each ballot
+
+    Returns:
+        PreferenceProfile: a cleaned preference profile
     """
+
     # apply cleaning function to clean all ballots
     if clean_ballot_func is not None:
         cleaned = map(clean_ballot_func, pp.ballots)
@@ -60,10 +67,12 @@ def _clean(
 def merge_ballots(ballots: list[Ballot]) -> Ballot:
     """
     Takes a list of ballots with the same ranking and merge them into one ballot.
-    :param ballots: :class:`list`[:class:`Ballot`] Where each ballot has the same
-    ranking.
-    :return: A ballot with the same ranking and aggregated weight and voters
-    :rtype: :class:`Ballot`
+
+    Args:
+        ballots (list[Ballot]): a list of ballots to deduplicate
+
+    Returns:
+        Ballot: a ballot with the same ranking and aggregated weight and voters
     """
     weight = sum(b.weight for b in ballots)
     ranking = ballots[0].ranking
@@ -75,22 +84,26 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     return Ballot(ranking=ranking, voters=voters, weight=Fraction(weight))
 
 
-# TODO: Brenda will replace this function with the function she wrote,
-# TODO: change to keep ranks so that we’ll have None
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
     """
     Given a preference profile, deduplicates its ballots.
-    :param pp: :class:`PreferenceProfile`
-    :return: A preference profile without duplicates
-    :rtype: :class:`PreferenceProfile`
+
+    Args:
+        pp (PreferenceProfile): a preference profile to clean
+
+    Returns:
+        PreferenceProfile: a cleaned preference profile without duplicates
     """
 
     def deduplicate_ballots(ballot: Ballot) -> Ballot:
         """
         Takes a ballot and deduplicates its rankings
-        :param ballot: :class:`Ballot` with duplicates in its ranking
-        :return: A ballot without duplicates
-        :rtype: :class:`Ballot`
+
+        Args:
+            ballot (Ballot): a ballot with duplicates in its ranking
+
+        Returns:
+            Ballot: a ballot without duplicates
         """
         ranking = ballot.ranking
         dedup_ranking = []
@@ -106,48 +119,57 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         )
         return new_ballot
 
-    pp_clean = _clean(pp=pp, clean_ballot_func=deduplicate_ballots)
+    pp_clean = clean_helper(pp=pp, clean_ballot_func=deduplicate_ballots)
     return pp_clean
 
 
-def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
-    """
-    Removes non-candidiates from ballot objects
-    """
-    # TODO: adjust so string and list of strings are acceptable inputes
-
-    to_remove = []
-    for item in non_cands:
-        to_remove.append({item})
-
-    ranking = ballot.ranking
-    clean_ranking = []
-    for cand in ranking:
-        if cand not in to_remove and cand not in clean_ranking:
-            clean_ranking.append(cand)
-
-    clean_ballot = Ballot(
-        id=ballot.id,
-        ranking=clean_ranking,
-        weight=Fraction(ballot.weight),
-        voters=ballot.voters,
-    )
-
-    return clean_ballot
-
-
-## TODO: typehints so that non_cands inputs is str or list of strs
 def remove_noncands(
     profile: PreferenceProfile, non_cands: list[str]
 ) -> PreferenceProfile:
     """
     Removes user-assigned non-candidates from ballots, deletes ballots
     that are empty as a result of the removal.
-    :param profile: :class:`PreferenceProfile` Uncleaned preference profile.
-    :param non_cands: :class:`list`[:class:`str`] Non-candidate items to be removed.
-    :return: A profile with non-candidates removed.
-    :rtype: :class:`PreferenceProfile`
+
+    Args:
+        profile (PreferenceProfile): a preference profile to clean
+        non_cands (list[str]): a list of non-candidates to be removed
+
+    Returns:
+        PreferenceProfile: a profile with non-candidates removed
     """
+
+    def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
+        """
+        Removes non-candidiates from ballot objects.
+
+        Args:
+            ballot (Ballot): a ballot to be cleaned
+            non_cands (list[str]): a list of candidates to remove
+
+        Returns:
+            Ballot: _description_
+        """
+        # TODO: adjust so string and list of strings are acceptable inputes
+
+        to_remove = []
+        for item in non_cands:
+            to_remove.append({item})
+
+        ranking = ballot.ranking
+        clean_ranking = []
+        for cand in ranking:
+            if cand not in to_remove and cand not in clean_ranking:
+                clean_ranking.append(cand)
+
+        clean_ballot = Ballot(
+            id=ballot.id,
+            ranking=clean_ranking,
+            weight=Fraction(ballot.weight),
+            voters=ballot.voters,
+        )
+
+        return clean_ballot
+
     cleaned = [
         remove_from_ballots(ballot, non_cands)
         for ballot in profile.ballots

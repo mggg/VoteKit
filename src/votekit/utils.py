@@ -2,7 +2,9 @@ from collections import namedtuple
 from fractions import Fraction
 import numpy as np
 import random
-from typing import Union, Iterable, Optional
+from typing import Union, Iterable, Optional, Any
+from itertools import permutations
+import math
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -260,10 +262,10 @@ def borda_scores(
 
     Args:
         profile: Inputed profile of ballots
-        ballot_length: Length of a ballot, if None length of longest ballot is \n
-        is used
-        score_vector: Borda weights, if None assigned based length of the \n
-        longest ballot
+        ballot_length: Length of a ballot, if None length of longest ballot is
+            used
+        score_vector: Borda weights, if None assigned based length of the
+            longest ballot
 
     Returns:
         Dictionary of candidates (keys) and Borda scores (values)
@@ -302,17 +304,17 @@ def borda_scores(
     return candidate_borda
 
 
-def unset(input: set):
+def unset(input_set: set) -> Any:
     """
     Removes object from set
 
     Args:
-        input: Input set
+        input_set: Input set
 
     Returns:
         If set has length one returns the object, else returns a list
     """
-    rv = list(input)
+    rv = list(input_set)
 
     if len(rv) == 1:
         return rv[0]
@@ -322,7 +324,7 @@ def unset(input: set):
 
 def candidate_position_dict(ranking: list[set[str]]) -> dict:
     """
-    Creates a dictionary with the integer ranking of candidates given a set ranking \n
+    Creates a dictionary with the integer ranking of candidates given a set ranking
     i.e. A > B, C > D returns {A: 1, B: 2, C: 2, D: 4}
 
     Args:
@@ -354,8 +356,8 @@ def tie_broken_ranking(
         tiebreak: Method of tiebreak, currently supports 'none', 'random', 'borda', 'firstplace'
 
     Returns:
-        A list-of-set ranking of candidates (tie broken down to one candidate sets unless \n
-        tiebreak = 'none')
+        A list-of-set ranking of candidates (tie broken down to one candidate sets unless
+            tiebreak = 'none')
     """
 
     new_ranking = []
@@ -449,3 +451,49 @@ def elect_cands_from_set_ranking(
         )
 
     return elected, eliminated
+
+
+# helper functions for Election base class
+def recursively_fix_ties(ballot_lst: list[Ballot], num_ties: int) -> list[Ballot]:
+    """
+    Recursively fixes ties in a ballot in the case there is more then one tie
+    """
+    # base case, if only one tie to resolved return the list of already
+    # resolved ballots
+    if num_ties == 1:
+        return ballot_lst
+
+    # in the event multiple positions have ties
+    else:
+        update = set()
+        for ballot in ballot_lst:
+            update.update(set(fix_ties(ballot)))
+
+        return recursively_fix_ties(list(update), num_ties - 1)
+
+
+def fix_ties(ballot: Ballot) -> list[Ballot]:
+    """
+    Helper function for recursively_fix_ties. Resolves the first appearing
+    tied rank in the input ballot by return list of permuted ballots
+    """
+
+    ballots = []
+    for idx, rank in enumerate(ballot.ranking):
+        if len(rank) > 1:
+            for order in permutations(rank):
+                resolved = []
+                for cand in order:
+                    resolved.append(set(cand))
+                ballots.append(
+                    Ballot(
+                        id=ballot.id,
+                        ranking=ballot.ranking[:idx]
+                        + resolved
+                        + ballot.ranking[idx + 1 :],
+                        weight=ballot.weight / math.factorial(len(rank)),
+                        voters=ballot.voters,
+                    )
+                )
+
+    return ballots

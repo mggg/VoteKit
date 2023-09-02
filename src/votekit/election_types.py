@@ -294,8 +294,8 @@ class Limited(Election):
 
 class Bloc(Election):
     """
-    Bloc: Elects m candidates with the highest m-approval scores. The m-approval \n
-    score of a candidate is equal to the number of voters who rank this \n
+    Bloc: Elects m candidates with the highest m-approval scores. The m-approval
+    score of a candidate is equal to the number of voters who rank this
     candidate among their m top ranked candidates.
 
     **Attributes**
@@ -309,7 +309,7 @@ class Bloc(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -356,7 +356,7 @@ class Bloc(Election):
 
 class SNTV(Election):
     """
-    Single nontransferable vote (SNTV): Elects k-candidates with the highest \n
+    Single nontransferable vote (SNTV): Elects k-candidates with the highest
     Plurality scores
 
     **Attributes**
@@ -414,8 +414,8 @@ class SNTV(Election):
 
 class SNTV_STV_Hybrid(Election):
     """
-    SNTV-IRV Hybrid: This method first runs SNTV to a cutoff, then
-    runs STV to pick a committee with a given number of seats.
+    SNTV-IRV Hybrid: This method first runs SNTV to a cutoff, then runs STV to
+    pick a committee with a given number of seats.
 
     **Attributes**
 
@@ -530,7 +530,7 @@ class SNTV_STV_Hybrid(Election):
 
 class TopTwo(Election):
     """
-    Top Two: Eliminates all but the top two plurality vote getters,and then
+    Top Two: Eliminates all but the top two plurality vote getters, and then
     conducts a runoff between them, reallocating other ballots
 
     **Attributes**
@@ -887,8 +887,19 @@ class Borda(Election):
         return self.state
 
 
-class Pluarality(SNTV):
+class Plurality(SNTV):
     """
     Simulates a single or multi-winner plurality election. Inherits
     methods from SNTV to run election
     """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        super().__init__(profile, ballot_ties)
+        self.seats = seats
+        self.tiebreak = tiebreak

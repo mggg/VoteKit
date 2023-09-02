@@ -2,7 +2,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import rank_column_csv
+from votekit.cvr_loaders import load_csv
 from votekit.election_types import remove_cand
 from votekit.pref_profile import PreferenceProfile
 
@@ -10,8 +10,8 @@ from votekit.pref_profile import PreferenceProfile
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv/"
 
-test_profile = rank_column_csv(DATA_DIR / "test_election_A.csv")
-mn_profile = rank_column_csv(DATA_DIR / "mn_clean_ballots.csv")
+test_profile = load_csv(DATA_DIR / "test_election_A.csv")
+mn_profile = load_csv(DATA_DIR / "mn_clean_ballots.csv")
 
 
 def test_unique_cands():
@@ -77,7 +77,7 @@ def test_create_df():
             Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(1)),
         ]
     )
-    df = profile.create_df()
+    df = profile._create_df()
     assert len(df) == 2
 
 
@@ -88,7 +88,7 @@ def test_vote_share_with_zeros():
             Ballot(ranking=[{"B"}, {"C"}, {"E"}], weight=Fraction(0)),
         ]
     )
-    df = profile.create_df()
+    df = profile._create_df()
     assert sum(df["Voter Share"]) == 0
 
 
