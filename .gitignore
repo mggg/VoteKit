@@ -3,4 +3,6 @@ poetry.lock
 .coverage
 htmlcov/
 .DS_Store
+dist/
+.ipynb_checkpoints
 
