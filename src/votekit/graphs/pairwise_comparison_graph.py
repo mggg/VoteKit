@@ -19,7 +19,7 @@ class PairwiseComparisonGraph(Graph):
     :   profile to construction graph from
 
     `ballot_length`
-    :   (Optional): max length of ballot, if None longest possible ballot \n
+    :   (Optional) max length of ballot, if None longest possible ballot \n
         lenth is assigned
 
     **Methods**

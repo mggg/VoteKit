@@ -15,7 +15,7 @@ class PreferenceProfile(BaseModel):
     **Attributes**
 
     `ballots`
-    :   list of ballot objects
+    :   list of `Ballot` objects
 
     `candiates`
     :   list of candidates
@@ -58,7 +58,7 @@ class PreferenceProfile(BaseModel):
         """
         Counts number of ballots based on assigned weight
 
-        Returns
+        Returns:
             Number of ballots cast
         """
         num_ballots = Fraction(0)

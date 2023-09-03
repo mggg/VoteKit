@@ -25,7 +25,7 @@ class BallotGenerator:
 
     `ballot_length`
     :   (Optional) length of ballots to generate. Defaults to the length of
-        candidates.
+        `candidates`
 
     `pref_interval_by_bloc`
     :   dictionary mapping of slate to preference interval
@@ -33,7 +33,7 @@ class BallotGenerator:
 
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions
-        (ex. {race: voter proportion}). Defaults to None.
+        (ex. {race: voter proportion}). Defaults to None
 
     ???+ note
 
@@ -153,12 +153,12 @@ class BallotGenerator:
     @abstractmethod
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
         """
-        Generates a preference profile
+        Generates a `PreferenceProfile`
 
         Args:
             number_of_ballots (int): number of ballots to generate
         Returns:
-            PreferenceProfile: a generated preference profiles
+            PreferenceProfile: a generated `PreferenceProfile`
         """
         pass
 
@@ -179,7 +179,7 @@ class BallotGenerator:
     @staticmethod
     def ballot_pool_to_profile(ballot_pool, candidates) -> PreferenceProfile:
         """
-        Given a list of ballots and candidates, convert them into a Preference Profile
+        Given a list of ballots and candidates, convert them into a `PreferenceProfile`
 
         Args:
             ballot_pool (list of tuple): a list of ballots, with tuple as their ranking
@@ -345,7 +345,7 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
 class PlackettLuce(BallotGenerator):
     """
-    Class for generating ballots using a Plackett-Luce Ballot model
+    Class for generating ballots using a Plackett-Luce model
 
     **Attributes**
 

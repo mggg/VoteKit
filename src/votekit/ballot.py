@@ -10,7 +10,7 @@ class Ballot(BaseModel):
     **Attributes**
 
     `id`
-    :   Optionally assigned ballot id
+    :   optionally assigned ballot id
 
     `ranking`
     :   list of candidate ranking

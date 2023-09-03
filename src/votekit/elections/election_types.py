@@ -40,7 +40,7 @@ class STV(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -186,7 +186,7 @@ class STV(Election):
 
 class Limited(Election):
     """
-    Limited: Elects m (seats) candidates with the highest k-approval scores.
+    Elects m (seats) candidates with the highest k-approval scores.
     The k-approval score of a candidate is equal to the number of voters who \n
     rank this candidate among their k top ranked candidates.
 
@@ -204,7 +204,7 @@ class Limited(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -293,7 +293,7 @@ class Limited(Election):
 
 class Bloc(Election):
     """
-    Bloc: Elects m candidates with the highest m-approval scores. The m-approval
+    Elects m candidates with the highest m-approval scores. The m-approval
     score of a candidate is equal to the number of voters who rank this
     candidate among their m top ranked candidates.
 
@@ -369,7 +369,7 @@ class SNTV(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -413,8 +413,8 @@ class SNTV(Election):
 
 class SNTV_STV_Hybrid(Election):
     """
-    SNTV-IRV Hybrid: This method first runs SNTV to a cutoff, then runs STV to
-    pick a committee with a given number of seats.
+    Election methd that first runs SNTV to a cutoff, then runs STV to
+    pick a committee with a given number of seats
 
     **Attributes**
 
@@ -433,7 +433,7 @@ class SNTV_STV_Hybrid(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -529,7 +529,7 @@ class SNTV_STV_Hybrid(Election):
 
 class TopTwo(Election):
     """
-    Top Two: Eliminates all but the top two plurality vote getters, and then
+    Eliminates all but the top two plurality vote getters, and then
     conducts a runoff between them, reallocating other ballots
 
     **Attributes**
@@ -543,7 +543,7 @@ class TopTwo(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -652,7 +652,7 @@ class DominatingSets(Election):
 
 class CondoBorda(Election):
     """
-    Condo-Borda: Elects candidates ordered by dominating set, but breaks ties
+    Elects candidates ordered by dominating set, but breaks ties
     between candidates with Borda
 
     **Attributes**
@@ -666,7 +666,7 @@ class CondoBorda(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -689,7 +689,7 @@ class CondoBorda(Election):
         system
 
         Returns:
-            An ElectionState object for a complete election
+            An `ElectionState` object for a complete election
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
@@ -738,7 +738,7 @@ class SequentialRCV(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -824,7 +824,7 @@ class Borda(Election):
     `ballot_ties`
     :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
 
-    'tiebreak'
+    `tiebreak`
     :   (Optional) resolves procedural and final ties by specified tiebreak
 
     **Methods**
@@ -889,7 +889,7 @@ class Borda(Election):
 class Plurality(SNTV):
     """
     Simulates a single or multi-winner plurality election. Inherits
-    methods from SNTV to run election
+    methods from `SNTV` to run election
     """
 
     def __init__(

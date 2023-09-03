@@ -43,7 +43,7 @@
             - ImpartialAnonymousCulture
 
 ## Elections
-::: votekit.election_types
+::: votekit.elections.election_types
     rendering:
       heading_level: 4
 
@@ -58,12 +58,9 @@
         heading_level: 4
     options:
         members:
-            - fractional_transfer
-            - random_transfer
             - borda_scores
             - first_place_votes
             - mentions
-            - seqRCV_transfer
 ::: votekit.metrics.distances
     rendering:
         heading_level: 4
@@ -72,6 +69,14 @@
             - earth_mover_dist
             - lp_dist
             - em_array
+::: votekit.elections.transfers
+    rendering:
+        heading_level: 4
+    options:
+        members:
+            - fractional_transfer
+            - seqRCV_transfer
+            - random_transfer
 
 ## Plotting
 ::: votekit.plots.mds

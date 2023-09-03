@@ -14,7 +14,7 @@ class ElectionState(BaseModel):
 
     **Attributes**
     `curr_round`
-    :   current round number. Defaults to 0 before an election
+    :   current round number. Defaults to 0
 
     `elected`
     :   list of candidates who pass a threshold to win
@@ -92,7 +92,7 @@ class ElectionState(BaseModel):
 
     def changed_rankings(self) -> dict:
         """
-        Returns dict of (key) string candidates who changed
+        Returns dict of (key) candidate(s) who changed
         ranking from previous round and (value) a tuple of (previous rank, new rank)
         """
 
