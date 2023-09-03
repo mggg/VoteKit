@@ -2,7 +2,7 @@ from pathlib import Path
 
 from votekit.cvr_loaders import load_csv
 from votekit.election_state import ElectionState
-import votekit.election_types as et
+import votekit.elections.election_types as et
 from votekit.pref_profile import PreferenceProfile
 
 

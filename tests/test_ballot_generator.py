@@ -18,6 +18,9 @@ from votekit.ballot_generator import (
 )
 from votekit.pref_profile import PreferenceProfile
 
+# set seed for more consistent tests
+np.random.seed(8675309)
+
 
 def test_IC_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)

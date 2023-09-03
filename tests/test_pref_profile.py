@@ -3,7 +3,7 @@ from pathlib import Path
 
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_csv
-from votekit.election_types import remove_cand
+from votekit.utils import remove_cand
 from votekit.pref_profile import PreferenceProfile
 
 

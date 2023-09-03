@@ -3,8 +3,8 @@ from fractions import Fraction
 from votekit.models import fix_ties, recursively_fix_ties
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
-from votekit.election_types import STV
-from votekit.utils import fractional_transfer
+from votekit.elections.election_types import STV
+from votekit.elections.transfers import fractional_transfer
 
 
 def test_single_tie():

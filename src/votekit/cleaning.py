@@ -34,13 +34,12 @@ def remove_empty_ballots(
     return pp_clean
 
 
-def clean_helper(
+def clean_profile(
     pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
 ) -> PreferenceProfile:
     """
-    General cleaning function that takes a preference profile and applies a
-    cleaning function to each ballot and merges the ballots with the same ranking.
-    This is used primarily when only the ballot ranking needs to be cleaned.
+    Allows user-defined cleaning rules for PrefrenceProfile. Input function
+    that applies modification or rule to a single ballot
 
     Args:
         pp (PreferenceProfile): a preference profile to clean
@@ -119,7 +118,7 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         )
         return new_ballot
 
-    pp_clean = clean_helper(pp=pp, clean_ballot_func=deduplicate_ballots)
+    pp_clean = clean_profile(pp=pp, clean_ballot_func=deduplicate_ballots)
     return pp_clean
 
 

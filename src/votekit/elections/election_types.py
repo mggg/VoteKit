@@ -3,16 +3,15 @@ import itertools as it
 import numpy as np
 from typing import Callable, Optional
 
-from .models import Election
-from .election_state import ElectionState
-from .graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from .pref_profile import PreferenceProfile
-from .utils import (
+from ..models import Election
+from ..election_state import ElectionState
+from ..graphs.pairwise_comparison_graph import PairwiseComparisonGraph
+from ..pref_profile import PreferenceProfile
+from .transfers import fractional_transfer, seqRCV_transfer
+from ..utils import (
     compute_votes,
     remove_cand,
-    fractional_transfer,
     borda_scores,
-    seqRCV_transfer,
     scores_into_set_list,
     tie_broken_ranking,
     elect_cands_from_set_ranking,

@@ -5,10 +5,10 @@ from votekit.cvr_loaders import load_blt
 import votekit.cleaning as clean
 from votekit.election_state import ElectionState
 import votekit.ballot_generator as bg
-import votekit.election_types as elections
+import votekit.elections.election_types as elections
 from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
-from votekit.utils import fractional_transfer
+from votekit.elections.transfers import fractional_transfer
 
 # TODO:
 # need to do one with visualizations,
