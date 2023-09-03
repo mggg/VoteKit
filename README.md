@@ -2,10 +2,10 @@
 
 `VoteKit` ia a Swiss army knife for computational social choice research.
 
-**Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
+**Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Documentation](https://mggg.github.io/VoteKit/) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
 
 
-[![PyPI version](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
+[![PyPI badge](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
 ![Test badge](https://github.com/mggg/VoteKit/workflows/Test%20&%20Lint/badge.svg)
 
 ## Installation
