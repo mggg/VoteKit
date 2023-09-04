@@ -1,5 +1,7 @@
 from collections import namedtuple
 from fractions import Fraction
+from itertools import permutations
+import math
 import numpy as np
 import random
 from typing import Union, Iterable, Optional
@@ -449,3 +451,57 @@ def elect_cands_from_set_ranking(
         )
 
     return elected, eliminated
+
+
+# helper functions for Election base class
+def recursively_fix_ties(ballot_lst: list[Ballot], num_ties: int) -> list[Ballot]:
+    """
+    Recursively fixes ties in a ballot in the case there is more then one tie
+    """
+    # base case, if only one tie to resolved return the list of already
+    # resolved ballots
+    if num_ties == 1:
+        return ballot_lst
+
+    # in the event multiple positions have ties
+    else:
+        update = set()
+        for ballot in ballot_lst:
+            update.update(set(fix_ties(ballot)))
+
+        return recursively_fix_ties(list(update), num_ties - 1)
+
+
+def fix_ties(ballot: Ballot) -> list[Ballot]:
+    """
+    Helper function for recursively_fix_ties. Resolves the first appearing
+    tied rank in the input ballot by return list of permuted ballots
+    """
+
+    ballots = []
+    for idx, rank in enumerate(ballot.ranking):
+        if len(rank) > 1:
+            for order in permutations(rank):
+                resolved = []
+                for cand in order:
+                    resolved.append(set(cand))
+                ballots.append(
+                    Ballot(
+                        id=ballot.id,
+                        ranking=ballot.ranking[:idx]
+                        + resolved
+                        + ballot.ranking[idx + 1 :],
+                        weight=ballot.weight / math.factorial(len(rank)),
+                        voters=ballot.voters,
+                    )
+                )
+
+    return ballots
+
+
+def make_ballot(ranking, weight):
+    ballot_rank = []
+    for cand in ranking:
+        ballot_rank.append({cand})
+
+    return Ballot(ranking=ballot_rank, weight=Fraction(weight))
