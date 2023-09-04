@@ -5,11 +5,21 @@ from typing import Optional
 
 class Ballot(BaseModel):
     """
-    Data structure to represent a possible cast ballot.
-    :param id: optional :class:`str` assigned ballot id
-    :param ranking: :class:`list` of candidate ranking
-    :param weight: :class:`float`/:class:`fraction` weight assigned to a given a ballot
-    :param voters: optional :class:`list` of voters who cast a given a ballot
+    Ballot class, contains ranking and assigned weight
+
+    **Attributes**
+
+    `id`
+    :   optionally assigned ballot id
+
+    `ranking`
+    :   list of candidate ranking
+
+    `weight`
+    :   weight assigned to a given a ballot
+
+    `voters`
+    :   list of voters who cast a given a ballot
     """
 
     id: Optional[str] = None

@@ -3,8 +3,7 @@ from fractions import Fraction
 from itertools import permutations
 import math
 import numpy as np
-import random
-from typing import Union, Iterable, Optional
+from typing import Union, Iterable, Optional, Any
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -60,99 +59,6 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
     ]
 
     return ordered
-
-
-def fractional_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Calculates fractional transfer from winner, then removes winner
-    from the list of ballots
-
-    Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
-
-    Returns:
-        Modified ballots with transfered weights and the winning canidated removed
-    """
-    transfer_value = (votes[winner] - threshold) / votes[winner]
-
-    for ballot in ballots:
-        new_ranking = []
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
-            for cand in ballot.ranking:
-                if cand != {winner}:
-                    new_ranking.append(cand)
-
-    return remove_cand(winner, ballots)
-
-
-def random_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Cambridge-style transfer where transfer ballots are selected randomly
-
-    Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
-
-    Returns:
-        Modified ballots with transfered weights and the winning canidated removed
-    """
-
-    # turn all of winner's ballots into (multiple) ballots of weight 1
-    weight_1_ballots = []
-    for ballot in ballots:
-        if ballot.ranking and ballot.ranking[0] == {winner}:
-            # note: under random transfer, weights should always be integers
-            for _ in range(int(ballot.weight)):
-                weight_1_ballots.append(
-                    Ballot(
-                        id=ballot.id,
-                        ranking=ballot.ranking,
-                        weight=Fraction(1),
-                        voters=ballot.voters,
-                    )
-                )
-
-    # remove winner's ballots
-    ballots = [
-        ballot
-        for ballot in ballots
-        if not (ballot.ranking and ballot.ranking[0] == {winner})
-    ]
-
-    surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots += surplus_ballots
-
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
-
-
-def seqRCV_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Transfer method Sequential RCV elections
-
-    Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
-
-    Returns:
-        Original list of ballots as Sequential RCV does not transfer votes
-    """
-    return ballots
 
 
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
@@ -262,10 +168,10 @@ def borda_scores(
 
     Args:
         profile: Inputed profile of ballots
-        ballot_length: Length of a ballot, if None length of longest ballot is \n
-        is used
-        score_vector: Borda weights, if None assigned based length of the \n
-        longest ballot
+        ballot_length: Length of a ballot, if None length of longest ballot is
+            used
+        score_vector: Borda weights, if None assigned based length of the
+            longest ballot
 
     Returns:
         Dictionary of candidates (keys) and Borda scores (values)
@@ -304,17 +210,17 @@ def borda_scores(
     return candidate_borda
 
 
-def unset(input: set):
+def unset(input_set: set) -> Any:
     """
     Removes object from set
 
     Args:
-        input: Input set
+        input_set: Input set
 
     Returns:
         If set has length one returns the object, else returns a list
     """
-    rv = list(input)
+    rv = list(input_set)
 
     if len(rv) == 1:
         return rv[0]
@@ -324,7 +230,7 @@ def unset(input: set):
 
 def candidate_position_dict(ranking: list[set[str]]) -> dict:
     """
-    Creates a dictionary with the integer ranking of candidates given a set ranking \n
+    Creates a dictionary with the integer ranking of candidates given a set ranking
     i.e. A > B, C > D returns {A: 1, B: 2, C: 2, D: 4}
 
     Args:
@@ -356,8 +262,8 @@ def tie_broken_ranking(
         tiebreak: Method of tiebreak, currently supports 'none', 'random', 'borda', 'firstplace'
 
     Returns:
-        A list-of-set ranking of candidates (tie broken down to one candidate sets unless \n
-        tiebreak = 'none')
+        A list-of-set ranking of candidates (tie broken down to one candidate sets unless
+            tiebreak = 'none')
     """
 
     new_ranking = []

@@ -9,8 +9,18 @@ from .ballot import Ballot
 
 class PreferenceProfile(BaseModel):
     """
-    ballots (list of ballots): ballots from an election
-    candidates (list): list of candidates, can be user defined
+    PreferenceProfile class, contains ballots and and candidates for a
+        given eleciton
+
+    **Attributes**
+
+    `ballots`
+    :   list of `Ballot` objects
+
+    `candiates`
+    :   list of candidates
+
+    **Methods**
     """
 
     ballots: list[Ballot] = []
@@ -44,11 +54,14 @@ class PreferenceProfile(BaseModel):
         return list(unique_cands)
 
     # can also cache
-    def num_ballots(self):
+    def num_ballots(self) -> Fraction:
         """
-        Assumes weights correspond to number of ballots given to a ranking
+        Counts number of ballots based on assigned weight
+
+        Returns:
+            Number of ballots cast
         """
-        num_ballots = 0
+        num_ballots = Fraction(0)
         for ballot in self.ballots:
             num_ballots += ballot.weight
 
@@ -56,9 +69,12 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self, standardize: bool) -> dict:
         """
-        Converts ballots to dictionary with keys tuple(ranking) and values
-        the corresponding total weights \n
-        input: standardize to model an election distribution
+        Converts ballots to dictionary with rankings (keys) and the
+        corresponding total weights (values)
+
+        Returns:
+            A dictionary with with ranking (keys) and corresponding total \n
+            weights (values)
         """
         num_ballots = self.num_ballots()
         di: dict = {}
@@ -90,7 +106,7 @@ class PreferenceProfile(BaseModel):
             for ballot in self.ballots:
                 writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
 
-    def create_df(self) -> pd.DataFrame:
+    def _create_df(self) -> pd.DataFrame:
         """
         Creates DF for display and building plots
         """
@@ -120,9 +136,17 @@ class PreferenceProfile(BaseModel):
     ) -> pd.DataFrame:
         """
         Displays top-n ballots in profile based on weight
+
+        Args:
+            n: Number of ballots to view
+            percents: If True, show voter share for a given ballot
+            totals: If true, show total values for Voter Share and Weight
+
+        Returns:
+            A dataframe with top-n ballots
         """
         if self.df.empty:
-            self.df = self.create_df()
+            self.df = self._create_df()
 
         df = (
             self.df.sort_values(by="Weight", ascending=False)
@@ -131,7 +155,7 @@ class PreferenceProfile(BaseModel):
         )
 
         if totals:
-            df = sum_row(df)
+            df = _sum_row(df)
 
         if not percents:
             return df.drop(columns="Voter Share")
@@ -143,9 +167,17 @@ class PreferenceProfile(BaseModel):
     ) -> pd.DataFrame:
         """
         Displays bottom-n ballots in profile based on weight
+
+        Args:
+            n: Number of ballots to view
+            percents: If True, show voter share for a given ballot
+            totals: If true, show total values for Voter Share and Weight
+
+        Returns:
+            A dataframe with bottom-n ballots
         """
         if self.df.empty:
-            self.df = self.create_df()
+            self.df = self._create_df()
 
         df = (
             self.df.sort_values(by="Weight", ascending=False)
@@ -153,7 +185,7 @@ class PreferenceProfile(BaseModel):
             .reset_index(drop=True)
         )
         if totals:
-            df = sum_row(df)
+            df = _sum_row(df)
 
         if not percents:
             return df.drop(columns="Voter Share")
@@ -161,11 +193,10 @@ class PreferenceProfile(BaseModel):
         return df
 
     def __str__(self) -> str:
-        """
-        Displays top 15 or whole profiles
-        """
+        # Displays top 15 cast ballots or entire profile
+
         if self.df.empty:
-            self.df = self.create_df()
+            self.df = self._create_df()
 
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
@@ -176,6 +207,9 @@ class PreferenceProfile(BaseModel):
     __repr__ = __str__
 
     def condense_ballots(self):
+        """
+        Groups ballots by rankings and updates weights
+        """
         class_vector = []
         seen_rankings = []
         for ballot in self.ballots:
@@ -208,7 +242,7 @@ class PreferenceProfile(BaseModel):
         return True
 
 
-def sum_row(df: pd.DataFrame) -> pd.DataFrame:
+def _sum_row(df: pd.DataFrame) -> pd.DataFrame:
     """
     Computes sum total for weight and voter share column
     """
