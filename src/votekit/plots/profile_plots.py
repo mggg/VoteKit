@@ -42,7 +42,10 @@ def plot_summary_stats(
 
     fig, ax = plt.subplots()
 
-    ax.bar(data.keys(), data.values(), color=colors, width=0.35)
+    candidates = profile.get_candidates()
+    y_data = [data[c] for c in candidates]
+    
+    ax.bar(candidates, y_data, color=colors, width=0.35)
     ax.set_xlabel("Candidates")
     ax.set_ylabel(ylabel)
 
