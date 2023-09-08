@@ -11,7 +11,7 @@ from .ballot import Ballot
 
 def load_csv(
     fpath: str,
-    rank_cols: list[int],
+    rank_cols: list[int] = None,
     *,
     weight_col: Optional[int] = None,
     delimiter: Optional[str] = None,
@@ -58,10 +58,11 @@ def load_csv(
     if id_col is not None and not df.iloc[:, id_col].is_unique:
         raise DataError(f"Duplicate value(s) in column at index {id_col}")
 
-    if id_col is not None:
-        df = df.iloc[:, rank_cols+[id_col]]
-    else:
-        df = df.iloc[:, rank_cols]
+    if rank_cols is not None:
+        if id_col is not None:
+            df = df.iloc[:, rank_cols+[id_col]]
+        else:
+            df = df.iloc[:, rank_cols]
 
     ranks = list(df.columns)
     if id_col is not None:
