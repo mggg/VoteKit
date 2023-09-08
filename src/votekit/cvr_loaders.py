@@ -24,7 +24,8 @@ def load_csv(
     Args:
         fpath: Path to cvr file
         rank_cols: list of column indexes that contain rankings, indexing starts from 0,
-                    in order from top to bottom rank. Default implies that all columns contain rankings.
+                    in order from top to bottom rank.
+                    Default implies that all columns contain rankings.
         weight_col: The column position for ballot weights
             if parsing Scottish elections like cvrs
         delimiter: The character that breaks up rows
