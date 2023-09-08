@@ -61,7 +61,7 @@ class STV(Election):
         self.transfer = transfer
         self.seats = seats
         self.tiebreak = tiebreak
-        self.quota = quota
+        self.quota = quota.lower()
         self.threshold = self.get_threshold()
 
     # can cache since it will not change throughout rounds
