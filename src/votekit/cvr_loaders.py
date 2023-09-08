@@ -11,7 +11,7 @@ from .ballot import Ballot
 
 def load_csv(
     fpath: str,
-    rank_cols: list[int] = None,
+    rank_cols: list[int] = [],
     *,
     weight_col: Optional[int] = None,
     delimiter: Optional[str] = None,
@@ -24,7 +24,7 @@ def load_csv(
     Args:
         fpath: Path to cvr file
         rank_cols: list of column indexes that contain rankings, indexing starts from 0,
-                    in order from top to bottom rank
+                    in order from top to bottom rank. Default implies that all columns contain rankings.
         weight_col: The column position for ballot weights
             if parsing Scottish elections like cvrs
         delimiter: The character that breaks up rows
@@ -58,7 +58,7 @@ def load_csv(
     if id_col is not None and not df.iloc[:, id_col].is_unique:
         raise DataError(f"Duplicate value(s) in column at index {id_col}")
 
-    if rank_cols is not None:
+    if rank_cols:
         if id_col is not None:
             df = df.iloc[:, rank_cols+[id_col]]
         else:
