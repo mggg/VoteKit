@@ -3,7 +3,7 @@ Welcome to VoteKit's documentation!
 
 **VoteKit** is a Swiss army knife for computational social choice research.
 
-**Version:** 1.0.1 **Date:** September 3, 2023
+**Version:** 1.0.2 **Date:** September 10, 2023
 
 **Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Documentation](https://mggg.github.io/VoteKit/) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
 
