@@ -39,14 +39,10 @@ class PreferenceProfile(BaseModel):
         """
         return self.ballots
 
-    # @cache
     def get_candidates(self) -> list:
         """
         Returns list of unique candidates
         """
-        if self.candidates is not None:
-            return self.candidates
-
         unique_cands: set = set()
         for ballot in self.ballots:
             unique_cands.update(*ballot.ranking)
