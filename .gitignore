@@ -5,4 +5,4 @@ htmlcov/
 .DS_Store
 dist/
 .ipynb_checkpoints
-
+.idea
