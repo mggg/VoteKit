@@ -11,7 +11,7 @@ class Graph(ABC):
 
     def __init__(self, graph: nx.Graph = None):
         self.graph = graph
-        self.node_data: dict = {}  # store node to avoid acessing Nx.graph
+        self.node_weights: dict = {}  # store node weights to avoid acessing Nx.graph
 
     @abstractmethod
     def build_graph(self, *args: Any, **kwargs: Any) -> nx.Graph:
@@ -37,10 +37,10 @@ class Graph(ABC):
         """Returns dict of k ball neighborhoods of
         given radius with their centers and weights
         """
-        if not self.node_data or sum(self.node_data.values()) == 0:
+        if not self.node_weights or sum(self.node_weights.values()) == 0:
             raise TypeError("no weights assigned to graph")
 
-        cast_ballots = {x for x in self.node_data.keys() if self.node_data[x] > 0}
+        cast_ballots = {x for x in self.node_weights.keys() if self.node_weights[x] > 0}
 
         max_balls = {}
 
@@ -53,7 +53,7 @@ class Graph(ABC):
                 relevant = cast_ballots.intersection(
                     set(ball.nodes)
                 )  ##cast ballots inside the ball
-                tmp = sum(self.node_data[node] for node in relevant)
+                tmp = sum(self.node_weights[node] for node in relevant)
                 if tmp > weight:
                     weight = tmp
                     max_center = center
