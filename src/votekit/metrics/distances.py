@@ -19,7 +19,7 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
         Earth mover distance between inputted elections
     """
     # create ballot graph
-    ballot_graph = BallotGraph(source=pp2, complete=True).graph
+    ballot_graph = BallotGraph(source=pp2).graph
     # ballot_graph = graph.from_profile(profile=pp2, complete=True)
 
     # Solving Earth Mover Distance
