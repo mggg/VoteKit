@@ -19,7 +19,7 @@ BLT_DIR = BASE_DIR / "data/txt/"
 
 
 test_profile = load_csv(DATA_DIR / "test_election_A.csv")
-mn_profile = load_csv(DATA_DIR / "mn_clean_ballots.csv")
+mn_profile = load_csv("src/votekit/data/mn_2013_cast_vote_record.csv")
 
 
 def test_droop_default_parameter():

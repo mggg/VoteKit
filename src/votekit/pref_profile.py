@@ -176,7 +176,7 @@ class PreferenceProfile(BaseModel):
             self.df = self._create_df()
 
         df = (
-            self.df.sort_values(by="Weight", ascending=False)
+            self.df.sort_values(by="Weight", ascending=True)
             .head(n)
             .reset_index(drop=True)
         )

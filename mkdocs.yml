@@ -56,5 +56,6 @@ plugins:
 nav:
   - User Guide:
     - 'index.md'
+    - 'getting_started.md'
   - Reference:
     - 'api.md'
