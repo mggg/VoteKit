@@ -34,7 +34,7 @@ print(minneapolis_profile.get_candidates())
     ['JAMES "JIMMY" L. STROUD, JR.', 'BETSY HODGES', 'EDMUND BERNARD BRUYERE', 'MERRILL ANDERSON', 'CAM WINTON', 'MARK V ANDERSON', 'BOB "AGAIN" CARNEY JR', 'CHRISTOPHER CLARK', 'JOHN CHARLES WILSON', 'CAPTAIN JACK SPARROW', 'OLE SAVIOR', 'BOB FINE', 'TROY BENJEGERDES', 'JEFFREY ALAN WAGNER', 'MARK ANDREW', 'CYD GORMAN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'ABDUL M RAHAMAN "THE ROCK"', 'DON SAMUELS', 'undervote', 'ALICIA K. BENNETT', 'JACKIE CHERRYHOMES', 'RAHN V. WORKCUFF', 'MIKE GOULD', 'TONY LANE', 'overvote', 'GREGG A. IVERSON', 'JOHN LESLIE HARTWIG', 'NEAL BAXTER', 'DAN COHEN', 'JAMES EVERETT', 'JOSHUA REA', 'BILL KAHN', 'JAYMIE KELLY', 'STEPHANIE WOODRUFF', 'UWI', 'KURTIS W. HANNA']
 
 ```
-The `head` method shows the top n ballots. In the first column, we see the ballot that was cast. In the second column, we see how many of that type of ballot were cast. 
+The `head` method shows the top *n* ballots. In the first column, we see the ballot that was cast. In the second column, we see how many of that type of ballot were cast. 
 ```python
 # returns the top n ballots
 minneapolis_profile.head(n=5)
@@ -77,7 +77,7 @@ minneapolis_profile.head(n=5, percents = True)
                                (BETSY HODGES,)  2212    0.027867   
 
 
-We can similarly print the bottom $n$ ballots. Here we toggle the optional `percents` and `totals` arguments, which will show us the fraction of the total vote, as well as sum up the weights.
+We can similarly print the bottom *n* ballots. Here we toggle the optional `percents` and `totals` arguments, which will show us the fraction of the total vote, as well as sum up the weights.
 
 
 ```python
