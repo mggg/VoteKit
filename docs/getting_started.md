@@ -1,4 +1,4 @@
-# Getting started with `votekit`
+# Getting started with VoteKit
 
 This guide will help you get started using `votekit`, by using real election data from the 2013 Minneapolis mayoral election. This election had 35 candidates running for one seat, and used a single-winner IRV method to elect the winner. Voters were allowed to rank their top three candidates. 
 
