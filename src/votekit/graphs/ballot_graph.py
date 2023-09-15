@@ -183,9 +183,13 @@ class BallotGraph(Graph):
 
         return ballot + list(missing)
 
-    def label_cands(self, candidates):
+    def label_cands(self, candidates,
+                    show_cast: Optional[bool] = False):
         """
         Assigns candidate labels to ballot graph for plotting
+
+        Args:
+            show_cast: if True, only gives labels for ballots cast in PrefProfile
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))
@@ -194,10 +198,11 @@ class BallotGraph(Graph):
 
         cand_labels = {}
         for node in self.graph.nodes:
-            ballot = []
-            for num in node:
-                ballot.append(cand_dict[num])
-            cand_labels[node] = tuple(ballot)
+            if (show_cast and self.graph.nodes[node]['cast']) or not show_cast:
+                    ballot = []
+                    for num in node:
+                        ballot.append(cand_dict[num])
+                    cand_labels[node] = tuple(ballot)
 
         return cand_labels
 
@@ -257,7 +262,7 @@ class BallotGraph(Graph):
                         break
 
             elif self.node_weights[ballot] != 0 and self.profile:
-                print(ballot)
+                # print(ballot)
                 i = (list(self.cand_num.values())).index(ballot[0])
 
             if "weight" in ballot:
@@ -269,9 +274,9 @@ class BallotGraph(Graph):
             if not self.candidates:
                 raise ValueError("no candidate names assigned")
             if self.candidates:
-                node_labels = self.label_cands(self.candidates)
+                node_labels = self.label_cands(self.candidates, show_cast)
             elif self.profile:
-                node_labels = self.label_cands(self.profile.get_candidates())
+                node_labels = self.label_cands(self.profile.get_candidates(), show_cast)
 
         if show_cast:
             subgraph = Gc.subgraph(ballots)
