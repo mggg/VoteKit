@@ -39,12 +39,10 @@ def test_add_profile():
     num_ballots = sum_weights(wprofile)
     assert num_ballots == 9
 
+def test_allow_partial():
+    three = BallotGraph(3, allow_partial=False)
+    assert len(three.graph.nodes) == 6
 
-def test_incomplete_graph_from_profile():
-    test = BallotGraph(three_cand, complete=False)
-    num_ballots = sum_weights(test.graph)
-    assert num_ballots == 9
-    assert len(test.graph.nodes) == 2
 
 
 def test_graph_labels():
@@ -61,7 +59,7 @@ def test_k_neighbors_no_weights():
 
 def test_k_neighborhoods():
     test = BallotGraph(3)
-    test.node_data = {
+    test.node_weights = {
         (1,): 4,  # fix weights
         (1, 2, 3): 3,
         (1, 3, 2): 1,
