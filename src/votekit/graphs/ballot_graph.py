@@ -230,7 +230,7 @@ class BallotGraph(Graph):
     def draw(self, to_display: Optional[Callable] = None,
              neighborhoods: Optional[list[tuple]] = [],
              show_cast: Optional[bool] = False,
-             labels: Optional[bool] = False)
+             labels: Optional[bool] = False):
         """
         Visualize the graph.
 
