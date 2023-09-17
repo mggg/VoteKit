@@ -211,7 +211,8 @@ class BallotGraph(Graph):
                         ballot.append(cand_dict[num])
                     
                     # label the ballot and give the number of votes
-                    cand_labels[node] = str(tuple(ballot))+": " + str(self.graph.nodes[node]["weight"])
+                    cand_labels[node] = str(tuple(ballot))+": " + \
+                                    str(self.graph.nodes[node]["weight"])
 
         return cand_labels
 
@@ -229,7 +230,7 @@ class BallotGraph(Graph):
     def draw(self, to_display: Optional[Callable] = None,
              neighborhoods: Optional[list[tuple]] = [],
              show_cast: Optional[bool] = False,
-            labels: Optional[bool] = False)
+             labels: Optional[bool] = False)
         """
         Visualize the graph.
 
