@@ -5,7 +5,8 @@ import networkx as nx  # type: ignore
 from functools import cache
 from typing import Callable
 
-
+def all_nodes(node):
+    return True
 
 class BallotGraph(Graph):
     """
@@ -226,7 +227,7 @@ class BallotGraph(Graph):
 
         return legend
 
-    def draw(self, to_display: Optional[Callable] = None,
+    def draw(self, to_display: Optional[Callable] = all_nodes,
              neighborhoods: Optional[list[tuple]] = [],
              show_cast: Optional[bool] = False,
              labels: Optional[bool] = False):
@@ -242,8 +243,7 @@ class BallotGraph(Graph):
                         If False, show all nodes.
             labels: If True, labels nodes with candidate names and vote totals
         """
-        def all_nodes(node):
-            return True
+        
 
         def cast_nodes(node):
             return self.graph.nodes[node]["cast"]
@@ -255,15 +255,11 @@ class BallotGraph(Graph):
             distances = [nx.shortest_path_length(self.graph, node, x) for x in centers]
 
             return (True in [d <= r for d,r in zip(distances, radii)])
-
-
-        if not to_display:
-            to_display = all_nodes
         
         if show_cast:
             to_display = cast_nodes
 
-        if len(neighborhoods) > 0:
+        if neighborhoods:
             to_display = in_neighborhoods
 
         ballots = [n for n in self.graph.nodes if to_display(n)]
