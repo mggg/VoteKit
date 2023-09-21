@@ -5,7 +5,7 @@ import networkx as nx  # type: ignore
 from functools import cache
 from typing import Callable
 
-def all_nodes(node):
+def all_nodes(graph, node):
     return True
 
 class BallotGraph(Graph):
@@ -191,12 +191,13 @@ class BallotGraph(Graph):
         return ballot + list(missing)
 
     def label_cands(self, candidates,
-                    to_display: Optional[Callable] = all_nodes):
+                    to_display: Union[Callable, None] = all_nodes):
         """
         Assigns candidate labels to ballot graph for plotting
 
         Args:
-            to_display: a Boolean callable that returns True on nodes that should be displayed
+            to_display: a Boolean callable that takes in a graph and node 
+                        returns True if node  should be displayed
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))
@@ -205,14 +206,14 @@ class BallotGraph(Graph):
 
         cand_labels = {}
         for node in self.graph.nodes:
-            if to_display(node):
-                    ballot = []
-                    for num in node:
-                        ballot.append(cand_dict[num])
-                    
-                    # label the ballot and give the number of votes
-                    cand_labels[node] = str(tuple(ballot))+": " + \
-                                    str(self.graph.nodes[node]["weight"])
+            if to_display(self.graph, node):
+                ballot = []
+                for num in node:
+                    ballot.append(cand_dict[num])
+                
+                # label the ballot and give the number of votes
+                cand_labels[node] = str(tuple(ballot))+": " + \
+                                str(self.graph.nodes[node]["weight"])
 
         return cand_labels
 
@@ -227,7 +228,7 @@ class BallotGraph(Graph):
 
         return legend
 
-    def draw(self, to_display: Optional[Callable] = all_nodes,
+    def draw(self, to_display: Union[Callable, None] = all_nodes,
              neighborhoods: Optional[list[tuple]] = [],
              show_cast: Optional[bool] = False,
              labels: Optional[bool] = False):
@@ -235,7 +236,7 @@ class BallotGraph(Graph):
         Visualize the graph.
 
         Args:
-            to_display: a boolean function that takes graph node as input, returns True if you
+            to_display: a boolean function that takes graph and node as input, returns True if you
                         want that node displayed. Defaults to showing all nodes.
             neighborhoods: a list of neighborhoods to display, given as tuple (node, radius).
                             (n,1) gives all nodes within one step of n.
@@ -245,14 +246,14 @@ class BallotGraph(Graph):
         """
         
 
-        def cast_nodes(node):
-            return self.graph.nodes[node]["cast"]
+        def cast_nodes(graph, node):
+            return graph.nodes[node]["cast"]
         
-        def in_neighborhoods(node):
+        def in_neighborhoods(graph, node):
             centers = [node for node, radius in neighborhoods]
             radii = [radius for node, radius in neighborhoods]
 
-            distances = [nx.shortest_path_length(self.graph, node, x) for x in centers]
+            distances = [nx.shortest_path_length(graph, node, x) for x in centers]
 
             return (True in [d <= r for d,r in zip(distances, radii)])
         
@@ -262,7 +263,7 @@ class BallotGraph(Graph):
         if neighborhoods:
             to_display = in_neighborhoods
 
-        ballots = [n for n in self.graph.nodes if to_display(n)]
+        ballots = [n for n in self.graph.nodes if to_display(self.graph, n)]
 
         node_labels = None
         if labels:
