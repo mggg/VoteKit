@@ -11,17 +11,21 @@ from .ballot import Ballot
 
 def load_csv(
     fpath: str,
+    rank_cols: list[int] = [],
     *,
     weight_col: Optional[int] = None,
     delimiter: Optional[str] = None,
     id_col: Optional[int] = None,
 ) -> PreferenceProfile:
     """
-    Given a file path, loads cvr with ranks as columns and voters as rows
+    Given a file path, loads cast vote records (cvr) with ranks as columns and voters as rows
     (empty cells are treated as None)
 
     Args:
         fpath: Path to cvr file
+        rank_cols: list of column indexes that contain rankings, indexing starts from 0,
+                    in order from top to bottom rank.
+                    Default implies that all columns contain rankings.
         weight_col: The column position for ballot weights
             if parsing Scottish elections like cvrs
         delimiter: The character that breaks up rows
@@ -34,7 +38,7 @@ def load_csv(
         DataError: If the voter id column has duplicate values
 
     Returns:
-        A preference schedule that represents all the ballots in the elction
+        A preference profile that represents all the ballots in the election
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
@@ -55,6 +59,12 @@ def load_csv(
     if id_col is not None and not df.iloc[:, id_col].is_unique:
         raise DataError(f"Duplicate value(s) in column at index {id_col}")
 
+    if rank_cols:
+        if id_col is not None:
+            df = df.iloc[:, rank_cols+[id_col]]
+        else:
+            df = df.iloc[:, rank_cols]
+
     ranks = list(df.columns)
     if id_col is not None:
         ranks.remove(df.columns[id_col])
@@ -63,6 +73,8 @@ def load_csv(
 
     for group, group_df in grouped:
         ranking = [{None} if pd.isnull(c) else {c} for c in group]
+
+
         voters = None
         if id_col is not None:
             voters = set(group_df.iloc[:, id_col])

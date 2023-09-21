@@ -61,20 +61,18 @@ class STV(Election):
         self.transfer = transfer
         self.seats = seats
         self.tiebreak = tiebreak
-        self.threshold = self.get_threshold(quota)
+        self.quota = quota.lower()
+        self.threshold = self.get_threshold()
 
     # can cache since it will not change throughout rounds
-    def get_threshold(self, quota: str) -> int:
+    def get_threshold(self) -> int:
         """
         Calculates threshold required for election
-
-        Args:
-            quota: Type of quota formula
 
         Returns:
             Value of the threshold
         """
-        quota = quota.lower()
+        quota = self.quota
         if quota == "droop":
             return int(self._profile.num_ballots() / (self.seats + 1) + 1)
         elif quota == "hare":
