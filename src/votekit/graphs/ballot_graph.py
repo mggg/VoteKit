@@ -191,7 +191,7 @@ class BallotGraph(Graph):
         return ballot + list(missing)
 
     def label_cands(self, candidates,
-                    to_display: Union[Callable, None] = all_nodes):
+                    to_display: Callable = all_nodes):
         """
         Assigns candidate labels to ballot graph for plotting
 
@@ -228,7 +228,7 @@ class BallotGraph(Graph):
 
         return legend
 
-    def draw(self, to_display: Union[Callable, None] = all_nodes,
+    def draw(self, to_display: Callable = all_nodes,
              neighborhoods: Optional[list[tuple]] = [],
              show_cast: Optional[bool] = False,
              labels: Optional[bool] = False):
