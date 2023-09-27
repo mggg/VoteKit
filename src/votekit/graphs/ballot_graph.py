@@ -4,6 +4,7 @@ from typing import Optional, Union
 import networkx as nx  # type: ignore
 from functools import cache
 from typing import Callable
+import matplotlib.pyplot as plt
 
 def all_nodes(graph, node):
     return True
@@ -272,7 +273,20 @@ class BallotGraph(Graph):
             node_labels = self.label_cands(self.candidates, to_display)
             
         subgraph = self.graph.subgraph(ballots)
-        nx.draw_networkx(subgraph, with_labels=True, labels=node_labels)
+
+        pos = nx.spring_layout(subgraph)
+        nx.draw_networkx(subgraph, pos = pos, 
+                         with_labels=True, labels=node_labels)
+
+        # handles labels overlapping with margins
+        x_values, y_values = zip(*pos.values())
+        x_max, y_max = max(x_values), max(y_values)
+        x_min, y_min = min(x_values), min(y_values)
+        x_margin = (x_max - x_min) * 0.25
+        y_margin = (y_max - y_min) * 0.25
+        plt.xlim(x_min - x_margin, x_max + x_margin)
+        plt.ylim(y_min - y_margin, y_max + y_margin)
+        plt.show()
 
        
 
