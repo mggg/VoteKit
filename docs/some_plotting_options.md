@@ -1,4 +1,4 @@
-# Some Plotting Options: Summary Statistics, Pairwise Comparison Graphs, and MDS Plots.
+# Plotting, Summary Statistics, and Graphs
 
 In this tutorial we will explore various plotting options included in `votekit`. To do so, we will not use real election data, but rather some generated preference profiles. `votekit` allows us to choose many different models of ballot generator. `votekit` offers support for the following kinds of ballot generating models: Plackett-Luce, Bradley-Terry, Alternating Crossover, a Cambridge Sampler (this one is custom!), 1-D Spatial, Impartial Culture, and Impartial Anonymous Culture.
 
@@ -51,19 +51,19 @@ fig = plot_summary_stats(profile, "mentions", multi_color = True, title = "Menti
 
 
     
-![png](output_4_0.png)
+![png](assets/output_4_0.png)
     
 
 
 
     
-![png](output_4_1.png)
+![png](assets/output_4_1.png)
     
 
 
 
     
-![png](output_4_2.png)
+![png](assets/output_4_2.png)
     
 
 
@@ -85,7 +85,7 @@ pwc_graph.draw()
 
 
     
-![png](output_8_0.png)
+![png](assets/output_8_0.png)
     
 
 
@@ -155,7 +155,7 @@ plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in 
 
 
     
-![png](output_15_0.png)
+![png](assets/output_15_0.png)
     
 
 
@@ -173,7 +173,7 @@ plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in 
 
 
     
-![png](output_17_0.png)
+![png](assets/output_17_0.png)
     
 
 
@@ -191,7 +191,7 @@ plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in 
 
 
     
-![png](output_19_0.png)
+![png](assets/output_19_0.png)
     
 
 
@@ -209,6 +209,6 @@ plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in 
 
 
     
-![png](output_21_0.png)
+![png](assets/output_21_0.png)
     
 
