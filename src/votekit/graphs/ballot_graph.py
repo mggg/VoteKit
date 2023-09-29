@@ -1,14 +1,17 @@
 from .base_graph import Graph
 from ..pref_profile import PreferenceProfile
-from ..utils import COLOR_LIST
 from typing import Optional, Union
 import networkx as nx  # type: ignore
 from functools import cache
+from typing import Callable
+import matplotlib.pyplot as plt
 
+def all_nodes(graph, node):
+    return True
 
 class BallotGraph(Graph):
     """
-    Class to build graphs for elections with possible incomplete ballots
+    Class to build ballot graphs.
 
     **Attributes**
 
@@ -16,8 +19,13 @@ class BallotGraph(Graph):
     :   data to create graph from, either PreferenceProfile object, number of
             candidates, or list of candidates
 
-    `complete`
-    :   if True, builds complete graph, else builds incomplete (boolean)
+    `allow_partial`
+    :   if True, builds graph using all possible ballots,
+        if False, only uses total linear ordered ballots
+        if building from a PreferenceProfile, defaults to True
+
+    `fix_short`
+    : if True, auto completes ballots of length n-1 to n.
 
     **Methods**
     """
@@ -25,16 +33,18 @@ class BallotGraph(Graph):
     def __init__(
         self,
         source: Union[PreferenceProfile, int, list],
-        complete: Optional[bool] = True,
+        allow_partial: Optional[bool] = True,
+        fix_short: Optional[bool] = True
     ):
         super().__init__()
 
         self.profile = None
         self.candidates = None
+        self.allow_partial = allow_partial
 
         if isinstance(source, int):
-            self.graph = self.build_graph(source)
             self.num_cands = source
+            self.graph = self.build_graph(source)
 
         if isinstance(source, list):
             self.num_cands = len(source)
@@ -45,14 +55,20 @@ class BallotGraph(Graph):
             self.profile = source
             self.num_voters = source.num_ballots()
             self.num_cands = len(source.get_candidates())
+            self.allow_partial = True
             if not self.graph:
                 self.graph = self.build_graph(len(source.get_candidates()))
-            self.graph = self.from_profile(source, complete)
+            self.graph = self.from_profile(source, fix_short = fix_short)
 
-        if not self.node_data:
-            self.node_data = {ballot: 0 for ballot in self.graph.nodes}
+        self.num_voters = sum(self.node_weights.values())
 
-        self.num_voters = sum(self.node_data.values())
+        # if no partial ballots allowed, create induced subgraph
+        if not self.allow_partial:
+            total_ballots = [n for n in self.graph.nodes() if len(n) == self.num_cands]
+            self.graph = self.graph.subgraph(total_ballots)
+
+        if not self.node_weights:
+            self.node_weights = {ballot: 0 for ballot in self.graph.nodes}
 
     def _relabel(self, gr: nx.Graph, new_label: int, num_cands: int) -> nx.Graph:
         """
@@ -120,7 +136,8 @@ class BallotGraph(Graph):
         return Gc
 
     def from_profile(
-        self, profile: PreferenceProfile, complete: Optional[bool] = True
+        self, profile: PreferenceProfile,
+        fix_short: Optional[bool] = True
     ) -> nx.Graph:
         """
         Updates existing graph based on cast ballots from a PreferenceProfile,
@@ -128,10 +145,11 @@ class BallotGraph(Graph):
 
         Args:
             profile: PreferenceProfile assigned to graph
-            complete: If True, builds complete graph
+
 
         Returns:
-            Complete or incomplete graph based on PrefreneceProfile
+            Graph based on PreferenceProfile, 'cast' node attribute indicates
+                    ballots cast in PreferenceProfile
         """
         if not self.profile:
             self.profile = profile
@@ -142,7 +160,7 @@ class BallotGraph(Graph):
         self.candidates = profile.get_candidates()
         ballots = profile.get_ballots()
         self.cand_num = self._number_cands(tuple(self.candidates))
-        self.node_data = {ballot: 0 for ballot in self.graph.nodes}
+        self.node_weights = {ballot: 0 for ballot in self.graph.nodes}
 
         for ballot in ballots:
             ballot_node = []
@@ -153,7 +171,7 @@ class BallotGraph(Graph):
                     )  # still unsure about ties
                 for cand in position:
                     ballot_node.append(self.cand_num[cand])
-            if len(ballot_node) == len(self.candidates) - 1:
+            if len(ballot_node) == len(self.candidates) - 1 and fix_short:
                 ballot_node = self.fix_short_ballot(
                     ballot_node, list(self.cand_num.values())
                 )
@@ -161,19 +179,7 @@ class BallotGraph(Graph):
             if tuple(ballot_node) in self.graph.nodes:
                 self.graph.nodes[tuple(ballot_node)]["weight"] += ballot.weight
                 self.graph.nodes[tuple(ballot_node)]["cast"] = True
-                self.node_data[tuple(ballot_node)] += ballot.weight
-
-        if not complete:
-            partial = nx.Graph()
-            for node in self.graph.nodes:
-                if self.graph.nodes[node]["cast"]:
-                    partial.add_node(
-                        node,
-                        weight=self.graph.nodes[node]["weight"],
-                        cast=self.graph.nodes[node]["cast"],
-                    )
-
-            self.graph = partial
+                self.node_weights[tuple(ballot_node)] += ballot.weight
 
         return self.graph
 
@@ -185,9 +191,14 @@ class BallotGraph(Graph):
 
         return ballot + list(missing)
 
-    def label_cands(self, candidates):
+    def label_cands(self, candidates,
+                    to_display: Callable = all_nodes):
         """
         Assigns candidate labels to ballot graph for plotting
+
+        Args:
+            to_display: a Boolean callable that takes in a graph and node 
+                        returns True if node  should be displayed
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))
@@ -196,10 +207,14 @@ class BallotGraph(Graph):
 
         cand_labels = {}
         for node in self.graph.nodes:
-            ballot = []
-            for num in node:
-                ballot.append(cand_dict[num])
-            cand_labels[node] = tuple(ballot)
+            if to_display(self.graph, node):
+                ballot = []
+                for num in node:
+                    ballot.append(cand_dict[num])
+                
+                # label the ballot and give the number of votes
+                cand_labels[node] = str(tuple(ballot))+": " + \
+                                str(self.graph.nodes[node]["weight"])
 
         return cand_labels
 
@@ -214,54 +229,68 @@ class BallotGraph(Graph):
 
         return legend
 
-    def draw(self, neighborhoods: Optional[dict] = {}, labels: Optional[bool] = False):
+    def draw(self, to_display: Callable = all_nodes,
+             neighborhoods: Optional[list[tuple]] = [],
+             show_cast: Optional[bool] = False,
+             labels: Optional[bool] = False):
         """
-        Visualize the whole election or select neighborhoods in the election.
+        Visualize the graph.
 
         Args:
-            neighborhoods: Section of graph to draw
-            labels: If True, labels nodes with candidate names
+            to_display: a boolean function that takes graph and node as input, returns True if you
+                        want that node displayed. Defaults to showing all nodes.
+            neighborhoods: a list of neighborhoods to display, given as tuple (node, radius).
+                            (n,1) gives all nodes within one step of n.
+            show_cast: If True, show only nodes with "cast" attribute = True.
+                        If False, show all nodes.
+            labels: If True, labels nodes with candidate names and vote totals
         """
-        # TODO: change this so that neighborhoods can have any neighborhood
-        # not just heavy balls, also there's something wrong with the shades
-        Gc = self.graph
-        GREY = (0.44, 0.5, 0.56)
-        node_cols: list = []
+        
+
+        def cast_nodes(graph, node):
+            return graph.nodes[node]["cast"]
+        
+        def in_neighborhoods(graph, node):
+            centers = [node for node, radius in neighborhoods]
+            radii = [radius for node, radius in neighborhoods]
+
+            distances = [nx.shortest_path_length(graph, node, x) for x in centers]
+
+            return (True in [d <= r for d,r in zip(distances, radii)])
+        
+        if show_cast:
+            to_display = cast_nodes
+
+        if neighborhoods:
+            to_display = in_neighborhoods
+
+        ballots = [n for n in self.graph.nodes if to_display(self.graph, n)]
+
         node_labels = None
-
-        k = len(neighborhoods) if neighborhoods else self.num_cands
-        if k > len(COLOR_LIST):
-            raise ValueError("Number of neighborhoods exceeds colors for plotting")
-        cols = COLOR_LIST[:k]
-
-        # self._clean()
-        for ballot in Gc.nodes:
-            i = -1
-            color: tuple = GREY
-
-            if neighborhoods:
-                for center, neighborhood in neighborhoods.items():
-                    neighbors, _ = neighborhood
-                    if ballot in neighbors:
-                        i = (list(neighborhoods.keys())).index(center)
-                        break
-            elif self.node_data[ballot] != 0 and self.profile:
-                print(ballot)
-                i = (list(self.cand_num.values())).index(ballot[0])
-
-            if "weight" in ballot:
-                color = tuple(ballot.weight * x for x in cols[i])
-            node_cols.append(color)
-
         if labels:
             if not self.candidates:
                 raise ValueError("no candidate names assigned")
-            if self.candidates:
-                node_labels = self.label_cands(self.candidates)
-            elif self.profile:
-                node_labels = self.label_cands(self.profile.get_candidates())
+            node_labels = self.label_cands(self.candidates, to_display)
+            
+        subgraph = self.graph.subgraph(ballots)
 
-        nx.draw_networkx(Gc, with_labels=True, node_color=node_cols, labels=node_labels)
+        pos = nx.spring_layout(subgraph)
+        nx.draw_networkx(subgraph, pos = pos, 
+                         with_labels=True, labels=node_labels)
+
+        # handles labels overlapping with margins
+        x_values, y_values = zip(*pos.values())
+        x_max, y_max = max(x_values), max(y_values)
+        x_min, y_min = min(x_values), min(y_values)
+        x_margin = (x_max - x_min) * 0.25
+        y_margin = (y_max - y_min) * 0.25
+        plt.xlim(x_min - x_margin, x_max + x_margin)
+        plt.ylim(y_min - y_margin, y_max + y_margin)
+        plt.show()
+
+       
+
+
 
     # what are these functions supposed to do?
     # def compare(self, new_pref: PreferenceProfile, dist_type: Callable):
