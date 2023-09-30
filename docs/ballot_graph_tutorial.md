@@ -1,4 +1,4 @@
-# `BallotGraph`
+# Ballot Graphs
 The ballot graph has vertices=ballots, and edges connecting ballots if they are equivalent by a swap of two adjacently ranked candidates, or by the truncation or addition of a candidate in last place.
 
 The `BallotGraph` object can be created from a `PreferenceProfile` object, a number of candidates, or a list of candidates. It has an `allow_partial` parameter that says whether or not the graph will be constructed using partial ballots, or only full linear orderings. If being created from a `PreferenceProfile`, this parameter defaults to `True` to allow for any kind of ballot from a voter.
@@ -20,7 +20,7 @@ ballot_graph.draw(labels= False)
 
 
     
-![png](output_2_0.png)
+![png](assets/ballot_graph_2_0.png)
     
 
 
@@ -36,7 +36,7 @@ ballot_graph.draw(labels = True)
 
 
     
-![png](output_4_0.png)
+![png](assets/ballot_graph_4_0.png)
     
 
 
@@ -84,7 +84,7 @@ ballot_graph.draw(labels = True)
 
 
     
-![png](output_8_1.png)
+![png](assets/ballot_graph_8_1.png)
     
 
 
@@ -118,7 +118,7 @@ ballot_graph.draw(labels = True, show_cast=True)
 
 
     
-![png](output_12_0.png)
+![png](assets/ballot_graph_12_0.png)
     
 
 
@@ -142,7 +142,7 @@ ballot_graph.draw(labels=True, to_display=show_big_weight)
 
 
     
-![png](output_15_0.png)
+![png](assets/ballot_graph_15_0.png)
     
 
 
@@ -157,7 +157,7 @@ ballot_graph.draw()
 
 
     
-![png](output_17_0.png)
+![png](assets/ballot_graph_17_0.png)
     
 
 
@@ -170,7 +170,7 @@ ballot_graph.draw(neighborhoods=[((3,2,1), 1)])
 
 
     
-![png](output_18_0.png)
+![png](assets/ballot_graph_18_0.png)
     
 
 
@@ -186,6 +186,6 @@ ballot_graph.draw(neighborhoods=[((3,2,1), 1),
 
 
     
-![png](output_20_0.png)
+![png](assets/ballot_graph_20_0.png)
     
 

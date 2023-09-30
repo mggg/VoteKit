@@ -1,6 +1,5 @@
-# Plotting, Summary Statistics, and Graphs
-
-In this tutorial we will explore various plotting options included in `votekit`. To do so, we will not use real election data, but rather some generated preference profiles. `votekit` allows us to choose many different models of ballot generator. `votekit` offers support for the following kinds of ballot generating models: Plackett-Luce, Bradley-Terry, Alternating Crossover, a Cambridge Sampler (this one is custom!), 1-D Spatial, Impartial Culture, and Impartial Anonymous Culture.
+# Plotting, Summary Statistics, and More
+In this tutorial we will explore various plotting options included in `votekit`. To do so, we will not use real election data, but rather some generated preference profiles. `votekit` offers support for the following kinds of ballot generating models: Plackett-Luce, Bradley-Terry, Alternating Crossover, a Cambridge Sampler (this one is custom!), 1-D Spatial, Impartial Culture, and Impartial Anonymous Culture.
 
 For simplicity, let's start with the Impartial Culture model, which assumes that when there are $m$ candidates, a voter casts a ballot by choosing uniformly at random from the $m!$ total linear orderings of the candidates.
 
@@ -10,8 +9,7 @@ import votekit.ballot_generator as bg
 from votekit.plots import plot_summary_stats, plot_MDS
 from votekit.graphs import PairwiseComparisonGraph, BallotGraph
 from votekit.metrics import earth_mover_dist, lp_dist
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit import Ballot, PreferenceProfile
 from functools import partial
 from fractions import Fraction
 ```
@@ -71,7 +69,7 @@ Check for understanding: In the IC model we are using, why is the number of ment
 
 # Graphs!
 
-There are two kinds of graphs (networks) that `votekit` generates, a pairwise comparison graph, and a ballot graph. The former has vertices=candidates, and an edge going from A to B if A is preferred to B more often in the given preference profile. The edge is given weight equal to the number of times A is preferred to B minus the number of times B is preferred to A. We'll discuss ballot graphs in a later tutorial.
+There are two kinds of graphs (networks) that `votekit` generates, a pairwise comparison graph, and a ballot graph. The former has vertices=candidates, and an edge going from A to B if A is preferred to B more often in the given preference profile. The edge is given weight equal to the number of times A is preferred to B minus the number of times B is preferred to A. You can learn about ballot graphs in the [BallotGraph](ballot_graph_tutorial.md) section.
 
 # `PairwiseComparisonGraph`
 
