@@ -116,15 +116,7 @@ class PreferenceProfile(BaseModel):
                 
                 else:
                     part.append(f"{ranking} (Tie)")
-                # for cand in ranking:
-                #     if len(ranking) == 1:
-                #         part.append(cand)
-
-                #     else:
-                #         print("found tie")
-                #         part.append(f"{cand} (Tie)")
-                #     else:
-                #         part.append(cand)
+                    
             ballots.append(tuple(part))
             weights.append(int(ballot.weight))
 
