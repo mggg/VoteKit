@@ -609,8 +609,7 @@ class AlternatingCrossover(BallotGenerator):
                     # check that ballot_length is shorter than total number of cands
                     ballot_pool.append(ballot)
 
-                # Bloc ballots
-                # gonna go wrong with more than 2 blocs, not the right number of non-crossover
+                # Bloc ballot
                 for _ in range(num_ballots - num_crossover_ballots):
                     ballot = bloc_cands + opposing_cands
                     ballot_pool.append(ballot)
