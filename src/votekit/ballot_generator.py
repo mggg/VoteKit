@@ -373,7 +373,8 @@ class PlackettLuce(BallotGenerator):
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         blocs = list(self.bloc_voter_prop.keys())
         bloc_props = list(self.bloc_voter_prop.values())
-        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, number_of_ballots)))
+        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
+                                                              number_of_ballots)))
 
         for bloc in self.bloc_voter_prop.keys():
             # number of voters in this bloc
@@ -467,7 +468,8 @@ class BradleyTerry(BallotGenerator):
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         blocs = list(self.bloc_voter_prop.keys())
         bloc_props = list(self.bloc_voter_prop.values())
-        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, number_of_ballots)))
+        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
+                                                              number_of_ballots)))
 
         for bloc in self.bloc_voter_prop.keys():
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
