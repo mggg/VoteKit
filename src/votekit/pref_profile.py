@@ -2,10 +2,10 @@ import csv
 from fractions import Fraction
 import pandas as pd
 from pydantic import BaseModel, validator
-from typing import Optional
+from typing import Optional, List, Union
 
-from .ballot import Ballot
-
+from .ballot import Ballot, CumulativeBallot
+from multiset import FrozenMultiset
 
 class PreferenceProfile(BaseModel):
     """
@@ -15,7 +15,7 @@ class PreferenceProfile(BaseModel):
     **Attributes**
 
     `ballots`
-    :   list of `Ballot` objects
+    :   list of `Ballot` or `CumulativeBallot` objects
 
     `candiates`
     :   list of candidates
@@ -23,7 +23,7 @@ class PreferenceProfile(BaseModel):
     **Methods**
     """
 
-    ballots: list[Ballot] = []
+    ballots: Union[List[Ballot], List[CumulativeBallot]] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
@@ -33,7 +33,7 @@ class PreferenceProfile(BaseModel):
             raise ValueError("all candidates must be unique")
         return candidates
 
-    def get_ballots(self) -> list[Ballot]:
+    def get_ballots(self) -> Union[List[Ballot], List[CumulativeBallot]]:
         """
         Returns list of ballots
         """
@@ -74,16 +74,34 @@ class PreferenceProfile(BaseModel):
         """
         num_ballots = self.num_ballots()
         di: dict = {}
-        for ballot in self.ballots:
-            rank_tuple = tuple(next(iter(item)) for item in ballot.ranking)
-            if standardize:
-                weight = ballot.weight / num_ballots
-            else:
+
+        if isinstance(self.ballots[0], Ballot):
+            for ballot in self.ballots:
+                rank_tuple = tuple(next(iter(item)) for item in ballot.ranking)
+                if standardize:
+                    weight = ballot.weight / num_ballots
+                else:
+                    weight = ballot.weight
+                if rank_tuple not in di.keys():
+                    di[rank_tuple] = weight
+                else:
+                    di[rank_tuple] += weight
+        
+     
+        elif isinstance(self.ballots[0], CumulativeBallot):
+            for ballot in self.ballots:
+                frozen_multi_votes = FrozenMultiset(ballot.multi_votes)
+
                 weight = ballot.weight
-            if rank_tuple not in di.keys():
-                di[rank_tuple] = weight
-            else:
-                di[rank_tuple] += weight
+                if standardize:
+                    weight = weight / num_ballots
+                
+                if frozen_multi_votes not in di.keys():
+                    di[frozen_multi_votes] = weight
+                else:
+                    di[frozen_multi_votes] += weight
+            
+
         return di
 
     class Config:
@@ -95,12 +113,21 @@ class PreferenceProfile(BaseModel):
         Args:
             fpath (str): path to the saved csv
         """
-        with open(fpath, "w", newline="") as csvfile:
-            fieldnames = ["weight", "ranking"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for ballot in self.ballots:
-                writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
+        if isinstance(self.ballots[0], Ballot):
+            with open(fpath, "w", newline="") as csvfile:
+                fieldnames = ["weight", "ranking"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for ballot in self.ballots:
+                    writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
+
+        elif isinstance(self.ballots[0], CumulativeBallot):
+            with open(fpath, "w", newline="") as csvfile:
+                fieldnames = ["weight", "multi_votes"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for ballot in self.ballots:
+                    writer.writerow({"weight": ballot.weight, "multi_votes": ballot.multi_votes})
 
     def _create_df(self) -> pd.DataFrame:
         """
@@ -108,16 +135,24 @@ class PreferenceProfile(BaseModel):
         """
         weights = []
         ballots = []
-        for ballot in self.ballots:
-            part = []
-            for ranking in ballot.ranking:
-                for cand in ranking:
-                    if len(ranking) > 2:
-                        part.append(f"{cand} (Tie)")
-                    else:
-                        part.append(cand)
-            ballots.append(tuple(part))
-            weights.append(int(ballot.weight))
+
+        if isinstance(self.ballots[0], Ballot):
+            for ballot in self.ballots:
+                part = []
+                for ranking in ballot.ranking:
+                    for cand in ranking:
+                        if len(ranking) > 2:
+                            part.append(f"{cand} (Tie)")
+                        else:
+                            part.append(cand)
+                ballots.append(tuple(part))
+                weights.append(int(ballot.weight))
+        
+
+        elif isinstance(self.ballots[0], CumulativeBallot):
+            for ballot in self.ballots:
+                ballots.append(tuple(ballot.multi_votes))
+                weights.append(int(ballot.weight))
 
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
         # df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
@@ -202,27 +237,52 @@ class PreferenceProfile(BaseModel):
     # set repr to print outputs
     __repr__ = __str__
 
+
+    
     def condense_ballots(self):
         """
         Groups ballots by rankings and updates weights
         """
-        class_vector = []
-        seen_rankings = []
-        for ballot in self.ballots:
-            if ballot.ranking not in seen_rankings:
-                seen_rankings.append(ballot.ranking)
-            class_vector.append(seen_rankings.index(ballot.ranking))
 
-        new_ballot_list = []
-        for i, ranking in enumerate(seen_rankings):
-            total_weight = 0
-            for j in range(len(class_vector)):
-                if class_vector[j] == i:
-                    total_weight += self.ballots[j].weight
-            new_ballot_list.append(
-                Ballot(ranking=ranking, weight=Fraction(total_weight))
-            )
-        self.ballots = new_ballot_list
+        if isinstance(self.ballots[0], Ballot):
+            class_vector = []
+            seen_rankings = []
+            for ballot in self.ballots:
+                if ballot.ranking not in seen_rankings:
+                    seen_rankings.append(ballot.ranking)
+                class_vector.append(seen_rankings.index(ballot.ranking))
+
+            new_ballot_list = []
+            for i, ranking in enumerate(seen_rankings):
+                total_weight = 0
+                for j in range(len(class_vector)):
+                    if class_vector[j] == i:
+                        total_weight += self.ballots[j].weight
+                new_ballot_list.append(
+                    Ballot(ranking=ranking, weight=Fraction(total_weight))
+                )
+            self.ballots = new_ballot_list
+
+        
+        elif isinstance(self.ballots[0], CumulativeBallot):
+            class_vector = []
+            seen_ballots = []
+            for ballot in self.ballots:
+                if ballot.multi_votes not in seen_ballots:
+                    seen_ballots.append(ballot.multi_votes)
+                class_vector.append(seen_ballots.index(ballot.multi_votes))
+
+            new_ballot_list = []
+            for i, multi_votes in enumerate(seen_ballots):
+                total_weight = 0
+                for j in range(len(class_vector)):
+                    if class_vector[j] == i:
+                        total_weight += self.ballots[j].weight
+                new_ballot_list.append(
+                    CumulativeBallot(multi_votes=multi_votes, 
+                                     weight=Fraction(total_weight))
+                )
+            self.ballots = new_ballot_list
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
