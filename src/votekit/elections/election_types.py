@@ -1,7 +1,7 @@
 from fractions import Fraction
 import itertools as it
 import numpy as np
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import random
 
@@ -940,8 +940,10 @@ class Cumulative(Election):
         winning_candidates = ranked_candidates[:self.seats]
 
         # if there is a tie
-        if candidate_votes[winning_candidates[-1]] in [candidate_votes[c] for c in ranked_candidates[self.seats:]]:
-            tied_candidates = [c for c in ranked_candidates if candidate_votes[c] == candidate_votes[winning_candidates[-1]]]
+        if candidate_votes[winning_candidates[-1]] in \
+                                    [candidate_votes[c] for c in ranked_candidates[self.seats:]]:
+            tied_candidates = [c for c in ranked_candidates \
+                                if candidate_votes[c] == candidate_votes[winning_candidates[-1]]]
             print(f"There was a tie between {tied_candidates}.")
             first_tie  = ranked_candidates.index(tied_candidates[0])
             last_tie = ranked_candidates.index(tied_candidates[-1])
