@@ -4,8 +4,7 @@ import pandas as pd
 from pydantic import BaseModel, validator
 from typing import Optional, List, Union
 
-from .ballot import Ballot, CumulativeBallot
-from multiset import FrozenMultiset
+from .ballot import Ballot, PointBallot
 
 class PreferenceProfile(BaseModel):
     """
@@ -15,7 +14,7 @@ class PreferenceProfile(BaseModel):
     **Attributes**
 
     `ballots`
-    :   list of `Ballot` or `CumulativeBallot` objects
+    :   list of `Ballot` or `PointBallot` objects
 
     `candidates`
     :   list of candidates
@@ -23,7 +22,7 @@ class PreferenceProfile(BaseModel):
     **Methods**
     """
 
-    ballots: Union[List[Ballot], List[CumulativeBallot]] = []
+    ballots: Union[List[Ballot], List[PointBallot]] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
@@ -33,7 +32,7 @@ class PreferenceProfile(BaseModel):
             raise ValueError("all candidates must be unique")
         return candidates
 
-    def get_ballots(self) -> Union[List[Ballot], List[CumulativeBallot]]:
+    def get_ballots(self) -> Union[List[Ballot], List[PointBallot]]:
         """
         Returns list of ballots
         """
@@ -45,7 +44,13 @@ class PreferenceProfile(BaseModel):
         """
         unique_cands: set = set()
         for ballot in self.ballots:
-            unique_cands.update(*ballot.ranking)
+            # if ballot
+            if isinstance(ballot, Ballot):
+                unique_cands.update(*ballot.ranking)
+            
+            # if point ballot
+            else:
+                unique_cands.update(*ballot.points.keys())
 
         return list(unique_cands)
 
@@ -63,13 +68,16 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    def to_dict(self, standardize: bool) -> dict:
+    def to_dict(self, standardize: bool = False) -> dict:
         """
-        Converts ballots to dictionary with rankings (keys) and the
+        If ranked ballots, converts ballots to dictionary with rankings (keys) and the
         corresponding total weights (values)
 
+        If PointBallots, converts to dictionary with keys candidates and values total points.
+
+        `standardize`: boolean, if True, normalizes weights by number of ballots
         Returns:
-            A dictionary with with ranking (keys) and corresponding total \n
+            A dictionary with with ranking/candidates (keys) and corresponding total \n
             weights (values)
         """
         num_ballots = self.num_ballots()
@@ -88,20 +96,18 @@ class PreferenceProfile(BaseModel):
                     di[rank_tuple] += weight
         
      
-        elif isinstance(self.ballots[0], CumulativeBallot):
+        elif isinstance(self.ballots[0], PointBallot):
             for ballot in self.ballots:
-                frozen_multi_votes = FrozenMultiset(ballot.multi_votes)
-
                 weight = ballot.weight
                 if standardize:
                     weight = weight / num_ballots
-                
-                if frozen_multi_votes not in di.keys():
-                    di[frozen_multi_votes] = weight
-                else:
-                    di[frozen_multi_votes] += weight
-            
 
+                for candidate, score in ballot.points.items():
+                    if candidate not in di.keys():
+                        di[candidate] = weight*score
+                    else:
+                        di[candidate] += weight*score
+        
         return di
 
     class Config:
@@ -121,13 +127,13 @@ class PreferenceProfile(BaseModel):
                 for ballot in self.ballots:
                     writer.writerow({"weight": ballot.weight, "ranking": ballot.ranking})
 
-        elif isinstance(self.ballots[0], CumulativeBallot):
+        elif isinstance(self.ballots[0], PointBallot):
             with open(fpath, "w", newline="") as csvfile:
-                fieldnames = ["weight", "multi_votes"]
+                fieldnames = ["weight", "points"]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 for ballot in self.ballots:
-                    writer.writerow({"weight": ballot.weight, "multi_votes": ballot.multi_votes})
+                    writer.writerow({"weight": ballot.weight, "points": ballot.points})
 
     def _create_df(self) -> pd.DataFrame:
         """
@@ -148,10 +154,16 @@ class PreferenceProfile(BaseModel):
                 ballots.append(tuple(part))
                 weights.append(int(ballot.weight))
         
-
-        elif isinstance(self.ballots[0], CumulativeBallot):
+        
+        elif isinstance(self.ballots[0], PointBallot):
             for ballot in self.ballots:
-                ballots.append(tuple(ballot.multi_votes))
+                part = []
+                # sorts candidates in decr order of votes
+                for candidate in sorted(ballot.points, key = ballot.points.get, \
+                                               reverse = True):
+                    part.append(f"{candidate}: {ballot.points[candidate]}")
+
+                ballots.append(tuple(part))
                 weights.append(int(ballot.weight))
 
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
@@ -263,26 +275,29 @@ class PreferenceProfile(BaseModel):
                 )
             self.ballots = new_ballot_list
 
-        
-        elif isinstance(self.ballots[0], CumulativeBallot):
+     
+        elif isinstance(self.ballots[0], PointBallot):
             class_vector = []
             seen_ballots = []
             for ballot in self.ballots:
-                if ballot.multi_votes not in seen_ballots:
-                    seen_ballots.append(ballot.multi_votes)
-                class_vector.append(seen_ballots.index(ballot.multi_votes))
+                if ballot.points not in seen_ballots:
+                    seen_ballots.append(ballot.points)
+                class_vector.append(seen_ballots.index(ballot.points))
 
             new_ballot_list = []
-            for i, multi_votes in enumerate(seen_ballots):
+            for i, points in enumerate(seen_ballots):
                 total_weight = 0
                 for j in range(len(class_vector)):
                     if class_vector[j] == i:
                         total_weight += self.ballots[j].weight
                 new_ballot_list.append(
-                    CumulativeBallot(multi_votes=multi_votes, 
+                    PointBallot(points=points, 
                                      weight=Fraction(total_weight))
                 )
             self.ballots = new_ballot_list
+
+        # remake dataframe for printing
+        self.df = self._create_df()
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):

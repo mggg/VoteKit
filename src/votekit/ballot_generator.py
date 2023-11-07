@@ -9,7 +9,7 @@ import pickle
 import random
 from typing import Optional
 
-from .ballot import Ballot, CumulativeBallot
+from .ballot import Ballot, PointBallot
 from .pref_profile import PreferenceProfile
 import apportionment.methods as apportion
 
@@ -776,15 +776,20 @@ class Cumulative(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion})
 
+    `num_votes`
+    : the number of votes an individual voter has, usually the same as the number of seats up for 
+    election.
+
     **Methods**
 
     See `BallotGenerator` base class
     """
 
-    def __init__(self, **data):
+    def __init__(self, num_votes: int = 1, **data):
 
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
+        self.num_votes = num_votes
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         ballot_pool = []
@@ -811,13 +816,13 @@ class Cumulative(BallotGenerator):
                 ballot = list(
                     np.random.choice(
                         non_zero_cands,
-                        len(non_zero_cands),
+                        self.num_votes,
                         p=cand_support_vec,
                         replace=True,
                     )
                 )
 
-                ballot = CumulativeBallot(multi_votes=ballot)
+                ballot = PointBallot(points=ballot)
                 ballot_pool.append(ballot)
             
 

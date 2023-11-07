@@ -59,19 +59,18 @@ class Ballot(BaseModel):
         return hash(str(self.ranking))
     
 
-class CumulativeBallot(BaseModel):
+class PointBallot(BaseModel):
     """
-    Ballot class for cumulative voting, contains ranking and assigned weight
+    Ballot class for voting methods that rely on point systems, like cumulative, Borda, approval.
 
     **Attributes**
 
     `id`
     :   optionally assigned ballot id
 
-    `multi_votes`
-    :   list of candidates for whom votes were cast, with multiplicity. Will be converted to
-    Multiset type. Or you can put in a Multiset type.
-    ["A", "A", "B"]
+    `points`
+    :  list of candidates chosen with multiplicty or 
+            dictionary whose keys are candidates and values are points given to candidates.
 
     `weight`
     :   weight assigned to a given a ballot
@@ -83,23 +82,31 @@ class CumulativeBallot(BaseModel):
     id: Optional[str] = None
     weight: Fraction = Fraction(1,1)
     voters: Optional[set[str]] = None
-    multi_votes: Union[list[str], Multiset] = []
+    points: dict = {}
 
-    def __init__(self, id = None, weight = Fraction(1,1), 
-                 voters=None, multi_votes = []):
+    def __init__(self, id = None, weight = Fraction(1,1), voters = None, points = {}):
+
+        # convert list entry to dictionary
+        if isinstance(points, list):
+            di = {}
+            for candidate in points:
+                if candidate in di.keys():
+                    di[candidate]+= 1
+                else:
+                    di[candidate] = 1 
+            points = di
+
+        super().__init__(id = id, weight = weight, voters = voters, points = points)
+
         
-        super().__init__(id = id, weight = weight, 
-                         voters = voters, multi_votes = multi_votes)
 
-        if isinstance(self.multi_votes, list):
-            self.multi_votes = Multiset(self.multi_votes)
 
     class Config:
         arbitrary_types_allowed = True
 
     def __eq__(self, other):
         # Check type
-        if not isinstance(other, CumulativeBallot):
+        if not isinstance(other, PointBallot):
             return False
 
         # Check id
@@ -107,8 +114,8 @@ class CumulativeBallot(BaseModel):
             if self.id != other.id:
                 return False
 
-        # Check multi_votes
-        if self.multi_votes != other.multi_votes:
+        # Check points
+        if self.points != other.points:
             return False
 
         # Check weight
@@ -123,9 +130,9 @@ class CumulativeBallot(BaseModel):
         return True
 
     def __hash__(self):
-        return hash(str(self.multi_votes))
+        return hash(str(self.points))
     
     def __str__(self):
-        return f"{self.multi_votes} with weight {self.weight}"
+        return f"{self.points} with weight {self.weight}"
     
     __repr__ = __str__
