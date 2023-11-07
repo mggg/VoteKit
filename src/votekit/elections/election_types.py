@@ -1,7 +1,9 @@
 from fractions import Fraction
 import itertools as it
 import numpy as np
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
+
+import random
 
 from ..models import Election
 from ..election_state import ElectionState
@@ -900,3 +902,66 @@ class Plurality(SNTV):
         super().__init__(profile, ballot_ties)
         self.seats = seats
         self.tiebreak = tiebreak
+
+
+class Cumulative(Election):
+    """
+    Simulates a cumulative election. Ties are broken by randomly permuting
+    the tied candidates.
+
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on
+
+    `seats`
+    :   number of seats to be elected
+
+    
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        super().__init__(profile, ballot_ties = False)
+
+        self.seats = seats
+
+ 
+    def run_step(self):
+        candidate_votes = {c:Fraction(0,1) for c in self.state.profile.candidates}
+        # tally votes
+        for voter in self._profile.ballots:
+            for candidate, multiplicity in voter.multi_votes.items():
+                candidate_votes[candidate]+= multiplicity * voter.weight
+        
+        # sort candidates in descending number of votes
+        ranked_candidates = sorted(candidate_votes, key=candidate_votes.get,
+                                   reverse = True)
+        
+        winning_candidates = ranked_candidates[:self.seats]
+
+        # if there is a tie
+        if candidate_votes[winning_candidates[-1]] in [candidate_votes[c] for c in ranked_candidates[self.seats:]]:
+            tied_candidates = [c for c in ranked_candidates if candidate_votes[c] == candidate_votes[winning_candidates[-1]]]
+            print(f"There was a tie between {tied_candidates}.")
+            first_tie  = ranked_candidates.index(tied_candidates[0])
+            last_tie = ranked_candidates.index(tied_candidates[-1])
+            random.shuffle(tied_candidates)
+            print(f"The tie was broken by randomly permuting the candidates: {tied_candidates}.")
+            
+            # put the new order back into the list of candidates
+            ranked_candidates = ranked_candidates[:first_tie] + tied_candidates + \
+                                ranked_candidates[(last_tie+1):]
+
+        # necessary formatting for election state object
+        winning_candidates = [{x} for x in ranked_candidates[:self.seats]]
+        losing_candidates = [{x} for x in ranked_candidates[self.seats:]]
+        self.state = ElectionState(curr_round = 1,
+                                   elected = winning_candidates,
+                                   eliminated=losing_candidates,
+                                   profile= self.state.profile,
+                                   previous = self.state)
+        return(self.state)
+
+    def run_election(self):
+        self.run_step()
+        return self.state

@@ -17,7 +17,7 @@ class PreferenceProfile(BaseModel):
     `ballots`
     :   list of `Ballot` or `CumulativeBallot` objects
 
-    `candiates`
+    `candidates`
     :   list of candidates
 
     **Methods**
