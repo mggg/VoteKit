@@ -35,7 +35,7 @@ class Election(ABC):
         ballots with ties with fractionally weighted ballots corresonding to
         all permutation of the tied ranking.
 
-        Note this only makes sense for `Ballot` objects, not `CumulativeBallot` objects.
+        Note this only makes sense for `Ballot` objects, not `PointBallot` objects.
 
         Args:
             profile: Input profile with potentially tied rankings
