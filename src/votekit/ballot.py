@@ -69,7 +69,7 @@ class PointBallot(BaseModel):
     :   optionally assigned ballot id
 
     `points`
-    :  list of candidates chosen with multiplicty or 
+    :  list of candidates chosen with multiplicity or 
             dictionary whose keys are candidates and values are points given to candidates.
 
     `weight`

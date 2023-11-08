@@ -11,7 +11,7 @@ from typing import Optional
 
 from .ballot import Ballot, PointBallot
 from .pref_profile import PreferenceProfile
-import apportionment.methods as apportion
+import apportionment.methods as apportion # type: ignore
 
 class BallotGenerator:
     """
@@ -808,8 +808,6 @@ class Cumulative(BallotGenerator):
             # creates the interval of probabilities for candidates supported by this block
             non_zero_cands = [cand for cand, prop in pref_interval_dict.items() if prop>0]
             cand_support_vec = [pref_interval_dict[cand] for cand in non_zero_cands]
-
-            # zero_cands = list(set(self.candidates).difference(non_zero_cands))
 
             for _ in range(num_ballots):
                 # generates ranking based on probability distribution of candidate support

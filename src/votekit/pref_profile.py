@@ -255,46 +255,34 @@ class PreferenceProfile(BaseModel):
         """
         Groups ballots by rankings and updates weights
         """
+        class_vector = []
+        seen = []
+        for ballot in self.ballots:
+            if isinstance(ballot, Ballot):
+                if ballot.ranking not in seen:
+                    seen.append(ballot.ranking)
+                class_vector.append(seen.index(ballot.ranking))
 
-        if isinstance(self.ballots[0], Ballot):
-            class_vector = []
-            seen_rankings = []
-            for ballot in self.ballots:
-                if ballot.ranking not in seen_rankings:
-                    seen_rankings.append(ballot.ranking)
-                class_vector.append(seen_rankings.index(ballot.ranking))
+            elif isinstance(ballot, PointBallot):
+                if ballot.points not in seen:
+                    seen.append(ballot.points)
+                class_vector.append(seen.index(ballot.points))
 
-            new_ballot_list = []
-            for i, ranking in enumerate(seen_rankings):
-                total_weight = 0
-                for j in range(len(class_vector)):
-                    if class_vector[j] == i:
-                        total_weight += self.ballots[j].weight
-                new_ballot_list.append(
-                    Ballot(ranking=ranking, weight=Fraction(total_weight))
-                )
-            self.ballots = new_ballot_list
 
-     
-        elif isinstance(self.ballots[0], PointBallot):
-            class_vector = []
-            seen_ballots = []
-            for ballot in self.ballots:
-                if ballot.points not in seen_ballots:
-                    seen_ballots.append(ballot.points)
-                class_vector.append(seen_ballots.index(ballot.points))
+        new_ballot_list = []
+        for i, ballot in enumerate(seen):
+            total_weight = 0
+            for j in range(len(class_vector)):
+                if class_vector[j] == i:
+                    total_weight += self.ballots[j].weight
+                
+            if isinstance(self.ballots[0], Ballot):
+                new_ballot_list.append(Ballot(ranking=ballot, weight=Fraction(total_weight)))
 
-            new_ballot_list = []
-            for i, points in enumerate(seen_ballots):
-                total_weight = 0
-                for j in range(len(class_vector)):
-                    if class_vector[j] == i:
-                        total_weight += self.ballots[j].weight
-                new_ballot_list.append(
-                    PointBallot(points=points, 
-                                     weight=Fraction(total_weight))
-                )
-            self.ballots = new_ballot_list
+            elif isinstance(self.ballots[0], PointBallot):
+                new_ballot_list.append(PointBallot(points=ballot, weight=Fraction(total_weight)))
+
+        self.ballots = new_ballot_list
 
         # remake dataframe for printing
         self.df = self._create_df()
