@@ -3,7 +3,6 @@ import itertools as it
 import numpy as np
 from typing import Callable, Optional
 
-import random
 
 from ..models import Election
 from ..election_state import ElectionState
