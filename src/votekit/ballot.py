@@ -1,7 +1,6 @@
 from fractions import Fraction
 from pydantic import BaseModel
-from typing import Optional, Union
-from multiset import Multiset
+from typing import Optional
 
 class Ballot(BaseModel):
     """
