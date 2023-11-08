@@ -904,15 +904,15 @@ class Plurality(SNTV):
         self.tiebreak = tiebreak
 
 
-class Cumulative(Election):
+class HighestScore(Election):
     """
-    Simulates a cumulative election. Ties are broken by randomly permuting
-    the tied candidates.
+    Simulates an election based on points. Chooses the m candidates with highest scores.
+    Ties are broken by randomly permuting the tied candidates.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on, with PointBallots.
 
     `seats`
     :   number of seats to be elected

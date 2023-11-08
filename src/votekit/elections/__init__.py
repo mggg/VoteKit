@@ -10,7 +10,7 @@ from .election_types import (  # noqa
     DominatingSets,
     CondoBorda,
     Plurality,
-    Cumulative
+    HighestScore
 )
 
 from .transfers import seqRCV_transfer, fractional_transfer, random_transfer  # noqa
