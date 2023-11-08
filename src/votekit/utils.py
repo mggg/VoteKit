@@ -403,3 +403,4 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
                 )
 
     return ballots
+
