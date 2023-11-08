@@ -4,6 +4,7 @@ from typing import Any
 from .election_state import ElectionState
 from .pref_profile import PreferenceProfile
 from .utils import recursively_fix_ties, fix_ties
+from .ballot import Ballot
 
 
 class Election(ABC):
@@ -13,7 +14,7 @@ class Election(ABC):
     """
 
     def __init__(self, profile: PreferenceProfile, ballot_ties: bool = True):
-        if ballot_ties:
+        if ballot_ties and isinstance(profile.ballots[0], Ballot):
             self._profile = self.resolve_input_ties(profile)
         else:
             self._profile = profile
@@ -32,7 +33,9 @@ class Election(ABC):
         """
         Takes in a PeferenceProfile with potential ties in a ballot. Replaces
         ballots with ties with fractionally weighted ballots corresonding to
-        all permutation of the tied ranking
+        all permutation of the tied ranking.
+
+        Note this only makes sense for `Ballot` objects, not `PointBallot` objects.
 
         Args:
             profile: Input profile with potentially tied rankings

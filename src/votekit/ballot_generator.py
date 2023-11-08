@@ -9,9 +9,9 @@ import pickle
 import random
 from typing import Optional
 
-from .ballot import Ballot
+from .ballot import Ballot, PointBallot
 from .pref_profile import PreferenceProfile
-
+import apportionment.methods as apportion # type: ignore
 
 class BallotGenerator:
     """
@@ -761,4 +761,69 @@ class CambridgeSampler(BallotGenerator):
         pp = self.ballot_pool_to_profile(
             ballot_pool=ballot_pool, candidates=self.candidates
         )
+        return pp
+
+class Cumulative(BallotGenerator):
+    """
+    Class for generating cumulative voting ballots.
+
+    **Attributes**
+
+    `pref_interval_by_bloc`
+    :   dictionary mapping of slate to preference interval
+        (ex. {race: {candidate : interval length}})
+
+    `bloc_voter_prop`
+    :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion})
+
+    `num_votes`
+    : the number of votes an individual voter has, usually the same as the number of seats up for 
+    election.
+
+    **Methods**
+
+    See `BallotGenerator` base class
+    """
+
+    def __init__(self, num_votes: int = 1, **data):
+
+        # Call the parent class's __init__ method to handle common parameters
+        super().__init__(**data)
+        self.num_votes = num_votes
+
+    def generate_profile(self, number_of_ballots) -> PreferenceProfile:
+        ballot_pool = []
+
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        blocs = list(self.bloc_voter_prop.keys())
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
+                                                              number_of_ballots)))
+
+        for bloc in self.bloc_voter_prop.keys():
+            # number of voters in this bloc
+            num_ballots = ballots_per_block[bloc]
+            
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
+            # creates the interval of probabilities for candidates supported by this block
+            non_zero_cands = [cand for cand, prop in pref_interval_dict.items() if prop>0]
+            cand_support_vec = [pref_interval_dict[cand] for cand in non_zero_cands]
+
+            for _ in range(num_ballots):
+                # generates ranking based on probability distribution of candidate support
+                ballot = list(
+                    np.random.choice(
+                        non_zero_cands,
+                        self.num_votes,
+                        p=cand_support_vec,
+                        replace=True,
+                    )
+                )
+
+                ballot = PointBallot(points=ballot)
+                ballot_pool.append(ballot)
+            
+
+        pp = PreferenceProfile(ballots = ballot_pool, candidates = self.candidates)
+        pp.condense_ballots()
         return pp

@@ -3,6 +3,7 @@ import itertools as it
 import numpy as np
 from typing import Callable, Optional
 
+
 from ..models import Election
 from ..election_state import ElectionState
 from ..graphs.pairwise_comparison_graph import PairwiseComparisonGraph
@@ -900,3 +901,57 @@ class Plurality(SNTV):
         super().__init__(profile, ballot_ties)
         self.seats = seats
         self.tiebreak = tiebreak
+
+
+class HighestScore(Election):
+    """
+    Simulates an election based on points. Chooses the m candidates with highest scores.
+    Ties are broken by randomly permuting the tied candidates.
+
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on, with PointBallots.
+
+    `seats`
+    :   number of seats to be elected
+
+    `tiebreak`
+    : tiebreak method, defaults to random, supports 'none', 'random',
+
+    
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int, tiebreak: str= "random"):
+        super().__init__(profile, ballot_ties = False)
+
+        self.seats = seats
+        self.tiebreak = tiebreak
+
+ 
+    def run_step(self):
+        # dictionary whose keys are candidates, values are vote totals
+        vote_tallies = self.state.profile.to_dict()
+
+        ranking = scores_into_set_list(score_dict = vote_tallies)
+        untied_ranking = tie_broken_ranking(ranking = ranking, profile = self.state.profile,
+                                     tiebreak=self.tiebreak)
+
+        if ranking != untied_ranking:
+            print("A tie was broken.")
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=untied_ranking, seats=self.seats
+        )
+
+        self.state = ElectionState(curr_round = 1,
+                                   elected = elected,
+                                   eliminated = eliminated,
+                                   remaining = [],
+                                   profile = self.state.profile,
+                                   previous= self.state)
+        return(self.state)
+
+
+    def run_election(self):
+        self.run_step()
+        return self.state

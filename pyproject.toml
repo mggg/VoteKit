@@ -17,6 +17,8 @@ networkx = "^3.1"
 jinja2 = "^3.1.2"
 matplotlib = "^3.7.2"
 pandas = "^1.5.3"
+apportionment = "^1"
+
 
 
 [tool.poetry.group.dev.dependencies]
