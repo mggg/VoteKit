@@ -48,7 +48,7 @@ def test_generate_election_completion():
     number_of_ballots = 100
     candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-    bloc_crossover_rate = {"W": {"C": 0.3}, "C": {"W": 0.4}}
+    cohesion_parameters = {"W": .7, "C": .6}
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
         "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -63,7 +63,7 @@ def test_generate_election_completion():
         pref_interval_by_bloc=pref_interval_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
         path=path,
-        bloc_crossover_rate=bloc_crossover_rate,
+        cohesion_parameters=cohesion_parameters,
         slate_to_candidates=slate_to_candidate,
     )
 
