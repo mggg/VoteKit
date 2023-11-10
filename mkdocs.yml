@@ -70,6 +70,8 @@ nav:
     - 'index.md'
     - 'getting_started.md'
     - 'some_plotting_options.md'
+    - 'AC_and_CS.md'
     - 'ballot_graph_tutorial.md'
+
   - Reference:
     - 'api.md'
