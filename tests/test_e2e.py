@@ -48,7 +48,7 @@ def test_generate_election_completion():
     number_of_ballots = 100
     candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-    cohesion_parameters = {"W": .7, "C": .6}
+    cohesion_parameters = {"W": 0.7, "C": 0.6}
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
         "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -99,10 +99,10 @@ def test_generate_election_diff_res():
     election_seq = elections.SequentialRCV(pp, seats=1)
     # election_sntv = elections.SNTV(pp, seats=1)
 
-    outcome_borda = election_borda.run_election().get_all_winners()
-    outcome_irv = election_irv.run_election().get_all_winners()
-    outcome_plurality = election_plurality.run_election().get_all_winners()
-    outcome_seq = election_seq.run_election().get_all_winners()
+    outcome_borda = election_borda.run_election().winners()
+    outcome_irv = election_irv.run_election().winners()
+    outcome_plurality = election_plurality.run_election().winners()
+    outcome_seq = election_seq.run_election().winners()
     # outcome_sntv = election_sntv.run_election().get_all_winners()
 
     print(outcome_borda)
