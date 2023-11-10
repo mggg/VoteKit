@@ -4,7 +4,7 @@ This guide will help you get started using `votekit`, by using real election dat
 
 ```python
 # these are the votekit functions we'll need access to
-from votekit load_csv, remove_noncands
+from votekit import load_csv, remove_noncands
 from votekit.elections import STV, fractional_transfer
 ```
 
