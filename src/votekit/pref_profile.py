@@ -197,7 +197,7 @@ class PreferenceProfile(BaseModel):
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
 
-        print("Data frame truncated to 15 rows.")
+        print("PreferenceProfile truncated to 15 ballots.")
         return self.head(n=15).to_string(index=False, justify="justify")
 
     # set repr to print outputs
