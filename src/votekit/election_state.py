@@ -1,6 +1,8 @@
 import pandas as pd
 from pydantic import BaseModel
 from typing import Optional
+import json
+from pathlib import Path
 
 from .pref_profile import PreferenceProfile
 from .utils import candidate_position_dict
@@ -163,6 +165,18 @@ class ElectionState(BaseModel):
             rv[key] = temp_lst
 
         return rv
+
+    def to_json(self, file_path: Path, keep: list = []):
+        """
+        Saves election state object as a JSON file:
+
+        Args:
+            keep (list, optional): Results information to store
+        """
+
+        json_dict = json.dumps(self.to_dict(keep=keep))
+        with open(file_path, "w") as outfile:
+            outfile.write(json_dict)
 
     def __str__(self):
         show = self.status()
