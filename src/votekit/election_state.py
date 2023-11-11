@@ -142,7 +142,12 @@ class ElectionState(BaseModel):
 
         """
         keys = ["elected", "eliminated", "remaining", "ranking"]
-        values = [self.winners(), self.eliminated(), self.remaining, self.rankings()]
+        values: list = [
+            self.winners(),
+            self.eliminated(),
+            self.remaining,
+            self.rankings(),
+        ]
 
         rv = {}
         for key, values in zip(keys, values):
