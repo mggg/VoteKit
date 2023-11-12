@@ -52,6 +52,7 @@ def random_transfer(
 
     # turn all of winner's ballots into (multiple) ballots of weight 1
     weight_1_ballots = []
+    updated_ballots = []
     for ballot in ballots:
         if ballot.ranking and ballot.ranking[0] == {winner}:
             # note: under random transfer, weights should always be integers
@@ -64,20 +65,13 @@ def random_transfer(
                         voters=ballot.voters,
                     )
                 )
-
-    # remove winner's ballots
-    ballots = [
-        ballot
-        for ballot in ballots
-        if not (ballot.ranking and ballot.ranking[0] == {winner})
-    ]
+        else:
+            updated_ballots.append(ballot)
 
     surplus_ballots = random.sample(weight_1_ballots, int(votes[winner]) - threshold)
-    ballots += surplus_ballots
+    updated_ballots += surplus_ballots
 
-    transfered = remove_cand(winner, ballots)
-
-    return transfered
+    return remove_cand(winner, updated_ballots)
 
 
 def seqRCV_transfer(
