@@ -11,16 +11,15 @@ from ..pref_profile import PreferenceProfile
 class PairwiseComparisonGraph(Graph):
     """
     Class to constructe Pairwise Comparison graph where nodes are candidates
-    and edges are pairwise preferences
+    and edges are pairwise preferences.
 
     **Attributes**
 
     `profile`
-    :   profile to construction graph from
+    :   PreferenceProfile to construct graph from.
 
     `ballot_length`
-    :   (Optional) max length of ballot, if None longest possible ballot \n
-        lenth is assigned
+    :   (Optional) max length of ballot, defaults to longest possible ballot length.
 
     **Methods**
     """
@@ -37,7 +36,14 @@ class PairwiseComparisonGraph(Graph):
 
     def ballot_fill(self, profile: PreferenceProfile, ballot_length: int):
         """
-        Fills incomplete ballots for pairwise comparison
+        Fills incomplete ballots for pairwise comparison.
+
+        Args:
+            profile: PreferenceProfile to fill.
+            ballot_length: how long a ballot is.
+
+        Returns:
+            A PreferenceProfile with incomplete ballots filled in.
         """
         cand_list = [{cand} for cand in profile.get_candidates()]
         updated_ballot_list = []
@@ -64,7 +70,15 @@ class PairwiseComparisonGraph(Graph):
     # Helper functions to make pairwise comparison graph
     def head2head_count(self, cand1, cand2) -> Fraction:
         """
-        Counts head to head comparisons between two candidates
+        Counts head to head comparisons between two candidates. Note that the given order 
+        of the candidates matters here.
+
+        Args:
+            cand1: the first candidate to compare.
+            cand2: the second candidate to compare.
+
+        Returns:
+            A count of the number of times cand1 is preferred to cand2.
         """
         count = 0
         ballots_list = self.profile.get_ballots()
@@ -83,6 +97,10 @@ class PairwiseComparisonGraph(Graph):
         Constructs dictionary where keys are tuples (cand_a, cand_b) containing
         two candidates and values is the frequency cand_a is preferred to
         cand_b
+
+        Returns:
+            A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is preferred
+            to cand_b.
         """
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
         cand_pairs = combinations(self.candidates, 2)
@@ -102,6 +120,12 @@ class PairwiseComparisonGraph(Graph):
         return pairwise_dict
 
     def build_graph(self) -> nx.DiGraph:
+        """
+        Builds the networkx pairwise comparison graph.
+
+        Returns:
+            The networkx digraph representing the pairwise comparison graph.
+        """
         G = nx.DiGraph()
         G.add_nodes_from(self.candidates)
         for e in self.pairwise_dict.keys():
@@ -110,7 +134,10 @@ class PairwiseComparisonGraph(Graph):
 
     def draw(self, outfile=None):
         """
-        Draws pairwise comparison graph
+        Draws pairwise comparison graph.
+
+        Args:
+            outfile: the filepath to save the graph. Defaults to not saving.
         """
         G = self.pairwise_graph
 
@@ -148,10 +175,10 @@ class PairwiseComparisonGraph(Graph):
     # More complicated Requests
     def has_condorcet(self) -> bool:
         """
-        Checks if graph has a condorcet winner
+        Checks if graph has a condorcet winner.
 
         Returns:
-            True if condorcet winner exists, False otherwise
+            True if condorcet winner exists, False otherwise.
         """
         dominating_tiers = self.dominating_tiers()
         if len(dominating_tiers[0]) == 1:
@@ -160,10 +187,10 @@ class PairwiseComparisonGraph(Graph):
 
     def dominating_tiers(self) -> list[set]:
         """
-        Finds dominating tiers within an election
+        Finds dominating tiers within an election.
 
         Returns:
-            A list of dominating tiers
+            A list of dominating tiers.
         """
         beat_set_size_dict = {}
         for i, cand in enumerate(self.candidates):

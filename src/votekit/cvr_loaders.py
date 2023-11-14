@@ -19,26 +19,25 @@ def load_csv(
 ) -> PreferenceProfile:
     """
     Given a file path, loads cast vote records (cvr) with ranks as columns and voters as rows
-    (empty cells are treated as None)
+    Empty cells are treated as None.
 
     Args:
-        fpath: Path to cvr file
-        rank_cols: list of column indexes that contain rankings, indexing starts from 0,
+        fpath: Path to cvr file.
+        rank_cols: List of column indexes that contain rankings, indexing starts from 0,
                     in order from top to bottom rank.
                     Default implies that all columns contain rankings.
-        weight_col: The column position for ballot weights
-            if parsing Scottish elections like cvrs
-        delimiter: The character that breaks up rows
-        id_col: Index for the column with voter ids
+        weight_col: The column position for ballot weights.
+        delimiter: The character that breaks up rows.
+        id_col: Index for the column with voter ids.
 
     Raises:
-        FileNotFoundError: If fpath is invalid
-        EmptyDataError: If dataset is empty
-        ValueError: If the voter id column has missing values
-        DataError: If the voter id column has duplicate values
+        FileNotFoundError: If fpath is invalid.
+        EmptyDataError: If dataset is empty.
+        ValueError: If the voter id column has missing values.
+        DataError: If the voter id column has duplicate values.
 
     Returns:
-        A preference profile that represents all the ballots in the election
+        A PreferenceProfile that represents all the ballots in the election.
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
@@ -89,19 +88,19 @@ def load_csv(
 
 def load_blt(fpath: str) -> tuple[PreferenceProfile, int]:
     """
-    Given a blt file path, loads cvr (blt is text-like format used for scottish election data)
+    Given a blt file path, loads cvr (blt is text-like format used for Scottish election data).
 
     Args:
-        fpath: Path to cvr file
+        fpath: Path to cvr file.
 
     Raises:
-        FileNotFoundError: If fpath is invalid
-        EmptyDataError: If dataset is empty
-        DataError: If there is missing or incorrect metadata or candidate data
+        FileNotFoundError: If fpath is invalid.
+        EmptyDataError: If dataset is empty.
+        DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        A preference schedule representing all the ballots in the elction
-        Number of seats in the election
+        A tuple (PreferenceProfile, seats) representing all the election and the number of seats 
+        in the election.
     """
     ballots = []
     names = []

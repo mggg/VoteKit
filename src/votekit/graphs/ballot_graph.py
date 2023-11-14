@@ -17,12 +17,12 @@ class BallotGraph(Graph):
 
     `source`
     :   data to create graph from, either PreferenceProfile object, number of
-            candidates, or list of candidates
+            candidates, or list of candidates.
 
     `allow_partial`
     :   if True, builds graph using all possible ballots,
-        if False, only uses total linear ordered ballots
-        if building from a PreferenceProfile, defaults to True
+        if False, only uses total linear ordered ballots.
+        If building from a PreferenceProfile, defaults to True.
 
     `fix_short`
     : if True, auto completes ballots of length n-1 to n.
@@ -91,10 +91,13 @@ class BallotGraph(Graph):
 
     def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
         """
-        Builds graph of all possible ballots given a number of candiates
+        Builds graph of all possible ballots given a number of candiates.
 
         Args:
-            n: number of candidates per an election
+            n: number of candidates in an election.
+
+        Returns:
+            A networkx graph.
         """
         Gc = nx.Graph()
         # base cases
@@ -141,15 +144,15 @@ class BallotGraph(Graph):
     ) -> nx.Graph:
         """
         Updates existing graph based on cast ballots from a PreferenceProfile,
-        or creates graph based on PreferenceProfile
+        or creates graph based on PreferenceProfile.
 
         Args:
-            profile: PreferenceProfile assigned to graph
+            profile: PreferenceProfile assigned to graph.
 
 
         Returns:
             Graph based on PreferenceProfile, 'cast' node attribute indicates
-                    ballots cast in PreferenceProfile
+                    ballots cast in PreferenceProfile.
         """
         if not self.profile:
             self.profile = profile
@@ -185,7 +188,15 @@ class BallotGraph(Graph):
 
     def fix_short_ballot(self, ballot: list, candidates: list) -> list:
         """
-        Appends short ballots of n-1 length to add to BallotGraph
+        Adds missing candidates to a short ballot.
+
+        Args:
+            ballot: a list of candidates on the ballot.
+            candidates: a list of all candidates.
+
+        Returns:
+            A new list with the missing candidates added to the end of the ballot.
+
         """
         missing = set(candidates).difference(set(ballot))
 
@@ -194,11 +205,12 @@ class BallotGraph(Graph):
     def label_cands(self, candidates,
                     to_display: Callable = all_nodes):
         """
-        Assigns candidate labels to ballot graph for plotting
+        Assigns candidate labels to ballot graph for plotting.
 
         Args:
-            to_display: a Boolean callable that takes in a graph and node 
-                        returns True if node  should be displayed
+            candidates: a list of candidates. 
+            to_display: a Boolean callable that takes in a graph and node, 
+                        returns True if node should be displayed.
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))
@@ -243,7 +255,7 @@ class BallotGraph(Graph):
                             (n,1) gives all nodes within one step of n.
             show_cast: If True, show only nodes with "cast" attribute = True.
                         If False, show all nodes.
-            labels: If True, labels nodes with candidate names and vote totals
+            labels: If True, labels nodes with candidate names and vote totals.
         """
         
 
