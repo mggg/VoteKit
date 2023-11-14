@@ -8,7 +8,7 @@ from pathlib import Path
 import pickle
 import random
 from typing import Optional
-import apportionment.methods as apportion
+import apportionment.methods as apportion  # type: ignore
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -222,7 +222,7 @@ class BallotSimplex(BallotGenerator):
 
     ???+ note
 
-        Point and alpha arguments must be included to intialize
+        Point or alpha arguments must be included to initialize
 
     **Methods**
     """
@@ -284,6 +284,7 @@ class BallotSimplex(BallotGenerator):
             draw_probabilities = list(
                 np.random.default_rng().dirichlet([self.alpha] * len(perm_rankings))
             )
+
         elif self.point:
             # calculates probabilities for each ranking
             # using probability distribution for candidate support
@@ -525,24 +526,27 @@ class BradleyTerry(BallotGenerator):
 
 class AlternatingCrossover(BallotGenerator):
     """
-    Class for Alternating Crossover style of generating ballots
+    Class for Alternating Crossover style of generating ballots.
+    Should only be used when there are two blocs.
+    At the moment assumes that there are the same number of candidates in each bloc.
 
     **Attributes**
 
     `pref_interval_by_bloc`
-    :   dictionary mapping of slate to preference interval
-        (ex. {race: {candidate : interval length}})
+    :   dictionary mapping of slate to preference interval. preference interval should
+        include all candidates regardless of which bloc they are from.
+        (ex. {bloc: {candidate : interval length}})
 
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions
-        (ex. {race: voter proportion})
+        (ex. {bloc: voter proportion})
 
-    `slate_to_candidate`
-    :   dictionary mapping of slate to candidates (ex. {race: [candidate]})
+    `slate_to_candidates`
+    :   dictionary mapping of slate to candidates (ex. {bloc: [candidate1, candidate2]})
 
-    `bloc_crossover_rate`
-    :   dictionary mapping of percentage of crossover voters per bloc
-        ex. {race: {other_race: 0.5}})
+    `cohesion_parameters`
+    :   dictionary mapping of bloc to cohesion parameter. .6 means voters vote in bloc 60% of time.
+        ex. {bloc: 6})
 
     **Methods**
 
@@ -551,8 +555,8 @@ class AlternatingCrossover(BallotGenerator):
 
     def __init__(
         self,
-        slate_to_candidates=None,
-        bloc_crossover_rate=None,
+        slate_to_candidates: dict = {},
+        cohesion_parameters: dict = {},
         **data,
     ):
 
@@ -560,76 +564,91 @@ class AlternatingCrossover(BallotGenerator):
         super().__init__(**data)
 
         self.slate_to_candidates = slate_to_candidates
-        self.bloc_crossover_rate = bloc_crossover_rate
+        self.cohesion_parameters = cohesion_parameters
+
+        for bloc, pref_interval in self.pref_interval_by_bloc.items():
+            if 0 in pref_interval.values():
+                raise ValueError(
+                    "In AC model, all candidates must have non-zero preference."
+                )
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
 
         ballot_pool = []
 
+        # compute the number of bloc and crossover voters in each bloc using Huntington Hill
+        voter_types = [
+            (b, type) for b in self.bloc_voter_prop.keys() for type in ["bloc", "cross"]
+        ]
+
+        voter_props = [
+            self.cohesion_parameters[b] * self.bloc_voter_prop[b]
+            if t == "bloc"
+            else (1 - self.cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            for b, t in voter_types
+        ]
+
+        ballots_per_type = dict(
+            zip(
+                voter_types,
+                apportion.compute("huntington", voter_props, number_of_ballots),
+            )
+        )
+
         for bloc in self.bloc_voter_prop.keys():
 
-            num_ballots = self.round_num(number_of_ballots * self.bloc_voter_prop[bloc])
-            crossover_dict = self.bloc_crossover_rate[bloc]
+            num_bloc_ballots = ballots_per_type[(bloc, "bloc")]
+            num_cross_ballots = ballots_per_type[(bloc, "cross")]
+
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
-            # generates crossover ballots from each bloc (allowing for more than two blocs)
-            for opposing_slate in crossover_dict.keys():
-                crossover_rate = crossover_dict[opposing_slate]
-                num_crossover_ballots = self.round_num(crossover_rate * num_ballots)
+            opposing_slate = list(set(self.bloc_voter_prop.keys()).difference([bloc]))[
+                0
+            ]
+            opposing_cands = self.slate_to_candidates[opposing_slate]
+            bloc_cands = self.slate_to_candidates[bloc]
 
-                opposing_cands = self.slate_to_candidates[opposing_slate]
-                bloc_cands = self.slate_to_candidates[bloc]
+            pref_for_opposing = [pref_interval_dict[cand] for cand in opposing_cands]
+            # convert to probability distribution
+            pref_for_opposing = [p / sum(pref_for_opposing) for p in pref_for_opposing]
 
-                for _ in range(num_crossover_ballots):  
-                    pref_for_opposing = [
-                        pref_interval_dict[cand] for cand in opposing_cands
-                    ]
-                    # convert to probability distribution
-                    pref_for_opposing = [
-                        p / sum(pref_for_opposing) for p in pref_for_opposing
-                    ]
+            pref_for_bloc = [pref_interval_dict[cand] for cand in bloc_cands]
+            # convert to probability distribution
+            pref_for_bloc = [p / sum(pref_for_bloc) for p in pref_for_bloc]
 
-                    pref_for_bloc = [pref_interval_dict[cand] for cand in bloc_cands]
-                    # convert to probability distribution
-                    pref_for_bloc = [p / sum(pref_for_bloc) for p in pref_for_bloc]
-
-                    bloc_cands = list(
-                        np.random.choice(
-                            bloc_cands,
-                            p=pref_for_bloc,
-                            size=len(bloc_cands),
-                            replace=False,
-                        )
+            for i in range(num_cross_ballots + num_bloc_ballots):
+                bloc_cands = list(
+                    np.random.choice(
+                        bloc_cands,
+                        p=pref_for_bloc,
+                        size=len(bloc_cands),
+                        replace=False,
                     )
-                    opposing_cands = list(
-                        np.random.choice(
-                            opposing_cands,
-                            size=len(opposing_cands),
-                            p=pref_for_opposing,
-                            replace=False,
-                        )
+                )
+                opposing_cands = list(
+                    np.random.choice(
+                        opposing_cands,
+                        p=pref_for_opposing,
+                        size=len(opposing_cands),
+                        replace=False,
                     )
+                )
 
+                if i < num_cross_ballots:
                     # alternate the bloc and opposing bloc candidates to create crossover ballots
-                    if bloc != opposing_slate:  # alternate
-                        ballot = [
-                            item
-                            for pair in zip(opposing_cands, bloc_cands)
-                            for item in pair
-                            if item is not None
-                        ]
+                    ranking = [
+                        {cand}
+                        for pair in zip(opposing_cands, bloc_cands)
+                        for cand in pair
+                    ]
+                else:
+                    ranking = [{c} for c in bloc_cands] + [{c} for c in opposing_cands]
 
-                    # check that ballot_length is shorter than total number of cands
-                    ballot_pool.append(ballot)
+                ballot = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot_pool.append(ballot)
 
-                # Bloc ballot
-                for _ in range(num_ballots - num_crossover_ballots):
-                    ballot = bloc_cands + opposing_cands
-                    ballot_pool.append(ballot)
-
-        pp = self.ballot_pool_to_profile(
-            ballot_pool=ballot_pool, candidates=self.candidates
-        )
+        pp = PreferenceProfile(ballots=ballot_pool, candidates=self.candidates)
+        pp.condense_ballots()
         return pp
 
 
@@ -665,7 +684,8 @@ class OneDimSpatial(BallotGenerator):
 class CambridgeSampler(BallotGenerator):
     """
     Class for generating ballots based on historical RCV elections occuring
-    in Cambridge. Alternative election data can be used if specified
+    in Cambridge. Alternative election data can be used if specified. Assumes that there are two
+    blocs, a majority and a minority bloc, and determines this based on the bloc_voter_prop attr.
 
     **Attributes**
 
@@ -675,6 +695,12 @@ class CambridgeSampler(BallotGenerator):
     `pref_interval_by_bloc`
     :   dictionary mapping of bloc to preference interval
         (ex. {race: {candidate : interval length}})
+
+    `majority_name`
+    : name of majority bloc in historical data, defaults to W for Cambridge
+
+    `minority_name`
+    : name of minority bloc in historical data, defaults to C for Cambridge
 
     `path`
     :   file path to an election data file to sample from. Defaults to Cambridge elections
@@ -686,9 +712,11 @@ class CambridgeSampler(BallotGenerator):
 
     def __init__(
         self,
-        slate_to_candidates=None,
-        bloc_crossover_rate=None,
+        slate_to_candidates: dict = {},
+        cohesion_parameters: dict = {},
         path: Optional[Path] = None,
+        majority_name: Optional[str] = "W",
+        minority_name: Optional[str] = "C",
         **data,
     ):
 
@@ -696,7 +724,37 @@ class CambridgeSampler(BallotGenerator):
         super().__init__(**data)
 
         self.slate_to_candidates = slate_to_candidates
-        self.bloc_crossover_rate = bloc_crossover_rate
+        self.cohesion_parameters = cohesion_parameters
+
+        # changing names to match historical data
+        majority_bloc = [
+            bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
+        ][0]
+        minority_bloc = [
+            bloc for bloc in self.bloc_voter_prop.keys() if bloc != majority_bloc
+        ][0]
+
+        cambridge_names = {majority_bloc: majority_name, minority_bloc: minority_name}
+
+        self.slate_to_candidates = {
+            cambridge_names[b]: self.slate_to_candidates[b]
+            for b in self.slate_to_candidates.keys()
+        }
+
+        self.bloc_voter_prop = {
+            cambridge_names[b]: self.bloc_voter_prop[b]
+            for b in self.bloc_voter_prop.keys()
+        }
+
+        self.pref_interval_by_bloc = {
+            cambridge_names[b]: self.pref_interval_by_bloc[b]
+            for b in self.pref_interval_by_bloc.keys()
+        }
+
+        self.cohesion_parameters = {
+            cambridge_names[b]: self.cohesion_parameters[b]
+            for b in self.cohesion_parameters.keys()
+        }
 
         if path:
             self.path = path
@@ -712,15 +770,32 @@ class CambridgeSampler(BallotGenerator):
 
         ballot_pool = []
 
+        # compute the number of bloc and crossover voters in each bloc using Huntington Hill
+        voter_types = [
+            (b, type)
+            for b in list(self.bloc_voter_prop.keys())
+            for type in ["bloc", "cross"]
+        ]
+
+        voter_props = [
+            self.cohesion_parameters[b] * self.bloc_voter_prop[b]
+            if t == "bloc"
+            else (1 - self.cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            for b, t in voter_types
+        ]
+
+        ballots_per_type = dict(
+            zip(
+                voter_types,
+                apportion.compute("huntington", voter_props, number_of_ballots),
+            )
+        )
+
         blocs = self.slate_to_candidates.keys()
         for bloc in blocs:
-            # compute the number of voters in this bloc
-            bloc_voters = self.round_num(self.bloc_voter_prop[bloc] * number_of_ballots)
-
             # store the opposition bloc
             opp_bloc = next(iter(set(blocs).difference(set(bloc))))
 
-            # compute how many ballots list a bloc candidate first
             bloc_first_count = sum(
                 [
                     freq
@@ -746,20 +821,14 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == opp_bloc
             }
 
+            bloc_voters = ballots_per_type[(bloc, "bloc")]
+            cross_voters = ballots_per_type[(bloc, "cross")]
+
             # Generate ballots
-            for _ in range(bloc_voters):
-                # Randomly choose first choice based off
-                # bloc crossover rate
-                first_choice = np.random.choice(
-                    [bloc, opp_bloc],
-                    p=[
-                        1 - self.bloc_crossover_rate[bloc][opp_bloc],
-                        self.bloc_crossover_rate[bloc][opp_bloc],
-                    ],
-                )
+            for i in range(bloc_voters + cross_voters):
                 # Based on first choice, randomly choose
                 # ballots weighted by Cambridge frequency
-                if first_choice == bloc:
+                if i < bloc_voters:
                     bloc_ordering = random.choices(
                         list(prob_ballot_given_bloc_first.keys()),
                         weights=list(prob_ballot_given_bloc_first.values()),
