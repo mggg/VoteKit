@@ -43,7 +43,8 @@ class PairwiseComparisonGraph(Graph):
             ballot_length: How long a ballot is.
 
         Returns:
-            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete ballots filled in.
+            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete 
+                ballots filled in.
         """
         cand_list = [{cand} for cand in profile.get_candidates()]
         updated_ballot_list = []

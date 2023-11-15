@@ -249,8 +249,8 @@ class BallotGraph(Graph):
         Visualize the graph.
 
         Args:
-            to_display: A boolean function that takes the graph and a node as input, returns True if 
-                        you want that node displayed. Defaults to showing all nodes.
+            to_display: A boolean function that takes the graph and a node as input, 
+                returns True if you want that node displayed. Defaults to showing all nodes.
             neighborhoods: A list of neighborhoods to display, given as tuple (node, radius).
                             (ex. (n,1) gives all nodes within one step of n).
             show_cast: If True, show only nodes with "cast" attribute = True.
