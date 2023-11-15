@@ -67,7 +67,7 @@ class ElectionState(BaseModel):
     def get_rankings(self) -> list[set[str]]:
         """
         Returns:
-          List of all candidates in order of their ranking after each round, first the winners,
+          List of all candidates in order of their ranking after each round, first the winners,\
           then the eliminated candidates.
         """
         if self.remaining != [{}]:
@@ -78,8 +78,10 @@ class ElectionState(BaseModel):
     def get_round_outcome(self, roundNum: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
+        Finds the outcome of a given round.
+
         Args:
-        roundNum: round number.
+            roundNum (int): Round number.
 
         Returns:
           A dictionary with elected and eliminated candidates.
@@ -97,8 +99,8 @@ class ElectionState(BaseModel):
     def changed_rankings(self) -> dict:
         """
         Returns:
-            A dictionary with keys = candidate(s) who changed
-            ranking from previous round and values = a tuple of (previous rank, new rank).
+            A dictionary with keys = candidate(s) who changed \
+                ranking from previous round and values = a tuple of (previous rank, new rank).
         """
 
         if not self.previous:

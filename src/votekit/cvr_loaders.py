@@ -18,12 +18,12 @@ def load_csv(
     id_col: Optional[int] = None,
 ) -> PreferenceProfile:
     """
-    Given a file path, loads cast vote records (cvr) with ranks as columns and voters as rows
+    Given a file path, loads cast vote records (cvr) with ranks as columns and voters as rows.
     Empty cells are treated as None.
 
     Args:
         fpath: Path to cvr file.
-        rank_cols: List of column indexes that contain rankings, indexing starts from 0,
+        rank_cols: List of column indexes that contain rankings. Indexing starts from 0,
                     in order from top to bottom rank.
                     Default implies that all columns contain rankings.
         weight_col: The column position for ballot weights.
@@ -99,8 +99,8 @@ def load_blt(fpath: str) -> tuple[PreferenceProfile, int]:
         DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        A tuple (PreferenceProfile, seats) representing all the election and the number of seats 
-        in the election.
+        (tuple): A tuple (PreferenceProfile, seats) representing the election and the 
+                number of seats in the election.
     """
     ballots = []
     names = []

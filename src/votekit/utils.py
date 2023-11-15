@@ -67,7 +67,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
 
     Args:
         removed: Candidate or set of candidates to be removed.
-        ballots: List of Ballots to remove canidate(s) from.
+        ballots: List of Ballots to remove candidate(s) from.
 
     Returns:
         Updated list of ballots with candidate(s) removed.
@@ -173,7 +173,7 @@ def borda_scores(
         score_vector: Borda weights, if None, vector is assigned $(n,n-1,\dots,1)$.
 
     Returns:
-        Dictionary of candidates (keys) and Borda scores (values)
+        (dict): Dictionary of candidates (keys) and Borda scores (values).
     """
     candidates = profile.get_candidates()
     if ballot_length is None:
@@ -364,12 +364,11 @@ def recursively_fix_ties(ballot_lst: list[Ballot], num_ties: int) -> list[Ballot
     Recursively fixes ties in a ballot in the case there is more then one tie.
 
     Args:
-    `ballot_lst`:
-            list of Ballot objects
-    `num_ties`: number of ties to resolve.
+        ballot_lst (list): List of Ballot objects
+        num_ties (int):  Number of ties to resolve.
 
     Returns:
-        a list of Ballots with ties resolved.
+        (list): A list of Ballots with ties resolved.
     """
     # base case, if only one tie to resolved return the list of already
     # resolved ballots
@@ -388,13 +387,13 @@ def recursively_fix_ties(ballot_lst: list[Ballot], num_ties: int) -> list[Ballot
 def fix_ties(ballot: Ballot) -> list[Ballot]:
     """
     Helper function for recursively_fix_ties. Resolves the first appearing
-    tied rank in the input ballot by 
+    tied rank in the input ballot.
 
     Args:
-        ballot: a Ballot.
+        ballot: A Ballot.
     
     Returns:
-        List of Ballots that are permutations of the tied ballot.
+        (list): List of Ballots that are permutations of the tied ballot.
     """
 
     ballots = []

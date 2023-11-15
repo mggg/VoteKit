@@ -38,11 +38,11 @@ class STV(Election):
     :   formula to calculate quota (defaults to droop).
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak. Defaults
+    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
                 to random.
 
     **Methods**
@@ -186,7 +186,7 @@ class STV(Election):
 
 class Limited(Election):
     """
-    Elects m (seats) candidates with the highest k-approval scores.
+    Elects m candidates with the highest k-approval scores.
     The k-approval score of a candidate is equal to the number of voters who 
     rank this candidate among their k top ranked candidates.
 
@@ -202,11 +202,11 @@ class Limited(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**
@@ -227,7 +227,7 @@ class Limited(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Conducts Limited election in which m-candidates are elected based
+        Conducts Limited election in which m candidates are elected based
         on approval scores.
 
         Returns:
@@ -308,11 +308,11 @@ class Bloc(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**
@@ -359,7 +359,7 @@ class Bloc(Election):
 
 class SNTV(Election):
     """
-    Single nontransferable vote (SNTV): Elects k-candidates with the highest
+    Single nontransferable vote (SNTV): Elects k candidates with the highest
     Plurality scores.
 
     **Attributes**
@@ -371,11 +371,11 @@ class SNTV(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**
@@ -419,7 +419,7 @@ class SNTV(Election):
 
 class SNTV_STV_Hybrid(Election):
     """
-    Election methd that first runs SNTV to a cutoff, then runs STV to
+    Election method that first runs SNTV to a cutoff, then runs STV to
     pick a committee with a given number of seats.
 
     **Attributes**
@@ -437,11 +437,11 @@ class SNTV_STV_Hybrid(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**
@@ -549,11 +549,11 @@ class TopTwo(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**
@@ -609,7 +609,7 @@ class DominatingSets(Election):
     :   PreferenceProfile to run election on.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
 
@@ -675,11 +675,11 @@ class CondoBorda(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                 Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                 Defaults to random.
 
     **Methods**
@@ -749,11 +749,11 @@ class SequentialRCV(Election):
     :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                 Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                 Defaults to random.
 
     **Methods**
@@ -823,7 +823,7 @@ class Borda(Election):
     """
     Positional voting system that assigns a decreasing number of points to
     candidates based on order and a score vector. The conventional score
-    vector is linear $(n, n-1, ..., 1).$
+    vector is $(n, n-1, \dots, 1)$, where $n$ is the number of candidates.
 
     **Attributes**
 
@@ -834,15 +834,15 @@ class Borda(Election):
     :   number of seats to be elected.
 
     `score_vector`
-    :   (Optional) weights assigned to candidate ranking, should be a list of `Fractions`. 
+    :   (optional) weights assigned to candidate ranking, should be a list of `Fractions`. 
                     Defaults to $(n,n-1,\dots,1)$.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties.
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak.
+    :   (optional) resolves procedural and final ties by specified tiebreak.
                     Defaults to random.
 
     **Methods**

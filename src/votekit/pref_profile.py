@@ -14,10 +14,10 @@ class PreferenceProfile(BaseModel):
     **Attributes**
 
     `ballots`
-    :   list of `Ballot` objects
+    :   list of `Ballot` objects.
 
     `candidates`
-    :   list of candidates
+    :   list of candidates.
 
     **Methods**
     """
@@ -53,7 +53,7 @@ class PreferenceProfile(BaseModel):
     # can also cache
     def num_ballots(self) -> Fraction:
         """
-        Counts number of ballots based on assigned weight
+        Counts number of ballots based on assigned weight.
 
         Returns:
             Number of ballots cast.
@@ -69,8 +69,8 @@ class PreferenceProfile(BaseModel):
         Converts to dictionary with keys = rankings and values = corresponding total weights.
 
         Args:
-            `standardize`
-            : a boolean, if True, divides the weight of each ballot by the total weight.
+            standardize (Boolean): If True, divides the weight of each ballot 
+                            by the total weight.
 
         Returns:
             A dictionary with ranking (keys) and corresponding total weights (values).
@@ -97,7 +97,7 @@ class PreferenceProfile(BaseModel):
         Saves PreferenceProfile to CSV.
 
         Args:
-            fpath: path to the saved csv
+            fpath: Path to the saved csv.
         """
         with open(fpath, "w", newline="") as csvfile:
             fieldnames = ["weight", "ranking"]
@@ -143,7 +143,7 @@ class PreferenceProfile(BaseModel):
             totals: If True, show total values for Voter Share and Weight.
 
         Returns:
-            A dataframe with top-n ballots
+            A dataframe with top-n ballots.
         """
         if self.df.empty:
             self.df = self._create_df()

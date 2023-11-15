@@ -10,16 +10,15 @@ def distance_matrix(
     pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs
 ):
     """
-    Creates pairwise distance matrix between PreferenceProfile. The i-th and
-    j-th entry are pairwise distance between i-th PreferenceProfile and
-    the j-th PreferenceProfile.
+    Creates pairwise distance matrix between PreferenceProfile. The $(i,j)$ entry is the pairwise 
+    distance between $i$th and the $j$th PreferenceProfile.
 
     Args:
-        pp_arr: List of PreferenceProfile.
+        pp_arr: List of PreferenceProfiles.
         distance: Callable distance function type. See distance.py.
 
     Returns:
-        Distance matrix for an election.
+        dist_matrix (ndarray): Distance matrix for an election.
     """
     rows = len(pp_arr)
     dist_matrix = np.zeros((rows, rows))
@@ -48,7 +47,7 @@ def plot_MDS(
         marker_size: Size of plotted points.
 
     Returns:
-        An MDS plot.
+        plt (matplotlib): An MDS plot.
     """
     # combine all lists to create distance matrix
     combined_pp = []

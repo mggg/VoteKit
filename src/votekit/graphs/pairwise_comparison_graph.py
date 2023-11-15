@@ -10,7 +10,7 @@ from ..pref_profile import PreferenceProfile
 
 class PairwiseComparisonGraph(Graph):
     """
-    Class to constructe Pairwise Comparison graph where nodes are candidates
+    Class to construct the pairwise comparison graph where nodes are candidates
     and edges are pairwise preferences.
 
     **Attributes**
@@ -19,7 +19,7 @@ class PairwiseComparisonGraph(Graph):
     :   PreferenceProfile to construct graph from.
 
     `ballot_length`
-    :   (Optional) max length of ballot, defaults to longest possible ballot length.
+    :   (optional) max length of ballot, defaults to longest possible ballot length.
 
     **Methods**
     """
@@ -40,10 +40,10 @@ class PairwiseComparisonGraph(Graph):
 
         Args:
             profile: PreferenceProfile to fill.
-            ballot_length: how long a ballot is.
+            ballot_length: How long a ballot is.
 
         Returns:
-            A PreferenceProfile with incomplete ballots filled in.
+            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete ballots filled in.
         """
         cand_list = [{cand} for cand in profile.get_candidates()]
         updated_ballot_list = []
@@ -74,8 +74,8 @@ class PairwiseComparisonGraph(Graph):
         of the candidates matters here.
 
         Args:
-            cand1: the first candidate to compare.
-            cand2: the second candidate to compare.
+            cand1 (str): The first candidate to compare.
+            cand2 (str): The second candidate to compare.
 
         Returns:
             A count of the number of times cand1 is preferred to cand2.
@@ -96,11 +96,11 @@ class PairwiseComparisonGraph(Graph):
         """
         Constructs dictionary where keys are tuples (cand_a, cand_b) containing
         two candidates and values is the frequency cand_a is preferred to
-        cand_b
+        cand_b.
 
         Returns:
             A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is preferred
-            to cand_b.
+                to cand_b.
         """
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
         cand_pairs = combinations(self.candidates, 2)
@@ -137,7 +137,7 @@ class PairwiseComparisonGraph(Graph):
         Draws pairwise comparison graph.
 
         Args:
-            outfile: the filepath to save the graph. Defaults to not saving.
+            outfile (str): The filepath to save the graph. Defaults to not saving.
         """
         G = self.pairwise_graph
 

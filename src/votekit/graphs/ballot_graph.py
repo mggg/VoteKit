@@ -94,7 +94,7 @@ class BallotGraph(Graph):
         Builds graph of all possible ballots given a number of candiates.
 
         Args:
-            n: number of candidates in an election.
+            n: Number of candidates in an election.
 
         Returns:
             A networkx graph.
@@ -191,8 +191,8 @@ class BallotGraph(Graph):
         Adds missing candidates to a short ballot.
 
         Args:
-            ballot: a list of candidates on the ballot.
-            candidates: a list of all candidates.
+            ballot: A list of candidates on the ballot.
+            candidates: A list of all candidates.
 
         Returns:
             A new list with the missing candidates added to the end of the ballot.
@@ -208,8 +208,8 @@ class BallotGraph(Graph):
         Assigns candidate labels to ballot graph for plotting.
 
         Args:
-            candidates: a list of candidates. 
-            to_display: a Boolean callable that takes in a graph and node, 
+            candidates (list): A list of candidates. 
+            to_display: A Boolean callable that takes in a graph and node, 
                         returns True if node should be displayed.
         """
 
@@ -249,10 +249,10 @@ class BallotGraph(Graph):
         Visualize the graph.
 
         Args:
-            to_display: a boolean function that takes graph and node as input, returns True if you
-                        want that node displayed. Defaults to showing all nodes.
-            neighborhoods: a list of neighborhoods to display, given as tuple (node, radius).
-                            (n,1) gives all nodes within one step of n.
+            to_display: A boolean function that takes the graph and a node as input, returns True if 
+                        you want that node displayed. Defaults to showing all nodes.
+            neighborhoods: A list of neighborhoods to display, given as tuple (node, radius).
+                            (ex. (n,1) gives all nodes within one step of n).
             show_cast: If True, show only nodes with "cast" attribute = True.
                         If False, show all nodes.
             labels: If True, labels nodes with candidate names and vote totals.
