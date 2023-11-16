@@ -6,7 +6,7 @@ from pathlib import Path
 import pickle
 import numpy as np
 
-from votekit.ballot_generator import (
+from votekit.chris_bg import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
     PlackettLuce,
@@ -147,7 +147,7 @@ def do_ballot_probs_match_ballot_dist(
             failed += 1
 
     # allow for small margin of error given confidence intereval
-    failure_thresold = 5
+    failure_thresold = round((1 - alpha) * n_ballots)
     return failed <= failure_thresold
 
 
