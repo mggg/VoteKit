@@ -114,9 +114,12 @@ class STV(Election):
                     self.run_step()
 
                 while self.state.curr_round > step:
-                    self.state = self.state.previous
+                    if self.state.previous:
+                        self.state = self.state.previous
+                    else:
+                        raise ValueError("Previous state is None type.") 
 
-                return(self.state)
+            return(self.state)
 
         # run next step   
         else:
