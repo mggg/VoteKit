@@ -82,10 +82,10 @@ class STV(Election):
 
     def next_round(self) -> bool:
         """
-        Determines if the number of seats has been met to call an election
+        Determines if another round is needed.
 
         Returns:
-            True if number of seats has been met, False otherwise
+            True if number of seats has not been met, False otherwise.
         """
         cands_elected = 0
         for s in self.state.get_all_winners():
@@ -99,6 +99,11 @@ class STV(Election):
         Returns:
            An ElectionState object for a given round
         """
+        if not self.next_round():
+            raise ValueError(
+                f"Length of elected set equal to number of seats ({self.seats})"
+            )
+
         remaining = self.state.profile.get_candidates()
         ballots = self.state.profile.get_ballots()
         round_votes = compute_votes(remaining, ballots)
