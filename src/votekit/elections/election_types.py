@@ -1,7 +1,7 @@
 from fractions import Fraction
 import itertools as it
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from ..models import Election
 from ..election_state import ElectionState
@@ -92,82 +92,103 @@ class STV(Election):
             cands_elected += len(s)
         return cands_elected < self.seats
 
-    def run_step(self) -> ElectionState:
+    def run_step(self, step: Optional[Union[int, None]] = None) -> ElectionState:
         """
-        Simulates one round an STV election
+        Simulates one round of an STV election.
+        
+        Args:
+            step: If an integer is given, run that round. Round numbers must be non-negative.
+                    If None, run the next round given the value of self.state.curr_round. 
+                    Defaults to None.
 
         Returns:
-           An ElectionState object for a given round
+           An ElectionState object for a given round.
         """
-        if not self.next_round():
-            raise ValueError(
-                f"Length of elected set equal to number of seats ({self.seats})"
+        # run given step
+        if isinstance(step, int):
+            if step < 0:
+                raise ValueError("Step must be a non-negative integer.")
+        
+            elif step >= 0:
+                while self.state.curr_round < step:
+                    self.run_step()
+
+                while self.state.curr_round > step:
+                    self.state = self.state.previous
+
+                return(self.state)
+
+        # run next step   
+        else:
+            if not self.next_round():
+                raise ValueError(
+                    f"Length of elected set equal to number of seats ({self.seats})"
+                )
+            
+            remaining = self.state.profile.get_candidates()
+            ballots = self.state.profile.get_ballots()
+            round_votes = compute_votes(remaining, ballots)
+            elected = []
+            eliminated = []
+
+            # if number of remaining candidates equals number of remaining seats,
+            # everyone is elected
+            if len(remaining) == self.seats - len(self.state.get_all_winners()):
+                elected = [{cand} for cand, votes in round_votes]
+                remaining = []
+                ballots = []
+
+            # elect all candidates who crossed threshold
+            elif round_votes[0].votes >= self.threshold:
+                for candidate, votes in round_votes:
+                    if votes >= self.threshold:
+                        elected.append({candidate})
+                        remaining.remove(candidate)
+                        ballots = self.transfer(
+                            candidate,
+                            ballots,
+                            {cand: votes for cand, votes in round_votes},
+                            self.threshold,
+                        )
+            # since no one has crossed threshold, eliminate one of the people
+            # with least first place votes
+            elif self.next_round():
+                lp_candidates = [
+                    candidate
+                    for candidate, votes in round_votes
+                    if votes == round_votes[-1].votes
+                ]
+
+                lp_cand = tie_broken_ranking(
+                    ranking=[set(lp_candidates)],
+                    profile=self.state.profile,
+                    tiebreak=self.tiebreak,
+                )[-1]
+                eliminated.append(lp_cand)
+                ballots = remove_cand(lp_cand, ballots)
+                remaining.remove(next(iter(lp_cand)))
+
+            if len(elected) >= 1:
+                elected = scores_into_set_list(
+                    first_place_votes(self.state.profile), [c for s in elected for c in s]
+                )
+
+            # Make sure list-of-sets have non-empty elements
+            elected = [s for s in elected if s != set()]
+            eliminated = [s for s in eliminated if s != set()]
+
+            remaining = [set(remaining)]
+            remaining = [s for s in remaining if s != set()]
+
+            self.state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=elected,
+                eliminated=eliminated,
+                remaining=remaining,
+                profile=PreferenceProfile(ballots=ballots),
+                previous=self.state,
             )
-
-        remaining = self.state.profile.get_candidates()
-        ballots = self.state.profile.get_ballots()
-        round_votes = compute_votes(remaining, ballots)
-        elected = []
-        eliminated = []
-
-        # if number of remaining candidates equals number of remaining seats,
-        # everyone is elected
-        if len(remaining) == self.seats - len(self.state.get_all_winners()):
-            elected = [{cand} for cand, votes in round_votes]
-            remaining = []
-            ballots = []
-
-        # elect all candidates who crossed threshold
-        elif round_votes[0].votes >= self.threshold:
-            for candidate, votes in round_votes:
-                if votes >= self.threshold:
-                    elected.append({candidate})
-                    remaining.remove(candidate)
-                    ballots = self.transfer(
-                        candidate,
-                        ballots,
-                        {cand: votes for cand, votes in round_votes},
-                        self.threshold,
-                    )
-        # since no one has crossed threshold, eliminate one of the people
-        # with least first place votes
-        elif self.next_round():
-            lp_candidates = [
-                candidate
-                for candidate, votes in round_votes
-                if votes == round_votes[-1].votes
-            ]
-
-            lp_cand = tie_broken_ranking(
-                ranking=[set(lp_candidates)],
-                profile=self.state.profile,
-                tiebreak=self.tiebreak,
-            )[-1]
-            eliminated.append(lp_cand)
-            ballots = remove_cand(lp_cand, ballots)
-            remaining.remove(next(iter(lp_cand)))
-
-        if len(elected) >= 1:
-            elected = scores_into_set_list(
-                first_place_votes(self.state.profile), [c for s in elected for c in s]
-            )
-
-        # Make sure list-of-sets have non-empty elements
-        elected = [s for s in elected if s != set()]
-        eliminated = [s for s in eliminated if s != set()]
-
-        remaining = [set(remaining)]
-        remaining = [s for s in remaining if s != set()]
-
-        self.state = ElectionState(
-            curr_round=self.state.curr_round + 1,
-            elected=elected,
-            eliminated=eliminated,
-            remaining=remaining,
-            profile=PreferenceProfile(ballots=ballots),
-            previous=self.state,
-        )
-        return self.state
+            return self.state
 
     def run_election(self) -> ElectionState:
         """
@@ -176,10 +197,8 @@ class STV(Election):
         Returns:
             An ElectionState object with results for a complete election
         """
-        if not self.next_round():
-            raise ValueError(
-                f"Length of elected set equal to number of seats ({self.seats})"
-            )
+        # always start election from round 0
+        self.reset()
 
         while self.next_round():
             self.run_step()

@@ -3,6 +3,7 @@ from fractions import Fraction
 import pandas as pd
 from pydantic import BaseModel, validator
 from typing import Optional
+import copy
 
 from .ballot import Ballot
 
@@ -37,7 +38,7 @@ class PreferenceProfile(BaseModel):
         """
         Returns list of ballots
         """
-        return self.ballots
+        return copy.deepcopy(self.ballots)
 
     def get_candidates(self) -> list:
         """
