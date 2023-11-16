@@ -444,7 +444,7 @@ def test_AC_distribution():
         bloc_voter_prop=bloc_voter_prop,
         slate_to_candidates=slate_to_candidate,
         cohesion_parameters=cohesion_parameters,
-    ).generate_profile(number_of_ballots)
+    ).generate_profile(number_of_ballots=number_of_ballots)
 
     # Test
     assert do_ballot_probs_match_ballot_dist(
