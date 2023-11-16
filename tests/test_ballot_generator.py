@@ -74,7 +74,7 @@ def test_AC_completion():
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
         },
         bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": .7, "C": .9},
+        cohesion_parameters={"W": 0.7, "C": 0.9},
     )
     profile = ac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
@@ -97,7 +97,7 @@ def test_Cambridge_completion():
             "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
         },
         bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": .7, "C": .9},
+        cohesion_parameters={"W": 0.7, "C": 0.9},
     )
     profile = cs.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
@@ -383,7 +383,7 @@ def test_AC_distribution():
     candidates = ["W1", "W2", "C1", "C2"]
     ballot_length = None
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-    # TODO: change this to be cand to slate
+
     cand_to_slate = {
         candidate: slate
         for slate, candidates in slate_to_candidate.items()
@@ -394,7 +394,7 @@ def test_AC_distribution():
         "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": .9, "C": 0}
+    cohesion_parameters = {"W": 0.9, "C": 0}
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, ballot_length))
@@ -408,20 +408,13 @@ def test_AC_distribution():
 
         if is_alternating(slates_for_ranking):
             bloc = cand_to_slate[ranking[1]]
-            # opposing_bloc = cand_to_slate[ranking[0]]
-            # crossover_rate = bloc_crossover_rate[bloc][opposing_bloc]
-            crossover_rate = 1- cohesion_parameters[bloc]
+            crossover_rate = 1 - cohesion_parameters[bloc]
 
             starting_prob = bloc_voter_prop[bloc] * crossover_rate
-            print("alt", starting_prob)
 
         # is bloc voter
         if set(slates_for_ranking[: len(slate_to_candidate[bloc])]) == {bloc}:
-            # starting_prob = bloc_voter_prop[bloc] * round(
-            #     (1 - sum(bloc_crossover_rate[bloc].values()))
-            # )
-            starting_prob = bloc_voter_prop[bloc]*cohesion_parameters[bloc]
-            print("bloc", starting_prob)
+            starting_prob = bloc_voter_prop[bloc] * cohesion_parameters[bloc]
 
         ballot_prob_dict[ranking] = starting_prob
         slate_to_ranked_cands = group_elements_by_mapping(ranking, cand_to_slate)
@@ -451,7 +444,7 @@ def test_AC_distribution():
         bloc_voter_prop=bloc_voter_prop,
         slate_to_candidates=slate_to_candidate,
         cohesion_parameters=cohesion_parameters,
-    ).generate_profile(number_of_ballots)
+    ).generate_profile(number_of_ballots=number_of_ballots)
 
     # Test
     assert do_ballot_probs_match_ballot_dist(
@@ -539,7 +532,7 @@ def test_ac_profile_from_params():
     blocs = {"R": 0.6, "D": 0.4}
     cohesion = {"R": 0.7, "D": 0.6}
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    cohesion_parameters = {"R":.5, "D": .4}
+    cohesion_parameters = {"R": 0.5, "D": 0.4}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
     ac = AlternatingCrossover.from_params(
         bloc_voter_prop=blocs,
@@ -728,7 +721,7 @@ def test_Cambridge_distribution():
                             )
             else:
                 # ballot_prob[1] = bloc_crossover_rate[voter_bloc][opp_voter_bloc]
-                ballot_prob[1] = 1-cohesion_parameters[voter_bloc]
+                ballot_prob[1] = 1 - cohesion_parameters[voter_bloc]
 
                 # p(bloc ordering)
                 for (
