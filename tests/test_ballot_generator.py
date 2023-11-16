@@ -6,7 +6,7 @@ from pathlib import Path
 import pickle
 import numpy as np
 
-from votekit.chris_bg import (
+from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
     PlackettLuce,
