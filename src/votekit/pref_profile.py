@@ -64,13 +64,13 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    def to_dict(self, standardize: bool) -> dict:
+    def to_dict(self, standardize: bool = False) -> dict:
         """
         Converts to dictionary with keys = rankings and values = corresponding total weights.
 
         Args:
             standardize (Boolean): If True, divides the weight of each ballot 
-                            by the total weight.
+                            by the total weight. Defaults to False.
 
         Returns:
             A dictionary with ranking (keys) and corresponding total weights (values).
