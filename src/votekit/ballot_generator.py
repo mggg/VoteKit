@@ -420,29 +420,46 @@ class PlackettLuce(BallotGenerator):
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
         ballot_pool = []
 
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        blocs = list(self.bloc_voter_prop.keys())
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
+                                                              number_of_ballots)))
+
         for bloc in self.bloc_voter_prop.keys():
             # number of voters in this bloc
             num_ballots = self._round_num(number_of_ballots * self.bloc_voter_prop[bloc])
+
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
+
+            # finds candidates with non-zero preference
+            non_zero_cands = [cand for cand, pref in pref_interval_dict.items() if pref > 0]
             # creates the interval of probabilities for candidates supported by this block
-            cand_support_vec = [pref_interval_dict[cand] for cand in self.candidates]
+            cand_support_vec = [pref_interval_dict[cand] for cand in non_zero_cands]
+
 
             for _ in range(num_ballots):
-                # generates ranking based on probability distribution of candidate support
-                ballot = list(
+                # generates ranking based on probability distribution of non candidate support
+                non_zero_ranking = list(
                     np.random.choice(
-                        self.candidates,
-                        self.ballot_length,
+                        non_zero_cands,
+                        len(non_zero_cands),
                         p=cand_support_vec,
                         replace=False,
                     )
                 )
 
-                ballot_pool.append(ballot)
+                ranking = [{cand} for cand in non_zero_ranking]
 
-        pp = self.ballot_pool_to_profile(
-            ballot_pool=ballot_pool, candidates=self.candidates
-        )
+                # add zero support candidates to end as tie
+                zero_cands = set(self.candidates).difference(non_zero_cands)
+                if len(zero_cands) > 0:
+                    ranking.append(zero_cands)
+                
+                ballot_pool.append(Ballot(ranking = ranking, weight = Fraction(1,1)))
+
+        pp = PreferenceProfile(ballots = ballot_pool)
+        pp.condense_ballots()
         return pp
 
 
@@ -503,37 +520,64 @@ class BradleyTerry(BallotGenerator):
         return ranking_to_prob
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
+        ballot_pool: list[Ballot] = []
 
-        permutations = list(it.permutations(self.candidates, self.ballot_length))
-        ballot_pool: list[list] = []
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        blocs = list(self.bloc_voter_prop.keys())
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
+                                                              number_of_ballots)))
 
         for bloc in self.bloc_voter_prop.keys():
             num_ballots = self._round_num(number_of_ballots * self.bloc_voter_prop[bloc])
+
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
+            # compute non-zero pref candidates
+            non_zero_pref_dict = {cand: prop for cand, prop in pref_interval_dict.items() if prop>0}
+            non_zero_cands = non_zero_pref_dict.keys()
+            zero_cands = set(self.candidates).difference(non_zero_cands)
 
+            # all possible rankings of non zero candidates
+            permutations = list(it.permutations(non_zero_cands, len(non_zero_cands)))       
+
+            
+            # compute the prob of each ranking given bloc support
             ranking_to_prob = self._calc_prob(
-                permutations=permutations, cand_support_dict=pref_interval_dict
+                permutations=permutations, cand_support_dict=non_zero_pref_dict
             )
 
-            indices = range(len(ranking_to_prob))
-            prob_distrib = list(ranking_to_prob.values())
-            prob_distrib = [float(p) / sum(prob_distrib) for p in prob_distrib]
-
-            ballots_indices = np.random.choice(
-                indices,
-                num_ballots,
-                p=prob_distrib,
-                replace=True,
-            )
-
+            # numpy can only sample from 1D arrays, so we sample the indices instead of rankings
             rankings = list(ranking_to_prob.keys())
-            ballots = [rankings[i] for i in ballots_indices]
+            indices = range(len(rankings))
+            probs = list(ranking_to_prob.values())
 
-            ballot_pool = ballot_pool + ballots
+            # create distribution to sample ballots from
+            normalizing_constant = sum(probs)
+            prob_distrib = [float(p) / normalizing_constant for p in probs]
 
-        pp = self.ballot_pool_to_profile(
-            ballot_pool=ballot_pool, candidates=self.candidates
-        )
+            # sample ballots
+            for _ in range(num_ballots):
+                index = list(np.random.choice(
+                    indices,
+                    1,
+                    p=prob_distrib,
+                ))[0]
+
+                # convert index to ranking
+                ranking = [{cand} for cand in rankings[index]]
+
+                # add any zero candidates as ties
+                if len(zero_cands) > 0 :
+                    ranking.append(zero_cands)
+
+                ballot = Ballot(ranking  = ranking, weight =Fraction(1,1))
+                ballot_pool.append(ballot)
+
+        # pp = self.ballot_pool_to_profile(
+        #     ballot_pool=ballot_pool, candidates=self.candidates
+        # )
+        pp = PreferenceProfile(ballots = ballot_pool)
+        pp.condense_ballots()
         return pp
 
 

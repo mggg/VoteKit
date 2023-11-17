@@ -115,11 +115,12 @@ class PreferenceProfile(BaseModel):
         for ballot in self.ballots:
             part = []
             for ranking in ballot.ranking:
-                for cand in ranking:
-                    if len(ranking) > 2:
-                        part.append(f"{cand} (Tie)")
-                    else:
-                        part.append(cand)
+                if len(ranking) == 1:
+                    part.append(list(ranking)[0])
+                
+                else:
+                    part.append(f"{ranking} (Tie)")
+                    
             ballots.append(tuple(part))
             weights.append(int(ballot.weight))
 
