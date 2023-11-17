@@ -24,6 +24,7 @@ theme:
       note: octicons/tag-16
   features:
     - navigation.sections
+    - navigation.tabs
     - content.tabs.link
     - content.code.copy
 
@@ -66,12 +67,12 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
+  - 'index.md'
+  - 'getting_started.md'
   - User Guide:
-    - 'index.md'
-    - 'getting_started.md'
     - 'some_plotting_options.md'
+    - 'pref_prof_generators.md'
     - 'AC_and_CS.md'
     - 'ballot_graph_tutorial.md'
-
   - Reference:
     - 'api.md'

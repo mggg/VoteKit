@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # API Reference
 
 ## Objects 
