@@ -1,9 +1,10 @@
 ---
 hide:
   - navigation
+  - tags
 ---
 
-VoteKit documentation
+VoteKit Documentation
 ===================================
 
 **VoteKit** is a Swiss army knife for computational social choice research.

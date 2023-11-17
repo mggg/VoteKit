@@ -6,33 +6,33 @@ hide:
 # API Reference
 
 ## Objects 
-### ::: votekit.ballot
-    rendering:
-    heading_level: 4
-
-### ::: votekit.pref_profile
+::: votekit.ballot
     rendering:
       heading_level: 4
 
-### ::: votekit.election_state
+::: votekit.pref_profile
     rendering:
       heading_level: 4
 
-### ::: votekit.graphs.ballot_graph
+::: votekit.election_state
     rendering:
       heading_level: 4
 
-### ::: votekit.graphs.pairwise_comparison_graph
+::: votekit.graphs.ballot_graph
+    rendering:
+      heading_level: 4
+
+::: votekit.graphs.pairwise_comparison_graph
     rendering:
       heading_level: 4
 
 ## CVR Loaders
-### ::: votekit.cvr_loaders
+::: votekit.cvr_loaders
     rendering:
       heading_level: 4
 
 ## Ballot Generators
-### ::: votekit.ballot_generator
+::: votekit.ballot_generator
     rendering:
         heading_level: 4
     options:
@@ -48,17 +48,17 @@ hide:
             - ImpartialAnonymousCulture
 
 ## Elections
-### ::: votekit.elections.election_types
+::: votekit.elections.election_types
     rendering:
       heading_level: 4
 
 ## Cleaning
-### ::: votekit.cleaning
+::: votekit.cleaning
     rendering:
       heading_level: 4
 
 ## Metrics
-### ::: votekit.utils
+::: votekit.utils
     rendering:
         heading_level: 4
     options:
@@ -66,7 +66,7 @@ hide:
             - borda_scores
             - first_place_votes
             - mentions
-### ::: votekit.metrics.distances
+::: votekit.metrics.distances
     rendering:
         heading_level: 4
     options:
@@ -74,7 +74,7 @@ hide:
             - earth_mover_dist
             - lp_dist
             - em_array
-### ::: votekit.elections.transfers
+::: votekit.elections.transfers
     rendering:
         heading_level: 4
     options:
@@ -84,22 +84,21 @@ hide:
             - random_transfer
 
 ## Plotting
-### ::: votekit.plots.mds
+::: votekit.plots.mds
     rendering:
         heading_level: 4
-### ::: votekit.plots.profile_plots
+::: votekit.plots.profile_plots
     rendering:
         heading_level: 4
 
 ## Utils
-### ::: votekit.utils
+::: votekit.utils
     rendering:
         heading_level: 4
     options:
         members:
             - compute_votes
             - remove_cand
-            - recursively_fix_ties
             - fix_ties
             - elect_cands_from_set_ranking
             - scores_into_set_list

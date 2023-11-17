@@ -73,6 +73,7 @@ nav:
     - 'some_plotting_options.md'
     - 'pref_prof_generators.md'
     - 'AC_and_CS.md'
+    - 'ballots_from_parameters.md'
     - 'ballot_graph_tutorial.md'
   - Reference:
     - 'api.md'
