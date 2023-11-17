@@ -9,16 +9,15 @@ from .ballot import Ballot
 
 class PreferenceProfile(BaseModel):
     """
-    PreferenceProfile class, contains ballots and and candidates for a
-        given eleciton
+    PreferenceProfile class, contains ballots and candidates for a given election.
 
     **Attributes**
 
     `ballots`
-    :   list of `Ballot` objects
+    :   list of `Ballot` objects.
 
-    `candiates`
-    :   list of candidates
+    `candidates`
+    :   list of candidates.
 
     **Methods**
     """
@@ -35,13 +34,15 @@ class PreferenceProfile(BaseModel):
 
     def get_ballots(self) -> list[Ballot]:
         """
-        Returns list of ballots
+        Returns:
+         List of ballots.
         """
         return self.ballots
 
     def get_candidates(self) -> list:
         """
-        Returns list of unique candidates
+        Returns:
+          List of unique candidates.
         """
         unique_cands: set = set()
         for ballot in self.ballots:
@@ -52,10 +53,10 @@ class PreferenceProfile(BaseModel):
     # can also cache
     def num_ballots(self) -> Fraction:
         """
-        Counts number of ballots based on assigned weight
+        Counts number of ballots based on assigned weight.
 
         Returns:
-            Number of ballots cast
+            Number of ballots cast.
         """
         num_ballots = Fraction(0)
         for ballot in self.ballots:
@@ -63,14 +64,16 @@ class PreferenceProfile(BaseModel):
 
         return num_ballots
 
-    def to_dict(self, standardize: bool) -> dict:
+    def to_dict(self, standardize: bool = False) -> dict:
         """
-        Converts ballots to dictionary with rankings (keys) and the
-        corresponding total weights (values)
+        Converts to dictionary with keys = rankings and values = corresponding total weights.
+
+        Args:
+            standardize (Boolean): If True, divides the weight of each ballot 
+                            by the total weight. Defaults to False.
 
         Returns:
-            A dictionary with with ranking (keys) and corresponding total \n
-            weights (values)
+            A dictionary with ranking (keys) and corresponding total weights (values).
         """
         num_ballots = self.num_ballots()
         di: dict = {}
@@ -89,11 +92,12 @@ class PreferenceProfile(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def to_csv(self, fpath):
+    def to_csv(self, fpath: str):
         """
-        Saves Preference Profile to CSV
+        Saves PreferenceProfile to CSV.
+
         Args:
-            fpath (str): path to the saved csv
+            fpath: Path to the saved csv.
         """
         with open(fpath, "w", newline="") as csvfile:
             fieldnames = ["weight", "ranking"]
@@ -104,7 +108,7 @@ class PreferenceProfile(BaseModel):
 
     def _create_df(self) -> pd.DataFrame:
         """
-        Creates DF for display and building plots
+        Creates pandas DataFrame for display and building plots.
         """
         weights = []
         ballots = []
@@ -132,15 +136,15 @@ class PreferenceProfile(BaseModel):
         self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
     ) -> pd.DataFrame:
         """
-        Displays top-n ballots in profile based on weight
+        Displays top-n ballots in profile based on weight.
 
         Args:
-            n: Number of ballots to view
-            percents: If True, show voter share for a given ballot
-            totals: If true, show total values for Voter Share and Weight
+            n: Number of ballots to view.
+            percents: If True, show voter share for a given ballot.
+            totals: If True, show total values for Voter Share and Weight.
 
         Returns:
-            A dataframe with top-n ballots
+            A dataframe with top-n ballots.
         """
         if self.df.empty:
             self.df = self._create_df()
@@ -163,15 +167,15 @@ class PreferenceProfile(BaseModel):
         self, n: int, percents: Optional[bool] = False, totals: Optional[bool] = False
     ) -> pd.DataFrame:
         """
-        Displays bottom-n ballots in profile based on weight
+        Displays bottom-n ballots in profile based on weight.
 
         Args:
-            n: Number of ballots to view
-            percents: If True, show voter share for a given ballot
-            totals: If true, show total values for Voter Share and Weight
+            n: Number of ballots to view.
+            percents: If True, show voter share for a given ballot.
+            totals: If True, show total values for Voter Share and Weight.
 
         Returns:
-            A dataframe with bottom-n ballots
+            A data frame with bottom-n ballots.
         """
         if self.df.empty:
             self.df = self._create_df()
@@ -206,7 +210,7 @@ class PreferenceProfile(BaseModel):
 
     def condense_ballots(self):
         """
-        Groups ballots by rankings and updates weights
+        Groups ballots by rankings and updates weights.
         """
         class_vector = []
         seen_rankings = []
@@ -225,6 +229,9 @@ class PreferenceProfile(BaseModel):
                 Ballot(ranking=ranking, weight=Fraction(total_weight))
             )
         self.ballots = new_ballot_list
+
+        # create new dataframe with condensed ballots
+        self.df = self._create_df()
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):

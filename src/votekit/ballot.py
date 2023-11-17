@@ -5,26 +5,26 @@ from typing import Optional
 
 class Ballot(BaseModel):
     """
-    Ballot class, contains ranking and assigned weight
+    Ballot class, contains ranking and assigned weight.
 
     **Attributes**
 
     `id`
-    :   optionally assigned ballot id
+    :   optional ballot id.
 
     `ranking`
-    :   list of candidate ranking
+    :   list of candidate ranking. Entry i of the list is a set of candidates ranked in position i.
 
     `weight`
-    :   weight assigned to a given a ballot
+    :   weight assigned to a given a ballot. Defaults to 1.
 
     `voters`
-    :   list of voters who cast a given a ballot
+    :   optional list of voters who cast a given a ballot.
     """
 
     id: Optional[str] = None
     ranking: list[set]
-    weight: Fraction
+    weight: Fraction = Fraction(1,1)
     voters: Optional[set[str]] = None
 
     class Config:

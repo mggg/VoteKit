@@ -12,15 +12,16 @@ def remove_empty_ballots(
     pp: PreferenceProfile, keep_candidates: bool = False
 ) -> PreferenceProfile:
     """
-    Removes empty ballots from a preference profile.
+    Removes empty ballots from a PreferenceProfile.
 
     Args:
-        pp (PreferenceProfile): a preference profile to clean
-        keep_candidates (bool, optional): if True, keep all of the candidates
-            from the original preference profile in the returned preference profile.
+        pp (PreferenceProfile): A PreferenceProfile to clean.
+        keep_candidates (bool, optional): If True, keep all of the candidates
+            from the original PreferenceProfile in the returned PreferenceProfile, even if 
+            they got no votes. Defaults to False.
 
     Returns:
-        PreferenceProfile: a cleaned preference profile
+        (PreferenceProfile): A cleaned PreferenceProfile.
     """
 
     ballots_nonempty = [
@@ -38,16 +39,16 @@ def clean_profile(
     pp: PreferenceProfile, clean_ballot_func: Callable[[Ballot], Ballot]
 ) -> PreferenceProfile:
     """
-    Allows user-defined cleaning rules for PrefrenceProfile. Input function
-    that applies modification or rule to a single ballot
+    Allows user-defined cleaning rules for PreferenceProfile. Input function
+    that applies modification or rule to a single ballot.
 
     Args:
-        pp (PreferenceProfile): a preference profile to clean
-        clean_ballot_func (Callable[[Ballot], Ballot]): function that \
-            takes a list of ballots and cleans each ballot
+        pp (PreferenceProfile): A PreferenceProfile to clean.
+        clean_ballot_func (Callable[[Ballot], Ballot]): Function that 
+            takes a list of ballots and cleans each ballot.
 
     Returns:
-        PreferenceProfile: a cleaned preference profile
+        (PreferenceProfile): A cleaned PreferenceProfile.
     """
 
     # apply cleaning function to clean all ballots
@@ -68,10 +69,10 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     Takes a list of ballots with the same ranking and merge them into one ballot.
 
     Args:
-        ballots (list[Ballot]): a list of ballots to deduplicate
+        ballots (list[Ballot]): A list of ballots to deduplicate.
 
     Returns:
-        Ballot: a ballot with the same ranking and aggregated weight and voters
+        (Ballot): A ballot with the same ranking and aggregated weight and voters.
     """
     weight = sum(b.weight for b in ballots)
     ranking = ballots[0].ranking
@@ -85,24 +86,24 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
 
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
     """
-    Given a preference profile, deduplicates its ballots.
+    Given a PreferenceProfile, deduplicates its ballots.
 
     Args:
-        pp (PreferenceProfile): a preference profile to clean
+        pp (PreferenceProfile): A PreferenceProfile to clean.
 
     Returns:
-        PreferenceProfile: a cleaned preference profile without duplicates
+        (PreferenceProfile): A cleaned PreferenceProfile without duplicates.
     """
 
     def deduplicate_ballots(ballot: Ballot) -> Ballot:
         """
-        Takes a ballot and deduplicates its rankings
+        Takes a ballot and deduplicates its rankings.
 
         Args:
-            ballot (Ballot): a ballot with duplicates in its ranking
+            ballot (Ballot): a ballot with duplicates in its ranking.
 
         Returns:
-            Ballot: a ballot without duplicates
+            Ballot: a ballot without duplicates.
         """
         ranking = ballot.ranking
         dedup_ranking = []
@@ -130,11 +131,11 @@ def remove_noncands(
     that are empty as a result of the removal.
 
     Args:
-        profile (PreferenceProfile): a preference profile to clean
-        non_cands (list[str]): a list of non-candidates to be removed
+        profile (PreferenceProfile): A PreferenceProfile to clean.
+        non_cands (list[str]): A list of non-candidates to be removed.
 
     Returns:
-        PreferenceProfile: a profile with non-candidates removed
+        (PreferenceProfile): A profile with non-candidates removed.
     """
 
     def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
@@ -142,11 +143,11 @@ def remove_noncands(
         Removes non-candidiates from ballot objects.
 
         Args:
-            ballot (Ballot): a ballot to be cleaned
-            non_cands (list[str]): a list of candidates to remove
+            ballot (Ballot): a ballot to be cleaned.
+            non_cands (list[str]): a list of candidates to remove.
 
         Returns:
-            Ballot: _description_
+            Ballot: returns a cleaned Ballot.
         """
         # TODO: adjust so string and list of strings are acceptable inputes
 
