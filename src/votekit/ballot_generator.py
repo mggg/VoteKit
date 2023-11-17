@@ -428,7 +428,7 @@ class PlackettLuce(BallotGenerator):
 
         for bloc in self.bloc_voter_prop.keys():
             # number of voters in this bloc
-            num_ballots = self._round_num(number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = ballots_per_block[bloc]
 
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
@@ -529,7 +529,7 @@ class BradleyTerry(BallotGenerator):
                                                               number_of_ballots)))
 
         for bloc in self.bloc_voter_prop.keys():
-            num_ballots = self._round_num(number_of_ballots * self.bloc_voter_prop[bloc])
+            num_ballots = ballots_per_block[bloc]
 
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
             # compute non-zero pref candidates
