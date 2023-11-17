@@ -230,6 +230,9 @@ class PreferenceProfile(BaseModel):
             )
         self.ballots = new_ballot_list
 
+        # create new dataframe with condensed ballots
+        self.df = self._create_df()
+
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
             return False
