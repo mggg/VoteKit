@@ -9,7 +9,11 @@ from .utils import recursively_fix_ties, fix_ties
 class Election(ABC):
     """
     Abstract base class for election types. Includes functions to resolve input
-    ties included in PreferenceProfile
+    ties included in PreferenceProfile.
+
+    Attributes:
+        profile: a PreferenceProfile.
+        ballot_ties: an optional Bool, defaults to True. If True, resolve ties on ballots.
     """
 
     def __init__(self, profile: PreferenceProfile, ballot_ties: bool = True):

@@ -8,16 +8,16 @@ def plot_summary_stats(
     profile: PreferenceProfile, stat: str, multi_color: bool = True, title: str = ""
 ) -> Figure:
     """
-    Plots histogram of election summary statistics
+    Plots histogram of election summary statistics.
 
     Args:
-        profile (PreferenceProfile): a preference profile to visualize
-        stat (str): 'first place votes', 'mentions', or 'borda'
-        multi_color (bool, optional): if the bars should be multicolored. Defaults to True.
-        title (str, optional): title for the figure. Defaults to None.
+        profile (PreferenceProfile): A PreferenceProfile to visualize.
+        stat (str): 'first place votes', 'mentions', or 'borda'.
+        multi_color (bool, optional): If the bars should be multicolored. Defaults to True.
+        title (str, optional): Title for the figure. Defaults to None.
 
     Returns:
-        Figure: a figure with the visualization
+        (Figure): A figure with the visualization.
     """
     stats = {
         "first place votes": first_place_votes,
