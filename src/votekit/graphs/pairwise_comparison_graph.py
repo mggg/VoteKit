@@ -120,7 +120,8 @@ class PairwiseComparisonGraph(Graph):
 
             ## would display x:y instead of abs(x-y)
             # winner, loser = max_pair[1]
-            # pairwise_dict[max_pair[1]] = f"{head_2_head_dict[(winner, loser)]}: {head_2_head_dict[(loser, winner)]}"
+            # pairwise_dict[max_pair[1]] = f"{head_2_head_dict[(winner, loser)]}: \
+            # {head_2_head_dict[(loser, winner)]}"
 
         return pairwise_dict
 
