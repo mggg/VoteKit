@@ -304,3 +304,37 @@ def test_status_missing_fields():
             }
         )
     )
+
+
+def test_get_scores():
+    first = ElectionState(
+        curr_round=1,
+        elected=[{"A"}, {"B"}],
+        remaining=[{"F"}],
+        eliminated=[{"C"}],
+        scores={"A": 4, "B": 6, "F": 3, "C": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    second = ElectionState(
+        curr_round=2,
+        elected=[{"D"}, {"F"}],
+        eliminated=[{"E"}],
+        scores={"D": 6, "F": 3, "E": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+        previous=first,
+    )
+
+    assert second.get_scores(1) == {"A": 4, "B": 6, "F": 3, "C": 9}
+
+
+def test_score_error():
+    first = ElectionState(
+        curr_round=1,
+        elected=[{"A"}, {"B"}],
+        remaining=[{"F"}],
+        eliminated=[{"C"}],
+        scores={"A": 4, "B": 6, "F": 3, "C": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    with pytest.raises(ValueError):
+        first.get_scores(4)

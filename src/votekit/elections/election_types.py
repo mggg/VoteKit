@@ -503,6 +503,7 @@ class SNTV_STV_Hybrid(Election):
                 elected=list(),
                 eliminated=round_state.eliminated,
                 remaining=[set(new_profile.get_candidates())],
+                scores=round_state.get_scores(round_state.curr_round),
                 profile=new_profile,
                 previous=self.state,
             )
@@ -518,6 +519,7 @@ class SNTV_STV_Hybrid(Election):
                 curr_round=self.state.curr_round + 1,
                 elected=round_state.get_all_winners(),
                 eliminated=round_state.get_all_eliminated(),
+                scores=round_state.get_scores(round_state.curr_round),
                 remaining=round_state.remaining,
                 profile=round_state.profile,
                 previous=self.state,
@@ -654,6 +656,7 @@ class DominatingSets(Election):
                 elected=[set(dominating_tiers[0])],
                 eliminated=dominating_tiers[1:],
                 remaining=list(),
+                scores=pwc_graph.pairwise_dict,
                 profile=PreferenceProfile(),
                 previous=self.state,
             )

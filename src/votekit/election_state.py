@@ -108,7 +108,7 @@ class ElectionState(BaseModel):
         if round == self.curr_round:
             return self.scores
 
-        return self.previous.get_scores(round - 1)
+        return self.previous.get_scores(self.curr_round - 1)  # type: ignore
 
     def changed_rankings(self) -> dict:
         """
