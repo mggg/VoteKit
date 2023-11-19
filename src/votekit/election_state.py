@@ -39,6 +39,7 @@ class ElectionState(BaseModel):
     eliminated: list[set[str]] = []
     remaining: list[set[str]] = []
     profile: PreferenceProfile
+    scores: dict = {}
     previous: Optional["ElectionState"] = None
 
     class Config:
@@ -75,7 +76,7 @@ class ElectionState(BaseModel):
         else:
             return self.get_all_winners() + self.get_all_eliminated()
 
-    def get_round_outcome(self, roundNum: int) -> dict:
+    def get_round_outcome(self, round: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         Finds the outcome of a given round.
@@ -86,15 +87,28 @@ class ElectionState(BaseModel):
         Returns:
           A dictionary with elected and eliminated candidates.
         """
-        if self.curr_round == roundNum:
+        if self.curr_round == round:
             return {
                 "Elected": [c for s in self.elected for c in s],
                 "Eliminated": [c for s in self.eliminated for c in s],
             }
         elif self.previous:
-            return self.previous.get_round_outcome(roundNum)
+            return self.previous.get_round_outcome(round)
         else:
             raise ValueError("Round number out of range")
+
+    def get_scores(self, round: int = curr_round) -> dict:
+        """
+        Returns a dictionary of the candidate scores for the inputted round.
+        Defaults to the last round
+        """
+        if round == 0 or round > self.curr_round:
+            raise ValueError('Round number out of range"')
+
+        if round == self.curr_round:
+            return self.scores
+
+        return self.previous.get_scores(round - 1)
 
     def changed_rankings(self) -> dict:
         """

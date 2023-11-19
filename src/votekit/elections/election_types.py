@@ -101,16 +101,18 @@ class STV(Election):
         Returns:
            An ElectionState object for a given round.
         """
+        round_num = self.state.curr_round
         remaining = self.state.profile.get_candidates()
         ballots = self.state.profile.get_ballots()
-        round_votes = compute_votes(remaining, ballots)
+        round_votes, plurality_score = compute_votes(remaining, ballots)
+
         elected = []
         eliminated = []
 
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
         if len(remaining) == self.seats - len(self.state.get_all_winners()):
-            elected = [{cand} for cand, votes in round_votes]
+            elected = [{cand} for cand, _ in round_votes]
             remaining = []
             ballots = []
 
@@ -128,7 +130,7 @@ class STV(Election):
                     )
         # since no one has crossed threshold, eliminate one of the people
         # with least first place votes
-        elif self.next_round():
+        else:
             lp_candidates = [
                 candidate
                 for candidate, votes in round_votes
@@ -144,12 +146,17 @@ class STV(Election):
             ballots = remove_cand(lp_cand, ballots)
             remaining.remove(next(iter(lp_cand)))
 
+        # sort candidates by vote share if multiple are elected
         if len(elected) >= 1:
-            elected = scores_into_set_list(
-                first_place_votes(self.state.profile), [c for s in elected for c in s]
-            )
+            if self.state.curr_round > 0:
+                score_dict = self.state.get_scores(round_num)
+            else:
+                score_dict = plurality_score
+
+            elected = scores_into_set_list(score_dict, [c for s in elected for c in s])
 
         # Make sure list-of-sets have non-empty elements
+
         elected = [s for s in elected if s != set()]
         eliminated = [s for s in eliminated if s != set()]
 
@@ -161,6 +168,7 @@ class STV(Election):
             elected=elected,
             eliminated=eliminated,
             remaining=remaining,
+            scores=plurality_score,
             profile=PreferenceProfile(ballots=ballots),
             previous=self.state,
         )
@@ -187,7 +195,7 @@ class STV(Election):
 class Limited(Election):
     """
     Elects m candidates with the highest k-approval scores.
-    The k-approval score of a candidate is equal to the number of voters who 
+    The k-approval score of a candidate is equal to the number of voters who
     rank this candidate among their k top ranked candidates.
 
     **Attributes**
@@ -276,6 +284,7 @@ class Limited(Election):
             elected=elected,
             eliminated=eliminated,
             remaining=list(),
+            scores=candidate_approvals,
             profile=PreferenceProfile(),
             previous=self.state,
         )
@@ -635,6 +644,7 @@ class DominatingSets(Election):
                 elected=list(),
                 eliminated=dominating_tiers,
                 remaining=list(),
+                scores=pwc_graph.pairwise_dict,
                 profile=PreferenceProfile(),
                 previous=self.state,
             )
@@ -718,6 +728,7 @@ class CondoBorda(Election):
             elected=elected,
             eliminated=eliminated,
             remaining=list(),
+            scores=pwc_graph.pairwise_dict,
             profile=PreferenceProfile(),
             previous=self.state,
         )
@@ -796,6 +807,7 @@ class SequentialRCV(Election):
             curr_round=old_election_state.curr_round + 1,
             elected=[elected_cand],
             profile=updated_profile,
+            scores=first_place_votes(updated_profile),
             previous=old_election_state,
             remaining=old_election.remaining,
         )
@@ -834,7 +846,7 @@ class Borda(Election):
     :   number of seats to be elected.
 
     `score_vector`
-    :   (optional) weights assigned to candidate ranking, should be a list of `Fractions`. 
+    :   (optional) weights assigned to candidate ranking, should be a list of `Fractions`.
                     Defaults to $(n,n-1,\dots,1)$.
 
     `ballot_ties`
@@ -886,6 +898,7 @@ class Borda(Election):
             curr_round=self.state.curr_round + 1,
             elected=elected,
             eliminated=eliminated,
+            scores=borda_dict,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,

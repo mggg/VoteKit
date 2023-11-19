@@ -130,7 +130,7 @@ def test_round_previous():
         previous=first,
     )
 
-    results = second.get_round_outcome(roundNum=1)
+    results = second.get_round_outcome(round=1)
     assert results == {"Elected": ["A", "B"], "Eliminated": ["C"]}
 
 
@@ -143,7 +143,7 @@ def test_round_outcome_error():
     )
 
     with pytest.raises(ValueError):
-        first.get_round_outcome(roundNum=4)
+        first.get_round_outcome(round=4)
 
 
 def test_elimination_order():
