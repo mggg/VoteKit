@@ -2,6 +2,7 @@ from fractions import Fraction
 import itertools as it
 import numpy as np
 from typing import Callable, Optional
+from functools import lru_cache
 
 from ..models import Election
 from ..election_state import ElectionState
@@ -174,6 +175,7 @@ class STV(Election):
         )
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete STV election.
@@ -291,6 +293,7 @@ class Limited(Election):
         self.state = new_state
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Limited election.
@@ -355,6 +358,7 @@ class Bloc(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete Bloc election.
@@ -415,6 +419,7 @@ class SNTV(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete SNTV election.
@@ -534,6 +539,7 @@ class SNTV_STV_Hybrid(Election):
         self.state = new_state  # type: ignore
         return new_state  # type: ignore
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete SNTV_STV election.
@@ -597,6 +603,7 @@ class TopTwo(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete TopTwo election.
@@ -663,6 +670,7 @@ class DominatingSets(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete DominatingSets election.
@@ -738,6 +746,7 @@ class CondoBorda(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Conda-Borda election.
@@ -816,6 +825,7 @@ class SequentialRCV(Election):
         )
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete sequential RCV contest.
@@ -909,6 +919,7 @@ class Borda(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Borda contest.
