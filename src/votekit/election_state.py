@@ -76,6 +76,8 @@ class ElectionState(BaseModel):
         if self.remaining != [{}]:
             return self.winners() + self.remaining + self.eliminated()
 
+        return self.winners() + self.eliminated()
+
     def round_outcome(self, round: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
