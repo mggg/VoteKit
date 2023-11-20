@@ -78,9 +78,9 @@ nav:
   - API Reference:
     - 'api.md'
   - Social Choice Reference:
-    -'SCR_general_vocabulary.md'
-    -'SCR_preference_intervals.md'
-    -'SCR_simplex.md'
-    -'SCR_ballot_generators.md'
-    -'SCR_elections.md'
-    -'SCR_distances.md'
+    - 'SCR_general_vocabulary.md'
+    - 'SCR_preference_intervals.md'
+    - 'SCR_simplex.md'
+    - 'SCR_ballot_generators.md'
+    - 'SCR_elections.md'
+    - 'SCR_distances.md'
