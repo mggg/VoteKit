@@ -8,15 +8,15 @@ from typing import Union, Optional
 
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
-    Computes the earth mover distance between two elections. \n
-    Assumes both elections share the same candidates
+    Computes the earth mover distance between two elections.
+    Assumes both elections share the same candidates.
 
     Args:
-        pp1: Profile for first election
-        pp2: Profile for second election
+        pp1: PreferenceProfile for first election.
+        pp2: PreferenceProfile for second election.
 
     Returns:
-        Earth mover distance between inputted elections
+        Earth mover distance between inputted elections.
     """
     # create ballot graph
     ballot_graph = BallotGraph(source=pp2).graph
@@ -48,17 +48,17 @@ def lp_dist(
 ) -> int:
     """
     Computes the L_p distance between two election distributions.
-    Use 'inf' for infinity norm. \n
+    Use 'inf' for infinity norm.
     Assumes both elections share the same candidates.
 
     Args:
-        pp1: Profile for first election
-        pp2: Profile for second election
-        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean \n
-            or 'inf' for Chebyshev distance
+        pp1: PreferenceProfile for first election.
+        pp2: PreferenceProfile for second election.
+        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean 
+            or 'inf' for Chebyshev distance.
 
     Returns:
-        Lp distance between two elections
+        Lp distance between two elections.
     """
     pp_list = [pp1, pp2]
     pp_2arry = profiles_to_ndarrys(pp_list)
@@ -85,13 +85,20 @@ def lp_dist(
 # these functions comvert a list of preference profiles into distribution arrays
 def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     """
-    Converts a list of perference profiles into an ndarray,
-    a matrix like object. The cols represent each profile
-    and rows are the cast ballots and each element represents
-    the frequency a ballot type occurs for a preference profile.
+    Converts a list of PreferenceProfile into an ndarray,
+    a matrix like object. The cols represent each profile, 
+    rows are the cast ballots, and each element represents
+    the frequency a ballot type occurs for a PreferenceProfile.
     Each column will sum to one since weights are standardized.
     This is usefule for computing election Lp distances between
     elections.
+
+    Args:
+        profiles (list[PreferenceProfile])
+        : a list of PreferenceProfiles
+
+    Returns:
+    An ndarray.
     """
     cast_ballots: list = []
     profile_dicts: list[dict] = []
@@ -118,21 +125,23 @@ def em_array(pp: PreferenceProfile) -> list:
     Converts a PreferenceProfile into a distribution using ballot graphs.
 
     Args:
-        pp: Profile for a given election
+        pp: PreferenceProfile for a given election.
 
     Returns:
-        Distribution of ballots for an election
+        Distribution of ballots for an election.
     """
     ballot_graph = BallotGraph(source=pp)
     node_cand_map = ballot_graph.label_cands(sorted(pp.get_candidates()))
     pp_dict = pp.to_dict(True)
 
     # invert node_cand_map to map to pp_dict
-    inverted = {v: k for k, v in node_cand_map.items()}
+    # split is used to remove the custom labeling from the ballotgraph
+    inverted = {v.split(":")[0]: k for k, v in node_cand_map.items()}
     combined_dict = {k: 0 for k in node_cand_map}
 
     # map nodes with weight of corresponding rank
-    node_pp_dict = {inverted[key]: pp_dict[key] for key in pp_dict}
+    # labels on ballotgraph are strings so need to convert key to string
+    node_pp_dict = {inverted[str(key)]: pp_dict[key] for key in pp_dict}
 
     complete_election_dict = combined_dict | node_pp_dict
     elect_distr = [

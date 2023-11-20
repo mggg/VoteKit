@@ -1,7 +1,6 @@
-Ballot Generators: AC and CS
-============================
+# AC and CS Ballot Generators
 
-# Alternating Crossover
+## Alternating Crossover
 
  This Alternating Crossover model assumes there are two blocs over voters. Within a bloc, voters either vote with the bloc, or "crossover" to the other bloc. The proportion of such voters is controlled by the cohesion parameter. It was first introduced in Benade et al. "Ranked Choice Voting and Proportional Representation" (you can read more about it [here](https://ssrn.com/abstract=3778021)).
 
@@ -55,7 +54,7 @@ ac.generate_profile(100)
 
 
 
-# Cambridge Sampler
+## Cambridge Sampler
 
 The Cambridge Sampler uses historical data from city council elections for Cambridge, MA to generate new ballots. Historical Cambridge results from 2009 to 2017 are built into `votekit` but you can also use different historical data by  pointing the `path` argument to a file of election results. The model assumes there is a majority and a minority bloc. Again there is a cohesion parameter measuring how often voters defect from the bloc. If voters vote with the bloc, they rank a bloc candidate first, then the ballot is filled by sampling from historical data matching the first-ranked candidate in the ballot. If they vote with the opposing bloc, they rank an opposing candidate first and then sample.
 

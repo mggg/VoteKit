@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # API Reference
 
 ## Objects 
@@ -94,8 +99,6 @@
         members:
             - compute_votes
             - remove_cand
-            - unset
-            - recursively_fix_ties
             - fix_ties
             - elect_cands_from_set_ranking
             - scores_into_set_list
