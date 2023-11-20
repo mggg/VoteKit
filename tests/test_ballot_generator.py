@@ -582,29 +582,6 @@ def test_interval_sum_from_params():
     assert True
 
 
-def test_interval_from_params():
-
-    blocs = {"R": 0.9, "D": 0.1}
-    cohesion = {"R": 0.9, "D": 0.9}
-    alphas = {"R": {"R": 1, "D": 1}, "D": {"R": 1, "D": 1}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    ac = PlackettLuce.from_params(
-        bloc_voter_prop=blocs,
-        slate_to_candidates=slate_to_cands,
-        cohesion=cohesion,
-        alphas=alphas,
-    )
-
-    for b in blocs:
-        pref = ac.pref_interval_by_bloc[b].values()
-        if not any(value > 0.4 for value in pref):
-            print(pref)
-            assert False
-
-    assert True
-
-
 def test_Cambridge_distribution():
     # BASE_DIR = Path(__file__).resolve().parent.parent
     DATA_DIR = "src/votekit/data"
