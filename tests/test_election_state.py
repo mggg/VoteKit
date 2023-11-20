@@ -345,6 +345,6 @@ def test_to_dict_maintain_ties():
     results_dict = rd.to_dict(keep=["elected"])
 
     # tuples ('E', 'B') and ('B', 'E') represent same tied ranking
-    assert results_dict == {"elected": ["A", ("B", "E")]} or rd.to_dict(
-        keep=["elected"]
-    ) == {"elected": ["A", ("E", "B")]}
+    assert results_dict == {"elected": ["A", ("B", "E")]} or results_dict == {
+        "elected": ["A", ("E", "B")]
+    }
