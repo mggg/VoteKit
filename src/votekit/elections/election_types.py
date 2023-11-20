@@ -2,6 +2,7 @@ from fractions import Fraction
 import itertools as it
 import numpy as np
 from typing import Callable, Optional
+from functools import lru_cache
 
 from ..models import Election
 from ..election_state import ElectionState
@@ -17,6 +18,9 @@ from ..utils import (
     elect_cands_from_set_ranking,
     first_place_votes,
 )
+
+# add ballots attribute // remove preference profile so the original profile is
+# not modified in place everytime?
 
 
 class STV(Election):
@@ -90,7 +94,7 @@ class STV(Election):
             True if number of seats has been met, False otherwise.
         """
         cands_elected = 0
-        for s in self.state.get_all_winners():
+        for s in self.state.winners():
             cands_elected += len(s)
         return cands_elected < self.seats
 
@@ -109,7 +113,7 @@ class STV(Election):
 
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
-        if len(remaining) == self.seats - len(self.state.get_all_winners()):
+        if len(remaining) == self.seats - len(self.state.winners()):
             elected = [{cand} for cand, votes in round_votes]
             remaining = []
             ballots = []
@@ -159,13 +163,14 @@ class STV(Election):
         self.state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
-            eliminated=eliminated,
+            eliminated_cands=eliminated,
             remaining=remaining,
             profile=PreferenceProfile(ballots=ballots),
             previous=self.state,
         )
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete STV election.
@@ -274,7 +279,7 @@ class Limited(Election):
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
-            eliminated=eliminated,
+            eliminated_cands=eliminated,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
@@ -282,6 +287,7 @@ class Limited(Election):
         self.state = new_state
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Limited election.
@@ -346,6 +352,7 @@ class Bloc(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete Bloc election.
@@ -406,6 +413,7 @@ class SNTV(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete SNTV election.
@@ -486,13 +494,13 @@ class SNTV_STV_Hybrid(Election):
             # set the SNTV winners as remaining candidates and update pref profiles
             new_profile = PreferenceProfile(
                 ballots=remove_cand(
-                    set().union(*round_state.eliminated), profile.get_ballots()
+                    set().union(*round_state.eliminated_cands), profile.get_ballots()
                 )
             )
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=list(),
-                eliminated=round_state.eliminated,
+                eliminated_cands=round_state.eliminated_cands,
                 remaining=[set(new_profile.get_candidates())],
                 profile=new_profile,
                 previous=self.state,
@@ -507,8 +515,8 @@ class SNTV_STV_Hybrid(Election):
 
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
-                elected=round_state.get_all_winners(),
-                eliminated=round_state.get_all_eliminated(),
+                elected=round_state.winners(),
+                eliminated_cands=round_state.eliminated(),
                 remaining=round_state.remaining,
                 profile=round_state.profile,
                 previous=self.state,
@@ -523,6 +531,7 @@ class SNTV_STV_Hybrid(Election):
         self.state = new_state  # type: ignore
         return new_state  # type: ignore
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Runs complete SNTV_STV election.
@@ -586,6 +595,7 @@ class TopTwo(Election):
         self.state = outcome
         return outcome
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete TopTwo election.
@@ -633,7 +643,7 @@ class DominatingSets(Election):
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=list(),
-                eliminated=dominating_tiers,
+                eliminated_cands=dominating_tiers,
                 remaining=list(),
                 profile=PreferenceProfile(),
                 previous=self.state,
@@ -642,7 +652,7 @@ class DominatingSets(Election):
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=[set(dominating_tiers[0])],
-                eliminated=dominating_tiers[1:],
+                eliminated_cands=dominating_tiers[1:],
                 remaining=list(),
                 profile=PreferenceProfile(),
                 previous=self.state,
@@ -650,6 +660,7 @@ class DominatingSets(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete DominatingSets election.
@@ -716,7 +727,7 @@ class CondoBorda(Election):
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
-            eliminated=eliminated,
+            eliminated_cands=eliminated,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
@@ -724,6 +735,7 @@ class CondoBorda(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Conda-Borda election.
@@ -784,7 +796,7 @@ class SequentialRCV(Election):
             old_profile, transfer=seqRCV_transfer, seats=1, tiebreak=self.tiebreak
         )
         old_election = IRVrun.run_election()
-        elected_cand = old_election.get_all_winners()[0]
+        elected_cand = old_election.winners()[0]
 
         # Removes elected candidate from Ballot List
         updated_ballots = remove_cand(elected_cand, old_profile.get_ballots())
@@ -801,6 +813,7 @@ class SequentialRCV(Election):
         )
         return self.state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete sequential RCV contest.
@@ -885,7 +898,7 @@ class Borda(Election):
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
-            eliminated=eliminated,
+            eliminated_cands=eliminated,
             remaining=list(),
             profile=PreferenceProfile(),
             previous=self.state,
@@ -893,6 +906,7 @@ class Borda(Election):
         self.state = new_state
         return new_state
 
+    @lru_cache
     def run_election(self) -> ElectionState:
         """
         Simulates a complete Borda contest.
