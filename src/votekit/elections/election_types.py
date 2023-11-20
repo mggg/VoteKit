@@ -116,7 +116,7 @@ class STV(Election):
         # if number of remaining candidates equals number of remaining seats,
         # everyone is elected
         if len(remaining) == self.seats - len(self.state.winners()):
-            elected = [{cand} for cand, votes in round_votes]
+            elected = [{cand} for cand, _ in round_votes]
             remaining = []
             ballots = []
 

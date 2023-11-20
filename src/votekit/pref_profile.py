@@ -37,7 +37,7 @@ class PreferenceProfile(BaseModel):
         Returns:
          List of ballots.
         """
-        return self.ballots
+        return self.ballots[:]
 
     def get_candidates(self) -> list:
         """
@@ -69,7 +69,7 @@ class PreferenceProfile(BaseModel):
         Converts to dictionary with keys = rankings and values = corresponding total weights.
 
         Args:
-            standardize (Boolean): If True, divides the weight of each ballot 
+            standardize (Boolean): If True, divides the weight of each ballot
                             by the total weight. Defaults to False.
 
         Returns:
@@ -117,10 +117,10 @@ class PreferenceProfile(BaseModel):
             for ranking in ballot.ranking:
                 if len(ranking) == 1:
                     part.append(list(ranking)[0])
-                
+
                 else:
                     part.append(f"{ranking} (Tie)")
-                    
+
             ballots.append(tuple(part))
             weights.append(int(ballot.weight))
 

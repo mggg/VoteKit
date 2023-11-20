@@ -1,9 +1,12 @@
 from fractions import Fraction
-from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
+from pydantic import ConfigDict
+from dataclasses import field
 from typing import Optional
 
 
-class Ballot(BaseModel):
+@dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
+class Ballot:
     """
     Ballot class, contains ranking and assigned weight.
 
@@ -22,13 +25,10 @@ class Ballot(BaseModel):
     :   optional list of voters who cast a given a ballot.
     """
 
-    id: Optional[str] = None
-    ranking: list[set]
-    weight: Fraction = Fraction(1,1)
+    ranking: list[set] = field(default_factory=list)
+    weight: Fraction = Fraction(1, 1)
     voters: Optional[set[str]] = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    id: Optional[str] = None
 
     def __eq__(self, other):
         # Check type

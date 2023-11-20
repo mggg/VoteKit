@@ -23,15 +23,26 @@ def fractional_transfer(
     """
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
+    transfered_ballots = []
     for ballot in ballots:
         new_ranking = []
         if ballot.ranking and ballot.ranking[0] == {winner}:
-            ballot.weight = ballot.weight * transfer_value
+            transfered_weight = ballot.weight * transfer_value
             for cand in ballot.ranking:
                 if cand != {winner}:
                     new_ranking.append(cand)
+            transfered_ballots.append(
+                Ballot(
+                    ranking=new_ranking,
+                    weight=transfered_weight,
+                    voters=ballot.voters,
+                    id=ballot.id,
+                )
+            )
+        else:
+            transfered_ballots.append(ballot)
 
-    return remove_cand(winner, ballots)
+    return remove_cand(winner, transfered_ballots)
 
 
 def random_transfer(
