@@ -155,11 +155,11 @@ class ElectionState(BaseModel):
         for key, values in zip(keys, values):
             if keep and key not in keep:
                 continue
-            # pull out candidates from sets, if tied keep them as sets
+            # pull out candidates from sets, if tied adds tuple of tied candidates
             temp_lst = []
             for cand_set in values:
                 if len(cand_set) > 1:
-                    temp_lst.append(cand_set)
+                    temp_lst.append(tuple(cand_set))
                 else:
                     temp_lst += [cand for cand in cand_set]
             rv[key] = temp_lst

@@ -341,4 +341,4 @@ def test_to_dict_maintain_ties():
         profile=MagicMock(spec=PreferenceProfile),
         previous=None,
     )
-    assert rd.to_dict(keep=["elected"]) == {"elected": ["A", {"B", "E"}]}
+    assert rd.to_dict(keep=["elected"]) == {"elected": ["A", ("B", "E")]}
