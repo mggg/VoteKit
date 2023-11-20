@@ -6,8 +6,8 @@ We have not said how this preference interval actually gets translated into a ra
 
 It should be remarked that there is a difference, at least to VoteKit, between the intervals $(0.9,0.1,0.0)$ and $(0.9,0.1)$. While both say there is no preference for a third candidate, if the latter interval is fed into VoteKit, that third candidate will never appear on a generated ballot. If we feed it the former interval, the third candidate will always appear at the bottom of the ballot.
 
-![](../docs/assets/preference_interval.png)
+![](assets/preference_interval.png)
 
-VoteKit provides an option, [from_params](../docs/api.md#ballot-generators), which allows you to randomly generate preference intervals. For more on how this is done, see the page on [Simplices](SCR_simplex.ipynb).
+VoteKit provides an option, [from_params](api.md#ballot-generators), which allows you to randomly generate preference intervals. For more on how this is done, see the page on [Simplices](SCR_simplex.ipynb).
 
 

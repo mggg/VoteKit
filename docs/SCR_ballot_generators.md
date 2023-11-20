@@ -1,14 +1,14 @@
 # Ballot Generators
 
-In addition to being able to [read real world voting data](../docs/api.md#cvr-loaders), VoteKit also has the ability to generate ballots using different models. This is useful when you want to run experiments or just play around with some data. We make no claims that these models accurately predict real voting behavior.
+In addition to being able to [read real world voting data](api.md#cvr-loaders), VoteKit also has the ability to generate ballots using different models. This is useful when you want to run experiments or just play around with some data. We make no claims that these models accurately predict real voting behavior.
 
 ## Ballot Simplex Models
 
-Models listed below generate ballots by using the [ballot simplex](./SCR_simplex.ipynb). This means we take a draw from the Dirichlet distribution, which gives us a probability distribution on full, linear rankings. We then generate ballots according to this distribution.
+Models listed below generate ballots by using the [ballot simplex](SCR_simplex.ipynb). This means we take a draw from the Dirichlet distribution, which gives us a probability distribution on full, linear rankings. We then generate ballots according to this distribution.
 
 ### Impartial Culture
 
-The Impartial Culture model has $\alpha = \infty$. As discussed in [ballot simplex](./SCR_simplex.ipynb), this is not actually a valid parameter for the Dirichlet distribution, so instead VoteKit sets $\alpha = 10^{20}$. This means that the point drawn from the ballot simplex has a very high probability of being in the center, which means it gives uniform probability to each linear ranking.
+The Impartial Culture model has $\alpha = \infty$. As discussed in [ballot simplex](SCR_simplex.ipynb), this is not actually a valid parameter for the Dirichlet distribution, so instead VoteKit sets $\alpha = 10^{20}$. This means that the point drawn from the ballot simplex has a very high probability of being in the center, which means it gives uniform probability to each linear ranking.
 
 ### Impartial Anonymous Culture
 
@@ -22,7 +22,7 @@ The Plackett-Luce model (PL) samples ranked ballots as follows. Given a bloc's p
 
 - The PL model generates full ballots, with the caveat that any candidates with 0 support are listed as ties at the end of the ballot.
 
-- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](../docs/api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
+- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
 
 - The PL model can handle arbitrarily many blocs.
 
@@ -35,7 +35,7 @@ The Bradley-Terry model (BT) samples ranked ballots as follows. Given a preferen
 
 - The BT model generates full ballots, with the caveat that any candidates with 0 support are listed as ties at the end of the ballot.
 
-- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](../docs/api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
+- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
 
 - The BT model can handle arbitrarily many blocs.
 
