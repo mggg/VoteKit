@@ -153,6 +153,7 @@ class BallotGenerator:
 
         if isinstance(generator, (AlternatingCrossover, CambridgeSampler)):
             generator.slate_to_candidates = slate_to_candidates
+            generator.cohesion_parameters = cohesion
 
         return generator
 

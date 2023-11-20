@@ -135,11 +135,13 @@ def em_array(pp: PreferenceProfile) -> list:
     pp_dict = pp.to_dict(True)
 
     # invert node_cand_map to map to pp_dict
-    inverted = {v: k for k, v in node_cand_map.items()}
+    # split is used to remove the custom labeling from the ballotgraph
+    inverted = {v.split(":")[0]: k for k, v in node_cand_map.items()}
     combined_dict = {k: 0 for k in node_cand_map}
 
     # map nodes with weight of corresponding rank
-    node_pp_dict = {inverted[key]: pp_dict[key] for key in pp_dict}
+    # labels on ballotgraph are strings so need to convert key to string
+    node_pp_dict = {inverted[str(key)]: pp_dict[key] for key in pp_dict}
 
     complete_election_dict = combined_dict | node_pp_dict
     elect_distr = [
