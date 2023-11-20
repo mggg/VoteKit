@@ -8,16 +8,16 @@ More formally, let $n$ denote the number of candidates. The candidate simplex is
 
 This will be easiest to visualize with three candidates; let's call them $A,B,C$. Then we have the vectors $e_1 = (1,0,0), e_2 = (0,1,0), e_3 = (0,0,1)$. Our candidate simplex is a triangle, with each vertex representing one of the candidates. Each point on the triangle is a vector $(a,b,c)$ where $a+b+c=1$ and $a,b,c\ge 0$. The value of $a$ denotes someone's "preference" for $A$. Thus, a point in the candidate simplex is precisely a preference interval for the candidates!
 
-![png](../docs/assets/candidate_simplex.png)
+![png](assets/candidate_simplex.png)
 
 ## Ballot Simplex
 
 The ballot simplex is the same thing as the candidate simplex, except now the vertices of the simplex represent full linear rankings.
 So in the case of 3 candidates, we have $3!=6$ vertices, one for each permutation of the ranking $A>B>C$.
 A point in the ballot simplex represents a probability distribution over these full linear rankings.
-This is much harder to visualize since we're stuck in 3 dimensions! Read about the [BallotSimplex](../docs/api.md#ballot-generators) object.
+This is much harder to visualize since we're stuck in 3 dimensions! Read about the [BallotSimplex](api.md#ballot-generators) object.
 
-![png](../docs/assets/ballot_simplex.png)
+![png](assets/ballot_simplex.png)
 
 ## Dirichlet Distribution
 
@@ -27,20 +27,20 @@ In what follows, we will presume we are discussing the candidate simplex, but it
 
 The value $\alpha$ is never allowed to be 0 or $\infty$, so VoteKit uses an arbitrary large number ($10^{20}$) and an arbitrary small number $(10^{-10})$. When members of MGGG have done experiments for studies, they have taken $\alpha = 1/2$ to be small and $\alpha = 2$ to be big.
 
-![png](../docs/assets/dirichlet_distribution.png)
+![png](assets/dirichlet_distribution.png)
 
 ## Multiple Blocs
 
 ### Cohesion Parameters
 
-When there are multiple blocs, or types, of voters, we utilize cohesion parameters to measure how much voters prefer candidates from their own bloc versus the opposing blocs. Suppose there are two blocs of voters, $X,Y$. We assume that voters from the $X$ bloc have some underlying [preference interval](./SCR_preference_intervals.ipynb) for candidates within their bloc $P_{XX}$, and a different underlying preference interval for the candidates in the opposing bloc $P_{XY}$. We then assume that voters in $X$ prefer $X$ candidates with proportion $\pi_X$.
+When there are multiple blocs, or types, of voters, we utilize cohesion parameters to measure how much voters prefer candidates from their own bloc versus the opposing blocs. Suppose there are two blocs of voters, $X,Y$. We assume that voters from the $X$ bloc have some underlying [preference interval](SCR_preference_intervals.ipynb) for candidates within their bloc $P_{XX}$, and a different underlying preference interval for the candidates in the opposing bloc $P_{XY}$. We then assume that voters in $X$ prefer $X$ candidates with proportion $\pi_X$.
 
 In order to construct one preference interval for $X$ voters, we take $P_{XX}$ and scale it by $\pi_X$, then we take $P_{XY}$ and scale it by $1-\pi_X$, and finally we concatenate the two. As a concrete example, if $\pi_X = .75$, this means that 3/4 of the preference interval for $X$ voters is taken up by candidates from the $X$ bloc, and the other 1/4 by $Y$ candidates.
 
-![](../docs/assets/cohesion_parameters.png)
+![](assets/cohesion_parameters.png)
 
 ### Combining Dirichlet and Cohesion
 
-When there are multiple blocs of voters, we need more than one $\alpha$ value for the Dirichlet distribution. Suppose there are two blocs of voters, $X,Y$. Then we need four values, $\alpha_{XX}, \alpha_{XY}, \alpha_{YX}, \alpha_{YY}$. The value $\alpha_{XX}$ determines what kind of preferences $X$ voters will have for $X$ candidates. The value $\alpha_{XY}$ determines what kind of preferences $X$ voters have for $Y$ candidates. We sample preference intervals from the candidate simplex using these $\alpha$ values, and then use cohesion parameters to combine them into a single interval, one for each bloc. This is how [from_params](../docs/api.md#ballot-generators) initializes different ballot generator models.
+When there are multiple blocs of voters, we need more than one $\alpha$ value for the Dirichlet distribution. Suppose there are two blocs of voters, $X,Y$. Then we need four values, $\alpha_{XX}, \alpha_{XY}, \alpha_{YX}, \alpha_{YY}$. The value $\alpha_{XX}$ determines what kind of preferences $X$ voters will have for $X$ candidates. The value $\alpha_{XY}$ determines what kind of preferences $X$ voters have for $Y$ candidates. We sample preference intervals from the candidate simplex using these $\alpha$ values, and then use cohesion parameters to combine them into a single interval, one for each bloc. This is how [from_params](api.md#ballot-generators) initializes different ballot generator models.
 
 

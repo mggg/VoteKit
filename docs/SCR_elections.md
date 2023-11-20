@@ -8,7 +8,7 @@ In the first round, the first place votes for each candidate are tallied. If a c
 
 - An STV election can use either the Droop or Hare quota.
 
-- The current transfer methods are stored in the [elections](../docs/api.md#elections) module.
+- The current transfer methods are stored in the [elections](api.md#elections) module.
 
 - If there is a tiebreak needed, STV defaults to a random tiebreak. Other methods of tiebreak are given in the tie_broken_ranking function of the utils module.
 
