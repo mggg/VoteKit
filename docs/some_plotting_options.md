@@ -1,5 +1,5 @@
-# Plotting, Summary Statistics, and More
-In this tutorial we will explore various plotting options included in `votekit`. To do so, we will not use real election data, but rather some generated preference profiles. `votekit` offers support for the following kinds of ballot generating models: Plackett-Luce, Bradley-Terry, Alternating Crossover, a Cambridge Sampler (this one is custom!), 1-D Spatial, Impartial Culture, and Impartial Anonymous Culture.
+# Summarizing Elections
+Now that we can run elections, let's explore how we can use `votekit` to summarize and visualize the results. To do so, we will not use real election data, but rather some generated preference profiles. `votekit` offers support for the following kinds of ballot generating models: Plackett-Luce, Bradley-Terry, Alternating Crossover, a Cambridge Sampler (this one is custom!), 1-D Spatial, Impartial Culture, and Impartial Anonymous Culture.
 
 For simplicity, let's start with the Impartial Culture model, which assumes that when there are $m$ candidates, a voter casts a ballot by choosing uniformly at random from the $m!$ total linear orderings of the candidates.
 
@@ -67,11 +67,11 @@ fig = plot_summary_stats(profile, "mentions", multi_color = True, title = "Menti
 
 Check for understanding: In the IC model we are using, why is the number of mentions uniform?
 
-# Graphs!
+## Graphs!
 
 There are two kinds of graphs (networks) that `votekit` generates, a pairwise comparison graph, and a ballot graph. The former has vertices=candidates, and an edge going from A to B if A is preferred to B more often in the given preference profile. The edge is given weight equal to the number of times A is preferred to B minus the number of times B is preferred to A. You can learn about ballot graphs in the [BallotGraph](ballot_graph_tutorial.md) section.
 
-# `PairwiseComparisonGraph`
+## `PairwiseComparisonGraph`
 
 `PairwiseComparisonGraph` takes in a `PreferenceProfile`. There is an optional `ballot_length` parameter that determines the length of the ballot and then the `PairwiseComparisonGraph` graph will randomly fill in any ballots that are too short. Since we are using IC ballots which have a full linear ranking, we don't need to worry about that.
 
@@ -105,7 +105,7 @@ print(pwc_graph.has_condorcet())
 
 `PairwiseComparisonGraph` also has a `compute_pairwise_dict` method which computes the edge weights for the graph, as well as `head2head_count` which computes the number of times that candidate A is preferred to candidate B.
 
-# MDS Plots
+## MDS Plots
 
 One of the cool features of `votekit` is that we can create MDS plots, using different notions of distance between preference profiles. An MDS plot, in short, is a 2D representation of high dimensional data that attempts to minimize the distortion of the data. `votekit` comes with two distance metrics, the earthmover distance and the $L_p$ distance.
 

@@ -10,16 +10,16 @@ def fractional_transfer(
 ) -> list[Ballot]:
     """
     Calculates fractional transfer from winner, then removes winner
-    from the list of ballots
+    from the list of ballots.
 
     Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
+        winner: Candidate to transfer votes from.
+        ballots: List of Ballot objects.
+        votes: Contains candidates and their corresponding vote totals.
+        threshold: Value required to be elected, used to calculate transfer value.
 
     Returns:
-        Modified ballots with transfered weights and the winning canidated removed
+        Modified ballots with transfered weights and the winning candidate removed.
     """
     transfer_value = (votes[winner] - threshold) / votes[winner]
 
@@ -38,16 +38,16 @@ def random_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
     """
-    Cambridge-style transfer where transfer ballots are selected randomly
+    Cambridge-style transfer where transfer ballots are selected randomly.
 
     Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
+        winner: Candidate to transfer votes from.
+        ballots: List of Ballot objects.
+        votes: Contains candidates and their corresponding vote totals.
+        threshold: Value required to be elected, used to calculate transfer value.
 
     Returns:
-        Modified ballots with transfered weights and the winning canidated removed
+        Modified ballots with transferred weights and the winning candidate removed.
     """
 
     # turn all of winner's ballots into (multiple) ballots of weight 1
@@ -78,15 +78,15 @@ def seqRCV_transfer(
     winner: str, ballots: list[Ballot], votes: dict, threshold: int
 ) -> list[Ballot]:
     """
-    Transfer method Sequential RCV elections
+    Transfer method for Sequential RCV elections.
 
     Args:
-        winner: Candidate to transfer votes from
-        ballots: List of Ballot objects
-        votes: Contains candidates and their corresponding vote totals
-        threshold: Value required to be elected, used to calculate transfer value
+        winner: Candidate to transfer votes from.
+        ballots: List of Ballot objects.
+        votes: Contains candidates and their corresponding vote totals.
+        threshold: Value required to be elected, used to calculate transfer value.
 
     Returns:
-        Original list of ballots as Sequential RCV does not transfer votes
+        Original list of ballots as Sequential RCV does not transfer votes.
     """
     return ballots

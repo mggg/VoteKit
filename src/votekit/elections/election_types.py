@@ -25,27 +25,29 @@ from ..utils import (
 
 class STV(Election):
     """
-    Class for single-winner IRV and multi-winner STV elections
+    Class for single-winner IRV and multi-winner STV elections.
 
      **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `transfer`
-    :   transfer method (e.g. fractional transfer)
+    :   transfer method (e.g. fractional transfer).
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `quota`
-    :   formula to calculate quota (defaults to droop)
+    :   formula to calculate quota (defaults to droop).
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
+                to random.
 
     **Methods**
     """
@@ -71,10 +73,10 @@ class STV(Election):
     # can cache since it will not change throughout rounds
     def get_threshold(self) -> int:
         """
-        Calculates threshold required for election
+        Calculates threshold required for election.
 
         Returns:
-            Value of the threshold
+            Value of the threshold.
         """
         quota = self.quota
         if quota == "droop":
@@ -86,10 +88,10 @@ class STV(Election):
 
     def next_round(self) -> bool:
         """
-        Determines if the number of seats has been met to call an election
+        Determines if the number of seats has been met to call an election.
 
         Returns:
-            True if number of seats has been met, False otherwise
+            True if number of seats has been met, False otherwise.
         """
         cands_elected = 0
         for s in self.state.winners():
@@ -98,10 +100,10 @@ class STV(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Simulates one round an STV election
+        Simulates one round an STV election.
 
         Returns:
-           An ElectionState object for a given round
+           An ElectionState object for a given round.
         """
         remaining = self.state.profile.get_candidates()
         ballots = self.state.profile.get_ballots()
@@ -171,10 +173,10 @@ class STV(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Runs complete STV election
+        Runs complete STV election.
 
         Returns:
-            An ElectionState object with results for a complete election
+            An ElectionState object with results for a complete election.
         """
         if not self.next_round():
             raise ValueError(
@@ -189,26 +191,28 @@ class STV(Election):
 
 class Limited(Election):
     """
-    Elects m (seats) candidates with the highest k-approval scores.
-    The k-approval score of a candidate is equal to the number of voters who \n
+    Elects m candidates with the highest k-approval scores.
+    The k-approval score of a candidate is equal to the number of voters who 
     rank this candidate among their k top ranked candidates.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `k`
-    :   value of an approval score
+    :   value of an approval score.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -228,11 +232,11 @@ class Limited(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Conducts Limited election in which m-candidates are elected based
-        on approval scores
+        Conducts Limited election in which m candidates are elected based
+        on approval scores.
 
         Returns:
-           An ElectionState object for a Limited election
+           An ElectionState object for a Limited election.
         """
         profile = self.state.profile
         candidates = profile.get_candidates()
@@ -286,10 +290,10 @@ class Limited(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Simulates a complete Limited election
+        Simulates a complete Limited election.
 
         Returns:
-            An ElectionState object with results for a complete election
+            An ElectionState object with results for a complete election.
         """
         self.run_step()
         return self.state
@@ -304,16 +308,18 @@ class Bloc(Election):
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -331,10 +337,10 @@ class Bloc(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Conducts a Limited election to elect m-candidates
+        Conducts a Limited election to elect m-candidates.
 
         Returns:
-           An ElectionState object for a Limited election
+           An ElectionState object for a Limited election.
         """
         limited_equivalent = Limited(
             profile=self.state.profile,
@@ -349,10 +355,10 @@ class Bloc(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Runs complete Bloc election
+        Runs complete Bloc election.
 
         Returns:
-            An ElectionState object with results for a complete election
+            An ElectionState object with results for a complete election.
         """
         self.run_step()
         return self.state
@@ -360,22 +366,24 @@ class Bloc(Election):
 
 class SNTV(Election):
     """
-    Single nontransferable vote (SNTV): Elects k-candidates with the highest
-    Plurality scores
+    Single nontransferable vote (SNTV): Elects k candidates with the highest
+    Plurality scores.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -393,10 +401,10 @@ class SNTV(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Conducts a Limited election to elect k-candidates
+        Conducts an SNTV election to elect candidates.
 
         Returns:
-           An ElectionState object for a Limited election
+           An ElectionState object for a SNTV election.
         """
         limited_equivalent = Limited(
             profile=self.state.profile, seats=self.seats, k=1, tiebreak=self.tiebreak
@@ -408,10 +416,10 @@ class SNTV(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Runs complete SNTV election
+        Runs complete SNTV election.
 
         Returns:
-            An ElectionState object with results for a complete election
+            An ElectionState object with results for a complete election.
         """
         self.run_step()
         return self.state
@@ -419,28 +427,30 @@ class SNTV(Election):
 
 class SNTV_STV_Hybrid(Election):
     """
-    Election methd that first runs SNTV to a cutoff, then runs STV to
-    pick a committee with a given number of seats
+    Election method that first runs SNTV to a cutoff, then runs STV to
+    pick a committee with a given number of seats.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `transfer`
-    :   transfer method (e.g. fractional transfer)
+    :   transfer method (e.g. fractional transfer).
 
     `r1_cutoff`
-    :   first-round cutoff value
+    :   first-round cutoff value.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -463,13 +473,13 @@ class SNTV_STV_Hybrid(Election):
 
     def run_step(self, stage: str) -> ElectionState:
         """
-        Simulates one round an SNTV_STV election
+        Simulates one round an SNTV_STV election.
 
         Args:
-            stage: Stage of the hybrid election, can be SNTV or STV
+            stage: Stage of the hybrid election, can be SNTV or STV.
 
         Returns:
-           An ElectionState object for a given round
+           An ElectionState object for a given round.
         """
         profile = self.state.profile
 
@@ -524,10 +534,10 @@ class SNTV_STV_Hybrid(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Runs complete SNTV_STV election
+        Runs complete SNTV_STV election.
 
         Returns:
-            An ElectionState object with results for a complete election
+            An ElectionState object with results for a complete election.
         """
         while self.stage != "Complete":
             self.run_step(self.stage)
@@ -537,21 +547,23 @@ class SNTV_STV_Hybrid(Election):
 class TopTwo(Election):
     """
     Eliminates all but the top two plurality vote getters, and then
-    conducts a runoff between them, reallocating other ballots
+    conducts a runoff between them, reallocating other ballots.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -567,10 +579,10 @@ class TopTwo(Election):
 
     def run_step(self) -> ElectionState:
         """
-        Conducts a hybrid election for one seat with a cutoff of 2 for the runoff
+        Conducts a TopTwo election for one seat with a cutoff of 2 for the runoff.
 
         Returns:
-            An ElectionState object for the hybrid election
+            An ElectionState object for the TopTwo election.
         """
         hybrid_equivalent = SNTV_STV_Hybrid(
             profile=self.state.profile,
@@ -586,10 +598,10 @@ class TopTwo(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Simulates a complete TopTwo election
+        Simulates a complete TopTwo election.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -597,17 +609,18 @@ class TopTwo(Election):
 
 class DominatingSets(Election):
     """
-    Finds tiers of candidates by dominating set,which is a set of candidates
+    Finds tiers of candidates by dominating set, which is a set of candidates
     such that every candidate in the set wins head to head comparisons against
-    candidates outside of it
+    candidates outside of it.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
 
     **Methods**
@@ -619,10 +632,10 @@ class DominatingSets(Election):
     def run_step(self) -> ElectionState:
         """
         Conducts a complete DominatingSets election as it is not a round-by-round
-        system
+        system.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
@@ -650,10 +663,10 @@ class DominatingSets(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Simulates a complete DominatingSets election
+        Simulates a complete DominatingSets election.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -662,21 +675,23 @@ class DominatingSets(Election):
 class CondoBorda(Election):
     """
     Elects candidates ordered by dominating set, but breaks ties
-    between candidates with Borda
+    between candidates with Borda.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                Defaults to random.
 
     **Methods**
     """
@@ -695,10 +710,10 @@ class CondoBorda(Election):
     def run_step(self) -> ElectionState:
         """
         Conducts a complete Conda-Borda election as it is not a round-by-round
-        system
+        system.
 
         Returns:
-            An `ElectionState` object for a complete election
+            An `ElectionState` object for a complete election.
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
@@ -723,10 +738,10 @@ class CondoBorda(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Simulates a complete Conda-Borda election
+        Simulates a complete Conda-Borda election.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -735,21 +750,23 @@ class CondoBorda(Election):
 class SequentialRCV(Election):
     """
     Class to conduct Sequential RCV election, in which votes are not transferred
-    after a candidate has reached threshold, or been elected
+    after a candidate has reached threshold, or been elected.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                Defaults to random.
 
     **Methods**
     """
@@ -768,10 +785,10 @@ class SequentialRCV(Election):
     def run_step(self, old_profile: PreferenceProfile) -> ElectionState:
         """
         Simulates a single step of the sequential RCV contest or a full
-        IRV election run on the current set of candidates
+        IRV election run on the current set of candidates.
 
          Returns:
-           An ElectionState object for a given round
+           An ElectionState object for a given round.
         """
         old_election_state = self.state
 
@@ -802,7 +819,7 @@ class SequentialRCV(Election):
         Simulates a complete sequential RCV contest.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         old_profile = self._profile
         elected = []  # type: ignore
@@ -819,24 +836,27 @@ class Borda(Election):
     """
     Positional voting system that assigns a decreasing number of points to
     candidates based on order and a score vector. The conventional score
-    vector is linear (n, n-1, ... 1)
+    vector is $(n, n-1, \dots, 1)$, where $n$ is the number of candidates.
 
     **Attributes**
 
     `profile`
-    :   PreferenceProfile to run election on
+    :   PreferenceProfile to run election on.
 
     `seats`
-    :   number of seats to be elected
+    :   number of seats to be elected.
 
     `score_vector`
-    :   (Optional) weights assigned to candidate ranking
+    :   (optional) weights assigned to candidate ranking, should be a list of `Fractions`. 
+                    Defaults to $(n,n-1,\dots,1)$.
 
     `ballot_ties`
-    :   (Optional) resolves input ballot ties if True, else assumes ballots have no ties
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
 
     `tiebreak`
-    :   (Optional) resolves procedural and final ties by specified tiebreak
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
 
     **Methods**
     """
@@ -857,10 +877,10 @@ class Borda(Election):
     def run_step(self) -> ElectionState:
         """
         Simulates a complete Borda contest as Borda is not a round-by-round
-        system
+        system.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         borda_dict = borda_scores(
             profile=self.state.profile, score_vector=self.score_vector
@@ -889,10 +909,10 @@ class Borda(Election):
     @lru_cache
     def run_election(self) -> ElectionState:
         """
-        Simulates a complete Borda contest
+        Simulates a complete Borda contest.
 
         Returns:
-            An ElectionState object for a complete election
+            An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -901,7 +921,7 @@ class Borda(Election):
 class Plurality(SNTV):
     """
     Simulates a single or multi-winner plurality election. Inherits
-    methods from `SNTV` to run election
+    methods from `SNTV` to run election.
     """
 
     def __init__(

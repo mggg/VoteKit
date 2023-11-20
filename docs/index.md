@@ -1,4 +1,10 @@
-Welcome to VoteKit's documentation!
+---
+hide:
+  - navigation
+  - tags
+---
+
+VoteKit Documentation
 ===================================
 
 **VoteKit** is a Swiss army knife for computational social choice research.
@@ -10,6 +16,13 @@ Welcome to VoteKit's documentation!
 
 [![PyPI version](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
 [![Test badge](https://github.com/mggg/VoteKit/workflows/Test%20&%20Lint/badge.svg)](https://github.com/mggg/VoteKit/actions?query=workflow%3A%22Test+%26+Lint%22)
+
+Votekit is Python package that provides tools to simulate and analyze elections. It was designed with researchers and folks interested in exploring properties of alternative voting systems in mind. If you're new to the world of social choice or have questions on how to use Votekit, you can explore Votekit`s documentation through the links below. If you're interesting in contributing, check out the [Development and Contribution](#development-and-contribution) section to get started.
+
+- [Getting Started](getting_started.md): A beginners guide to running elections with Votekit
+- [User Guide](some_plotting_options.md): How-to guides for VoteKit's key features and design elements
+- [API Reference](api.md): Complete documentation for all functions, methods and objects
+
 
 ## Installation
 
