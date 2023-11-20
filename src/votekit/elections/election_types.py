@@ -160,7 +160,6 @@ class STV(Election):
             elected = scores_into_set_list(score_dict, [c for s in elected for c in s])
 
         # Make sure list-of-sets have non-empty elements
-
         elected = [s for s in elected if s != set()]
         eliminated = [s for s in eliminated if s != set()]
 
@@ -511,8 +510,8 @@ class SNTV_STV_Hybrid(Election):
                 elected=list(),
                 eliminated_cands=round_state.eliminated_cands,
                 remaining=[set(new_profile.get_candidates())],
-                scores=round_state.get_scores(round_state.curr_round),
                 profile=new_profile,
+                scores=round_state.get_scores(round_state.curr_round),
                 previous=self.state,
             )
         elif stage == "STV":
@@ -525,10 +524,10 @@ class SNTV_STV_Hybrid(Election):
 
             new_state = ElectionState(
                 curr_round=self.state.curr_round + 1,
-                elected=round_state.get_all_winners(),
-                eliminated=round_state.get_all_eliminated(),
-                scores=round_state.get_scores(round_state.curr_round),
+                elected=round_state.winners(),
+                eliminated_cands=round_state.eliminated(),
                 remaining=round_state.remaining,
+                scores=round_state.get_scores(round_state.curr_round),
                 profile=round_state.profile,
                 previous=self.state,
             )
@@ -822,8 +821,8 @@ class SequentialRCV(Election):
             curr_round=old_election_state.curr_round + 1,
             elected=[elected_cand],
             profile=updated_profile,
-            scores=first_place_votes(updated_profile),
             previous=old_election_state,
+            scores=first_place_votes(updated_profile),
             remaining=old_election.remaining,
         )
         return self.state
@@ -913,9 +912,9 @@ class Borda(Election):
         new_state = ElectionState(
             curr_round=self.state.curr_round + 1,
             elected=elected,
-            eliminated=eliminated,
-            scores=borda_dict,
+            eliminated_cands=eliminated,
             remaining=list(),
+            scores=borda_dict,
             profile=PreferenceProfile(),
             previous=self.state,
         )

@@ -76,7 +76,7 @@ class ElectionState(BaseModel):
         if self.remaining != [{}]:
             return self.winners() + self.remaining + self.eliminated()
 
-    def get_round_outcome(self, round: int) -> dict:
+    def round_outcome(self, round: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         Finds the outcome of a given round.
@@ -93,7 +93,7 @@ class ElectionState(BaseModel):
                 "Eliminated": [c for s in self.eliminated_cands for c in s],
             }
         elif self.previous:
-            return self.previous.get_round_outcome(round)
+            return self.previous.round_outcome(round)
         else:
             raise ValueError("Round number out of range")
 
