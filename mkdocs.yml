@@ -75,5 +75,12 @@ nav:
     - 'AC_and_CS.md'
     - 'ballots_from_parameters.md'
     - 'ballot_graph_tutorial.md'
-  - Reference:
+  - API Reference:
     - 'api.md'
+  - Social Choice Reference:
+    -'SCR_general_vocabulary.md'
+    -'SCR_preference_intervals.md'
+    -'SCR_simplex.md'
+    -'SCR_ballot_generators.md'
+    -'SCR_elections.md'
+    -'SCR_distances.md'
