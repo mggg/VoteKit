@@ -355,14 +355,14 @@ def test_get_scores():
         curr_round=1,
         elected=[{"A"}, {"B"}],
         remaining=[{"F"}],
-        eliminated=[{"C"}],
+        eliminated_cands=[{"C"}],
         scores={"A": 4, "B": 6, "F": 3, "C": 9},
         profile=MagicMock(spec=PreferenceProfile),
     )
     second = ElectionState(
         curr_round=2,
         elected=[{"D"}, {"F"}],
-        eliminated=[{"E"}],
+        eliminated_cands=[{"E"}],
         scores={"D": 6, "F": 3, "E": 9},
         profile=MagicMock(spec=PreferenceProfile),
         previous=first,
@@ -376,7 +376,7 @@ def test_score_error():
         curr_round=1,
         elected=[{"A"}, {"B"}],
         remaining=[{"F"}],
-        eliminated=[{"C"}],
+        eliminated_cands=[{"C"}],
         scores={"A": 4, "B": 6, "F": 3, "C": 9},
         profile=MagicMock(spec=PreferenceProfile),
     )
