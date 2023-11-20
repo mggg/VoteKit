@@ -124,7 +124,7 @@ def test_stv_winner_mn():
     irv = STV(mn_profile, fractional_transfer, 3, ballot_ties=False)
     outcome = irv.run_election()
     winners = [{"BETSY HODGES"}, {"MARK ANDREW"}, {"DON SAMUELS"}]
-    assert winners == outcome.get_all_winners()
+    assert winners == outcome.winners()
 
 
 def test_runstep_seats_full_at_start():
@@ -186,5 +186,5 @@ def test_toy_rcv():
     ]
     toy_pp = PreferenceProfile(ballots=ballot_list)
     seq_RCV = SequentialRCV(profile=toy_pp, seats=2, ballot_ties=False)
-    toy_winners = seq_RCV.run_election().get_all_winners()
+    toy_winners = seq_RCV.run_election().winners()
     assert known_winners == toy_winners

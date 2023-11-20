@@ -13,12 +13,9 @@ TEST_PROFILE_C = load_csv(DATA_DIR / "test_election_C.csv")
 
 
 def equal_electionstates(state1, state2):
-    print(state1.get_all_winners(), state2.get_all_winners())
-    print(state1.get_all_eliminated(), state2.get_all_eliminated())
-    print(state1.get_rankings(), state2.get_rankings())
-    assert state1.get_all_winners() == state2.get_all_winners()
-    assert state1.get_all_eliminated() == state2.get_all_eliminated()
-    assert state1.get_rankings() == state2.get_rankings()
+    assert state1.winners() == state2.winners()
+    assert state1.eliminated() == state2.eliminated()
+    assert state1.rankings() == state2.rankings()
 
 
 def compare_io_bloc(profile, seats, target_state):
@@ -75,7 +72,7 @@ def test_bloc_onewinner():
     bloc_target1 = ElectionState(
         curr_round=1,
         elected=[{"B"}],
-        eliminated=[{"A", "C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
+        eliminated_cands=[{"A", "C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -86,7 +83,7 @@ def test_bloc_fivewinner():
     bloc_target3 = ElectionState(
         curr_round=1,
         elected=[{"A", "B"}, {"C"}, {"D", "E"}],
-        eliminated=[{"G", "I"}, {"F", "H"}],
+        eliminated_cands=[{"G", "I"}, {"F", "H"}],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -97,7 +94,7 @@ def test_sntv_onewinner():
     sntv_target1 = ElectionState(
         curr_round=1,
         elected=[{"B"}],
-        eliminated=[{"A", "C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
+        eliminated_cands=[{"A", "C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -108,7 +105,7 @@ def test_sntv_fourwinner():
     sntv_target2 = ElectionState(
         curr_round=1,
         elected=[{"B"}, {"A", "C"}, {"D"}],
-        eliminated=[{"G", "H", "I"}, {"E", "F"}],
+        eliminated_cands=[{"G", "H", "I"}, {"E", "F"}],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -119,7 +116,7 @@ def test_hybrid_cutfour_twowinner():
     hybrid_target2 = ElectionState(
         curr_round=1,
         elected=[{"B", "A"}],
-        eliminated=[{"C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
+        eliminated_cands=[{"C"}, {"D"}, {"G", "H", "I"}, {"E", "F"}],
         remaining=[],
         profile=PreferenceProfile(),
     )
@@ -132,7 +129,7 @@ def test_dom_set_fivecand():
     dom_target1 = ElectionState(
         curr_round=1,
         elected=[{"A"}],
-        eliminated=[{"B", "C", "D"}, {"E"}],
+        eliminated_cands=[{"B", "C", "D"}, {"E"}],
         remaining=list(),
         profile=PreferenceProfile(),
     )
@@ -143,7 +140,7 @@ def test_condoborda_fivecand():
     condoborda_target1 = ElectionState(
         curr_round=1,
         elected=[{"A"}, {"C"}, {"D"}],
-        eliminated=[{"B"}, {"E"}],
+        eliminated_cands=[{"B"}, {"E"}],
         remaining=list(),
         profile=PreferenceProfile(),
     )
@@ -156,7 +153,7 @@ def test_borda_three_winner():
     borda_target1 = ElectionState(
         curr_round=1,
         elected=[{"A", "B"}, {"C"}],
-        eliminated=[{"D"}, {"E", "G"}, {"H", "I"}, {"F"}],
+        eliminated_cands=[{"D"}, {"E", "G"}, {"H", "I"}, {"F"}],
         remaining=list(),
         profile=PreferenceProfile(),
     )
