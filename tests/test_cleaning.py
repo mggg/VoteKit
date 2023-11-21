@@ -33,12 +33,12 @@ def test_deduplicate_mult_voters_same_rankings():
     dirty = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"tom"}
+                ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"tom"}
             ),
             Ballot(
                 ranking=[{"A"}, {"A"}, {"B"}, {"C"}],
                 weight=Fraction(1),
-                voters={"andy"},
+                voter_set={"andy"},
             ),
         ]
     )
@@ -48,7 +48,7 @@ def test_deduplicate_mult_voters_same_rankings():
             Ballot(
                 ranking=[{"A"}, {"B"}, {"C"}],
                 weight=Fraction(2),
-                voters={"tom", "andy"},
+                voter_set={"tom", "andy"},
             )
         ]
     )
@@ -59,20 +59,20 @@ def test_deduplicate_mult_voters_diff_rankings():
     dirty = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"A"}, {"A"}, {"B"}, {"B"}], weight=Fraction(1), voters={"tom"}
+                ranking=[{"A"}, {"A"}, {"B"}, {"B"}], weight=Fraction(1), voter_set={"tom"}
             ),
             Ballot(
                 ranking=[{"A"}, {"A"}, {"B"}, {"C"}],
                 weight=Fraction(1),
-                voters={"andy"},
+                voter_set={"andy"},
             ),
         ]
     )
     profile_res = deduplicate_profiles(dirty)
     cleaned = PreferenceProfile(
         ballots=[
-            Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voters={"tom"}),
-            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
+            Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voter_set={"tom"}),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}),
         ]
     )
     assert cleaned.ballots == profile_res.ballots
@@ -84,12 +84,12 @@ def test_deduplicate_mult_voters_ties():
             Ballot(
                 ranking=[{"C", "A"}, {"A", "C"}, {"B"}],
                 weight=Fraction(1),
-                voters={"tom"},
+                voter_set={"tom"},
             ),
             Ballot(
                 ranking=[{"A", "C"}, {"C", "A"}, {"B"}],
                 weight=Fraction(1),
-                voters={"andy"},
+                voter_set={"andy"},
             ),
         ]
     )
@@ -97,7 +97,7 @@ def test_deduplicate_mult_voters_ties():
     cleaned = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"C", "A"}, {"B"}], weight=Fraction(2), voters={"tom", "andy"}
+                ranking=[{"C", "A"}, {"B"}], weight=Fraction(2), voter_set={"tom", "andy"}
             )
         ]
     )

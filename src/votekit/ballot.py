@@ -18,14 +18,21 @@ class Ballot(BaseModel):
     `weight`
     :   weight assigned to a given a ballot. Defaults to 1.
 
-    `voters`
-    :   optional list of voters who cast a given a ballot.
+    `voter_set`
+    :   optional set of voters who cast a given a ballot.
     """
 
     id: Optional[str] = None
     ranking: list[set]
     weight: Fraction = Fraction(1,1)
-    voters: Optional[set[str]] = None
+    voter_set: Optional[set[str]] = None
+
+    def __init__(self, id = None, ranking = [], weight = Fraction(1,1), voter_set = None):
+
+        if not isinstance(weight, Fraction):
+            weight = Fraction(weight)
+
+        super().__init__(id = id, ranking = ranking, weight = weight, voter_set = voter_set)
 
     class Config:
         arbitrary_types_allowed = True
@@ -49,11 +56,31 @@ class Ballot(BaseModel):
             return False
 
         # Check voters
-        if self.voters is not None:
-            if self.voters != other.voters:
+        if self.voter_set is not None:
+            if self.voter_set != other.voter_set:
                 return False
 
         return True
 
     def __hash__(self):
         return hash(str(self.ranking))
+
+    def __str__(self):
+        weight_str = f"Weight: {self.weight}\n" 
+        ranking_str = "Ballot\n"
+
+        if self.ranking:
+            for i, s in enumerate(self.ranking):
+                ranking_str += f"{i+1}.) "
+                for c in s:
+                    ranking_str += f"{c}, "
+
+                if len(s)>1:
+                    ranking_str+= "(tie)"
+                ranking_str+= "\n"
+        else:
+            ranking_str += "No Ranking\n"
+        
+        return ranking_str + weight_str
+
+    __repr__ = __str__

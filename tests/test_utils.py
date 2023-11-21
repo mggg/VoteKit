@@ -12,9 +12,9 @@ from votekit.utils import (
 
 profile = PreferenceProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voters={"tom"}),
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
-        Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
+        Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voter_set={"tom"}),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}),
+        Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voter_set={"andy"}),
     ]
 )
 
@@ -28,9 +28,9 @@ def test_first_place_votes():
 def test_first_place_ties():
     ties = PreferenceProfile(
         ballots=[
-            Ballot(ranking=[{"A", "B"}, {"D"}], weight=Fraction(1), voters={"tom"}),
-            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
+            Ballot(ranking=[{"A", "B"}, {"D"}], weight=Fraction(1), voter_set={"tom"}),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voter_set={"andy"}),
         ]
     )
     correct = {"A": 4.5, "B": 0.5, "C": 0, "D": 0}
@@ -47,9 +47,9 @@ def test_mentions():
 def test_mentions_with_ties():
     ties = PreferenceProfile(
         ballots=[
-            Ballot(ranking=[{"A"}, {"B", "D"}], weight=Fraction(1), voters={"tom"}),
-            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voters={"andy"}),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voters={"andy"}),
+            Ballot(ranking=[{"A"}, {"B", "D"}], weight=Fraction(1), voter_set={"tom"}),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(3), voter_set={"andy"}),
         ]
     )
     correct = {"A": 5, "B": 4.5, "C": 4, "D": 0.5}

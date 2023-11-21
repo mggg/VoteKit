@@ -91,7 +91,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
                     id=ballot.id,
                     ranking=new_ranking,
                     weight=ballot.weight,
-                    voters=ballot.voters,
+                    voter_set=ballot.voter_set,
                 )
             )
         elif len(remove_set) > 1:
@@ -104,7 +104,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
                     id=ballot.id,
                     ranking=new_ranking,
                     weight=ballot.weight,
-                    voters=ballot.voters,
+                    voter_set=ballot.voter_set,
                 )
             )
         else:
@@ -410,7 +410,7 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
                         + resolved
                         + ballot.ranking[idx + 1 :],
                         weight=ballot.weight / math.factorial(len(rank)),
-                        voters=ballot.voters,
+                        voter_set=ballot.voter_set,
                     )
                 )
 
