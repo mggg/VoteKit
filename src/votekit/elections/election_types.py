@@ -837,6 +837,8 @@ class Borda(Election):
     Positional voting system that assigns a decreasing number of points to
     candidates based on order and a score vector. The conventional score
     vector is $(n, n-1, \dots, 1)$, where $n$ is the number of candidates.
+    If a ballot is incomplete, the remaining points of the score vector 
+    are evenly distributed to the unlisted candidates (see `borda_scores` function in `utils`).
 
     **Attributes**
 
