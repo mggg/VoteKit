@@ -4,11 +4,11 @@ In addition to being able to [read real world voting data](api.md#cvr-loaders), 
 
 ## Ballot Simplex Models
 
-Models listed below generate ballots by using the [ballot simplex](SCR_simplex.ipynb). This means we take a draw from the Dirichlet distribution, which gives us a probability distribution on full, linear rankings. We then generate ballots according to this distribution.
+Models listed below generate ballots by using the [ballot simplex](SCR_simplex.md). This means we take a draw from the Dirichlet distribution, which gives us a probability distribution on full, linear rankings. We then generate ballots according to this distribution.
 
 ### Impartial Culture
 
-The Impartial Culture model has $\alpha = \infty$. As discussed in [ballot simplex](SCR_simplex.ipynb), this is not actually a valid parameter for the Dirichlet distribution, so instead VoteKit sets $\alpha = 10^{20}$. This means that the point drawn from the ballot simplex has a very high probability of being in the center, which means it gives uniform probability to each linear ranking.
+The Impartial Culture model has $\alpha = \infty$. As discussed in [ballot simplex](SCR_simplex.md), this is not actually a valid parameter for the Dirichlet distribution, so instead VoteKit sets $\alpha = 10^{20}$. This means that the point drawn from the ballot simplex has a very high probability of being in the center, which means it gives uniform probability to each linear ranking.
 
 ### Impartial Anonymous Culture
 

@@ -21,7 +21,7 @@ class ElectionState(BaseModel):
     `elected`
     :   list of candidates who pass a threshold to win.
 
-    `eliminated`
+    `eliminated_cands`
     :   list of candidates who were eliminated.
 
     `remaining`
@@ -145,10 +145,12 @@ class ElectionState(BaseModel):
 
     def to_dict(self, keep: list = []) -> dict:
         """
-        Returns election results as a dictionary
+        Returns election results as a dictionary.
 
         Args:
-            keep (list, boolean): information to store in dictionary
+            keep (list, optional): List of information to store in dictionary, should be subset of 
+                "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
+                which stores all information.
 
         """
         keys = ["elected", "eliminated", "remaining", "ranking"]
@@ -179,7 +181,9 @@ class ElectionState(BaseModel):
         Saves election state object as a JSON file:
 
         Args:
-            keep (list, optional): Results information to store
+            keep (list, optional): List of information to store in dictionary, should be subset of 
+                "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
+                which stores all information.
         """
 
         json_dict = json.dumps(self.to_dict(keep=keep))

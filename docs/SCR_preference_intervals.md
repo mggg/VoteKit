@@ -8,6 +8,6 @@ It should be remarked that there is a difference, at least to VoteKit, between t
 
 ![](assets/preference_interval.png)
 
-VoteKit provides an option, [from_params](api.md#ballot-generators), which allows you to randomly generate preference intervals. For more on how this is done, see the page on [Simplices](SCR_simplex.ipynb).
+VoteKit provides an option, [from_params](api.md#ballot-generators), which allows you to randomly generate preference intervals. For more on how this is done, see the page on [Simplices](SCR_simplex.md).
 
 
