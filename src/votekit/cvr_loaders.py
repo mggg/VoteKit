@@ -74,13 +74,13 @@ def load_csv(
         ranking = [{None} if pd.isnull(c) else {c} for c in group]
 
 
-        voters = None
+        voter_set = None
         if id_col is not None:
-            voters = set(group_df.iloc[:, id_col])
+            voter_set = set(group_df.iloc[:, id_col])
         weight = len(group_df)
         if weight_col is not None:
             weight = sum(group_df.iloc[:, weight_col])
-        b = Ballot(ranking=ranking, weight=Fraction(weight), voters=voters)
+        b = Ballot(ranking=ranking, weight=Fraction(weight), voter_set=voter_set)
         ballots.append(b)
 
     return PreferenceProfile(ballots=ballots)

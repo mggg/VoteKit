@@ -3,6 +3,7 @@ from fractions import Fraction
 import pandas as pd
 from pydantic import BaseModel, validator
 from typing import Optional
+import numpy as np
 
 from .ballot import Ballot
 
@@ -122,11 +123,14 @@ class PreferenceProfile(BaseModel):
                     part.append(f"{ranking} (Tie)")
                     
             ballots.append(tuple(part))
-            weights.append(int(ballot.weight))
+            weights.append(ballot.weight)
 
         df = pd.DataFrame({"Ballots": ballots, "Weight": weights})
         # df["Ballots"] = df["Ballots"].astype(str).str.ljust(60)
-        df["Voter Share"] = df["Weight"] / df["Weight"].sum()
+        try:
+            df["Voter Share"] = df["Weight"] / df["Weight"].sum()
+        except ZeroDivisionError:
+            df["Voter Share"] = np.nan
         # fill nans with zero for edge cases
         df["Voter Share"] = df["Voter Share"].fillna(0.0)
         # df["Weight"] = df["Weight"].astype(str).str.rjust(3)
@@ -183,7 +187,6 @@ class PreferenceProfile(BaseModel):
         df = (
             self.df.sort_values(by="Weight", ascending=True)
             .head(n)
-            .reset_index(drop=True)
         )
         if totals:
             df = _sum_row(df)
@@ -202,7 +205,7 @@ class PreferenceProfile(BaseModel):
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
 
-        print("PreferenceProfile truncated to 15 ballots.")
+        print("PreferenceProfile too long, only showing 15 ballots.")
         return self.head(n=15).to_string(index=False, justify="justify")
 
     # set repr to print outputs
