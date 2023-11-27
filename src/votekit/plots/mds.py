@@ -81,6 +81,6 @@ def plot_MDS(
             s=marker_size,
         )
         start_pos += len(value_list)
-    ax.set_title("MDS Plot for Pair Wise Election Distances")
+    ax.set_title("MDS Plot for Pairwise Election Distances")
 
     return fig

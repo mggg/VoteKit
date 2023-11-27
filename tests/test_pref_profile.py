@@ -89,7 +89,7 @@ def test_vote_share_with_zeros():
         ]
     )
     df = profile._create_df()
-    assert sum(df["Voter Share"]) == 0
+    assert sum(df["Weight"]) == 0
 
 
 def test_df_percents():
@@ -100,6 +100,6 @@ def test_df_percents():
         ]
     )
     rv = profile.head(2, percents=True)
-    assert "Voter Share" in rv
+    assert "Percent" in rv
     rv = profile.head(2)
-    assert "Voter Share" not in rv
+    assert "Percent" not in rv
