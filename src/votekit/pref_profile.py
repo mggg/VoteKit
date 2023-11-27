@@ -165,8 +165,6 @@ class PreferenceProfile(BaseModel):
         Returns:
             A dataframe with top-n ballots.
         """
-        self.condense_ballots()
-        
         if self.df.empty:
             self.df = self._create_df()
         
@@ -197,7 +195,7 @@ class PreferenceProfile(BaseModel):
         totals: Optional[bool] = False
     ) -> pd.DataFrame:
         """
-        Displays bottom-n ballots in profile. Automatically applies condense_ballots.
+        Displays bottom-n ballots in profile.
 
         Args:
             n: Number of ballots to view.
@@ -208,7 +206,6 @@ class PreferenceProfile(BaseModel):
         Returns:
             A data frame with bottom-n ballots.
         """
-        self.condense_ballots()
 
         if self.df.empty:
             self.df = self._create_df()
