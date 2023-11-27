@@ -149,7 +149,7 @@ class PreferenceProfile(BaseModel):
 
     def head(
         self, n: int, 
-        sort_by_weight: Optional[bool] = False, 
+        sort_by_weight: Optional[bool] = True, 
         percents: Optional[bool] = False, 
         totals: Optional[bool] = False
     ) -> pd.DataFrame:
@@ -158,7 +158,7 @@ class PreferenceProfile(BaseModel):
 
         Args:
             n: Number of ballots to view.
-            sort_by_weight: If True, rank ballot from most to least votes.
+            sort_by_weight: If True, rank ballot from most to least votes. Defaults to True.
             percents: If True, show voter share for a given ballot.
             totals: If True, show total values for Percent and Weight.
 
@@ -190,7 +190,7 @@ class PreferenceProfile(BaseModel):
 
     def tail(
         self, n: int, 
-        sort_by_weight: Optional[bool] = False,
+        sort_by_weight: Optional[bool] = True,
         percents: Optional[bool] = False, 
         totals: Optional[bool] = False
     ) -> pd.DataFrame:
@@ -199,7 +199,7 @@ class PreferenceProfile(BaseModel):
 
         Args:
             n: Number of ballots to view.
-            sort_by_weight: If True, rank ballot from least to most votes.
+            sort_by_weight: If True, rank ballot from least to most votes. Defaults to True.
             percents: If True, show voter share for a given ballot.
             totals: If True, show total values for Percent and Weight.
 
