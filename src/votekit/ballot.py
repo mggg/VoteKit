@@ -30,7 +30,8 @@ class Ballot(BaseModel):
     def __init__(self, id = None, ranking = [], weight = Fraction(1,1), voter_set = None):
 
         if not isinstance(weight, Fraction):
-            weight = Fraction(weight)
+            # limit_denominator recovers rational numbers represented as floats
+            weight = Fraction(weight).limit_denominator()
 
         super().__init__(id = id, ranking = ranking, weight = weight, voter_set = voter_set)
 

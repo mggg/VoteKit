@@ -26,7 +26,7 @@ The Plackett-Luce model (PL) samples ranked ballots as follows. Given a bloc's p
 
 - The PL model can handle arbitrarily many blocs.
 
-- The PL model is also fed information about what proportion of voters belong to each bloc.
+- The PL model also requires information about what proportion of voters belong to each bloc.
 
 ### Bradley-Terry
 
@@ -39,7 +39,7 @@ The Bradley-Terry model (BT) samples ranked ballots as follows. Given a preferen
 
 - The BT model can handle arbitrarily many blocs.
 
-- The BT model is also fed information about what proportion of voters belong to each bloc.
+- The BT model also requires information about what proportion of voters belong to each bloc.
 
 ### Alternating-Crossover
 
@@ -51,7 +51,7 @@ The Alternating-Crossover model (AC) samples ranked ballots as follows. It assum
 
 - The AC model only works with two blocs.
 
-- The AC model is also fed information about what proportion of voters belong to each bloc.
+- The AC model also requires information about what proportion of voters belong to each bloc.
 
 ### Cambridge-Sampler
 
@@ -65,7 +65,7 @@ Let's do an example. I am a voter in the majority bloc. I flip a coin weighted b
 
 - The CS model only works with two blocs if you use the Cambridge data.
 
-- The CS model is also fed information about what proportion of voters belong to each bloc.
+- The CS model also requires information about what proportion of voters belong to each bloc.
 
 - You can give the CS model other historical election data to use.
 
@@ -78,7 +78,3 @@ The 1-D Spatial model samples ranked ballots as follows. First, it assigns each 
 - The 1-D Spatial model only generates full ballots.
 
 - The 1-D Spatial model can be initialized from a list of candidates.
-
-## References
-
-
