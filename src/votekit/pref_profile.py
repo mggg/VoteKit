@@ -239,7 +239,8 @@ class PreferenceProfile(BaseModel):
             self.df = self._create_df()
 
         if len(self.df) < 15:
-            return self.head(n=len(self.df), sort_by_weight= True).to_string(index=False, justify="justify")
+            return self.head(n=len(self.df), sort_by_weight= True)\
+                .to_string(index=False, justify="justify")
 
         print(f"PreferenceProfile too long, only showing 15 out of {len(self.df) } rows.")
         return self.head(n=15,sort_by_weight= True).to_string(index=False, justify="justify")
