@@ -210,10 +210,14 @@ class PreferenceProfile(BaseModel):
         if self.df.empty:
             self.df = self._create_df()
 
+        
+
         if sort_by_weight:
+            if n > len(self.df):
+                n = len(self.df)
             df = (
                 self.df.sort_values(by="Weight", ascending=True)
-                .head(n)
+                .reindex(range(len(self.df)-1,len(self.df)-n-1,-1))
             )
         else:
             df = (
@@ -237,7 +241,7 @@ class PreferenceProfile(BaseModel):
         if len(self.df) < 15:
             return self.head(n=len(self.df)).to_string(index=False, justify="justify")
 
-        print("PreferenceProfile too long, only showing 15 ballots.")
+        print(f"PreferenceProfile too long, only showing 15 out of {len(self.df) } rows.")
         return self.head(n=15).to_string(index=False, justify="justify")
 
     # set repr to print outputs
