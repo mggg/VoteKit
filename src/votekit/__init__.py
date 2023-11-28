@@ -20,4 +20,4 @@ from .utils import (  # noqa
     borda_scores,
     mentions,
 )
-from .cvr_loaders import load_blt, load_csv  # noqa
+from .cvr_loaders import load_scottish, load_csv  # noqa
