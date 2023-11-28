@@ -42,8 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 
 - Multiple winners correctly ordered based off previous rounds vote totals (113)
-- CambridgeSampler correctly computes the frequency of opposing bloc ballots.
-- PreferenceProfile no longer rounds all weights to integer when printing (114).
+- `CambridgeSampler` correctly computes the frequency of opposing bloc ballots.
+- `PreferenceProfile` no longer rounds all weights to integer when printing (114).
 
 
 ## [1.0.2] - 2023-09-10
