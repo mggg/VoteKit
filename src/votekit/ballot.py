@@ -2,7 +2,7 @@ from fractions import Fraction
 from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict
 from dataclasses import field
-from typing import Union, Optional
+from typing import Optional
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -26,7 +26,7 @@ class Ballot:
     """
 
     ranking: list[set] = field(default_factory=list)
-    weight: Union[Fraction, int, float] = Fraction(1, 1)
+    weight: Fraction = Fraction(1, 1)
     voter_set: Optional[set[str]] = None
     id: Optional[str] = None
 
