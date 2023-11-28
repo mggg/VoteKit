@@ -86,9 +86,9 @@ def load_csv(
     return PreferenceProfile(ballots=ballots)
 
 
-def load_blt(fpath: str) -> tuple[PreferenceProfile, int]:
+def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
     """
-    Given a blt file path, loads cvr (blt is text-like format used for Scottish election data).
+    Given a file path, loads cvr from format used for Scottish election data.
 
     Args:
         fpath: Path to cvr file.
