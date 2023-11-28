@@ -29,11 +29,11 @@ class BallotGenerator:
         `candidates`.
 
     `pref_interval_by_bloc`
-    :   dictionary mapping of bloc to preference interval. 
+    :   dictionary mapping of bloc to preference interval.
         (ex. {bloc: {candidate : interval length}}). Defaults to None.
 
     `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}). 
+    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
         Defaults to None.
 
     ???+ note
@@ -52,7 +52,6 @@ class BallotGenerator:
         pref_interval_by_bloc=None,
         bloc_voter_prop=None,
     ):
-
         self.ballot_length = (
             ballot_length if ballot_length is not None else len(candidates)
         )
@@ -89,7 +88,7 @@ class BallotGenerator:
             bloc_voter_prop (dict): A mapping of the percentage of total voters
                  per bloc (ex. {bloc: 0.7})
             cohesion (dict): Cohension factor for each bloc (ex. {bloc: .9})
-            alphas (dict): Alpha for the Dirichlet distribution of each bloc 
+            alphas (dict): Alpha for the Dirichlet distribution of each bloc
                             (ex. {bloc: {bloc: 1, opposing_bloc: 1/2}}).
 
         Raises:
@@ -148,7 +147,7 @@ class BallotGenerator:
 
         if "bloc_voter_prop" not in data:
             data["bloc_voter_prop"] = bloc_voter_prop
-        
+
         generator = cls(**data)
 
         if isinstance(generator, (AlternatingCrossover, CambridgeSampler)):
@@ -158,7 +157,7 @@ class BallotGenerator:
             # rename blocs to match historical data
             if isinstance(generator, CambridgeSampler):
                 generator._rename_blocs()
-        
+
         return generator
 
     @abstractmethod
@@ -331,7 +330,7 @@ class ImpartialCulture(BallotSimplex):
     """
     Impartial Culture model with an alpha value of 1e10 (should be infinity theoretically).
     This model is uniform on all linear rankings.
-    
+
 
     **Attributes**
 
@@ -345,7 +344,7 @@ class ImpartialCulture(BallotSimplex):
     :   dictionary representing a point in the ballot simplex with candidate as
         keys and electoral support as values. Defaults to None.
 
-    
+
 
     **Methods**
 
@@ -353,8 +352,8 @@ class ImpartialCulture(BallotSimplex):
 
     ???+ note
 
-        Point or alpha arguments must be included to initialize. For details see 
-        `BallotSimplex` and `BallotGenerator` object. 
+        Point or alpha arguments must be included to initialize. For details see
+        `BallotSimplex` and `BallotGenerator` object.
     """
 
     def __init__(self, **data):
@@ -385,8 +384,8 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
     ???+ note
 
-        Point or alpha arguments must be included to initialize. For details see 
-        `BallotSimplex` and `BallotGenerator` object. 
+        Point or alpha arguments must be included to initialize. For details see
+        `BallotSimplex` and `BallotGenerator` object.
     """
 
     def __init__(self, **data):
@@ -396,8 +395,8 @@ class ImpartialAnonymousCulture(BallotSimplex):
 class PlackettLuce(BallotGenerator):
     """
     Class for generating ballots using a Plackett-Luce model. This model samples without
-    replacement from a preference interval. Can be initialized with an interval or can be 
-    constructed with the Dirichlet distribution using the `from_params` method in the 
+    replacement from a preference interval. Can be initialized with an interval or can be
+    constructed with the Dirichlet distribution using the `from_params` method in the
     `BallotGenerator` class.
 
     **Attributes**
@@ -418,7 +417,6 @@ class PlackettLuce(BallotGenerator):
     """
 
     def __init__(self, **data):
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -428,8 +426,9 @@ class PlackettLuce(BallotGenerator):
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         blocs = list(self.bloc_voter_prop.keys())
         bloc_props = list(self.bloc_voter_prop.values())
-        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
-                                                              number_of_ballots)))
+        ballots_per_block = dict(
+            zip(blocs, apportion.compute("huntington", bloc_props, number_of_ballots))
+        )
 
         for bloc in self.bloc_voter_prop.keys():
             # number of voters in this bloc
@@ -438,10 +437,11 @@ class PlackettLuce(BallotGenerator):
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
 
             # finds candidates with non-zero preference
-            non_zero_cands = [cand for cand, pref in pref_interval_dict.items() if pref > 0]
+            non_zero_cands = [
+                cand for cand, pref in pref_interval_dict.items() if pref > 0
+            ]
             # creates the interval of probabilities for candidates supported by this block
             cand_support_vec = [pref_interval_dict[cand] for cand in non_zero_cands]
-
 
             for _ in range(num_ballots):
                 # generates ranking based on probability distribution of non candidate support
@@ -460,10 +460,10 @@ class PlackettLuce(BallotGenerator):
                 zero_cands = set(self.candidates).difference(non_zero_cands)
                 if len(zero_cands) > 0:
                     ranking.append(zero_cands)
-                
-                ballot_pool.append(Ballot(ranking = ranking, weight = Fraction(1,1)))
 
-        pp = PreferenceProfile(ballots = ballot_pool)
+                ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
+
+        pp = PreferenceProfile(ballots=ballot_pool)
         pp.condense_ballots()
         return pp
 
@@ -472,10 +472,10 @@ class BradleyTerry(BallotGenerator):
     """
     Class for generating ballots using a Bradley-Terry model. The probability of sampling
     the ranking $X>Y>Z$ is $P(X>Y)*P(X>Z)*P(Y>Z)$. These individual probabilities are based
-    on the preference interval: $P(X>Y) = x/(x+y)$. Can be initialized with an interval 
-    or can be constructed with the Dirichlet distribution using the `from_params` method in the 
+    on the preference interval: $P(X>Y) = x/(x+y)$. Can be initialized with an interval
+    or can be constructed with the Dirichlet distribution using the `from_params` method in the
     `BallotGenerator` class.
-    
+
     **Attributes**
 
     `candidates`
@@ -494,7 +494,6 @@ class BradleyTerry(BallotGenerator):
     """
 
     def __init__(self, **data):
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -530,22 +529,24 @@ class BradleyTerry(BallotGenerator):
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         blocs = list(self.bloc_voter_prop.keys())
         bloc_props = list(self.bloc_voter_prop.values())
-        ballots_per_block = dict(zip(blocs, apportion.compute("huntington", bloc_props, 
-                                                              number_of_ballots)))
+        ballots_per_block = dict(
+            zip(blocs, apportion.compute("huntington", bloc_props, number_of_ballots))
+        )
 
         for bloc in self.bloc_voter_prop.keys():
             num_ballots = ballots_per_block[bloc]
 
             pref_interval_dict = self.pref_interval_by_bloc[bloc]
             # compute non-zero pref candidates
-            non_zero_pref_dict = {cand: prop for cand, prop in pref_interval_dict.items() if prop>0}
+            non_zero_pref_dict = {
+                cand: prop for cand, prop in pref_interval_dict.items() if prop > 0
+            }
             non_zero_cands = non_zero_pref_dict.keys()
             zero_cands = set(self.candidates).difference(non_zero_cands)
 
             # all possible rankings of non zero candidates
-            permutations = list(it.permutations(non_zero_cands, len(non_zero_cands)))       
+            permutations = list(it.permutations(non_zero_cands, len(non_zero_cands)))
 
-            
             # compute the prob of each ranking given bloc support
             ranking_to_prob = self._calc_prob(
                 permutations=permutations, cand_support_dict=non_zero_pref_dict
@@ -562,26 +563,28 @@ class BradleyTerry(BallotGenerator):
 
             # sample ballots
             for _ in range(num_ballots):
-                index = list(np.random.choice(
-                    indices,
-                    1,
-                    p=prob_distrib,
-                ))[0]
+                index = list(
+                    np.random.choice(
+                        indices,
+                        1,
+                        p=prob_distrib,
+                    )
+                )[0]
 
                 # convert index to ranking
                 ranking = [{cand} for cand in rankings[index]]
 
                 # add any zero candidates as ties
-                if len(zero_cands) > 0 :
+                if len(zero_cands) > 0:
                     ranking.append(zero_cands)
 
-                ballot = Ballot(ranking  = ranking, weight =Fraction(1,1))
+                ballot = Ballot(ranking=ranking, weight=Fraction(1, 1))
                 ballot_pool.append(ballot)
 
         # pp = self.ballot_pool_to_profile(
         #     ballot_pool=ballot_pool, candidates=self.candidates
         # )
-        pp = PreferenceProfile(ballots = ballot_pool)
+        pp = PreferenceProfile(ballots=ballot_pool)
         pp.condense_ballots()
         return pp
 
@@ -593,9 +596,9 @@ class AlternatingCrossover(BallotGenerator):
     or the voters "crossover" and rank a candidate from the other bloc first, then alternate
     between candidates from their own bloc and the opposing.
     Should only be used when there are two blocs.
-    
-    Can be initialized with an interval or can be 
-    constructed with the Dirichlet distribution using the `from_params` method in the 
+
+    Can be initialized with an interval or can be
+    constructed with the Dirichlet distribution using the `from_params` method in the
     `BallotGenerator` class.
 
     **Attributes**
@@ -612,7 +615,7 @@ class AlternatingCrossover(BallotGenerator):
     :   dictionary mapping of slate to candidates (ex. {bloc: [candidate1, candidate2]}).
 
     `cohesion_parameters`
-    :   dictionary mapping of bloc to cohesion parameter. A parameter of .6 means voters vote 
+    :   dictionary mapping of bloc to cohesion parameter. A parameter of .6 means voters vote
         in bloc 60% of time (ex. {bloc: .6}).
 
     **Methods**
@@ -626,7 +629,6 @@ class AlternatingCrossover(BallotGenerator):
         cohesion_parameters: dict = {},
         **data,
     ):
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -640,7 +642,6 @@ class AlternatingCrossover(BallotGenerator):
                 )
 
     def generate_profile(self, number_of_ballots) -> PreferenceProfile:
-
         ballot_pool = []
 
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
@@ -663,7 +664,6 @@ class AlternatingCrossover(BallotGenerator):
         )
 
         for bloc in self.bloc_voter_prop.keys():
-
             num_bloc_ballots = ballots_per_type[(bloc, "bloc")]
             num_cross_ballots = ballots_per_type[(bloc, "cross")]
 
@@ -759,7 +759,7 @@ class CambridgeSampler(BallotGenerator):
     blocs, a majority and a minority bloc, and determines this based on the bloc_voter_prop attr.
 
     Based on cohesion parameters, decides if a voter casts their top choice within their bloc
-    or in the opposing bloc. Then uses historical data; given their first choice, choose a 
+    or in the opposing bloc. Then uses historical data; given their first choice, choose a
     ballot type from the historical distribution.
 
 
@@ -769,14 +769,14 @@ class CambridgeSampler(BallotGenerator):
     :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
 
     `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}). 
+    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
         Defaults to None.
 
     `cohesion_parameters`
     :   dictionary mapping of slate to cohesion level (ex. {bloc: .7}).
 
     `pref_interval_by_bloc`
-    :   dictionary mapping of bloc to preference interval 
+    :   dictionary mapping of bloc to preference interval
         (ex. {bloc: {candidate : interval length}}).
 
     `historical_majority`
@@ -802,7 +802,6 @@ class CambridgeSampler(BallotGenerator):
         historical_minority: Optional[str] = "C",
         **data,
     ):
-
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
@@ -813,7 +812,7 @@ class CambridgeSampler(BallotGenerator):
 
         # changing names to match historical data, if statement handles generating from_params
         # only want to run this now if generating from init
-        if len(self.cohesion_parameters) >0:
+        if len(self.cohesion_parameters) > 0:
             self._rename_blocs()
 
         if path:
@@ -835,8 +834,10 @@ class CambridgeSampler(BallotGenerator):
             bloc for bloc in self.bloc_voter_prop.keys() if bloc != majority_bloc
         ][0]
 
-        cambridge_names = {majority_bloc: self.historical_majority, 
-                            minority_bloc: self.historical_minority}
+        cambridge_names = {
+            majority_bloc: self.historical_majority,
+            minority_bloc: self.historical_minority,
+        }
 
         self.slate_to_candidates = {
             cambridge_names[b]: self.slate_to_candidates[b]
@@ -852,16 +853,13 @@ class CambridgeSampler(BallotGenerator):
             cambridge_names[b]: self.pref_interval_by_bloc[b]
             for b in self.pref_interval_by_bloc.keys()
         }
-        
+
         self.cohesion_parameters = {
             cambridge_names[b]: self.cohesion_parameters[b]
             for b in self.cohesion_parameters.keys()
         }
 
-        
-
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
-
         with open(self.path, "rb") as pickle_file:
             ballot_frequencies = pickle.load(pickle_file)
 
@@ -869,9 +867,7 @@ class CambridgeSampler(BallotGenerator):
 
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
         voter_types = [
-            (b, t)
-            for b in list(self.bloc_voter_prop.keys())
-            for t in ["bloc", "cross"]
+            (b, t) for b in list(self.bloc_voter_prop.keys()) for t in ["bloc", "cross"]
         ]
 
         voter_props = [
@@ -889,7 +885,7 @@ class CambridgeSampler(BallotGenerator):
         )
 
         blocs = self.slate_to_candidates.keys()
-        
+
         for bloc in blocs:
             # store the opposition bloc
             opp_bloc = next(iter(set(blocs).difference(set(bloc))))
