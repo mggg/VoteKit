@@ -24,6 +24,13 @@ class Election(ABC):
 
         self.state = ElectionState(curr_round=0, profile=self._profile)
 
+    def reset(self):
+        """
+        Reset the ElectionState object to initial conditions.
+        """
+
+        self.state = ElectionState(curr_round=0, profile=self._profile)
+        
     @abstractmethod
     def run_step(self, *args: Any, **kwargs: Any):
         pass
