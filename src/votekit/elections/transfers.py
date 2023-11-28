@@ -35,7 +35,7 @@ def fractional_transfer(
                 Ballot(
                     ranking=new_ranking,
                     weight=transfered_weight,
-                    voters=ballot.voters,
+                    voter_set=ballot.voter_set,
                     id=ballot.id,
                 )
             )
