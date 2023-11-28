@@ -148,13 +148,17 @@ class BallotGenerator:
 
         if "bloc_voter_prop" not in data:
             data["bloc_voter_prop"] = bloc_voter_prop
-
+        
         generator = cls(**data)
 
         if isinstance(generator, (AlternatingCrossover, CambridgeSampler)):
             generator.slate_to_candidates = slate_to_candidates
             generator.cohesion_parameters = cohesion
 
+            # rename blocs to match historical data
+            if isinstance(generator, CambridgeSampler):
+                generator._rename_blocs()
+        
         return generator
 
     @abstractmethod
@@ -775,10 +779,10 @@ class CambridgeSampler(BallotGenerator):
     :   dictionary mapping of bloc to preference interval 
         (ex. {bloc: {candidate : interval length}}).
 
-    `majority_name`
+    `historical_majority`
     : name of majority bloc in historical data, defaults to W for Cambridge.
 
-    `minority_name`
+    `historical_minority`
     : name of minority bloc in historical data, defaults to C for Cambridge.
 
     `path`
@@ -794,8 +798,8 @@ class CambridgeSampler(BallotGenerator):
         slate_to_candidates: dict = {},
         cohesion_parameters: dict = {},
         path: Optional[Path] = None,
-        majority_name: Optional[str] = "W",
-        minority_name: Optional[str] = "C",
+        historical_majority: Optional[str] = "W",
+        historical_minority: Optional[str] = "C",
         **data,
     ):
 
@@ -804,7 +808,25 @@ class CambridgeSampler(BallotGenerator):
 
         self.slate_to_candidates = slate_to_candidates
         self.cohesion_parameters = cohesion_parameters
+        self.historical_majority = historical_majority
+        self.historical_minority = historical_minority
 
+        # changing names to match historical data, if statement handles generating from_params
+        # only want to run this now if generating from init
+        if len(self.cohesion_parameters) >0:
+            self._rename_blocs()
+
+        if path:
+            self.path = path
+        else:
+            BASE_DIR = Path(__file__).resolve().parent
+            DATA_DIR = BASE_DIR / "data/"
+            self.path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
+
+    def _rename_blocs(self):
+        """
+        Changes relevant data to match historical majority/minority names.
+        """
         # changing names to match historical data
         majority_bloc = [
             bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
@@ -813,7 +835,8 @@ class CambridgeSampler(BallotGenerator):
             bloc for bloc in self.bloc_voter_prop.keys() if bloc != majority_bloc
         ][0]
 
-        cambridge_names = {majority_bloc: majority_name, minority_bloc: minority_name}
+        cambridge_names = {majority_bloc: self.historical_majority, 
+                            minority_bloc: self.historical_minority}
 
         self.slate_to_candidates = {
             cambridge_names[b]: self.slate_to_candidates[b]
@@ -829,18 +852,13 @@ class CambridgeSampler(BallotGenerator):
             cambridge_names[b]: self.pref_interval_by_bloc[b]
             for b in self.pref_interval_by_bloc.keys()
         }
-
+        
         self.cohesion_parameters = {
             cambridge_names[b]: self.cohesion_parameters[b]
             for b in self.cohesion_parameters.keys()
         }
 
-        if path:
-            self.path = path
-        else:
-            BASE_DIR = Path(__file__).resolve().parent
-            DATA_DIR = BASE_DIR / "data/"
-            self.path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
+        
 
     def generate_profile(self, number_of_ballots: int) -> PreferenceProfile:
 
@@ -871,6 +889,7 @@ class CambridgeSampler(BallotGenerator):
         )
 
         blocs = self.slate_to_candidates.keys()
+        
         for bloc in blocs:
             # store the opposition bloc
             opp_bloc = next(iter(set(blocs).difference(set(bloc))))
