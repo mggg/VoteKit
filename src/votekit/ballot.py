@@ -2,7 +2,7 @@ from fractions import Fraction
 from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict
 from dataclasses import field
-from typing import Optional
+from typing import Union, Optional
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -26,18 +26,16 @@ class Ballot:
     """
 
     ranking: list[set] = field(default_factory=list)
-    weight: Fraction = Fraction(1, 1)
+    weight: Union[Fraction, int, float] = Fraction(1, 1)
     voter_set: Optional[set[str]] = None
-
-    def __init__(self, id=None, ranking=[], weight=Fraction(1, 1), voter_set=None):
-
-        if not isinstance(weight, Fraction):
-            # limit_denominator recovers rational numbers represented as floats
-            weight = Fraction(weight).limit_denominator()
-
-        super().__init__(id=id, ranking=ranking, weight=weight, voter_set=voter_set)
-
     id: Optional[str] = None
+
+    def __post_init__(self):
+        # converts weight to a Fraction if an integer or float
+        if not isinstance(self.weight, Fraction):
+            object.__setattr__(
+                self, "weight", Fraction(self.weight).limit_denominator()
+            )
 
     def __eq__(self, other):
         # Check type
