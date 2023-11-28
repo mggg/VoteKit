@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added to_dict(), to_json() functions for election_state (107)
 - Scores attribute to election state (113)
+- Post init to Ballots, handles conversion from float/int types to Fraction (113)
 
 ## Changed
 
