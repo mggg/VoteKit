@@ -230,6 +230,27 @@ class BallotGraph(Graph):
 
         return cand_labels
 
+    def label_weights(self, to_display: Callable = all_nodes):
+        """
+        Assigns weight labels to ballot graph for plotting.
+        Only shows weight if non-zero.
+
+        Args:
+            to_display: A Boolean callable that takes in a graph and node, 
+                        returns True if node should be displayed.
+        """
+        node_labels = {}
+        for node in self.graph.nodes:
+            if to_display(self.graph, node):
+                # label the ballot and give the number of votes
+                if self.graph.nodes[node]["weight"] >0:
+                    node_labels[node] = str(node)+": " + \
+                                str(self.graph.nodes[node]["weight"])
+                else:
+                    node_labels[node] = str(node)
+
+        return node_labels
+
     @cache
     def _number_cands(self, cands: tuple) -> dict:
         """
@@ -278,11 +299,14 @@ class BallotGraph(Graph):
 
         ballots = [n for n in self.graph.nodes if to_display(self.graph, n)]
 
-        node_labels = None
+
         if labels:
             if not self.candidates:
                 raise ValueError("no candidate names assigned")
             node_labels = self.label_cands(self.candidates, to_display)
+
+        else:
+            node_labels = self.label_weights(to_display)
             
         subgraph = self.graph.subgraph(ballots)
 

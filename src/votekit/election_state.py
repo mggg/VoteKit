@@ -206,6 +206,7 @@ class ElectionState(BaseModel):
 
     def __str__(self):
         show = self.status()
+        print(f"Current Round: {self.curr_round}")
         return show.to_string(index=False, justify="justify")
 
     __repr__ = __str__

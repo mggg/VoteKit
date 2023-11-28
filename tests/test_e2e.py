@@ -1,7 +1,7 @@
 from pathlib import Path
 from fractions import Fraction
 
-from votekit.cvr_loaders import load_blt
+from votekit.cvr_loaders import load_scottish
 import votekit.cleaning as clean
 from votekit.election_state import ElectionState
 import votekit.ballot_generator as bg
@@ -25,7 +25,7 @@ def test_load_clean_completion():
     BASE_DIR = Path(__file__).resolve().parent
     BLT_DIR = BASE_DIR / "data/txt/"
 
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
     print(pp)
 
     # apply rules to get new PP

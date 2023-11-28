@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import load_csv, load_blt
+from votekit.cvr_loaders import load_csv, load_scottish
 from votekit.pref_profile import PreferenceProfile
 
 
@@ -160,20 +160,20 @@ def test_same_name():
 
 
 def test_blt_seats_parse():
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
     assert seats == 4
 
 
 def test_empty_file_blt():
     with pytest.raises(EmptyDataError):
-        pp, seats = load_blt(BLT_DIR / "empty.blt")
+        pp, seats = load_scottish(BLT_DIR / "empty.blt")
 
 
 def test_bad_metadata_blt():
     with pytest.raises(DataError):
-        pp, seats = load_blt(BLT_DIR / "bad_metadata.blt")
+        pp, seats = load_scottish(BLT_DIR / "bad_metadata.blt")
 
 
 def test_incorrect_metadata_blt():
     with pytest.raises(DataError):
-        pp, seats = load_blt(BLT_DIR / "candidate_metadata_conflict.blt")
+        pp, seats = load_scottish(BLT_DIR / "candidate_metadata_conflict.blt")
