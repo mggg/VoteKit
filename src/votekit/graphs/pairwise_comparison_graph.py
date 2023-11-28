@@ -169,7 +169,7 @@ class PairwiseComparisonGraph(Graph):
         )
         edge_labels = {(i, j): G[i][j]["weight"] for i, j in G.edges()}
         nx.draw_networkx_edge_labels(
-            G, pos, edge_labels=edge_labels, label_pos=0.5, font_size=10
+            G, pos, edge_labels=edge_labels, label_pos=1/3, font_size=10
         )
         # Out stuff
         if outfile is not None:
