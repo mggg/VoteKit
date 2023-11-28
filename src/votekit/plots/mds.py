@@ -10,7 +10,7 @@ def distance_matrix(
     pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs
 ):
     """
-    Creates pairwise distance matrix between PreferenceProfile. The $(i,j)$ entry is the pairwise 
+    Creates pairwise distance matrix between PreferenceProfile. The $(i,j)$ entry is the pairwise
     distance between $i$th and the $j$th PreferenceProfile.
 
     Args:
@@ -68,10 +68,12 @@ def plot_MDS(
     pos = mds.fit(np.array(dist_matrix)).embedding_
 
     # Plot and color data
+    fig, ax = plt.subplots()
+
     start_pos = 0
     for key, value_list in data.items():
         end_pos = start_pos + len(value_list)
-        plt.scatter(
+        ax.scatter(
             pos[start_pos:end_pos, 0],
             pos[start_pos:end_pos, 1],
             color=key,
@@ -79,6 +81,6 @@ def plot_MDS(
             s=marker_size,
         )
         start_pos += len(value_list)
-    plt.title("MDS Plot for Pair Wise Election Distances")
-    plt.show()
-    return plt
+    ax.set_title("MDS Plot for Pairwise Election Distances")
+
+    return fig

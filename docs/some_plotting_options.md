@@ -118,7 +118,7 @@ number_of_ballots = 1000
 
 candidates = ["W1", "W2", "C1", "C2"]
 slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-bloc_crossover_rate = {"W": {"C": 0.3}, "C": {"W": 0.4}}
+cohesion_parameters = {"W": .7, "C": .6}
 pref_interval_by_bloc = {
     "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
     "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
@@ -135,7 +135,7 @@ bt = bg.BradleyTerry(pref_interval_by_bloc=pref_interval_by_bloc,
 
 ac = bg.AlternatingCrossover(pref_interval_by_bloc=pref_interval_by_bloc,
                              bloc_voter_prop=bloc_voter_prop, candidates=candidates,
-                             slate_to_candidates=slate_to_candidate, bloc_crossover_rate=bloc_crossover_rate)
+                             slate_to_candidates=slate_to_candidate, cohesion_parameters=cohesion_parameters)
 ```
 
 `plot_MDS` takes in a `data` parameter, which is a dictionary whose keys are the colors you want to plot a particular list of `PreferenceProfiles` in and whose values are the lists of `PreferenceProfile` objects, a `distance` parameter that sets the metric between preference profiles, and `marker_size` which determines the size of the data points.
@@ -143,12 +143,12 @@ ac = bg.AlternatingCrossover(pref_interval_by_bloc=pref_interval_by_bloc,
 
 ```python
 # this allows us to generate 10 preference profiles under each ballot generator
-plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in range(10)], 
-                        'blue': [pl.generate_profile(number_of_ballots) for i in range(10)], 
-                        'green': [bt.generate_profile(number_of_ballots) for i in range(10)],
-                       'orange': [ac.generate_profile(number_of_ballots) for i in range(10)]},
-        distance = earth_mover_dist,
-               marker_size=100)
+plot_data = {'red': [ic.generate_profile(number_of_ballots) for i in range(10)], 
+             'blue': [pl.generate_profile(number_of_ballots) for i in range(10)], 
+             'green': [bt.generate_profile(number_of_ballots) for i in range(10)],
+             'orange': [ac.generate_profile(number_of_ballots) for i in range(10)]}
+
+plot = plot_MDS(data = plot_data, distance = earth_mover_dist, marker_size=100)
 ```
 
 
@@ -161,12 +161,7 @@ Let's try a different metric.
 
 
 ```python
-plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in range(10)], 
-                        'blue': [pl.generate_profile(number_of_ballots) for i in range(10)], 
-                        'green': [bt.generate_profile(number_of_ballots) for i in range(10)],
-                       'orange': [ac.generate_profile(number_of_ballots) for i in range(10)]},
-        distance = lp_dist,
-               marker_size=100)
+plot = plot_MDS(data = plot_data, distance = lp_distance, marker_size=100)
 ```
 
 
@@ -179,12 +174,7 @@ By default, the $L_p$ distance function uses $p=1$. If you want to change that, 
 
 
 ```python
-plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in range(10)], 
-                        'blue': [pl.generate_profile(number_of_ballots) for i in range(10)], 
-                        'green': [bt.generate_profile(number_of_ballots) for i in range(10)],
-                       'orange': [ac.generate_profile(number_of_ballots) for i in range(10)]},
-        distance = partial(lp_dist, p_value=2),
-               marker_size=100)
+plot = plot_MDS(data = plot_data, distance = partial(lp_dist, p_value=2), marker_size=100)
 ```
 
 
@@ -197,12 +187,7 @@ Finally, to use the $L_\infty$ distance, use the keyword `inf`.
 
 
 ```python
-plot = plot_MDS(data = {'red': [ic.generate_profile(number_of_ballots) for i in range(10)], 
-                        'blue': [pl.generate_profile(number_of_ballots) for i in range(10)], 
-                        'green': [bt.generate_profile(number_of_ballots) for i in range(10)],
-                       'orange': [ac.generate_profile(number_of_ballots) for i in range(100)]},
-        distance = partial(lp_dist, p_value="inf"),
-               marker_size=100)
+plot = plot_MDS(data = plot_data, distance = partial(lp_dist, p_value="inf"), marker_size=100)
 ```
 
 

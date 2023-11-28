@@ -73,7 +73,7 @@ def random_transfer(
                         id=ballot.id,
                         ranking=ballot.ranking,
                         weight=Fraction(1),
-                        voters=ballot.voters,
+                        voter_set=ballot.voter_set,
                     )
                 )
         else:

@@ -28,13 +28,6 @@ def plot_summary_stats(
     stat_func = stats[stat]
     data: dict = stat_func(profile)  # type: ignore
 
-    if stat == "first place votes":
-        ylabel = "First Place Votes"
-    elif stat == "mentions":
-        ylabel = "Total Mentions"
-    else:
-        ylabel = "Borda Scores"
-
     if multi_color:
         colors = COLOR_LIST[: len(list(data.keys()))]
     else:
@@ -42,12 +35,12 @@ def plot_summary_stats(
 
     fig, ax = plt.subplots()
 
-    candidates = profile.get_candidates()
+    candidates = profile.get_candidates(received_votes = False)
     y_data = [data[c] for c in candidates]
     
     ax.bar(candidates, y_data, color=colors, width=0.35)
     ax.set_xlabel("Candidates")
-    ax.set_ylabel(ylabel)
+    ax.set_ylabel("Frequency")
 
     if title:
         ax.set_title(title)

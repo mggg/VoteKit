@@ -19,9 +19,10 @@ VoteKit Documentation
 
 Votekit is Python package that provides tools to simulate and analyze elections. It was designed with researchers and folks interested in exploring properties of alternative voting systems in mind. If you're new to the world of social choice or have questions on how to use Votekit, you can explore Votekit`s documentation through the links below. If you're interesting in contributing, check out the [Development and Contribution](#development-and-contribution) section to get started.
 
-- [Getting Started](getting_started.md): A beginners guide to running elections with Votekit
+- [Getting Started](getting_started.md): A beginner's guide to running elections with Votekit
 - [User Guide](some_plotting_options.md): How-to guides for VoteKit's key features and design elements
 - [API Reference](api.md): Complete documentation for all functions, methods and objects
+- [Social Choice Reference](SCR_general_vocabulary.md): The Hitchhiker's Guide to Social Choice theory
 
 
 ## Installation

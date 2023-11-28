@@ -76,12 +76,12 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     """
     weight = sum(b.weight for b in ballots)
     ranking = ballots[0].ranking
-    voters_to_merge = [b.voters for b in ballots if b.voters]
-    voters = None
+    voters_to_merge = [b.voter_set for b in ballots if b.voter_set]
+    voter_set = None
     if len(voters_to_merge) > 0:
-        voters = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
-        voters = set(voters)
-    return Ballot(ranking=ranking, voters=voters, weight=Fraction(weight))
+        voter_set = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
+        voter_set = set(voter_set)
+    return Ballot(ranking=ranking, voter_set=voter_set, weight=Fraction(weight))
 
 
 def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
@@ -115,7 +115,7 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
             id=ballot.id,
             weight=Fraction(ballot.weight),
             ranking=dedup_ranking,
-            voters=ballot.voters,
+            voter_set=ballot.voter_set,
         )
         return new_ballot
 
@@ -165,7 +165,7 @@ def remove_noncands(
             id=ballot.id,
             ranking=clean_ranking,
             weight=Fraction(ballot.weight),
-            voters=ballot.voters,
+            voter_set=ballot.voter_set,
         )
 
         return clean_ballot
