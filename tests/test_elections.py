@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from votekit.ballot import Ballot
-from votekit.cvr_loaders import load_blt, load_csv  # type:ignore
+from votekit.cvr_loaders import load_scottish, load_csv  # type:ignore
 from votekit.elections.election_types import STV, SequentialRCV
 from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import PreferenceProfile
@@ -24,7 +24,7 @@ mn_profile = load_csv("src/votekit/data/mn_2013_cast_vote_record.csv")
 
 def test_droop_default_parameter():
 
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats)
 
@@ -35,7 +35,7 @@ def test_droop_default_parameter():
 
 def test_droop_inputed_parameter():
 
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats, quota="Droop")
 
@@ -46,7 +46,7 @@ def test_droop_inputed_parameter():
 
 def test_quota_misspelled_parameter():
 
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     with pytest.raises(ValueError):
         _ = STV(pp, fractional_transfer, seats=seats, quota="droops")
@@ -54,7 +54,7 @@ def test_quota_misspelled_parameter():
 
 def test_hare_quota():
 
-    pp, seats = load_blt(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
 
     election = STV(pp, fractional_transfer, seats=seats, quota="hare")
 
