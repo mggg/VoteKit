@@ -851,9 +851,9 @@ class CambridgeSampler(BallotGenerator):
 
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
         voter_types = [
-            (b, type)
+            (b, t)
             for b in list(self.bloc_voter_prop.keys())
-            for type in ["bloc", "cross"]
+            for t in ["bloc", "cross"]
         ]
 
         voter_props = [
@@ -875,11 +875,20 @@ class CambridgeSampler(BallotGenerator):
             # store the opposition bloc
             opp_bloc = next(iter(set(blocs).difference(set(bloc))))
 
+            # find total number of ballots that start with bloc and opp_bloc
             bloc_first_count = sum(
                 [
                     freq
                     for ballot, freq in ballot_frequencies.items()
                     if ballot[0] == bloc
+                ]
+            )
+
+            opp_bloc_first_count = sum(
+                [
+                    freq
+                    for ballot, freq in ballot_frequencies.items()
+                    if ballot[0] == opp_bloc
                 ]
             )
 
@@ -895,7 +904,7 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == bloc
             }
             prob_ballot_given_opp_first = {
-                ballot: freq / bloc_first_count
+                ballot: freq / opp_bloc_first_count
                 for ballot, freq in ballot_frequencies.items()
                 if ballot[0] == opp_bloc
             }
