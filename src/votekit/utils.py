@@ -30,7 +30,10 @@ COLOR_LIST = [
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
 
-def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVotes]:
+def compute_votes(
+    candidates: list,
+    ballots: list[Ballot],
+) -> tuple[list[CandidateVotes], dict]:
     """
     Computes first place votes for all candidates in a PreferenceProfile.
 
@@ -58,7 +61,7 @@ def compute_votes(candidates: list, ballots: list[Ballot]) -> list[CandidateVote
         for key, value in sorted(votes.items(), key=lambda x: x[1], reverse=True)
     ]
 
-    return ordered
+    return ordered, votes
 
 
 def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ballot]:
@@ -127,7 +130,9 @@ def first_place_votes(profile: PreferenceProfile) -> dict:
     cands = profile.get_candidates()
     ballots = profile.get_ballots()
 
-    return {cand: float(votes) for cand, votes in compute_votes(cands, ballots)}
+    _, votes_dict = compute_votes(cands, ballots)
+
+    return votes_dict
 
 
 def mentions(profile: PreferenceProfile) -> dict:
@@ -391,7 +396,7 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
 
     Args:
         ballot: A Ballot.
-    
+
     Returns:
         (list): List of Ballots that are permutations of the tied ballot.
     """
@@ -415,4 +420,3 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
                 )
 
     return ballots
-

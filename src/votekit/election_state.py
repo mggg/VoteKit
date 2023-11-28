@@ -41,6 +41,7 @@ class ElectionState(BaseModel):
     eliminated_cands: list[set[str]] = []
     remaining: list[set[str]] = []
     profile: PreferenceProfile
+    scores: dict = {}
     previous: Optional["ElectionState"] = None
 
     class Config:
@@ -77,7 +78,7 @@ class ElectionState(BaseModel):
 
         return self.winners() + self.eliminated()
 
-    def round_outcome(self, roundNum: int) -> dict:
+    def round_outcome(self, round: int) -> dict:
         # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         Finds the outcome of a given round.
@@ -88,15 +89,28 @@ class ElectionState(BaseModel):
         Returns:
           A dictionary with elected and eliminated candidates.
         """
-        if self.curr_round == roundNum:
+        if self.curr_round == round:
             return {
                 "Elected": [c for s in self.elected for c in s],
                 "Eliminated": [c for s in self.eliminated_cands for c in s],
             }
         elif self.previous:
-            return self.previous.round_outcome(roundNum)
+            return self.previous.round_outcome(round)
         else:
             raise ValueError("Round number out of range")
+
+    def get_scores(self, round: int = curr_round) -> dict:
+        """
+        Returns a dictionary of the candidate scores for the inputted round.
+        Defaults to the last round
+        """
+        if round == 0 or round > self.curr_round:
+            raise ValueError('Round number out of range"')
+
+        if round == self.curr_round:
+            return self.scores
+
+        return self.previous.get_scores(self.curr_round - 1)  # type: ignore
 
     def changed_rankings(self) -> dict:
         """
@@ -148,7 +162,7 @@ class ElectionState(BaseModel):
         Returns election results as a dictionary.
 
         Args:
-            keep (list, optional): List of information to store in dictionary, should be subset of 
+            keep (list, optional): List of information to store in dictionary, should be subset of
                 "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
                 which stores all information.
 
@@ -181,7 +195,7 @@ class ElectionState(BaseModel):
         Saves election state object as a JSON file:
 
         Args:
-            keep (list, optional): List of information to store in dictionary, should be subset of 
+            keep (list, optional): List of information to store in dictionary, should be subset of
                 "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
                 which stores all information.
         """

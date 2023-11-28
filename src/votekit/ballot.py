@@ -1,9 +1,12 @@
 from fractions import Fraction
-from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
+from pydantic import ConfigDict
+from dataclasses import field
 from typing import Optional
 
 
-class Ballot(BaseModel):
+@dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
+class Ballot:
     """
     Ballot class, contains ranking and assigned weight.
 
@@ -22,21 +25,17 @@ class Ballot(BaseModel):
     :   optional set of voters who cast a given a ballot.
     """
 
-    id: Optional[str] = None
-    ranking: list[set]
-    weight: Fraction = Fraction(1,1)
+    ranking: list[set] = field(default_factory=list)
+    weight: Fraction = Fraction(1, 1)
     voter_set: Optional[set[str]] = None
+    id: Optional[str] = None
 
-    def __init__(self, id = None, ranking = [], weight = Fraction(1,1), voter_set = None):
-
-        if not isinstance(weight, Fraction):
-            # limit_denominator recovers rational numbers represented as floats
-            weight = Fraction(weight).limit_denominator()
-
-        super().__init__(id = id, ranking = ranking, weight = weight, voter_set = voter_set)
-
-    class Config:
-        arbitrary_types_allowed = True
+    def __post_init__(self):
+        # converts weight to a Fraction if an integer or float
+        if not isinstance(self.weight, Fraction):
+            object.__setattr__(
+                self, "weight", Fraction(self.weight).limit_denominator()
+            )
 
     def __eq__(self, other):
         # Check type
@@ -67,7 +66,7 @@ class Ballot(BaseModel):
         return hash(str(self.ranking))
 
     def __str__(self):
-        weight_str = f"Weight: {self.weight}\n" 
+        weight_str = f"Weight: {self.weight}\n"
         ranking_str = "Ballot\n"
 
         if self.ranking:
@@ -76,12 +75,12 @@ class Ballot(BaseModel):
                 for c in s:
                     ranking_str += f"{c}, "
 
-                if len(s)>1:
-                    ranking_str+= "(tie)"
-                ranking_str+= "\n"
+                if len(s) > 1:
+                    ranking_str += "(tie)"
+                ranking_str += "\n"
         else:
             ranking_str += "No Ranking\n"
-        
+
         return ranking_str + weight_str
 
     __repr__ = __str__

@@ -38,7 +38,7 @@ class PreferenceProfile(BaseModel):
         Returns:
          List of ballots.
         """
-        return self.ballots
+        return self.ballots[:]
 
     def get_candidates(self, received_votes: Optional[bool] = True) -> list:
         """
@@ -56,7 +56,7 @@ class PreferenceProfile(BaseModel):
 
             return list(unique_cands)
         else:
-            return(self.candidates)
+            return self.candidates
 
     # can also cache
     def num_ballots(self) -> Fraction:
@@ -77,7 +77,7 @@ class PreferenceProfile(BaseModel):
         Converts to dictionary with keys = rankings and values = corresponding total weights.
 
         Args:
-            standardize (Boolean): If True, divides the weight of each ballot 
+            standardize (Boolean): If True, divides the weight of each ballot
                             by the total weight. Defaults to False.
 
         Returns:
@@ -125,10 +125,10 @@ class PreferenceProfile(BaseModel):
             for ranking in ballot.ranking:
                 if len(ranking) == 1:
                     part.append(list(ranking)[0])
-                
+
                 else:
                     part.append(f"{ranking} (Tie)")
-                    
+
             ballots.append(tuple(part))
             weights.append(ballot.weight)
 
@@ -144,14 +144,16 @@ class PreferenceProfile(BaseModel):
 
         def format_as_percent(frac):
             return f"{float(frac):.2%}"
+
         df["Percent"] = df["Percent"].apply(format_as_percent)
         return df.reset_index(drop=True)
 
     def head(
-        self, n: int, 
-        sort_by_weight: Optional[bool] = True, 
-        percents: Optional[bool] = False, 
-        totals: Optional[bool] = False
+        self,
+        n: int,
+        sort_by_weight: Optional[bool] = True,
+        percents: Optional[bool] = False,
+        totals: Optional[bool] = False,
     ) -> pd.DataFrame:
         """
         Displays top-n ballots in profile.
@@ -167,7 +169,7 @@ class PreferenceProfile(BaseModel):
         """
         if self.df.empty:
             self.df = self._create_df()
-        
+
         if sort_by_weight:
             df = (
                 self.df.sort_values(by="Weight", ascending=False)
@@ -175,10 +177,7 @@ class PreferenceProfile(BaseModel):
                 .reset_index(drop=True)
             )
         else:
-            df = (
-                self.df.head(n)
-                .reset_index(drop=True)
-            )
+            df = self.df.head(n).reset_index(drop=True)
 
         if totals:
             df = self._sum_row(df)
@@ -189,10 +188,11 @@ class PreferenceProfile(BaseModel):
         return df
 
     def tail(
-        self, n: int, 
+        self,
+        n: int,
         sort_by_weight: Optional[bool] = True,
-        percents: Optional[bool] = False, 
-        totals: Optional[bool] = False
+        percents: Optional[bool] = False,
+        totals: Optional[bool] = False,
     ) -> pd.DataFrame:
         """
         Displays bottom-n ballots in profile.
@@ -210,19 +210,14 @@ class PreferenceProfile(BaseModel):
         if self.df.empty:
             self.df = self._create_df()
 
-        
-
         if sort_by_weight:
             if n > len(self.df):
                 n = len(self.df)
-            df = (
-                self.df.sort_values(by="Weight", ascending=True)
-                .reindex(range(len(self.df)-1,len(self.df)-n-1,-1))
+            df = self.df.sort_values(by="Weight", ascending=True).reindex(
+                range(len(self.df) - 1, len(self.df) - n - 1, -1)
             )
         else:
-            df = (
-                self.df.tail(n)
-            )
+            df = self.df.tail(n)
 
         if totals:
             df = self._sum_row(df)
@@ -239,11 +234,16 @@ class PreferenceProfile(BaseModel):
             self.df = self._create_df()
 
         if len(self.df) < 15:
-            return self.head(n=len(self.df), sort_by_weight= True)\
-                .to_string(index=False, justify="justify")
+            return self.head(n=len(self.df), sort_by_weight=True).to_string(
+                index=False, justify="justify"
+            )
 
-        print(f"PreferenceProfile too long, only showing 15 out of {len(self.df) } rows.")
-        return self.head(n=15,sort_by_weight= True).to_string(index=False, justify="justify")
+        print(
+            f"PreferenceProfile too long, only showing 15 out of {len(self.df) } rows."
+        )
+        return self.head(n=15, sort_by_weight=True).to_string(
+            index=False, justify="justify"
+        )
 
     # set repr to print outputs
     __repr__ = __str__
@@ -286,19 +286,18 @@ class PreferenceProfile(BaseModel):
                 return False
         return True
 
-
     def _sum_row(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Computes sum total for weight and percent column
         """
+
         def format_as_float(percent_str):
             return float(percent_str.split("%")[0])
-        
 
         sum_row = {
             "Ballot": "",
             "Weight": f'{df["Weight"].sum()} out of {self.num_ballots()}',
-            "Percent": f'{df["Percent"].apply(format_as_float).sum():.2f} out of 100%'
+            "Percent": f'{df["Percent"].apply(format_as_float).sum():.2f} out of 100%',
         }
 
         df.loc["Totals"] = sum_row  # type: ignore

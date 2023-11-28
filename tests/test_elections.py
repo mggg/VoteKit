@@ -67,7 +67,7 @@ def test_max_votes_toy():
     max_cand = "a"
     cands = test_profile.get_candidates()
     ballots = test_profile.get_ballots()
-    results = {cand: votes for cand, votes in compute_votes(cands, ballots)}
+    _, results = compute_votes(cands, ballots)
     max_votes = [
         candidate
         for candidate, votes in results.items()
@@ -81,7 +81,7 @@ def test_min_votes_mn():
     min_cand = "JOHN CHARLES WILSON"
     cands = mn_profile.get_candidates()
     ballots = mn_profile.get_ballots()
-    results = {cand: votes for cand, votes in compute_votes(cands, ballots)}
+    _, results = compute_votes(cands, ballots)
     max_votes = [
         candidate
         for candidate, votes in results.items()
@@ -146,7 +146,7 @@ def test_rand_transfer_func_mock_data():
         winner=winner, ballots=ballots, votes=votes, threshold=threshold
     )
 
-    counts = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
+    counts, _ = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
 
     assert counts[0].votes == Fraction(1) or counts[0].votes == Fraction(2)
 
@@ -163,7 +163,7 @@ def test_rand_transfer_assert():
     ballots_after_transfer = random_transfer(
         winner=winner, ballots=ballots, votes=votes, threshold=threshold
     )
-    counts = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
+    counts, _ = compute_votes(candidates=["B", "C"], ballots=ballots_after_transfer)
 
     assert 400 < counts[0].votes < 600
 

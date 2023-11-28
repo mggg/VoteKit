@@ -124,7 +124,7 @@ def test_round_previous():
         previous=first,
     )
 
-    results = second.round_outcome(roundNum=1)
+    results = second.round_outcome(round=1)
     assert results == {"Elected": ["A", "B"], "Eliminated": ["C"]}
 
 
@@ -137,7 +137,7 @@ def test_round_outcome_error():
     )
 
     with pytest.raises(ValueError):
-        first.round_outcome(roundNum=4)
+        first.round_outcome(round=4)
 
 
 def test_elimination_order():
@@ -348,3 +348,37 @@ def test_to_dict_maintain_ties():
     assert results_dict == {"elected": ["A", ("B", "E")]} or results_dict == {
         "elected": ["A", ("E", "B")]
     }
+
+
+def test_get_scores():
+    first = ElectionState(
+        curr_round=1,
+        elected=[{"A"}, {"B"}],
+        remaining=[{"F"}],
+        eliminated_cands=[{"C"}],
+        scores={"A": 4, "B": 6, "F": 3, "C": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    second = ElectionState(
+        curr_round=2,
+        elected=[{"D"}, {"F"}],
+        eliminated_cands=[{"E"}],
+        scores={"D": 6, "F": 3, "E": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+        previous=first,
+    )
+
+    assert second.get_scores(1) == {"A": 4, "B": 6, "F": 3, "C": 9}
+
+
+def test_score_error():
+    first = ElectionState(
+        curr_round=1,
+        elected=[{"A"}, {"B"}],
+        remaining=[{"F"}],
+        eliminated_cands=[{"C"}],
+        scores={"A": 4, "B": 6, "F": 3, "C": 9},
+        profile=MagicMock(spec=PreferenceProfile),
+    )
+    with pytest.raises(ValueError):
+        first.get_scores(4)
