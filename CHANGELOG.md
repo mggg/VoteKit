@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.1.0] - 2023-11-28
+
 ## Added
 
 - Added `to_dict()`, `to_json()` functions for `ElectionState` (107).
@@ -46,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PreferenceProfile` no longer rounds all weights to integer when printing (114).
 
 
-## [1.0.2] - 2023-09-10
+## [1.0.2] - 2023-09-09
 
 ### Fixed
 
@@ -57,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lowered pandas version requirements for wider compatibility
 
 
-## [1.0.1] - 2023-10-03
+## [1.0.1] - 2023-09-03
 
 ### Added
 
@@ -69,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed CVR loaders to load_csv and load_blt
 
 
-## [1.0.0] - 2023-10-01
+## [1.0.0] - 2023-09-01
 
 ### Added
 
@@ -88,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 [unreleased]: https://github.com/mggg/VoteKit
+[1.1.0]: https://github.com/mggg/VoteKit/releases/tag/v1.1.0
 [1.0.2]: https://github.com/mggg/VoteKit/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mggg/VoteKit/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mggg/VoteKit/releases/tag/v1.0.0
