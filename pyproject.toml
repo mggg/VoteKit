@@ -6,7 +6,7 @@ authors = ["MGGG <engineering@mggg.org>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9,<3.12"
+python = "^3.9,<3.13"
 scipy = "^1.11.1"
 mypy = "^1.4.1"
 pydantic = "^1.10.9"
