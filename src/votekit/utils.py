@@ -186,6 +186,8 @@ def borda_scores(
     if score_vector is None:
         score_vector = list(range(ballot_length, 0, -1))
 
+
+    print(score_vector)
     candidate_borda = {c: Fraction(0) for c in candidates}
     for ballot in profile.ballots:
         current_ind = 0
@@ -328,6 +330,51 @@ def scores_into_set_list(
         ]
     return tier_list
 
+def compute_scores_from_vector(profile: PreferenceProfile, score_vector: list[float]) -> dict:
+    """
+    Computes the scores received by each candidate given the score vector and the profile.
+
+    Args:
+        profile: The PreferenceProfile to compute scores for.
+
+        score_vector: List of floats where ith position denotes points given to candidates
+                    in position i.
+
+    Returns:
+        A dictionary whose keys are candidates and values are scores.
+    """
+    # check for valid score vector
+    validate_score_vector(score_vector)
+
+    candidates_to_scores = {c:0.0 for c in profile.get_candidates()}
+
+    for ballot in profile.ballots:
+        for i, s in enumerate(ballot.ranking):
+            # for each candidate in position i, give them points as determined by score_vector
+            for c in s:
+                try:
+                    candidates_to_scores[c] += score_vector[i]*ballot.weight
+                except IndexError:
+                    raise IndexError(f"Tried to access index {i} of score vector," 
+                                     f"but vector only length {len(score_vector)}.")
+
+    return(candidates_to_scores)
+
+def validate_score_vector(score_vector: list[float]):
+    """
+    Validator function for score vectors. Vectors should be non-increasing and non-negative.
+    """
+
+    for i, score in enumerate(score_vector):
+        # if score is negative
+        if score < 0:
+            raise ValueError("Score vector must be non-negative.")
+
+        if i>0:
+            # if the current score is bigger than prev
+            if score > score_vector[i-1]:
+                raise ValueError("Score vector must be non-increasing.")
+        
 
 def elect_cands_from_set_ranking(
     ranking: list[set[str]], seats: int
