@@ -12,15 +12,15 @@ from .transfers import fractional_transfer, seqRCV_transfer
 from ..utils import (
     compute_votes,
     remove_cand,
-    borda_scores,
     scores_into_set_list,
     tie_broken_ranking,
     elect_cands_from_set_ranking,
     first_place_votes,
+    compute_scores_from_vector,
+    validate_score_vector,
+    borda_scores
 )
 
-# add ballots attribute // remove preference profile so the original profile is
-# not modified in place everytime?
 
 
 class STV(Election):
@@ -951,3 +951,117 @@ class Plurality(SNTV):
         super().__init__(profile, ballot_ties)
         self.seats = seats
         self.tiebreak = tiebreak
+
+class HighestScore(Election):
+    """
+    Conducts an election based on points from score vector. 
+    Chooses the m candidates with highest scores.
+    Ties are broken by randomly permuting the tied candidates.
+
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on.
+
+    `seats`
+    :   number of seats to be elected
+
+    `score_vector`
+    : list of floats where ith entry denotes the number of points given to candidates
+        ranked in position i.
+
+    `tiebreak` (optional)
+    : tiebreak method, defaults to random, supports 'none', 'random',
+
+    `ballot_ties` (optional)
+    : resolves ties in ballots. Should only be set to True if you want ballots
+        to have full linear rankings.
+
+    
+    """
+
+    def __init__(self, profile: PreferenceProfile, 
+                 seats: int, 
+                 score_vector: list[float],
+                 tiebreak: str= "random", 
+                 ballot_ties: bool = False):
+        super().__init__(profile, ballot_ties)
+        # check for valid score vector
+        validate_score_vector(score_vector)
+
+        self.seats = seats
+        self.score_vector = score_vector
+        self.tiebreak = tiebreak
+
+ 
+    def run_step(self):
+        # a dictionary whose keys are candidates and values are scores
+        vote_tallies = compute_scores_from_vector(profile=self.state.profile, 
+                                                  score_vector=self.score_vector)
+
+        # translate scores into ranking of candidates, tie break
+        ranking = scores_into_set_list(score_dict = vote_tallies)
+        untied_ranking = tie_broken_ranking(ranking = ranking, profile = self.state.profile,
+                                     tiebreak=self.tiebreak)
+
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=untied_ranking, seats=self.seats
+        )
+
+        self.state = ElectionState(curr_round = 1,
+                                   elected = elected,
+                                   eliminated_cands = eliminated,
+                                   remaining = [],
+                                   profile = self.state.profile,
+                                   previous= self.state)
+        return(self.state)
+
+    @lru_cache
+    def run_election(self):
+        self.run_step()
+        return self.state
+    
+class Cumulative(HighestScore):
+    """
+    Voting system where voters are allowed to vote for candidates with multiplicity.
+    Each ranking position should have one candidate, and every candidate ranked will receive
+    one point, i.e., the score vector is $(1,\dots,1)$.
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on.
+
+    `seats`
+    :   number of seats to be elected.
+
+    `ballot_ties`
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
+
+    `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak.
+                    Defaults to random.
+
+    **Methods**
+    """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        
+        longest_ballot = 0
+        for ballot in profile.ballots:
+            if len(ballot.ranking) > longest_ballot:
+                longest_ballot = len(ballot.ranking)
+
+        score_vector = [1.0 for _ in range(longest_ballot)]
+        super().__init__(profile = profile, 
+                         ballot_ties = ballot_ties, 
+                         score_vector = score_vector,
+                         seats = seats,
+                         tiebreak = tiebreak)
+        

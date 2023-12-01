@@ -11,10 +11,6 @@ class Ballot:
     Ballot class, contains ranking and assigned weight.
 
     **Attributes**
-
-    `id`
-    :   optional ballot id.
-
     `ranking`
     :   list of candidate ranking. Entry i of the list is a set of candidates ranked in position i.
 
@@ -23,6 +19,9 @@ class Ballot:
 
     `voter_set`
     :   optional set of voters who cast a given a ballot.
+
+    `id`
+    :   optional ballot id.
     """
 
     ranking: list[set] = field(default_factory=list)
@@ -50,7 +49,7 @@ class Ballot:
         # Check ranking
         if self.ranking != other.ranking:
             return False
-
+        
         # Check weight
         if self.weight != other.weight:
             return False
@@ -71,15 +70,17 @@ class Ballot:
 
         if self.ranking:
             for i, s in enumerate(self.ranking):
+                # display number and candidates
                 ranking_str += f"{i+1}.) "
                 for c in s:
                     ranking_str += f"{c}, "
 
+                # if tie
                 if len(s) > 1:
                     ranking_str += "(tie)"
                 ranking_str += "\n"
         else:
-            ranking_str += "No Ranking\n"
+            ranking_str += "Empty\n"
 
         return ranking_str + weight_str
 
