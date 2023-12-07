@@ -19,10 +19,6 @@ from ..utils import (
     first_place_votes,
 )
 
-# add ballots attribute // remove preference profile so the original profile is
-# not modified in place everytime?
-
-
 class STV(Election):
     """
     Class for single-winner IRV and multi-winner STV elections.
@@ -91,7 +87,7 @@ class STV(Election):
         Determines if the number of seats has been met to call an election.
 
         Returns:
-            True if number of seats has been met, False otherwise.
+            True if number of seats has not been met, False otherwise.
         """
         cands_elected = 0
         for s in self.state.winners():
@@ -129,7 +125,7 @@ class STV(Election):
                     ballots = self.transfer(
                         candidate,
                         ballots,
-                        {cand: votes for cand, votes in round_votes},
+                        plurality_score,
                         self.threshold,
                     )
         # since no one has crossed threshold, eliminate one of the people
@@ -146,25 +142,25 @@ class STV(Election):
                 profile=self.state.profile,
                 tiebreak=self.tiebreak,
             )[-1]
+
             eliminated.append(lp_cand)
             ballots = remove_cand(lp_cand, ballots)
             remaining.remove(next(iter(lp_cand)))
 
-        # sort candidates by vote share if multiple are elected
-        if len(elected) >= 1:
-            if self.state.curr_round > 0:
-                score_dict = self.state.get_scores(round_num)
-            else:
-                score_dict = plurality_score
+        if self.state.curr_round > 0:
+            score_dict = self.state.get_scores(round_num)
+        else:
+            score_dict = plurality_score
+        # sorts remaining based on their current first place votes
+        remaining = scores_into_set_list(score_dict, remaining)
 
+        # sort candidates by vote share if multiple are elected    
+        if len(elected) >= 1:
             elected = scores_into_set_list(score_dict, [c for s in elected for c in s])
 
         # Make sure list-of-sets have non-empty elements
         elected = [s for s in elected if s != set()]
         eliminated = [s for s in eliminated if s != set()]
-
-        remaining = [set(remaining)]
-        remaining = [s for s in remaining if s != set()]
 
         self.state = ElectionState(
             curr_round=self.state.curr_round + 1,
@@ -881,7 +877,7 @@ class Borda(Election):
         self,
         profile: PreferenceProfile,
         seats: int,
-        score_vector: Optional[list[Fraction]],
+        score_vector: Optional[list[Fraction]] = None,
         ballot_ties: bool = True,
         tiebreak: str = "random",
     ):
@@ -951,3 +947,38 @@ class Plurality(SNTV):
         super().__init__(profile, ballot_ties)
         self.seats = seats
         self.tiebreak = tiebreak
+
+class IRV(STV):
+    """
+    A class for conducting IRV elections, which are mathematically equivalent to STV for one seat.
+
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on.
+
+
+    `quota`
+    :   formula to calculate quota (defaults to droop).
+
+    `ballot_ties`
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
+
+    `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
+                to random.
+    """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        quota: str = "droop",
+        ballot_ties: bool = True,
+        tiebreak: str = "random",
+    ):
+        # let parent class handle the construction
+        super().__init__(profile = profile, ballot_ties = ballot_ties,
+                         seats = 1, tiebreak = tiebreak, quota = quota,
+                         transfer=fractional_transfer)
+

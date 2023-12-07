@@ -308,6 +308,14 @@ class BallotGraph(Graph):
         else:
             node_labels = self.label_weights(to_display)
             
+            # if not labeling the nodes with candidates and graph is drawn from profile,
+            # print labeling dictionary
+            if self.profile and self.candidates:
+                print("The candidates are labeled as follows.")
+                cand_dict = self._number_cands(cands = tuple(self.candidates))
+                for cand,value in cand_dict.items():
+                    print(value,cand)
+            
         subgraph = self.graph.subgraph(ballots)
 
         pos = nx.spring_layout(subgraph)
