@@ -125,7 +125,7 @@ def test_round_previous():
     )
 
     results = second.round_outcome(round=1)
-    assert results == {"Elected": ["A", "B"], "Eliminated": ["C"]}
+    assert results == {"Elected": [{"A"}, {"B"}], "Eliminated": [{"C"}], "Remaining": []}
 
 
 def test_round_outcome_error():

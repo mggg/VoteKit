@@ -91,8 +91,9 @@ class ElectionState(BaseModel):
         """
         if self.curr_round == round:
             return {
-                "Elected": [c for s in self.elected for c in s],
-                "Eliminated": [c for s in self.eliminated_cands for c in s],
+                "Elected": [s for s in self.elected ],
+                "Eliminated": [s for s in self.eliminated_cands],
+                "Remaining": [s for s in self.remaining]
             }
         elif self.previous:
             return self.previous.round_outcome(round)
@@ -150,10 +151,17 @@ class ElectionState(BaseModel):
 
         for round in range(1, self.curr_round + 1):
             results = self.round_outcome(round)
-            for status, candidates in results.items():
-                for cand in candidates:
-                    status_df.loc[status_df["Candidate"] == cand, "Status"] = status
-                    status_df.loc[status_df["Candidate"] == cand, "Round"] = round
+            for status, ranking in results.items():
+                for s in ranking:
+                    for cand in s:
+                        tied_str = ""
+                        # if tie
+                        if len(s) > 1:
+                            remaining_cands = ", ".join(list(s.difference(cand)))
+                            tied_str = f" (tie with {remaining_cands})"
+                        
+                        status_df.loc[status_df["Candidate"] == cand, "Status"] = status + tied_str
+                        status_df.loc[status_df["Candidate"] == cand, "Round"] = round
 
         return status_df
 

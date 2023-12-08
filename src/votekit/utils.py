@@ -29,6 +29,27 @@ COLOR_LIST = [
 # Election Helper Functions
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
+def ballots_by_first_cand(candidates:list[str], ballots: list[Ballot]) -> dict:
+    """
+    Partitions the ballots by first place candidate. 
+
+    Returns:
+        A dictionary whose keys are candidates and values are lists of ballots.
+    """
+    cand_dict = {c:[] for c in candidates} # type: dict
+
+    for b in ballots:
+        if b.ranking:
+            # find first place candidate, ensure there is only one
+            first_cand = list(b.ranking[0])
+            if len(first_cand)>1:
+                raise ValueError(f"Ballot {b} has a tie for first.")
+            else:
+                first_cand = first_cand[0]
+
+            cand_dict[first_cand].append(b)
+        
+    return cand_dict
 
 def compute_votes(
     candidates: list,
