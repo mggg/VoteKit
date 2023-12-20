@@ -284,6 +284,9 @@ class PreferenceProfile(BaseModel):
         for b in pp_1.ballots:
             if b not in pp_2.ballots:
                 return False
+        for b in pp_2.ballots:
+            if b not in pp_1.ballots:
+                return False
         return True
 
     def _sum_row(self, df: pd.DataFrame) -> pd.DataFrame:

@@ -91,9 +91,9 @@ class ElectionState(BaseModel):
         """
         if self.curr_round == round:
             return {
-                "Elected": [s for s in self.elected ],
-                "Eliminated": [s for s in self.eliminated_cands],
-                "Remaining": [s for s in self.remaining]
+                "Elected": self.elected,
+                "Eliminated": self.eliminated_cands,
+                "Remaining": self.remaining
             }
         elif self.previous:
             return self.previous.round_outcome(round)
