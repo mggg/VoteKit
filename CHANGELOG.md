@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## Added
+- Add print statement to `BallotGraph` so that when you draw the graph without labels, it prints a dictionary of candidate labels for you.
+- Add an IRV election class, which is just a wrapper for STV with 1 seat.
+- Add default option to Borda election class, so users do not have to input a score vector if they want to use the traditional Borda vector.
+- Add several methods to `PairwiseComparisonGraph`. Added two boolean methods that return True if there is a condorcet winner or if there is a condorcet cycle. Added two get methods that return the winner or the cycles. Cached the results of `dominating_tiers` and `get_condorcet_cycles`.
+
+- Added optional to_float method to `first_place_votes` if users want to see them as floats instead of Fractions.
+
+## Changed
+- Change the way the `condense_ballots()` method works in profiles. Rather than altering the original profile, it returns a new profile. This gives users the option to preserve the original profile.
+
+-Alter STV class so that the remaining candidates are always listed in order of current first place votes.
+
+## Fixed
+- Fixed an error in the `PreferenceProfile` tail method.
+
 ## [1.1.0] - 2023-11-28
 
 ## Added
