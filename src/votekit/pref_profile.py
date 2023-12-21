@@ -1,10 +1,10 @@
+from __future__ import annotations
 import csv
 from fractions import Fraction
 import pandas as pd
 from pydantic import BaseModel, validator
 from typing import Optional
 import numpy as np
-
 from .ballot import Ballot
 
 
@@ -211,13 +211,14 @@ class PreferenceProfile(BaseModel):
             self.df = self._create_df()
 
         if sort_by_weight:
-            if n > len(self.df):
-                n = len(self.df)
-            df = self.df.sort_values(by="Weight", ascending=True).reindex(
-                range(len(self.df) - 1, len(self.df) - n - 1, -1)
-            )
+            df = self.df.sort_values(by="Weight", ascending=True)
+            df["New Index"] = [x for x in range(len(self.df) - 1, -1, -1)]
+            df = df.set_index("New Index").head(n)
+            df.index.name = None
+            
         else:
-            df = self.df.tail(n)
+            df = self.df.iloc[::-1].head(n)
+
 
         if totals:
             df = self._sum_row(df)
@@ -248,9 +249,12 @@ class PreferenceProfile(BaseModel):
     # set repr to print outputs
     __repr__ = __str__
 
-    def condense_ballots(self):
+    def condense_ballots(self) -> PreferenceProfile:
         """
         Groups ballots by rankings and updates weights.
+
+        Returns:
+            A PreferenceProfile object with condensed ballot list.
         """
         class_vector = []
         seen_rankings = []
@@ -261,28 +265,27 @@ class PreferenceProfile(BaseModel):
 
         new_ballot_list = []
         for i, ranking in enumerate(seen_rankings):
-            total_weight = 0
+            total_weight = Fraction(0)
             for j in range(len(class_vector)):
                 if class_vector[j] == i:
                     total_weight += self.ballots[j].weight
             new_ballot_list.append(
                 Ballot(ranking=ranking, weight=Fraction(total_weight))
             )
-        self.ballots = new_ballot_list
 
-        # create new dataframe with condensed ballots
-        self.df = self._create_df()
+        condensed_profile = PreferenceProfile(ballots = new_ballot_list)
+        return condensed_profile
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
             return False
-        self.condense_ballots()
-        other.condense_ballots()
-        for b in self.ballots:
-            if b not in other.ballots:
+        pp_1 = self.condense_ballots()
+        pp_2 = other.condense_ballots()
+        for b in pp_1.ballots:
+            if b not in pp_2.ballots:
                 return False
-        for b in self.ballots:
-            if b not in other.ballots:
+        for b in pp_2.ballots:
+            if b not in pp_1.ballots:
                 return False
         return True
 

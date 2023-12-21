@@ -29,6 +29,27 @@ COLOR_LIST = [
 # Election Helper Functions
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
+def ballots_by_first_cand(candidates:list[str], ballots: list[Ballot]) -> dict:
+    """
+    Partitions the ballots by first place candidate. 
+
+    Returns:
+        A dictionary whose keys are candidates and values are lists of ballots.
+    """
+    cand_dict = {c:[] for c in candidates} # type: dict
+
+    for b in ballots:
+        if b.ranking:
+            # find first place candidate, ensure there is only one
+            first_cand = list(b.ranking[0])
+            if len(first_cand)>1:
+                raise ValueError(f"Ballot {b} has a tie for first.")
+            else:
+                first_cand = first_cand[0]
+
+            cand_dict[first_cand].append(b)
+        
+    return cand_dict
 
 def compute_votes(
     candidates: list,
@@ -42,7 +63,9 @@ def compute_votes(
         ballots: List of Ballot objects.
 
     Returns:
-        List of tuples (candidate, number of votes) ordered by first place votes.
+        A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes) 
+            ordered by decreasing first place votes and votes is a dictionary whose keys are 
+            candidates and values are first place votes.
     """
     votes = {cand: Fraction(0) for cand in candidates}
 
@@ -117,12 +140,16 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
 
 
 # Summmary Stat functions
-def first_place_votes(profile: PreferenceProfile) -> dict:
+def first_place_votes(profile: PreferenceProfile,
+                      to_float: bool = False) -> dict:
     """
     Calculates first-place votes for a PreferenceProfile.
 
     Args:
         profile: Inputed PreferenceProfile of ballots.
+
+        to_float: If True, compute first place votes as floats instead of Fractions. Defaults to
+                    False.
 
     Returns:
         Dictionary of candidates (keys) and first place vote totals (values).
@@ -132,7 +159,11 @@ def first_place_votes(profile: PreferenceProfile) -> dict:
 
     _, votes_dict = compute_votes(cands, ballots)
 
-    return votes_dict
+    if to_float:
+        votes_dict = {k:float(v) for k,v in votes_dict.items()}
+        return votes_dict
+    else:
+        return votes_dict
 
 
 def mentions(profile: PreferenceProfile) -> dict:

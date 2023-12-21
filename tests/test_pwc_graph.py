@@ -68,9 +68,9 @@ def test_pwcg_dominating_tiers():
     assert dominating_tiers == target_dominating_tiers
 
 
-def test_pwcg_has_condorcet():
+def test_pwcg_has_condorcet_winner():
     pwcg = PairwiseComparisonGraph(TEST_PROFILE)
-    pwcg_has_condorcet = pwcg.has_condorcet()
+    pwcg_has_condorcet = pwcg.has_condorcet_winner()
 
     target_has_condorcet = True
 

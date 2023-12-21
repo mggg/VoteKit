@@ -2,6 +2,7 @@ from fractions import Fraction
 from itertools import permutations, combinations
 import matplotlib.pyplot as plt  # type: ignore
 import networkx as nx  # type: ignore
+from functools import cache
 
 from ..ballot import Ballot
 from .base_graph import Graph
@@ -179,7 +180,7 @@ class PairwiseComparisonGraph(Graph):
         plt.close()
 
     # More complicated Requests
-    def has_condorcet(self) -> bool:
+    def has_condorcet_winner(self) -> bool:
         """
         Checks if graph has a condorcet winner.
 
@@ -190,7 +191,22 @@ class PairwiseComparisonGraph(Graph):
         if len(dominating_tiers[0]) == 1:
             return True
         return False
+    
+    def get_condorcet_winner(self) -> str:
+        """
+        Returns the condorcet winner. Raises a ValueError if no condorcet winner.
 
+        Returns:
+            The condorcet winner.
+        """
+        
+        if self.has_condorcet_winner():
+            return list(self.dominating_tiers()[0])[0]
+
+        else:
+            raise ValueError("There is no condorcet winner.")
+
+    @cache
     def dominating_tiers(self) -> list[set]:
         """
         Finds dominating tiers within an election.
@@ -216,3 +232,32 @@ class PairwiseComparisonGraph(Graph):
                 tier_dict[v] = {k}
         tier_list = [tier_dict[k] for k in sorted(tier_dict.keys(), reverse=True)]
         return tier_list
+
+    def has_condorcet_cycles(self) -> bool:
+        """
+        Checks if graph has any condorcet cycles, which we define as any cycle of length
+            greater than 2 in the graph.
+
+        Returns:
+            True if condorcet cycles exists, False otherwise.
+        """
+
+        if len(self.get_condorcet_cycles()) > 0:
+            return True
+
+        else:
+            return False
+
+    @cache
+    def get_condorcet_cycles(self) -> list:
+        """
+        Returns a list of condorcet cycles in the graph, which we define as any cycle of length
+            greater than 2.
+
+        Returns:
+            List of condorcet cycles sorted by length.
+        """
+
+        G = self.pairwise_graph
+        list_of_cycles = nx.recursive_simple_cycles(G)
+        return(sorted(list_of_cycles, key=lambda x: len(x)))

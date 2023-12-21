@@ -464,7 +464,7 @@ class PlackettLuce(BallotGenerator):
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
         pp = PreferenceProfile(ballots=ballot_pool)
-        pp.condense_ballots()
+        pp = pp.condense_ballots()
         return pp
 
 
@@ -585,7 +585,7 @@ class BradleyTerry(BallotGenerator):
         #     ballot_pool=ballot_pool, candidates=self.candidates
         # )
         pp = PreferenceProfile(ballots=ballot_pool)
-        pp.condense_ballots()
+        pp = pp.condense_ballots()
         return pp
 
 
@@ -715,7 +715,7 @@ class AlternatingCrossover(BallotGenerator):
                 ballot_pool.append(ballot)
 
         pp = PreferenceProfile(ballots=ballot_pool, candidates=self.candidates)
-        pp.condense_ballots()
+        pp = pp.condense_ballots()
         return pp
 
 
