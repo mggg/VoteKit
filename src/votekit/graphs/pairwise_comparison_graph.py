@@ -255,9 +255,9 @@ class PairwiseComparisonGraph(Graph):
             greater than 2.
 
         Returns:
-            List of condorcet cycles
+            List of condorcet cycles sorted by length.
         """
 
         G = self.pairwise_graph
-
-        return(nx.recursive_simple_cycles(G))
+        list_of_cycles = nx.recursive_simple_cycles(G)
+        return(sorted(list_of_cycles, key=lambda x: len(x)))
