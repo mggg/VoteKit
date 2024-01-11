@@ -4,6 +4,7 @@ import numpy as np
 from typing import Union, Iterable, Optional, Any
 from itertools import permutations
 import math
+import warnings
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -355,8 +356,9 @@ def compute_scores_from_vector(profile: PreferenceProfile, score_vector: list[fl
                 try:
                     candidates_to_scores[c] += score_vector[i]*ballot.weight
                 except IndexError:
-                    raise IndexError(f"Tried to access index {i} of score vector," 
-                                     f"but vector only length {len(score_vector)}.")
+                    warnings.warn(f"Tried to access index {i} of score vector," 
+                                     f"but vector only length {len(score_vector)}. "
+                                     "Assigned candidate 0 points.", UserWarning)
 
     return(candidates_to_scores)
 

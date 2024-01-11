@@ -1005,12 +1005,12 @@ class Cumulative(BallotGenerator):
                 pp+= profile
             return(pp)
         
-class Limited(BallotGenerator):
+class shortPlackettLuce(BallotGenerator):
     """
-    Class for generating limited ballots. This model samples without
-    replacement from a preference interval. Can be initialized with an interval or can be
-    constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    Class for generating short Plackett Luce ballots. This model samples without
+    replacement from a preference interval. Equivalent to Plackett Luce if k = number of candidates.
+    Can be initialized with an interval or can be constructed with the Dirichlet distribution 
+    using the `from_params` method in the `BallotGenerator` class.
 
     **Attributes**
 
@@ -1124,7 +1124,7 @@ class Limited(BallotGenerator):
             return(pp)
         
 
-class PlackettLuce(Limited):
+class PlackettLuce(shortPlackettLuce):
     """
     Class for generating full ballots with Plackett-Luce. This model samples without
     replacement from a preference interval. Can be initialized with an interval or can be
