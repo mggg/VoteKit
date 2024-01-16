@@ -1,7 +1,7 @@
 from fractions import Fraction
 import itertools as it
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 from functools import lru_cache
 
 from ..models import Election
@@ -12,13 +12,17 @@ from .transfers import fractional_transfer, seqRCV_transfer
 from ..utils import (
     compute_votes,
     remove_cand,
-    borda_scores,
     scores_into_set_list,
     tie_broken_ranking,
     elect_cands_from_set_ranking,
     first_place_votes,
+    compute_scores_from_vector,
+    validate_score_vector,
+    borda_scores,
     ballots_by_first_cand
 )
+
+
 
 class STV(Election):
     """
@@ -43,8 +47,12 @@ class STV(Election):
                     Defaults to True.
 
     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
-                to random.
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -56,7 +64,7 @@ class STV(Election):
         seats: int,
         quota: str = "droop",
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[str, Callable] = "random",
     ):
         # let parent class handle the og profile and election state
         super().__init__(profile, ballot_ties)
@@ -150,12 +158,16 @@ class STV(Election):
                 if votes == round_votes[-1].votes
             ]
 
-            lp_cand = tie_broken_ranking(
-                ranking=[set(lp_candidates)],
-                profile=self.state.profile,
-                tiebreak=self.tiebreak,
-            )[-1]
-
+            if isinstance(self.tiebreak, str):
+                lp_cand = tie_broken_ranking(
+                    ranking=[set(lp_candidates)],
+                    profile=self.state.profile,
+                    tiebreak=self.tiebreak,
+                )[-1]
+            else:
+                lp_cand = self.tiebreak(ranking=[set(lp_candidates)],
+                    profile=self.state.profile)[-1]
+                
             eliminated.append(lp_cand)
             ballots = remove_cand(lp_cand, ballots)
             remaining.remove(next(iter(lp_cand)))
@@ -223,9 +235,13 @@ class Limited(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -236,7 +252,7 @@ class Limited(Election):
         seats: int,
         k: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -283,9 +299,14 @@ class Limited(Election):
 
         # Order candidates by number of approval votes received
         ranking = scores_into_set_list(candidate_approvals)
-        ranking = tie_broken_ranking(
-            ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
-        )
+
+        if isinstance(self.tiebreak, str):
+            ranking = tie_broken_ranking(
+                ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
+            )
+        else:
+            ranking = self.tiebreak(ranking=ranking, profile=self.state.profile)
+            
         elected, eliminated = elect_cands_from_set_ranking(
             ranking=ranking, seats=self.seats
         )
@@ -331,9 +352,13 @@ class Bloc(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -343,7 +368,7 @@ class Bloc(Election):
         profile: PreferenceProfile,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -395,9 +420,13 @@ class SNTV(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -407,7 +436,7 @@ class SNTV(Election):
         profile: PreferenceProfile,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -462,9 +491,13 @@ class SNTV_STV_Hybrid(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -476,7 +509,7 @@ class SNTV_STV_Hybrid(Election):
         r1_cutoff: int,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.transfer = transfer
@@ -577,9 +610,13 @@ class TopTwo(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                     Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -588,7 +625,7 @@ class TopTwo(Election):
         self,
         profile: PreferenceProfile,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[str, Callable] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.tiebreak = tiebreak
@@ -707,9 +744,13 @@ class CondoBorda(Election):
     :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
                 Defaults to True.
 
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                Defaults to random.
+     `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -719,7 +760,7 @@ class CondoBorda(Election):
         profile: PreferenceProfile,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -735,9 +776,14 @@ class CondoBorda(Election):
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
-        ranking = tie_broken_ranking(
-            ranking=dominating_tiers, profile=self.state.profile, tiebreak="borda"
-        )
+
+        if isinstance(self.tiebreak, str):
+            ranking = tie_broken_ranking(
+                ranking=dominating_tiers, profile=self.state.profile, tiebreak="borda"
+            )
+        else:
+            ranking = self.tiebreak(ranking=dominating_tiers, profile=self.state.profile)
+            
         elected, eliminated = elect_cands_from_set_ranking(
             ranking=ranking, seats=self.seats
         )
@@ -784,8 +830,12 @@ class SequentialRCV(Election):
                 Defaults to True.
 
     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                Defaults to random.
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -795,7 +845,7 @@ class SequentialRCV(Election):
         profile: PreferenceProfile,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -877,8 +927,12 @@ class Borda(Election):
                     Defaults to True.
 
     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Defaults to random.
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
 
     **Methods**
     """
@@ -889,7 +943,7 @@ class Borda(Election):
         seats: int,
         score_vector: Optional[list[Fraction]] = None,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -909,9 +963,13 @@ class Borda(Election):
         )
 
         ranking = scores_into_set_list(borda_dict)
-        ranking = tie_broken_ranking(
-            ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
-        )
+
+        if isinstance(self.tiebreak, str):
+            ranking = tie_broken_ranking(
+                ranking=ranking, profile=self.state.profile, tiebreak=self.tiebreak
+            )
+        else:
+            ranking = self.tiebreak(ranking=ranking, profile=self.state.profile)
 
         elected, eliminated = elect_cands_from_set_ranking(
             ranking=ranking, seats=self.seats
@@ -952,7 +1010,7 @@ class Plurality(SNTV):
         profile: PreferenceProfile,
         seats: int,
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         super().__init__(profile, ballot_ties)
         self.seats = seats
@@ -976,8 +1034,12 @@ class IRV(STV):
                     Defaults to True.
 
     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
-                to random.
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
     """
 
     def __init__(
@@ -985,10 +1047,137 @@ class IRV(STV):
         profile: PreferenceProfile,
         quota: str = "droop",
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         # let parent class handle the construction
         super().__init__(profile = profile, ballot_ties = ballot_ties,
                          seats = 1, tiebreak = tiebreak, quota = quota,
                          transfer=fractional_transfer)
 
+
+class HighestScore(Election):
+    """
+    Conducts an election based on points from score vector. 
+    Chooses the m candidates with highest scores.
+    Ties are broken by randomly permuting the tied candidates.
+
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on.
+
+    `seats`
+    :   number of seats to be elected
+
+    `score_vector`
+    : list of floats where ith entry denotes the number of points given to candidates
+        ranked in position i.
+
+    `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
+
+    `ballot_ties` (optional)
+    : resolves ties in ballots. Should only be set to True if you want ballots
+        to have full linear rankings.
+
+    
+    """
+
+    def __init__(self, profile: PreferenceProfile, 
+                 seats: int, 
+                 score_vector: list[float],
+                 tiebreak: Union[Callable, str]= "random", 
+                 ballot_ties: bool = False):
+        super().__init__(profile, ballot_ties)
+        # check for valid score vector
+        validate_score_vector(score_vector)
+
+        self.seats = seats
+        self.score_vector = score_vector
+        self.tiebreak = tiebreak
+
+ 
+    def run_step(self):
+        # a dictionary whose keys are candidates and values are scores
+        vote_tallies = compute_scores_from_vector(profile=self.state.profile, 
+                                                  score_vector=self.score_vector)
+
+        # translate scores into ranking of candidates, tie break
+        ranking = scores_into_set_list(score_dict = vote_tallies)
+
+        if isinstance(self.tiebreak, str):
+            untied_ranking = tie_broken_ranking(ranking = ranking, profile = self.state.profile,
+                                     tiebreak=self.tiebreak)
+        else:
+            untied_ranking = self.tiebreak(ranking = ranking, profile = self.state.profile)
+
+        elected, eliminated = elect_cands_from_set_ranking(
+            ranking=untied_ranking, seats=self.seats
+        )
+
+        self.state = ElectionState(curr_round = 1,
+                                   elected = elected,
+                                   eliminated_cands = eliminated,
+                                   remaining = [],
+                                   profile = self.state.profile,
+                                   previous= self.state)
+        return(self.state)
+
+    @lru_cache
+    def run_election(self):
+        self.run_step()
+        return self.state
+    
+class Cumulative(HighestScore):
+    """
+    Voting system where voters are allowed to vote for candidates with multiplicity.
+    Each ranking position should have one candidate, and every candidate ranked will receive
+    one point, i.e., the score vector is $(1,\dots,1)$.
+    **Attributes**
+
+    `profile`
+    :   PreferenceProfile to run election on.
+
+    `seats`
+    :   number of seats to be elected.
+
+    `ballot_ties`
+    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
+                    Defaults to True.
+
+    `tiebreak`
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
+
+    **Methods**
+    """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        seats: int,
+        ballot_ties: bool = True,
+        tiebreak: Union[str, Callable] = "random",
+    ):
+        
+        longest_ballot = 0
+        for ballot in profile.ballots:
+            if len(ballot.ranking) > longest_ballot:
+                longest_ballot = len(ballot.ranking)
+
+        score_vector = [1.0 for _ in range(longest_ballot)]
+        super().__init__(profile = profile, 
+                         ballot_ties = ballot_ties, 
+                         score_vector = score_vector,
+                         seats = seats,
+                         tiebreak = tiebreak)
+        
