@@ -1033,8 +1033,12 @@ class IRV(STV):
                     Defaults to True.
 
     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak. Defaults
-                to random.
+    :   (optional) resolves procedural and final ties by specified tiebreak. 
+                    Can either be a custom tiebreak function or a string. Supported strings are 
+                    given in `tie_broken_ranking` documentation. The custom function must take as 
+                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and 
+                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets 
+                    ranking of candidates with no ties. Defaults to random tiebreak.
     """
 
     def __init__(
@@ -1042,7 +1046,7 @@ class IRV(STV):
         profile: PreferenceProfile,
         quota: str = "droop",
         ballot_ties: bool = True,
-        tiebreak: str = "random",
+        tiebreak: Union[Callable, str] = "random",
     ):
         # let parent class handle the construction
         super().__init__(profile = profile, ballot_ties = ballot_ties,
