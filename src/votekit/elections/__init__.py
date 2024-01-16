@@ -10,6 +10,7 @@ from .election_types import (  # noqa
     DominatingSets,
     CondoBorda,
     Plurality,
+    IRV,
     HighestScore,
     Cumulative
 )

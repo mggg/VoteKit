@@ -47,8 +47,8 @@ def test_condense_profile():
             Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(2)),
         ]
     )
-    profile.condense_ballots()
-    assert profile.ballots[0] == Ballot(
+    pp = profile.condense_ballots()
+    assert pp.ballots[0] == Ballot(
         ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(3)
     )
 
