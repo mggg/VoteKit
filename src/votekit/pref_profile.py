@@ -306,3 +306,15 @@ class PreferenceProfile(BaseModel):
         df.loc["Totals"] = sum_row  # type: ignore
 
         return df.fillna("")
+
+    def __add__(self, other):
+        """
+        Add two PreferenceProfiles by combining their ballot lists.
+        """
+        if isinstance(other, PreferenceProfile):
+            ballots = self.ballots+other.ballots
+            pp = PreferenceProfile(ballots=ballots)
+            pp.condense_ballots()
+            return pp
+        else:
+            raise TypeError("Unsupported operand type. Must be an instance of PreferenceProfile.")

@@ -103,3 +103,30 @@ def test_df_percents():
     assert "Percent" in rv
     rv = profile.head(2)
     assert "Percent" not in rv
+
+
+def test_add_profiles():
+    profile_1 = PreferenceProfile(
+        ballots = [
+            Ballot(ranking = [{"A", "B", "C"}], weight = 1),
+            Ballot(ranking = [{"A", "B", "C"}], weight = 2),
+            Ballot(ranking = [{"B", "A", "C"}], weight = 1)
+        ]
+    )
+
+    profile_2 = PreferenceProfile(
+        ballots = [
+            Ballot(ranking = [{"A", "B", "C"}], weight = 1),
+            Ballot(ranking = [{"C", "B", "A"}], weight = 47)
+        ]
+    )
+
+    summed_profile = PreferenceProfile(
+        ballots = [
+            Ballot(ranking = [{"A", "B", "C"}], weight = 4),
+            Ballot(ranking = [{"B", "A", "C"}], weight = 1),
+            Ballot(ranking = [{"C", "B", "A"}], weight = 47)
+        ]
+    )
+    
+    assert profile_1+profile_2 == summed_profile
