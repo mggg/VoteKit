@@ -530,13 +530,7 @@ class BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-        
-        # pp = self.ballot_pool_to_profile(
-        #     ballot_pool=ballot_pool, candidates=self.candidates
-        # )
-        # pp = PreferenceProfile(ballots=ballot_pool)
-        # pp.condense_ballots()
-        # return pp
+
 
 
 class AlternatingCrossover(BallotGenerator):
@@ -959,11 +953,7 @@ class CambridgeSampler(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-        
-        # pp = self.ballot_pool_to_profile(
-        #     ballot_pool=ballot_pool, candidates=self.candidates
-        # )
-        # return pp
+
 
 class Cumulative(BallotGenerator):
     """
