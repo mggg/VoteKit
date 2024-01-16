@@ -18,7 +18,8 @@ from ..utils import (
     first_place_votes,
     compute_scores_from_vector,
     validate_score_vector,
-    borda_scores
+    borda_scores,
+    ballots_by_first_cand
 )
 
 
