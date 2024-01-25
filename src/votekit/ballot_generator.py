@@ -1368,9 +1368,9 @@ class SlatePreference(BallotGenerator):
         pref_profile_by_bloc = {}
 
         for bloc in blocs: 
-            ballot_pool = []
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
+            ballot_pool = [-1 for _ in range(num_ballots)]
 
             # TODO the code below assumes only two blocs
             ballot_type_distribution = [self.cohesion_parameters[bloc], 
@@ -1379,15 +1379,15 @@ class SlatePreference(BallotGenerator):
 
             opp_bloc = set(blocs).difference(bloc).pop()
             
-            for _ in range(num_ballots):
+            for i in range(num_ballots):
                 # sample ballot type
-                ballot_type = []
+                ballot_type = [-1 for _ in range(len(non_zero_cands))]
                 candidate_count = {b:0 for b in blocs}
-                for _ in range(len(non_zero_cands)):
+                for j in range(len(non_zero_cands)):
                     # choose a bloc as the next slot in the ballot
                     cand_bloc = list(np.random.choice([bloc, opp_bloc], size =1, 
                                                       p = ballot_type_distribution))[0]
-                    ballot_type.append(cand_bloc)
+                    ballot_type[j] = cand_bloc
                     candidate_count[cand_bloc] += 1
 
                     # if there are more candidates to fill
@@ -1400,7 +1400,7 @@ class SlatePreference(BallotGenerator):
                                  o_bloc = set(blocs).difference(b).pop()
 
                                  # fill out rest of ballot with opposing bloc
-                                 for i in range(len(non_zero_cands) - len(ballot_type)):
+                                 for k in range(len(non_zero_cands) - len(ballot_type)):
                                      ballot_type.append(o_bloc)
                     
                     if len(ballot_type) == len(non_zero_cands):
@@ -1430,16 +1430,16 @@ class SlatePreference(BallotGenerator):
                                                      replace=False, p = distribution)
                     cand_ordering_by_bloc[b] = list(cand_ordering)
                 
-                ranking = []
-                for b in ballot_type:
+                ranking = [-1 for _ in range(len(ballot_type))]
+                for i, b in enumerate(ballot_type):
                     # append the current first candidate, then remove them from the ordering
-                    ranking.append({cand_ordering_by_bloc[b][0]})
+                    ranking[i] = {cand_ordering_by_bloc[b][0]}
                     cand_ordering_by_bloc[b].pop(0)
                 
                 zero_cands = [c for c,s in pref_interval.items() if s == 0]
                 if len(zero_cands) > 0:
                     ranking.append(set(zero_cands))
-                ballot_pool.append(Ballot(ranking =ranking, weight = Fraction(1,1)))
+                ballot_pool[i] = Ballot(ranking =ranking, weight = Fraction(1,1))
 
            
             pp = PreferenceProfile(ballots=ballot_pool)
