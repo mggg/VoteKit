@@ -49,7 +49,7 @@ class Ballot:
         # Check ranking
         if self.ranking != other.ranking:
             return False
-        
+
         # Check weight
         if self.weight != other.weight:
             return False

@@ -12,7 +12,7 @@ from .election_types import (  # noqa
     Plurality,
     IRV,
     HighestScore,
-    Cumulative
+    Cumulative,
 )
 
 from .transfers import seqRCV_transfer, fractional_transfer, random_transfer  # noqa

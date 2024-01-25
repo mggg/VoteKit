@@ -44,7 +44,7 @@ class PairwiseComparisonGraph(Graph):
             ballot_length: How long a ballot is.
 
         Returns:
-            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete 
+            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete
                 ballots filled in.
         """
         cand_list = [{cand} for cand in profile.get_candidates()]
@@ -72,7 +72,7 @@ class PairwiseComparisonGraph(Graph):
     # Helper functions to make pairwise comparison graph
     def head2head_count(self, cand1, cand2) -> Fraction:
         """
-        Counts head to head comparisons between two candidates. Note that the given order 
+        Counts head to head comparisons between two candidates. Note that the given order
         of the candidates matters here.
 
         Args:
@@ -170,7 +170,7 @@ class PairwiseComparisonGraph(Graph):
         )
         edge_labels = {(i, j): G[i][j]["weight"] for i, j in G.edges()}
         nx.draw_networkx_edge_labels(
-            G, pos, edge_labels=edge_labels, label_pos=1/3, font_size=10
+            G, pos, edge_labels=edge_labels, label_pos=1 / 3, font_size=10
         )
         # Out stuff
         if outfile is not None:
@@ -191,7 +191,7 @@ class PairwiseComparisonGraph(Graph):
         if len(dominating_tiers[0]) == 1:
             return True
         return False
-    
+
     def get_condorcet_winner(self) -> str:
         """
         Returns the condorcet winner. Raises a ValueError if no condorcet winner.
@@ -199,7 +199,7 @@ class PairwiseComparisonGraph(Graph):
         Returns:
             The condorcet winner.
         """
-        
+
         if self.has_condorcet_winner():
             return list(self.dominating_tiers()[0])[0]
 
@@ -260,4 +260,4 @@ class PairwiseComparisonGraph(Graph):
 
         G = self.pairwise_graph
         list_of_cycles = nx.recursive_simple_cycles(G)
-        return(sorted(list_of_cycles, key=lambda x: len(x)))
+        return sorted(list_of_cycles, key=lambda x: len(x))

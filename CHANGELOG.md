@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created utility functions to compute the winners of a profile given a score vector, as well as to validate a score vector (non-negative and non-increasing).
 - Created a `shortPlackettLuce` class which allows you to generate ballots of arbitrary length in the style of PL.
 - Added tests for  `__add__` method of `PreferenceProfile`.
+- Added `SlatePreference` model and tests.
 
 ## Changed
 - Change the way the `condense_ballots()` method works in profiles. Rather than altering the original profile, it returns a new profile. This gives users the option to preserve the original profile.
