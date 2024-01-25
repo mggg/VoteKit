@@ -24,7 +24,7 @@ class Ballot:
     :   optional ballot id.
     """
 
-    ranking: list[set] = field(default_factory=list)
+    ranking: tuple[frozenset,...] = field(default_factory=tuple)
     weight: Fraction = Fraction(1, 1)
     voter_set: Optional[set[str]] = None
     id: Optional[str] = None
@@ -62,7 +62,7 @@ class Ballot:
         return True
 
     def __hash__(self):
-        return hash(str(self.ranking))
+        return hash(self.ranking)
 
     def __str__(self):
         weight_str = f"Weight: {self.weight}\n"

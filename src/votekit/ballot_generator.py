@@ -14,6 +14,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 
 
+
 class BallotGenerator:
     """
     Base class for ballot generation models that use the candidate simplex
@@ -427,35 +428,52 @@ class BradleyTerry(BallotGenerator):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
 
-    def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
+        # compute and save candidates with zero support
+        self.zero_cands_by_bloc ={}
+        for bloc in self.pref_interval_by_bloc.keys():
+            non_zero_cands_pi = {c:s for c,s in self.pref_interval_by_bloc[bloc].items() if s>0}
+            zero_cands = set(self.pref_interval_by_bloc[bloc].keys())\
+                                                .difference(non_zero_cands_pi.keys())
+            
+            self.pref_interval_by_bloc[bloc] = non_zero_cands_pi
+            self.zero_cands_by_bloc[bloc] = zero_cands
+
+
+        if len(self.candidates) < 12:
+            # precompute pdfs for sampling
+            self.pdfs_by_bloc = {bloc: self._BT_pdf(self.pref_interval_by_bloc[bloc]) 
+                                for bloc in self.pref_interval_by_bloc.keys()}
+        else:
+            raise Warning("For 12 or more candidates, exact sampling is computationally infeasible.\
+                          Please only use the built in generate_profile_MCMC method.")
+
+    def _make_pow(self, lst):
         """
-        given a list of rankings and the preference interval, \
-        calculates the probability of observing each ranking
-
-        Args:
-            permutations (list[tuple]): a list of permuted rankings
-            cand_support_dict (dict): a mapping from candidate to their \
-            support (preference interval)
-
-        Returns:
-            dict: a mapping of the rankings to their probability
+        Helper method for _BT_pdf.
         """
-        ranking_to_prob = {}
-        for ranking in permutations:
-            prob = 1
-            for i in range(len(ranking)):
-                cand_i = ranking[i]
-                greater_cand_support = cand_support_dict[cand_i]
-                for j in range(i + 1, len(ranking)):
-                    cand_j = ranking[j]
-                    cand_support = cand_support_dict[cand_j]
-                    prob *= greater_cand_support / (greater_cand_support + cand_support)
-            ranking_to_prob[ranking] = prob
-        return ranking_to_prob
+        ret = 1
+        m = len(lst)
+        for i, val in enumerate(lst):
+            if i < m-1:
+                ret *= val**(m-i-1)
+        return ret
 
-    def generate_profile(self, number_of_ballots, by_bloc: bool = False) -> Union[PreferenceProfile,
-                                                                                  Tuple]:
+    def _BT_pdf(self, dct):
+        """
+        Construct the BT pdf as a dictionary (ballot, probability) given a preference
+        interval as a dictionary (candidate, preference).
+        """
+        def pull_perm(lst):
+            nonlocal dct
+            return [dct[i] for i in lst]
         
+        new_dct = {perm: self._make_pow(pull_perm(perm)) 
+                   for perm in it.permutations(dct.keys(), len(dct))}
+        summ = sum(new_dct.values())
+        return {key: value/summ for key, value in new_dct.items()}
+    
+    def generate_profile(self, number_of_ballots, by_bloc: bool = False) -> \
+                                                                Union[PreferenceProfile, Tuple]:
 
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         blocs = list(self.bloc_voter_prop.keys())
@@ -467,58 +485,155 @@ class BradleyTerry(BallotGenerator):
         pp_by_bloc = {b: PreferenceProfile() for b in blocs}
 
         for bloc in blocs:
-            ballot_pool =[]
             num_ballots = ballots_per_block[bloc]
-
-            pref_interval_dict = self.pref_interval_by_bloc[bloc]
-            # compute non-zero pref candidates
-            non_zero_pref_dict = {
-                cand: prop for cand, prop in pref_interval_dict.items() if prop > 0
-            }
-            non_zero_cands = non_zero_pref_dict.keys()
-            zero_cands = set(self.candidates).difference(non_zero_cands)
-
-            # all possible rankings of non zero candidates
-            permutations = list(it.permutations(non_zero_cands, len(non_zero_cands)))
-
-            # compute the prob of each ranking given bloc support
-            ranking_to_prob = self._calc_prob(
-                permutations=permutations, cand_support_dict=non_zero_pref_dict
-            )
+            ballot_pool =[-1 for _ in range(num_ballots)]
+            zero_cands = self.zero_cands_by_bloc[bloc]
+            pdf_dict = self.pdfs_by_bloc[bloc]
 
             # numpy can only sample from 1D arrays, so we sample the indices instead of rankings
-            rankings = list(ranking_to_prob.keys())
+            rankings = list(pdf_dict.keys())
             indices = range(len(rankings))
-            probs = list(ranking_to_prob.values())
-
-            # create distribution to sample ballots from
-            normalizing_constant = sum(probs)
-            prob_distrib = [float(p) / normalizing_constant for p in probs]
+            probs = list(pdf_dict.values())
 
             # sample ballots
-            for _ in range(num_ballots):
-                index = list(
+            sampled_indices = list(
                     np.random.choice(
                         indices,
-                        1,
-                        p=prob_distrib,
+                        num_ballots,
+                        p=probs,
                     )
-                )[0]
+                )
 
+            for j, index in enumerate(sampled_indices):
                 # convert index to ranking
                 ranking = [{cand} for cand in rankings[index]]
 
                 # add any zero candidates as ties
                 if len(zero_cands) > 0:
                     ranking.append(zero_cands)
-
+                
                 ballot = Ballot(ranking=ranking, weight=Fraction(1, 1))
-                ballot_pool.append(ballot)
+                ballot_pool[j] = ballot
 
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp.condense_ballots()
+            pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
+        # combine the profiles
+        pp = PreferenceProfile(ballots=[])
+        for profile in pp_by_bloc.values():
+            pp+= profile
+
+        if by_bloc:
+            return(pp_by_bloc, pp)
+
+        # else return the combined profiles
+        else:
+            return pp
+         
+    def _BT_mcmc(self, 
+                 num_ballots,
+                pref_interval,       
+                seed_ballot,
+                zero_cands  = {},
+                verbose = False):
+        """
+        Sample from BT distribution for a given preference interval using MCMC.
+
+        num_ballots (int): the number of ballots to sample
+        pref_interval (dict): the preference interval to determine BT distribution
+        sub_sample_length (int): how many attempts at swaps to make before saving ballot
+        seed_ballot: Ballot, the seed ballot for the Markov chain
+        verbose: bool, if True, print the acceptance ratio of the chain
+        """
+
+        # check that seed ballot has no ties
+        for s in seed_ballot.ranking:
+            if len(s) > 1:
+                raise ValueError("Seed ballot contains ties")
+        
+        ballots = [-1 for _ in range(num_ballots)]
+        accept = 0 
+        current_ranking = seed_ballot.ranking 
+        num_candidates  = len(current_ranking)
+
+        num_ballots_generated = 0
+        # generate MCMC sample
+        while num_ballots_generated < num_ballots:
+            # choose adjacent pair to propose a swap
+            j1 = random.choice(range(num_candidates - 1))
+            j2 = j1 + 1
+
+            acceptance_prob = min(1, pref_interval[next(iter(current_ranking[j2]))]/ \
+                                  pref_interval[next(iter(current_ranking[j1]))])
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = current_ranking[j2], current_ranking[j1]
+                accept += 1
+            
+            if len(zero_cands) > 0:
+                ballots[num_ballots_generated] = Ballot(ranking = current_ranking+ [zero_cands])
+            else:
+                ballots[num_ballots_generated] = Ballot(ranking = current_ranking)
+            num_ballots_generated += 1
+
+        if verbose:
+            print(f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}")
+
+        if -1 in ballots:
+            raise ValueError("Some element of ballots list is not a ballot.")
+
+        pp = PreferenceProfile(ballots = ballots)
+        pp = pp.condense_ballots()
+        return(pp)
+
+    def generate_profile_MCMC(self, number_of_ballots: int,
+                              verbose = False,
+                              by_bloc: bool = False) -> Union[PreferenceProfile, Tuple]:
+        """
+        Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
+        be sufficiently large to allow for convergence of the chain. 
+
+        Args:
+            number_of_ballots (int): Number of ballots to generate.
+            verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
+                                        is False.
+            by_bloc (bool, optional): True if you want a tuple (pp_by_bloc, pp), which is a 
+                                    dictionary of  PreferenceProfiles with keys = blocs and the 
+                                    aggregated profile. False if you want the aggregated profile. 
+                                    Defaults to False.
+
+        Returns:
+            Generated ballots as a PreferenceProfile or tuple (dict, PreferenceProfile).
+        """
+
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        blocs = list(self.bloc_voter_prop.keys())
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(
+            zip(blocs, apportion.compute("huntington", bloc_props, number_of_ballots))
+        )
+
+        pp_by_bloc = {b: PreferenceProfile() for b in blocs}
+
+        for bloc in blocs:
+            num_ballots = ballots_per_block[bloc]
+
+            pref_interval_dict = self.pref_interval_by_bloc[bloc]
+            non_zero_cands = pref_interval_dict.keys()
+            zero_cands = self.zero_cands_by_bloc[bloc]
+            
+
+            seed_ballot = Ballot(ranking = [{c} for c in non_zero_cands])
+            pp = self._BT_mcmc(num_ballots,
+                            pref_interval_dict, 
+                            seed_ballot,
+                            zero_cands = zero_cands,
+                            verbose = verbose)
+            
+            pp_by_bloc[bloc] = pp
+         
         # combine the profiles
         pp = PreferenceProfile(ballots=[])
         for profile in pp_by_bloc.values():
