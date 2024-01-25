@@ -64,6 +64,13 @@ def test_SP_completion():
     profile = pl.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
 
+    result = pl.generate_profile(number_of_ballots=100, by_bloc=True)
+    assert type(result) is tuple
+    profile_dict, agg_prof = result
+    assert type(profile_dict) is dict
+    assert(type(profile_dict["W"])) is PreferenceProfile
+    assert type(agg_prof) is PreferenceProfile
+
 def test_BT_completion():
     bt = BradleyTerry(
         candidates=["W1", "W2", "C1", "C2"],
@@ -606,16 +613,15 @@ def test_incorrect_blocs():
 
 def test_ac_profile_from_params():
     blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": 0.7, "D": 0.6}
+    # cohesion = {"R": 0.7, "D": 0.6}
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     cohesion_parameters = {"R": 0.5, "D": 0.4}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
     ac = AlternatingCrossover.from_params(
         bloc_voter_prop=blocs,
-        cohesion=cohesion,
         alphas=alphas,
         slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion_parameters,
+        cohesion=cohesion_parameters,
     )
 
     profile = ac.generate_profile(3)
