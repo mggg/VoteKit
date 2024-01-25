@@ -30,27 +30,29 @@ COLOR_LIST = [
 # Election Helper Functions
 CandidateVotes = namedtuple("CandidateVotes", ["cand", "votes"])
 
-def ballots_by_first_cand(candidates:list[str], ballots: list[Ballot]) -> dict:
+
+def ballots_by_first_cand(candidates: list[str], ballots: list[Ballot]) -> dict:
     """
-    Partitions the ballots by first place candidate. 
+    Partitions the ballots by first place candidate.
 
     Returns:
         A dictionary whose keys are candidates and values are lists of ballots.
     """
-    cand_dict = {c:[] for c in candidates} # type: dict
+    cand_dict = {c: [] for c in candidates}  # type: dict
 
     for b in ballots:
         if b.ranking:
             # find first place candidate, ensure there is only one
             first_cand = list(b.ranking[0])
-            if len(first_cand)>1:
+            if len(first_cand) > 1:
                 raise ValueError(f"Ballot {b} has a tie for first.")
             else:
                 first_cand = first_cand[0]
 
             cand_dict[first_cand].append(b)
-        
+
     return cand_dict
+
 
 def compute_votes(
     candidates: list,
@@ -64,8 +66,8 @@ def compute_votes(
         ballots: List of Ballot objects.
 
     Returns:
-        A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes) 
-            ordered by decreasing first place votes and votes is a dictionary whose keys are 
+        A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes)
+            ordered by decreasing first place votes and votes is a dictionary whose keys are
             candidates and values are first place votes.
     """
     votes = {cand: Fraction(0) for cand in candidates}
@@ -141,8 +143,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
 
 
 # Summmary Stat functions
-def first_place_votes(profile: PreferenceProfile,
-                      to_float: bool = False) -> dict:
+def first_place_votes(profile: PreferenceProfile, to_float: bool = False) -> dict:
     """
     Calculates first-place votes for a PreferenceProfile.
 
@@ -161,7 +162,7 @@ def first_place_votes(profile: PreferenceProfile,
     _, votes_dict = compute_votes(cands, ballots)
 
     if to_float:
-        votes_dict = {k:float(v) for k,v in votes_dict.items()}
+        votes_dict = {k: float(v) for k, v in votes_dict.items()}
         return votes_dict
     else:
         return votes_dict
@@ -217,7 +218,6 @@ def borda_scores(
         ballot_length = max([len(ballot.ranking) for ballot in profile.ballots])
     if score_vector is None:
         score_vector = list(range(ballot_length, 0, -1))
-
 
     print(score_vector)
     candidate_borda = {c: Fraction(0) for c in candidates}
@@ -362,7 +362,10 @@ def scores_into_set_list(
         ]
     return tier_list
 
-def compute_scores_from_vector(profile: PreferenceProfile, score_vector: list[float]) -> dict:
+
+def compute_scores_from_vector(
+    profile: PreferenceProfile, score_vector: list[float]
+) -> dict:
     """
     Computes the scores received by each candidate given the score vector and the profile.
 
@@ -378,20 +381,24 @@ def compute_scores_from_vector(profile: PreferenceProfile, score_vector: list[fl
     # check for valid score vector
     validate_score_vector(score_vector)
 
-    candidates_to_scores = {c:0.0 for c in profile.get_candidates()}
+    candidates_to_scores = {c: 0.0 for c in profile.get_candidates()}
 
     for ballot in profile.ballots:
         for i, s in enumerate(ballot.ranking):
             # for each candidate in position i, give them points as determined by score_vector
             for c in s:
                 try:
-                    candidates_to_scores[c] += score_vector[i]*ballot.weight
+                    candidates_to_scores[c] += score_vector[i] * ballot.weight
                 except IndexError:
-                    warnings.warn(f"Tried to access index {i} of score vector," 
-                                     f"but vector only length {len(score_vector)}. "
-                                     "Assigned candidate 0 points.", UserWarning)
+                    warnings.warn(
+                        f"Tried to access index {i} of score vector,"
+                        f"but vector only length {len(score_vector)}. "
+                        "Assigned candidate 0 points.",
+                        UserWarning,
+                    )
 
-    return(candidates_to_scores)
+    return candidates_to_scores
+
 
 def validate_score_vector(score_vector: list[float]):
     """
@@ -403,11 +410,11 @@ def validate_score_vector(score_vector: list[float]):
         if score < 0:
             raise ValueError("Score vector must be non-negative.")
 
-        if i>0:
+        if i > 0:
             # if the current score is bigger than prev
-            if score > score_vector[i-1]:
+            if score > score_vector[i - 1]:
                 raise ValueError("Score vector must be non-increasing.")
-        
+
 
 def elect_cands_from_set_ranking(
     ranking: list[set[str]], seats: int

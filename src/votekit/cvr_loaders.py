@@ -60,7 +60,7 @@ def load_csv(
 
     if rank_cols:
         if id_col is not None:
-            df = df.iloc[:, rank_cols+[id_col]]
+            df = df.iloc[:, rank_cols + [id_col]]
         else:
             df = df.iloc[:, rank_cols]
 
@@ -72,7 +72,6 @@ def load_csv(
 
     for group, group_df in grouped:
         ranking = [{None} if pd.isnull(c) else {c} for c in group]
-
 
         voter_set = None
         if id_col is not None:
@@ -99,7 +98,7 @@ def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
         DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        (tuple): A tuple (PreferenceProfile, seats) representing the election and the 
+        (tuple): A tuple (PreferenceProfile, seats) representing the election and the
                 number of seats in the election.
     """
     ballots = []

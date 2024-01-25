@@ -35,9 +35,9 @@ def plot_summary_stats(
 
     fig, ax = plt.subplots()
 
-    candidates = profile.get_candidates(received_votes = False)
+    candidates = profile.get_candidates(received_votes=False)
     y_data = [data[c] for c in candidates]
-    
+
     ax.bar(candidates, y_data, color=colors, width=0.35)
     ax.set_xlabel("Candidates")
     ax.set_ylabel("Frequency")

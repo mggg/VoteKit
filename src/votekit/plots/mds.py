@@ -5,6 +5,7 @@ import numpy as np
 from typing import Dict
 from sklearn import manifold  # type: ignore
 
+
 # Helper function for MDS Plot
 def distance_matrix(
     pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs

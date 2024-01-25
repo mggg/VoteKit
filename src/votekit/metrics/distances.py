@@ -54,7 +54,7 @@ def lp_dist(
     Args:
         pp1: PreferenceProfile for first election.
         pp2: PreferenceProfile for second election.
-        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean 
+        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean
             or 'inf' for Chebyshev distance.
 
     Returns:
@@ -86,7 +86,7 @@ def lp_dist(
 def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     """
     Converts a list of PreferenceProfile into an ndarray,
-    a matrix like object. The cols represent each profile, 
+    a matrix like object. The cols represent each profile,
     rows are the cast ballots, and each element represents
     the frequency a ballot type occurs for a PreferenceProfile.
     Each column will sum to one since weights are standardized.
