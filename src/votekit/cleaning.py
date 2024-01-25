@@ -17,7 +17,7 @@ def remove_empty_ballots(
     Args:
         pp (PreferenceProfile): A PreferenceProfile to clean.
         keep_candidates (bool, optional): If True, keep all of the candidates
-            from the original PreferenceProfile in the returned PreferenceProfile, even if 
+            from the original PreferenceProfile in the returned PreferenceProfile, even if
             they got no votes. Defaults to False.
 
     Returns:
@@ -44,7 +44,7 @@ def clean_profile(
 
     Args:
         pp (PreferenceProfile): A PreferenceProfile to clean.
-        clean_ballot_func (Callable[[Ballot], Ballot]): Function that 
+        clean_ballot_func (Callable[[Ballot], Ballot]): Function that
             takes a list of ballots and cleans each ballot.
 
     Returns:

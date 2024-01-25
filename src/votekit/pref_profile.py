@@ -215,10 +215,9 @@ class PreferenceProfile(BaseModel):
             df["New Index"] = [x for x in range(len(self.df) - 1, -1, -1)]
             df = df.set_index("New Index").head(n)
             df.index.name = None
-            
+
         else:
             df = self.df.iloc[::-1].head(n)
-
 
         if totals:
             df = self._sum_row(df)
@@ -273,7 +272,7 @@ class PreferenceProfile(BaseModel):
                 Ballot(ranking=ranking, weight=Fraction(total_weight))
             )
 
-        condensed_profile = PreferenceProfile(ballots = new_ballot_list)
+        condensed_profile = PreferenceProfile(ballots=new_ballot_list)
         return condensed_profile
 
     def __eq__(self, other):
@@ -312,9 +311,11 @@ class PreferenceProfile(BaseModel):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         if isinstance(other, PreferenceProfile):
-            ballots = self.ballots+other.ballots
+            ballots = self.ballots + other.ballots
             pp = PreferenceProfile(ballots=ballots)
             pp.condense_ballots()
             return pp
         else:
-            raise TypeError("Unsupported operand type. Must be an instance of PreferenceProfile.")
+            raise TypeError(
+                "Unsupported operand type. Must be an instance of PreferenceProfile."
+            )

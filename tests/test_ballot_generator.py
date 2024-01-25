@@ -15,6 +15,7 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     OneDimSpatial,
     BallotSimplex,
+    SlatePreference
 )
 from votekit.pref_profile import PreferenceProfile
 
@@ -48,7 +49,27 @@ def test_PL_completion():
     )
     profile = pl.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
+    
+def test_SP_completion():
+    pl = SlatePreference(
+        candidates=["W1", "W2", "C1", "C2"],
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        pref_interval_by_bloc={
+            "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
+            "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
+        },
+        bloc_voter_prop={"W": 0.7, "C": 0.3},
+        cohesion_parameters={"W": 0.7, "C": 0.9},
+    )
+    profile = pl.generate_profile(number_of_ballots=100)
+    assert type(profile) is PreferenceProfile
 
+    result = pl.generate_profile(number_of_ballots=100, by_bloc=True)
+    assert type(result) is tuple
+    profile_dict, agg_prof = result
+    assert type(profile_dict) is dict
+    assert(type(profile_dict["W"])) is PreferenceProfile
+    assert type(agg_prof) is PreferenceProfile
 
 def test_BT_completion():
     bt = BradleyTerry(
@@ -269,6 +290,68 @@ def test_PL_distribution():
         ballot_prob_dict, generated_profile, len(candidates)
     )
 
+def test_SP_distribution():
+    # Set-up
+    number_of_ballots = 500
+    candidates = ["W1", "W2", "C1", "C2"]
+    pref_interval_by_bloc = {
+        "W": {"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1},
+        "C": {"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3},
+    }
+    bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    cohesion = {"W": .9, "C": .8}
+    slate_to_candidates = {"W": ["W1", "W2"],
+                           "C": ["C1", "C2"]}
+    
+    # Generate ballots
+    generated_profile_by_bloc, _ = SlatePreference(
+        candidates=candidates,
+        pref_interval_by_bloc=pref_interval_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters=cohesion,
+        slate_to_candidates=slate_to_candidates
+    ).generate_profile(number_of_ballots=number_of_ballots, by_bloc=True)
+
+    blocs = list(bloc_voter_prop.keys())
+    
+    # Find labeled ballot probs
+    possible_rankings = list(it.permutations(candidates))
+    for current_bloc in blocs:
+        ballot_prob_dict = {b: 0 for b in possible_rankings}
+        
+        for ranking in possible_rankings:
+            support_for_cands = pref_interval_by_bloc[current_bloc]
+            total_prob = 1
+            prob = 1
+            for cand in ranking:
+                prob *= support_for_cands[cand] / total_prob
+                total_prob -= support_for_cands[cand]
+            ballot_prob_dict[ranking] += prob
+
+
+        candidate_to_slate = {c:s for s,c_list in slate_to_candidates.items() for c in c_list}
+        # now compute unlabeled ballot probs and multiply by labeled ballot probs
+        for ballot in ballot_prob_dict.keys():
+            # relabel candidates by their bloc
+            ballot_by_bloc = [candidate_to_slate[c] for c in ballot]
+            prob = 1
+            bloc_counter = {b:0 for b in bloc_voter_prop.keys()}
+            # compute prob of ballot type
+            for bloc in ballot_by_bloc:
+                prob *= cohesion[bloc]
+                bloc_counter[bloc] += 1
+
+                # TODO only works with two blocs
+                # if no more of current bloc, rest of ballot is determined
+                if bloc_counter[bloc] == len(slate_to_candidates[bloc]):
+                    break
+            
+            ballot_prob_dict[ballot] *= prob
+
+        # Test
+        assert do_ballot_probs_match_ballot_dist(
+            ballot_prob_dict, generated_profile_by_bloc[current_bloc], len(candidates)
+        )
 
 def test_BT_distribution():
 
@@ -530,16 +613,15 @@ def test_incorrect_blocs():
 
 def test_ac_profile_from_params():
     blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": 0.7, "D": 0.6}
+    # cohesion = {"R": 0.7, "D": 0.6}
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     cohesion_parameters = {"R": 0.5, "D": 0.4}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
     ac = AlternatingCrossover.from_params(
         bloc_voter_prop=blocs,
-        cohesion=cohesion,
         alphas=alphas,
         slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion_parameters,
+        cohesion=cohesion_parameters,
     )
 
     profile = ac.generate_profile(3)

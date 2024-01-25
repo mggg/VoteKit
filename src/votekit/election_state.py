@@ -93,7 +93,7 @@ class ElectionState(BaseModel):
             return {
                 "Elected": self.elected,
                 "Eliminated": self.eliminated_cands,
-                "Remaining": self.remaining
+                "Remaining": self.remaining,
             }
         elif self.previous:
             return self.previous.round_outcome(round)
@@ -159,8 +159,10 @@ class ElectionState(BaseModel):
                         if len(s) > 1:
                             remaining_cands = ", ".join(list(s.difference(cand)))
                             tied_str = f" (tie with {remaining_cands})"
-                        
-                        status_df.loc[status_df["Candidate"] == cand, "Status"] = status + tied_str
+
+                        status_df.loc[status_df["Candidate"] == cand, "Status"] = (
+                            status + tied_str
+                        )
                         status_df.loc[status_df["Candidate"] == cand, "Round"] = round
 
         return status_df

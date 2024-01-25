@@ -31,7 +31,6 @@ class Election(ABC):
 
         self.state = ElectionState(curr_round=0, profile=self._profile)
 
-
     def run_to_step(self, step: int):
         """
         Run the election to the given step.
@@ -54,9 +53,9 @@ class Election(ABC):
                     if self.state.previous:
                         self.state = self.state.previous
                     else:
-                        raise ValueError("Previous state is None type.") 
+                        raise ValueError("Previous state is None type.")
 
-            return(self.state)
+            return self.state
 
     @abstractmethod
     def run_step(self, *args: Any, **kwargs: Any):
