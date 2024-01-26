@@ -151,7 +151,7 @@ class BallotGenerator:
         if "bloc_voter_prop" not in data:
             data["bloc_voter_prop"] = bloc_voter_prop
 
-        if cls == AlternatingCrossover:
+        if cls == AlternatingCrossover or cls == SlatePreference:
             generator = cls(
                 slate_to_candidates=slate_to_candidates,
                 cohesion_parameters=cohesion,
