@@ -152,7 +152,7 @@ class BallotGenerator:
         if "bloc_voter_prop" not in data:
             data["bloc_voter_prop"] = bloc_voter_prop
 
-        if cls == AlternatingCrossover:
+        if cls == AlternatingCrossover or cls == SlatePreference:
             generator = cls(
                 slate_to_candidates=slate_to_candidates,
                 cohesion_parameters=cohesion,
@@ -570,16 +570,16 @@ class BradleyTerry(BallotGenerator):
         
         ballots = [-1 for _ in range(num_ballots)]
         accept = 0 
-        current_ranking = seed_ballot.ranking 
+        current_ranking = list(seed_ballot.ranking)
         num_candidates  = len(current_ranking)
 
-        num_ballots_generated = 0
-        # generate MCMC sample
-        while num_ballots_generated < num_ballots:
-            # choose adjacent pair to propose a swap
-            j1 = random.choice(range(num_candidates - 1))
-            j2 = j1 + 1
+        # presample swap indices
+        swap_indices = [(j1, j1+1) for j1 in random.choices(range(num_candidates-1), k = num_ballots)]
 
+        # generate MCMC sample
+        for i in range(num_ballots):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
             acceptance_prob = min(1, pref_interval[next(iter(current_ranking[j2]))]/ \
                                   pref_interval[next(iter(current_ranking[j1]))])
 
@@ -589,10 +589,9 @@ class BradleyTerry(BallotGenerator):
                 accept += 1
             
             if len(zero_cands) > 0:
-                ballots[num_ballots_generated] = Ballot(ranking = current_ranking+ [zero_cands])
+                ballots[i] = Ballot(ranking = current_ranking+ [zero_cands])
             else:
-                ballots[num_ballots_generated] = Ballot(ranking = current_ranking)
-            num_ballots_generated += 1
+                ballots[i] = Ballot(ranking = current_ranking)
 
         if verbose:
             print(f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}")
@@ -1448,7 +1447,7 @@ class SlatePreference(BallotGenerator):
                                 o_bloc = self.blocs[(i + 1) % 2]
 
                                  # fill out rest of ballot with opposing bloc
-                                 for k in range(len(non_zero_cands) - len(ballot_type)):
+                                for k in range(len(non_zero_cands) - len(ballot_type)):
                                      ballot_type.append(o_bloc)
                     
                     if len(ballot_type) == len(non_zero_cands):
