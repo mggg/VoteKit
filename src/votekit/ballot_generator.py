@@ -462,6 +462,9 @@ class BradleyTerry(BallotGenerator):
     def _make_pow(self, lst):
         """
         Helper method for _BT_pdf.
+        Takes is a list representing the preference lengths of each candidate
+        in a permutation.
+        Computes the numerator of BT probability.
         """
         ret = 1
         m = len(lst)
@@ -475,6 +478,7 @@ class BradleyTerry(BallotGenerator):
         Construct the BT pdf as a dictionary (ballot, probability) given a preference
         interval as a dictionary (candidate, preference).
         """
+        # gives PI lengths for each candidate in permutation
         def pull_perm(lst):
             nonlocal dct
             return [dct[i] for i in lst]
