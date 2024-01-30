@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 import pickle
 import random
+import warnings
 from typing import Optional, Union, Tuple
 import apportionment.methods as apportion  # type: ignore
 
@@ -456,8 +457,7 @@ class BradleyTerry(BallotGenerator):
             self.pdfs_by_bloc = {bloc: self._BT_pdf(self.pref_interval_by_bloc[bloc]) 
                                 for bloc in self.pref_interval_by_bloc.keys()}
         else:
-            raise Warning("For 12 or more candidates, exact sampling is computationally infeasible.\
-                          Please only use the built in generate_profile_MCMC method.")
+            warnings.warn("For 12 or more candidates, exact sampling is computationally infeasible. Please only use the built in generate_profile_MCMC method.")
 
     def _make_pow(self, lst):
         """
