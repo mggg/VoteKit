@@ -10,6 +10,10 @@ hide:
     rendering:
     heading_level: 4
 
+### ::: votekit.pref_interval
+    rendering:
+    heading_level: 4
+
 ### ::: votekit.pref_profile
     rendering:
       heading_level: 4

@@ -7,6 +7,7 @@ from .ballot_generator import (  # noqa
     CambridgeSampler,
     AlternatingCrossover,
 )
+from .pref_interval import PreferenceInterval
 from .ballot import Ballot  # noqa
 from .pref_profile import PreferenceProfile  # noqa
 from .cleaning import (  # noqa
