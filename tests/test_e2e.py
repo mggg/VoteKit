@@ -60,7 +60,7 @@ def test_generate_election_completion():
 
     ballot_model = bg.CambridgeSampler(
         candidates=candidates,
-        pref_interval_by_bloc=pref_interval_by_bloc,
+        pref_intervals_by_bloc=pref_interval_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
         path=path,
         cohesion_parameters=cohesion_parameters,
