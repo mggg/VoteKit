@@ -255,22 +255,20 @@ class PreferenceProfile(BaseModel):
         Returns:
             A PreferenceProfile object with condensed ballot list.
         """
-        class_vector = []
-        seen_rankings = []
-        for ballot in self.ballots:
-            if ballot.ranking not in seen_rankings:
-                seen_rankings.append(ballot.ranking)
-            class_vector.append(seen_rankings.index(ballot.ranking))
+        ranking_to_index = {}
+        weight_accumulator = {}
 
-        new_ballot_list = []
-        for i, ranking in enumerate(seen_rankings):
-            total_weight = Fraction(0)
-            for j in range(len(class_vector)):
-                if class_vector[j] == i:
-                    total_weight += self.ballots[j].weight
-            new_ballot_list.append(
-                Ballot(ranking=ranking, weight=Fraction(total_weight))
-            )
+        for ballot in self.ballots:
+            if ballot.ranking not in ranking_to_index:
+                ranking_to_index[ballot.ranking] = len(ranking_to_index)
+                weight_accumulator[ballot.ranking] = Fraction(0)
+
+            weight_accumulator[ballot.ranking] += ballot.weight
+
+        new_ballot_list = [
+            Ballot(ranking=list(map(set, ranking)), weight=weight)
+            for ranking, weight in weight_accumulator.items()
+        ]
 
         condensed_profile = PreferenceProfile(ballots=new_ballot_list)
         return condensed_profile
