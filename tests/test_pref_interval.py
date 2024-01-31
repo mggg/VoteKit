@@ -67,3 +67,28 @@ def test_remove_zero():
     assert interval.non_zero_cands == {"A", "B", "C"}
     assert interval.candidates == interval.non_zero_cands.union(interval.zero_cands)
     
+def test_combine_triple():
+    interval_1 = PreferenceInterval(interval={"A": 2, "B": 3, "C": 6, "D":0})
+    interval_2 = PreferenceInterval(interval = {"A": .2, "B": .3, "C": .5})
+    interval_3 = PreferenceInterval(interval = {"E":2, "F": 4})
+    
+    
+
+    with pytest.raises(ValueError, match="Intervals must have disjoint candidate sets"):
+        combine_preference_intervals([interval_1, interval_2, interval_3], [1/3, 1/3, 1/3])
+
+    
+    assert True
+
+def test_combine_bad_proportions():
+    interval_1 = PreferenceInterval(interval={"A": 2, "B": 3, "C": 6, "D":0})
+    interval_3 = PreferenceInterval(interval = {"E":2, "F": 4})
+    
+    
+    
+    # true_result = PreferenceInterval(interval={"A": 2/33, "B": 3/33, "C": 6/33, 
+    #                                                                "D":0, "E":2/9, "F":4/9})
+    
+    with pytest.raises(ValueError, match = "Proportions must sum to 1."):
+        combined_pi = combine_preference_intervals([interval_1,interval_3], [2/3, 4/3])
+    
