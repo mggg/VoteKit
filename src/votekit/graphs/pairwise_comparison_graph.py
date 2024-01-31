@@ -60,7 +60,7 @@ class PairwiseComparisonGraph(Graph):
                 )
                 frac_freq = ballot.weight / (len(missing_cands_perms))
                 for perm in missing_cands_perms:
-                    updated_rank = ballot.ranking + list(perm)
+                    updated_rank = ballot.ranking + tuple(perm)
                     updated_ballot = Ballot(
                         ranking=updated_rank, weight=Fraction(frac_freq, 1)
                     )

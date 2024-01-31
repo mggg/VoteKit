@@ -910,6 +910,12 @@ class CambridgeSampler(BallotGenerator):
         self.historical_majority = historical_majority
         self.historical_minority = historical_minority
 
+        if len(self.slate_to_candidates.keys()) > 2:
+            raise UserWarning(
+                f"This model currently only supports at two blocs, but you \
+                              passed {len(self.slate_to_candidates.keys())}"
+            )
+
         # changing names to match historical data, if statement handles generating from_params
         # only want to run this now if generating from init
         if len(self.cohesion_parameters) > 0:
@@ -1326,7 +1332,7 @@ class shortPlackettLuce(BallotGenerator):
         else:
             return pp
 
-
+# TODO, fix PI and cohesion
 class PlackettLuce(shortPlackettLuce):
     """
     Class for generating full ballots with Plackett-Luce. This model samples without
@@ -1357,7 +1363,7 @@ class PlackettLuce(shortPlackettLuce):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(k=k, **data)
 
-
+# TODO, fix PI and cohesion
 class SlatePreference(BallotGenerator):
     """
     Class for generating ballots using a slate preference model.
@@ -1396,11 +1402,11 @@ class SlatePreference(BallotGenerator):
         self.slate_to_candidates = slate_to_candidates
         self.cohesion_parameters = cohesion_parameters
 
-        if len(self.slate_to_candidates.keys()) > 2:
-            raise UserWarning(
-                f"This model currently only supports at most two blocs, but you \
-                              passed {len(self.slate_to_candidates.keys())}"
-            )
+        # if len(self.slate_to_candidates.keys()) > 2:
+        #     raise UserWarning(
+        #         f"This model currently only supports at most two blocs, but you \
+        #                       passed {len(self.slate_to_candidates.keys())}"
+        #     )
 
 
     def _sample_ballot_types(self, bloc: str, num_ballots: int):
@@ -1453,11 +1459,11 @@ class SlatePreference(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
 
-        if len(self.blocs) > 2:
-            raise UserWarning(
-                f"This model currently only supports at most two blocs, but you \
-                              passed {len(self.slate_to_candidates.keys())}"
-            )
+        # if len(self.blocs) > 2:
+        #     raise UserWarning(
+        #         f"This model currently only supports at most two blocs, but you \
+        #                       passed {len(self.slate_to_candidates.keys())}"
+        #     )
 
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(

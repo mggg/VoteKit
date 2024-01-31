@@ -499,7 +499,7 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
                     Ballot(
                         id=ballot.id,
                         ranking=ballot.ranking[:idx]
-                        + resolved
+                        + tuple(resolved)
                         + ballot.ranking[idx + 1 :],
                         weight=ballot.weight / math.factorial(len(rank)),
                         voter_set=ballot.voter_set,
