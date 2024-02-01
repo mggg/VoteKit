@@ -66,7 +66,7 @@ class BallotGenerator:
         if bloc_voter_prop and pref_intervals_by_bloc:  # PL, BT, AC, CS
             if round(sum(bloc_voter_prop.values())) != 1:
                 raise ValueError("Voter proportion for blocs must sum to 1")
-            
+
             if bloc_voter_prop.keys() != pref_intervals_by_bloc.keys():
                 raise ValueError("Blocs are not the same")
 
@@ -115,7 +115,7 @@ class BallotGenerator:
 
         if sum(bloc_voter_prop.values()) != 1.0:
             raise ValueError("Voter proportion for blocs must sum to 1")
-        
+
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
             raise ValueError("Blocs are not the same")
 
@@ -123,8 +123,9 @@ class BallotGenerator:
         for current_bloc in bloc_voter_prop:
             intervals = {}
             for b in bloc_voter_prop:
-                interval = PreferenceInterval.from_dirichlet(candidates = slate_to_candidates[b],
-                                                             alpha = alphas[current_bloc][b])
+                interval = PreferenceInterval.from_dirichlet(
+                    candidates=slate_to_candidates[b], alpha=alphas[current_bloc][b]
+                )
                 intervals[b] = interval
 
             pref_intervals_by_bloc[current_bloc] = intervals
@@ -318,8 +319,8 @@ class BallotSimplex(BallotGenerator):
             ]
 
         indices = np.random.choice(
-                range(len(perm_rankings)), number_of_ballots, p=draw_probabilities
-            )
+            a=len(perm_rankings), size=number_of_ballots, p=draw_probabilities
+        )
         ballot_pool = [perm_rankings[indices[i]] for i in range(number_of_ballots)]
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
@@ -394,9 +395,9 @@ class ImpartialAnonymousCulture(BallotSimplex):
 class BradleyTerry(BallotGenerator):
     """
     Class for generating ballots using a Bradley-Terry model. The probability of sampling
-    the ranking $X>Y>Z$ is proportional to $P(X>Y)*P(X>Z)*P(Y>Z)$. 
-    These individual probabilities are based on the preference interval: $P(X>Y) = x/(x+y)$. 
-    Can be initialized with an interval or can be constructed with the Dirichlet distribution using 
+    the ranking $X>Y>Z$ is proportional to $P(X>Y)*P(X>Z)*P(Y>Z)$.
+    These individual probabilities are based on the preference interval: $P(X>Y) = x/(x+y)$.
+    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
     the `from_params` method in the `BallotGenerator` class.
 
     **Attributes**
@@ -411,7 +412,7 @@ class BradleyTerry(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion}).
 
-    `cohesion_parameters` 
+    `cohesion_parameters`
     (dict): Cohension factors for each bloc (ex. {bloc_1: {bloc_1: .9, bloc_2:.1})
 
     **Methods**
@@ -424,24 +425,34 @@ class BradleyTerry(BallotGenerator):
         super().__init__(**data)
 
         # if dictionary of pref intervals
-        if isinstance(list(self.pref_intervals_by_bloc.values())[0], PreferenceInterval):
+        if isinstance(
+            list(self.pref_intervals_by_bloc.values())[0], PreferenceInterval
+        ):
             self.pref_interval_by_bloc = self.pref_intervals_by_bloc
 
         # if nested dictionary of pref intervals, combine by cohesion
         else:
-            self.pref_interval_by_bloc = {bloc: combine_preference_intervals(
-                                            list(self.pref_intervals_by_bloc[bloc].values()),
-                                            [self.cohesion_parameters[bloc][b] 
-                                             for b in self.pref_intervals_by_bloc.keys()]) 
-                                             for bloc in self.blocs}
+            self.pref_interval_by_bloc = {
+                bloc: combine_preference_intervals(
+                    list(self.pref_intervals_by_bloc[bloc].values()),
+                    [
+                        self.cohesion_parameters[bloc][b]
+                        for b in self.pref_intervals_by_bloc.keys()
+                    ],
+                )
+                for bloc in self.blocs
+            }
 
-            
         if len(self.candidates) < 12:
             # precompute pdfs for sampling
-            self.pdfs_by_bloc = {bloc: self._BT_pdf(self.pref_interval_by_bloc[bloc].interval) 
-                                for bloc in self.blocs}
+            self.pdfs_by_bloc = {
+                bloc: self._BT_pdf(self.pref_interval_by_bloc[bloc].interval)
+                for bloc in self.blocs
+            }
         else:
-            warnings.warn("For 12 or more candidates, exact sampling is computationally infeasible. Please only use the built in generate_profile_MCMC method.")
+            warnings.warn(
+                "For 12 or more candidates, exact sampling is computationally infeasible. Please only use the built in generate_profile_MCMC method."
+            )
 
     def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
         """
@@ -468,7 +479,7 @@ class BradleyTerry(BallotGenerator):
                     prob *= greater_cand_support / (greater_cand_support + cand_support)
             ranking_to_prob[ranking] = prob
         return ranking_to_prob
-    
+
     def _make_pow(self, lst):
         """
         Helper method for _BT_pdf.
@@ -479,8 +490,8 @@ class BradleyTerry(BallotGenerator):
         ret = 1
         m = len(lst)
         for i, val in enumerate(lst):
-            if i < m-1:
-                ret *= val**(m-i-1)
+            if i < m - 1:
+                ret *= val ** (m - i - 1)
         return ret
 
     def _BT_pdf(self, dct):
@@ -488,19 +499,22 @@ class BradleyTerry(BallotGenerator):
         Construct the BT pdf as a dictionary (ballot, probability) given a preference
         interval as a dictionary (candidate, preference).
         """
+
         # gives PI lengths for each candidate in permutation
         def pull_perm(lst):
             nonlocal dct
             return [dct[i] for i in lst]
-        
-        new_dct = {perm: self._make_pow(pull_perm(perm)) 
-                   for perm in it.permutations(dct.keys(), len(dct))}
-        summ = sum(new_dct.values())
-        return {key: value/summ for key, value in new_dct.items()}
-    
-    def generate_profile(self, number_of_ballots, by_bloc: bool = False) -> \
-                                                                Union[PreferenceProfile, Tuple]:
 
+        new_dct = {
+            perm: self._make_pow(pull_perm(perm))
+            for perm in it.permutations(dct.keys(), len(dct))
+        }
+        summ = sum(new_dct.values())
+        return {key: value / summ for key, value in new_dct.items()}
+
+    def generate_profile(
+        self, number_of_ballots, by_bloc: bool = False
+    ) -> Union[PreferenceProfile, Tuple]:
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
 
         bloc_props = list(self.bloc_voter_prop.values())
@@ -514,36 +528,29 @@ class BradleyTerry(BallotGenerator):
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
         for bloc in self.blocs:
-            ballot_pool = []
             num_ballots = ballots_per_block[bloc]
-            ballot_pool =[-1 for _ in range(num_ballots)]
+
+            # Directly initialize the list using good memory trick
+            ballot_pool = [-1] * num_ballots
             zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
             pdf_dict = self.pdfs_by_bloc[bloc]
 
-            # numpy can only sample from 1D arrays, so we sample the indices instead of rankings
-            rankings = list(pdf_dict.keys())
-            indices = range(len(rankings))
-            probs = list(pdf_dict.values())
+            # Directly use the keys and values from the dictionary for sampling
+            rankings, probs = zip(*pdf_dict.items())
 
-            # sample ballots
-            sampled_indices = list(
-                    np.random.choice(
-                        indices,
-                        num_ballots,
-                        p=probs,
-                    )
-                )
+            # The return of this will be a numpy array, so we don't need to make it into a list
+            sampled_indices = np.random.choice(
+                a=len(rankings), size=num_ballots, p=probs
+            )
 
             for j, index in enumerate(sampled_indices):
-                # convert index to ranking
                 ranking = [{cand} for cand in rankings[index]]
 
-                # add any zero candidates as ties
-                if len(zero_cands) > 0:
+                # Add any zero candidates as ties only if they exist
+                if zero_cands:
                     ranking.append(zero_cands)
-                
-                ballot = Ballot(ranking=ranking, weight=Fraction(1, 1))
-                ballot_pool[j] = ballot
+
+                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
@@ -560,13 +567,10 @@ class BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-         
-    def _BT_mcmc(self, 
-                 num_ballots,
-                pref_interval,       
-                seed_ballot,
-                zero_cands  = {},
-                verbose = False):
+
+    def _BT_mcmc(
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
+    ):
         """
         Sample from BT distribution for a given preference interval using MCMC.
 
@@ -581,56 +585,67 @@ class BradleyTerry(BallotGenerator):
         for s in seed_ballot.ranking:
             if len(s) > 1:
                 raise ValueError("Seed ballot contains ties")
-        
-        ballots = [-1 for _ in range(num_ballots)]
-        accept = 0 
+
+        ballots = [-1] * num_ballots
+        accept = 0
         current_ranking = list(seed_ballot.ranking)
-        num_candidates  = len(current_ranking)
+        num_candidates = len(current_ranking)
 
         # presample swap indices
-        swap_indices = [(j1, j1+1) for j1 in random.choices(range(num_candidates-1), k = num_ballots)]
+        swap_indices = [
+            (j1, j1 + 1)
+            for j1 in random.choices(range(num_candidates - 1), k=num_ballots)
+        ]
 
         # generate MCMC sample
         for i in range(num_ballots):
             # choose adjacent pair to propose a swap
             j1, j2 = swap_indices[i]
-            acceptance_prob = min(1, pref_interval[next(iter(current_ranking[j2]))]/ \
-                                  pref_interval[next(iter(current_ranking[j1]))])
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
 
             # if you accept, make the swap
             if random.random() < acceptance_prob:
-                current_ranking[j1], current_ranking[j2] = current_ranking[j2], current_ranking[j1]
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
                 accept += 1
-            
+
             if len(zero_cands) > 0:
-                ballots[i] = Ballot(ranking = current_ranking+ [zero_cands])
+                ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
             else:
-                ballots[i] = Ballot(ranking = current_ranking)
+                ballots[i] = Ballot(ranking=current_ranking)
 
         if verbose:
-            print(f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}")
+            print(
+                f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
+            )
 
         if -1 in ballots:
             raise ValueError("Some element of ballots list is not a ballot.")
 
-        pp = PreferenceProfile(ballots = ballots)
+        pp = PreferenceProfile(ballots=ballots)
         pp = pp.condense_ballots()
-        return(pp)
+        return pp
 
-    def generate_profile_MCMC(self, number_of_ballots: int,
-                              verbose = False,
-                              by_bloc: bool = False) -> Union[PreferenceProfile, Tuple]:
+    def generate_profile_MCMC(
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False
+    ) -> Union[PreferenceProfile, Tuple]:
         """
         Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
-        be sufficiently large to allow for convergence of the chain. 
+        be sufficiently large to allow for convergence of the chain.
 
         Args:
             number_of_ballots (int): Number of ballots to generate.
             verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
                                         is False.
-            by_bloc (bool, optional): True if you want a tuple (pp_by_bloc, pp), which is a 
-                                    dictionary of  PreferenceProfiles with keys = blocs and the 
-                                    aggregated profile. False if you want the aggregated profile. 
+            by_bloc (bool, optional): True if you want a tuple (pp_by_bloc, pp), which is a
+                                    dictionary of  PreferenceProfiles with keys = blocs and the
+                                    aggregated profile. False if you want the aggregated profile.
                                     Defaults to False.
 
         Returns:
@@ -640,7 +655,10 @@ class BradleyTerry(BallotGenerator):
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
-            zip(self.blocs, apportion.compute("huntington", bloc_props, number_of_ballots))
+            zip(
+                self.blocs,
+                apportion.compute("huntington", bloc_props, number_of_ballots),
+            )
         )
 
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
@@ -651,24 +669,25 @@ class BradleyTerry(BallotGenerator):
             pref_interval_dict = pref_interval.interval
             non_zero_cands = pref_interval.non_zero_cands
             zero_cands = pref_interval.zero_cands
-            
 
-            seed_ballot = Ballot(ranking = [{c} for c in non_zero_cands])
-            pp = self._BT_mcmc(num_ballots,
-                            pref_interval_dict, 
-                            seed_ballot,
-                            zero_cands = zero_cands,
-                            verbose = verbose)
-            
+            seed_ballot = Ballot(ranking=[{c} for c in non_zero_cands])
+            pp = self._BT_mcmc(
+                num_ballots,
+                pref_interval_dict,
+                seed_ballot,
+                zero_cands=zero_cands,
+                verbose=verbose,
+            )
+
             pp_by_bloc[bloc] = pp
-         
+
         # combine the profiles
         pp = PreferenceProfile(ballots=[])
         for profile in pp_by_bloc.values():
-            pp+= profile
+            pp += profile
 
         if by_bloc:
-            return(pp_by_bloc, pp)
+            return (pp_by_bloc, pp)
 
         # else return the combined profiles
         else:
@@ -722,23 +741,15 @@ class AlternatingCrossover(BallotGenerator):
         self.slate_to_candidates = slate_to_candidates
         self.cohesion_parameters = cohesion_parameters
 
-        # for pref_interval_dict in self.pref_intervals_by_bloc.values():
-        #     for pref_interval in pref_interval_dict.values():
-        #         if 0 in pref_interval.interval.values():
-        #             raise ValueError(
-        #                 "In AC model, all candidates must have non-zero preference."
-        #             )
-
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
-        cohesion_parameters = {b: self.cohesion_parameters[b][b] for b in self.cohesion_parameters}
+        cohesion_parameters = {
+            b: self.cohesion_parameters[b][b] for b in self.cohesion_parameters
+        }
 
-
-        voter_types = [
-            (b, type) for b in self.blocs for type in ["bloc", "cross"]
-        ]
+        voter_types = [(b, type) for b in self.blocs for type in ["bloc", "cross"]]
 
         voter_props = [
             cohesion_parameters[b] * self.bloc_voter_prop[b]
@@ -763,12 +774,14 @@ class AlternatingCrossover(BallotGenerator):
 
             pref_interval_dict = self.pref_intervals_by_bloc[bloc]
 
-            opposing_slate = self.blocs[(i+1)%2]
+            opposing_slate = self.blocs[(i + 1) % 2]
 
             opposing_cands = list(pref_interval_dict[opposing_slate].interval.keys())
             bloc_cands = list(pref_interval_dict[bloc].interval.keys())
 
-            pref_for_opposing = list(pref_interval_dict[opposing_slate].interval.values())
+            pref_for_opposing = list(
+                pref_interval_dict[opposing_slate].interval.values()
+            )
             pref_for_bloc = list(pref_interval_dict[bloc].interval.values())
 
             for i in range(num_cross_ballots + num_bloc_ballots):
@@ -817,6 +830,7 @@ class AlternatingCrossover(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+
 
 # TODO, fix PI and cohesion
 class OneDimSpatial(BallotGenerator):
@@ -963,7 +977,10 @@ class CambridgeSampler(BallotGenerator):
         }
 
         self.cohesion_parameters = {
-            cambridge_names[b]: {cambridge_names[b_1]: value for b_1, value in self.cohesion_parameters[b].items()}
+            cambridge_names[b]: {
+                cambridge_names[b_1]: value
+                for b_1, value in self.cohesion_parameters[b].items()
+            }
             for b in self.cohesion_parameters.keys()
         }
 
@@ -976,7 +993,7 @@ class CambridgeSampler(BallotGenerator):
             ballot_frequencies = pickle.load(pickle_file)
 
         cohesion_parameters = {b: self.cohesion_parameters[b][b] for b in self.blocs}
-        
+
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
         voter_types = [
             (b, t) for b in list(self.bloc_voter_prop.keys()) for t in ["bloc", "cross"]
@@ -1021,8 +1038,10 @@ class CambridgeSampler(BallotGenerator):
             )
 
             # Compute the pref interval for this bloc
-            pref_interval_dict = combine_preference_intervals(list(self.pref_intervals_by_bloc[bloc].values()),
-                                                              [cohesion_parameters[bloc], 1-cohesion_parameters[bloc]])
+            pref_interval_dict = combine_preference_intervals(
+                list(self.pref_intervals_by_bloc[bloc].values()),
+                [cohesion_parameters[bloc], 1 - cohesion_parameters[bloc]],
+            )
 
             # compute the relative probabilities of each ballot
             # sorted by ones where the ballot lists the bloc first
@@ -1057,9 +1076,6 @@ class CambridgeSampler(BallotGenerator):
                         weights=list(prob_ballot_given_opp_first.values()),
                         k=1,
                     )[0]
-
-                
-
 
                 # Now turn bloc ordering into candidate ordering
                 pl_ordering = list(
@@ -1106,6 +1122,7 @@ class CambridgeSampler(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+
 
 # TODO, fix PI and cohesion
 class Cumulative(BallotGenerator):
@@ -1239,16 +1256,23 @@ class shortPlackettLuce(BallotGenerator):
         self.k = k
 
         # if dictionary of pref intervals
-        if isinstance(list(self.pref_intervals_by_bloc.values())[0], PreferenceInterval):
+        if isinstance(
+            list(self.pref_intervals_by_bloc.values())[0], PreferenceInterval
+        ):
             self.pref_interval_by_bloc = self.pref_intervals_by_bloc
 
         # if nested dictionary of pref intervals, combine by cohesion
         else:
-            self.pref_interval_by_bloc = {bloc: combine_preference_intervals(
-                                            list(self.pref_intervals_by_bloc[bloc].values()),
-                                            [self.cohesion_parameters[bloc][b] 
-                                             for b in self.pref_intervals_by_bloc.keys()]) 
-                                             for bloc in self.blocs}
+            self.pref_interval_by_bloc = {
+                bloc: combine_preference_intervals(
+                    list(self.pref_intervals_by_bloc[bloc].values()),
+                    [
+                        self.cohesion_parameters[bloc][b]
+                        for b in self.pref_intervals_by_bloc.keys()
+                    ],
+                )
+                for bloc in self.blocs
+            }
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
@@ -1276,7 +1300,9 @@ class shortPlackettLuce(BallotGenerator):
             ballot_pool = []
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            pref_interval_values = list(self.pref_interval_by_bloc[bloc].interval.values())
+            pref_interval_values = list(
+                self.pref_interval_by_bloc[bloc].interval.values()
+            )
             non_zero_cands = list(self.pref_interval_by_bloc[bloc].non_zero_cands)
 
             # if there aren't enough non-zero supported candidates,
@@ -1334,7 +1360,7 @@ class shortPlackettLuce(BallotGenerator):
         else:
             return pp
 
-# TODO, fix PI and cohesion
+
 class PlackettLuce(shortPlackettLuce):
     """
     Class for generating full ballots with Plackett-Luce. This model samples without
@@ -1372,8 +1398,6 @@ class SlatePreference(BallotGenerator):
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
     It then fills out the ballot type via sampling with out replacement from the interval.
 
-    Only works with 2 blocs at the moment.
-
     Can be initialized with an interval or can be
     constructed with the Dirichlet distribution using the `from_params` method in the
     `BallotGenerator` class.
@@ -1404,13 +1428,6 @@ class SlatePreference(BallotGenerator):
         self.slate_to_candidates = slate_to_candidates
         self.cohesion_parameters = cohesion_parameters
 
-        # if len(self.slate_to_candidates.keys()) > 2:
-        #     raise UserWarning(
-        #         f"This model currently only supports at most two blocs, but you \
-        #                       passed {len(self.slate_to_candidates.keys())}"
-        #     )
-
-
     def _sample_ballot_types(self, bloc: str, num_ballots: int):
         """
         Used to generate bloc orderings for SP model.
@@ -1421,52 +1438,49 @@ class SlatePreference(BallotGenerator):
         candidates = list(it.chain(*list(self.slate_to_candidates.values())))
         ballots = [-1 for _ in range(num_ballots)]
         # precompute coin flips
-        coin_flips = list(np.random.uniform(size = len(candidates) * num_ballots))
+        coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
 
         def which_bin(dist_bins, flip):
             for i, bin in enumerate(dist_bins):
-                if bin < flip <= dist_bins[i+1]:
-                    return(i)
+                if bin < flip <= dist_bins[i + 1]:
+                    return i
 
         # do this for each ballot
-        for j in range(num_ballots):
-            cohesion_parameters = self.cohesion_parameters[bloc]
-            blocs = list(cohesion_parameters.keys())
-            values = list(cohesion_parameters.values())
-            distribution_bins = [0]+ [sum(values[:i+1]) for i in range(len(blocs))]   
-            ballot_type = [-1 for _ in range(len(candidates))]
+        blocs_og, values_og = zip(*self.cohesion_parameters[bloc].items())
+        blocs_og, values_og = list(blocs_og), list(values_og)
 
-            for i, flip in enumerate(coin_flips[j*len(candidates): (j+1)*len(candidates)]):
+        for j in range(num_ballots):
+            blocs, values = blocs_og.copy(), values_og.copy()
+            # Pre-calculate distribution_bins
+            distribution_bins = [0] + [sum(values[: i + 1]) for i in range(len(blocs))]
+            ballot_type = [-1] * len(candidates)
+
+            for i, flip in enumerate(
+                coin_flips[j * len(candidates) : (j + 1) * len(candidates)]
+            ):
                 bloc_index = which_bin(distribution_bins, flip)
                 bloc_type = blocs[bloc_index]
                 ballot_type[i] = bloc_type
 
-                # if that exhausts a slate of candidates
-                if ballot_type.count(bloc_type) == len(self.slate_to_candidates[bloc_type]):
+                # Check if that exhausts a slate of candidates
+                if ballot_type.count(bloc_type) == len(
+                    self.slate_to_candidates[bloc_type]
+                ):
                     del blocs[bloc_index]
                     del values[bloc_index]
-                    summ = sum(values)
-                    values = [v/summ for v in values]
-                    distribution_bins = [0]+ [sum(values[:i+1]) for i in range(len(blocs))]
-                    
+                    total_value_sum = sum(values)
+                    values = [v / total_value_sum for v in values]
+                    distribution_bins = [0] + [
+                        sum(values[: i + 1]) for i in range(len(blocs))
+                    ]
+
             ballots[j] = ballot_type
-        
+
         return ballots
-
-
-
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
-        # the number of ballots per bloc is determined by Huntington-Hill apportionment
-
-        # if len(self.blocs) > 2:
-        #     raise UserWarning(
-        #         f"This model currently only supports at most two blocs, but you \
-        #                       passed {len(self.slate_to_candidates.keys())}"
-        #     )
-
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
             zip(
@@ -1478,15 +1492,17 @@ class SlatePreference(BallotGenerator):
         pref_profile_by_bloc = {}
 
         for i, bloc in enumerate(self.blocs):
-            ballot_pool = []
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1 for _ in range(num_ballots)]
+            ballot_pool = [-1] * num_ballots
             ballot_types = self._sample_ballot_types(bloc, num_ballots)
+            pref_intervals = self.pref_intervals_by_bloc[bloc]
+            zero_cands = set(
+                it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
+            )
 
             for j, bt in enumerate(ballot_types):
                 cand_ordering_by_bloc = {}
-                pref_intervals = self.pref_intervals_by_bloc[bloc]
 
                 for b in self.blocs:
                     # create a pref interval dict of only this blocs candidates
@@ -1501,22 +1517,20 @@ class SlatePreference(BallotGenerator):
 
                     # sample
                     cand_ordering = np.random.choice(
-                        list(cands), len(cands), replace=False, p=distribution
+                        a=list(cands), size=len(cands), p=distribution, replace=False
                     )
                     cand_ordering_by_bloc[b] = list(cand_ordering)
-                
-                ranking = [-1 for _ in range(len(bt))]
+
+                ranking = [-1] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = {cand_ordering_by_bloc[b][0]}
                     cand_ordering_by_bloc[b].pop(0)
-                
-                zero_cands = set(it.chain(*[pi.zero_cands for pi in pref_intervals.values()]))
+
                 if len(zero_cands) > 0:
                     ranking.append(zero_cands)
-                ballot_pool[j] = Ballot(ranking =ranking, weight = Fraction(1,1))
+                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
-           
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
             pref_profile_by_bloc[bloc] = pp
@@ -1667,11 +1681,7 @@ class DeliberativeVoter(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False, deterministic: bool = True
     ) -> Union[PreferenceProfile, Tuple]:
-        if len(self.blocs) > 2:
-            raise UserWarning(
-                f"This model currently only supports at most two blocs, but you \
-                              passed {len(self.blocs)}"
-            )
+    
         
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
@@ -1687,8 +1697,12 @@ class DeliberativeVoter(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1 for _ in range(num_ballots)]
-            opp_bloc = self.blocs[(i+1)%2]
+            ballot_pool = [-1] * num_ballots
+            ballot_types = self._sample_ballot_types(bloc, num_ballots)
+            pref_intervals = self.pref_intervals_by_bloc[bloc]
+            zero_cands = set(
+                it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
+            )
 
             if deterministic:
                 ballot_types = self._sample_ballot_types_deterministic(bloc = bloc, num_ballots=num_ballots)
@@ -1696,7 +1710,6 @@ class DeliberativeVoter(BallotGenerator):
                 ballot_types = self._sample_ballot_types_MCMC(bloc = bloc, num_ballots=num_ballots)
             for j, bt in enumerate(ballot_types):
                 cand_ordering_by_bloc = {}
-                pref_intervals = self.pref_intervals_by_bloc[bloc]
 
                 for b in self.blocs:
                     # create a pref interval dict of only this blocs candidates
@@ -1711,22 +1724,20 @@ class DeliberativeVoter(BallotGenerator):
 
                     # sample
                     cand_ordering = np.random.choice(
-                        list(cands), len(cands), replace=False, p=distribution
+                        a=list(cands), size=len(cands), p=distribution, replace=False
                     )
                     cand_ordering_by_bloc[b] = list(cand_ordering)
-                
-                ranking = [-1 for _ in range(len(bt))]
+
+                ranking = [-1] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = {cand_ordering_by_bloc[b][0]}
                     cand_ordering_by_bloc[b].pop(0)
-                
-                zero_cands = set(it.chain(*[pi.zero_cands for pi in pref_intervals.values()]))
+
                 if len(zero_cands) > 0:
                     ranking.append(zero_cands)
-                ballot_pool[j] = Ballot(ranking =ranking, weight = Fraction(1,1))
+                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
-           
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
             pref_profile_by_bloc[bloc] = pp
@@ -1742,4 +1753,3 @@ class DeliberativeVoter(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-

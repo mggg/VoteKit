@@ -39,10 +39,10 @@ def test_add_profile():
     num_ballots = sum_weights(wprofile)
     assert num_ballots == 9
 
+
 def test_allow_partial():
     three = BallotGraph(3, allow_partial=False)
     assert len(three.graph.nodes) == 6
-
 
 
 def test_graph_labels():

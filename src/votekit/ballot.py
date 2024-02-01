@@ -24,7 +24,7 @@ class Ballot:
     :   optional ballot id.
     """
 
-    ranking: tuple[frozenset,...] = field(default_factory=tuple)
+    ranking: tuple[frozenset, ...] = field(default_factory=tuple)
     weight: Fraction = Fraction(1, 1)
     voter_set: Optional[set[str]] = None
     id: Optional[str] = None

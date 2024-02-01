@@ -2,8 +2,11 @@ from __future__ import annotations
 import numpy as np
 import types
 
-def combine_preference_intervals(intervals: list[PreferenceInterval], proportions: list[float]):
-        """
+
+def combine_preference_intervals(
+    intervals: list[PreferenceInterval], proportions: list[float]
+):
+    """
         Combine a list of preference intervals given a list of proportions used to reweight each
         interval.
 
@@ -12,19 +15,31 @@ def combine_preference_intervals(intervals: list[PreferenceInterval], proportion
     : list.  A list of PreferenceInterval objects to combine.
 
     `proportions`
-    : list. A list of floats used to reweight the PreferenceInterval objects. Proportion i will 
+    : list. A list of floats used to reweight the PreferenceInterval objects. Proportion i will
     reweight interval i.
-        """
+    """
+    if not (
+        len(frozenset.union(*[pi.candidates for pi in intervals]))
+        == sum(len(pi.candidates) for pi in intervals)
+    ):
+        raise ValueError("Intervals must have disjoint candidate sets")
 
-        if len(frozenset.intersection(*[pi.candidates for pi in intervals]))>0:
-            raise ValueError("Intervals must have disjoint candidate sets")
-        
-        sum_pi = PreferenceInterval(interval={key:value*prop for pi, prop in zip(intervals, proportions) for key,value in pi.interval.items()})
+    if round(sum(proportions), 8) != 1:
+        raise ValueError("Proportions must sum to 1.")
 
-        # carry along the candidates with zero support
-        zero_cands  = frozenset.union(*[pi.zero_cands for pi in intervals])
-        sum_pi.zero_cands = zero_cands
-        return(sum_pi)
+    sum_pi = PreferenceInterval(
+        interval={
+            key: value * prop
+            for pi, prop in zip(intervals, proportions)
+            for key, value in pi.interval.items()
+        }
+    )
+
+    # carry along the candidates with zero support
+    zero_cands = frozenset.union(*[pi.zero_cands for pi in intervals])
+    sum_pi.zero_cands = zero_cands
+    return sum_pi
+
 
 class PreferenceInterval:
     """
@@ -61,13 +76,12 @@ class PreferenceInterval:
         zero_cands.
     """
 
-        # TODO frozendict, frozenclass
+    # TODO frozendict, frozenclass
 
     def __init__(self, interval: dict):
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
-        
-        
+
         self.zero_cands = None
         self.non_zero_cands = None
         self._remove_zero_support_cands()
@@ -82,7 +96,7 @@ class PreferenceInterval:
         """
         probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
 
-        return cls({c:s for c,s in zip(candidates, probs)})
+        return cls({c: s for c, s in zip(candidates, probs)})
 
     def _normalize(self):
         """
@@ -92,8 +106,10 @@ class PreferenceInterval:
 
         if summ == 0:
             raise ZeroDivisionError("There are no candidates with non-zero support.")
-        
-        self.interval = types.MappingProxyType({c: s/summ for c,s in self.interval.items()})
+
+        self.interval = types.MappingProxyType(
+            {c: s / summ for c, s in self.interval.items()}
+        )
 
     def _remove_zero_support_cands(self):
         """
@@ -104,29 +120,31 @@ class PreferenceInterval:
         """
 
         if not self.zero_cands and not self.non_zero_cands:
-            self.zero_cands = frozenset([c for c,s in self.interval.items() if s == 0])
-            self.interval = types.MappingProxyType({c:s for c,s in self.interval.items() if s > 0})
+            self.zero_cands = frozenset([c for c, s in self.interval.items() if s == 0])
+            self.interval = types.MappingProxyType(
+                {c: s for c, s in self.interval.items() if s > 0}
+            )
             self.non_zero_cands = frozenset(self.interval.keys())
-    
-    
+
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):
             raise TypeError("Both types must be PreferenceInterval.")
-        
+
         if not self.zero_cands == other.zero_cands:
             return False
-        
+
         if not self.non_zero_cands == other.non_zero_cands:
             return False
-        
+
         if not len(self.interval) == len(other.interval):
             return False
-        
+
         else:
-            return all(round(other.interval[key],8) == round(value, 8) for key, value in self.interval.items())
+            return all(
+                round(other.interval[key], 8) == round(value, 8)
+                for key, value in self.interval.items()
+            )
 
     def __repr__(self):
-        printed_interval = {c: round(v, 4) for c,v in self.interval.items()}
+        printed_interval = {c: round(v, 4) for c, v in self.interval.items()}
         return str(printed_interval)
-
-    
