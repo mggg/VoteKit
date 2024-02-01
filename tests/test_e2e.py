@@ -49,13 +49,16 @@ def test_generate_election_completion():
     number_of_ballots = 100
     candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-    cohesion_parameters = {"W": {"W": 0.7, "C":.3},
-                            "C": {"C":0.6, "W":.4}}
+    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
     pref_interval_by_bloc = {
-        "W": {"W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-              "C": PreferenceInterval({"C1": 0.2, "C2": 0.1})},
-        "C": {"W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-              "C": PreferenceInterval({"C1": 0.3, "C2": 0.3})},
+        "W": {
+            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+            "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+        },
+        "C": {
+            "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+            "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+        },
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 

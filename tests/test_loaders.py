@@ -73,7 +73,9 @@ def test_multiple_undervotes():
         weight=Fraction(3),
         voter_set={"abe", "ben", "carl"},
     )
-    dave = Ballot(ranking=[{None}, {"a"}, {None}], weight=Fraction(1), voter_set={"dave"})
+    dave = Ballot(
+        ranking=[{None}, {"a"}, {None}], weight=Fraction(1), voter_set={"dave"}
+    )
     correct_prof = PreferenceProfile(ballots=[abc, dave])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
