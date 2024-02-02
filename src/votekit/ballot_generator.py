@@ -434,11 +434,8 @@ class BradleyTerry(BallotGenerator):
         else:
             self.pref_interval_by_bloc = {
                 bloc: combine_preference_intervals(
-                    list(self.pref_intervals_by_bloc[bloc].values()),
-                    [
-                        self.cohesion_parameters[bloc][b]
-                        for b in self.pref_intervals_by_bloc.keys()
-                    ],
+                    [self.pref_intervals_by_bloc[bloc][b] for b in self.blocs],
+                    [self.cohesion_parameters[bloc][b] for b in self.blocs],
                 )
                 for bloc in self.blocs
             }
@@ -1265,11 +1262,8 @@ class shortPlackettLuce(BallotGenerator):
         else:
             self.pref_interval_by_bloc = {
                 bloc: combine_preference_intervals(
-                    list(self.pref_intervals_by_bloc[bloc].values()),
-                    [
-                        self.cohesion_parameters[bloc][b]
-                        for b in self.pref_intervals_by_bloc.keys()
-                    ],
+                    [self.pref_intervals_by_bloc[bloc][b] for b in self.blocs],
+                    [self.cohesion_parameters[bloc][b] for b in self.blocs],
                 )
                 for bloc in self.blocs
             }
@@ -1296,14 +1290,14 @@ class shortPlackettLuce(BallotGenerator):
         # dictionary to store preference profiles by bloc
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
-        for bloc in self.bloc_voter_prop.keys():
-            ballot_pool = []
+        for bloc in self.blocs:
+            
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            pref_interval_values = list(
-                self.pref_interval_by_bloc[bloc].interval.values()
-            )
+            ballot_pool = [-1] * num_ballots            
             non_zero_cands = list(self.pref_interval_by_bloc[bloc].non_zero_cands)
+            pref_interval_values = [self.pref_interval_by_bloc[bloc].interval[c] for c in non_zero_cands]
+            zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
 
             # if there aren't enough non-zero supported candidates,
             # include 0 support as ties
@@ -1314,7 +1308,7 @@ class shortPlackettLuce(BallotGenerator):
                 number_tied = number_to_sample - len(non_zero_cands)
                 number_to_sample = len(non_zero_cands)
 
-            for _ in range(num_ballots):
+            for i in range(num_ballots):
                 # generates ranking based on probability distribution of non candidate support
                 # samples k candidates
                 non_zero_ranking = list(
@@ -1328,9 +1322,6 @@ class shortPlackettLuce(BallotGenerator):
 
                 ranking = [{cand} for cand in non_zero_ranking]
 
-                # if not enough non-zero, add zero support candidates to end as tie
-                zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
-
                 if number_tied:
                     tied_candidates = list(
                         np.random.choice(
@@ -1341,11 +1332,11 @@ class shortPlackettLuce(BallotGenerator):
                     )
                     ranking.append(set(tied_candidates))
 
-                ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
+                ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
             # create PP for this bloc
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp.condense_ballots()
+            pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1481,6 +1472,7 @@ class SlatePreference(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
             zip(
@@ -1513,7 +1505,7 @@ class SlatePreference(BallotGenerator):
                     if len(cands) == 0:
                         continue
 
-                    distribution = list(bloc_cand_pref_interval.values())
+                    distribution = [bloc_cand_pref_interval[c] for c in cands]
 
                     # sample
                     cand_ordering = np.random.choice(
@@ -1597,7 +1589,7 @@ class DeliberativeVoter(BallotGenerator):
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
 
-        print("started")
+        # print("started")
         blocs_to_sample = [b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))]
         total_comparisons = np.prod([len(l_of_c) for l_of_c in self.slate_to_candidates.values()])
         cohesion = self.cohesion_parameters[bloc][bloc]
@@ -1606,11 +1598,8 @@ class DeliberativeVoter(BallotGenerator):
             success = sum(b_type[i+1:].count(opp_bloc) for i,b in enumerate(b_type) if b==bloc)
             return pow(cohesion, success) * pow(1-cohesion, total_comparisons-success)
         
-        start = time.time()
-        pdf = {b: prob_of_type(b) for b in set(it.permutations(blocs_to_sample, len(blocs_to_sample)))}
-        end = time.time()
 
-        print("time to generate unnormalized", end-start)
+        pdf = {b: prob_of_type(b) for b in set(it.permutations(blocs_to_sample, len(blocs_to_sample)))}
         
         summ = sum(pdf.values())
         return {b: v/summ for b,v in pdf.items()}
@@ -1698,16 +1687,16 @@ class DeliberativeVoter(BallotGenerator):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
             ballot_pool = [-1] * num_ballots
-            ballot_types = self._sample_ballot_types(bloc, num_ballots)
             pref_intervals = self.pref_intervals_by_bloc[bloc]
             zero_cands = set(
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
             )
 
             if deterministic:
-                ballot_types = self._sample_ballot_types_deterministic(bloc = bloc, num_ballots=num_ballots)
+                ballot_types = self._sample_ballot_types_deterministic(bloc = bloc, opp_bloc = self.blocs[(i+1)%2], num_ballots=num_ballots)
             else:
                 ballot_types = self._sample_ballot_types_MCMC(bloc = bloc, num_ballots=num_ballots)
+
             for j, bt in enumerate(ballot_types):
                 cand_ordering_by_bloc = {}
 
@@ -1720,12 +1709,13 @@ class DeliberativeVoter(BallotGenerator):
                     if len(cands) == 0:
                         continue
 
-                    distribution = list(bloc_cand_pref_interval.values())
+                    distribution = [bloc_cand_pref_interval[c] for c in cands]
 
                     # sample
                     cand_ordering = np.random.choice(
                         a=list(cands), size=len(cands), p=distribution, replace=False
                     )
+                    
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
                 ranking = [-1] * len(bt)
