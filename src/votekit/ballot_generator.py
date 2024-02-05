@@ -1154,6 +1154,22 @@ class Cumulative(BallotGenerator):
         super().__init__(**data)
         self.num_votes = num_votes
 
+        # if dictionary of pref intervals is passed
+        if isinstance(
+            list(self.pref_intervals_by_bloc.values())[0], PreferenceInterval
+        ):
+            self.pref_interval_by_bloc = self.pref_intervals_by_bloc
+
+        # if nested dictionary of pref intervals, combine by cohesion
+        else:
+            self.pref_interval_by_bloc = {
+                bloc: combine_preference_intervals(
+                    [self.pref_intervals_by_bloc[bloc][b] for b in self.blocs],
+                    [self.cohesion_parameters[bloc][b] for b in self.blocs],
+                )
+                for bloc in self.blocs
+            }
+
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
@@ -1179,14 +1195,12 @@ class Cumulative(BallotGenerator):
             ballot_pool = []
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            pref_interval_dict = self.pref_intervals_by_bloc[bloc]
+            pref_interval = self.pref_interval_by_bloc[bloc]
 
             # finds candidates with non-zero preference
-            non_zero_cands = [
-                cand for cand, pref in pref_interval_dict.items() if pref > 0
-            ]
+            non_zero_cands = list(pref_interval.non_zero_cands)
             # creates the interval of probabilities for candidates supported by this block
-            cand_support_vec = [pref_interval_dict[cand] for cand in non_zero_cands]
+            cand_support_vec = [pref_interval.interval[cand] for cand in non_zero_cands]
 
             for _ in range(num_ballots):
                 # generates ranking based on probability distribution of non zero candidate support
@@ -1204,7 +1218,7 @@ class Cumulative(BallotGenerator):
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp.condense_ballots()
+            pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
