@@ -18,6 +18,59 @@ from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 
 
+def sample_cohesion_ballot_types(
+    slate_to_candidates: dict, num_ballots: int, cohesion_parameters_for_bloc: dict
+):
+    """
+    Used to generate bloc orderings given cohesion parameters.
+
+    cohesion_parameters_for_bloc is a dict whose keys are blocs and values are cohesion parameters.
+        this is not a nested dictionary like cohesion_parameters. this is one entry of cohesion_parameters.
+
+    Returns a list of lists, where each sublist contains the bloc names in order they appear
+    on the ballot.
+    """
+    candidates = list(it.chain(*list(slate_to_candidates.values())))
+    ballots = [-1] * num_ballots
+    # precompute coin flips
+    coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
+
+    def which_bin(dist_bins, flip):
+        for i, bin in enumerate(dist_bins):
+            if bin < flip <= dist_bins[i + 1]:
+                return i
+
+    blocs_og, values_og = zip(*cohesion_parameters_for_bloc.items())
+    blocs_og, values_og = list(blocs_og), list(values_og)
+
+    for j in range(num_ballots):
+        blocs, values = blocs_og.copy(), values_og.copy()
+        # Pre-calculate distribution_bins
+        distribution_bins = [0] + [sum(values[: i + 1]) for i in range(len(blocs))]
+        ballot_type = [-1] * len(candidates)
+
+        for i, flip in enumerate(
+            coin_flips[j * len(candidates) : (j + 1) * len(candidates)]
+        ):
+            bloc_index = which_bin(distribution_bins, flip)
+            bloc_type = blocs[bloc_index]
+            ballot_type[i] = bloc_type
+
+            # Check if that exhausts a slate of candidates
+            if ballot_type.count(bloc_type) == len(slate_to_candidates[bloc_type]):
+                del blocs[bloc_index]
+                del values[bloc_index]
+                total_value_sum = sum(values)
+                values = [v / total_value_sum for v in values]
+                distribution_bins = [0] + [
+                    sum(values[: i + 1]) for i in range(len(blocs))
+                ]
+
+        ballots[j] = ballot_type
+
+    return ballots
+
+
 class BallotGenerator:
     """
     Base class for ballot generation models that use the candidate simplex
@@ -138,7 +191,11 @@ class BallotGenerator:
         data["bloc_voter_prop"] = bloc_voter_prop
         data["cohesion_parameters"] = cohesion_parameters
 
-        if cls == AlternatingCrossover or cls == SlatePreference or cls == DeliberativeVoter:
+        if (
+            cls == AlternatingCrossover
+            or cls == SlatePreference
+            or cls == DeliberativeVoter
+        ):
             generator = cls(
                 slate_to_candidates=slate_to_candidates,
                 **data,
@@ -1305,12 +1362,13 @@ class shortPlackettLuce(BallotGenerator):
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
         for bloc in self.blocs:
-            
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1] * num_ballots            
+            ballot_pool = [-1] * num_ballots
             non_zero_cands = list(self.pref_interval_by_bloc[bloc].non_zero_cands)
-            pref_interval_values = [self.pref_interval_by_bloc[bloc].interval[c] for c in non_zero_cands]
+            pref_interval_values = [
+                self.pref_interval_by_bloc[bloc].interval[c] for c in non_zero_cands
+            ]
             zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
 
             # if there aren't enough non-zero supported candidates,
@@ -1486,7 +1544,6 @@ class SlatePreference(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
-        
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
             zip(
@@ -1501,7 +1558,11 @@ class SlatePreference(BallotGenerator):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
             ballot_pool = [-1] * num_ballots
-            ballot_types = self._sample_ballot_types(bloc, num_ballots)
+            ballot_types = sample_cohesion_ballot_types(
+                slate_to_candidates=self.slate_to_candidates,
+                num_ballots=num_ballots,
+                cohesion_parameters_for_bloc=self.cohesion_parameters[bloc],
+            )
             pref_intervals = self.pref_intervals_by_bloc[bloc]
             zero_cands = set(
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
@@ -1553,9 +1614,10 @@ class SlatePreference(BallotGenerator):
         else:
             return pp
 
+
 class DeliberativeVoter(BallotGenerator):
     """
-    Class for generating ballots using a deliberative voter model (new BT/BTSP). It 
+    Class for generating ballots using a deliberative voter model (new BT/BTSP). It
     presamples ballot types by checking all pairwise comparisons, then fills out candidate
     ordering by sampling WOR from preference intervals.
 
@@ -1597,95 +1659,119 @@ class DeliberativeVoter(BallotGenerator):
                               passed {len(self.slate_to_candidates.keys())}"
             )
 
-
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
-        """"
+        """ "
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
 
         # print("started")
-        blocs_to_sample = [b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))]
-        total_comparisons = np.prod([len(l_of_c) for l_of_c in self.slate_to_candidates.values()])
+        blocs_to_sample = [
+            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+        ]
+        total_comparisons = np.prod(
+            [len(l_of_c) for l_of_c in self.slate_to_candidates.values()]
+        )
         cohesion = self.cohesion_parameters[bloc][bloc]
 
         def prob_of_type(b_type):
-            success = sum(b_type[i+1:].count(opp_bloc) for i,b in enumerate(b_type) if b==bloc)
-            return pow(cohesion, success) * pow(1-cohesion, total_comparisons-success)
-        
+            success = sum(
+                b_type[i + 1 :].count(opp_bloc)
+                for i, b in enumerate(b_type)
+                if b == bloc
+            )
+            return pow(cohesion, success) * pow(
+                1 - cohesion, total_comparisons - success
+            )
 
-        pdf = {b: prob_of_type(b) for b in set(it.permutations(blocs_to_sample, len(blocs_to_sample)))}
-        
+        pdf = {
+            b: prob_of_type(b)
+            for b in set(it.permutations(blocs_to_sample, len(blocs_to_sample)))
+        }
+
         summ = sum(pdf.values())
-        return {b: v/summ for b,v in pdf.items()}
-            
+        return {b: v / summ for b, v in pdf.items()}
 
-    def _sample_ballot_types_deterministic(self, bloc: str, opp_bloc:str, num_ballots: int):
+    def _sample_ballot_types_deterministic(
+        self, bloc: str, opp_bloc: str, num_ballots: int
+    ):
         """
         Used to generate bloc orderings for deliberative.
 
         Returns a list of lists, where each sublist contains the bloc names in order they appear
         on the ballot.
         """
-        pdf = self._compute_ballot_type_dist(bloc = bloc, opp_bloc = opp_bloc)
+        pdf = self._compute_ballot_type_dist(bloc=bloc, opp_bloc=opp_bloc)
         b_types = list(pdf.keys())
         probs = list(pdf.values())
 
-        sampled_indices = np.random.choice(len(b_types), size= num_ballots, p = probs)
+        sampled_indices = np.random.choice(len(b_types), size=num_ballots, p=probs)
 
         return [b_types[i] for i in sampled_indices]
-    
-    def _sample_ballot_types_MCMC(self, bloc: str, num_ballots: int, verbose:bool = False):
+
+    def _sample_ballot_types_MCMC(
+        self, bloc: str, num_ballots: int, verbose: bool = False
+    ):
         """
         Generate ballot types using MCMC that has desired stationary distribution.
         """
-        
-        seed_ballot_type = [b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))]
+
+        seed_ballot_type = [
+            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+        ]
 
         ballots = [-1 for _ in range(num_ballots)]
-        accept = 0 
+        accept = 0
         current_ranking = seed_ballot_type
 
-        cohesion=self.cohesion_parameters[bloc][bloc]
+        cohesion = self.cohesion_parameters[bloc][bloc]
 
         # presample swap indices
-        swap_indices = [(j1, j1+1) for j1 in np.random.choice(len(seed_ballot_type)-1, size = num_ballots)]
+        swap_indices = [
+            (j1, j1 + 1)
+            for j1 in np.random.choice(len(seed_ballot_type) - 1, size=num_ballots)
+        ]
 
-        odds = (1-cohesion) / cohesion
+        odds = (1 - cohesion) / cohesion
         # generate MCMC sample
         for i in range(num_ballots):
             # choose adjacent pair to propose a swap
             j1, j2 = swap_indices[i]
 
             # if swap reduces number of voters bloc above opposing bloc
-            if current_ranking[j1] != current_ranking[j2] and current_ranking[j1] == bloc:
+            if (
+                current_ranking[j1] != current_ranking[j2]
+                and current_ranking[j1] == bloc
+            ):
                 acceptance_prob = odds
-            
+
             # if swap increases number of voters bloc above opposing or swaps two of same bloc
             else:
                 acceptance_prob = 1
 
             # if you accept, make the swap
             if random.random() < acceptance_prob:
-                current_ranking[j1], current_ranking[j2] = current_ranking[j2], current_ranking[j1]
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
                 accept += 1
-            
+
             ballots[i] = current_ranking.copy()
             # print(ballots)
 
         if verbose:
-            print(f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}")
+            print(
+                f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
+            )
 
         if -1 in ballots:
             raise ValueError("Some element of ballots list is not a ballot.")
 
-        return(ballots)
-
+        return ballots
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False, deterministic: bool = True
     ) -> Union[PreferenceProfile, Tuple]:
-    
-        
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
@@ -1707,9 +1793,13 @@ class DeliberativeVoter(BallotGenerator):
             )
 
             if deterministic:
-                ballot_types = self._sample_ballot_types_deterministic(bloc = bloc, opp_bloc = self.blocs[(i+1)%2], num_ballots=num_ballots)
+                ballot_types = self._sample_ballot_types_deterministic(
+                    bloc=bloc, opp_bloc=self.blocs[(i + 1) % 2], num_ballots=num_ballots
+                )
             else:
-                ballot_types = self._sample_ballot_types_MCMC(bloc = bloc, num_ballots=num_ballots)
+                ballot_types = self._sample_ballot_types_MCMC(
+                    bloc=bloc, num_ballots=num_ballots
+                )
 
             for j, bt in enumerate(ballot_types):
                 cand_ordering_by_bloc = {}
@@ -1729,7 +1819,7 @@ class DeliberativeVoter(BallotGenerator):
                     cand_ordering = np.random.choice(
                         a=list(cands), size=len(cands), p=distribution, replace=False
                     )
-                    
+
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
                 ranking = [-1] * len(bt)
