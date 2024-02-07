@@ -37,7 +37,9 @@ def combine_preference_intervals(
 
     # carry along the candidates with zero support
     zero_cands = frozenset.union(*[pi.zero_cands for pi in intervals])
-    sum_pi.zero_cands = zero_cands
+
+    # need to union to ensure that if one of the proportions is 0 those candidates are saved
+    sum_pi.zero_cands = sum_pi.zero_cands.union(zero_cands)
     return sum_pi
 
 

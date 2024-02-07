@@ -870,7 +870,7 @@ class AlternatingCrossover(BallotGenerator):
                 ballot_pool.append(ballot)
 
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp.condense_ballots()
+            pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1162,7 +1162,7 @@ class CambridgeSampler(BallotGenerator):
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp.condense_ballots()
+            pp =pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1369,7 +1369,7 @@ class shortPlackettLuce(BallotGenerator):
             pref_interval_values = [
                 self.pref_interval_by_bloc[bloc].interval[c] for c in non_zero_cands
             ]
-            zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
+            zero_cands = list(self.pref_interval_by_bloc[bloc].zero_cands)
 
             # if there aren't enough non-zero supported candidates,
             # include 0 support as ties
