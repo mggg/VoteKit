@@ -42,8 +42,8 @@ def plot_MDS(
     Creates a multidimensional scaling plot.
 
     Args:
-        data: Dictionary with key being a 'color' and value being list of
-                    PreferenceProfiles. ex: {'color': list[PreferenceProfile]}
+        data: Dictionary with key being a ('color', 'label') pair and value being list of
+                    PreferenceProfiles. ex: {('red', 'PL'): list[PreferenceProfile]}
         distance: Distance function. See distance.py.
         marker_size: Size of plotted points.
 
@@ -73,13 +73,15 @@ def plot_MDS(
 
     start_pos = 0
     for key, value_list in data.items():
+        color, label = key
         end_pos = start_pos + len(value_list)
         ax.scatter(
             pos[start_pos:end_pos, 0],
             pos[start_pos:end_pos, 1],
-            color=key,
+            color=color,
             lw=0,
             s=marker_size,
+            label = label
         )
         start_pos += len(value_list)
     ax.set_title("MDS Plot for Pairwise Election Distances")
