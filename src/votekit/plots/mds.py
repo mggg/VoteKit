@@ -42,7 +42,7 @@ def plot_MDS(
     Creates a multidimensional scaling plot.
 
     Args:
-        data: Dictionary with key being a ('color', 'label') pair and value being list of
+        data: Dictionary with key being a ('color', 'label', "marker") pair and value being list of
                     PreferenceProfiles. ex: {('red', 'PL'): list[PreferenceProfile]}
         distance: Distance function. See distance.py.
         marker_size: Size of plotted points.
@@ -73,13 +73,14 @@ def plot_MDS(
 
     start_pos = 0
     for key, value_list in data.items():
-        color, label = key
+        color, label, marker = key
         end_pos = start_pos + len(value_list)
         ax.scatter(
             pos[start_pos:end_pos, 0],
             pos[start_pos:end_pos, 1],
             color=color,
             lw=0,
+            marker = marker,
             s=marker_size,
             label = label
         )
