@@ -1658,13 +1658,14 @@ class DeliberativeVoter(BallotGenerator):
                 f"This model currently only supports at most two blocs, but you \
                               passed {len(self.slate_to_candidates.keys())}"
             )
+        
+        self.ballot_type_pdf = {b:self._compute_ballot_type_dist(b, self.blocs[(i+1)%2]) for i,b in enumerate(self.blocs)}
+        print("ballot type pdf computed")
 
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
         """ "
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
-
-        # print("started")
         blocs_to_sample = [
             b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
         ]
@@ -1700,7 +1701,8 @@ class DeliberativeVoter(BallotGenerator):
         Returns a list of lists, where each sublist contains the bloc names in order they appear
         on the ballot.
         """
-        pdf = self._compute_ballot_type_dist(bloc=bloc, opp_bloc=opp_bloc)
+        # pdf = self._compute_ballot_type_dist(bloc=bloc, opp_bloc=opp_bloc)
+        pdf = self.ballot_type_pdf[bloc]
         b_types = list(pdf.keys())
         probs = list(pdf.values())
 
