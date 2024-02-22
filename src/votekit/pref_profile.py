@@ -255,7 +255,7 @@ class PreferenceProfile(BaseModel):
         Returns:
             A PreferenceProfile object with condensed ballot list.
         """
-        ranking_to_index = {}
+        ranking_to_index: dict = {}
         weight_accumulator = {}
 
         for ballot in self.ballots:
@@ -266,7 +266,7 @@ class PreferenceProfile(BaseModel):
             weight_accumulator[ballot.ranking] += ballot.weight
 
         new_ballot_list = [
-            Ballot(ranking=list(map(set, ranking)), weight=weight)
+            Ballot(ranking=tuple(map(frozenset, ranking)), weight=weight)
             for ranking, weight in weight_accumulator.items()
         ]
 
