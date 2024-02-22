@@ -76,10 +76,37 @@ def test_SPL_completion():
     result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
-    assert type(profile_dict) is dict
+    assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
 
+
+def test_SBT_completion():
+    sbt = slate_BradleyTerry(
+        candidates=["W1", "W2", "C1", "C2"],
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        pref_intervals_by_bloc={
+            "W": {
+                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+            },
+            "C": {
+                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+            },
+        },
+        bloc_voter_prop={"W": 0.7, "C": 0.3},
+        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+    )
+    profile = sbt.generate_profile(number_of_ballots=100)
+    assert type(profile) is PreferenceProfile
+
+    result = sbt.generate_profile(number_of_ballots=100, by_bloc=True)
+    assert type(result) is tuple
+    profile_dict, agg_prof = result
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["W"])) is PreferenceProfile
+    assert type(agg_prof) is PreferenceProfile
 
 def test_NBT_completion():
     bt = name_BradleyTerry(
