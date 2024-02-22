@@ -84,8 +84,8 @@ class PreferenceInterval:
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
 
-        self.zero_cands = None
-        self.non_zero_cands = None
+        self.zero_cands: frozenset = frozenset()
+        self.non_zero_cands: frozenset = frozenset()
         self._remove_zero_support_cands()
         self._normalize()
 
