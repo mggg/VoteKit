@@ -55,12 +55,12 @@ class PairwiseComparisonGraph(Graph):
                 missing_cands = [
                     cand for cand in cand_list if cand not in ballot.ranking
                 ]
-                missing_cands_perms = list(
+                missing_cands_perms =  list(
                     permutations(missing_cands, len(missing_cands))
                 )
                 frac_freq = ballot.weight / (len(missing_cands_perms))
                 for perm in missing_cands_perms:
-                    updated_rank = ballot.ranking + tuple(perm)
+                    updated_rank = ballot.ranking + tuple([frozenset(c) for c in perm])
                     updated_ballot = Ballot(
                         ranking=updated_rank, weight=Fraction(frac_freq, 1)
                     )
