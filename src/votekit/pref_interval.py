@@ -10,7 +10,7 @@ def combine_preference_intervals(
         Combine a list of preference intervals given a list of proportions used to reweight each
         interval.
 
-    **Parameters**
+    **Arguments**
     `intervals`
     : list.  A list of PreferenceInterval objects to combine.
 

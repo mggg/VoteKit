@@ -43,13 +43,16 @@ hide:
         members:
             - BallotGenerator
             - BallotSimplex
-            - PlackettLuce
-            - BradleyTerry
+            - slate_PlackettLuce
+            - name_PlackettLuce
+            - slate_BradleyTerry
+            - name_BradleyTerry
             - AlternatingCrossover
             - CambridgeSampler
             - OneDimSpatial
             - ImpartialCulture
             - ImpartialAnonymousCulture
+            - Cumulative
 
 ## Elections
 ### ::: votekit.elections.election_types

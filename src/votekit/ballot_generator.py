@@ -11,8 +11,6 @@ import warnings
 from typing import Optional, Union, Tuple
 import apportionment.methods as apportion  # type: ignore
 
-import time
-
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
@@ -24,11 +22,15 @@ def sample_cohesion_ballot_types(
     """
     Used to generate bloc orderings given cohesion parameters.
 
-    cohesion_parameters_for_bloc is a dict whose keys are blocs and values are cohesion parameters.
-        this is not a nested dictionary like cohesion_parameters. this is one entry of cohesion_parameters.
+    Args:
+            cohesion_parameters_for_bloc (dict): A mapping of blocs to cohesion parameters.
+                                Note, this is equivalent to one value in the cohesion_parameters
+                                dictionary.
+            
 
-    Returns a list of lists, where each sublist contains the bloc names in order they appear
-    on the ballot.
+    Returns:
+      A list of lists of length `num_ballots`, where each sublist contains the bloc names in order they appear
+    on that ballot.
     """
     candidates = list(it.chain(*list(slate_to_candidates.values())))
     ballots = [-1] * num_ballots
@@ -912,7 +914,7 @@ class name_BradleyTerry(BallotGenerator):
             return pp
 
 
-# TODO, fix PI and cohesion
+
 class AlternatingCrossover(BallotGenerator):
     """
     Class for Alternating Crossover style of generating ballots.
@@ -928,9 +930,8 @@ class AlternatingCrossover(BallotGenerator):
     **Attributes**
 
     `pref_intervals_by_bloc`
-    :   dictionary mapping of slate to preference interval. Preference interval should
-        include all candidates regardless of which bloc they are from.
-        (ex. {bloc: {candidate : interval length}}).
+    :   dictionary of dictionaries mapping of bloc to preference intervals.
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). Defaults to None.
 
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {bloc: voter proportion}).
@@ -1050,7 +1051,7 @@ class AlternatingCrossover(BallotGenerator):
             return pp
 
 
-# TODO, fix PI and cohesion
+
 class OneDimSpatial(BallotGenerator):
     """
     1-D spatial model for ballot generation. Assumes the candidates are normally distributed on
@@ -1110,8 +1111,8 @@ class CambridgeSampler(BallotGenerator):
     :   dictionary mapping of slate to cohesion level (ex. {bloc: .7}).
 
     `pref_intervals_by_bloc`
-    :   dictionary mapping of bloc to preference interval
-        (ex. {bloc: {candidate : interval length}}).
+    :   dictionary of dictionaries mapping of bloc to preference intervals.
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). Defaults to None.
 
     `historical_majority`
     : name of majority bloc in historical data, defaults to W for Cambridge.
@@ -1346,7 +1347,7 @@ class CambridgeSampler(BallotGenerator):
             return pp
 
 
-# TODO, fix PI and cohesion
+
 class Cumulative(BallotGenerator):
     """
     Class for generating cumulative ballots. This model samples with
@@ -1360,8 +1361,8 @@ class Cumulative(BallotGenerator):
     : a list of candidates.
 
     `pref_intervals_by_bloc`
-    :   dictionary mapping of bloc to preference interval.
-        (ex. {bloc: {candidate : interval length}}).
+    :   dictionary of dictionaries mapping of bloc to preference intervals.
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). Defaults to None.
 
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
@@ -1475,8 +1476,8 @@ class slate_PlackettLuce(BallotGenerator):
     :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
 
     `pref_intervals_by_bloc`
-    :   dictionary mapping of bloc to preference interval.
-        (ex. {bloc: {candidate : interval length}}).
+    :   dictionary of dictionaries mapping of bloc to preference intervals.
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). Defaults to None.
 
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
@@ -1548,6 +1549,13 @@ class slate_PlackettLuce(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+        `number_of_ballots`: The number of ballots to generate.
+
+        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
+                    False if you want the full, aggregated PreferenceProfile.
+        """
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
             zip(
@@ -1637,8 +1645,8 @@ class slate_BradleyTerry(BallotGenerator):
     :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
 
     `pref_intervals_by_bloc`
-    :   dictionary mapping of bloc to preference interval.
-        (ex. {bloc: {candidate : interval length}}).
+    :   dictionary of dictionaries mapping of bloc to preference intervals.
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). Defaults to None.
 
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
@@ -1664,7 +1672,7 @@ class slate_BradleyTerry(BallotGenerator):
             )
         
         self.ballot_type_pdf = {b:self._compute_ballot_type_dist(b, self.blocs[(i+1)%2]) for i,b in enumerate(self.blocs)}
-        print("ballot type pdf computed")
+        
 
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
         """ "
@@ -1778,6 +1786,16 @@ class slate_BradleyTerry(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False, deterministic: bool = True
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+        `number_of_ballots`: The number of ballots to generate.
+
+        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
+                    False if you want the full, aggregated PreferenceProfile.
+
+        `deterministic`: True if you want to use the computed pdf for the slate-BT model,
+                        False if you want to use MCMC approximation. Defaults to True.
+        """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
