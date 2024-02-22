@@ -33,7 +33,7 @@ def sample_cohesion_ballot_types(
     on that ballot.
     """
     candidates = list(it.chain(*list(slate_to_candidates.values())))
-    ballots = [-1] * num_ballots
+    ballots = [[-1]] * num_ballots
     # precompute coin flips
     coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
 
@@ -270,7 +270,7 @@ class BallotGenerator:
             )
 
         for ranking, count in ranking_counts.items():
-            rank = [set([cand]) for cand in ranking]
+            rank = tuple([frozenset([cand]) for cand in ranking])
             b = Ballot(ranking=rank, weight=Fraction(count))
             ballot_list.append(b)
 
@@ -524,7 +524,7 @@ class short_name_PlackettLuce(BallotGenerator):
         for bloc in self.blocs:
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1] * num_ballots
+            ballot_pool = [Ballot()] * num_ballots
             non_zero_cands = list(self.pref_interval_by_bloc[bloc].non_zero_cands)
             pref_interval_values = [
                 self.pref_interval_by_bloc[bloc].interval[c] for c in non_zero_cands
@@ -552,7 +552,7 @@ class short_name_PlackettLuce(BallotGenerator):
                     )
                 )
 
-                ranking = [{cand} for cand in non_zero_ranking]
+                ranking = [frozenset({cand}) for cand in non_zero_ranking]
 
                 if number_tied:
                     tied_candidates = list(
@@ -562,9 +562,9 @@ class short_name_PlackettLuce(BallotGenerator):
                             replace=False,
                         )
                     )
-                    ranking.append(set(tied_candidates))
+                    ranking.append(frozenset(tied_candidates))
 
-                ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
             # create PP for this bloc
             pp = PreferenceProfile(ballots=ballot_pool)
@@ -751,7 +751,7 @@ class name_BradleyTerry(BallotGenerator):
             num_ballots = ballots_per_block[bloc]
 
             # Directly initialize the list using good memory trick
-            ballot_pool = [-1] * num_ballots
+            ballot_pool = [Ballot()] * num_ballots
             zero_cands = self.pref_interval_by_bloc[bloc].zero_cands
             pdf_dict = self.pdfs_by_bloc[bloc]
 
@@ -759,18 +759,23 @@ class name_BradleyTerry(BallotGenerator):
             rankings, probs = zip(*pdf_dict.items())
 
             # The return of this will be a numpy array, so we don't need to make it into a list
-            sampled_indices = np.random.choice(
-                a=len(rankings), size=num_ballots, p=probs
-            )
+            sampled_indices = np.array(
+                                np.random.choice(
+                                    a = len(rankings),
+                                    size = num_ballots,
+                                    p = probs,
+                                ), 
+                                ndmin=1
+                            )
 
             for j, index in enumerate(sampled_indices):
-                ranking = [{cand} for cand in rankings[index]]
+                ranking = [frozenset({cand}) for cand in rankings[index]]
 
                 # Add any zero candidates as ties only if they exist
                 if zero_cands:
-                    ranking.append(zero_cands)
+                    ranking.append(frozenset(zero_cands))
 
-                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
@@ -890,7 +895,7 @@ class name_BradleyTerry(BallotGenerator):
             non_zero_cands = pref_interval.non_zero_cands
             zero_cands = pref_interval.zero_cands
 
-            seed_ballot = Ballot(ranking=[{c} for c in non_zero_cands])
+            seed_ballot = Ballot(ranking=tuple([frozenset({c}) for c in non_zero_cands]))
             pp = self._BT_mcmc(
                 num_ballots,
                 pref_interval_dict,
@@ -1024,14 +1029,14 @@ class AlternatingCrossover(BallotGenerator):
                 if i < num_cross_ballots:
                     # alternate the bloc and opposing bloc candidates to create crossover ballots
                     ranking = [
-                        {cand}
+                        frozenset({cand})
                         for pair in zip(opposing_cands, bloc_cands)
                         for cand in pair
                     ]
                 else:
-                    ranking = [{c} for c in bloc_cands] + [{c} for c in opposing_cands]
+                    ranking = [frozenset({c}) for c in bloc_cands] + [frozenset({c}) for c in opposing_cands]
 
-                ballot = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
                 ballot_pool.append(ballot)
 
             pp = PreferenceProfile(ballots=ballot_pool)
@@ -1323,7 +1328,7 @@ class CambridgeSampler(BallotGenerator):
                         if ordered_opp_slate:
                             full_ballot.append(ordered_opp_slate.pop(0))
 
-                ranking = [{cand} for cand in full_ballot]
+                ranking = tuple([frozenset({cand}) for cand in full_ballot])
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
             pp = PreferenceProfile(ballots=ballot_pool)
@@ -1430,7 +1435,7 @@ class Cumulative(BallotGenerator):
 
             for _ in range(num_ballots):
                 # generates ranking based on probability distribution of non zero candidate support
-                ranking = list(
+                list_ranking = list(
                     np.random.choice(
                         non_zero_cands,
                         self.num_votes,
@@ -1439,7 +1444,7 @@ class Cumulative(BallotGenerator):
                     )
                 )
 
-                ranking = [{cand} for cand in ranking]
+                ranking = tuple([frozenset({cand}) for cand in list_ranking])
 
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
@@ -1504,7 +1509,7 @@ class slate_PlackettLuce(BallotGenerator):
         on the ballot.
         """
         candidates = list(it.chain(*list(self.slate_to_candidates.values())))
-        ballots = [-1 for _ in range(num_ballots)]
+        ballots = [[-1]]*num_ballots
         # precompute coin flips
         coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
 
@@ -1569,7 +1574,7 @@ class slate_PlackettLuce(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1] * num_ballots
+            ballot_pool = [Ballot()] * num_ballots
             ballot_types = sample_cohesion_ballot_types(
                 slate_to_candidates=self.slate_to_candidates,
                 num_ballots=num_ballots,
@@ -1600,15 +1605,15 @@ class slate_PlackettLuce(BallotGenerator):
                     )
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [-1] * len(bt)
+                ranking = [frozenset({-1})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
-                    ranking[i] = {cand_ordering_by_bloc[b][0]}
+                    ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
                     cand_ordering_by_bloc[b].pop(0)
 
                 if len(zero_cands) > 0:
-                    ranking.append(zero_cands)
-                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                    ranking.append(frozenset(zero_cands))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
@@ -1733,7 +1738,7 @@ class slate_BradleyTerry(BallotGenerator):
             b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
         ]
 
-        ballots = [-1 for _ in range(num_ballots)]
+        ballots = [[-1]]*num_ballots
         accept = 0
         current_ranking = seed_ballot_type
 
@@ -1810,7 +1815,7 @@ class slate_BradleyTerry(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [-1] * num_ballots
+            ballot_pool = [Ballot()] * num_ballots
             pref_intervals = self.pref_intervals_by_bloc[bloc]
             zero_cands = set(
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
@@ -1846,15 +1851,15 @@ class slate_BradleyTerry(BallotGenerator):
 
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [-1] * len(bt)
+                ranking = [frozenset({-1})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
-                    ranking[i] = {cand_ordering_by_bloc[b][0]}
+                    ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
                     cand_ordering_by_bloc[b].pop(0)
 
                 if len(zero_cands) > 0:
-                    ranking.append(zero_cands)
-                ballot_pool[j] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                    ranking.append(frozenset(zero_cands))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
