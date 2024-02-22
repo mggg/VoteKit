@@ -118,7 +118,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
             update.append(
                 Ballot(
                     id=ballot.id,
-                    ranking=new_ranking,
+                    ranking=tuple(new_ranking),
                     weight=ballot.weight,
                     voter_set=ballot.voter_set,
                 )
@@ -131,7 +131,7 @@ def remove_cand(removed: Union[str, Iterable], ballots: list[Ballot]) -> list[Ba
             update.append(
                 Ballot(
                     id=ballot.id,
-                    ranking=new_ranking,
+                    ranking=tuple(new_ranking),
                     weight=ballot.weight,
                     voter_set=ballot.voter_set,
                 )
@@ -248,15 +248,15 @@ def borda_scores(
     return candidate_borda
 
 
-def unset(input_set: set) -> Any:
+def unset(input_set: Union[set, frozenset]) -> Any:
     """
-    Removes object from set.
+    Removes object from set or frozenset.
 
     Args:
-        input_set: Input set.
+        input_set: Input (frozen)set.
 
     Returns:
-        If set has length one returns the object, else returns a list.
+        If (frozen)set has length one returns the object, else returns a list.
     """
     rv = list(input_set)
 
@@ -494,7 +494,7 @@ def fix_ties(ballot: Ballot) -> list[Ballot]:
             for order in permutations(rank):
                 resolved = []
                 for cand in order:
-                    resolved.append(set(cand))
+                    resolved.append(frozenset(cand))
                 ballots.append(
                     Ballot(
                         id=ballot.id,
