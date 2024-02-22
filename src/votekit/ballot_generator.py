@@ -1167,42 +1167,42 @@ class CambridgeSampler(BallotGenerator):
         Changes relevant data to match historical majority/minority names.
         """
         # changing names to match historical data
-        majority_bloc = [
+        self.majority_bloc = [
             bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
         ][0]
-        minority_bloc = [
-            bloc for bloc in self.bloc_voter_prop.keys() if bloc != majority_bloc
+        self.minority_bloc = [
+            bloc for bloc in self.bloc_voter_prop.keys() if bloc != self.majority_bloc
         ][0]
 
-        cambridge_names = {
-            majority_bloc: self.historical_majority,
-            minority_bloc: self.historical_minority,
+        self.cambridge_names = {
+            self.majority_bloc: self.historical_majority,
+            self.minority_bloc: self.historical_minority,
         }
 
         self.slate_to_candidates = {
-            cambridge_names[b]: self.slate_to_candidates[b]
+            self.cambridge_names[b]: self.slate_to_candidates[b]
             for b in self.slate_to_candidates.keys()
         }
 
         self.bloc_voter_prop = {
-            cambridge_names[b]: self.bloc_voter_prop[b]
+            self.cambridge_names[b]: self.bloc_voter_prop[b]
             for b in self.bloc_voter_prop.keys()
         }
 
         self.pref_intervals_by_bloc = {
-            cambridge_names[b]: self.pref_intervals_by_bloc[b]
+            self.cambridge_names[b]: self.pref_intervals_by_bloc[b]
             for b in self.pref_intervals_by_bloc.keys()
         }
 
         self.cohesion_parameters = {
-            cambridge_names[b]: {
-                cambridge_names[b_1]: value
+            self.cambridge_names[b]: {
+                self.cambridge_names[b_1]: value
                 for b_1, value in self.cohesion_parameters[b].items()
             }
             for b in self.cohesion_parameters.keys()
         }
 
-        self.blocs = list(cambridge_names.values())
+        self.blocs = list(self.cambridge_names.values())
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
@@ -1326,8 +1326,12 @@ class CambridgeSampler(BallotGenerator):
                 ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
 
             pp = PreferenceProfile(ballots=ballot_pool)
-            pp =pp.condense_ballots()
+            pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
+
+        # rename the dictionary
+        hist_to_name = {v:k for k,v in self.cambridge_names.items()}
+        pp_by_bloc = {hist_to_name[b]:pp for b,pp in pp_by_bloc.items()}
 
         # combine the profiles
         pp = PreferenceProfile(ballots=[])
