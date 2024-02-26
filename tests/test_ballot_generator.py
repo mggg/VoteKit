@@ -835,7 +835,8 @@ def test_bt_single_bloc():
 
 def test_incorrect_blocs():
     blocs = {"R": 0.7, "D": 0.4}
-    cohesion = {"R": 0.7, "D": 0.6}
+    cohesion = {"R":{"R": 0.7, "D":.3},
+                "D":{"D" : 0.6, "R":.4}}
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 

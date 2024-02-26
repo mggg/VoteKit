@@ -119,7 +119,7 @@ class BallotGenerator:
         self.candidates = candidates
 
         if bloc_voter_prop and pref_intervals_by_bloc:  # PL, BT, AC, CS
-            if round(sum(bloc_voter_prop.values())) != 1:
+            if round(sum(bloc_voter_prop.values()), 8) != 1.0:
                 raise ValueError("Voter proportion for blocs must sum to 1")
 
             if bloc_voter_prop.keys() != pref_intervals_by_bloc.keys():
@@ -167,8 +167,7 @@ class BallotGenerator:
             * Each cohesion parameter must be in the interval [0,1].
             * Dirichlet parameters are in the interval $(0,\infty)$.
         """
-
-        if sum(bloc_voter_prop.values()) != 1.0:
+        if round(sum(bloc_voter_prop.values()),8) != 1.0:
             raise ValueError("Voter proportion for blocs must sum to 1")
 
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
@@ -1240,7 +1239,10 @@ class CambridgeSampler(BallotGenerator):
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
         for i, bloc in enumerate(self.blocs):
-            ballot_pool = []
+            bloc_voters = ballots_per_type[(bloc, "bloc")]
+            cross_voters = ballots_per_type[(bloc, "cross")]
+            ballot_pool = [Ballot()]* (bloc_voters+cross_voters)
+
             # store the opposition bloc
             opp_bloc = self.blocs[(i + 1) % 2]
 
@@ -1281,25 +1283,24 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == opp_bloc
             }
 
-            bloc_voters = ballots_per_type[(bloc, "bloc")]
-            cross_voters = ballots_per_type[(bloc, "cross")]
+            bloc_voter_ordering = random.choices(list(prob_ballot_given_bloc_first.keys()),
+                        weights=list(prob_ballot_given_bloc_first.values()),
+                        k=bloc_voters,
+                    )
+            cross_voter_ordering = random.choices(
+                        list(prob_ballot_given_opp_first.keys()),
+                        weights=list(prob_ballot_given_opp_first.values()),
+                        k=cross_voters,
+                    )
 
             # Generate ballots
             for i in range(bloc_voters + cross_voters):
                 # Based on first choice, randomly choose
                 # ballots weighted by Cambridge frequency
                 if i < bloc_voters:
-                    bloc_ordering = random.choices(
-                        list(prob_ballot_given_bloc_first.keys()),
-                        weights=list(prob_ballot_given_bloc_first.values()),
-                        k=1,
-                    )[0]
+                    bloc_ordering = bloc_voter_ordering[i]
                 else:
-                    bloc_ordering = random.choices(
-                        list(prob_ballot_given_opp_first.keys()),
-                        weights=list(prob_ballot_given_opp_first.values()),
-                        k=1,
-                    )[0]
+                    bloc_ordering = cross_voter_ordering[i-bloc_voters]
 
                 # Now turn bloc ordering into candidate ordering
                 pl_ordering = list(
@@ -1329,7 +1330,7 @@ class CambridgeSampler(BallotGenerator):
                             full_ballot.append(ordered_opp_slate.pop(0))
 
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
-                ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
+                ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
             pp = PreferenceProfile(ballots=ballot_pool)
             pp = pp.condense_ballots()
