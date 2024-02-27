@@ -1,5 +1,5 @@
 from votekit.pref_profile import PreferenceProfile
-from typing import Optional, Callable
+from typing import Callable
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
 from typing import Dict
@@ -31,24 +31,24 @@ def distance_matrix(
     return dist_matrix
 
 
-def plot_MDS(
+def compute_MDS(
     data: Dict[str, list[PreferenceProfile]],
     distance: Callable[..., int],
-    marker_size: Optional[int] = 5,
     *args,
     **kwargs
 ):
     """
-    Creates a multidimensional scaling plot.
+    Computes the coordinates of an MDS plot. This is time intensive, so it is decoupled from 
+    `plot_mds` to allow users to flexibly use the coordinates.
 
     Args:
-        data: Dictionary with key being a ('color', 'label', "marker") pair and value being list of
-                    PreferenceProfiles. ex: {('red', 'PL'): list[PreferenceProfile]}
+        data: Dictionary with key being a string label and value being list of
+                    PreferenceProfiles. ex: {'PL with alpha = 4': list[PreferenceProfile]}
         distance: Distance function. See distance.py.
-        marker_size: Size of plotted points.
 
     Returns:
-        plt (matplotlib): An MDS plot.
+        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples (x_list, y_list) of coordinates
+        for the MDS plot.
     """
     # combine all lists to create distance matrix
     combined_pp = []
@@ -68,23 +68,41 @@ def plot_MDS(
     )
     pos = mds.fit(np.array(dist_matrix)).embedding_
 
-    # Plot and color data
-    fig, ax = plt.subplots()
-
+    coord_dict = {}
     start_pos = 0
     for key, value_list in data.items():
-        color, label, marker = key
+        # color, label, marker = key
         end_pos = start_pos + len(value_list)
-        ax.scatter(
-            pos[start_pos:end_pos, 0],
-            pos[start_pos:end_pos, 1],
-            color=color,
-            lw=0,
-            marker = marker,
-            s=marker_size,
-            label = label
-        )
+        coord_dict[key] = (pos[start_pos:end_pos, 0], pos[start_pos:end_pos, 1])
         start_pos += len(value_list)
-    ax.set_title("MDS Plot for Pairwise Election Distances")
+        
+    return coord_dict
 
+
+def plot_MDS(coord_dict: dict
+):
+    """
+    Creates an MDS plot from the output of `compute_MDS`.
+
+    Args:
+        coord_dict: Dictionary with key being a string label and value being tuple (x_list, y_list), coordinates for the MDS plot.
+                    Should be piped in from `compute_MDS`.
+
+    Returns:
+        fig: a matplotlib fig
+    """
+
+    # Plot data
+    fig, ax = plt.subplots()
+
+    for key, value in coord_dict.items():
+        x,y  = value
+        ax.scatter(
+            x,
+            y,
+            label = key
+        )
+        
+    ax.set_title("MDS Plot for Pairwise Election Distances")
+    
     return fig
