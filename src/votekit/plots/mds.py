@@ -16,7 +16,7 @@ def distance_matrix(
 
     Args:
         pp_arr: List of PreferenceProfiles.
-        distance: Callable distance function type. See distance.py.
+        distance: Callable distance function type. See distances.py in the metrics module.
 
     Returns:
         dist_matrix (ndarray): Distance matrix for an election.
@@ -34,6 +34,7 @@ def distance_matrix(
 def compute_MDS(
     data: Dict[str, list[PreferenceProfile]],
     distance: Callable[..., int],
+    random_seed: int = 47,
     *args,
     **kwargs
 ):
@@ -45,9 +46,10 @@ def compute_MDS(
         data: Dictionary with key being a string label and value being list of
                     PreferenceProfiles. ex: {'PL with alpha = 4': list[PreferenceProfile]}
         distance: Distance function. See distance.py.
+        random_seed (int): an integer seed to allow for reproducible MDS plots. Defaults to 47.
 
     Returns:
-        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples (x_list, y_list) of coordinates
+        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples of numpy arrays (x_list, y_list) of coordinates
         for the MDS plot.
     """
     # combine all lists to create distance matrix
@@ -65,6 +67,7 @@ def compute_MDS(
         dissimilarity="precomputed",
         n_jobs=1,
         normalized_stress="auto",
+        random_state = random_seed
     )
     pos = mds.fit(np.array(dist_matrix)).embedding_
 
