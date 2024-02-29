@@ -7,10 +7,9 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
-    name_Cumulative
+    name_Cumulative,
 )
 from votekit.pref_profile import PreferenceProfile
-
 
 
 def test_NPL_fron_params():
@@ -28,11 +27,14 @@ def test_NPL_fron_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(pl.pref_interval_by_bloc[curr_bloc].interval.values()), 1) for curr_bloc in blocs.keys())
+    assert all(
+        math.isclose(sum(pl.pref_interval_by_bloc[curr_bloc].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+    )
 
     profile = pl.generate_profile(3)
     assert type(profile) is PreferenceProfile
-    
+
 
 def test_NBT_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -48,10 +50,14 @@ def test_NBT_from_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(gen.pref_interval_by_bloc[curr_bloc].interval.values()), 1) for curr_bloc in blocs.keys())
+    assert all(
+        math.isclose(sum(gen.pref_interval_by_bloc[curr_bloc].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+    )
 
     profile = gen.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
 
 def test_AC_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -66,11 +72,15 @@ def test_AC_from_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(ac.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1) for curr_bloc in blocs.keys() for b in blocs.keys())
-
+    assert all(
+        math.isclose(sum(ac.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
 
     profile = ac.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
 
 def test_SPL_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -85,11 +95,15 @@ def test_SPL_from_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1) for curr_bloc in blocs.keys() for b in blocs.keys())
-
+    assert all(
+        math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
 
     profile = gen.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
 
 def test_SBT_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -104,11 +118,15 @@ def test_SBT_from_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1) for curr_bloc in blocs.keys() for b in blocs.keys())
-
+    assert all(
+        math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
 
     profile = gen.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
 
 def test_name_Cumulative_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -120,15 +138,19 @@ def test_name_Cumulative_from_params():
         alphas=alphas,
         slate_to_candidates=slate_to_cands,
         cohesion_parameters=cohesion_parameters,
-        num_votes = 2
+        num_votes=2,
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1) for curr_bloc in blocs.keys() for b in blocs.keys())
-
+    assert all(
+        math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
 
     profile = gen.generate_profile(3)
     assert type(profile) is PreferenceProfile
+
 
 def test_CS_from_params():
     blocs = {"R": 0.6, "D": 0.4}
@@ -143,14 +165,14 @@ def test_CS_from_params():
     )
 
     # check if intervals add up to one
-    assert all(math.isclose(sum(cs.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1) for curr_bloc in blocs.keys() for b in blocs.keys())
-
+    assert all(
+        math.isclose(sum(cs.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
 
     profile = cs.generate_profile(3)
     assert type(profile) is PreferenceProfile
-
-
-
 
 
 def test_interval_sum_from_params():
@@ -172,4 +194,3 @@ def test_interval_sum_from_params():
             ):
                 assert False
     assert True
-

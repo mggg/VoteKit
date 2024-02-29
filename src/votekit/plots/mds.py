@@ -39,7 +39,7 @@ def compute_MDS(
     **kwargs
 ):
     """
-    Computes the coordinates of an MDS plot. This is time intensive, so it is decoupled from 
+    Computes the coordinates of an MDS plot. This is time intensive, so it is decoupled from
     `plot_mds` to allow users to flexibly use the coordinates.
 
     Args:
@@ -67,7 +67,7 @@ def compute_MDS(
         dissimilarity="precomputed",
         n_jobs=1,
         normalized_stress="auto",
-        random_state = random_seed
+        random_state=random_seed,
     )
     pos = mds.fit(np.array(dist_matrix)).embedding_
 
@@ -78,12 +78,11 @@ def compute_MDS(
         end_pos = start_pos + len(value_list)
         coord_dict[key] = (pos[start_pos:end_pos, 0], pos[start_pos:end_pos, 1])
         start_pos += len(value_list)
-        
+
     return coord_dict
 
 
-def plot_MDS(coord_dict: dict
-):
+def plot_MDS(coord_dict: dict):
     """
     Creates an MDS plot from the output of `compute_MDS`.
 
@@ -99,13 +98,9 @@ def plot_MDS(coord_dict: dict
     fig, ax = plt.subplots()
 
     for key, value in coord_dict.items():
-        x,y  = value
-        ax.scatter(
-            x,
-            y,
-            label = key
-        )
-        
+        x, y = value
+        ax.scatter(x, y, label=key)
+
     ax.set_title("MDS Plot for Pairwise Election Distances")
-    
+
     return fig

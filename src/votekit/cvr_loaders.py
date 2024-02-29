@@ -71,7 +71,9 @@ def load_csv(
     ballots = []
 
     for group, group_df in grouped:
-        ranking = tuple([frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group])
+        ranking = tuple(
+            [frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group]
+        )
 
         voter_set = None
         if id_col is not None:
@@ -159,7 +161,9 @@ def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
                     name_map[i + 1] = name
                 clean_ballots = [
                     Ballot(
-                        ranking=tuple([frozenset({name_map[cand]}) for cand in ballot[0]]),
+                        ranking=tuple(
+                            [frozenset({name_map[cand]}) for cand in ballot[0]]
+                        ),
                         weight=Fraction(ballot[1]),
                     )
                     for ballot in ballots

@@ -8,12 +8,12 @@ from .ballot_generator import (  # noqa
     AlternatingCrossover,
     name_Cumulative,
     slate_BradleyTerry,
-    slate_PlackettLuce
+    slate_PlackettLuce,
 )
 from .pref_interval import PreferenceInterval
 from .ballot import Ballot  # noqa
 from .pref_profile import PreferenceProfile  # noqa
-from .pref_interval import PreferenceInterval # noqa
+from .pref_interval import PreferenceInterval  # noqa
 from .cleaning import (  # noqa
     remove_empty_ballots,
     deduplicate_profiles,

@@ -89,6 +89,4 @@ def test_combine_bad_proportions():
     #                                                                "D":0, "E":2/9, "F":4/9})
 
     with pytest.raises(ValueError, match="Proportions must sum to 1."):
-        combine_preference_intervals(
-            [interval_1, interval_3], [2 / 3, 4 / 3]
-        )
+        combine_preference_intervals([interval_1, interval_3], [2 / 3, 4 / 3])

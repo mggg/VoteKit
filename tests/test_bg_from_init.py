@@ -11,7 +11,7 @@ from votekit.ballot_generator import (
     BallotSimplex,
     slate_PlackettLuce,
     slate_BradleyTerry,
-    name_Cumulative
+    name_Cumulative,
 )
 from votekit.pref_profile import PreferenceProfile
 from votekit.pref_interval import PreferenceInterval
@@ -19,19 +19,20 @@ from votekit.pref_interval import PreferenceInterval
 # set seed for more consistent tests
 np.random.seed(8675309)
 
+
 def test_IC_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = ic.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
     assert profile.num_ballots() == 100
 
+
 def test_IAC_completion():
-    iac = ImpartialAnonymousCulture(
-        candidates=["W1", "W2", "C1", "C2"]
-    )
+    iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = iac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
     assert profile.num_ballots() == 100
+
 
 def test_NPL_completion():
     pl = name_PlackettLuce(
@@ -59,6 +60,7 @@ def test_NPL_completion():
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.num_ballots() == 100
+
 
 def test_name_Cumulative_completion():
     cumu = name_Cumulative(
@@ -88,6 +90,7 @@ def test_name_Cumulative_completion():
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.num_ballots() == 100
 
+
 def test_NBT_completion():
     bt = name_BradleyTerry(
         candidates=["W1", "W2", "C1", "C2"],
@@ -114,6 +117,7 @@ def test_NBT_completion():
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.num_ballots() == 100
+
 
 def test_SPL_completion():
     sp = slate_PlackettLuce(
@@ -142,6 +146,7 @@ def test_SPL_completion():
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.num_ballots() == 100
+
 
 def test_SBT_completion():
     sbt = slate_BradleyTerry(
@@ -172,7 +177,6 @@ def test_SBT_completion():
     assert agg_prof.num_ballots() == 100
 
 
-
 def test_AC_completion():
     ac = AlternatingCrossover(
         candidates=["W1", "W2", "C1", "C2"],
@@ -193,6 +197,7 @@ def test_AC_completion():
     profile = ac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
     assert profile.num_ballots() == 100
+
 
 def test_1D_completion():
     ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"])
@@ -229,10 +234,10 @@ def test_Cambridge_completion():
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.num_ballots() == 100
 
+
 def test_ballot_simplex_from_point():
     candidates = ["W1", "W2", "C1", "C2"]
     pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
-
 
     generated_profile = BallotSimplex.from_point(
         point=pt, candidates=candidates
@@ -240,6 +245,7 @@ def test_ballot_simplex_from_point():
     # Test
     assert isinstance(generated_profile, PreferenceProfile)
     assert generated_profile.num_ballots() == 10
+
 
 def test_ballot_simplex_from_alpha():
     number_of_ballots = 100

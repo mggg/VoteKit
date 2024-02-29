@@ -28,7 +28,7 @@ def sample_cohesion_ballot_types(
         cohesion_parameters_for_bloc (dict): A mapping of blocs to cohesion parameters.
                                 Note, this is equivalent to one value in the cohesion_parameters
                                 dictionary.
-            
+
 
     Returns:
       A list of lists of length `num_ballots`, where each sublist contains the bloc names in order they appear
@@ -85,7 +85,7 @@ class BallotGenerator:
     `candidates`
     :   list of candidates in the election.
 
-    
+
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
@@ -93,7 +93,7 @@ class BallotGenerator:
 
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
-        
+
 
     ???+ note
         * Voter proportion for blocs must sum to 1.
@@ -107,22 +107,31 @@ class BallotGenerator:
         self,
         **kwargs,
     ):
-        
-        if "candidates" not  in kwargs and "slate_to_candidates" not  in kwargs:
-            raise ValueError("At least one of candidates or slate_to_candidates must be provided.")
-        
+        if "candidates" not in kwargs and "slate_to_candidates" not in kwargs:
+            raise ValueError(
+                "At least one of candidates or slate_to_candidates must be provided."
+            )
+
         if "candidates" in kwargs:
             self.candidates = kwargs["candidates"]
-        
+
         if "slate_to_candidates" in kwargs:
             self.slate_to_candidates = kwargs["slate_to_candidates"]
-            self.candidates = [c for c_list in self.slate_to_candidates.values() for c in c_list]
+            self.candidates = [
+                c for c_list in self.slate_to_candidates.values() for c in c_list
+            ]
 
-        nec_parameters = ["pref_intervals_by_bloc", "cohesion_parameters", "bloc_voter_prop"]
-        
+        nec_parameters = [
+            "pref_intervals_by_bloc",
+            "cohesion_parameters",
+            "bloc_voter_prop",
+        ]
+
         if any(x in kwargs for x in nec_parameters):
             if not all(x in kwargs for x in nec_parameters):
-                raise ValueError(f"If one of {nec_parameters} is provided, all must be provided.")
+                raise ValueError(
+                    f"If one of {nec_parameters} is provided, all must be provided."
+                )
 
             bloc_voter_prop = kwargs["bloc_voter_prop"]
             pref_intervals_by_bloc = kwargs["pref_intervals_by_bloc"]
@@ -132,18 +141,26 @@ class BallotGenerator:
                 raise ValueError("Voter proportion for blocs must sum to 1")
 
             if bloc_voter_prop.keys() != pref_intervals_by_bloc.keys():
-                raise ValueError("Blocs are not the same between bloc_voter_prop and pref_intervals_by_bloc.")
-            
+                raise ValueError(
+                    "Blocs are not the same between bloc_voter_prop and pref_intervals_by_bloc."
+                )
+
             if bloc_voter_prop.keys() != cohesion_parameters.keys():
-                raise ValueError("Blocs are not the same between bloc_voter_prop and cohesion_parameters.")
-            
+                raise ValueError(
+                    "Blocs are not the same between bloc_voter_prop and cohesion_parameters."
+                )
+
             if pref_intervals_by_bloc.keys() != cohesion_parameters.keys():
-                raise ValueError("Blocs are not the same between pref_intervals_by_bloc and cohesion_parameters.")
-            
+                raise ValueError(
+                    "Blocs are not the same between pref_intervals_by_bloc and cohesion_parameters."
+                )
+
             for bloc, cohesion_parameter_dict in cohesion_parameters.items():
                 if round(sum(cohesion_parameter_dict.values()), 8) != 1.0:
-                    raise ValueError(f"Cohesion parameters for bloc {bloc} must sum to 1.")
-            
+                    raise ValueError(
+                        f"Cohesion parameters for bloc {bloc} must sum to 1."
+                    )
+
             self.pref_intervals_by_bloc = pref_intervals_by_bloc
             self.bloc_voter_prop = bloc_voter_prop
             self.blocs = list(self.bloc_voter_prop.keys())
@@ -184,7 +201,7 @@ class BallotGenerator:
             * Each cohesion parameter must be in the interval [0,1].
             * Dirichlet parameters are in the interval $(0,\infty)$.
         """
-        if round(sum(bloc_voter_prop.values()),8) != 1.0:
+        if round(sum(bloc_voter_prop.values()), 8) != 1.0:
             raise ValueError("Voter proportion for blocs must sum to 1")
 
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
@@ -209,9 +226,12 @@ class BallotGenerator:
         data["bloc_voter_prop"] = bloc_voter_prop
         data["cohesion_parameters"] = cohesion_parameters
 
-        if (
-            cls in [AlternatingCrossover, slate_PlackettLuce, slate_BradleyTerry, CambridgeSampler]
-        ):
+        if cls in [
+            AlternatingCrossover,
+            slate_PlackettLuce,
+            slate_BradleyTerry,
+            CambridgeSampler,
+        ]:
             generator = cls(
                 slate_to_candidates=slate_to_candidates,
                 **data,
@@ -472,7 +492,7 @@ class short_name_PlackettLuce(BallotGenerator):
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). 
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
     `cohesion_parameters'
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
@@ -623,16 +643,15 @@ class name_PlackettLuce(short_name_PlackettLuce):
     """
 
     def __init__(self, cohesion_parameters: dict, **data):
-        
         if "candidates" in data:
             k = len(data["candidates"])
         elif "slate_to_candidates" in data:
             k = sum(len(c_list) for c_list in data["slate_to_candidates"].values())
         else:
             raise ValueError("One of candidates or slate_to_candidates must be passed.")
-        
+
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(k=k, cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(k=k, cohesion_parameters=cohesion_parameters, **data)
 
 
 class name_BradleyTerry(BallotGenerator):
@@ -650,7 +669,7 @@ class name_BradleyTerry(BallotGenerator):
 
     `pref_intervals_by_bloc`
     : dictionary of dictionaries mapping of bloc to preference intervals or dictionary of PIs.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). 
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion}).
@@ -663,9 +682,9 @@ class name_BradleyTerry(BallotGenerator):
     See `BallotGenerator` base class.
     """
 
-    def __init__(self, cohesion_parameters:dict, **data):
+    def __init__(self, cohesion_parameters: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
 
         # if dictionary of pref intervals
         if isinstance(
@@ -780,13 +799,13 @@ class name_BradleyTerry(BallotGenerator):
 
             # The return of this will be a numpy array, so we don't need to make it into a list
             sampled_indices = np.array(
-                                np.random.choice(
-                                    a = len(rankings),
-                                    size = num_ballots,
-                                    p = probs,
-                                ), 
-                                ndmin=1
-                            )
+                np.random.choice(
+                    a=len(rankings),
+                    size=num_ballots,
+                    p=probs,
+                ),
+                ndmin=1,
+            )
 
             for j, index in enumerate(sampled_indices):
                 ranking = [frozenset({cand}) for cand in rankings[index]]
@@ -915,7 +934,9 @@ class name_BradleyTerry(BallotGenerator):
             non_zero_cands = pref_interval.non_zero_cands
             zero_cands = pref_interval.zero_cands
 
-            seed_ballot = Ballot(ranking=tuple([frozenset({c}) for c in non_zero_cands]))
+            seed_ballot = Ballot(
+                ranking=tuple([frozenset({c}) for c in non_zero_cands])
+            )
             pp = self._BT_mcmc(
                 num_ballots,
                 pref_interval_dict,
@@ -939,7 +960,6 @@ class name_BradleyTerry(BallotGenerator):
             return pp
 
 
-
 class AlternatingCrossover(BallotGenerator):
     """
     Class for Alternating Crossover style of generating ballots.
@@ -956,7 +976,7 @@ class AlternatingCrossover(BallotGenerator):
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). 
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {bloc: voter proportion}).
@@ -978,7 +998,7 @@ class AlternatingCrossover(BallotGenerator):
         **data,
     ):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
@@ -1049,7 +1069,9 @@ class AlternatingCrossover(BallotGenerator):
                         for cand in pair
                     ]
                 else:
-                    ranking = [frozenset({c}) for c in bloc_cands] + [frozenset({c}) for c in opposing_cands]
+                    ranking = [frozenset({c}) for c in bloc_cands] + [
+                        frozenset({c}) for c in opposing_cands
+                    ]
 
                 ballot = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
                 ballot_pool.append(ballot)
@@ -1069,7 +1091,6 @@ class AlternatingCrossover(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-
 
 
 class OneDimSpatial(BallotGenerator):
@@ -1156,7 +1177,7 @@ class CambridgeSampler(BallotGenerator):
         **data,
     ):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
 
         self.historical_majority = historical_majority
         self.historical_minority = historical_minority
@@ -1175,7 +1196,10 @@ class CambridgeSampler(BallotGenerator):
             bloc for bloc in self.bloc_voter_prop.keys() if bloc != self.majority_bloc
         ][0]
 
-        self.bloc_to_historical = {self.majority_bloc: self.historical_majority, self.minority_bloc: self.historical_minority}
+        self.bloc_to_historical = {
+            self.majority_bloc: self.historical_majority,
+            self.minority_bloc: self.historical_minority,
+        }
 
         # # changing names to match historical data, if statement handles generating from_params
         # # only want to run this now if generating from init
@@ -1263,7 +1287,7 @@ class CambridgeSampler(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             bloc_voters = ballots_per_type[(bloc, "bloc")]
             cross_voters = ballots_per_type[(bloc, "cross")]
-            ballot_pool = [Ballot()]* (bloc_voters+cross_voters)
+            ballot_pool = [Ballot()] * (bloc_voters + cross_voters)
 
             # store the opposition bloc
             opp_bloc = self.blocs[(i + 1) % 2]
@@ -1306,15 +1330,16 @@ class CambridgeSampler(BallotGenerator):
                 if ballot[0] == self.bloc_to_historical[opp_bloc]
             }
 
-            bloc_voter_ordering = random.choices(list(prob_ballot_given_bloc_first.keys()),
-                        weights=list(prob_ballot_given_bloc_first.values()),
-                        k=bloc_voters,
-                    )
+            bloc_voter_ordering = random.choices(
+                list(prob_ballot_given_bloc_first.keys()),
+                weights=list(prob_ballot_given_bloc_first.values()),
+                k=bloc_voters,
+            )
             cross_voter_ordering = random.choices(
-                        list(prob_ballot_given_opp_first.keys()),
-                        weights=list(prob_ballot_given_opp_first.values()),
-                        k=cross_voters,
-                    )
+                list(prob_ballot_given_opp_first.keys()),
+                weights=list(prob_ballot_given_opp_first.values()),
+                k=cross_voters,
+            )
 
             # Generate ballots
             for i in range(bloc_voters + cross_voters):
@@ -1323,7 +1348,7 @@ class CambridgeSampler(BallotGenerator):
                 if i < bloc_voters:
                     bloc_ordering = bloc_voter_ordering[i]
                 else:
-                    bloc_ordering = cross_voter_ordering[i-bloc_voters]
+                    bloc_ordering = cross_voter_ordering[i - bloc_voters]
 
                 # Now turn bloc ordering into candidate ordering
                 pl_ordering = list(
@@ -1359,8 +1384,6 @@ class CambridgeSampler(BallotGenerator):
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
-
-
         # combine the profiles
         pp = PreferenceProfile(ballots=[])
         for profile in pp_by_bloc.values():
@@ -1372,7 +1395,6 @@ class CambridgeSampler(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
-
 
 
 class name_Cumulative(BallotGenerator):
@@ -1407,7 +1429,7 @@ class name_Cumulative(BallotGenerator):
 
     def __init__(self, cohesion_parameters: dict, num_votes: int, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
         self.num_votes = num_votes
 
         # if dictionary of pref intervals is passed
@@ -1520,9 +1542,9 @@ class slate_PlackettLuce(BallotGenerator):
     See `BallotGenerator` base class
     """
 
-    def __init__(self,cohesion_parameters:dict, **data):
+    def __init__(self, cohesion_parameters: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters = cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
 
     def _sample_ballot_types(self, bloc: str, num_ballots: int):
         """
@@ -1532,7 +1554,7 @@ class slate_PlackettLuce(BallotGenerator):
         on the ballot.
         """
         candidates = list(it.chain(*list(self.slate_to_candidates.values())))
-        ballots = [[-1]]*num_ballots
+        ballots = [[-1]] * num_ballots
         # precompute coin flips
         coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
 
@@ -1674,7 +1696,7 @@ class slate_BradleyTerry(BallotGenerator):
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}). 
+        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
@@ -1687,21 +1709,23 @@ class slate_BradleyTerry(BallotGenerator):
     See `BallotGenerator` base class
     """
 
-    def __init__(self, cohesion_parameters:dict, **data):
+    def __init__(self, cohesion_parameters: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters =cohesion_parameters, **data)
+        super().__init__(cohesion_parameters=cohesion_parameters, **data)
 
         if len(self.slate_to_candidates.keys()) > 2:
             raise UserWarning(
                 f"This model currently only supports at most two blocs, but you \
                               passed {len(self.slate_to_candidates.keys())}"
             )
-        
-        self.ballot_type_pdf = {b:self._compute_ballot_type_dist(b, self.blocs[(i+1)%2]) for i,b in enumerate(self.blocs)}
-        
+
+        self.ballot_type_pdf = {
+            b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
+            for i, b in enumerate(self.blocs)
+        }
 
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
-        """ 
+        """
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
         blocs_to_sample = [
@@ -1759,7 +1783,7 @@ class slate_BradleyTerry(BallotGenerator):
             b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
         ]
 
-        ballots = [[-1]]*num_ballots
+        ballots = [[-1]] * num_ballots
         accept = 0
         current_ranking = seed_ballot_type
 
