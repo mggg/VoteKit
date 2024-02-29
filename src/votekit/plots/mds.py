@@ -49,7 +49,7 @@ def compute_MDS(
         random_seed (int): an integer seed to allow for reproducible MDS plots. Defaults to 47.
 
     Returns:
-        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples of 
+        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples of
         numpy arrays (x_list, y_list) of coordinates for the MDS plot.
     """
     # combine all lists to create distance matrix
@@ -87,8 +87,8 @@ def plot_MDS(coord_dict: dict):
     Creates an MDS plot from the output of `compute_MDS`.
 
     Args:
-        coord_dict: Dictionary with key being a string label and value being tuple 
-        (x_list, y_list), coordinates for the MDS plot. 
+        coord_dict: Dictionary with key being a string label and value being tuple
+        (x_list, y_list), coordinates for the MDS plot.
         Should be piped in from `compute_MDS`.
 
     Returns:
