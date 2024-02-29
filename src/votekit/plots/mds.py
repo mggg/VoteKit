@@ -87,8 +87,9 @@ def plot_MDS(coord_dict: dict):
     Creates an MDS plot from the output of `compute_MDS`.
 
     Args:
-        coord_dict: Dictionary with key being a string label and value being tuple (x_list, y_list), 
-        coordinates for the MDS plot. Should be piped in from `compute_MDS`.
+        coord_dict: Dictionary with key being a string label and value being tuple 
+        (x_list, y_list), coordinates for the MDS plot. 
+        Should be piped in from `compute_MDS`.
 
     Returns:
         fig: a matplotlib fig
