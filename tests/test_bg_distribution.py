@@ -1,6 +1,5 @@
 import itertools as it
 import math
-import pytest
 import scipy.stats as stats
 from pathlib import Path
 import pickle
@@ -13,167 +12,17 @@ from votekit.ballot_generator import (
     name_BradleyTerry,
     AlternatingCrossover,
     CambridgeSampler,
-    OneDimSpatial,
     BallotSimplex,
     slate_PlackettLuce,
-    slate_BradleyTerry
+    slate_BradleyTerry,
+    name_Cumulative,
+    sample_cohesion_ballot_types
 )
 from votekit.pref_profile import PreferenceProfile
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
-
+from votekit import Ballot
 # set seed for more consistent tests
 np.random.seed(8675309)
-
-
-def test_IC_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)
-    profile = ic.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_IAC_completion():
-    iac = ImpartialAnonymousCulture(
-        candidates=["W1", "W2", "C1", "C2"], ballot_length=None
-    )
-    profile = iac.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_NPL_completion():
-    pl = name_PlackettLuce(
-        candidates=["W1", "W2", "C1", "C2"],
-        ballot_length=None,
-        pref_intervals_by_bloc={
-            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1}),
-            "C": PreferenceInterval({"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3}),
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-    )
-    profile = pl.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_SPL_completion():
-    sp = slate_PlackettLuce(
-        candidates=["W1", "W2", "C1", "C2"],
-        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "W": {
-                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "C": {
-                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-    )
-    profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-    result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
-    assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-
-
-def test_SBT_completion():
-    sbt = slate_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
-        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "W": {
-                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "C": {
-                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-    )
-    profile = sbt.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-    result = sbt.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
-    assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-
-def test_NBT_completion():
-    bt = name_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
-        ballot_length=None,
-        pref_intervals_by_bloc={
-            "W": PreferenceInterval(
-                interval={"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1}
-            ),
-            "C": PreferenceInterval(
-                interval={"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3}
-            ),
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-    )
-    profile = bt.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_AC_completion():
-    ac = AlternatingCrossover(
-        candidates=["W1", "W2", "C1", "C2"],
-        ballot_length=None,
-        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "W": {
-                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "C": {
-                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-    )
-    profile = ac.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_1D_completion():
-    ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"], ballot_length=None)
-    profile = ods.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-
-
-def test_Cambridge_completion():
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
-        ballot_length=None,
-        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "W": {
-                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "C": {
-                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-    )
-    profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
 
 
 def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
@@ -226,18 +75,18 @@ def do_ballot_probs_match_ballot_dist(
 def test_ic_distribution():
     # Set-up
     number_of_ballots = 100
-    ballot_length = 4
+    
     candidates = ["W1", "W2", "C1", "C2"]
 
     # Find ballot probs
-    possible_rankings = it.permutations(candidates, ballot_length)
+    possible_rankings = it.permutations(candidates, len(candidates))
     ballot_prob_dict = {
         b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
     # Generate ballots
     generated_profile = ImpartialCulture(
-        ballot_length=ballot_length,
+    
         candidates=candidates,
     ).generate_profile(number_of_ballots=number_of_ballots)
 
@@ -247,76 +96,78 @@ def test_ic_distribution():
 
 def test_ballot_simplex_from_point():
     number_of_ballots = 1000
-    ballot_length = 4
     candidates = ["W1", "W2", "C1", "C2"]
     pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
 
-    possible_rankings = it.permutations(candidates, ballot_length)
+    possible_rankings = it.permutations(candidates, len(candidates))
     ballot_prob_dict = {
         b: 1 / math.factorial(len(candidates)) for b in possible_rankings
     }
 
     generated_profile = BallotSimplex.from_point(
-        point=pt, ballot_length=ballot_length, candidates=candidates
+        point=pt, candidates=candidates
     ).generate_profile(number_of_ballots=number_of_ballots)
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
-def test_ballot_simplex_from_alpha_zero():
+
+
+def test_iac_distribution():
     number_of_ballots = 1000
+    ballot_length = 4
     candidates = ["W1", "W2", "C1", "C2"]
 
-    generated_profile = BallotSimplex.from_alpha(
-        alpha=0, candidates=candidates
-    ).generate_profile(number_of_ballots=number_of_ballots)
+    # Find ballot probs
+    possible_rankings = list(it.permutations(candidates, ballot_length))
+    probabilities = np.random.dirichlet([1] * len(possible_rankings))
 
-    assert len(generated_profile.ballots) == 1
+    ballot_prob_dict = {
+        possible_rankings[b_ind]: probabilities[b_ind]
+        for b_ind in range(len(possible_rankings))
+    }
+    generated_profile = ImpartialAnonymousCulture(
+        number_of_ballots=number_of_ballots,
+        candidates=candidates,
+    ).generate_profile(number_of_ballots=500)
 
-
-# def test_iac_distribution():
-#     number_of_ballots = 1000
-#     ballot_length = 4
-#     candidates = ["W1", "W2", "C1", "C2"]
-
-#     # Find ballot probs
-#     possible_rankings = list(it.permutations(candidates, ballot_length))
-#     probabilities = np.random.dirichlet([1] * len(possible_rankings))
-
-#     ballot_prob_dict = {
-#         possible_rankings[b_ind]: probabilities[b_ind]
-#         for b_ind in range(len(possible_rankings))
-#     }
-#     generated_profile = IAC(
-#         number_of_ballots=number_of_ballots,
-#         ballot_length=ballot_length,
-#         candidates=candidates,
-#     ).generate_profile()
-
-#     # Test
-#     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
 def test_NPL_distribution():
     # Set-up
     number_of_ballots = 100
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
-    pref_interval_by_bloc = {
-        "W": PreferenceInterval({"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1}),
-        "C": PreferenceInterval({"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3}),
+    
+    pref_intervals_by_bloc = {
+        "W": {"W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+              "C":PreferenceInterval({ "C1": 0.2, "C2": 0.1})},
+        "C": {"C":PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+              "W":PreferenceInterval({"W1": 0.2, "W2": 0.2})}
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    cohesion_parameters = {"W": {"W": .7, "C":.3},
+                           "C": {"C": .6, "W":.4}}
+
+    # Generate ballots
+    pl = name_PlackettLuce(
+        candidates=candidates,
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters = cohesion_parameters
+    )
+
+    generated_profile = pl.generate_profile(number_of_ballots=number_of_ballots)
 
     # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, ballot_length))
-
+    possible_rankings = list(it.permutations(candidates, len(candidates)))
     ballot_prob_dict = {b: 0 for b in possible_rankings}
 
     for ranking in possible_rankings:
         # ranking = b.ranking
         for bloc in bloc_voter_prop.keys():
-            support_for_cands = pref_interval_by_bloc[bloc].interval
+            support_for_cands = pl.pref_interval_by_bloc[bloc].interval
             total_prob = 1
             prob = bloc_voter_prop[bloc]
             for cand in ranking:
@@ -324,13 +175,7 @@ def test_NPL_distribution():
                 total_prob -= support_for_cands[cand]
             ballot_prob_dict[ranking] += prob
 
-    # Generate ballots
-    generated_profile = name_PlackettLuce(
-        ballot_length=ballot_length,
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_interval_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-    ).generate_profile(number_of_ballots=number_of_ballots)
+    
 
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
@@ -420,24 +265,37 @@ def test_SPL_distribution():
 def test_NBT_distribution():
     # Set-up
     number_of_ballots = 500
-    ballot_length = 4
+    
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
-    pref_interval_by_bloc = {
-        "W": PreferenceInterval({"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1}),
-        "C": PreferenceInterval({"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3}),
+    pref_intervals_by_bloc = {
+        "W": {"W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+              "C":PreferenceInterval({ "C1": 0.2, "C2": 0.1})},
+        "C": {"C":PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+              "W":PreferenceInterval({"W1": 0.2, "W2": 0.2})}
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    cohesion_parameters = {"W": {"W": .7, "C":.3},
+                           "C": {"C": .6, "W":.4}}
+    bloc_voter_prop = {"W": 0.7, "C": 0.3}
+
+    # Generate ballots
+    bt = name_BradleyTerry(
+        candidates=candidates,
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters = cohesion_parameters
+    )
+    generated_profile= bt.generate_profile(number_of_ballots=number_of_ballots)
 
     # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, ballot_length))
+    possible_rankings = list(it.permutations(candidates, len(candidates)))
 
     final_ballot_prob_dict = {b: 0 for b in possible_rankings}
 
     for bloc in bloc_voter_prop.keys():
         ballot_prob_dict = {b: 0 for b in possible_rankings}
         for ranking in possible_rankings:
-            support_for_cands = pref_interval_by_bloc[bloc].interval
+            support_for_cands = bt.pref_interval_by_bloc[bloc].interval
             prob = bloc_voter_prop[bloc]
             for i in range(len(ranking)):
                 greater_cand = support_for_cands[ranking[i]]
@@ -452,13 +310,7 @@ def test_NBT_distribution():
             for k, v in final_ballot_prob_dict.items()
         }
 
-    # Generate ballots
-    generated_profile = name_BradleyTerry(
-        ballot_length=ballot_length,
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_interval_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-    ).generate_profile(number_of_ballots=number_of_ballots)
+    
 
     # Test
     assert do_ballot_probs_match_ballot_dist(final_ballot_prob_dict, generated_profile)
@@ -632,26 +484,28 @@ def test_SPL_3_bloc():
 
 def test_NBT_probability_calculation():
     # Set-up
-    ballot_length = 4
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
-    pref_interval_by_bloc = {
-        "W": PreferenceInterval({"W1": 0.4, "W2": 0.3, "C1": 0.2, "C2": 0.1}),
-        "C": PreferenceInterval({"W1": 0.2, "W2": 0.2, "C1": 0.3, "C2": 0.3}),
+    pref_intervals_by_bloc = {
+        "W": {"W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+              "C":PreferenceInterval({ "C1": 0.2, "C2": 0.1})},
+        "C": {"C":PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+              "W":PreferenceInterval({"W1": 0.2, "W2": 0.2})}
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    cohesion_parameters = {"W": {"W": .7, "C":.3},
+                           "C": {"C": .6, "W":.4}}
 
     model = name_BradleyTerry(
-        ballot_length=ballot_length,
         candidates=candidates,
-        pref_intervals_by_bloc=pref_interval_by_bloc,
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters = cohesion_parameters
     )
 
     permutation = ("W1", "W2")
 
-    w_pref_interval = pref_interval_by_bloc["W"].interval
-    c_pref_interval = pref_interval_by_bloc["C"].interval
+    w_pref_interval = model.pref_interval_by_bloc["W"].interval
+    c_pref_interval = model.pref_interval_by_bloc["C"].interval
 
     assert model._calc_prob(
         permutations=[permutation], cand_support_dict=c_pref_interval
@@ -688,9 +542,7 @@ def test_AC_distribution():
 
     # Set-up
     number_of_ballots = 1000
-    ballot_length = 4
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
 
     cand_to_slate = {
@@ -712,7 +564,7 @@ def test_AC_distribution():
     cohesion_parameters = {"W": 0.9, "C": 0}
 
     # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, ballot_length))
+    possible_rankings = list(it.permutations(candidates, len(candidates)))
     ballot_prob_dict = {b: 0 for b in possible_rankings}
 
     for ranking in possible_rankings:
@@ -759,7 +611,6 @@ def test_AC_distribution():
     }
     # Generate ballots
     generated_profile = AlternatingCrossover(
-        ballot_length=ballot_length,
         candidates=candidates,
         pref_intervals_by_bloc=pref_intervals_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
@@ -794,139 +645,12 @@ def bloc_order_probs_slate_first(slate, ballot_frequencies):
     }
     return prob_ballot_given_slate_first
 
-
-def test_setparams_npl():
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    pl = name_PlackettLuce.from_params(
-        slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=blocs,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
-    # check params were set
-    assert pl.bloc_voter_prop == {"R": 0.6, "D": 0.4}
-    interval = pl.pref_intervals_by_bloc
-    # check if intervals add up to one
-    for bloc in blocs:
-        for b in blocs:
-            assert math.isclose(sum(interval[bloc][b].interval.values()), 1)
-
-
-def test_bt_single_bloc():
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    gen = name_BradleyTerry.from_params(
-        slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=blocs,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
-    interval = gen.pref_interval_by_bloc
-    assert math.isclose(sum(interval["R"].interval.values()), 1)
-
-
-def test_incorrect_blocs():
-    blocs = {"R": 0.7, "D": 0.4}
-    cohesion = {"R":{"R": 0.7, "D":.3},
-                "D":{"D" : 0.6, "R":.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    with pytest.raises(ValueError):
-        name_PlackettLuce.from_params(
-            slate_to_candidates=slate_to_cands,
-            bloc_voter_prop=blocs,
-            cohesion_parameters=cohesion,
-            alphas=alphas,
-        )
-
-
-def test_ac_profile_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    # cohesion = {"R": 0.7, "D": 0.6}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    cohesion_parameters = {"R": {"R": 0.5, "D": 0.5}, "D": {"D": 0.4, "R": 0.6}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-    ac = AlternatingCrossover.from_params(
-        bloc_voter_prop=blocs,
-        alphas=alphas,
-        slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion_parameters,
-    )
-
-    profile = ac.generate_profile(3)
-    assert type(profile) is PreferenceProfile
-
-
-def test_cambridge_profile_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    cohesion_parameters = {"R": {"R": 0.5, "D": 0.5}, "D": {"D": 0.4, "R": 0.6}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-    ac = CambridgeSampler.from_params(
-        bloc_voter_prop=blocs,
-        alphas=alphas,
-        slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion_parameters,
-    )
-
-    profile = ac.generate_profile(3)
-    assert type(profile) is PreferenceProfile
-
-
-def test_npl_profile_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    npl = name_PlackettLuce.from_params(
-        bloc_voter_prop=blocs,
-        slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
-
-    profile = npl.generate_profile(3)
-    assert type(profile) is PreferenceProfile
-
-
-def test_interval_sum_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    npl = name_PlackettLuce.from_params(
-        bloc_voter_prop=blocs,
-        slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
-    for curr_b in npl.blocs:
-        for b in npl.blocs:
-            if not math.isclose(
-                sum(npl.pref_intervals_by_bloc[curr_b][b].interval.values()), 1
-            ):
-                assert False
-    assert True
-
-
 def test_Cambridge_distribution():
     # BASE_DIR = Path(__file__).resolve().parent.parent
     DATA_DIR = "src/votekit/data"
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_intervals_by_bloc = {
         "W": {
@@ -944,7 +668,6 @@ def test_Cambridge_distribution():
 
     cs = CambridgeSampler(
         candidates=candidates,
-        ballot_length=ballot_length,
         slate_to_candidates=slate_to_candidate,
         pref_intervals_by_bloc=pref_intervals_by_bloc,
         bloc_voter_prop=bloc_voter_prop,
@@ -953,7 +676,6 @@ def test_Cambridge_distribution():
     )
 
     candidates = ["W1", "W2", "C1", "C2"]
-    ballot_length = None
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.4, "C1": 0.1, "C2": 0.1},
@@ -1114,3 +836,89 @@ def test_Cambridge_distribution():
     assert do_ballot_probs_match_ballot_dist(
         ballot_prob_dict=ballot_prob_dict, generated_profile=test_profile
     )
+
+def test_sample_ballot_types():
+    slate_to_candidates = {"A":["A1", "A2"], "B": ["B1"]}
+    cohesion_parameters_for_A_bloc = {"A": .8, "B": .2}
+    
+    sampled = sample_cohesion_ballot_types(
+    slate_to_candidates=slate_to_candidates, num_ballots= 100, cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc
+        )
+
+    ballots = [Ballot([{c} for c in b]) for b in sampled]
+    pp = PreferenceProfile(ballots = ballots)
+
+    
+    ballot_prob_dict = {"AAB": cohesion_parameters_for_A_bloc["A"]**2, "ABA": cohesion_parameters_for_A_bloc["A"]*cohesion_parameters_for_A_bloc["B"],
+                        "BAA": cohesion_parameters_for_A_bloc["A"]*cohesion_parameters_for_A_bloc["B"]
+    }
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+
+    slate_to_candidates = {"A":["A1"], "B": ["B1"], "C":["C1"]}
+    cohesion_parameters_for_A_bloc = {"A": .7, "B": .2, "C": .1}
+    
+    sampled = sample_cohesion_ballot_types(
+    slate_to_candidates=slate_to_candidates, num_ballots= 100, cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc
+        )
+
+    ballots = [Ballot([{c} for c in b]) for b in sampled]
+    pp = PreferenceProfile(ballots = ballots)
+
+    
+    ballot_prob_dict = {"ABC": cohesion_parameters_for_A_bloc["A"]*cohesion_parameters_for_A_bloc["B"], 
+                        "ACB": cohesion_parameters_for_A_bloc["A"]*cohesion_parameters_for_A_bloc["C"],
+                        "BAC": cohesion_parameters_for_A_bloc["B"]*cohesion_parameters_for_A_bloc["A"],
+                        "BCA": cohesion_parameters_for_A_bloc["B"]*cohesion_parameters_for_A_bloc["C"],
+                        "CAB": cohesion_parameters_for_A_bloc["C"]*cohesion_parameters_for_A_bloc["A"],
+                        "CBA": cohesion_parameters_for_A_bloc["C"]*cohesion_parameters_for_A_bloc["B"],
+    }
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+
+
+def test_name_Cumulative_distribution():
+    cumu = name_Cumulative(
+        candidates=["A", "B"],
+        pref_intervals_by_bloc={
+            "W": {
+                "W": PreferenceInterval({"A": 0.4, "B": 0.6})
+            }
+        },
+        bloc_voter_prop={"W": 1},
+        num_votes=2,
+        cohesion_parameters={"W": {"W":1}},
+    )
+
+    pp = cumu.generate_profile(number_of_ballots=100)
+
+    ballot_prob_dict = {"AA":cumu.pref_interval_by_bloc["W"].interval["A"]**2,
+                        "AB":cumu.pref_interval_by_bloc["W"].interval["A"]*cumu.pref_interval_by_bloc["W"].interval["B"],
+                        "BA":cumu.pref_interval_by_bloc["W"].interval["A"]*cumu.pref_interval_by_bloc["W"].interval["B"],
+                        "BB":cumu.pref_interval_by_bloc["W"].interval["B"]**2}
+
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+
+def test_slate_BT_distribution():
+    sbt = slate_BradleyTerry(slate_to_candidates = {"A": ["X", "Y"],
+                                                    "B": ["Z"]},
+                            cohesion_parameters={"A": {"A": .8, "B":.2},
+                                                 "B": {"A": .2, "B":.8}},
+                            bloc_voter_prop = {"A":1, "B": 0},
+                            pref_intervals_by_bloc = {"A": {"A": PreferenceInterval({"X":.9, "Y":.1}),
+                                                            "B": PreferenceInterval({"Z":1})},
+                                                        "B": {"A": PreferenceInterval({"X":.9, "Y":.1}),
+                                                            "B": PreferenceInterval({"Z":1})}})
+
+    pp = sbt.generate_profile(number_of_ballots=100)
+
+    ballot_prob_dict = {"XYZ":sbt.cohesion_parameters["A"]["A"]**2*sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+                        "YXZ":sbt.cohesion_parameters["A"]["A"]**2*sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
+                        "XZY":sbt.cohesion_parameters["A"]["A"]*sbt.cohesion_parameters["A"]["B"]*sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+                        "YZX":sbt.cohesion_parameters["A"]["A"]*sbt.cohesion_parameters["A"]["B"]*sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
+                        "ZXY":sbt.cohesion_parameters["A"]["B"]**2*sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+                        "ZYX":sbt.cohesion_parameters["A"]["B"]**2*sbt.pref_intervals_by_bloc["A"]["A"].interval["X"]}
+
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
