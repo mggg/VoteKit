@@ -1,4 +1,4 @@
-# Ballot Graphs
+# `BallotGraph`
 The ballot graph has vertices=ballots, and edges connecting ballots if they are equivalent by a swap of two adjacently ranked candidates, or by the truncation or addition of a candidate in last place.
 
 The `BallotGraph` object can be created from a `PreferenceProfile` object, a number of candidates, or a list of candidates. It has an `allow_partial` parameter that says whether or not the graph will be constructed using partial ballots, or only full linear orderings. If being created from a `PreferenceProfile`, this parameter defaults to `True` to allow for any kind of ballot from a voter.
@@ -20,7 +20,7 @@ ballot_graph.draw(labels= False)
 
 
     
-![png](assets/ballot_graph_2_0.png)
+![png](assets/ballot_graph_files/ballot_graph_2_0.png)
     
 
 
@@ -36,7 +36,7 @@ ballot_graph.draw(labels = True)
 
 
     
-![png](assets/ballot_graph_4_0.png)
+![png](assets/ballot_graph_files/ballot_graph_4_0.png)
     
 
 
@@ -73,18 +73,18 @@ ballot_graph = BallotGraph(profile)
 ballot_graph.draw(labels = True)
 ```
 
-      Ballots  Weight
-    (B, C, A)      13
-    (C, A, B)      13
-    (B, A, C)      11
-    (A, C, B)      10
-    (C, B, A)       7
-    (A, B, C)       6
+      Ballots Weight
+    (A, C, B)     12
+    (B, A, C)     11
+    (C, A, B)     11
+    (C, B, A)     10
+    (A, B, C)      9
+    (B, C, A)      7
 
 
 
     
-![png](assets/ballot_graph_8_1.png)
+![png](assets/ballot_graph_files/ballot_graph_8_1.png)
     
 
 
@@ -97,14 +97,14 @@ for node, data in ballot_graph.graph.nodes(data = True):
 ```
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(13, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(7, 1), 'cast': True}
+    (1, 2, 3) {'weight': Fraction(7, 1), 'cast': True}
+    (1, 3, 2) {'weight': Fraction(11, 1), 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(6, 1), 'cast': True}
+    (2, 3, 1) {'weight': Fraction(11, 1), 'cast': True}
     (2, 1, 3) {'weight': Fraction(10, 1), 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(13, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(11, 1), 'cast': True}
+    (3, 1, 2) {'weight': Fraction(9, 1), 'cast': True}
+    (3, 2, 1) {'weight': Fraction(12, 1), 'cast': True}
 
 
 Check for understanding: only ballots that were in the `PreferenceProfile` should have 'cast'= True, and their 'weight' attribute should correspond to the number of ballots cast.
@@ -118,7 +118,7 @@ ballot_graph.draw(labels = True, show_cast=True)
 
 
     
-![png](assets/ballot_graph_12_0.png)
+![png](assets/ballot_graph_files/ballot_graph_12_0.png)
     
 
 
@@ -142,7 +142,7 @@ ballot_graph.draw(labels=True, to_display=show_big_weight)
 
 
     
-![png](assets/ballot_graph_15_0.png)
+![png](assets/ballot_graph_files/ballot_graph_15_0.png)
     
 
 
@@ -157,7 +157,7 @@ ballot_graph.draw()
 
 
     
-![png](assets/ballot_graph_17_0.png)
+![png](assets/ballot_graph_files/ballot_graph_17_0.png)
     
 
 
@@ -170,7 +170,7 @@ ballot_graph.draw(neighborhoods=[((3,2,1), 1)])
 
 
     
-![png](assets/ballot_graph_18_0.png)
+![png](assets/ballot_graph_files/ballot_graph_18_0.png)
     
 
 
@@ -186,6 +186,6 @@ ballot_graph.draw(neighborhoods=[((3,2,1), 1),
 
 
     
-![png](assets/ballot_graph_20_0.png)
+![png](assets/ballot_graph_files/ballot_graph_20_0.png)
     
 

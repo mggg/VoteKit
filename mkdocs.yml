@@ -71,10 +71,10 @@ nav:
   - 'getting_started.md'
   - User Guide:
     - 'some_plotting_options.md'
-    - 'pref_prof_generators.md'
-    - 'AC_and_CS.md'
-    - 'ballots_from_parameters.md'
-    - 'ballot_graph_tutorial.md'
+    - 'bg_models_1.md'
+    - 'bg_models_2.md'
+    - 'bg_from_params.md'
+    - 'ballot_graph.md'
   - API Reference:
     - 'api.md'
   - Social Choice Reference:

@@ -84,7 +84,7 @@ class ElectionState(BaseModel):
         Finds the outcome of a given round.
 
         Args:
-            roundNum (int): Round number.
+            round (int): Round number.
 
         Returns:
           A dictionary with elected and eliminated candidates.
