@@ -44,8 +44,7 @@ def sample_cohesion_ballot_types(
             if bin < flip <= dist_bins[i + 1]:
                 return i
 
-    blocs_og, values_og = zip(*cohesion_parameters_for_bloc.items())
-    blocs_og, values_og = list(blocs_og), list(values_og)
+    blocs_og, values_og = [list(x) for x in zip(*cohesion_parameters_for_bloc.items())]
 
     for j in range(num_ballots):
         blocs, values = blocs_og.copy(), values_og.copy()
