@@ -85,7 +85,8 @@ class BallotGenerator:
     `candidates`
     :   list of candidates in the election.
 
-
+    `cohesion_parameters`
+    : dictionary of dictionaries mapping of bloc to cohesion parameters. (ex. {bloc_1: {bloc_1: .7, bloc_2: .2, bloc_3:.1}})
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
@@ -494,7 +495,7 @@ class short_name_PlackettLuce(BallotGenerator):
     :   dictionary of dictionaries mapping of bloc to preference intervals.
         (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     `bloc_voter_prop`
@@ -619,7 +620,7 @@ class name_PlackettLuce(short_name_PlackettLuce):
     Class for generating full ballots with name-PlackettLuce. This model samples without
     replacement from a preference interval. Can be initialized with an interval or can be
     constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class. Equivalent to Limited with k = number of candidates.
+    `BallotGenerator` class.
 
     **Attributes**
 
@@ -630,7 +631,7 @@ class name_PlackettLuce(short_name_PlackettLuce):
     :   dictionary of dictionaries mapping of bloc to preference intervals.
         (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     `bloc_voter_prop`
@@ -674,7 +675,7 @@ class name_BradleyTerry(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     **Methods**
@@ -984,7 +985,7 @@ class AlternatingCrossover(BallotGenerator):
     `slate_to_candidates`
     :   dictionary mapping of slate to candidates (ex. {bloc: [candidate1, candidate2]}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     **Methods**
@@ -1147,7 +1148,7 @@ class CambridgeSampler(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     `pref_intervals_by_bloc`
@@ -1413,7 +1414,7 @@ class name_Cumulative(BallotGenerator):
     :   dictionary of dictionaries mapping of bloc to preference intervals.
         (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     `bloc_voter_prop`
@@ -1534,7 +1535,7 @@ class slate_PlackettLuce(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     **Methods**
@@ -1545,56 +1546,6 @@ class slate_PlackettLuce(BallotGenerator):
     def __init__(self, cohesion_parameters: dict, **data):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(cohesion_parameters=cohesion_parameters, **data)
-
-    def _sample_ballot_types(self, bloc: str, num_ballots: int):
-        """
-        Used to generate bloc orderings for SP model.
-
-        Returns a list of lists, where each sublist contains the bloc names in order they appear
-        on the ballot.
-        """
-        candidates = list(it.chain(*list(self.slate_to_candidates.values())))
-        ballots = [[-1]] * num_ballots
-        # precompute coin flips
-        coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
-
-        def which_bin(dist_bins, flip):
-            for i, bin in enumerate(dist_bins):
-                if bin < flip <= dist_bins[i + 1]:
-                    return i
-
-        # do this for each ballot
-        blocs_og, values_og = zip(*self.cohesion_parameters[bloc].items())
-        blocs_og, values_og = list(blocs_og), list(values_og)
-
-        for j in range(num_ballots):
-            blocs, values = blocs_og.copy(), values_og.copy()
-            # Pre-calculate distribution_bins
-            distribution_bins = [0] + [sum(values[: i + 1]) for i in range(len(blocs))]
-            ballot_type = [-1] * len(candidates)
-
-            for i, flip in enumerate(
-                coin_flips[j * len(candidates) : (j + 1) * len(candidates)]
-            ):
-                bloc_index = which_bin(distribution_bins, flip)
-                bloc_type = blocs[bloc_index]
-                ballot_type[i] = bloc_type
-
-                # Check if that exhausts a slate of candidates
-                if ballot_type.count(bloc_type) == len(
-                    self.slate_to_candidates[bloc_type]
-                ):
-                    del blocs[bloc_index]
-                    del values[bloc_index]
-                    total_value_sum = sum(values)
-                    values = [v / total_value_sum for v in values]
-                    distribution_bins = [0] + [
-                        sum(values[: i + 1]) for i in range(len(blocs))
-                    ]
-
-            ballots[j] = ballot_type
-
-        return ballots
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
@@ -1701,7 +1652,7 @@ class slate_BradleyTerry(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
 
-    `cohesion_parameters'
+    `cohesion_parameters`
     : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
 
     **Methods**

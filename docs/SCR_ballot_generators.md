@@ -16,30 +16,15 @@ The Impartial Anonymous Culture model has $\alpha = 1$. This means that the poin
 
 ## Candidate Simplex Models
 
-### Plackett-Luce
+### Name-Plackett-Luce
 
-The Plackett-Luce model (PL) samples ranked ballots as follows. Given a bloc's preference interval, it samples candidates without replacement from the interval. That means when a candidate is selected, their portion of the interval is removed, and the interval is normalized to be length 1 again. 
+### Name-Bradley-Terry
 
-- The PL model generates full ballots, with the caveat that any candidates with 0 support are listed as ties at the end of the ballot.
+### Name-Cumulative
 
-- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
+### Slate-Plackett-Luce
 
-- The PL model can handle arbitrarily many blocs.
-
-- The PL model also requires information about what proportion of voters belong to each bloc.
-
-### Bradley-Terry
-
-The Bradley-Terry model (BT) samples ranked ballots as follows. Given a preference interval, the probability of sampling the ballot $A>B>C$ is equal to the product of the probabilities $P(A>B)P(B>C)P(A>C)$. One of these probabilities can be computed as $P(A>B) = A/(A+B)$, where we let $A$ denote both the candidate and the length of its interval.
-
-
-- The BT model generates full ballots, with the caveat that any candidates with 0 support are listed as ties at the end of the ballot.
-
-- It can be initialized directly from a set of preference intervals (one for each bloc), or by using [from_params](api.md#ballot-generators). This method uses cohesion and Dirichlet parameters.
-
-- The BT model can handle arbitrarily many blocs.
-
-- The BT model also requires information about what proportion of voters belong to each bloc.
+### Slate-Bradley-Terry
 
 ### Alternating-Crossover
 

@@ -52,7 +52,7 @@ hide:
             - OneDimSpatial
             - ImpartialCulture
             - ImpartialAnonymousCulture
-            - Cumulative
+            - name_Cumulative
 
 ## Elections
 ### ::: votekit.elections.election_types

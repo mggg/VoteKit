@@ -15,8 +15,8 @@ def combine_preference_intervals(
     : list.  A list of PreferenceInterval objects to combine.
 
     `proportions`
-    : list. A list of floats used to reweight the PreferenceInterval objects. Proportion i will
-    reweight interval i.
+    : list. A list of floats used to reweight the PreferenceInterval objects. Proportion $i$ will
+    reweight interval $i$.
     """
     if not (
         len(frozenset.union(*[pi.candidates for pi in intervals]))
@@ -75,7 +75,7 @@ class PreferenceInterval:
 
     `remove_zero_support_cands`
     : remove candidates with zero support from the interval and store them in the attribute
-        zero_cands.
+        `zero_cands`.
     """
 
     # TODO frozendict, frozenclass
