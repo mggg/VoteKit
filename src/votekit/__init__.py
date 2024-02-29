@@ -6,7 +6,7 @@ from .ballot_generator import (  # noqa
     ImpartialAnonymousCulture,
     CambridgeSampler,
     AlternatingCrossover,
-    Cumulative,
+    name_Cumulative,
     slate_BradleyTerry,
     slate_PlackettLuce
 )
