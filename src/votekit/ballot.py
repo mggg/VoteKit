@@ -12,7 +12,8 @@ class Ballot:
 
     **Attributes**
     `ranking`
-    :   tuple of candidate ranking. Entry $i$ of the tuple is a frozenset of candidates ranked in position $i$.
+    :   tuple of candidate ranking. Entry $i$ of the tuple is a frozenset of candidates ranked 
+        in position $i$.
 
     `weight`
     :   (Fraction) weight assigned to a given a ballot. Defaults to 1.

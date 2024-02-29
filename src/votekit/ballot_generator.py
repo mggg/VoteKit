@@ -31,8 +31,8 @@ def sample_cohesion_ballot_types(
 
 
     Returns:
-      A list of lists of length `num_ballots`, where each sublist contains the bloc names in order they appear
-    on that ballot.
+      A list of lists of length `num_ballots`, where each sublist contains the bloc names in order 
+      they appear on that ballot.
     """
     candidates = list(it.chain(*list(slate_to_candidates.values())))
     ballots = [[-1]] * num_ballots
@@ -86,7 +86,8 @@ class BallotGenerator:
     :   list of candidates in the election.
 
     `cohesion_parameters`
-    : dictionary of dictionaries mapping of bloc to cohesion parameters. (ex. {bloc_1: {bloc_1: .7, bloc_2: .2, bloc_3:.1}})
+    : dictionary of dictionaries mapping of bloc to cohesion parameters. 
+        (ex. {bloc_1: {bloc_1: .7, bloc_2: .2, bloc_3:.1}})
 
     `pref_intervals_by_bloc`
     :   dictionary of dictionaries mapping of bloc to preference intervals.
@@ -482,9 +483,9 @@ class ImpartialAnonymousCulture(BallotSimplex):
 class short_name_PlackettLuce(BallotGenerator):
     """
     Class for generating short name Plackett Luce ballots. This model samples without
-    replacement from a preference interval. Equivalent to name-PlackettLuce if k = number of candidates.
-    Can be initialized with an interval or can be constructed with the Dirichlet distribution
-    using the `from_params` method in the `BallotGenerator` class.
+    replacement from a preference interval. Equivalent to name-PlackettLuce if k = number of 
+    candidates. Can be initialized with an interval or can be constructed with the 
+    Dirichlet distribution using the `from_params` method in the `BallotGenerator` class.
 
     **Attributes**
 
@@ -711,7 +712,8 @@ class name_BradleyTerry(BallotGenerator):
             }
         else:
             warnings.warn(
-                "For 12 or more candidates, exact sampling is computationally infeasible. Please only use the built in generate_profile_MCMC method."
+                "For 12 or more candidates, exact sampling is computationally infeasible. \
+                    Please only use the built in generate_profile_MCMC method."
             )
 
     def _calc_prob(self, permutations: list[tuple], cand_support_dict: dict) -> dict:
