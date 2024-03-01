@@ -109,12 +109,11 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         dedup_ranking = []
         for cand in ranking:
             if cand in ranking and cand not in dedup_ranking:
-                # dedup_ranking.append({None})
                 dedup_ranking.append(cand)
         new_ballot = Ballot(
             id=ballot.id,
             weight=Fraction(ballot.weight),
-            ranking=dedup_ranking,
+            ranking=tuple(dedup_ranking),
             voter_set=ballot.voter_set,
         )
         return new_ballot
@@ -163,7 +162,7 @@ def remove_noncands(
 
         clean_ballot = Ballot(
             id=ballot.id,
-            ranking=clean_ranking,
+            ranking=tuple(clean_ranking),
             weight=Fraction(ballot.weight),
             voter_set=ballot.voter_set,
         )

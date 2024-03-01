@@ -7,3 +7,4 @@ dist/
 .ipynb_checkpoints
 .idea
 extra_data/
+.venv

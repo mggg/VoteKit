@@ -48,9 +48,7 @@ def test_condense_profile():
         ]
     )
     pp = profile.condense_ballots()
-    assert pp.ballots[0] == Ballot(
-        ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(3)
-    )
+    assert pp.ballots[0] == Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(3))
 
 
 def test_profile_equals():
@@ -107,26 +105,26 @@ def test_df_percents():
 
 def test_add_profiles():
     profile_1 = PreferenceProfile(
-        ballots = [
-            Ballot(ranking = [{"A", "B", "C"}], weight = 1),
-            Ballot(ranking = [{"A", "B", "C"}], weight = 2),
-            Ballot(ranking = [{"B", "A", "C"}], weight = 1)
+        ballots=[
+            Ballot(ranking=[{"A", "B", "C"}], weight=1),
+            Ballot(ranking=[{"A", "B", "C"}], weight=2),
+            Ballot(ranking=[{"B", "A", "C"}], weight=1),
         ]
     )
 
     profile_2 = PreferenceProfile(
-        ballots = [
-            Ballot(ranking = [{"A", "B", "C"}], weight = 1),
-            Ballot(ranking = [{"C", "B", "A"}], weight = 47)
+        ballots=[
+            Ballot(ranking=[{"A", "B", "C"}], weight=1),
+            Ballot(ranking=[{"C", "B", "A"}], weight=47),
         ]
     )
 
     summed_profile = PreferenceProfile(
-        ballots = [
-            Ballot(ranking = [{"A", "B", "C"}], weight = 4),
-            Ballot(ranking = [{"B", "A", "C"}], weight = 1),
-            Ballot(ranking = [{"C", "B", "A"}], weight = 47)
+        ballots=[
+            Ballot(ranking=[{"A", "B", "C"}], weight=4),
+            Ballot(ranking=[{"B", "A", "C"}], weight=1),
+            Ballot(ranking=[{"C", "B", "A"}], weight=47),
         ]
     )
-    
-    assert profile_1+profile_2 == summed_profile
+
+    assert profile_1 + profile_2 == summed_profile

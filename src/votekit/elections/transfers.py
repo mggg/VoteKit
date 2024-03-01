@@ -30,10 +30,10 @@ def fractional_transfer(
             transfered_weight = ballot.weight * transfer_value
             for cand in ballot.ranking:
                 if cand != {winner}:
-                    new_ranking.append(cand)
+                    new_ranking.append(frozenset(cand))
             transfered_ballots.append(
                 Ballot(
-                    ranking=new_ranking,
+                    ranking=tuple(new_ranking),
                     weight=transfered_weight,
                     voter_set=ballot.voter_set,
                     id=ballot.id,

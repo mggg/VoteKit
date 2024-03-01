@@ -1,8 +1,8 @@
 from votekit.pref_profile import PreferenceProfile
-from typing import Optional, Callable
+from typing import Callable
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
-from typing import Dict
+from typing import Dict, Optional
 from sklearn import manifold  # type: ignore
 
 
@@ -16,7 +16,7 @@ def distance_matrix(
 
     Args:
         pp_arr: List of PreferenceProfiles.
-        distance: Callable distance function type. See distance.py.
+        distance: Callable distance function type. See distances.py in the metrics module.
 
     Returns:
         dist_matrix (ndarray): Distance matrix for an election.
@@ -31,24 +31,26 @@ def distance_matrix(
     return dist_matrix
 
 
-def plot_MDS(
+def compute_MDS(
     data: Dict[str, list[PreferenceProfile]],
     distance: Callable[..., int],
-    marker_size: Optional[int] = 5,
+    random_seed: int = 47,
     *args,
     **kwargs
 ):
     """
-    Creates a multidimensional scaling plot.
+    Computes the coordinates of an MDS plot. This is time intensive, so it is decoupled from
+    `plot_mds` to allow users to flexibly use the coordinates.
 
     Args:
-        data: Dictionary with key being a 'color' and value being list of
-                    PreferenceProfiles. ex: {'color': list[PreferenceProfile]}
+        data: Dictionary with key being a string label and value being list of
+                    PreferenceProfiles. ex: {'PL with alpha = 4': list[PreferenceProfile]}
         distance: Distance function. See distance.py.
-        marker_size: Size of plotted points.
+        random_seed (int): an integer seed to allow for reproducible MDS plots. Defaults to 47.
 
     Returns:
-        plt (matplotlib): An MDS plot.
+        coord_dict (dict): a dictionary whose keys match `data` and whose values are tuples of
+        numpy arrays (x_list, y_list) of coordinates for the MDS plot.
     """
     # combine all lists to create distance matrix
     combined_pp = []
@@ -65,23 +67,62 @@ def plot_MDS(
         dissimilarity="precomputed",
         n_jobs=1,
         normalized_stress="auto",
+        random_state=random_seed,
     )
     pos = mds.fit(np.array(dist_matrix)).embedding_
 
-    # Plot and color data
-    fig, ax = plt.subplots()
-
+    coord_dict = {}
     start_pos = 0
     for key, value_list in data.items():
+        # color, label, marker = key
         end_pos = start_pos + len(value_list)
-        ax.scatter(
-            pos[start_pos:end_pos, 0],
-            pos[start_pos:end_pos, 1],
-            color=key,
-            lw=0,
-            s=marker_size,
-        )
+        coord_dict[key] = (pos[start_pos:end_pos, 0], pos[start_pos:end_pos, 1])
         start_pos += len(value_list)
-    ax.set_title("MDS Plot for Pairwise Election Distances")
+
+    return coord_dict
+
+
+def plot_MDS(
+    coord_dict: dict,
+    plot_kwarg_dict: Optional[dict] = None,
+    legend: bool = True,
+    title: bool = True,
+):
+    """
+    Creates an MDS plot from the output of `compute_MDS` with legend labels matching the keys
+    of `coord_dict`.
+
+    Args:
+        coord_dict: Dictionary with key being a string label and value being tuple
+        (x_list, y_list), coordinates for the MDS plot.
+        Should be piped in from `compute_MDS`.
+
+        plot_kwarg_dict: Dictionary with keys matching coord_dict and values are kwarg dictionaries
+            that will be passed to matplotlib `scatter`.
+
+        legend: boolean for plotting the legend. Defaults to True.
+
+        title: boolean for plotting the title. Defaults to True.
+
+    Returns:
+        fig: a matplotlib fig
+    """
+
+    # Plot data
+    fig, ax = plt.subplots()
+
+    for key, value in coord_dict.items():
+        x, y = value
+        if plot_kwarg_dict and key in plot_kwarg_dict:
+            ax.scatter(x, y, label=key, **plot_kwarg_dict[key])
+        else:
+            ax.scatter(x, y, label=key)
+
+    if title:
+        ax.set_title("MDS Plot for Pairwise Election Distances")
+    if legend:
+        ax.legend()
+
+    ax.set_aspect("equal")
 
     return fig

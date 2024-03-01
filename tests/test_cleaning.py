@@ -15,7 +15,7 @@ def test_remove_empty_ballots():
     profile_cleaned = remove_empty_ballots(profile)
     assert len(profile_cleaned.get_ballots()) == 1
     ballot = profile_cleaned.get_ballots()[0]
-    assert ballot.ranking == [{"A"}, {"B"}, {"C"}]
+    assert ballot.ranking == ({"A"}, {"B"}, {"C"})
 
 
 def test_deduplicate_single():
@@ -33,7 +33,9 @@ def test_deduplicate_mult_voters_same_rankings():
     dirty = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"tom"}
+                ranking=[{"A"}, {"A"}, {"B"}, {"C"}],
+                weight=Fraction(1),
+                voter_set={"tom"},
             ),
             Ballot(
                 ranking=[{"A"}, {"A"}, {"B"}, {"C"}],
@@ -59,7 +61,9 @@ def test_deduplicate_mult_voters_diff_rankings():
     dirty = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"A"}, {"A"}, {"B"}, {"B"}], weight=Fraction(1), voter_set={"tom"}
+                ranking=[{"A"}, {"A"}, {"B"}, {"B"}],
+                weight=Fraction(1),
+                voter_set={"tom"},
             ),
             Ballot(
                 ranking=[{"A"}, {"A"}, {"B"}, {"C"}],
@@ -72,7 +76,9 @@ def test_deduplicate_mult_voters_diff_rankings():
     cleaned = PreferenceProfile(
         ballots=[
             Ballot(ranking=[{"A"}, {"B"}], weight=Fraction(1), voter_set={"tom"}),
-            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}),
+            Ballot(
+                ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(1), voter_set={"andy"}
+            ),
         ]
     )
     assert cleaned.ballots == profile_res.ballots
@@ -97,7 +103,9 @@ def test_deduplicate_mult_voters_ties():
     cleaned = PreferenceProfile(
         ballots=[
             Ballot(
-                ranking=[{"C", "A"}, {"B"}], weight=Fraction(2), voter_set={"tom", "andy"}
+                ranking=[{"C", "A"}, {"B"}],
+                weight=Fraction(2),
+                voter_set={"tom", "andy"},
             )
         ]
     )

@@ -68,7 +68,6 @@ correct_status = pd.DataFrame(
 
 
 def test_get_attributes():
-
     for i in range(3):
         assert rounds[i].curr_round == rds[i]
         assert rounds[i].elected == elects[i]
@@ -125,7 +124,11 @@ def test_round_previous():
     )
 
     results = second.round_outcome(round=1)
-    assert results == {"Elected": [{"A"}, {"B"}], "Eliminated": [{"C"}], "Remaining": []}
+    assert results == {
+        "Elected": [{"A"}, {"B"}],
+        "Eliminated": [{"C"}],
+        "Remaining": [],
+    }
 
 
 def test_round_outcome_error():

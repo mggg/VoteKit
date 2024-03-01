@@ -10,6 +10,10 @@ hide:
     rendering:
     heading_level: 4
 
+### ::: votekit.pref_interval
+    rendering:
+    heading_level: 4
+
 ### ::: votekit.pref_profile
     rendering:
       heading_level: 4
@@ -39,13 +43,16 @@ hide:
         members:
             - BallotGenerator
             - BallotSimplex
-            - PlackettLuce
-            - BradleyTerry
+            - slate_PlackettLuce
+            - name_PlackettLuce
+            - slate_BradleyTerry
+            - name_BradleyTerry
             - AlternatingCrossover
             - CambridgeSampler
             - OneDimSpatial
             - ImpartialCulture
             - ImpartialAnonymousCulture
+            - name_Cumulative
 
 ## Elections
 ### ::: votekit.elections.election_types
