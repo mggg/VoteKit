@@ -1,4 +1,4 @@
-# Ballots from Parameters
+# Ballot Generators from Parameters: the Dirichlet Distribution
 
 In the VoteKit world of ballot generating, there are usually 4 parameters that need to be chosen.
 - Bloc proportions
@@ -9,7 +9,7 @@ In the VoteKit world of ballot generating, there are usually 4 parameters that n
 Instead of choosing a preference interval, VoteKit also makes it possible to generate a preference interval using the Dirichlet distribution.
 The Dirichlet distribution samples a point from a simplex, in this case the candidate simplex. For three candidates, the candidate simplex is a triangle, where each corner represents a candidate. A point in the triangle is a vector of length 3 whose entries are non-negative and sum to 1 (exactly what a preference interval is!). A point that is close to a vertex is a preference interval with high support for one candidate. A point near the center of the triangle is a preference interval with near equal support for all three.
 
-The Dirichlet distribution is parameterized by a parameter $\alpha \in (0,\infty)$. When $\alpha=1$, the distribution is uniform on the candidate simplex, so it is uniform on preference intervals. As $\alpha\to\infty$, the distribution's mass moves towards the center of the simplex, so we get preference intervals that have more equal support for all candidates. As $\alpha\to 0$, the distribution's mass moves towards the corners, so we get preference intervals that have strong support for one candidate.
+The Dirichlet distribution is parameterized by a parameter $\alpha \in (0,\infty)$.  As $\alpha\to\infty$, the distribution's mass moves towards the center of the simplex, so we get preference intervals that have more equal support for all candidates. As $\alpha\to 0$, the distribution's mass moves towards the corners, so we get preference intervals that have strong support for one candidate. When $\alpha=1$, all bets are off and could produce any preference interval.
 
 By using the Dirichlet distribution instead of a fixed preference interval, you can study how the behavior of voters impacts elections.
 - What happens in STV elections when voters have a strong preference for one candidate? A diffuse preference for all?
@@ -28,7 +28,8 @@ import votekit.ballot_generator as bg
 # the Plackett-Luce model
 
 bloc_proportions = {"A": .8, "B": .2}
-cohesion_parameters = {"A": .9, "B": .9}
+cohesion_parameters = {"A":{"A": .9, "B":.1},
+                       "B":{ "B": .9, "A":.1}}
 dirichlet_alphas = {"A": {"A":1, "B":1},
                     "B": {"A":1, "B":1}}
 
@@ -42,32 +43,32 @@ Also notice that we need a bit more information in this case than if we gave the
 
 
 ```python
-pl = bg.PlackettLuce.from_params(slate_to_candidates=slate_to_candidates,
+pl = bg.name_PlackettLuce.from_params(slate_to_candidates=slate_to_candidates,
                                  bloc_voter_prop=bloc_proportions,
-                                 cohesion=cohesion_parameters,
+                                 cohesion_parameters=cohesion_parameters,
                                  alphas=dirichlet_alphas)
 
 profile = pl.generate_profile(number_of_ballots=1000)
 print(profile)
 ```
 
-    PreferenceProfile truncated to 15 ballots.
-             Ballots  Weight
-    (A2, B1, A1, B2)     209
-    (A2, A1, B1, B2)     184
-    (A2, B1, B2, A1)     101
-    (A2, A1, B2, B1)      74
-    (B1, B2, A1, A2)      72
-    (A2, B2, B1, A1)      59
-    (A2, B2, A1, B1)      47
-    (B1, A2, A1, B2)      38
-    (B2, B1, A1, A2)      36
-    (A1, A2, B1, B2)      33
-    (B1, B2, A2, A1)      27
-    (B1, A1, B2, A2)      26
-    (B1, A2, B2, A1)      21
-    (A1, A2, B2, B1)      14
-    (B2, B1, A2, A1)      13
+    PreferenceProfile too long, only showing 15 out of 34 rows.
+             Ballots Weight
+    (A2, A1, B2, B1)    232
+    (A2, A1, B1, B2)    142
+    (A1, A2, B2, B1)     91
+    (A2, B2, A1, B1)     78
+    (B2, B1, A2, A1)     74
+    (A1, A2, B1, B2)     57
+    (A2, B1, A1, B2)     49
+    (B2, A2, B1, A1)     40
+    (B2, A2, A1, B1)     30
+    (B1, B2, A2, A1)     27
+    (B2, A1, A2, B1)     23
+    (A1, B2, A2, B1)     21
+    (B1, A2, A1, B2)     17
+    (A1, B1, A2, B2)     16
+    (B2, B1, A1, A2)     15
 
 
 We can see what preference intervals were generated. Check for understanding; are these intervals what you would expect given the choices of parameter above?
@@ -80,14 +81,8 @@ pl.pref_interval_by_bloc
 
 
 
-    {'A': {'A1': 0.06902221893010327,
-      'A2': 0.8309777810698967,
-      'B1': 0.07233491281949957,
-      'B2': 0.027665087180500415},
-     'B': {'A1': 0.07911776818363357,
-      'A2': 0.020882231816366403,
-      'B1': 0.6544994218711536,
-      'B2': 0.24550057812884657}}
+    {'A': {'A1': 0.2518, 'A2': 0.6482, 'B1': 0.0369, 'B2': 0.0631},
+     'B': {'A1': 0.0144, 'A2': 0.0856, 'B1': 0.1713, 'B2': 0.7287}}
 
 
 
@@ -98,45 +93,54 @@ Let's fiddle with the Dirichlet parameter's to see how they impact things. By lo
 # the Plackett-Luce model
 
 bloc_proportions = {"A": .8, "B": .2}
-cohesion_parameters = {"A": .9, "B": .9}
+cohesion_parameters = {"A":{"A": .9, "B":.1},
+                       "B":{ "B": .9, "A":.1}}
 dirichlet_alphas = {"A": {"A":1, "B":.01},
                     "B": {"A":1, "B":1000}}
 
 slate_to_candidates = {"A": ["A1", "A2"],
                         "B": ["B1", "B2"]}
 
-pl = bg.PlackettLuce.from_params(slate_to_candidates=slate_to_candidates,
+pl = bg.name_PlackettLuce.from_params(slate_to_candidates=slate_to_candidates,
                                  bloc_voter_prop=bloc_proportions,
-                                 cohesion=cohesion_parameters,
+                                 cohesion_parameters=cohesion_parameters,
                                  alphas=dirichlet_alphas)
 
 print("A preference interval", pl.pref_interval_by_bloc["A"])
 print("B preference interval", pl.pref_interval_by_bloc["B"], "\n")
 
-profile = pl.generate_profile(number_of_ballots=1000)
-print(profile)
+profile_dict, pp = pl.generate_profile(number_of_ballots=1000, by_bloc=True)
+print("A ballots\n", profile_dict["A"])
+print()
+print("B ballots\n", profile_dict["B"])
 ```
 
-    A preference interval {'A1': 0.8482122567812463, 'A2': 0.05178774321875372, 'B1': 3.347178913699908e-08, 'B2': 0.09999996652821083}
-    B preference interval {'A1': 0.03862281248244345, 'A2': 0.061377187517556525, 'B1': 0.44004319506039635, 'B2': 0.45995680493960367} 
+    A preference interval {'A1': 0.0508, 'A2': 0.8492, 'B1': 0.0, 'B2': 0.1}
+    B preference interval {'A1': 0.0072, 'A2': 0.0928, 'B1': 0.4601, 'B2': 0.4399} 
     
-    PreferenceProfile truncated to 15 ballots.
-             Ballots  Weight
-    (A1, B2, A2, B1)     465
-    (A1, A2, B2, B1)     216
-    (B2, A1, A2, B1)      59
-    (B1, B2, A2, A1)      50
-    (B2, B1, A2, A1)      44
-    (A2, A1, B2, B1)      42
-    (B2, B1, A1, A2)      40
-    (B1, B2, A1, A2)      28
-    (A2, B2, A1, B1)      12
-    (B2, A2, A1, B1)       9
-    (B2, A2, B1, A1)       9
-    (B1, A2, B2, A1)       6
-    (B2, A1, B1, A2)       5
-    (A2, B1, B2, A1)       4
-    (B1, A1, B2, A2)       4
+    A ballots
+              Ballots Weight
+    (A2, B2, A1, B1)    437
+    (A2, A1, B2, B1)    215
+    (B2, A2, A1, B1)     96
+    (A1, A2, B2, B1)     42
+    (A1, B2, A2, B1)      6
+    (B2, A1, A2, B1)      4
+    
+    B ballots
+              Ballots Weight
+    (B1, B2, A2, A1)     73
+    (B2, B1, A2, A1)     62
+    (B2, A2, B1, A1)     17
+    (B1, A2, B2, A1)     16
+    (A2, B1, B2, A1)     10
+    (A2, B2, B1, A1)      7
+    (B1, B2, A1, A2)      6
+    (B2, B1, A1, A2)      4
+    (A1, B1, B2, A2)      2
+    (B2, A1, A2, B1)      1
+    (A2, B1, A1, B2)      1
+    (B1, A1, B2, A2)      1
 
 
 Check for understanding; are the intervals and ballots what you'd expect?

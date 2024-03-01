@@ -1,23 +1,20 @@
----
-hide:
-  - navigation
----
+# Getting started with `votekit`
 
-# Getting Started
 This guide will help you get started using `votekit`, by using real election data from the 2013 Minneapolis mayoral election. This election had 35 candidates running for one seat, and used a single-winner IRV method to elect the winner. Voters were allowed to rank their top three candidates. 
 
 
 ```python
 # these are the votekit functions we'll need access to
-from votekit import load_csv, remove_noncands
+from votekit.cvr_loaders import load_csv
 from votekit.elections import STV, fractional_transfer
+from votekit.cleaning import remove_noncands
 ```
 
 You can find the necessary csv file `mn_2013_cast_vote_record.csv` in the `votekit/data` folder of the GitHub repo. Alternatively, you can download the offical cast vote record (CVR) [here](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/). Download a verison of the file, and then edit the path below to where you placed it. The csv file has 3 columns we care about. The first, entitled '1ST CHOICE MAYOR MINNEAPOLIS' in the official CVR, tells us a voters top choice, then the second tells us their second choice, and the third their third choice.
 
 The first thing we will do is create a `PreferenceProfile` object from our csv. A preference profile is a term from the social choice literature that represents the rankings of some set of candidates from some voters. Put another way, a preference profile stores the votes from an election, and is a collection of `Ballot` objects and candidates. 
 
-We give the `load_csv` function the path to the csv file. By default, each column of the csv should correspond to a ranking of a candidate, given in decreasing order (the first column is the voters top choice, the last column their bottom choice.) There are some other optional parameters which you can read about in the documentation.
+We give the `load_csv` function the path to the csv file. By default, each column of the csv should correspond to a ranking of a candidate, given in decreasing order (the first column is the voters top choice, the last column their bottom choice.) There are some other optional parameters which you can read about in the documentation, like how to read a csv file that has more columns than just rankings.
 
 
 ```python
@@ -27,30 +24,76 @@ minneapolis_profile = load_csv("../src/votekit/data/mn_2013_cast_vote_record.csv
 
 The `PreferenceProfile` object has lots of helpful methods that allow us to study our votes. Let's use some of them to explore the ballots that were submitted. This is crucial since our data was not preprocessed. There could be undervotes, overvotes, defective, or spoiled ballots.
 
-The `get_candidates` method returns a unique list of candidates.
+The `get_candidates` method returns a unique list of candidates. The `head` method shows the top *n* ballots. In the first column, we see the ballot that was cast. In the second column, we see how many of that type of ballot were cast. 
+
 
 ```python
 # returns a list of unique candidates
 print(minneapolis_profile.get_candidates())
-```
-```
 
-    ['JAMES "JIMMY" L. STROUD, JR.', 'BETSY HODGES', 'EDMUND BERNARD BRUYERE', 'MERRILL ANDERSON', 'CAM WINTON', 'MARK V ANDERSON', 'BOB "AGAIN" CARNEY JR', 'CHRISTOPHER CLARK', 'JOHN CHARLES WILSON', 'CAPTAIN JACK SPARROW', 'OLE SAVIOR', 'BOB FINE', 'TROY BENJEGERDES', 'JEFFREY ALAN WAGNER', 'MARK ANDREW', 'CYD GORMAN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'ABDUL M RAHAMAN "THE ROCK"', 'DON SAMUELS', 'undervote', 'ALICIA K. BENNETT', 'JACKIE CHERRYHOMES', 'RAHN V. WORKCUFF', 'MIKE GOULD', 'TONY LANE', 'overvote', 'GREGG A. IVERSON', 'JOHN LESLIE HARTWIG', 'NEAL BAXTER', 'DAN COHEN', 'JAMES EVERETT', 'JOSHUA REA', 'BILL KAHN', 'JAYMIE KELLY', 'STEPHANIE WOODRUFF', 'UWI', 'KURTIS W. HANNA']
-
-```
-The `head` method shows the top *n* ballots. In the first column, we see the ballot that was cast. In the second column, we see how many of that type of ballot were cast. 
-```python
 # returns the top n ballots
 minneapolis_profile.head(n=5)
 ```
-```
-      Ballots                                   Weight
-           (MARK ANDREW, undervote, undervote)  3864  
-      (BETSY HODGES, MARK ANDREW, DON SAMUELS)  3309  
-      (BETSY HODGES, DON SAMUELS, MARK ANDREW)  3031  
-      (MARK ANDREW, BETSY HODGES, DON SAMUELS)  2502  
-          (BETSY HODGES, undervote, undervote)  2212
-```
+
+    ['JOHN LESLIE HARTWIG', 'ALICIA K. BENNETT', 'ABDUL M RAHAMAN "THE ROCK"', 'CAPTAIN JACK SPARROW', 'STEPHANIE WOODRUFF', 'JAMES EVERETT', 'JAMES "JIMMY" L. STROUD, JR.', 'DOUG MANN', 'CHRISTOPHER CLARK', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'DON SAMUELS', 'KURTIS W. HANNA', 'overvote', 'MARK ANDREW', 'OLE SAVIOR', 'TONY LANE', 'JAYMIE KELLY', 'MIKE GOULD', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'DAN COHEN', 'CYD GORMAN', 'UWI', 'BILL KAHN', 'RAHN V. WORKCUFF', 'MERRILL ANDERSON', 'CAM WINTON', 'EDMUND BERNARD BRUYERE', 'BETSY HODGES', 'undervote', 'BOB FINE', 'JOHN CHARLES WILSON', 'JEFFREY ALAN WAGNER', 'JOSHUA REA', 'MARK V ANDERSON', 'NEAL BAXTER', 'BOB "AGAIN" CARNEY JR']
+
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: left;">
+      <th></th>
+      <th>Ballots</th>
+      <th>Weight</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>(MARK ANDREW, undervote, undervote)</td>
+      <td>3864</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>(BETSY HODGES, MARK ANDREW, DON SAMUELS)</td>
+      <td>3309</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>(BETSY HODGES, DON SAMUELS, MARK ANDREW)</td>
+      <td>3031</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>(MARK ANDREW, BETSY HODGES, DON SAMUELS)</td>
+      <td>2502</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>(BETSY HODGES, undervote, undervote)</td>
+      <td>2212</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
 
 Woah, that's a little funky! There's a candidate called 'undervote','overvote', and 'UWI'. In this dataset, 'undervote' says that someone left a ranking blank. The 'overvote' candidate arises when someone lists two candidates in one ranking, and in our data set, we lose any knowledge of their actual preference. 'UWI' stands for unregistered write-in.
 
@@ -62,7 +105,7 @@ minneapolis_profile = remove_noncands(minneapolis_profile, ["undervote", "overvo
 print(minneapolis_profile.get_candidates())
 ```
 
-    ['JAMES "JIMMY" L. STROUD, JR.', 'BETSY HODGES', 'EDMUND BERNARD BRUYERE', 'MERRILL ANDERSON', 'CAM WINTON', 'ALICIA K. BENNETT', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'BOB "AGAIN" CARNEY JR', 'MIKE GOULD', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'CHRISTOPHER CLARK', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'OLE SAVIOR', 'BOB FINE', 'TROY BENJEGERDES', 'JOHN LESLIE HARTWIG', 'JEFFREY ALAN WAGNER', 'NEAL BAXTER', 'GREGG A. IVERSON', 'DAN COHEN', 'MARK ANDREW', 'JAMES EVERETT', 'JOSHUA REA', 'CYD GORMAN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'BILL KAHN', 'DOUG MANN', 'JAYMIE KELLY', 'ABDUL M RAHAMAN "THE ROCK"', 'DON SAMUELS', 'STEPHANIE WOODRUFF', 'KURTIS W. HANNA']
+    ['NEAL BAXTER', 'JAYMIE KELLY', 'MIKE GOULD', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'DAN COHEN', 'JOHN LESLIE HARTWIG', 'ALICIA K. BENNETT', 'CYD GORMAN', 'BILL KAHN', 'RAHN V. WORKCUFF', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'STEPHANIE WOODRUFF', 'EDMUND BERNARD BRUYERE', 'JAMES EVERETT', 'BETSY HODGES', 'JAMES "JIMMY" L. STROUD, JR.', 'DOUG MANN', 'CHRISTOPHER CLARK', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'BOB FINE', 'JOHN CHARLES WILSON', 'DON SAMUELS', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'JOSHUA REA', 'MARK ANDREW', 'OLE SAVIOR', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'TONY LANE', 'BOB "AGAIN" CARNEY JR']
 
 
 Alright, things are looking a bit cleaner. Let's examine some of the ballots.
@@ -73,15 +116,70 @@ Alright, things are looking a bit cleaner. Let's examine some of the ballots.
 minneapolis_profile.head(n=5, percents = True)
 ```
 
-      Ballots                                   Weight  Voter Share
-                                (MARK ANDREW,)  3864    0.048678   
-      (BETSY HODGES, MARK ANDREW, DON SAMUELS)  3309    0.041687   
-      (BETSY HODGES, DON SAMUELS, MARK ANDREW)  3031    0.038184   
-      (MARK ANDREW, BETSY HODGES, DON SAMUELS)  2502    0.031520   
-                               (BETSY HODGES,)  2212    0.027867   
 
 
-We can similarly print the bottom *n* ballots. Here we toggle the optional `percents` and `totals` arguments, which will show us the fraction of the total vote, as well as sum up the weights.
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: left;">
+      <th></th>
+      <th>Ballots</th>
+      <th>Weight</th>
+      <th>Percent</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>(MARK ANDREW,)</td>
+      <td>3864</td>
+      <td>4.87%</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>(BETSY HODGES, MARK ANDREW, DON SAMUELS)</td>
+      <td>3309</td>
+      <td>4.17%</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>(BETSY HODGES, DON SAMUELS, MARK ANDREW)</td>
+      <td>3031</td>
+      <td>3.82%</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>(MARK ANDREW, BETSY HODGES, DON SAMUELS)</td>
+      <td>2502</td>
+      <td>3.15%</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>(BETSY HODGES,)</td>
+      <td>2212</td>
+      <td>2.79%</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+We can similarly print the bottom $n$ ballots. Here we toggle the optional `percents` and `totals` arguments, which will show us the fraction of the total vote, as well as sum up the weights.
 
 
 ```python
@@ -89,13 +187,66 @@ We can similarly print the bottom *n* ballots. Here we toggle the optional `perc
 minneapolis_profile.tail(n=5, percents = False, totals = True)
 ```
 
-           Ballots                                    Weight
-                                     (MARK ANDREW,)   3864 
-           (BETSY HODGES, MARK ANDREW, DON SAMUELS)   3309 
-           (BETSY HODGES, DON SAMUELS, MARK ANDREW)   3031 
-           (MARK ANDREW, BETSY HODGES, DON SAMUELS)   2502 
-                                    (BETSY HODGES,)   2212 
-    Totals                                            14918 
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: left;">
+      <th></th>
+      <th>Ballots</th>
+      <th>Weight</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>6916</th>
+      <td>(STEPHANIE WOODRUFF,)</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>6915</th>
+      <td>(DON SAMUELS, ABDUL M RAHAMAN "THE ROCK", MARK...</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>6914</th>
+      <td>(DON SAMUELS, ABDUL M RAHAMAN "THE ROCK", MIKE...</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>6913</th>
+      <td>(DON SAMUELS, ABDUL M RAHAMAN "THE ROCK", OLE ...</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>6912</th>
+      <td>(DON SAMUELS, ABDUL M RAHAMAN "THE ROCK", RAHN...</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>Totals</th>
+      <td></td>
+      <td>5 out of 79378</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
 
 
 There are a few other methods you can read about in the documentation, but now let's run an election!
@@ -112,6 +263,12 @@ minn_election = STV(profile = minneapolis_profile, transfer = fractional_transfe
 # the run_election method prints a dataframe showing the order in which candidates are eliminated under STV
 minn_election.run_election()
 ```
+
+    Current Round: 35
+
+
+
+
 
                        Candidate     Status  Round
                     BETSY HODGES    Elected     35
@@ -149,6 +306,7 @@ minn_election.run_election()
            BOB "AGAIN" CARNEY JR Eliminated      3
                       CYD GORMAN Eliminated      2
              JOHN CHARLES WILSON Eliminated      1
+
 
 
 And there you go! You've created a PreferenceProfile from real election data, done some cleaning, and then conducted an STV election. You can look at the [offical results](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/) and confirm that `votekit` elected the same candidate as in the real 2013 election.
