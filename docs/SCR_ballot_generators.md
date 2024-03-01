@@ -17,14 +17,22 @@ The Impartial Anonymous Culture model has $\alpha = 1$. This means that the poin
 ## Candidate Simplex Models
 
 ### Name-Plackett-Luce
+The name-Plackett-Luce model (n-PL) samples ranked ballots as follows. Assume there are $n$ blocs of voters. Within a bloc, say bloc $A$, voters have $n$ preference intervals, one for each slate of candidates. A bloc also has a fixed $n$-tuple of cohesion parameters $\pi_A = (\pi_{AA}, \pi_{AB},\dots)$; we require that $\sum_B \pi_{AB}=1$. To generate a ballot for a voter in bloc $A$, each preference interval $I_B$ is rescaled by the corresponding cohesion parameter $\pi_{AB}$, and then concatenated to create one preference interval. 
+Voters then sample without replacement from the combined preference interval.
 
 ### Name-Bradley-Terry
+The name-Bradley-Terry model (n-BT) samples ranked ballots as follows. Assume there are $n$ blocs of voters. Within a bloc, say bloc $A$, voters have $n$ preference intervals, one for each slate of candidates. A bloc also has a fixed $n$-tuple of cohesion parameters $\pi_A = (\pi_{AA}, \pi_{AB},\dots)$; we require that $\sum_B \pi_{AB}=1$. To generate a ballot for a voter in bloc $A$, each preference interval $I_B$ is rescaled by the corresponding cohesion parameter $\pi_{AB}$, and then concatenated to create one preference interval. 
+Voters then sample ballots proportional to pairwise probabilities of candidates. That is, the probability that the ballot $C_1>C_2>C_3$ is sampled is proprotional to $P(C_1>C_2)P(C_2>C_3)P(C_1>C_3)$, where these pairwise probabilities are given by $P(C_1>C_2) = C_1/(C_1+C_2)$.
+Here $C_i$ denotes the length of $C_i$'s share of the combined preference interval.
 
 ### Name-Cumulative
+The name-Cumulative model (n-C) samples ranked ballots as follows. Assume there are $n$ blocs of voters. Within a bloc, say bloc $A$, voters have $n$ preference intervals, one for each slate of candidates. A bloc also has a fixed $n$-tuple of cohesion parameters $\pi_A = (\pi_{AA}, \pi_{AB},\dots)$; we require that $\sum_B \pi_{AB}=1$. To generate a ballot for a voter in bloc $A$, each preference interval $I_B$ is rescaled by the corresponding cohesion parameter $\pi_{AB}$, and then concatenated to create one preference interval. To generate a ballot, voters sample with replacement from the combined interval as many times as determined by the length of the desired ballot.
 
 ### Slate-Plackett-Luce
+The slate-Plackett-Luce model (s-PL) samples ranked ballots as follows. Assume there are $n$ blocs of voters. Within a bloc, say bloc $A$, voters have $n$ preference intervals, one for each slate of candidates. A bloc also has a fixed $n$-tuple of cohesion parameters $\pi_A = (\pi_{AA}, \pi_{AB},\dots)$; we require that $\sum_B \pi_{AB}=1$. Now the cohesion parameters play a different role than in the name models above. For s-PL, $\pi_{AB}$ gives the probability that we put a $B$ candidate in each position on the ballot. If we have already exhausted the number of $B$ candidates, we remove $\pi_{AB}$ and renormalize. Once we have a ranking of the slates on the ballot, we fill in candidate ordering by sampling without replacement from each individual preference interval (we do not concatenate them!).
 
 ### Slate-Bradley-Terry
+The slate-Bradley-Terry model (s-BT) samples ranked ballots as follows. We assume there are 2 blocs of voters. Within a bloc, say bloc $A$, voters have 2 preference intervals, one for each slate of candidates. A bloc also has a fixed tuple of cohesion parameters $\pi_A = (\pi_A, 1-\pi_A)$. Now the cohesion parameters play a different role than in the name models above. For s-BT, we again start by filling out a ballot with bloc labels only. Now, the probability that we sample the ballot $A>A>B$ is proportional to $\pi_A^2$; just like name-Bradley-Terry, we are computing pairwise comparisons. In $A>A>B$, slate $A$ must beat slate $B$ twice. As another example, the probability of $A>B>A$ is proportional to $\pi_A(1-\pi_A)$. Once we have a ranking of the slates on the ballot, we fill in candidate ordering by sampling without replacement from each individual preference interval (we do not concatenate them!).
 
 ### Alternating-Crossover
 

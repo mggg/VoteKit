@@ -46,7 +46,7 @@ def combine_preference_intervals(
 class PreferenceInterval:
     """
     PreferenceInterval class, contains preference for individual candidates stored as relative
-    share of the interval (0,1).
+    share of the interval [0,1].
 
     **Attributes**
 

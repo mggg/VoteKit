@@ -31,7 +31,7 @@ def sample_cohesion_ballot_types(
 
 
     Returns:
-      A list of lists of length `num_ballots`, where each sublist contains the bloc names in order 
+      A list of lists of length `num_ballots`, where each sublist contains the bloc names in order
       they appear on that ballot.
     """
     candidates = list(it.chain(*list(slate_to_candidates.values())))
@@ -85,7 +85,7 @@ class BallotGenerator:
     :   list of candidates in the election.
 
     `cohesion_parameters`
-    : dictionary of dictionaries mapping of bloc to cohesion parameters. 
+    : dictionary of dictionaries mapping of bloc to cohesion parameters.
         (ex. {bloc_1: {bloc_1: .7, bloc_2: .2, bloc_3:.1}})
 
     `pref_intervals_by_bloc`
@@ -482,9 +482,10 @@ class ImpartialAnonymousCulture(BallotSimplex):
 class short_name_PlackettLuce(BallotGenerator):
     """
     Class for generating short name Plackett Luce ballots. This model samples without
-    replacement from a preference interval. Equivalent to name-PlackettLuce if k = number of 
-    candidates. Can be initialized with an interval or can be constructed with the 
-    Dirichlet distribution using the `from_params` method in the `BallotGenerator` class.
+    replacement from a preference interval. Equivalent to name-PlackettLuce if
+    ballot_length = number of  candidates. Can be initialized with an interval or can be
+    constructed with the  Dirichlet distribution using the `from_params` method in the
+    `BallotGenerator` class.
 
     **Attributes**
 
@@ -501,7 +502,7 @@ class short_name_PlackettLuce(BallotGenerator):
     `bloc_voter_prop`
     :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
 
-    `k`
+    `ballot_length`
     : number of votes allowed per ballot
 
     **Methods**
@@ -509,10 +510,10 @@ class short_name_PlackettLuce(BallotGenerator):
     See `BallotGenerator` base class
     """
 
-    def __init__(self, k: int, **data):
+    def __init__(self, ballot_length: int, **data):
         # Call the parent class's __init__ method to handle common parameters
         super().__init__(**data)
-        self.k = k
+        self.ballot_length = ballot_length
 
         # if dictionary of pref intervals
         if isinstance(
@@ -564,7 +565,7 @@ class short_name_PlackettLuce(BallotGenerator):
 
             # if there aren't enough non-zero supported candidates,
             # include 0 support as ties
-            number_to_sample = self.k
+            number_to_sample = self.ballot_length
             number_tied = None
 
             if len(non_zero_cands) < number_to_sample:
@@ -573,7 +574,7 @@ class short_name_PlackettLuce(BallotGenerator):
 
             for i in range(num_ballots):
                 # generates ranking based on probability distribution of non candidate support
-                # samples k candidates
+                # samples ballot_length candidates
                 non_zero_ranking = list(
                     np.random.choice(
                         non_zero_cands,
@@ -645,14 +646,18 @@ class name_PlackettLuce(short_name_PlackettLuce):
 
     def __init__(self, cohesion_parameters: dict, **data):
         if "candidates" in data:
-            k = len(data["candidates"])
+            ballot_length = len(data["candidates"])
         elif "slate_to_candidates" in data:
-            k = sum(len(c_list) for c_list in data["slate_to_candidates"].values())
+            ballot_length = sum(
+                len(c_list) for c_list in data["slate_to_candidates"].values()
+            )
         else:
             raise ValueError("One of candidates or slate_to_candidates must be passed.")
 
         # Call the parent class's __init__ method to handle common parameters
-        super().__init__(k=k, cohesion_parameters=cohesion_parameters, **data)
+        super().__init__(
+            ballot_length=ballot_length, cohesion_parameters=cohesion_parameters, **data
+        )
 
 
 class name_BradleyTerry(BallotGenerator):
@@ -1215,48 +1220,6 @@ class CambridgeSampler(BallotGenerator):
             DATA_DIR = BASE_DIR / "data/"
             self.path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
-    # def _rename_blocs(self):
-    #     """
-    #     Changes relevant data to match historical majority/minority names.
-    #     """
-    #     # changing names to match historical data
-    #     self.majority_bloc = [
-    #         bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
-    #     ][0]
-    #     self.minority_bloc = [
-    #         bloc for bloc in self.bloc_voter_prop.keys() if bloc != self.majority_bloc
-    #     ][0]
-
-    #     self.cambridge_names = {
-    #         self.majority_bloc: self.historical_majority,
-    #         self.minority_bloc: self.historical_minority,
-    #     }
-
-    #     self.slate_to_candidates = {
-    #         self.cambridge_names[b]: self.slate_to_candidates[b]
-    #         for b in self.slate_to_candidates.keys()
-    #     }
-
-    #     self.bloc_voter_prop = {
-    #         self.cambridge_names[b]: self.bloc_voter_prop[b]
-    #         for b in self.bloc_voter_prop.keys()
-    #     }
-
-    #     self.pref_intervals_by_bloc = {
-    #         self.cambridge_names[b]: self.pref_intervals_by_bloc[b]
-    #         for b in self.pref_intervals_by_bloc.keys()
-    #     }
-
-    #     self.cohesion_parameters = {
-    #         self.cambridge_names[b]: {
-    #             self.cambridge_names[b_1]: value
-    #             for b_1, value in self.cohesion_parameters[b].items()
-    #         }
-    #         for b in self.cohesion_parameters.keys()
-    #     }
-
-    #     self.blocs = list(self.cambridge_names.values())
-
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
@@ -1773,7 +1736,6 @@ class slate_BradleyTerry(BallotGenerator):
                 accept += 1
 
             ballots[i] = current_ranking.copy()
-            # print(ballots)
 
         if verbose:
             print(
