@@ -2,7 +2,7 @@ from votekit.pref_profile import PreferenceProfile
 from typing import Callable
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
-from typing import Dict
+from typing import Dict, Optional
 from sklearn import manifold  # type: ignore
 
 
@@ -82,14 +82,27 @@ def compute_MDS(
     return coord_dict
 
 
-def plot_MDS(coord_dict: dict):
+def plot_MDS(
+    coord_dict: dict,
+    plot_kwarg_dict: Optional[dict] = None,
+    legend: bool = True,
+    title: bool = True,
+):
     """
-    Creates an MDS plot from the output of `compute_MDS`.
+    Creates an MDS plot from the output of `compute_MDS` with legend labels matching the keys
+    of `coord_dict`.
 
     Args:
         coord_dict: Dictionary with key being a string label and value being tuple
         (x_list, y_list), coordinates for the MDS plot.
         Should be piped in from `compute_MDS`.
+
+        plot_kwarg_dict: Dictionary with keys matching coord_dict and values are kwarg dictionaries
+            that will be passed to matplotlib `scatter`.
+
+        legend: boolean for plotting the legend. Defaults to True.
+
+        title: boolean for plotting the title. Defaults to True.
 
     Returns:
         fig: a matplotlib fig
@@ -100,8 +113,16 @@ def plot_MDS(coord_dict: dict):
 
     for key, value in coord_dict.items():
         x, y = value
-        ax.scatter(x, y, label=key)
+        if plot_kwarg_dict and key in plot_kwarg_dict:
+            ax.scatter(x, y, label=key, **plot_kwarg_dict[key])
+        else:
+            ax.scatter(x, y, label=key)
 
-    ax.set_title("MDS Plot for Pairwise Election Distances")
+    if title:
+        ax.set_title("MDS Plot for Pairwise Election Distances")
+    if legend:
+        ax.legend()
+
+    ax.set_aspect("equal")
 
     return fig
