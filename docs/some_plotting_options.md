@@ -33,9 +33,9 @@ print(profile)
 
       Ballots Weight
     (A, C, B)      2
-    (B, C, A)      1
+    (C, A, B)      1
     (C, B, A)      1
-    (A, B, C)      1
+    (B, C, A)      1
 
 
 `votekit` comes with some basic summary statistics to help you analyze a profile. We can plot the number of first place votes each candidate received, the number of mentions they receive (i.e. the total number of times they appeared on a ballot), and a Borda count, which assigns $n-1$ points to the first place winner of a ballot, $n-2$ to the second place, ..., and 0 to the last place winner of a ballot.
@@ -98,7 +98,7 @@ print()
 print(pwc_graph.has_condorcet_winner())
 ```
 
-    [{'A'}, {'C'}, {'B'}]
+    [{'C'}, {'A'}, {'B'}]
     
     True
 
@@ -154,8 +154,7 @@ mds_coords = compute_MDS(data = {'IC': [ic.generate_profile(number_of_ballots) f
                        'AC': [ac.generate_profile(number_of_ballots) for i in range(10)]
                        }, distance = earth_mover_dist)
 
-plot = plot_MDS(mds_coords)
-plt.legend()
+plot = plot_MDS(mds_coords, legend=True, title=True)
 plt.show()
 ```
 
@@ -176,8 +175,7 @@ mds_coords = compute_MDS(data = {'IC': [ic.generate_profile(number_of_ballots) f
                        'AC': [ac.generate_profile(number_of_ballots) for i in range(10)]
                        }, distance = lp_dist)
 
-plot = plot_MDS(mds_coords)
-plt.legend()
+plot = plot_MDS(mds_coords, legend=False, title=False)
 plt.show()
 ```
 
@@ -198,8 +196,7 @@ mds_coords = compute_MDS(data = {'IC': [ic.generate_profile(number_of_ballots) f
                        'AC': [ac.generate_profile(number_of_ballots) for i in range(10)]
                        }, distance = partial(lp_dist, p_value=2))
 
-plot = plot_MDS(mds_coords)
-plt.legend()
+plot = plot_MDS(mds_coords, legend=False, title=False)
 plt.show()
 ```
 
@@ -220,8 +217,7 @@ mds_coords = compute_MDS(data = {'IC': [ic.generate_profile(number_of_ballots) f
                        'AC': [ac.generate_profile(number_of_ballots) for i in range(10)]
                        }, distance = partial(lp_dist, p_value="inf"))
 
-plot = plot_MDS(mds_coords)
-plt.legend()
+plot = plot_MDS(mds_coords, legend=False, title=False)
 plt.show()
 ```
 
@@ -229,3 +225,35 @@ plt.show()
     
 ![png](assets/some_plotting_options_files/some_plotting_options_20_0.png)
     
+
+
+We can also add optional plotting parameters as follows. These get passed to matplotlib `scatter`.
+
+
+```python
+# this allows us to generate 10 preference profiles under each ballot generator
+mds_coords = compute_MDS(data = {'IC': [ic.generate_profile(number_of_ballots) for i in range(10)], 
+                        'PL': [pl.generate_profile(number_of_ballots) for i in range(10)], 
+                        'BT': [bt.generate_profile(number_of_ballots) for i in range(10)],
+                       'AC': [ac.generate_profile(number_of_ballots) for i in range(10)]
+                       }, distance = earth_mover_dist)
+
+
+plot_kwarg_dict = {"IC": {"marker": "v", "s": 100},
+                   "PL": {"marker": "s", "s": 50},
+                   "BT": {"marker": "x", "s": 10},
+                   "AC": {"marker": "d", "s": 1}}
+plot = plot_MDS(mds_coords, plot_kwarg_dict= plot_kwarg_dict, legend=True, title=True)
+plt.show()
+```
+
+
+    
+![png](assets/some_plotting_options_files/some_plotting_options_22_0.png)
+    
+
+
+
+```python
+
+```
