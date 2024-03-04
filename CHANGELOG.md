@@ -6,19 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## Added
 
+## Changed
 
+## Fixed
 
-## [1.1.1] - 2023-12-22
+## [2.0.0] - 2024-03-04
 
 ## Added
+- A `PreferenceInterval` class.
+- MCMC sampling for both `BradleyTerry` ballot generators.
 - Add print statement to `BallotGraph` so that when you draw the graph without labels, it prints a dictionary of candidate labels for you.
 - Add an IRV election class, which is just a wrapper for STV with 1 seat.
 - Add default option to Borda election class, so users do not have to input a score vector if they want to use the traditional Borda vector.
 - Add several methods to `PairwiseComparisonGraph`. Added two boolean methods that return True if there is a condorcet winner or if there is a condorcet cycle. Added two get methods that return the winner or the cycles. Cached the results of `dominating_tiers` and `get_condorcet_cycles`.
 
 - Added optional to_float method to `first_place_votes` if users want to see them as floats instead of Fractions.
-- Added a `by_bloc` parameter to `generate_profile`. If True, this returns a tuple, the first entry of which is a dictionary of PreferenceProfiles by bloc. The second entry is the aggregated profile. This is very helpful for analyzing the behavior of a single bloc of voters. Defaults to False for backwards compatibility.
+-Added a `by_bloc` parameter to `generate_profile`. If True, this returns a tuple, the first entry of which is a dictionary of PreferenceProfiles by bloc. The second entry is the aggregated profile. This is very helpful for analyzing the behavior of a single bloc of voters. Defaults to False for backwards compatibility.
 - Created a `Cumulative` ballot generator class. The `Cumulative` class works like PL, but samples with replacement instead of without. The ranking order does not matter here, simply that candidates are listed on the ballot with multiplicity.
 - Created a `HighestScore` election class. This takes in a profile and a score vector, and returns the candidates with highest scores. There is a lot of flexibility in the score vector, so this class can run things like Borda, cumulative, etc.
 - Created a `Cumulative` election class which is just a subclass of `HighestScore` with the score vector set to all 1s. Thus anyone appearing on the ballot gets one point for each time they appear.
@@ -35,8 +40,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Made `PlackettLuce` a subclass of `shortPlackettLuce`.
 
+- Change `PlackettLuce`, `BradleyTerry`, and `Cumulative` ballot generators to have `name_` prefix. This is in contrast to the `slate_` models we have introduced.
+
+- Speed improvements for various ballot generators.
+
+- `pref_interval_by_bloc` is now `pref_intervals_by_bloc` in all ballot generators. This is now a dictionary of dictionaries, where the both sets of keys are the blocs, and the values of the sub-dictionaries are PreferenceInterval objects. The slate models require that we sample from the uncombined PreferenceInterval objects, while the name models require that we combine the PreferenceInterval objects using cohesion parameters.
+
+- MDS plot functionality, splitting it into `compute_MDS` which computes the coordinates, and `plot_MDS` which plots them. Made because the computation is the most time intensive.
+
 ## Fixed
 - Fixed an error in the `PreferenceProfile` tail method.
+
+- Errors in bloc labeling in `CambridgeSampler`.
 
 ## [1.1.0] - 2023-11-28
 
