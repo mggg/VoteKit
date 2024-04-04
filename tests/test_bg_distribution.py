@@ -843,11 +843,11 @@ def test_Cambridge_distribution():
 
 
 def test_sample_ballot_types():
-    slate_to_candidates = {"A": ["A1", "A2"], "B": ["B1"]}
+    slate_to_non_zero_candidates = {"A": ["A1", "A2"], "B": ["B1"]}
     cohesion_parameters_for_A_bloc = {"A": 0.8, "B": 0.2}
 
     sampled = sample_cohesion_ballot_types(
-        slate_to_candidates=slate_to_candidates,
+        slate_to_non_zero_candidates=slate_to_non_zero_candidates,
         num_ballots=100,
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )
@@ -865,11 +865,11 @@ def test_sample_ballot_types():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
-    slate_to_candidates = {"A": ["A1"], "B": ["B1"], "C": ["C1"]}
+    slate_to_non_zero_candidates = {"A": ["A1"], "B": ["B1"], "C": ["C1"]}
     cohesion_parameters_for_A_bloc = {"A": 0.7, "B": 0.2, "C": 0.1}
 
     sampled = sample_cohesion_ballot_types(
-        slate_to_candidates=slate_to_candidates,
+        slate_to_non_zero_candidates=slate_to_non_zero_candidates,
         num_ballots=100,
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )

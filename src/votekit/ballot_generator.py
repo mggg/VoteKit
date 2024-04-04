@@ -17,13 +17,16 @@ from .pref_interval import combine_preference_intervals, PreferenceInterval
 
 
 def sample_cohesion_ballot_types(
-    slate_to_candidates: dict, num_ballots: int, cohesion_parameters_for_bloc: dict
+    slate_to_non_zero_candidates: dict,
+    num_ballots: int,
+    cohesion_parameters_for_bloc: dict,
 ):
     """
     Used to generate bloc orderings given cohesion parameters.
 
     Args:
-        slate_to_candidates (dict): A mapping of slates to their list of candidates.
+        slate_to_non_zero_candidates (dict): A mapping of slates to their list of non_zero
+                                            candidates.
         num_ballots (int): the number of ballots to generate.
         cohesion_parameters_for_bloc (dict): A mapping of blocs to cohesion parameters.
                                 Note, this is equivalent to one value in the cohesion_parameters
@@ -34,7 +37,7 @@ def sample_cohesion_ballot_types(
       A list of lists of length `num_ballots`, where each sublist contains the bloc names in order
       they appear on that ballot.
     """
-    candidates = list(it.chain(*list(slate_to_candidates.values())))
+    candidates = list(it.chain(*list(slate_to_non_zero_candidates.values())))
     ballots = [[-1]] * num_ballots
     # precompute coin flips
     coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
@@ -60,7 +63,9 @@ def sample_cohesion_ballot_types(
             ballot_type[i] = bloc_type
 
             # Check if that exhausts a slate of candidates
-            if ballot_type.count(bloc_type) == len(slate_to_candidates[bloc_type]):
+            if ballot_type.count(bloc_type) == len(
+                slate_to_non_zero_candidates[bloc_type]
+            ):
                 del blocs[bloc_index]
                 del values[bloc_index]
                 total_value_sum = sum(values)
@@ -1535,14 +1540,20 @@ class slate_PlackettLuce(BallotGenerator):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
             ballot_pool = [Ballot()] * num_ballots
-            ballot_types = sample_cohesion_ballot_types(
-                slate_to_candidates=self.slate_to_candidates,
-                num_ballots=num_ballots,
-                cohesion_parameters_for_bloc=self.cohesion_parameters[bloc],
-            )
             pref_intervals = self.pref_intervals_by_bloc[bloc]
             zero_cands = set(
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
+            )
+
+            slate_to_non_zero_candidates = {
+                s: [c for c in c_list if c not in zero_cands]
+                for s, c_list in self.slate_to_candidates.items()
+            }
+
+            ballot_types = sample_cohesion_ballot_types(
+                slate_to_non_zero_candidates=slate_to_non_zero_candidates,
+                num_ballots=num_ballots,
+                cohesion_parameters_for_bloc=self.cohesion_parameters[bloc],
             )
 
             for j, bt in enumerate(ballot_types):

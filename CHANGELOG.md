@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 
 ## Changed
+- Dirichlet parameter tutorial notebook now uses slate-PlackettLuce.
 
 ## Fixed
+- fixed bug by which slate-PlackettLuce could not generate ballots when some candidate had 0 support.
 
 ## [2.0.0] - 2024-03-04
 

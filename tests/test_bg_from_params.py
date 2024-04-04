@@ -105,6 +105,33 @@ def test_SPL_from_params():
     assert type(profile) is PreferenceProfile
 
 
+def test_SPL_from_params_zero_support():
+    """
+    Ensures that if a candidate has zero support from small alpha, SPL handles it.
+    """
+
+    blocs = {"R": 0.6, "D": 0.4}
+    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.0001}}
+    cohesion_parameters = {"R": {"R": 0.5, "D": 0.5}, "D": {"D": 0.4, "R": 0.6}}
+    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+    gen = slate_PlackettLuce.from_params(
+        bloc_voter_prop=blocs,
+        alphas=alphas,
+        slate_to_candidates=slate_to_cands,
+        cohesion_parameters=cohesion_parameters,
+    )
+
+    # check if intervals add up to one
+    assert all(
+        math.isclose(sum(gen.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
+
+    profile = gen.generate_profile(3)
+    assert type(profile) is PreferenceProfile
+
+
 def test_SBT_from_params():
     blocs = {"R": 0.6, "D": 0.4}
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
