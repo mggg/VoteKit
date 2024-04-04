@@ -1,0 +1,1280 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../SCR_simplex/">
+      
+      
+        <link rel="next" href="../SCR_elections/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+      
+        <title>Ballot Generators - VoteKit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+  
+  
+    
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ballot-generators" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="VoteKit" class="md-header__button md-logo" aria-label="VoteKit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            VoteKit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Ballot Generators
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mggg/VoteKit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mggg/VoteKit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  VoteKit Documentation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting_started/" class="md-tabs__link">
+        
+  
+    
+  
+  Getting started with votekit
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../some_plotting_options/" class="md-tabs__link">
+          
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../SCR_general_vocabulary/" class="md-tabs__link">
+          
+  
+  Social Choice Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="VoteKit" class="md-nav__button md-logo" aria-label="VoteKit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    VoteKit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mggg/VoteKit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mggg/VoteKit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    VoteKit Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting started with votekit
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    User Guide
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../some_plotting_options/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Some Plotting Options: Summary Statistics, Pairwise Comparison Graphs, and MDS Plots.
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bg_models_1/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ballot Generators: Generating PreferenceProfiles
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bg_models_2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    More Ballot Generators: Slate, AC, and CS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bg_from_params/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ballot Generators from Parameters: the Dirichlet Distribution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ballot_graph/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BallotGraph
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Social Choice Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Social Choice Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCR_general_vocabulary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    General Vocabulary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCR_preference_intervals/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preference Intervals
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCR_simplex/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Simplices in Social Choice
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Ballot Generators
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Ballot Generators
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ballot-simplex-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ballot Simplex Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ballot Simplex Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#impartial-culture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Impartial Culture
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#impartial-anonymous-culture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Impartial Anonymous Culture
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#candidate-simplex-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidate Simplex Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Candidate Simplex Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#name-plackett-luce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Plackett-Luce
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-bradley-terry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Bradley-Terry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-cumulative" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Cumulative
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slate-plackett-luce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Slate-Plackett-Luce
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slate-bradley-terry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Slate-Bradley-Terry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternating-crossover" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternating-Crossover
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cambridge-sampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cambridge-Sampler
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distance-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Distance Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Distance Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-d-spatial" class="md-nav__link">
+    <span class="md-ellipsis">
+      1-D Spatial
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCR_elections/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Elections
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCR_distances/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Distances between PreferenceProfiles
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ballot-simplex-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ballot Simplex Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ballot Simplex Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#impartial-culture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Impartial Culture
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#impartial-anonymous-culture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Impartial Anonymous Culture
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#candidate-simplex-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Candidate Simplex Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Candidate Simplex Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#name-plackett-luce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Plackett-Luce
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-bradley-terry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Bradley-Terry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-cumulative" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name-Cumulative
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slate-plackett-luce" class="md-nav__link">
+    <span class="md-ellipsis">
+      Slate-Plackett-Luce
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slate-bradley-terry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Slate-Bradley-Terry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternating-crossover" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternating-Crossover
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cambridge-sampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cambridge-Sampler
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distance-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Distance Models
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Distance Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-d-spatial" class="md-nav__link">
+    <span class="md-ellipsis">
+      1-D Spatial
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="ballot-generators">Ballot Generators<a class="headerlink" href="#ballot-generators" title="Permanent link">&para;</a></h1>
+<p>In addition to being able to <a href="../api/#cvr-loaders">read real world voting data</a>, VoteKit also has the ability to generate ballots using different models. This is useful when you want to run experiments or just play around with some data. We make no claims that these models accurately predict real voting behavior.</p>
+<h2 id="ballot-simplex-models">Ballot Simplex Models<a class="headerlink" href="#ballot-simplex-models" title="Permanent link">&para;</a></h2>
+<p>Models listed below generate ballots by using the <a href="../SCR_simplex/">ballot simplex</a>. This means we take a draw from the Dirichlet distribution, which gives us a probability distribution on full, linear rankings. We then generate ballots according to this distribution.</p>
+<h3 id="impartial-culture">Impartial Culture<a class="headerlink" href="#impartial-culture" title="Permanent link">&para;</a></h3>
+<p>The Impartial Culture model has <span class="arithmatex">\(\alpha = \infty\)</span>. As discussed in <a href="../SCR_simplex/">ballot simplex</a>, this is not actually a valid parameter for the Dirichlet distribution, so instead VoteKit sets <span class="arithmatex">\(\alpha = 10^{20}\)</span>. This means that the point drawn from the ballot simplex has a very high probability of being in the center, which means it gives uniform probability to each linear ranking.</p>
+<h3 id="impartial-anonymous-culture">Impartial Anonymous Culture<a class="headerlink" href="#impartial-anonymous-culture" title="Permanent link">&para;</a></h3>
+<p>The Impartial Anonymous Culture model has <span class="arithmatex">\(\alpha = 1\)</span>. This means that the point is uniformly drawn from the ballot simplex. This does not mean we have a uniform distribution on rankings; rather, we have a uniform chance of choosing any distribution on rankings.</p>
+<h2 id="candidate-simplex-models">Candidate Simplex Models<a class="headerlink" href="#candidate-simplex-models" title="Permanent link">&para;</a></h2>
+<h3 id="name-plackett-luce">Name-Plackett-Luce<a class="headerlink" href="#name-plackett-luce" title="Permanent link">&para;</a></h3>
+<p>The name-Plackett-Luce model (n-PL) samples ranked ballots as follows. Assume there are <span class="arithmatex">\(n\)</span> blocs of voters. Within a bloc, say bloc <span class="arithmatex">\(A\)</span>, voters have <span class="arithmatex">\(n\)</span> preference intervals, one for each slate of candidates. A bloc also has a fixed <span class="arithmatex">\(n\)</span>-tuple of cohesion parameters <span class="arithmatex">\(\pi_A = (\pi_{AA}, \pi_{AB},\dots)\)</span>; we require that <span class="arithmatex">\(\sum_B \pi_{AB}=1\)</span>. To generate a ballot for a voter in bloc <span class="arithmatex">\(A\)</span>, each preference interval <span class="arithmatex">\(I_B\)</span> is rescaled by the corresponding cohesion parameter <span class="arithmatex">\(\pi_{AB}\)</span>, and then concatenated to create one preference interval. 
+Voters then sample without replacement from the combined preference interval.</p>
+<h3 id="name-bradley-terry">Name-Bradley-Terry<a class="headerlink" href="#name-bradley-terry" title="Permanent link">&para;</a></h3>
+<p>The name-Bradley-Terry model (n-BT) samples ranked ballots as follows. Assume there are <span class="arithmatex">\(n\)</span> blocs of voters. Within a bloc, say bloc <span class="arithmatex">\(A\)</span>, voters have <span class="arithmatex">\(n\)</span> preference intervals, one for each slate of candidates. A bloc also has a fixed <span class="arithmatex">\(n\)</span>-tuple of cohesion parameters <span class="arithmatex">\(\pi_A = (\pi_{AA}, \pi_{AB},\dots)\)</span>; we require that <span class="arithmatex">\(\sum_B \pi_{AB}=1\)</span>. To generate a ballot for a voter in bloc <span class="arithmatex">\(A\)</span>, each preference interval <span class="arithmatex">\(I_B\)</span> is rescaled by the corresponding cohesion parameter <span class="arithmatex">\(\pi_{AB}\)</span>, and then concatenated to create one preference interval. 
+Voters then sample ballots proportional to pairwise probabilities of candidates. That is, the probability that the ballot <span class="arithmatex">\(C_1&gt;C_2&gt;C_3\)</span> is sampled is proprotional to <span class="arithmatex">\(P(C_1&gt;C_2)P(C_2&gt;C_3)P(C_1&gt;C_3)\)</span>, where these pairwise probabilities are given by <span class="arithmatex">\(P(C_1&gt;C_2) = C_1/(C_1+C_2)\)</span>.
+Here <span class="arithmatex">\(C_i\)</span> denotes the length of <span class="arithmatex">\(C_i\)</span>'s share of the combined preference interval.</p>
+<h3 id="name-cumulative">Name-Cumulative<a class="headerlink" href="#name-cumulative" title="Permanent link">&para;</a></h3>
+<p>The name-Cumulative model (n-C) samples ranked ballots as follows. Assume there are <span class="arithmatex">\(n\)</span> blocs of voters. Within a bloc, say bloc <span class="arithmatex">\(A\)</span>, voters have <span class="arithmatex">\(n\)</span> preference intervals, one for each slate of candidates. A bloc also has a fixed <span class="arithmatex">\(n\)</span>-tuple of cohesion parameters <span class="arithmatex">\(\pi_A = (\pi_{AA}, \pi_{AB},\dots)\)</span>; we require that <span class="arithmatex">\(\sum_B \pi_{AB}=1\)</span>. To generate a ballot for a voter in bloc <span class="arithmatex">\(A\)</span>, each preference interval <span class="arithmatex">\(I_B\)</span> is rescaled by the corresponding cohesion parameter <span class="arithmatex">\(\pi_{AB}\)</span>, and then concatenated to create one preference interval. To generate a ballot, voters sample with replacement from the combined interval as many times as determined by the length of the desired ballot.</p>
+<h3 id="slate-plackett-luce">Slate-Plackett-Luce<a class="headerlink" href="#slate-plackett-luce" title="Permanent link">&para;</a></h3>
+<p>The slate-Plackett-Luce model (s-PL) samples ranked ballots as follows. Assume there are <span class="arithmatex">\(n\)</span> blocs of voters. Within a bloc, say bloc <span class="arithmatex">\(A\)</span>, voters have <span class="arithmatex">\(n\)</span> preference intervals, one for each slate of candidates. A bloc also has a fixed <span class="arithmatex">\(n\)</span>-tuple of cohesion parameters <span class="arithmatex">\(\pi_A = (\pi_{AA}, \pi_{AB},\dots)\)</span>; we require that <span class="arithmatex">\(\sum_B \pi_{AB}=1\)</span>. Now the cohesion parameters play a different role than in the name models above. For s-PL, <span class="arithmatex">\(\pi_{AB}\)</span> gives the probability that we put a <span class="arithmatex">\(B\)</span> candidate in each position on the ballot. If we have already exhausted the number of <span class="arithmatex">\(B\)</span> candidates, we remove <span class="arithmatex">\(\pi_{AB}\)</span> and renormalize. Once we have a ranking of the slates on the ballot, we fill in candidate ordering by sampling without replacement from each individual preference interval (we do not concatenate them!).</p>
+<h3 id="slate-bradley-terry">Slate-Bradley-Terry<a class="headerlink" href="#slate-bradley-terry" title="Permanent link">&para;</a></h3>
+<p>The slate-Bradley-Terry model (s-BT) samples ranked ballots as follows. We assume there are 2 blocs of voters. Within a bloc, say bloc <span class="arithmatex">\(A\)</span>, voters have 2 preference intervals, one for each slate of candidates. A bloc also has a fixed tuple of cohesion parameters <span class="arithmatex">\(\pi_A = (\pi_A, 1-\pi_A)\)</span>. Now the cohesion parameters play a different role than in the name models above. For s-BT, we again start by filling out a ballot with bloc labels only. Now, the probability that we sample the ballot <span class="arithmatex">\(A&gt;A&gt;B\)</span> is proportional to <span class="arithmatex">\(\pi_A^2\)</span>; just like name-Bradley-Terry, we are computing pairwise comparisons. In <span class="arithmatex">\(A&gt;A&gt;B\)</span>, slate <span class="arithmatex">\(A\)</span> must beat slate <span class="arithmatex">\(B\)</span> twice. As another example, the probability of <span class="arithmatex">\(A&gt;B&gt;A\)</span> is proportional to <span class="arithmatex">\(\pi_A(1-\pi_A)\)</span>. Once we have a ranking of the slates on the ballot, we fill in candidate ordering by sampling without replacement from each individual preference interval (we do not concatenate them!).</p>
+<h3 id="alternating-crossover">Alternating-Crossover<a class="headerlink" href="#alternating-crossover" title="Permanent link">&para;</a></h3>
+<p>The Alternating-Crossover model (AC) samples ranked ballots as follows. It assumes there are only two blocs. Within a bloc, voters either vote with the bloc, or they alternate. The proportion of such voters is determined by the cohesion parameter. If a voter votes with the bloc, they list all of their bloc's candidates above the other bloc's. If a voter alternates, they list an opposing candidate first, and then alternate between their bloc and the opposing until they run out of one set of candidates. In either case, the order of candidates is determined by a PL model.</p>
+<ul>
+<li>
+<p>The AC model can generate incomplete ballots if there are a different number of candidates in each bloc.</p>
+</li>
+<li>
+<p>The AC model can be initialized from a set of preference intervals, along with which candidates belong to which bloc and a set of cohesion parameters.</p>
+</li>
+<li>
+<p>The AC model only works with two blocs.</p>
+</li>
+<li>
+<p>The AC model also requires information about what proportion of voters belong to each bloc.</p>
+</li>
+</ul>
+<h3 id="cambridge-sampler">Cambridge-Sampler<a class="headerlink" href="#cambridge-sampler" title="Permanent link">&para;</a></h3>
+<p>The Cambridge-Sampler (CS) samples ranked ballots as follows. Assume there is a majority and a minority bloc. If a voter votes with their bloc, they rank a bloc candidate first. If they vote against their bloc, they rank an opposing bloc candidate first. The proportion of such voters is determined by the cohesion parameter. Once a first entry is recorded, the CS samples a ballot type from historical Cambridge, MA election data. That is, if a voter puts a majorrity candidate first, the rest of their ballot type is sampled in proportion to the number of historical ballots that started with a majority candidate. Once a ballot type is determined, the order of candidates is determined by a PL model.</p>
+<p>Let's do an example. I am a voter in the majority bloc. I flip a coin weighted by the cohesion parameter, and it comes up tails. My ballot type will start with a minority candidate <span class="arithmatex">\(m\)</span>. The CS samples historical ballots that also started with <span class="arithmatex">\(m\)</span>, and tells me my ballot type is <span class="arithmatex">\(mmM\)</span>; two minority candidates, then a majority. Finally, CS uses a PL model to determine which minority/majority candidates go in the slots.</p>
+<ul>
+<li>
+<p>CS can generate incomplete ballots since it uses historical data.</p>
+</li>
+<li>
+<p>The CS model can be initialized from a set of preference intervals, along with which candidates belong to which bloc and a set of cohesion parameters.</p>
+</li>
+<li>
+<p>The CS model only works with two blocs if you use the Cambridge data.</p>
+</li>
+<li>
+<p>The CS model also requires information about what proportion of voters belong to each bloc.</p>
+</li>
+<li>
+<p>You can give the CS model other historical election data to use.</p>
+</li>
+</ul>
+<h2 id="distance-models">Distance Models<a class="headerlink" href="#distance-models" title="Permanent link">&para;</a></h2>
+<h4 id="1-d-spatial">1-D Spatial<a class="headerlink" href="#1-d-spatial" title="Permanent link">&para;</a></h4>
+<p>The 1-D Spatial model samples ranked ballots as follows. First, it assigns each candidate a position on the real number line according to a normal distribution. Then, it does the same with each voter. Finally, a voter's ranking is determined by their distance from each candidate.</p>
+<ul>
+<li>
+<p>The 1-D Spatial model only generates full ballots.</p>
+</li>
+<li>
+<p>The 1-D Spatial model can be initialized from a list of candidates.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.sections", "navigation.tabs", "content.tabs.link", "content.code.copy"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
