@@ -1,6 +1,6 @@
 ## VoteKit
 
-`VoteKit` ia a Swiss army knife for computational social choice research.
+`VoteKit` is a Swiss army knife for computational social choice research.
 
 **Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Documentation](https://mggg.github.io/VoteKit/) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
 
