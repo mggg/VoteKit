@@ -251,7 +251,6 @@ def borda_scores(
     return candidate_borda
 
 
-
 def unset(input_set: Union[set, frozenset]) -> Any:
     """
     Removes object from set or frozenset.

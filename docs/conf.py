@@ -186,8 +186,8 @@ MOCK_MODULES = [
     "shapely.prepared",
     "shapely.validation",
     "matplotlib",
-    "matplotlib.axes" ,
-    "matplotlib.figure"  
+    "matplotlib.axes",
+    "matplotlib.figure",
 ]
 
 for module in MOCK_MODULES:

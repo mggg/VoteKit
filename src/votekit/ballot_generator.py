@@ -1699,15 +1699,18 @@ class slate_BradleyTerry(BallotGenerator):
                 b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
                 for i, b in enumerate(self.blocs)
             }
-        
+
         elif len(self.blocs) == 1:
             # precompute pdf for sampling
             # uniform on ballot types
             bloc = self.blocs[0]
-            bloc_to_sample = [bloc for _ in range(len(self.pref_intervals_by_bloc[bloc][bloc].non_zero_cands))]
-            pdf = {
-                tuple(bloc_to_sample): 1
-            }
+            bloc_to_sample = [
+                bloc
+                for _ in range(
+                    len(self.pref_intervals_by_bloc[bloc][bloc].non_zero_cands)
+                )
+            ]
+            pdf = {tuple(bloc_to_sample): 1}
             self.ballot_type_pdf = {bloc: pdf}
 
         else:

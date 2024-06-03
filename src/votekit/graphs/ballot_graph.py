@@ -338,5 +338,3 @@ class BallotGraph(Graph):
         plt.xlim(x_min - x_margin, x_max + x_margin)
         plt.ylim(y_min - y_margin, y_max + y_margin)
         plt.show()
-
-

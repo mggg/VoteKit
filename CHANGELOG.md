@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ## Added
+- Created a read the docs page.
 
 ## Changed
 - Updated tutorial notebooks; larger focus on slate models, updated notebooks to match current codebase.

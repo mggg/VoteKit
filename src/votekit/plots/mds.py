@@ -48,8 +48,9 @@ def compute_MDS(
     ``plot_mds`` to allow users to flexibly use the coordinates.
 
     Args:
-        data (Dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and value being list of
-                    PreferenceProfiles. eg. ``{'PL with alpha = 4': list[PreferenceProfile]}``
+        data (Dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and 
+            value being list of PreferenceProfiles. 
+            eg. ``{'PL with alpha = 4': list[PreferenceProfile]}``
         distance (Callable[..., int]): Distance function. See distance.py.
         random_seed (int, optional): An integer seed to allow for reproducible MDS plots.
             Defaults to 47.
@@ -106,8 +107,8 @@ def plot_MDS(
             (x_list, y_list), coordinates for the MDS plot. Should be piped in from ``compute_MDS``.
         ax (axes, optional): A matplolib axes object to plot the figure on. Defaults to None,
             in which case the function creates and returns a new axes.
-        plot_kwarg_dict (dict, optional): Dictionary with keys matching ``coord_dict`` and values are kwarg
-            dictionaries that will be passed to matplotlib ``scatter``.
+        plot_kwarg_dict (dict, optional): Dictionary with keys matching ``coord_dict`` and values 
+            are kwarg dictionaries that will be passed to matplotlib ``scatter``.
         legend (bool, optional): boolean for plotting the legend. Defaults to True.
         title (bool, optional): boolean for plotting the title. Defaults to True.
 
