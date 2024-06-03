@@ -8,7 +8,7 @@ from ..models import Election
 from ..election_state import ElectionState
 from ..graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from ..pref_profile import PreferenceProfile
-from .transfers import fractional_transfer, seqRCV_transfer
+from .transfers import fractional_transfer
 from ..utils import (
     compute_votes,
     remove_cand,
@@ -25,35 +25,33 @@ from ..utils import (
 
 class STV(Election):
     """
-    Class for single-winner IRV and multi-winner STV elections.
+    Class for multi-winner STV elections.
 
-     **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        transfer (Callable): Transfer method (e.g. fractional transfer).
+        seats (int): Number of seats to be elected.
+        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        transfer (Callable): Transfer method (e.g. fractional transfer).
+        seats (int): Number of seats to be elected.
+        quota (str): Formula to calculate quota.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
+        threshold (int): Threshold number of votes to be elected.
 
-    `transfer`
-    :   transfer method (e.g. fractional transfer).
-
-    `seats`
-    :   number of seats to be elected.
-
-    `quota`
-    :   formula to calculate quota (defaults to droop).
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
     """
 
     def __init__(
@@ -80,7 +78,7 @@ class STV(Election):
         Calculates threshold required for election.
 
         Returns:
-            Value of the threshold.
+            int: Value of the threshold.
         """
         quota = self.quota
         if quota == "droop":
@@ -95,7 +93,7 @@ class STV(Election):
         Determines if the number of seats has been met to call an election.
 
         Returns:
-            True if number of seats has not been met, False otherwise.
+            bool: True if number of seats has not been met, False otherwise.
         """
         cands_elected = 0
         for s in self.state.winners():
@@ -107,7 +105,7 @@ class STV(Election):
         Simulates one round an STV election.
 
         Returns:
-           An ElectionState object for a given round.
+           ElectionState: An ElectionState object for a round.
         """
         remaining = self.state.profile.get_candidates()
         ballots = self.state.profile.get_ballots()
@@ -204,7 +202,7 @@ class STV(Election):
         Runs complete STV election.
 
         Returns:
-            An ElectionState object with results for a complete election.
+            ElectionState: An ElectionState object with results for a complete election.
         """
         if not self.next_round():
             raise ValueError(
@@ -223,30 +221,27 @@ class Limited(Election):
     The k-approval score of a candidate is equal to the number of voters who
     rank this candidate among their k top ranked candidates.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        k (int): The number of top ranked candidates to consider as approved.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        k (int): The number of top ranked candidates to consider as approved.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
 
-    `k`
-    :   value of an approval score.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
     """
 
     def __init__(
@@ -268,7 +263,7 @@ class Limited(Election):
         on approval scores.
 
         Returns:
-           An ElectionState object for a Limited election.
+           ElectionState: An ElectionState object for a Limited election.
         """
         profile = self.state.profile
         candidates = profile.get_candidates()
@@ -331,39 +326,35 @@ class Limited(Election):
         Simulates a complete Limited election.
 
         Returns:
-            An ElectionState object with results for a complete election.
+            ElectionState: An ElectionState object with results for a complete election.
         """
         self.run_step()
         return self.state
 
 
-class Bloc(Election):
+class Bloc(Limited):
     """
-    Elects m candidates with the highest m-approval scores. The m-approval
-    score of a candidate is equal to the number of voters who rank this
-    candidate among their m top ranked candidates.
+    Elects m candidates with the highest m-approval scores. Specific case of Limited election
+    where k = m.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -373,65 +364,32 @@ class Bloc(Election):
         ballot_ties: bool = True,
         tiebreak: Union[Callable, str] = "random",
     ):
-        super().__init__(profile, ballot_ties)
-        self.seats = seats
-        self.tiebreak = tiebreak
-
-    def run_step(self) -> ElectionState:
-        """
-        Conducts a Limited election to elect m-candidates.
-
-        Returns:
-           An ElectionState object for a Limited election.
-        """
-        limited_equivalent = Limited(
-            profile=self.state.profile,
-            seats=self.seats,
-            k=self.seats,
-            tiebreak=self.tiebreak,
-        )
-        outcome = limited_equivalent.run_election()
-        self.state = outcome
-        return outcome
-
-    @lru_cache
-    def run_election(self) -> ElectionState:
-        """
-        Runs complete Bloc election.
-
-        Returns:
-            An ElectionState object with results for a complete election.
-        """
-        self.run_step()
-        return self.state
+        super().__init__(profile, seats, seats, ballot_ties, tiebreak)
 
 
-class SNTV(Election):
+class SNTV(Limited):
     """
     Single nontransferable vote (SNTV): Elects k candidates with the highest
-    Plurality scores.
+    Plurality scores. Equivalent to Limited with k=1.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -441,68 +399,44 @@ class SNTV(Election):
         ballot_ties: bool = True,
         tiebreak: Union[Callable, str] = "random",
     ):
-        super().__init__(profile, ballot_ties)
-        self.seats = seats
-        self.tiebreak = tiebreak
+        super().__init__(profile, seats, 1, ballot_ties, tiebreak)
 
-    def run_step(self) -> ElectionState:
-        """
-        Conducts an SNTV election to elect candidates.
 
-        Returns:
-           An ElectionState object for a SNTV election.
-        """
-        limited_equivalent = Limited(
-            profile=self.state.profile, seats=self.seats, k=1, tiebreak=self.tiebreak
-        )
-        outcome = limited_equivalent.run_election()
-        self.state = outcome
-        return outcome
-
-    @lru_cache
-    def run_election(self) -> ElectionState:
-        """
-        Runs complete SNTV election.
-
-        Returns:
-            An ElectionState object with results for a complete election.
-        """
-        self.run_step()
-        return self.state
+class Plurality(SNTV):
+    """
+    Simulates a single or multi-winner plurality election. Wrapper for SNTV.
+    """
 
 
 class SNTV_STV_Hybrid(Election):
     """
-    Election method that first runs SNTV to a cutoff, then runs STV to
+    Election method that first runs SNTV to a cutoff number of candidates, then runs STV to
     pick a committee with a given number of seats.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        transfer (Callable): Transfer method (e.g. fractional transfer).
+        r1_cutoff (int): First round cutoff value.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        transfer (Callable): Transfer method (e.g. fractional transfer).
+        r1_cutoff (int): First round cutoff value.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
 
-    `transfer`
-    :   transfer method (e.g. fractional transfer).
 
-    `r1_cutoff`
-    :   first-round cutoff value.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
     """
 
     def __init__(
@@ -526,10 +460,10 @@ class SNTV_STV_Hybrid(Election):
         Simulates one round an SNTV_STV election.
 
         Args:
-            stage: Stage of the hybrid election, can be SNTV or STV.
+            stage (str): Stage of the hybrid election, can be "SNTV" or "STV".
 
         Returns:
-           An ElectionState object for a given round.
+            ElectionState: An ElectionState object for a given round.
         """
         profile = self.state.profile
 
@@ -589,7 +523,7 @@ class SNTV_STV_Hybrid(Election):
         Runs complete SNTV_STV election.
 
         Returns:
-            An ElectionState object with results for a complete election.
+            ElectionState: An ElectionState object with results for a complete election.
         """
         while self.stage != "Complete":
             self.run_step(self.stage)
@@ -601,27 +535,24 @@ class TopTwo(Election):
     Eliminates all but the top two plurality vote getters, and then
     conducts a runoff between them, reallocating other ballots.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -638,7 +569,7 @@ class TopTwo(Election):
         Conducts a TopTwo election for one seat with a cutoff of 2 for the runoff.
 
         Returns:
-            An ElectionState object for the TopTwo election.
+            ElectionState: An ElectionState object for the TopTwo election.
         """
         hybrid_equivalent = SNTV_STV_Hybrid(
             profile=self.state.profile,
@@ -657,7 +588,7 @@ class TopTwo(Election):
         Simulates a complete TopTwo election.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -667,19 +598,16 @@ class DominatingSets(Election):
     """
     Finds tiers of candidates by dominating set, which is a set of candidates
     such that every candidate in the set wins head to head comparisons against
-    candidates outside of it.
+    candidates outside of it. Elects all candidates in the top tier.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
     """
 
     def __init__(self, profile: PreferenceProfile, ballot_ties: bool = True):
@@ -691,7 +619,7 @@ class DominatingSets(Election):
         system.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
@@ -724,7 +652,7 @@ class DominatingSets(Election):
         Simulates a complete DominatingSets election.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -735,27 +663,24 @@ class CondoBorda(Election):
     Elects candidates ordered by dominating set, but breaks ties
     between candidates with Borda.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                Defaults to True.
-
-     `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -775,7 +700,7 @@ class CondoBorda(Election):
         system.
 
         Returns:
-            An `ElectionState` object for a complete election.
+            ElectionState: An `ElectionState` object for a complete election.
         """
         pwc_graph = PairwiseComparisonGraph(self.state.profile)
         dominating_tiers = pwc_graph.dominating_tiers()
@@ -811,7 +736,7 @@ class CondoBorda(Election):
         Simulates a complete Conda-Borda election.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
@@ -822,27 +747,24 @@ class SequentialRCV(Election):
     Class to conduct Sequential RCV election, in which votes are not transferred
     after a candidate has reached threshold, or been elected.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                Defaults to True.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -861,13 +783,16 @@ class SequentialRCV(Election):
         Simulates a single step of the sequential RCV contest or a full
         IRV election run on the current set of candidates.
 
-         Returns:
-           An ElectionState object for a given round.
+        Returns:
+            ElectionState: An ElectionState object.
         """
         old_election_state = self.state
 
         IRVrun = STV(
-            old_profile, transfer=seqRCV_transfer, seats=1, tiebreak=self.tiebreak
+            old_profile,
+            transfer=(lambda winner, ballots, votes, threshold: ballots),
+            seats=1,
+            tiebreak=self.tiebreak,
         )
         old_election = IRVrun.run_election()
         elected_cand = old_election.winners()[0]
@@ -894,7 +819,7 @@ class SequentialRCV(Election):
         Simulates a complete sequential RCV contest.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         old_profile = self._profile
         elected = []  # type: ignore
@@ -911,35 +836,31 @@ class Borda(Election):
     """
     Positional voting system that assigns a decreasing number of points to
     candidates based on order and a score vector. The conventional score
-    vector is $(n, n-1, \dots, 1)$, where $n$ is the number of candidates.
+    vector is :math:`(n, n-1, \dots, 1)`, where `n` is the number of candidates.
     If a ballot is incomplete, the remaining points of the score vector
-    are evenly distributed to the unlisted candidates (see `borda_scores` function in `utils`).
+    are evenly distributed to the unlisted candidates (see ``borda_scores`` function in ``utils``).
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        score_vector (list[Fraction], optional): Weights assigned to candidate ranking.
+            Defaults to :math:`(n,n-1,\dots,1)`.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected.
-
-    `score_vector`
-    :   (optional) weights assigned to candidate ranking, should be a list of `Fractions`.
-                    Defaults to $(n,n-1,\dots,1)$.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        score_vector (list[Fraction], optional): Weights assigned to candidate ranking.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(
@@ -961,7 +882,7 @@ class Borda(Election):
         system.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         borda_dict = borda_scores(
             profile=self.state.profile, score_vector=self.score_vector
@@ -998,54 +919,39 @@ class Borda(Election):
         Simulates a complete Borda contest.
 
         Returns:
-            An ElectionState object for a complete election.
+            ElectionState: An ElectionState object for a complete election.
         """
         self.run_step()
         return self.state
-
-
-class Plurality(SNTV):
-    """
-    Simulates a single or multi-winner plurality election. Inherits
-    methods from `SNTV` to run election.
-    """
-
-    def __init__(
-        self,
-        profile: PreferenceProfile,
-        seats: int,
-        ballot_ties: bool = True,
-        tiebreak: Union[Callable, str] = "random",
-    ):
-        super().__init__(profile, ballot_ties)
-        self.seats = seats
-        self.tiebreak = tiebreak
 
 
 class IRV(STV):
     """
     A class for conducting IRV elections, which are mathematically equivalent to STV for one seat.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        quota (str): Formula to calculate quota.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
+        threshold (int): Threshold number of votes to be elected.
 
-
-    `quota`
-    :   formula to calculate quota (defaults to droop).
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
     """
 
     def __init__(
@@ -1072,30 +978,28 @@ class HighestScore(Election):
     Chooses the m candidates with highest scores.
     Ties are broken by randomly permuting the tied candidates.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        score_vector (list[float]): List of floats where `i`th entry denotes the number of points
+            given to candidates ranked in position `i`.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `profile`
-    :   PreferenceProfile to run election on.
-
-    `seats`
-    :   number of seats to be elected
-
-    `score_vector`
-    : list of floats where ith entry denotes the number of points given to candidates
-        ranked in position i.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    `ballot_ties` (optional)
-    : resolves ties in ballots. Should only be set to True if you want ballots
-        to have full linear rankings.
-
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        score_vector (list[float]): List of floats where `i`th entry denotes the number of points
+            given to candidates ranked in position `i`.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
 
     """
 
@@ -1116,6 +1020,13 @@ class HighestScore(Election):
         self.tiebreak = tiebreak
 
     def run_step(self):
+        """
+        Simulates a complete Borda contest as Borda is not a round-by-round
+        system.
+
+        Returns:
+            ElectionState: An ElectionState object for a complete election.
+        """
         # a dictionary whose keys are candidates and values are scores
         vote_tallies = compute_scores_from_vector(
             profile=self.state.profile, score_vector=self.score_vector
@@ -1147,6 +1058,12 @@ class HighestScore(Election):
 
     @lru_cache
     def run_election(self):
+        """
+        Simulates a complete Borda contest.
+
+        Returns:
+            ElectionState: An ElectionState object for a complete election.
+        """
         self.run_step()
         return self.state
 
@@ -1155,28 +1072,26 @@ class Cumulative(HighestScore):
     """
     Voting system where voters are allowed to vote for candidates with multiplicity.
     Each ranking position should have one candidate, and every candidate ranked will receive
-    one point, i.e., the score vector is $(1,\dots,1)$.
-    **Attributes**
+    one point, i.e., the score vector is :math:`(1,\dots,1)`.
 
-    `profile`
-    :   PreferenceProfile to run election on.
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        seats (int): Number of seats to be elected.
+        ballot_ties (bool, optional): Resolves input ballot ties if True, else assumes ballots have
+            no ties. Defaults to True.
+        tiebreak (Union[str, Callable], optional): Resolves procedural and final ties by specified
+            tiebreak. Can either be a custom tiebreak function or a string. Supported strings are
+            given in ``tie_broken_ranking`` documentation. The custom function must take as
+            input two named parameters; ``ranking``, a list-of-sets ranking of candidates and
+            ``profile``, the original ``PreferenceProfile``. It must return a list-of-sets
+            ranking of candidates with no ties. Defaults to random tiebreak.
 
-    `seats`
-    :   number of seats to be elected.
-
-    `ballot_ties`
-    :   (optional) resolves input ballot ties if True, else assumes ballots have no ties.
-                    Defaults to True.
-
-    `tiebreak`
-    :   (optional) resolves procedural and final ties by specified tiebreak.
-                    Can either be a custom tiebreak function or a string. Supported strings are
-                    given in `tie_broken_ranking` documentation. The custom function must take as
-                    input two named parameters; `ranking`, a list-of-sets ranking of candidates and
-                    `profile`, the original `PreferenceProfile`. It must return a list-of-sets
-                    ranking of candidates with no ties. Defaults to random tiebreak.
-
-    **Methods**
+    Attributes:
+        _profile (PreferenceProfile):   PreferenceProfile to run election on.
+        state (ElectionState): Current state of the election.
+        seats (int): Number of seats to be elected.
+        tiebreak (Union[str, Callable]): Resolves procedural and final ties by specified
+            tiebreak.
     """
 
     def __init__(

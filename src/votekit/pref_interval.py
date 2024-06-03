@@ -48,34 +48,20 @@ class PreferenceInterval:
     PreferenceInterval class, contains preference for individual candidates stored as relative
     share of the interval [0,1].
 
-    **Attributes**
+    Args:
+        interval (dict): A dictionary representing the given PreferenceInterval.
+            The keys are candidate names, and the values are floats representing that candidates
+            share of the interval. Does not have to sum to one, the init method will renormalize.
+            Includes candidates with zero support.
 
-    `interval`
-    :   dictionary (candidate, support). A dictionary representing the given PreferenceInterval.
-        The keys are candidate names, and the values are floats representing that candidates
-        share of the interval. Does not have to sum to one, the init method will renormalize.
-
-    `candidates`
-    : frozenset. A frozenset of candidates (with zero and non-zero support)
-
-    `non_zero_cands`
-    : frozenset. A frozenset of candidates with non-zero support.
-
-    `zero_cands`
-    : frozenset. A frozenset of candidates with zero support.
-
-
-    **Methods**
-
-    `from_dirichlet`
-    : sample a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
-
-    `normalize`
-    : normalize the support values of the PreferenceInterval to sum to 1.
-
-    `remove_zero_support_cands`
-    : remove candidates with zero support from the interval and store them in the attribute
-        `zero_cands`.
+    Attributes:
+        interval (dict): A dictionary representing the given PreferenceInterval.
+            The keys are candidate names, and the values are floats representing that candidates
+            share of the interval. Does not have to sum to one, the init method will renormalize.
+            Does not include candidates with zero support.
+        candidates (frozenset): A frozenset of candidates (with zero and non-zero support).
+        non_zero_cands (frozenset): A frozenset of candidates with non-zero support.
+        zero_cands (frozenset): A frozenset of candidates with zero support.
     """
 
     # TODO frozendict, frozenclass
@@ -95,6 +81,14 @@ class PreferenceInterval:
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
         Alpha tends to 0 is strong support, alpha tends to infinity is uniform support, alpha = 1
         is all bets are off.
+
+        Args:
+            candidates (list): List of candidate strings.
+            alpha (float): Alpha parameter for Dirichlet distribution.
+
+
+        Returns:
+            PreferenceInterval
         """
         probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
 

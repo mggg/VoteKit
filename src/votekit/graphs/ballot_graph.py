@@ -15,21 +15,23 @@ class BallotGraph(Graph):
     """
     Class to build ballot graphs.
 
-    **Attributes**
+    Args:
+        source (Union[PreferenceProfile, int, list]): data to create graph from, either
+            ``PreferenceProfile`` object, number of candidates, or list of candidates.
+        allow_partial (bool, optional): If True, builds graph using all possible ballots,
+            If False, only uses total linear ordered ballots. Defaults to True.
+        fix_short (bool, optional): If True, auto completes ballots of length :math:`n-1` to
+            :math:`n`. Defaults to True.
 
-    `source`
-    :   data to create graph from, either PreferenceProfile object, number of
-            candidates, or list of candidates.
+    Attributes:
+        profile (PreferenceProfile): Profile used to create graph, None if not provided.
+        candidates (list[str]): List of candidates, None if not provided.
+        num_cands (int): Number of candidates.
+        num_voters (Fraction): Sum of weights of profile if provided.
+        allow_partial (bool, optional): If True, builds graph using all possible ballots,
+            If False, only uses total linear ordered ballots.
+        graph (networkx.Graph): underlying ``networkx`` graph.
 
-    `allow_partial`
-    :   if True, builds graph using all possible ballots,
-        if False, only uses total linear ordered ballots.
-        If building from a PreferenceProfile, defaults to True.
-
-    `fix_short`
-    : if True, auto completes ballots of length n-1 to n.
-
-    **Methods**
     """
 
     def __init__(
@@ -96,10 +98,10 @@ class BallotGraph(Graph):
         Builds graph of all possible ballots given a number of candiates.
 
         Args:
-            n: Number of candidates in an election.
+            n (int): Number of candidates in an election.
 
         Returns:
-            A networkx graph.
+            networkx.Graph: A ``networkx`` graph.
         """
         Gc = nx.Graph()
         # base cases
@@ -148,12 +150,13 @@ class BallotGraph(Graph):
         or creates graph based on PreferenceProfile.
 
         Args:
-            profile: PreferenceProfile assigned to graph.
+            profile (PreferenceProfile): ``PreferenceProfile`` assigned to graph.
+            fix_short (bool, optional): If True, complete short ballots. Defaults to True.
 
 
         Returns:
-            Graph based on PreferenceProfile, 'cast' node attribute indicates
-                    ballots cast in PreferenceProfile.
+            networkx.Graph: Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
+                    ballots cast in ``PreferenceProfile``.
         """
         if not self.profile:
             self.profile = profile
@@ -192,11 +195,11 @@ class BallotGraph(Graph):
         Adds missing candidates to a short ballot.
 
         Args:
-            ballot: A list of candidates on the ballot.
-            candidates: A list of all candidates.
+            ballot (list): A list of candidates on the ballot.
+            candidates (list): A list of all candidates.
 
         Returns:
-            A new list with the missing candidates added to the end of the ballot.
+            list: A new list with the missing candidates added to the end of the ballot.
 
         """
         missing = set(candidates).difference(set(ballot))
@@ -209,8 +212,8 @@ class BallotGraph(Graph):
 
         Args:
             candidates (list): A list of candidates.
-            to_display: A Boolean callable that takes in a graph and node,
-                        returns True if node should be displayed.
+            to_display (Callable, optional): A Boolean callable that takes in a graph and node,
+                returns True if node should be displayed. Defaults to showing all nodes.
         """
 
         candidate_numbers = self._number_cands(tuple(candidates))
@@ -237,8 +240,8 @@ class BallotGraph(Graph):
         Only shows weight if non-zero.
 
         Args:
-            to_display: A Boolean callable that takes in a graph and node,
-                        returns True if node should be displayed.
+            to_display (Callable, optional): A Boolean callable that takes in a graph and node,
+                returns True if node should be displayed. Defaults to showing all nodes.
         """
         node_labels = {}
         for node in self.graph.nodes:
@@ -275,13 +278,15 @@ class BallotGraph(Graph):
         Visualize the graph.
 
         Args:
-            to_display: A boolean function that takes the graph and a node as input,
-                returns True if you want that node displayed. Defaults to showing all nodes.
-            neighborhoods: A list of neighborhoods to display, given as tuple (node, radius).
-                            (ex. (n,1) gives all nodes within one step of n).
-            show_cast: If True, show only nodes with "cast" attribute = True.
-                        If False, show all nodes.
-            labels: If True, labels nodes with candidate names and vote totals.
+            to_display (Callable, optional): A boolean function that takes the graph and a node as
+                input, returns True if you want that node displayed. Defaults to showing all nodes.
+            neighborhoods (list[tuple], optional): A list of neighborhoods to display, given as
+                tuple (node, radius). eg. (n,1) gives all nodes within one step of n.
+                Defaults to empty list which shows all nodes.
+            show_cast (bool, optional): If True, show only nodes with "cast" attribute = True.
+                        If False, show all nodes. Defaults to False.
+            labels (bool, optional): If True, labels nodes with candidate names and vote totals.
+                Defaults to False.
         """
 
         def cast_nodes(graph, node):
@@ -334,11 +339,4 @@ class BallotGraph(Graph):
         plt.ylim(y_min - y_margin, y_max + y_margin)
         plt.show()
 
-    # what are these functions supposed to do?
-    # def compare(self, new_pref: PreferenceProfile, dist_type: Callable):
-    #     """compares the ballots of current and new profile"""
-    #     raise NotImplementedError("Not yet built")
 
-    # def compare_rcv_results(self, new_pref: PreferenceProfile):
-    #     """compares election results of current and new profle"""
-    #     raise NotImplementedError("Not yet built")

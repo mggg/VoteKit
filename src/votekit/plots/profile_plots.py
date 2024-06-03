@@ -1,23 +1,22 @@
 from matplotlib import pyplot as plt  # type: ignore
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import first_place_votes, mentions, COLOR_LIST, borda_scores
-from matplotlib.figure import Figure  # type: ignore
 
 
 def plot_summary_stats(
     profile: PreferenceProfile, stat: str, multi_color: bool = True, title: str = ""
-) -> Figure:
+):
     """
     Plots histogram of election summary statistics.
 
     Args:
-        profile (PreferenceProfile): A PreferenceProfile to visualize.
+        profile (PreferenceProfile): A ``PreferenceProfile`` to visualize.
         stat (str): 'first place votes', 'mentions', or 'borda'.
         multi_color (bool, optional): If the bars should be multicolored. Defaults to True.
-        title (str, optional): Title for the figure. Defaults to None.
+        title (str, optional): Title for the figure. Defaults to empty string.
 
     Returns:
-        (Figure): A figure with the visualization.
+        Figure: A ``matplotlib`` figure with the visualization.
     """
     stats = {
         "first place votes": first_place_votes,
