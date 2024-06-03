@@ -82,21 +82,3 @@ def random_transfer(
     updated_ballots += surplus_ballots
 
     return remove_cand(winner, updated_ballots)
-
-
-def seqRCV_transfer(
-    winner: str, ballots: list[Ballot], votes: dict, threshold: int
-) -> list[Ballot]:
-    """
-    Transfer method for Sequential RCV elections.
-
-    Args:
-        winner: Candidate to transfer votes from.
-        ballots: List of Ballot objects.
-        votes: Contains candidates and their corresponding vote totals.
-        threshold: Value required to be elected, used to calculate transfer value.
-
-    Returns:
-        Original list of ballots as Sequential RCV does not transfer votes.
-    """
-    return ballots

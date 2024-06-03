@@ -62,13 +62,26 @@ def sample_cohesion_ballot_types(
             bloc_type = blocs[bloc_index]
             ballot_type[i] = bloc_type
 
-            # Check if that exhausts a slate of candidates
+            # Check if adding cand exhausts a slate of candidates
             if ballot_type.count(bloc_type) == len(
                 slate_to_non_zero_candidates[bloc_type]
             ):
                 del blocs[bloc_index]
                 del values[bloc_index]
                 total_value_sum = sum(values)
+
+                if total_value_sum == 0 and len(values) > 0:
+                    # this indicates that remaining blocs have 0 cohesion with this bloc
+                    # so complete ballot with random permutation of remaining blocs
+                    remaining_blocs = [
+                        b
+                        for b in blocs
+                        for _ in range(len(slate_to_non_zero_candidates[b]))
+                    ]
+                    random.shuffle(remaining_blocs)
+                    ballot_type[i + 1 :] = remaining_blocs
+                    break
+
                 values = [v / total_value_sum for v in values]
                 distribution_bins = [0] + [
                     sum(values[: i + 1]) for i in range(len(blocs))
@@ -1680,21 +1693,45 @@ class slate_BradleyTerry(BallotGenerator):
                               passed {len(self.slate_to_candidates.keys())}"
             )
 
-        self.ballot_type_pdf = {
-            b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
-            for i, b in enumerate(self.blocs)
-        }
+        if len(self.candidates) < 12 and len(self.blocs) == 2:
+            # precompute pdfs for sampling
+            self.ballot_type_pdf = {
+                b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
+                for i, b in enumerate(self.blocs)
+            }
+        
+        elif len(self.blocs) == 1:
+            # precompute pdf for sampling
+            # uniform on ballot types
+            bloc = self.blocs[0]
+            bloc_to_sample = [bloc for _ in range(len(self.pref_intervals_by_bloc[bloc][bloc].non_zero_cands))]
+            pdf = {
+                tuple(bloc_to_sample): 1
+            }
+            self.ballot_type_pdf = {bloc: pdf}
+
+        else:
+            warnings.warn(
+                "For 12 or more candidates, exact sampling is computationally infeasible. \
+                    Please set deterministic = False when calling generate_profile."
+            )
 
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
         """
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
         blocs_to_sample = [
-            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+            b
+            for b in self.blocs
+            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
         ]
         total_comparisons = np.prod(
-            [len(l_of_c) for l_of_c in self.slate_to_candidates.values()]
+            [
+                len(interval.non_zero_cands)
+                for interval in self.pref_intervals_by_bloc[bloc].values()
+            ]
         )
+
         cohesion = self.cohesion_parameters[bloc][bloc]
 
         def prob_of_type(b_type):
@@ -1739,7 +1776,9 @@ class slate_BradleyTerry(BallotGenerator):
         """
 
         seed_ballot_type = [
-            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+            b
+            for b in self.blocs
+            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
         ]
 
         ballots = [[-1]] * num_ballots
@@ -1829,7 +1868,7 @@ class slate_BradleyTerry(BallotGenerator):
 
             if deterministic:
                 ballot_types = self._sample_ballot_types_deterministic(
-                    bloc=bloc, opp_bloc=self.blocs[(i + 1) % 2], num_ballots=num_ballots
+                    bloc=bloc, num_ballots=num_ballots
                 )
             else:
                 ballot_types = self._sample_ballot_types_MCMC(

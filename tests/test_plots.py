@@ -2,6 +2,7 @@ from votekit.plots import compute_MDS, plot_MDS, plot_summary_stats
 from votekit import name_PlackettLuce
 from votekit.metrics import lp_dist
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 
@@ -45,9 +46,9 @@ def test_plot_MDS():
 
     coord_dict = compute_MDS(data, lp_dist)
 
-    fig = plot_MDS(coord_dict)
+    ax = plot_MDS(coord_dict)
 
-    assert isinstance(fig, Figure)
+    assert isinstance(ax, Axes)
 
 
 def test_seed_MDS():

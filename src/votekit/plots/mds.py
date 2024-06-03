@@ -115,8 +115,8 @@ def plot_MDS(
         Axes: a ``matplotlib`` Axes.
     """
 
-    # Plot data
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
 
     for key, value in coord_dict.items():
         x, y = value
@@ -130,6 +130,10 @@ def plot_MDS(
     if legend:
         ax.legend()
 
+    all_data = [item for x, y in coord_dict.values() for item in x + y]
+    data_min = min(all_data)
+    data_max = max(all_data)
+    ax.set_xlim(data_min, data_max)
+    ax.set_ylim(data_min, data_max)
     ax.set_aspect("equal")
-
-    return fig
+    return ax

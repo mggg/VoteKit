@@ -15,4 +15,4 @@ from .election_types import (  # noqa
     Cumulative,
 )
 
-from .transfers import seqRCV_transfer, fractional_transfer, random_transfer  # noqa
+from .transfers import fractional_transfer, random_transfer  # noqa
