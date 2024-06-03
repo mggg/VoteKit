@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 
 ## Changed
-- Dirichlet parameter tutorial notebook now uses slate-PlackettLuce.
+- Updated tutorial notebooks; larger focus on slate models, updated notebooks to match current codebase.
+- Removed the seq-RCV transfer rule since it is a dummy function, replaced with lambda function.
+- Update plot MDS to have aspect ratio 1.
 
 ## Fixed
-- fixed bug by which slate-PlackettLuce could not generate ballots when some candidate had 0 support.
+- Fixed bug by which slate-PlackettLuce could not generate ballots when some candidate had 0 support.
+- Updated various functions in the ballot generator module to only generate ballots for non-zero candidates.
+- Fixed one bloc s-BT pdf, which was incorrectly giving 0 weight to all ballot types.
 
 ## [2.0.0] - 2024-03-04
 
