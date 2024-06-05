@@ -1,8 +1,8 @@
 Getting started with VoteKit
 ============================
 
-VoteKit is a Python packaged developed by MGGG in order to support
-computational social choice researchers, as well as practitioners and
+VoteKit is a Python package developed by MGGG in order to support
+computational social choice researchers as well as practitioners and
 advocates interested in so-called “alternative” systems of election.
 This first section will help us hit the ground running by introducing
 some of our key vocabulary and introducing some Python syntax along the
@@ -43,7 +43,7 @@ import the necessary modules.
 Here, we have created one ballot. The ballot stored the ranking
 :math:`A>B>C`. The weight attribute indicates “how many” of this ballot
 were cast. It defaults to 1, but we have put in 3/2. A fractional weight
-will be useful in STV elections!
+will be useful in single transferable vote (STV) elections!
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
@@ -54,19 +54,19 @@ will be useful in STV elections!
 Let’s dig a bit more into how the ranking is stored. It is a list of
 sets, where the first set in the list indicates which candidates were
 ranked first, the second set is who was ranked second, etc. In the first
-example, we stored a *full linear ranking*. There was only one candidate
-listed in each position, and every candidate was listed.
+example, we stored a **full linear ranking**. There was only one
+candidate listed in each position, and every candidate was listed.
 
 Full linear rankings are not the only possible ballots. Real-world
 voters frequently list multiple candidates in the same position (even if
 that is against the rules of the election). As far as we know, this is
 always treated by localities running ranked choice elections as a voter
-error, called an *overvote*.
+error, called an **overvote**.
 
 Voters also leave some candidates out. In an extreme case, when a voter
-only lists one candidate, we call this a *bullet vote*. These are fairly
-common in ranked elections. A position with no candidates listed is
-sometimes called an *undervote*.
+only lists one candidate, we call this a **bullet vote**. These are
+fairly common in ranked elections. A position with no candidates listed
+is sometimes called an **undervote**.
 
 We might prefer for localities running ranked choice elections to be
 smart about the voter intent to communicate a tied preference – and we
@@ -252,7 +252,8 @@ using the ``sort_by_weight`` parameter and setting it to ``True``.
     print(profile.tail(8))
     print()
     
-    # and the entry indexed 10
+    # and the entry indexed 10, which includes the percent of the profile 
+    # this ballot accounts for
     print(profile.df.iloc[10])
     print()
     
@@ -335,7 +336,7 @@ lot deeper into reading and generating in future sections, it is
 worthwhile to introduce some of the vocabulary surrounding generative
 models here.
 
-Most of our generative models rely on a *preference interval*. A
+Most of our generative models rely on a **preference interval**. A
 preference interval stores information about the relative strengths of a
 voter’s priorities for candidates. We visualize this, unsurprisingly, as
 an interval. We take the interval :math:`[0,1]` and divide it into
@@ -346,7 +347,7 @@ For example,
 
 ::
 
-   {"A":.7,"B":.2,"C":.1}
+   {"A": 0.7, "B": 0.2, "C": 0.1}
 
 is a dictionary that represents an ordered preference interval where A
 is preferred to B by a ratio of 7/2, etc.
@@ -359,8 +360,8 @@ between the intervals
 
 ::
 
-   {"A":.7,"B":.3,"C":0} and
-   {"A":.7,"B":.3}
+   {"A": 0.7, "B": 0.3, "C": 0} and
+   {"A": 0.7, "B": 0.3}
 
 While both say there is no preference for candidate C, if the latter
 interval is fed into VoteKit, that third candidate will never appear on
@@ -425,17 +426,19 @@ Re-run the above block several times to see that the elections will come
 out different! The s-PL model is random, meaning we won’t always get the
 same profile when we run ``generate_profile`` (although we are planning
 to implement an explicit ``random seed`` option so that you can
-replicate runs). Check that most ballots rank :math:`A` first, which is
-expected because they had the largest portion of the preference
-interval. Likewise, :math:`C` is least popular.
+replicate runs). You probably won’t get the same output as what is
+stored in this tutorial either. That’s okay! Check that most ballots
+rank :math:`A` first, which is expected because they had the largest
+portion of the preference interval. Likewise, :math:`C` is least
+popular.
 
 Blocs
 -----
 
-A *bloc* of voters is a group of voters who have similar voting
-behavior, generally preferring their *slate* of candidates to the slates
-associated to other blocs. In VoteKit, we model this by assuming voters
-within a bloc have the same preference interval. Let’s look at an
+A **bloc** of voters is a group of voters who have similar voting
+behavior, generally preferring their **slate** of candidates to the
+slates associated to other blocs. In VoteKit, we model this by assuming
+voters within a bloc have the same preference interval. Let’s look at an
 example where there are two blocs called Alpha and Xenon, each with a
 two-candidate slate (:math:`A,B` and :math:`X,Y`, respectively).
 
@@ -447,7 +450,7 @@ others might have a tendency to “cross over” to the other slate
 sometimes in constructing their ballot.
 
 The precise meaning of these vary by model, but broadly speaking,
-*cohesion parameters* measure the strength with which voters stick to
+**cohesion parameters** measure the strength with which voters stick to
 their bloc.
 
 .. code:: ipython3

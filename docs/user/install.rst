@@ -11,7 +11,7 @@ The most recent version of VoteKit (as of June 2024) supports
 - Python 3.11
 - Python 3.12
 
-If you do not have one of these versions installed on you machine, we
+If you do not have one of these versions installed on your machine, we
 recommend that you go to the 
 `Python website <https://www.python.org/downloads/>`_ and
 download the installer for one of these versions. [1]_
@@ -23,7 +23,7 @@ download the installer for one of these versions. [1]_
   still install Python using the installation package available on 
   the Python website. There are several versions of Python available
   on the Windows Store, but they can be... finicky, and experience seems
-  to suggest that downloadable available on the Python website produce
+  to suggest that the installers available on the Python website produce
   better results.
 
   In addition, we recommend that you install the 

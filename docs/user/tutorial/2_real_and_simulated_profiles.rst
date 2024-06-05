@@ -15,7 +15,7 @@ This election had 35 candidates running for one seat, and used a
 single-winner IRV election to choose the winner. Voters were allowed to
 rank their top three candidates.
 
-Let’s load in the *cast vote record* (CVR) from the election, which we
+Let’s load in the **cast vote record** (CVR) from the election, which we
 have stored in the VoteKit GitHub repository. Please download the file
 and place it in your working directory (the same folder as your code).
 The file can be found
@@ -215,8 +215,8 @@ parameters as s-PL: ``slate_to_candidates``, ``bloc_voter_prop``,
 ``cohesion_parameters``, and ``pref_intervals_by_bloc``. We call s-BT
 the deliberative voter model because part of the generation process
 involves making all pairwise comparisons between candidates on the
-ballot. A more detailed discussion can be found in our social choice
-documentation.
+ballot. A more detailed discussion can be found in our `social choice
+documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. code:: ipython3
 
@@ -265,12 +265,14 @@ documentation.
     (B, Y, A, X)      1
 
 
-A note on s-BT: the probability distribution that s-BT samples from is
-too cumbersome to compute for more than 11 candidates. We have
-implemented a Markov chain Monte Carlo (MCMC) sampling method to account
-for this. Simply set ``deterministic = False`` in the
-``generate_profile`` method to use the MCMC code. The sample size should
-be increased to ensure mixing of the chain.
+.. admonition:: A note on s-BT 
+    :class: note 
+
+    The probability distribution that s-BT samples from is too cumbersome to compute for 
+    more than 11 candidates. We have implemented a Markov chain Monte Carlo (MCMC)
+    sampling method to account for this. Simply set
+    ``deterministic = False`` in the ``generate_profile`` method to use the
+    MCMC code. The sample size should be increased to ensure mixing of the chain.
 
 .. code:: ipython3
 
@@ -317,7 +319,7 @@ so on getting harder to visualize as the dimension goes up.
 
 This will be easiest to visualize with three candidates :math:`A,B,C`.
 Then there is a one-to-one correspondence between positions in the
-triangle and what are called *convex combinations* of the extreme
+triangle and what are called **convex combinations** of the extreme
 points. For instance, :math:`.8A+.15B+.05C` is a weighted average of
 those points giving 80% of the weight to :math:`A`, 15% to :math:`B`,
 and 5% to :math:`C`. The result is a point that is closest to :math:`A`,
@@ -335,7 +337,7 @@ of all preference intervals.
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
 
-*Dirichlet distributions* are a one-parameter family of probability
+**Dirichlet distributions** are a one-parameter family of probability
 distributions on the simplex—this is used here to choose a preference
 interval at random. We parameterize it with a value
 :math:`\alpha \in (0,\infty)`. As :math:`\alpha\to \infty`, the support
@@ -359,7 +361,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
- 
+
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -539,4 +541,6 @@ Conclusion
 
 There are many other models of ballot generation in VoteKit, both for
 ranked choice ballots and points based ballots (think cumulative or
-approval voting). Please see the VoteKit documentation for more!
+approval voting). See the `ballot
+generator <../../api#Ballot_Generators>`__ section of the VoteKit
+documentation for more.

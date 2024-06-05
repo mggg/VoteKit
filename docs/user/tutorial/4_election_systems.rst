@@ -15,14 +15,14 @@ STV
 ---
 
 To start, let’s return to the Minneapolis 2013 mayoral race. We first
-saw this in previous notebooks. As a reminder, this election had 35
-named candidates running for one seat, and used an IRV election system
-(which is mathematically equivalent to a single-winner STV election) to
-choose the winner. Voters were only allowed to rank their top three
-candidates.
+saw this in `previous notebooks <2_real_and_simulated_profiles.html>`__.
+As a reminder, this election had 35 named candidates running for one
+seat, and used an IRV election system (which is mathematically
+equivalent to a single-winner STV election) to choose the winner. Voters
+were only allowed to rank their top three candidates.
 
-Let’s load in the *cast vote record* (CVR) from the election, and do all
-of the same cleaning we did before.
+Let’s load in the **cast vote record** (CVR) from the election, and do
+all of the same cleaning we did before.
 
 .. code:: ipython3
 
@@ -103,12 +103,12 @@ So what exactly is happening in this STV election? STV stands for
 “single transferable vote.” Voters cast ranked choice ballots. A
 threshold is set of how much support is required for election; if a
 candidate crosses the threshold, they are designated as a winner. The
-threshold in VoteKit defaults to something called the *Droop quota*. If
-there are :math:`N` voters and :math:`m` seats, then Droop quota is
+threshold in VoteKit defaults to something called the **Droop quota**.
+If there are :math:`N` voters and :math:`m` seats, then Droop quota is
 computed as :math:`T=\lfloor N/(m+1)\rfloor +1`. Another option is the
-Hare quota, which is just :math:`T=N/m`, which is a little bit larger.
-Generally, all that is needed of a threshold is that it can’t be the
-case that :math:`m+1` candidates exceed it.
+**Hare quota**, which is just :math:`T=N/m`, which is a little bit
+larger. Generally, all that is needed of a threshold is that it can’t be
+the case that :math:`m+1` candidates exceed it.
 
 In the first round, the first-place votes for each candidate are
 tallied. If candidate :math:`A` crosses the threshold, they are elected.
@@ -227,12 +227,9 @@ check this, election objects have an ``ElectionState`` class within them
 that stores this information.
 
 Run this code block a few times, and you’re stepping through the rounds
-of the election one at a time. However, be warned: the election state is
-overwritten every time you run a step.
-
-You may find it useful to go to a particular step in an election, or to
-reset the election and start over. You can use the following code to do
-so.
+of the election one at a time. However, once you run the block, the
+previous state of the election is overwritten. To restore a state of the
+election, you can use the following code.
 
 .. code:: ipython3
 

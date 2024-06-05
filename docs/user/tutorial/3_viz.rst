@@ -9,15 +9,17 @@ Summary Statistics
 ------------------
 
 VoteKit comes with some summary statistics built in for analyzing
-ballots. For this, we will introduce the “Impartial Culture” and
-“Impartial Anonymous Culture” models of ballot generation, which are
+ballots. For this, we will introduce the **Impartial Culture** and
+**Impartial Anonymous Culture** models of ballot generation, which are
 frequently used in social choice scholarly literature, even though they
 are far less realistic and flexible than the models we ran above!
 
 Impartial Culture (IC) is essentially the :math:`\alpha=\infty` extreme
-of the family of Dirichlet measures from earlier; that is, the
-probability of each ranking is set exactly equal. Impartial Anonymous
-Culture (IAC) is the :math:`\alpha=1` (“all bets are off”) case.
+of the family of Dirichlet measures `from
+earlier <2_real_and_simulated_profiles.html#dirichlet-distribution>`__;
+that is, the probability of each ranking is set exactly equal. Impartial
+Anonymous Culture (IAC) is the :math:`\alpha=1` (“all bets are off”)
+case.
 
 .. code:: ipython3
 
@@ -45,34 +47,34 @@ Culture (IAC) is the :math:`\alpha=1` (“all bets are off”) case.
 
     IC profile:
       Ballots Weight
-    (B, A, C)    180
-    (A, C, B)    177
-    (B, C, A)    171
-    (C, A, B)    164
-    (C, B, A)    161
-    (A, B, C)    147
+    (B, C, A)    175
+    (B, A, C)    175
+    (A, C, B)    170
+    (C, B, A)    169
+    (C, A, B)    163
+    (A, B, C)    148
     
     IAC profile:
       Ballots Weight
-    (C, A, B)    363
-    (A, B, C)    226
-    (C, B, A)    219
-    (A, C, B)    101
-    (B, A, C)     46
-    (B, C, A)     45
+    (B, C, A)    218
+    (B, A, C)    192
+    (A, C, B)    180
+    (C, B, A)    176
+    (C, A, B)    129
+    (A, B, C)    105
 
 
 Now we’ll plot some summary statistics for the generated elections.
 
--  First place votes will measure how many first place votes each
+-  ``first place votes`` will measure how many first place votes each
    candidate received.
 
--  Borda reports *Borda score* of each candidate. If there are :math:`n`
-   candidates on a ballot, the first place candidate gets :math:`n`
-   points, the second :math:`n-1`, and so on.
+-  ``borda`` reports the **Borda score** of each candidate. If there are
+   :math:`n` candidates on a ballot, the first place candidate gets
+   :math:`n` points, the second :math:`n-1`, and so on.
 
--  Mentions simply counts the number of times candidates were listed at
-   all. Note that if we use generative methods that produce complete
+-  ``mentions`` simply counts the number of times candidates were listed
+   at all. Note that if we use generative methods that produce complete
    rankings, everyone will necessarily have the same number of mentions!
 
 .. code:: ipython3
@@ -141,32 +143,35 @@ times :math:`B` is preferred to :math:`A`.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 78 rows.
+    PreferenceProfile too long, only showing 15 out of 101 rows.
              Ballots Weight
-            (W2, W1)     76
-    (W2, W1, C2, C1)     73
-    (W2, W1, C1, C2)     61
-    (W1, W2, C2, C1)     48
-        (W2, W1, C2)     47
-    (W2, C2, W1, C1)     43
-    (C2, C1, W1, W2)     42
-               (W2,)     40
-    (W2, C1, W1, C2)     35
-            (W1, W2)     31
-    (W2, C2, C1, W1)     28
-    (C2, W1, W2, C1)     25
-        (W2, W1, C1)     23
-    (W1, W2, C1, C2)     23
-        (W1, W2, C1)     20
+    (W2, W1, C2, C1)     78
+            (W2, W1)     61
+            (W1, W2)     46
+    (W1, W2, C2, C1)     44
+        (W2, W1, C2)     42
+    (W1, C2, W2, C1)     38
+        (W1, W2, C2)     36
+               (W2,)     36
+    (W2, C2, C1, W1)     36
+               (W1,)     33
+    (W2, C2, W1, C1)     32
+    (W2, W1, C1, C2)     26
+        (W2, C2, W1)     23
+    (W1, W2, C1, C2)     22
+    (W1, C2, C1, W2)     22
 
 
 
 .. image:: 3_viz_files/3_viz_7_1.png
 
 
+Again, due to randomization, do not expect your graph labels to exactly
+match the one pictured in the tutorial.
+
 The ``PairwiseComparisonGraph`` has methods for computing dominating
 tiers and the existence of a Condorcet winner (one who beats every other
-candidate head-to-head). A *dominating tier* is a group of candidates
+candidate head-to-head). A **dominating tier** is a group of candidates
 that beats every lower-tier candidate in a head-to-head comparison.
 
 .. code:: ipython3
@@ -192,12 +197,14 @@ MDS Plots
 ---------
 
 One of the coolest features of VoteKit (in the humble opinion of this
-tutorial author) is that we can create MDS plots, using different
-notions of distance between ``PreferenceProfiles``. A multidimensional
-scaling plot (MDS) is a 2D representation of high-dimensional data that
-attempts to minimize the distortion of the data. VoteKit comes with two
-kinds of distance metrics: earth-mover distance and :math:`L_p`
-distance. You can read about these in the VoteKit documentation.
+tutorial author) is that we can create multidimensional scaling (MDS)
+plots, using different notions of distance between
+``PreferenceProfiles``. A multidimensional scaling plot (MDS) is a 2D
+representation of high-dimensional data that attempts to minimize the
+distortion of the data. VoteKit comes with two kinds of distance
+metrics: earth-mover distance and :math:`L_p` distance. You can read
+about these in the `VoteKit
+documentation <../../social_choice_docs/scr.html#distances-between-preferenceprofiles>`__.
 
 Let’s explore how an MDS plot can provide a powerful visualization.
 First we will initialize our generators.
@@ -277,8 +284,8 @@ with the plot without recomputing the coordinates.
 .. image:: 3_viz_files/3_viz_13_0.png
 
 
-In this plot, each blue dot represents a simulated election built from
-1000 PL ballots, and each blue dot is likewise 1000 BT ballots, using
+In this plot, each red mark represents a simulated election built from
+1000 PL ballots, and each blue mark is likewise 1000 BT ballots, using
 the same preference interval. The marker, x or o, denotes the preference
 interval type. It’s very important to remember that the x axis and y
 axis numbers do not mean ANYTHING in an MDS plot—there’s literally a
@@ -420,12 +427,12 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
       Ballots Weight
-    (B, A, C)    575
-    (A, C, B)    219
-    (C, A, B)    131
-    (B, C, A)     28
-    (A, B, C)     26
-    (C, B, A)     21
+    (B, C, A)    395
+    (C, B, A)    315
+    (A, B, C)    165
+    (B, A, C)     61
+    (A, C, B)     41
+    (C, A, B)     23
 
 
 
@@ -435,14 +442,14 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(28, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(575, 1), 'cast': True}
+    (1, 2, 3) {'weight': Fraction(165, 1), 'cast': True}
+    (1, 3, 2) {'weight': Fraction(41, 1), 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(131, 1), 'cast': True}
-    (2, 1, 3) {'weight': Fraction(21, 1), 'cast': True}
+    (2, 3, 1) {'weight': Fraction(395, 1), 'cast': True}
+    (2, 1, 3) {'weight': Fraction(61, 1), 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(26, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(219, 1), 'cast': True}
+    (3, 1, 2) {'weight': Fraction(23, 1), 'cast': True}
+    (3, 2, 1) {'weight': Fraction(315, 1), 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -465,12 +472,13 @@ immediate neighbors, with their interconnections shown. The
 within two steps on the ballot graph.
 
 Here we will initialize the ballot graph from a number, representing the
-number of candidates.
+number of candidates. The scale parameter allows us to better visualize
+the crowded graph.
 
 .. code:: ipython3
 
     ballot_graph = BallotGraph(4)
-    ballot_graph.draw()
+    ballot_graph.draw(scale=3)
     
     # the neighborhoods parameter takes a list of tuples (node, radius)
     # and displays the corresponding neighborhoods
@@ -526,7 +534,7 @@ and place it in your working directory (the same folder as your code).
     print(scottish_profile)
     
     # only show us the ballots cast
-    ballot_graph.draw(show_cast = False,labels = False)
+    ballot_graph.draw(show_cast = False,labels = False, scale=3)
 
 
 .. parsed-literal::
@@ -549,10 +557,10 @@ and place it in your working directory (the same folder as your code).
                               (('Philip Robert', 'MCLEAN', 'SNP'), ('Catherine', 'MACDONALD', 'Ind'), ('David Cameron', 'WILSON', 'SNP'))     17
                                         (('Catherine', 'MACDONALD', 'Ind'), ('D J', 'MACRAE', 'Lab'), ('David Cameron', 'WILSON', 'SNP'))     15
     The candidates are labeled as follows.
-    1 ('Philip Robert', 'MCLEAN', 'SNP')
-    2 ('Catherine', 'MACDONALD', 'Ind')
-    3 ('D J', 'MACRAE', 'Lab')
-    4 ('David Cameron', 'WILSON', 'SNP')
+    1 ('D J', 'MACRAE', 'Lab')
+    2 ('David Cameron', 'WILSON', 'SNP')
+    3 ('Philip Robert', 'MCLEAN', 'SNP')
+    4 ('Catherine', 'MACDONALD', 'Ind')
 
 
 
@@ -587,33 +595,28 @@ you want to display the node.
 
 .. parsed-literal::
 
-    1 ('Philip Robert', 'MCLEAN', 'SNP')
-    2 ('Catherine', 'MACDONALD', 'Ind')
-    3 ('D J', 'MACRAE', 'Lab')
-    4 ('David Cameron', 'WILSON', 'SNP')
+    1 ('D J', 'MACRAE', 'Lab')
+    2 ('David Cameron', 'WILSON', 'SNP')
+    3 ('Philip Robert', 'MCLEAN', 'SNP')
+    4 ('Catherine', 'MACDONALD', 'Ind')
     
     Missing ballots:
     The candidates are labeled as follows.
-    1 ('Philip Robert', 'MCLEAN', 'SNP')
-    2 ('Catherine', 'MACDONALD', 'Ind')
-    3 ('D J', 'MACRAE', 'Lab')
-    4 ('David Cameron', 'WILSON', 'SNP')
+    1 ('D J', 'MACRAE', 'Lab')
+    2 ('David Cameron', 'WILSON', 'SNP')
+    3 ('Philip Robert', 'MCLEAN', 'SNP')
+    4 ('Catherine', 'MACDONALD', 'Ind')
 
 
 
 .. image:: 3_viz_files/3_viz_30_1.png
 
 
-Conclusion
-----------
-
-This has been an introduction to visualization in VoteKit.
-
 Further Prompts
-~~~~~~~~~~~~~~~
+---------------
 
 -  Generate profiles on three candidates in a manner that is reasonably
-   likely to result in a *Condorcet cycle*, in which there is no
+   likely to result in a **Condorcet cycle**, in which there is no
    Condorcet winner because the arrows go around in, well, a cycle.
 -  Make MDS plots that include ``ImpartialCulture`` and
    ``CambridgeSampler`` simulations in addition to PL and BT.

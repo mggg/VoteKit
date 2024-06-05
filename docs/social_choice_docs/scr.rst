@@ -1,24 +1,28 @@
 General Vocabulary
 ==================
 
--  Social choice theory: the study of making decisions from collective
-   input.
--  Bullet vote: casting a vote for a single candidate.
--  Ranked choice voting: the act of electing candidates using rankings
-   instead of bullet votes.
--  Linear ranking: an ordering of the candidates :math:`A>C>B` by your
+-  **Ballot**: the information gathered from a voter, usually a ranking, but
+   could be points as well.
+-  **Ballot generator**: a method for creating ballots.
+-  **Bloc**: a group of voters who share some similar voting patterns.
+-  **BLT**: a file type used to record CVRs in Scottish elections.
+-  **Bullet vote**: casting a vote for a single candidate.
+-  **CVR**: cast vote record, i.e., the collection of ballots.
+-  **Election**: a choice of rules for converting a preference profile into
+   an outcome.
+-  **Linear ranking**: an ordering of the candidates :math:`A>C>B` by your
    preference for each. :math:`A>C` means you prefer :math:`A` to
    :math:`C`.
--  Ballot: the information gathered from a voter, usually a ranking, but
-   could be points as well.
--  Preference profile: a collection of ballots from voters. Note, this
+-  **Preference profile**: a collection of ballots from voters. Note, this
    is not the same as an election.
--  Election: a choice of rules for converting a preference profile into
-   an outcome.
--  Ballot generator: a method for creating ballots.
--  Bloc: a group of voters who share some similar voting patterns.
--  CVR: cast vote record, i.e., the collection of ballots.
--  BLT: a file type used to record CVRs in Scottish elections.
+-  **Ranked choice voting**: the act of electing candidates using rankings
+   instead of bullet votes.
+-  **Social choice theory**: the study of making decisions from collective
+   input.
+
+
+
+
 
 Preference Intervals
 ====================
@@ -78,7 +82,7 @@ represents a preference interval with strong preference for :math:`A`
 More formally, we have vectors
 :math:`e_A = (1,0,0), e_B = (0,1,0), e_C = (0,0,1)`. Each point on the
 triangle is a vector :math:`(a,b,c)` where :math:`a+b+c=1` and
-:math:`a,b,c\ge 0`. That is, each point is a *convex combination* of the
+:math:`a,b,c\ge 0`. That is, each point is a **convex combination** of the
 vectors :math:`e_A, e_B,e_C`. The value of :math:`a` denotes someone’s
 “preference” for :math:`A`. Thus, a point in the candidate simplex is
 precisely a preference interval for the candidates!
@@ -94,6 +98,7 @@ the case of 3 candidates, we have :math:`3!=6` vertices, one for each
 permutation of the ranking :math:`A>B>C`. A point in the ballot simplex
 represents a probability distribution over these full linear rankings.
 This is much harder to visualize since we’re stuck in 3 dimensions!
+Here we present a visualization for two candidates.
 |png|
 
 
@@ -140,16 +145,20 @@ bloc versus the opposing blocs. In our name models, like
 ``name_PlackettLuce`` or ``name_BradleyTerry``, the cohesion parameters
 operate as follows. Suppose there are two blocs of voters, :math:`X,Y`.
 We assume that voters from the :math:`X` bloc have some underlying
-`preference interval` :math:`I_{XX}` for
+preference interval :math:`I_{XX}` for
 candidates within their bloc, and a different underlying preference
-interval :math:`I_{XY}` for the candidates in the opposing bloc. In
-order to construct one preference interval for :math:`X` voters, we take
+interval :math:`I_{XY}` for the candidates in the opposing bloc. Let :math:`\pi_X` denote 
+the cohesion parameter for the :math:`X` bloc.
+
+In order to construct one preference interval for :math:`X` voters, we take
 :math:`I_{XX}` and scale it by :math:`\pi_X`, then we take
 :math:`I_{XY}` and scale it by :math:`1-\pi_X`, and finally we
 concatenate the two. As a concrete example, if :math:`\pi_X = .75`, this
 means that 3/4 of the preference interval for :math:`X` voters is taken
 up by candidates from the :math:`X` bloc, and the other 1/4 by :math:`Y`
-candidates.
+candidates. You can think about the cohesion parameter as measuring some tendency to
+prefer your own bloc over the others. A high level of cohesion indicates a strong 
+preference for your own bloc, i.e. a polarized election.
 
 |image2|
 
@@ -210,8 +219,8 @@ Impartial Anonymous Culture
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Impartial Anonymous Culture model has :math:`\alpha = 1`. This means
-that the point is uniformly drawn from the ballot simplex. This does not
-mean we have a uniform distribution on rankings; rather, we have a
+that the point that determines the distribution on rankings is uniformly drawn from the 
+ballot simplex. This does not mean we have a uniform distribution on rankings; rather, we have 
 the possibility of any distribution on rankings.
 
 Candidate Simplex Models
@@ -381,7 +390,7 @@ Elections
 STV
 ---
 
-An STV election stands for single transferable vote. Voters cast ranked
+STV stands for single transferable vote. Voters cast ranked
 choice ballots. A threshold is set; if a candidate crosses the
 threshold, they are elected. The threshold defaults to the Droop quota.
 We also enable functionality for the Hare quota.
@@ -403,8 +412,8 @@ the transfer rule. This repeats until all seats are filled.
    Other methods of tiebreak are given in the ``tie_broken_ranking``
    function of the ``utils`` module.
 
-Quotas and Transfers
-~~~~~~~~~~~~~~~~~~~~
+Quotas and Transfers for STV
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Droop
 ^^^^^
@@ -470,8 +479,10 @@ Borda
 Positional voting system that assigns a decreasing number of points to
 candidates based on order and a score vector. The conventional score
 vector is :math:`(n, n-1, \dots, 1)`, where `n` is the number of candidates.
-If a ballot is incomplete, the remaining points of the score vector
-are evenly distributed to the unlisted candidates (see ``borda_scores`` function in ``utils``).
+A candidate in position 1 is given :math:`n` points, a candidate in position 2 is given 
+:math:`n-1`, and so on. If a ballot is incomplete, the remaining points of the score 
+vectorare evenly distributed to the unlisted candidates (see ``borda_scores`` 
+function in ``utils``).
 
 Plurality
 ---------
@@ -480,8 +491,10 @@ Plurality scores. Equivalent to Limited with :math:`k=1` and SNTV.
 
 HighestScore
 ------------
-Conducts an election based on points from score vector.
-Chooses the :math:`m`` candidates with highest scores.
+Conducts an election based on points from a score vector.
+A score vector is a vector whose :math:`i`th entry denotes the number of points given
+to a candidate in position :math:`i`. Normally a score vector is non-negative and 
+decreasing. A HighestScore election chooses the :math:`m` candidates with highest scores.
 Ties are broken by randomly permuting the tied candidates.
 
 
@@ -489,7 +502,9 @@ Cumulative
 ----------
 Voting system where voters are allowed to vote for candidates with multiplicity.
 Each ranking position should have one candidate, and every candidate ranked will receive
-one point, i.e., the score vector is :math:`(1,\dots,1)`.
+one point, i.e., the score vector is :math:`(1,\dots,1)`. Recall a score vector is a 
+vector whose :math:`i`th entry denotes the number of points given to a candidate in 
+position :math:`i`. Normally a score vector is non-negative and decreasing.
 
 Distances between PreferenceProfiles
 ====================================
@@ -499,12 +514,13 @@ Earthmover Distance
 
 The Earthmover distance is a measure of how far apart two distributions
 are over a given metric space. In our case, the metric space is the
-``BallotGraph`` endowed with the shortes path metric. We then consider a
+``BallotGraph`` endowed with the shortest path metric. We then consider a
 ``PreferenceProfile`` to be a distribution that assigns the number of
 times a ballot was cast to a node of the ``BallotGraph``. Informally,
 the Earthmover distance is the minimum cost of moving the “dirt” piled
 on the nodes by the first profile to the second profile given the
-distance it must travel.
+distance it must travel. For a formal definition, see `here. <https://en.wikipedia.org/wiki/Earth_mover%27s_distance>`_
+
 
 :math:`L_p` Distance
 --------------------
@@ -513,4 +529,5 @@ The :math:`L_p` distance is a metric parameterized by
 :math:`p\in (0,\infty]`. It is computed as
 :math:`d(P_1,P_2) = \left(\sum |P_1(b)-P_2(b)|^p\right)^{1/p}`, where
 the sum is indexed over all possible ballots, and :math:`P_i(b)` denotes
-the number of times that ballot was cast.
+the number of times that ballot was cast in profile :math:`i`.
+For a more formal discussion of :math:`L_p` distance, see `here. <https://en.wikipedia.org/wiki/Lp_space#The_p-norm_in_finite_dimensions>`_
