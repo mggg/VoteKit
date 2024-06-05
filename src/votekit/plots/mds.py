@@ -131,10 +131,12 @@ def plot_MDS(
     if legend:
         ax.legend()
 
-    all_data = [item for x, y in coord_dict.values() for item in x + y]
+    all_data = [item for x, y in coord_dict.values() for item in list(x) + list(y)]
     data_min = min(all_data)
     data_max = max(all_data)
-    ax.set_xlim(data_min, data_max)
-    ax.set_ylim(data_min, data_max)
+    ax.set_xlim(data_min - 0.1, data_max + 0.1)
+    ax.set_ylim(data_min - 0.1, data_max + 0.1)
+    ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_aspect("equal")
     return ax

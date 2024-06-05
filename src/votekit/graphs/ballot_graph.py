@@ -273,6 +273,7 @@ class BallotGraph(Graph):
         neighborhoods: Optional[list[tuple]] = [],
         show_cast: Optional[bool] = False,
         labels: Optional[bool] = False,
+        scale: float = 1.0,
     ):
         """
         Visualize the graph.
@@ -287,6 +288,7 @@ class BallotGraph(Graph):
                         If False, show all nodes. Defaults to False.
             labels (bool, optional): If True, labels nodes with candidate names and vote totals.
                 Defaults to False.
+            scale (float, optional): How much to scale the base graph by. Defaults to 1.0.
         """
 
         def cast_nodes(graph, node):
@@ -327,7 +329,18 @@ class BallotGraph(Graph):
         subgraph = self.graph.subgraph(ballots)
 
         pos = nx.spring_layout(subgraph)
-        nx.draw_networkx(subgraph, pos=pos, with_labels=True, labels=node_labels)
+        plt.figure(figsize=(8 * scale, 8 * scale))
+        nx.draw_networkx(
+            subgraph,
+            pos=pos,
+            node_color="#a6cee3",  # Color here is from districtr
+            edge_color="#1f78b4",
+            with_labels=True,
+            labels=node_labels,
+            font_weight="bold",
+            node_size=1000 * scale,
+            width=scale,
+        )
 
         # handles labels overlapping with margins
         x_values, y_values = zip(*pos.values())
