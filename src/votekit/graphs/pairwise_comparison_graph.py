@@ -18,7 +18,7 @@ class PairwiseComparisonGraph(Graph):
     Args:
         profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
         ballot_length (int, optional): Max length of ballot. If not provided,
-            defaults to longest possible ballot length found in `profile`.
+            defaults to number of candidates.
 
     Attributes:
         profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.

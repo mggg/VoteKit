@@ -24,7 +24,7 @@ def distance_matrix(
 
 
     Returns:
-        ndarray: Distance matrix for profiles.
+        numpy.ndarray: Distance matrix for profiles.
     """
     rows = len(pp_arr)
     dist_matrix = np.zeros((rows, rows))
@@ -48,8 +48,8 @@ def compute_MDS(
     ``plot_mds`` to allow users to flexibly use the coordinates.
 
     Args:
-        data (Dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and 
-            value being list of PreferenceProfiles. 
+        data (Dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and
+            value being list of PreferenceProfiles.
             eg. ``{'PL with alpha = 4': list[PreferenceProfile]}``
         distance (Callable[..., int]): Distance function. See distance.py.
         random_seed (int, optional): An integer seed to allow for reproducible MDS plots.
@@ -59,7 +59,7 @@ def compute_MDS(
 
     Returns:
         coord_dict (dict): a dictionary whose keys match ``data`` and whose values are tuples of
-        numpy arrays `(x_list, y_list)` of coordinates for the MDS plot.
+            numpy arrays `(x_list, y_list)` of coordinates for the MDS plot.
     """
     # combine all lists to create distance matrix
     combined_pp = []
@@ -107,7 +107,7 @@ def plot_MDS(
             (x_list, y_list), coordinates for the MDS plot. Should be piped in from ``compute_MDS``.
         ax (axes, optional): A matplolib axes object to plot the figure on. Defaults to None,
             in which case the function creates and returns a new axes.
-        plot_kwarg_dict (dict, optional): Dictionary with keys matching ``coord_dict`` and values 
+        plot_kwarg_dict (dict, optional): Dictionary with keys matching ``coord_dict`` and values
             are kwarg dictionaries that will be passed to matplotlib ``scatter``.
         legend (bool, optional): boolean for plotting the legend. Defaults to True.
         title (bool, optional): boolean for plotting the title. Defaults to True.

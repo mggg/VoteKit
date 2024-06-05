@@ -641,8 +641,8 @@ class name_PlackettLuce(short_name_PlackettLuce):
 class name_BradleyTerry(BallotGenerator):
     """
     Class for generating ballots using a name-BradleyTerry model. The probability of sampling
-    the ranking `X>Y>Z` is proportional to `P(X>Y)*P(X>Z)*P(Y>Z)`.
-    These individual probabilities are based on the preference interval: `P(X>Y) = x/(x+y)`.
+    the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
+    These individual probabilities are based on the preference interval: :math: `P(X>Y) = x/(x+y)`.
     Can be initialized with an interval or can be constructed with the Dirichlet distribution using
     the ``from_params`` method of ``BallotGenerator``.
 
@@ -1869,7 +1869,13 @@ class slate_BradleyTerry(BallotGenerator):
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
             )
 
-            if deterministic:
+            if deterministic and len(self.candidates) >= 12:
+                raise UserWarning(
+                    "Deterministic sampling is only supported for 11 or fewer candidates.\n\
+                    Please set deterministic = False."
+                )
+
+            elif deterministic:
                 ballot_types = self._sample_ballot_types_deterministic(
                     bloc=bloc, num_ballots=num_ballots
                 )

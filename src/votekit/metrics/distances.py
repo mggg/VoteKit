@@ -93,7 +93,7 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
         profiles (list[PreferenceProfile]): A list of PreferenceProfiles.
 
     Returns:
-        ndarray: computed matrix of ballot frequencies.
+        numpy.ndarray: computed matrix of ballot frequencies.
     """
     cast_ballots: list = []
     profile_dicts: list[dict] = []

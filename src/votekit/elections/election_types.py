@@ -660,8 +660,11 @@ class DominatingSets(Election):
 
 class CondoBorda(Election):
     """
-    Elects candidates ordered by dominating set, but breaks ties
-    between candidates with Borda.
+    Finds tiers of candidates by dominating set, which is a set of candidates
+    such that every candidate in the set wins head to head comparisons against
+    candidates outside of it. Elects as many candidates as specified, in order from
+    first to last dominating set. If the number of seats left is smaller than the next
+    dominating set, CondoBorda breaks ties between candidates with Borda.
 
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.

@@ -13,14 +13,14 @@ class PreferenceProfile(BaseModel):
     PreferenceProfile class, contains ballots and candidates for a given election.
 
     Args:
-        ballots: List of ``Ballot`` objects.
-        candidates: List of candidate strings. Defaults to None.
+        ballots (list[Ballot]): List of ``Ballot`` objects.
+        candidates (list, optional): List of candidate strings. Defaults to None.
 
 
     Attributes:
-        ballots: List of ``Ballot`` objects.
-        candidates: List of candidate strings.
-        df: pandas ``DataFrame`` used to store ballots.
+        ballots (list[Ballot]): List of ``Ballot`` objects.
+        candidates (list, optional): List of candidate strings.
+        df (pandas.DataFrame): pandas ``DataFrame`` used to store ballots.
     """
 
     ballots: list[Ballot] = []
@@ -120,7 +120,7 @@ class PreferenceProfile(BaseModel):
         Creates pandas DataFrame for display and building plots.
 
         Returns:
-            pd.DataFrame: Data frame of ballots with weight and percent columns.
+            pandas.DataFrame: Data frame of ballots with weight and percent columns.
         """
         weights = []
         ballots = []

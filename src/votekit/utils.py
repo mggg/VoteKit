@@ -40,7 +40,7 @@ def ballots_by_first_cand(candidates: list[str], ballots: list[Ballot]) -> dict:
 
     Returns:
         dict: A dictionary whose keys are candidates and values are lists of ballots that
-        have that candidate first.
+            have that candidate first.
     """
     cand_dict = {c: [] for c in candidates}  # type: dict
 
@@ -71,8 +71,8 @@ def compute_votes(
 
     Returns:
         tuple: A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes)
-        ordered by decreasing first place votes and votes is a dictionary whose keys are
-        candidates and values are first place votes.
+            ordered by decreasing first place votes and votes is a dictionary whose keys are
+            candidates and values are first place votes.
     """
     votes = {cand: Fraction(0) for cand in candidates}
 

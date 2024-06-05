@@ -21,7 +21,7 @@ class BallotGraph(Graph):
         allow_partial (bool, optional): If True, builds graph using all possible ballots,
             If False, only uses total linear ordered ballots. Defaults to True.
         fix_short (bool, optional): If True, auto completes ballots of length :math:`n-1` to
-            :math:`n`. Defaults to True.
+            :math:`n`. Ballots of length less than :math:`n-1` are preserved. Defaults to True.
 
     Attributes:
         profile (PreferenceProfile): Profile used to create graph, None if not provided.
