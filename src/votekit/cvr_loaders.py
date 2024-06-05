@@ -18,17 +18,19 @@ def load_csv(
     id_col: Optional[int] = None,
 ) -> PreferenceProfile:
     """
-    Given a file path, loads cast vote records (cvr) with ranks as columns and voters as rows.
+    Given a file path, loads cast vote record (cvr) with ranks as columns and voters as rows.
     Empty cells are treated as None.
 
     Args:
-        fpath: Path to cvr file.
-        rank_cols: List of column indexes that contain rankings. Indexing starts from 0,
-                    in order from top to bottom rank.
-                    Default implies that all columns contain rankings.
-        weight_col: The column position for ballot weights.
-        delimiter: The character that breaks up rows.
-        id_col: Index for the column with voter ids.
+        fpath (str): Path to cvr file.
+        rank_cols (list[int]): List of column indexes that contain rankings. Indexing starts from 0,
+            in order from top to bottom rank. Default is empty list, which implies that all columns
+            contain rankings.
+        weight_col (int, optional): The column position for ballot weights. Defaults to None, which
+            implies each row has weight 1.
+        delimiter (str, optional): The character that breaks up rows. Defaults to None, which
+            implies a carriage return.
+        id_col (int, optional): Index for the column with voter ids. Defaults to None.
 
     Raises:
         FileNotFoundError: If fpath is invalid.
@@ -37,7 +39,7 @@ def load_csv(
         DataError: If the voter id column has duplicate values.
 
     Returns:
-        A PreferenceProfile that represents all the ballots in the election.
+        PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the election.
     """
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
@@ -89,10 +91,11 @@ def load_csv(
 
 def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
     """
-    Given a file path, loads cvr from format used for Scottish election data.
+    Given a file path, loads cvr from format used for Scottish election data in
+    (this repo)[https://github.com/mggg/scot-elex].
 
     Args:
-        fpath: Path to cvr file.
+        fpath (str): Path to cvr file.
 
     Raises:
         FileNotFoundError: If fpath is invalid.
@@ -100,8 +103,8 @@ def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
         DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        (tuple): A tuple (PreferenceProfile, seats) representing the election and the
-                number of seats in the election.
+        tuple: A tuple ``(PreferenceProfile, seats)`` representing the election and the
+            number of seats in the election.
     """
     ballots = []
     names = []

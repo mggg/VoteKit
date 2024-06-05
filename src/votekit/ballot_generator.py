@@ -62,13 +62,26 @@ def sample_cohesion_ballot_types(
             bloc_type = blocs[bloc_index]
             ballot_type[i] = bloc_type
 
-            # Check if that exhausts a slate of candidates
+            # Check if adding cand exhausts a slate of candidates
             if ballot_type.count(bloc_type) == len(
                 slate_to_non_zero_candidates[bloc_type]
             ):
                 del blocs[bloc_index]
                 del values[bloc_index]
                 total_value_sum = sum(values)
+
+                if total_value_sum == 0 and len(values) > 0:
+                    # this indicates that remaining blocs have 0 cohesion with this bloc
+                    # so complete ballot with random permutation of remaining blocs
+                    remaining_blocs = [
+                        b
+                        for b in blocs
+                        for _ in range(len(slate_to_non_zero_candidates[b]))
+                    ]
+                    random.shuffle(remaining_blocs)
+                    ballot_type[i + 1 :] = remaining_blocs
+                    break
+
                 values = [v / total_value_sum for v in values]
                 distribution_bins = [0] + [
                     sum(values[: i + 1]) for i in range(len(blocs))
@@ -84,29 +97,8 @@ class BallotGenerator:
     Base class for ballot generation models that use the candidate simplex
     (e.g. Plackett-Luce, Bradley-Terry, etc.).
 
-    **Attributes**
-
-    `candidates`
-    :   list of candidates in the election.
-
-    `cohesion_parameters`
-    : dictionary of dictionaries mapping of bloc to cohesion parameters.
-        (ex. {bloc_1: {bloc_1: .7, bloc_2: .2, bloc_3:.1}})
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
-
-
-    ???+ note
-        * Voter proportion for blocs must sum to 1.
-        * Preference interval for candidates must sum to 1.
-        * Must have same blocs in `pref_intervals_by_bloc` and `bloc_voter_prop`.
-
-    **Methods**
+    Args:
+        **kwargs: Arbitrary keyword arguments needed for different models.
     """
 
     def __init__(
@@ -182,30 +174,26 @@ class BallotGenerator:
         **data,
     ):
         """
-        Initializes a BallotGenerator by constructing a preference interval
-        from parameters; the prior parameters (if inputted) will be overwritten.
+        Initializes a ``BallotGenerator`` by constructing preference intervals
+        from parameters.
 
         Args:
-            slate_to_candidates (dict): A mapping of blocs to candidates
-                (ex. {bloc: [candidate]})
-            bloc_voter_prop (dict): A mapping of the percentage of total voters
-                 per bloc (ex. {bloc: 0.7})
-            cohesion_parameters (dict): Cohension factors for each bloc (ex. {bloc_1: {bloc_1: .9,
-                                                                                        bloc_2:.1})
-            alphas (dict): Alpha for the Dirichlet distribution of each bloc
-                            (ex. {bloc: {bloc: 1, opposing_bloc: 1/2}}).
+            slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+                values are lists of candidate strings that make up the slate.
+            bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+            cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+                keys are bloc strings and values are cohesion parameters.
+            alphas (dict): Dictionary mapping of bloc string to dictionary whose
+                keys are bloc strings and values are alphas for Dirichlet distributions.
+            **data: kwargs to be passed to the init method.
 
         Raises:
             ValueError: If the voter proportion for blocs don't sum to 1.
             ValueError: Blocs are not the same.
 
         Returns:
-            (BallotGenerator): Initialized ballot generator.
-
-        ???+ note
-            * Voter proportion for blocs must sum to 1.
-            * Each cohesion parameter must be in the interval [0,1].
-            * Dirichlet parameters are in the interval $(0,\infty)$.
+            BallotGenerator: Initialized ballot generator.
         """
         if round(sum(bloc_voter_prop.values()), 8) != 1.0:
             raise ValueError("Voter proportion for blocs must sum to 1")
@@ -253,16 +241,17 @@ class BallotGenerator:
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple, dict]:
         """
-        Generates a `PreferenceProfile`.
+        Generates a ``PreferenceProfile``.
 
         Args:
             number_of_ballots (int): Number of ballots to generate.
-            by_bloc (bool): True if you want a tuple (pp_by_bloc, pp), which is a dictionary of
-                            PreferenceProfiles with keys = blocs and the aggregated profile.
-                    False if you want the aggregated profile. Defaults to False.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
 
         Returns:
-            (PreferenceProfile): A generated `PreferenceProfile`.
+            Union[PreferenceProfile, Tuple]
         """
         pass
 
@@ -283,15 +272,15 @@ class BallotGenerator:
     @staticmethod
     def ballot_pool_to_profile(ballot_pool, candidates) -> PreferenceProfile:
         """
-        Given a list of ballots and candidates, convert them into a `PreferenceProfile.`
+        Given a list of ballots and candidates, convert them into a ``PreferenceProfile``.
 
         Args:
-            ballot_pool (list of tuple): A list of ballots, where each ballot is a tuple
+            ballot_pool (list): A list of ballots, where each ballot is a tuple
                     of candidates indicating their ranking from top to bottom.
-            candidates (list): A list of candidates.
+            candidates (list): A list of candidate strings.
 
         Returns:
-            (PreferenceProfile): A PreferenceProfile representing the ballots in the election.
+            PreferenceProfile: A ``PreferenceProfile`` representing the ballots in the election.
         """
         ranking_counts: dict[tuple, int] = {}
         ballot_list: list[Ballot] = []
@@ -315,20 +304,18 @@ class BallotSimplex(BallotGenerator):
     Base class for ballot generation models that use the ballot simplex
     (e.g. ImpartialCulture, ImpartialAnonymousCulture).
 
-    **Attributes**
+    Args:
+        alpha (float, optional): Alpha parameter for Dirichlet distribution. Must be in (0,inf].
+            Defaults to None. One of alpha or point must be provided.
+        point (dict, optional): Dictionary representing a point in the ballot simplex with
+            candidates as keys and floats in [0,1] as values. Defaults to None. One of alpha or
+            point must be provided.
+        **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
-    `alpha`
-    :   (float) alpha parameter for ballot simplex. Defaults to None.
-
-    `point`
-    :   dictionary representing a point in the ballot simplex with candidate as
-        keys and electoral support as values. Defaults to None.
-
-    ???+ note
-
-        Point or alpha arguments must be included to initialize.
-
-    **Methods**
+    Attributes:
+        alpha (float): Alpha parameter for Dirichlet distribution.
+        point (dict): Dictionary representing a point in the ballot simplex with
+            candidates as keys and floats in [0,1] as values.
     """
 
     def __init__(
@@ -350,13 +337,15 @@ class BallotSimplex(BallotGenerator):
         Initializes a Ballot Simplex model from a point in the Dirichlet distribution.
 
         Args:
-            point (dict): A mapping of candidate to candidate support.
+            point (dict): Dictionary representing a point in the ballot simplex with
+                candidates as keys and floats in [0,1] as values.
+            **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
         Raises:
             ValueError: If the candidate support does not sum to 1.
 
         Returns:
-            (BallotSimplex): Initialized from point.
+            BallotSimplex
         """
         if sum(point.values()) != 1.0:
             raise ValueError(
@@ -371,10 +360,11 @@ class BallotSimplex(BallotGenerator):
         distribution.
 
         Args:
-            alpha (float): An alpha parameter for the Dirichlet distribution.
+            alpha (float): Alpha parameter for the Dirichlet distribution.
+            **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
         Returns:
-            (BallotSimplex): Initialized from alpha.
+            BallotSimplex
         """
 
         return cls(alpha=alpha, **data)
@@ -383,7 +373,14 @@ class BallotSimplex(BallotGenerator):
         self, number_of_ballots, by_bloc: bool = False
     ) -> Union[PreferenceProfile, dict]:
         """
-        Generates a PreferenceProfile from the ballot simplex.
+        Generates a ``PreferenceProfile``.
+
+        Args:
+            number_of_ballots (int): Number of ballots to generate.
+            by_bloc (bool): Dummy parameter from parent class.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
         """
 
         perm_set = it.permutations(self.candidates, len(self.candidates))
@@ -420,32 +417,14 @@ class BallotSimplex(BallotGenerator):
 
 class ImpartialCulture(BallotSimplex):
     """
-    Impartial Culture model with an alpha value of 1e10 (should be infinity theoretically).
-    This model is uniform on all linear rankings.
+    Impartial Culture model where each ballot is equally likely.
+    Equivalent to the ballot simplex with an alpha value of infinity.
 
+    Args:
+        **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
-    **Attributes**
-
-    `candidates`
-    : (list) a list of candidates
-
-    `alpha`
-    :   (float) alpha parameter for ballot simplex. Defaults to None.
-
-    `point`
-    :   dictionary representing a point in the ballot simplex with candidate as
-        keys and electoral support as values. Defaults to None.
-
-
-
-    **Methods**
-
-    See `BallotSimplex` object.
-
-    ???+ note
-
-        Point or alpha arguments must be included to initialize. For details see
-        `BallotSimplex` and `BallotGenerator` object.
+    Attributes:
+        alpha (float): Alpha parameter for Dirichlet distribution.
     """
 
     def __init__(self, **data):
@@ -454,30 +433,14 @@ class ImpartialCulture(BallotSimplex):
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
-    Impartial Anonymous Culture model with an alpha value of 1. This model choose uniformly
-        from among all distributions on full linear rankings, and then draws according to the
-        chosen distribution.
+    Impartial Anonymous Culture model wher each profile is equally likely. Equivalent to the ballot
+    simplex with an alpha value of 1.
 
-    **Attributes**
+    Args:
+        **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
-    `candidates`
-    : (list) a list of candidates
-
-    `alpha`
-    :   (float) alpha parameter for ballot simplex. Defaults to None.
-
-    `point`
-    :   dictionary representing a point in the ballot simplex with candidate as
-        keys and electoral support as values. Defaults to None.
-
-    **Methods**
-
-    See `BallotSimplex` base class.
-
-    ???+ note
-
-        Point or alpha arguments must be included to initialize. For details see
-        `BallotSimplex` and `BallotGenerator` object.
+    Attributes:
+        alpha (float): Alpha parameter for Dirichlet distribution.
     """
 
     def __init__(self, **data):
@@ -486,33 +449,32 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
 class short_name_PlackettLuce(BallotGenerator):
     """
-    Class for generating short name Plackett Luce ballots. This model samples without
+    Class for generating short name-Plackett-Luce ballots. This model samples without
     replacement from a preference interval. Equivalent to name-PlackettLuce if
-    ballot_length = number of  candidates. Can be initialized with an interval or can be
-    constructed with the  Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    ``ballot_length`` = number of candidates. Can be initialized with an interval or can be
+    constructed with the Dirichlet distribution using the ``from_params`` method of
+    ``BallotGenerator``.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        ballot_length (int): Number of votes allowed per ballot.
 
-    `candidates`
-    : a list of candidates.
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
-
-    `ballot_length`
-    : number of votes allowed per ballot
-
-    **Methods**
-
-    See `BallotGenerator` base class
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        ballot_length (int): Number of votes allowed per ballot.
     """
 
     def __init__(self, ballot_length: int, **data):
@@ -541,10 +503,14 @@ class short_name_PlackettLuce(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
-        `number_of_ballots`: The number of ballots to generate.
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
 
-        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
-                    False if you want the full, aggregated PreferenceProfile.
+        Returns:
+            Union[PreferenceProfile, Tuple]
         """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
@@ -623,30 +589,37 @@ class short_name_PlackettLuce(BallotGenerator):
 
 class name_PlackettLuce(short_name_PlackettLuce):
     """
-    Class for generating full ballots with name-PlackettLuce. This model samples without
+    Class for generating name-Plackett-Luce ballots. This model samples without
     replacement from a preference interval. Can be initialized with an interval or can be
-    constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    constructed with the Dirichlet distribution using the ``from_params`` method of
+    ``BallotGenerator``.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
 
-    `candidates`
-    : a list of candidates.
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
-
-
-    **Methods**
-
-    See `BallotGenerator` base class
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        pref_interval_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            ``PreferenceInterval`` objects. This is constructed by rescaling the intervals
+            from ``pref_intervals_by_bloc`` via the ``cohesion_parameters`` and concatenating them.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        ballot_length (int): Number of votes allowed per ballot.
     """
 
     def __init__(self, cohesion_parameters: dict, **data):
@@ -668,29 +641,36 @@ class name_PlackettLuce(short_name_PlackettLuce):
 class name_BradleyTerry(BallotGenerator):
     """
     Class for generating ballots using a name-BradleyTerry model. The probability of sampling
-    the ranking $X>Y>Z$ is proportional to $P(X>Y)*P(X>Z)*P(Y>Z)$.
-    These individual probabilities are based on the preference interval: $P(X>Y) = x/(x+y)$.
+    the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
+    These individual probabilities are based on the preference interval: :math: `P(X>Y) = x/(x+y)`.
     Can be initialized with an interval or can be constructed with the Dirichlet distribution using
-    the `from_params` method in the `BallotGenerator` class.
+    the ``from_params`` method of ``BallotGenerator``.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
 
-    `candidates`
-    : a list of candidates.
-
-    `pref_intervals_by_bloc`
-    : dictionary of dictionaries mapping of bloc to preference intervals or dictionary of PIs.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of slate to voter proportions (ex. {race: voter proportion}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    **Methods**
-
-    See `BallotGenerator` base class.
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        pref_interval_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            ``PreferenceInterval`` objects. This is constructed by rescaling the intervals
+            from ``pref_intervals_by_bloc`` via the ``cohesion_parameters`` and concatenating them.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
     """
 
     def __init__(self, cohesion_parameters: dict, **data):
@@ -786,6 +766,17 @@ class name_BradleyTerry(BallotGenerator):
     def generate_profile(
         self, number_of_ballots, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
 
         bloc_props = list(self.bloc_voter_prop.values())
@@ -916,16 +907,16 @@ class name_BradleyTerry(BallotGenerator):
         be sufficiently large to allow for convergence of the chain.
 
         Args:
-            number_of_ballots (int): Number of ballots to generate.
+            number_of_ballots (int): The number of ballots to generate.
             verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
                                         is False.
-            by_bloc (bool, optional): True if you want a tuple (pp_by_bloc, pp), which is a
-                                    dictionary of  PreferenceProfiles with keys = blocs and the
-                                    aggregated profile. False if you want the aggregated profile.
-                                    Defaults to False.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Generated ballots as a PreferenceProfile or tuple (dict, PreferenceProfile).
+            Union[PreferenceProfile, Tuple]
         """
 
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
@@ -980,28 +971,31 @@ class AlternatingCrossover(BallotGenerator):
     between candidates from their own bloc and the opposing.
     Should only be used when there are two blocs.
 
-    Can be initialized with an interval or can be
-    constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
+    the `from_params` method of `BallotGenerator`.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
 
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of slate to voter proportions (ex. {bloc: voter proportion}).
-
-    `slate_to_candidates`
-    :   dictionary mapping of slate to candidates (ex. {bloc: [candidate1, candidate2]}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    **Methods**
-
-    See `BallotGenerator` base class.
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
     """
 
     def __init__(
@@ -1015,6 +1009,17 @@ class AlternatingCrossover(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
         # compute the number of bloc and crossover voters in each bloc using Huntington Hill
         cohesion_parameters = {
             b: self.cohesion_parameters[b][b] for b in self.cohesion_parameters
@@ -1111,20 +1116,25 @@ class OneDimSpatial(BallotGenerator):
     the real line. Then voters are also normally distributed, and vote based on Euclidean distance
     to the candidates.
 
-    **Attributes**
-    `candidates`
-        : a list of candidates.
+    Args:
+        candidates (list): List of candidate strings.
 
-    See `BallotGenerator` base class.
+    Attributes:
+        candidates (list): List of candidate strings.
 
-    **Methods**
-
-    See `BallotGenerator` base class.
     """
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): Dummy variable from parent class.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
         candidate_position_dict = {c: np.random.normal(0, 1) for c in self.candidates}
         voter_positions = np.random.normal(0, 1, number_of_ballots)
 
@@ -1143,41 +1153,53 @@ class OneDimSpatial(BallotGenerator):
 class CambridgeSampler(BallotGenerator):
     """
     Class for generating ballots based on historical RCV elections occurring
-    in Cambridge. Alternative election data can be used if specified. Assumes that there are two
-    blocs, a majority and a minority bloc, and determines this based on the bloc_voter_prop attr.
+    in Cambridge, MA. Alternative election data can be used if specified. Assumes that there are two
+    blocs, a majority and a minority bloc, and determines this based on the ``bloc_voter_prop``
+    attr.
 
     Based on cohesion parameters, decides if a voter casts their top choice within their bloc
     or in the opposing bloc. Then uses historical data; given their first choice, choose a
     ballot type from the historical distribution.
 
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        historical_majority (str): Name of majority bloc in historical data, defaults to W for
+            Cambridge data.
+        historical_minority (str): Name of minority bloc in historical data, defaults to C for
+            Cambridge data.
+        path (str): File path to an election data file to sample from. Defaults to Cambridge
+            elections.
 
-    **Attributes**
-
-    `slate_to_candidates`
-    :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: voter proportion}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `historical_majority`
-    : name of majority bloc in historical data, defaults to W for Cambridge.
-
-    `historical_minority`
-    : name of minority bloc in historical data, defaults to C for Cambridge.
-
-    `path`
-    :   file path to an election data file to sample from. Defaults to Cambridge elections.
-
-    **Methods**
-
-    See `BallotGenerator` base class.
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        historical_majority (str): Name of majority bloc in historical data, defaults to W for
+            Cambridge data.
+        historical_minority (str): Name of minority bloc in historical data, defaults to C for
+            Cambridge data.
+        majority_bloc (str): The name of the bloc determined to be the majority by
+            ``bloc_voter_prop``.
+        minority_bloc (str): The name of the bloc determined to be the minority by
+            ``bloc_voter_prop``.
+        path (str): File path to an election data file to sample from. Defaults to Cambridge
+            elections.
+        bloc_to_historical (dict): Dictionary which converts bloc names to historical bloc names.
     """
 
     def __init__(
@@ -1213,11 +1235,6 @@ class CambridgeSampler(BallotGenerator):
             self.minority_bloc: self.historical_minority,
         }
 
-        # # changing names to match historical data, if statement handles generating from_params
-        # # only want to run this now if generating from init
-        # if len(self.cohesion_parameters) > 0:
-        #     self._rename_blocs()
-
         if path:
             self.path = path
         else:
@@ -1228,6 +1245,17 @@ class CambridgeSampler(BallotGenerator):
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
     ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
         with open(self.path, "rb") as pickle_file:
             ballot_frequencies = pickle.load(pickle_file)
 
@@ -1372,29 +1400,35 @@ class name_Cumulative(BallotGenerator):
     Class for generating cumulative ballots. This model samples with
     replacement from a combined preference interval and counts candidates with multiplicity.
     Can be initialized with an interval or can be constructed with the Dirichlet distribution
-    using the `from_params` method in the `BallotGenerator` class.
+    using the `from_params` method of `BallotGenerator`.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        num_votes (int): The number of votes allowed per ballot.
 
-    `candidates`
-    : a list of candidates.
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
-
-    `num_votes`
-    : the number of votes allowed per ballot.
-
-    **Methods**
-
-    See `BallotGenerator` base class
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        pref_interval_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            ``PreferenceInterval`` objects. This is constructed by rescaling the intervals
+            from ``pref_intervals_by_bloc`` via the ``cohesion_parameters`` and concatenating them.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        num_votes (int): The number of votes allowed per ballot.
     """
 
     def __init__(self, cohesion_parameters: dict, num_votes: int, **data):
@@ -1423,10 +1457,14 @@ class name_Cumulative(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
-        `number_of_ballots`: The number of ballots to generate.
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
 
-        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
-                    False if you want the full, aggregated PreferenceProfile.
+        Returns:
+            Union[PreferenceProfile, Tuple]
         """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
@@ -1488,28 +1526,31 @@ class slate_PlackettLuce(BallotGenerator):
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
     It then fills out the ballot type via sampling with out replacement from the interval.
 
-    Can be initialized with an interval or can be
-    constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
+    the `from_params` method of `BallotGenerator` class.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
 
-    `slate_to_candidates`
-    :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    **Methods**
-
-    See `BallotGenerator` base class
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
     """
 
     def __init__(self, cohesion_parameters: dict, **data):
@@ -1521,10 +1562,14 @@ class slate_PlackettLuce(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
-        `number_of_ballots`: The number of ballots to generate.
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
 
-        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
-                    False if you want the full, aggregated PreferenceProfile.
+        Returns:
+            Union[PreferenceProfile, Tuple]
         """
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
@@ -1611,28 +1656,31 @@ class slate_BradleyTerry(BallotGenerator):
 
     Only works with 2 blocs at the moment.
 
-    Can be initialized with an interval or can be
-    constructed with the Dirichlet distribution using the `from_params` method in the
-    `BallotGenerator` class.
+    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
+    the `from_params` method of `BallotGenerator`.
 
-    **Attributes**
+    Args:
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
 
-    `slate_to_candidates`
-    :   dictionary mapping of slate to candidates (ex. {bloc: [candidate]}).
-
-    `pref_intervals_by_bloc`
-    :   dictionary of dictionaries mapping of bloc to preference intervals.
-        (ex. {bloc_1: {bloc_1 : PI, bloc_2: PI}}).
-
-    `bloc_voter_prop`
-    :   dictionary mapping of bloc to voter proportions (ex. {bloc: proportion}).
-
-    `cohesion_parameters`
-    : dictionary of dictionaries of cohesion parameters (ex. {bloc_1: {bloc_1:.7, bloc_2: .3}})
-
-    **Methods**
-
-    See `BallotGenerator` base class
+    Attributes:
+        candidates (list): List of candidate strings.
+        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
+            values are lists of candidate strings that make up the slate.
+        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
+                denoting population share.
+        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
+            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
+        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
+            keys are bloc strings and values are cohesion parameters,
+            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
     """
 
     def __init__(self, cohesion_parameters: dict, **data):
@@ -1645,21 +1693,48 @@ class slate_BradleyTerry(BallotGenerator):
                               passed {len(self.slate_to_candidates.keys())}"
             )
 
-        self.ballot_type_pdf = {
-            b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
-            for i, b in enumerate(self.blocs)
-        }
+        if len(self.candidates) < 12 and len(self.blocs) == 2:
+            # precompute pdfs for sampling
+            self.ballot_type_pdf = {
+                b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
+                for i, b in enumerate(self.blocs)
+            }
+
+        elif len(self.blocs) == 1:
+            # precompute pdf for sampling
+            # uniform on ballot types
+            bloc = self.blocs[0]
+            bloc_to_sample = [
+                bloc
+                for _ in range(
+                    len(self.pref_intervals_by_bloc[bloc][bloc].non_zero_cands)
+                )
+            ]
+            pdf = {tuple(bloc_to_sample): 1}
+            self.ballot_type_pdf = {bloc: pdf}
+
+        else:
+            warnings.warn(
+                "For 12 or more candidates, exact sampling is computationally infeasible. \
+                    Please set deterministic = False when calling generate_profile."
+            )
 
     def _compute_ballot_type_dist(self, bloc, opp_bloc):
         """
         Return a dictionary with keys ballot types and values equal to probability of sampling.
         """
         blocs_to_sample = [
-            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+            b
+            for b in self.blocs
+            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
         ]
         total_comparisons = np.prod(
-            [len(l_of_c) for l_of_c in self.slate_to_candidates.values()]
+            [
+                len(interval.non_zero_cands)
+                for interval in self.pref_intervals_by_bloc[bloc].values()
+            ]
         )
+
         cohesion = self.cohesion_parameters[bloc][bloc]
 
         def prob_of_type(b_type):
@@ -1680,9 +1755,7 @@ class slate_BradleyTerry(BallotGenerator):
         summ = sum(pdf.values())
         return {b: v / summ for b, v in pdf.items()}
 
-    def _sample_ballot_types_deterministic(
-        self, bloc: str, opp_bloc: str, num_ballots: int
-    ):
+    def _sample_ballot_types_deterministic(self, bloc: str, num_ballots: int):
         """
         Used to generate bloc orderings for deliberative.
 
@@ -1706,7 +1779,9 @@ class slate_BradleyTerry(BallotGenerator):
         """
 
         seed_ballot_type = [
-            b for b in self.blocs for _ in range(len(self.slate_to_candidates[b]))
+            b
+            for b in self.blocs
+            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
         ]
 
         ballots = [[-1]] * num_ballots
@@ -1763,13 +1838,16 @@ class slate_BradleyTerry(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
-        `number_of_ballots`: The number of ballots to generate.
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+            deterministic (bool): True if you want to use precise pdf, False to use MCMC sampling.
+                Defaults to True.
 
-        `by_bloc`: True if you want to return a dictionary of PreferenceProfiles by bloc.
-                    False if you want the full, aggregated PreferenceProfile.
-
-        `deterministic`: True if you want to use the computed pdf for the slate-BT model,
-                        False if you want to use MCMC approximation. Defaults to True.
+        Returns:
+            Union[PreferenceProfile, Tuple]
         """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
@@ -1791,9 +1869,15 @@ class slate_BradleyTerry(BallotGenerator):
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
             )
 
-            if deterministic:
+            if deterministic and len(self.candidates) >= 12:
+                raise UserWarning(
+                    "Deterministic sampling is only supported for 11 or fewer candidates.\n\
+                    Please set deterministic = False."
+                )
+
+            elif deterministic:
                 ballot_types = self._sample_ballot_types_deterministic(
-                    bloc=bloc, opp_bloc=self.blocs[(i + 1) % 2], num_ballots=num_ballots
+                    bloc=bloc, num_ballots=num_ballots
                 )
             else:
                 ballot_types = self._sample_ballot_types_MCMC(

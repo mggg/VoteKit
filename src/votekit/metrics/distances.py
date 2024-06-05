@@ -8,15 +8,15 @@ from typing import Union, Optional
 
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
-    Computes the earth mover distance between two elections.
-    Assumes both elections share the same candidates.
+    Computes the earth mover distance between two profiles.
+    Assumes both profiles share the same candidates.
 
     Args:
-        pp1: PreferenceProfile for first election.
-        pp2: PreferenceProfile for second election.
+        pp1 (PreferenceProfile): ``PreferenceProfile`` for first election.
+        pp2 (PreferenceProfile): ``PreferenceProfile`` for second election.
 
     Returns:
-        Earth mover distance between inputted elections.
+        int: Earth mover distance between inputted profiles.
     """
     # create ballot graph
     ballot_graph = BallotGraph(source=pp2).graph
@@ -47,18 +47,18 @@ def lp_dist(
     p_value: Optional[Union[int, str]] = 1,
 ) -> int:
     """
-    Computes the L_p distance between two election distributions.
+    Computes the :math:`L_p` distance between two profiles.
     Use 'inf' for infinity norm.
     Assumes both elections share the same candidates.
 
     Args:
-        pp1: PreferenceProfile for first election.
-        pp2: PreferenceProfile for second election.
-        p_value: Distance parameter, 1 for Manhattan, 2 for Euclidean
-            or 'inf' for Chebyshev distance.
+        pp1 (PreferenceProfile): PreferenceProfile for first profile.
+        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+        p_value (Union[int, str], optional): :math:`L_p` distance parameter. Use "inf" for
+            :math:`\infty`.
 
     Returns:
-        Lp distance between two elections.
+        int: :math:`L_p` distance between two profiles.
     """
     pp_list = [pp1, pp2]
     pp_2arry = profiles_to_ndarrys(pp_list)
@@ -81,24 +81,19 @@ def lp_dist(
         raise ValueError("Unsupported input type")
 
 
-# helper functions
-# these functions comvert a list of preference profiles into distribution arrays
 def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     """
-    Converts a list of PreferenceProfile into an ndarray,
-    a matrix like object. The cols represent each profile,
-    rows are the cast ballots, and each element represents
-    the frequency a ballot type occurs for a PreferenceProfile.
-    Each column will sum to one since weights are standardized.
-    This is usefule for computing election Lp distances between
-    elections.
+    Converts a list of preference profiles into an ndarray. The columns
+    represent each profile, rows are the cast ballots, and each element represents
+    the frequency a ballot type occurs for a ``PreferenceProfile``. Each column will sum to one
+    since weights are standardized. This is useful for computing election :math:`L_p` distances
+    between profiles.
 
     Args:
-        profiles (list[PreferenceProfile])
-        : a list of PreferenceProfiles
+        profiles (list[PreferenceProfile]): A list of PreferenceProfiles.
 
     Returns:
-    An ndarray.
+        numpy.ndarray: computed matrix of ballot frequencies.
     """
     cast_ballots: list = []
     profile_dicts: list[dict] = []
@@ -122,13 +117,13 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
 
 def em_array(pp: PreferenceProfile) -> list:
     """
-    Converts a PreferenceProfile into a distribution using ballot graphs.
+    Converts a ``PreferenceProfile`` into a distribution using ballot graphs.
 
     Args:
-        pp: PreferenceProfile for a given election.
+        pp (PreferenceProfile): PreferenceProfile.
 
     Returns:
-        Distribution of ballots for an election.
+        list: Distribution of ballots for the profile.
     """
     ballot_graph = BallotGraph(source=pp)
     node_cand_map = ballot_graph.label_cands(sorted(pp.get_candidates()))

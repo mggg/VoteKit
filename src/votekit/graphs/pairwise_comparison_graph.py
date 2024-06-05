@@ -3,6 +3,7 @@ from itertools import permutations, combinations
 import matplotlib.pyplot as plt  # type: ignore
 import networkx as nx  # type: ignore
 from functools import cache
+from typing import Optional
 
 from ..ballot import Ballot
 from .base_graph import Graph
@@ -14,21 +15,24 @@ class PairwiseComparisonGraph(Graph):
     Class to construct the pairwise comparison graph where nodes are candidates
     and edges are pairwise preferences.
 
-    **Attributes**
+    Args:
+        profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
+        ballot_length (int, optional): Max length of ballot. If not provided,
+            defaults to number of candidates.
 
-    `profile`
-    :   PreferenceProfile to construct graph from.
-
-    `ballot_length`
-    :   (optional) max length of ballot, defaults to longest possible ballot length.
-
-    **Methods**
+    Attributes:
+        profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
+        ballot_length (int): Max length of ballot.
+        candidates (list): List of candidates.
+        pairwise_dict (dict): Dictionary constructed from ``compute_pairwise_dict``.
+        pairwise_graph (networkx.DiGraph): Underlying graph.
     """
 
-    def __init__(self, profile: PreferenceProfile, ballot_length=None):
-        self.ballot_length = ballot_length
+    def __init__(self, profile: PreferenceProfile, ballot_length: Optional[int] = None):
         if ballot_length is None:
             self.ballot_length = len(profile.get_candidates())
+        else:
+            self.ballot_length = ballot_length
         full_profile = self.ballot_fill(profile, self.ballot_length)
         self.profile = full_profile
         self.candidates = self.profile.get_candidates()
@@ -40,12 +44,11 @@ class PairwiseComparisonGraph(Graph):
         Fills incomplete ballots for pairwise comparison.
 
         Args:
-            profile: PreferenceProfile to fill.
-            ballot_length: How long a ballot is.
+            profile (PreferenceProfile): ``PreferenceProfile`` to fill.
+            ballot_length (int): How long a ballot is.
 
         Returns:
-            PreferenceProfile (PreferenceProfile): A PreferenceProfile with incomplete
-                ballots filled in.
+            PreferenceProfile: A ``PreferenceProfile`` with incomplete ballots filled in.
         """
         cand_list = [{cand} for cand in profile.get_candidates()]
         updated_ballot_list = []
@@ -70,7 +73,7 @@ class PairwiseComparisonGraph(Graph):
         return PreferenceProfile(ballots=updated_ballot_list)
 
     # Helper functions to make pairwise comparison graph
-    def head2head_count(self, cand1, cand2) -> Fraction:
+    def head2head_count(self, cand1: str, cand2: str) -> Fraction:
         """
         Counts head to head comparisons between two candidates. Note that the given order
         of the candidates matters here.
@@ -80,7 +83,7 @@ class PairwiseComparisonGraph(Graph):
             cand2 (str): The second candidate to compare.
 
         Returns:
-            A count of the number of times cand1 is preferred to cand2.
+            Fraction: A count of the number of times cand1 is preferred to cand2.
         """
         count = 0
         ballots_list = self.profile.get_ballots()
@@ -96,13 +99,13 @@ class PairwiseComparisonGraph(Graph):
 
     def compute_pairwise_dict(self) -> dict:
         """
-        Constructs dictionary where keys are tuples (cand_a, cand_b) containing
+        Constructs dictionary where keys are tuples ``(cand_a, cand_b)`` containing
         two candidates and values is the frequency cand_a is preferred to
         cand_b.
 
         Returns:
-            A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is preferred
-                to cand_b.
+            dict: A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is
+            preferred to cand_b.
         """
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
         cand_pairs = combinations(self.candidates, 2)
@@ -131,7 +134,7 @@ class PairwiseComparisonGraph(Graph):
         Builds the networkx pairwise comparison graph.
 
         Returns:
-            The networkx digraph representing the pairwise comparison graph.
+            networkx.DiGraph: The networkx digraph representing the pairwise comparison graph.
         """
         G = nx.DiGraph()
         G.add_nodes_from(self.candidates)
@@ -179,13 +182,12 @@ class PairwiseComparisonGraph(Graph):
             plt.show()
         plt.close()
 
-    # More complicated Requests
     def has_condorcet_winner(self) -> bool:
         """
         Checks if graph has a condorcet winner.
 
         Returns:
-            True if condorcet winner exists, False otherwise.
+            bool: True if condorcet winner exists, False otherwise.
         """
         dominating_tiers = self.dominating_tiers()
         if len(dominating_tiers[0]) == 1:
@@ -197,7 +199,7 @@ class PairwiseComparisonGraph(Graph):
         Returns the condorcet winner. Raises a ValueError if no condorcet winner.
 
         Returns:
-            The condorcet winner.
+            str: The condorcet winner.
         """
 
         if self.has_condorcet_winner():
@@ -212,7 +214,7 @@ class PairwiseComparisonGraph(Graph):
         Finds dominating tiers within an election.
 
         Returns:
-            A list of dominating tiers.
+            list[set]: A list of dominating tiers.
         """
         beat_set_size_dict = {}
         for i, cand in enumerate(self.candidates):
@@ -239,7 +241,7 @@ class PairwiseComparisonGraph(Graph):
             greater than 2 in the graph.
 
         Returns:
-            True if condorcet cycles exists, False otherwise.
+            bool: True if condorcet cycles exists, False otherwise.
         """
 
         if len(self.get_condorcet_cycles()) > 0:
@@ -255,7 +257,7 @@ class PairwiseComparisonGraph(Graph):
             greater than 2.
 
         Returns:
-            List of condorcet cycles sorted by length.
+            list: List of condorcet cycles sorted by length.
         """
 
         G = self.pairwise_graph

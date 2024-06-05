@@ -2,7 +2,6 @@ import pandas as pd
 from pydantic import BaseModel
 from typing import Optional
 import json
-from pathlib import Path
 
 from .pref_profile import PreferenceProfile
 from .utils import candidate_position_dict
@@ -14,26 +13,33 @@ class ElectionState(BaseModel):
     """
     Class for storing information on each round of an election and the final outcome.
 
-    **Attributes**
-    `curr_round`
-    :   current round number. Defaults to 0.
+    Args:
+        profile (PreferenceProfile): An instance of a ``PreferenceProfile`` object.
+        curr_round (int, optional): Current round number. Defaults to 0.
+        elected (list[set[str]], optional): List of sets of candidates who pass a threshold to win.
+            Candidates in the same set were elected simultaneously. Defaults to empty list.
+        eliminated_cands (list[set[str]], optional): List of sets of candidates who were eliminated.
+            Candidates in the same set were eliminated simultaneously. Defaults to empty list.
+        remaining (list[set[str]], optional): List of sets of candidates who are remaining.
+            Candidates in the same set were eliminated simultaneously. Defaults to empty list.
+        scores (dict, optional): Dictionary mapping candidate names to scores. Defaults to
+            empty dictionary.
+        previous (ElectionState, optional): An instance of an ``ElectionState`` representing the
+            previous round. Defaults to None.
 
-    `elected`
-    :   list of candidates who pass a threshold to win.
-
-    `eliminated_cands`
-    :   list of candidates who were eliminated.
-
-    `remaining`
-    :   list of candidates who are still in the running.
-
-    `profile`
-    :   an instance of a PreferenceProfile object.
-
-    `previous`
-    :   an instance of ElectionState representing the previous round.
-
-    **Methods**
+    Attributes:
+        profile (PreferenceProfile): An instance of a ``PreferenceProfile`` object.
+        curr_round (int, optional): Current round number. Defaults to 0.
+        elected (list[set[str]], optional): List of sets of candidates who pass a threshold to win.
+            Candidates in the same set were elected simultaneously. Defaults to empty list.
+        eliminated_cands (list[set[str]], optional): List of sets of candidates who were eliminated.
+            Candidates in the same set were eliminated simultaneously. Defaults to empty list.
+        remaining (list[set[str]], optional): List of sets of candidates who are remaining.
+            Candidates in the same set were eliminated simultaneously. Defaults to empty list.
+        scores (dict, optional): Dictionary mapping candidate names to scores. Defaults to
+            empty dictionary.
+        previous (ElectionState, optional): An instance of an ``ElectionState`` representing the
+            previous round. Defaults to None.
     """
 
     curr_round: int = 0
@@ -49,8 +55,10 @@ class ElectionState(BaseModel):
 
     def winners(self) -> list[set[str]]:
         """
+        Winners up to current round.
+
         Returns:
-         A list of elected candidates ordered from first round to current round.
+            list[set[str]]: A list of elected candidates ordered from first round to current round.
         """
         if self.previous:
             return self.previous.winners() + self.elected
@@ -59,8 +67,11 @@ class ElectionState(BaseModel):
 
     def eliminated(self) -> list[set[str]]:
         """
+        Eliminated candidates up to current round.
+
         Returns:
-          A list of eliminated candidates ordered from current round to first round.
+            list[set[str]]: A list of eliminated candidates ordered from current round to first
+                round.
         """
         if self.previous:
             return self.eliminated_cands + self.previous.eliminated()
@@ -69,9 +80,11 @@ class ElectionState(BaseModel):
 
     def rankings(self) -> list[set[str]]:
         """
+        Show the current rankings of all candidates.
+
         Returns:
-          List of all candidates in order of their ranking after each round, first the winners,\
-          then the eliminated candidates.
+            list[set[str]]: List of all candidates in order of their ranking after each round,
+                first the winners, then remaining, then the eliminated candidates.
         """
         if self.remaining != [{}]:
             return self.winners() + self.remaining + self.eliminated()
@@ -79,7 +92,6 @@ class ElectionState(BaseModel):
         return self.winners() + self.eliminated()
 
     def round_outcome(self, round: int) -> dict:
-        # {'elected':list[set[str]], 'eliminated':list[set[str]]}
         """
         Finds the outcome of a given round.
 
@@ -87,7 +99,7 @@ class ElectionState(BaseModel):
             round (int): Round number.
 
         Returns:
-          A dictionary with elected and eliminated candidates.
+            dict: A dictionary with elected, remaining, and eliminated candidates.
         """
         if self.curr_round == round:
             return {
@@ -102,8 +114,12 @@ class ElectionState(BaseModel):
 
     def get_scores(self, round: int = curr_round) -> dict:
         """
-        Returns a dictionary of the candidate scores for the inputted round.
-        Defaults to the last round
+        Get the scores for a desired round.
+
+        Args:
+            round (int, optional): Round number. Defaults to current round.
+        Returns:
+            dict: A dictionary of the candidate scores for the inputted round.
         """
         if round == 0 or round > self.curr_round:
             raise ValueError('Round number out of range"')
@@ -115,9 +131,11 @@ class ElectionState(BaseModel):
 
     def changed_rankings(self) -> dict:
         """
+        Which candidates changed rank between current and previous round.
+
         Returns:
-            A dictionary with keys = candidate(s) who changed \
-                ranking from previous round and values = a tuple of (previous rank, new rank).
+            dict: A dictionary with keys = candidate(s) who changed ranking from previous round
+                and values = a tuple of (previous rank, new rank).
         """
 
         if not self.previous:
@@ -136,9 +154,11 @@ class ElectionState(BaseModel):
 
     def status(self) -> pd.DataFrame:
         """
+        Yield the status of the candidates in the current round.
+
         Returns:
-          Data frame displaying candidate, status (elected, eliminated,
-            remaining), and the round their status updated.
+            pd.DataFrame: Data frame displaying candidate, status (elected, eliminated,
+                remaining), and the round their status updated.
         """
         all_cands = [c for s in self.rankings() for c in s]
         status_df = pd.DataFrame(
@@ -172,9 +192,12 @@ class ElectionState(BaseModel):
         Returns election results as a dictionary.
 
         Args:
-            keep (list, optional): List of information to store in dictionary, should be subset of
+            keep (list, optional): List of information to store in dictionary. Should be subset of
                 "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
                 which stores all information.
+
+        Returns:
+            dict: Dictionary of election results.
 
         """
         keys = ["elected", "eliminated", "remaining", "ranking"]
@@ -200,11 +223,12 @@ class ElectionState(BaseModel):
 
         return rv
 
-    def to_json(self, file_path: Path, keep: list = []):
+    def to_json(self, file_path: str, keep: list = []):
         """
-        Saves election state object as a JSON file:
+        Saves election state object as a JSON file.
 
         Args:
+            file_path (str): The name of the file path.
             keep (list, optional): List of information to store in dictionary, should be subset of
                 "elected", "eliminated", "remaining", "ranking". Defaults to empty list,
                 which stores all information.

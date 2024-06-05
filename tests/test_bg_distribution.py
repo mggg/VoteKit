@@ -895,6 +895,27 @@ def test_sample_ballot_types():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
 
+def test_zero_cohesion_sample_ballot_types():
+    slate_to_non_zero_candidates = {"A": ["A1", "A2"], "B": ["B1", "B2"]}
+    cohesion_parameters_for_A_bloc = {"A": 1, "B": 0}
+
+    sampled = sample_cohesion_ballot_types(
+        slate_to_non_zero_candidates=slate_to_non_zero_candidates,
+        num_ballots=100,
+        cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
+    )
+
+    # check that ballots were completed
+    assert all(-1 not in s for s in sampled)
+
+    # check that correct count of A and B appear
+    assert all(
+        s.count(b) == len(slate_to_non_zero_candidates[b])
+        for s in sampled
+        for b in slate_to_non_zero_candidates
+    )
+
+
 def test_name_Cumulative_distribution():
     cumu = name_Cumulative(
         candidates=["A", "B"],

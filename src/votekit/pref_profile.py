@@ -12,41 +12,41 @@ class PreferenceProfile(BaseModel):
     """
     PreferenceProfile class, contains ballots and candidates for a given election.
 
-    **Attributes**
+    Args:
+        ballots (list[Ballot]): List of ``Ballot`` objects.
+        candidates (list, optional): List of candidate strings. Defaults to None.
 
-    `ballots`
-    :   list of `Ballot` objects.
 
-    `candidates`
-    :   list of candidates.
-
-    **Methods**
+    Attributes:
+        ballots (list[Ballot]): List of ``Ballot`` objects.
+        candidates (list, optional): List of candidate strings.
+        df (pandas.DataFrame): pandas ``DataFrame`` used to store ballots.
     """
 
     ballots: list[Ballot] = []
     candidates: Optional[list] = None
     df: pd.DataFrame = pd.DataFrame()
 
-    @validator("candidates")
+    @validator("candidates", allow_reuse=True)
     def cands_must_be_unique(cls, candidates: list) -> list:
         if not len(set(candidates)) == len(candidates):
-            raise ValueError("all candidates must be unique")
+            raise ValueError("All candidates must be unique")
         return candidates
 
     def get_ballots(self) -> list[Ballot]:
         """
         Returns:
-         List of ballots.
+            list: List of ``Ballot`` objects.
         """
         return self.ballots[:]
 
     def get_candidates(self, received_votes: Optional[bool] = True) -> list:
         """
         Args:
-            received_votes: If True, only return candidates that received votes. Defaults
-                    to True.
+            received_votes (bool, optional): If True, only return candidates that received votes.
+                Defaults to True.
         Returns:
-          List of candidates.
+            list: List of candidates.
         """
 
         if received_votes or not self.candidates:
@@ -64,7 +64,7 @@ class PreferenceProfile(BaseModel):
         Counts number of ballots based on assigned weight.
 
         Returns:
-            Number of ballots cast.
+            Fracton: Number of ballots cast.
         """
         num_ballots = Fraction(0)
         for ballot in self.ballots:
@@ -74,14 +74,15 @@ class PreferenceProfile(BaseModel):
 
     def to_dict(self, standardize: bool = False) -> dict:
         """
-        Converts to dictionary with keys = rankings and values = corresponding total weights.
+        Converts profile to dictionary with keys = rankings and
+        values = corresponding total weights.
 
         Args:
-            standardize (Boolean): If True, divides the weight of each ballot
-                            by the total weight. Defaults to False.
+            standardize (bool, optional): If True, divides the weight of each ballot by the total
+                weight. Defaults to False.
 
         Returns:
-            A dictionary with ranking (keys) and corresponding total weights (values).
+            dict: A dictionary with ranking (keys) and corresponding total weights (values).
         """
         num_ballots = self.num_ballots()
         di: dict = {}
@@ -105,7 +106,7 @@ class PreferenceProfile(BaseModel):
         Saves PreferenceProfile to CSV.
 
         Args:
-            fpath: Path to the saved csv.
+            fpath (str): Path to the saved csv.
         """
         with open(fpath, "w", newline="") as csvfile:
             fieldnames = ["weight", "ranking"]
@@ -117,6 +118,9 @@ class PreferenceProfile(BaseModel):
     def _create_df(self) -> pd.DataFrame:
         """
         Creates pandas DataFrame for display and building plots.
+
+        Returns:
+            pandas.DataFrame: Data frame of ballots with weight and percent columns.
         """
         weights = []
         ballots = []
@@ -159,13 +163,16 @@ class PreferenceProfile(BaseModel):
         Displays top-n ballots in profile.
 
         Args:
-            n: Number of ballots to view.
-            sort_by_weight: If True, rank ballot from most to least votes. Defaults to True.
-            percents: If True, show voter share for a given ballot.
-            totals: If True, show total values for Percent and Weight.
+            n (int): Number of ballots to view.
+            sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
+                Defaults to True.
+            percents (bool, optional): If True, show voter share for a given ballot.
+                Defaults to False.
+            totals (bool, optional): If True, show total values for Percent and Weight.
+                Defaults to False.
 
         Returns:
-            A dataframe with top-n ballots.
+            pd.DataFrame: A dataframe with top-n ballots.
         """
         if self.df.empty:
             self.df = self._create_df()
@@ -198,10 +205,13 @@ class PreferenceProfile(BaseModel):
         Displays bottom-n ballots in profile.
 
         Args:
-            n: Number of ballots to view.
-            sort_by_weight: If True, rank ballot from least to most votes. Defaults to True.
-            percents: If True, show voter share for a given ballot.
-            totals: If True, show total values for Percent and Weight.
+            n (int): Number of ballots to view.
+            sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
+                Defaults to True.
+            percents (bool, optional): If True, show voter share for a given ballot.
+                Defaults to False.
+            totals (bool, optional): If True, show total values for Percent and Weight.
+                Defaults to False.
 
         Returns:
             A data frame with bottom-n ballots.
@@ -253,7 +263,7 @@ class PreferenceProfile(BaseModel):
         Groups ballots by rankings and updates weights.
 
         Returns:
-            A PreferenceProfile object with condensed ballot list.
+            PreferenceProfile: A PreferenceProfile object with condensed ballot list.
         """
         ranking_to_index: dict = {}
         weight_accumulator = {}

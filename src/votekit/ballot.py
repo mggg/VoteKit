@@ -10,19 +10,19 @@ class Ballot:
     """
     Ballot class, contains ranking and assigned weight.
 
-    **Attributes**
-    `ranking`
-    :   tuple of candidate ranking. Entry $i$ of the tuple is a frozenset of candidates ranked
-        in position $i$.
+    Args:
+        ranking (tuple[frozenset, ...]): Tuple of candidate ranking. Entry i of the tuple is a
+            frozenset of candidates ranked in position i.
+        weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
+        voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
+        id (str, optional): Ballot ID. Defaults to None.
 
-    `weight`
-    :   (Fraction) weight assigned to a given a ballot. Defaults to 1.
-
-    `voter_set`
-    :   optional set of voters who cast a given a ballot.
-
-    `id`
-    :   optional ballot id.
+    Attributes:
+        ranking (tuple[frozenset, ...]): Tuple of candidate ranking. Entry i of the tuple is a
+            frozenset of candidates ranked in position i.
+        weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
+        voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
+        id (str, optional): Ballot ID. Defaults to None.
     """
 
     ranking: tuple[frozenset, ...] = field(default_factory=tuple)
