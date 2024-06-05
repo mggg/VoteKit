@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ## Added
 - Created a read the docs page.
+- Add `scale` parameter to `ballot_graph.draw()` to allow for easier reading of text labels.
 
 ## Changed
 - Updated tutorial notebooks; larger focus on slate models, updated notebooks to match current codebase.
 - Removed the seq-RCV transfer rule since it is a dummy function, replaced with lambda function.
-- Update plot MDS to have aspect ratio 1.
+- Update plot MDS to have aspect ratio 1, remove axes labels since they are meaningless in MDS.
 
 ## Fixed
 - Fixed bug by which slate-PlackettLuce could not generate ballots when some candidate had 0 support.

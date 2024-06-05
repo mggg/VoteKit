@@ -291,6 +291,7 @@ interval type. It’s very important to remember that the x axis and y
 axis numbers do not mean ANYTHING in an MDS plot—there’s literally a
 randomized algorithm throwing the 40 points into the plane in a manner
 that keeps similar things close and puts dissimilar things farther away.
+That is why our MDS function does not include any axis labels.
 
 What is this plot telling us? The fact that x’s are in one area and o’s
 are in another tells us that the different preference intervals generate
