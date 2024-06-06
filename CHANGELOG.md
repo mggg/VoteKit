@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 - Created a read the docs page.
 - Add `scale` parameter to `ballot_graph.draw()` to allow for easier reading of text labels.
+- Allow users to choose which bloc is W/C in historical Cambridge data for CambridgeSampler.
 
 ## Changed
 - Updated tutorial notebooks; larger focus on slate models, updated notebooks to match current codebase.
