@@ -369,7 +369,7 @@ candidates go in the slots.
 
 -  You can give the CS model other historical election data to use.
 
-Distance Models
+Spatial Models
 ---------------
 
 1-D Spatial
@@ -503,7 +503,7 @@ Cumulative
 Voting system where voters are allowed to vote for candidates with multiplicity.
 Each ranking position should have one candidate, and every candidate ranked will receive
 one point, i.e., the score vector is :math:`(1,\dots,1)`. Recall a score vector is a 
-vector whose :math:`i`th entry denotes the number of points given to a candidate in 
+vector whose :math:`i` th entry denotes the number of points given to a candidate in 
 position :math:`i`. Normally a score vector is non-negative and decreasing.
 
 Distances between PreferenceProfiles

@@ -299,6 +299,68 @@ def test_Cambridge_completion():
     assert agg_prof.num_ballots() == 100
 
 
+def test_Cambridge_completion_W_C_bloc():
+    # W as majority
+    cs = CambridgeSampler(
+        candidates=["W1", "W2", "C1", "C2"],
+        slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
+        pref_intervals_by_bloc={
+            "A": {
+                "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+            },
+            "B": {
+                "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+            },
+        },
+        bloc_voter_prop={"A": 0.7, "B": 0.3},
+        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+        W_bloc="A",
+        C_bloc="B",
+    )
+    profile = cs.generate_profile(number_of_ballots=100)
+    assert type(profile) is PreferenceProfile
+
+    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
+    assert type(result) is tuple
+    profile_dict, agg_prof = result
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["A"])) is PreferenceProfile
+    assert type(agg_prof) is PreferenceProfile
+    assert agg_prof.num_ballots() == 100
+
+    # W as minority
+    cs = CambridgeSampler(
+        candidates=["W1", "W2", "C1", "C2"],
+        slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
+        pref_intervals_by_bloc={
+            "A": {
+                "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+            },
+            "B": {
+                "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+            },
+        },
+        bloc_voter_prop={"A": 0.7, "B": 0.3},
+        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+        W_bloc="B",
+        C_bloc="A",
+    )
+    profile = cs.generate_profile(number_of_ballots=100)
+    assert type(profile) is PreferenceProfile
+
+    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
+    assert type(result) is tuple
+    profile_dict, agg_prof = result
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["A"])) is PreferenceProfile
+    assert type(agg_prof) is PreferenceProfile
+    assert agg_prof.num_ballots() == 100
+
+
 def test_ballot_simplex_from_point():
     candidates = ["W1", "W2", "C1", "C2"]
     pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
