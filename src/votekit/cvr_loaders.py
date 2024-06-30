@@ -89,13 +89,15 @@ def load_csv(
     return PreferenceProfile(ballots=ballots)
 
 
-def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
+def load_scottish(
+    fpath: str,
+) -> tuple[PreferenceProfile, int, list[str], dict[str, str], str]:
     """
-    Given a file path, loads cvr from format used for Scottish election data in
-    (this repo)[https://github.com/mggg/scot-elex].
+    Given a file path, loads cast vote record from format used for Scottish election data
+    in (this repo)[https://github.com/mggg/scot-elex].
 
     Args:
-        fpath (str): Path to cvr file.
+        fpath (str): Path to Scottish election csv file.
 
     Raises:
         FileNotFoundError: If fpath is invalid.
@@ -103,73 +105,70 @@ def load_scottish(fpath: str) -> tuple[PreferenceProfile, int]:
         DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        tuple: A tuple ``(PreferenceProfile, seats)`` representing the election and the
-            number of seats in the election.
+        tuple: A tuple ``(PreferenceProfile, seats, cand_list, cand_to_party, ward)``
+            representing the election, the number of seats in the election, the candidate
+            names, a dictionary mapping candidates to their party, and the ward. The
+            candidate names are also stored in the PreferenceProfile object.
     """
-    ballots = []
-    names = []
-    name_map = {}
-    numbers = True
-    cands_included = False
 
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")
     if os.path.getsize(fpath) == 0:
-        raise EmptyDataError("Dataset cannot be empty")
+        raise EmptyDataError(f"CSV at {fpath} is empty.")
 
     with open(fpath, "r") as file:
-        for i, line in enumerate(file):
-            s = line.rstrip("\n").rstrip()
-            if i == 0:
-                # first number is number of candidates, second is number of seats to elect
-                metadata = [int(data) for data in s.split(" ")]
-                if len(metadata) != 2:
-                    raise DataError(
-                        "metadata (first line) should have two parameters"
-                        " (number of candidates, number of seats)"
-                    )
-                seats = metadata[1]
-            # read in ballots, cleaning out rankings labeled '0' (designating end of line)
-            elif numbers:
-                ballot = [int(vote) for vote in s.split(" ")]
-                num_votes = ballot[0]
-                # ballots terminate with a single row with the character '0'
-                if num_votes == 0:
-                    numbers = False
-                else:
-                    ranking = [rank for rank in list(ballot[1:]) if rank != 0]
-                    b = (ranking, num_votes)
-                    ballots.append(b)  # this is converted to the PP format later
-            # read in candidates
-            elif "(" in s:
-                cands_included = True
-                name_parts = s.strip('"').split(" ")
-                first_name = " ".join(name_parts[:-2])
-                last_name = name_parts[-2]
-                party = name_parts[-1].strip("(").strip(")")
-                names.append(str((first_name, last_name, party)))
-            else:
-                if len(names) != metadata[0]:
-                    err_message = (
-                        f"Number of candidates listed, {len(names)}," + f" differs from"
-                        f"number of candidates recorded in metadata, {metadata[0]}"
-                    )
-                    raise DataError(err_message)
-                # read in election location (do we need this?)
-                # location = s.strip("\"")
-                if not cands_included:
-                    raise DataError("Candidates missing from file")
-                # map candidate numbers onto their names and convert ballots to PP format
-                for i, name in enumerate(names):
-                    name_map[i + 1] = name
-                clean_ballots = [
-                    Ballot(
-                        ranking=tuple(
-                            [frozenset({name_map[cand]}) for cand in ballot[0]]
-                        ),
-                        weight=Fraction(ballot[1]),
-                    )
-                    for ballot in ballots
-                ]
+        lines = list(file)
 
-        return PreferenceProfile(ballots=clean_ballots, candidates=names), seats
+        # remove errant blank character at end of line
+        row_0 = lines[0].split(",")[:-1]
+
+        if len(row_0) != 2:
+            raise DataError(
+                "The metadata in the first show should be number of \
+                            candidates, seats."
+            )
+
+        cand_num, seats = int(row_0[0]), int(row_0[1])
+        ward = lines[-1].split(",")[0].strip('"')
+
+        num_to_cand = {}
+        cand_to_party = {}
+
+        # record candidate names, which are up until the final row
+        for i, line in enumerate(lines[len(lines) - (cand_num + 1) : -1]):
+            parsed_line = line.split(",")
+            if "Candidate" not in parsed_line[0]:
+                raise DataError(
+                    f"The number of candidates on line 1 is {cand_num}, which\
+                                does not match the metadata."
+                )
+            cand = parsed_line[1].strip('"')
+            party = parsed_line[2].strip('"')
+
+            # candidates are 1 indexed
+            num_to_cand[str(i + 1)] = cand
+            cand_to_party[cand] = party
+
+        cand_list = list(cand_to_party.keys())
+
+        if len(cand_list) != cand_num:
+            raise DataError(
+                "Incorrect number of candidates in either first row metadata \
+                            or in candidate list at end of csv file."
+            )
+        ballots = [Ballot()] * len(lines[1 : len(lines) - (cand_num + 1)])
+
+        for i, line in enumerate(lines[1 : len(lines) - (cand_num + 1)]):
+            # remove carriage return and blank string after final comma
+            parsed_line = line.strip("\n").split(",")[:-1]
+
+            ballot_weight = Fraction(parsed_line[0])
+            cand_ordering = parsed_line[1:]
+            ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
+
+            ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
+
+        profile = PreferenceProfile(
+            ballots=ballots, candidates=cand_list
+        ).condense_ballots()
+        return (profile, seats, cand_list, cand_to_party, ward)
