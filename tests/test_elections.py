@@ -15,7 +15,6 @@ from votekit.utils import (
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data/csv/"
-BLT_DIR = BASE_DIR / "data/txt/"
 
 
 test_profile = load_csv(DATA_DIR / "test_election_A.csv")
@@ -23,38 +22,46 @@ mn_profile = load_csv("src/votekit/data/mn_2013_cast_vote_record.csv")
 
 
 def test_droop_default_parameter():
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        DATA_DIR / "scot_wardy_mc_ward.csv"
+    )
 
     election = STV(pp, fractional_transfer, seats=seats)
 
-    droop_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / (4 + 1)) + 1
+    droop_quota = int((126 + 9 + 10 + 1) / (1 + 1)) + 1
 
     assert election.threshold == droop_quota
 
 
 def test_droop_inputed_parameter():
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        DATA_DIR / "scot_wardy_mc_ward.csv"
+    )
 
     election = STV(pp, fractional_transfer, seats=seats, quota="Droop")
 
-    droop_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / (4 + 1)) + 1
+    droop_quota = int((126 + 9 + 10 + 1) / (1 + 1)) + 1
 
     assert election.threshold == droop_quota
 
 
 def test_quota_misspelled_parameter():
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        DATA_DIR / "scot_wardy_mc_ward.csv"
+    )
 
     with pytest.raises(ValueError):
         _ = STV(pp, fractional_transfer, seats=seats, quota="droops")
 
 
 def test_hare_quota():
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        DATA_DIR / "scot_wardy_mc_ward.csv"
+    )
 
     election = STV(pp, fractional_transfer, seats=seats, quota="hare")
 
-    hare_quota = int((8 + 14 + 1 + 13 + 1 + 1 + 2) / 4)
+    hare_quota = int((126 + 9 + 10 + 1) / 1)
 
     assert election.threshold == hare_quota
 
