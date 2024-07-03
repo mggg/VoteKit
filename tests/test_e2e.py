@@ -24,13 +24,14 @@ def test_load_clean_completion():
 
     # load CVR -> PP representation
     BASE_DIR = Path(__file__).resolve().parent
-    BLT_DIR = BASE_DIR / "data/txt/"
+    CSV_DIR = BASE_DIR / "data/csv/"
 
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
-    print(pp)
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        CSV_DIR / "scot_wardy_mc_ward.csv"
+    )
 
     # apply rules to get new PP
-    cleaned_pp = clean.remove_noncands(pp, ["Graham HUTCHISON (C)"])
+    cleaned_pp = clean.remove_noncands(pp, ["Paul"])
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")
