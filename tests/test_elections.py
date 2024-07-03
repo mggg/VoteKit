@@ -1,10 +1,17 @@
 from fractions import Fraction
 from pathlib import Path
 import pytest
+import random
+import numpy as np
 
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_scottish, load_csv  # type:ignore
-from votekit.elections.election_types import STV, SequentialRCV
+from votekit.elections.election_types import (
+    STV,
+    SequentialRCV,
+    RandomDictator,
+    BoostedRandomDictator,
+)
 from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
@@ -184,3 +191,57 @@ def test_toy_rcv():
     seq_RCV = SequentialRCV(profile=toy_pp, seats=2, ballot_ties=False)
     toy_winners = seq_RCV.run_election().winners()
     assert known_winners == toy_winners
+
+
+def test_random_dictator():
+    # set seed for more predictable results
+    random.seed(919717)
+
+    # simple 3 candidate election
+    candidates = ["A", "B", "C"]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+    ]
+    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+
+    # count the number of wins over a set of trials
+    winner_counts = {c: 0 for c in candidates}
+    trials = 10000
+    for t in range(trials):
+        election = RandomDictator(test_profile, 1)
+        election.run_election()
+        winner = list(election.state.winners()[0])[0]
+        winner_counts[winner] += 1
+
+    # check to make sure that the fraction of wins matches the true probability
+    assert np.allclose(3 / 5, winner_counts["A"] / trials, atol=1e-2)
+
+
+def test_boosted_random_dictator():
+    # set seed for more predictable results
+    random.seed(919717)
+
+    # simple 3 candidate election
+    candidates = ["A", "B", "C"]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+    ]
+    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+
+    # count the number of wins over a set of trials
+    winner_counts = {c: 0 for c in candidates}
+    trials = 10000
+    for t in range(trials):
+        election = BoostedRandomDictator(test_profile, 1)
+        election.run_election()
+        winner = list(election.state.winners()[0])[0]
+        winner_counts[winner] += 1
+
+    # check to make sure that the fraction of wins matches the true probability
+    assert np.allclose(
+        1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=1e-2
+    )

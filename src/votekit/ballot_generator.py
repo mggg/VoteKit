@@ -1930,3 +1930,140 @@ class slate_BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+
+
+class UniformSpatial(BallotGenerator):
+    """
+    Uniform spatial model for ballot generation. Assumes the candidates are uniformly distributed in
+    d dimensional space. Voters are then distributed equivalently, and vote with
+    ballots based on Euclidean distance to the candidates.
+
+    Args:
+        candidates (list): List of candidate strings.
+
+    Attributes:
+        candidates (list): List of candidate strings.
+
+    """
+
+    def generate_profile(
+        self,
+        number_of_ballots: int,
+        by_bloc: bool = False,
+        dim: int = 2,
+        lower: float = 0,
+        upper: float = 1,
+        seed: Optional[int] = None,
+    ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): Dummy variable from parent class.
+            dim (int, optional): number of dimensions to use, defaults to 2d
+            lower (float, optional): lower bound for uniform distribution, defaults to 0
+            upper (float, optional): upper bound for uniform distribution, defaults to 1
+            seed (int, optional): seed for random generation
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
+
+        np.random.seed(seed)
+        candidate_position_dict = {
+            c: np.random.uniform(lower, upper, size=dim) for c in self.candidates
+        }
+        voter_positions = np.random.uniform(lower, upper, size=(number_of_ballots, dim))
+
+        ballot_pool = []
+
+        for vp in voter_positions:
+            distance_dict = {
+                c: np.linalg.norm(v - vp) for c, v, in candidate_position_dict.items()
+            }
+            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            ballot_pool.append(candidate_order)
+
+        # reset the seed
+        np.random.seed(None)
+
+        return (
+            self.ballot_pool_to_profile(ballot_pool, self.candidates),
+            candidate_position_dict,
+            voter_positions,
+        )
+
+
+class ClusteredSpatial(BallotGenerator):
+    """
+    Clustered spatial model for ballot generation.
+    Assumes the candidates are uniformly distributed in d dimensional space.
+    Voters are then distributed normally around them, and vote with
+    ballots based on Euclidean distance to the candidates.
+
+    Args:
+        candidates (list): List of candidate strings.
+
+    Attributes:
+        candidates (list): List of candidate strings.
+
+    """
+
+    def generate_profile_with_dict(
+        self,
+        number_of_ballots: dict,
+        by_bloc: bool = False,
+        dim: int = 2,
+        lower: float = 0,
+        upper: float = 1,
+        std: float = 1,
+        seed: Optional[int] = None,
+    ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Args:
+            number_of_ballots (dict): The number of voters attributed
+                        to each candidate {candidate string: # voters}
+            by_bloc (bool): Dummy variable from parent class.
+            dim (int, optional): number of dimensions to use, defaults to 2d
+            lower (float, optional): lower bound for uniform distribution, defaults to 0
+            upper (float, optional): upper bound for uniform distribution, defaults to 1
+            std (float, optional): standard deviation for voters normally distributed around
+                                   candidates, defaults to 1
+            seed (int, optional): seed for random generation
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
+
+        np.random.seed(seed)
+        candidate_position_dict = {
+            c: np.random.uniform(lower, upper, size=dim) for c in self.candidates
+        }
+        voter_positions = []
+        for c in self.candidates:
+            voter_positions.append(
+                np.random.normal(
+                    loc=candidate_position_dict[c],
+                    scale=std,
+                    size=(number_of_ballots[c], dim),
+                )
+            )
+
+        voter_positions_array = np.vstack(voter_positions)
+
+        ballot_pool = []
+
+        for vp in voter_positions_array:
+            distance_dict = {
+                c: np.linalg.norm(v - vp) for c, v, in candidate_position_dict.items()
+            }
+            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            ballot_pool.append(candidate_order)
+
+        # reset the seed
+        np.random.seed(None)
+
+        return (
+            self.ballot_pool_to_profile(ballot_pool, self.candidates),
+            candidate_position_dict,
+            voter_positions_array,
+        )

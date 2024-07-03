@@ -1,5 +1,6 @@
 from fractions import Fraction
 import itertools as it
+import random
 import numpy as np
 from typing import Callable, Optional, Union
 from functools import lru_cache
@@ -1117,3 +1118,183 @@ class Cumulative(HighestScore):
             seats=seats,
             tiebreak=tiebreak,
         )
+
+
+class RandomDictator(Election):
+    """
+    Choose a winner randomly from the distribution of first place votes. For multi-winner elections
+    repeat this process for every winner, removing that candidate from every voter's ballot
+    once they have been elected
+
+    Args:
+      profile (PreferenceProfile): PreferenceProfile to run election on
+      seats (int): number of seats to select
+
+    Attributes:
+      _profile (PreferenceProfile): PreferenceProfile to run election on
+      seats (int): Number of seats to be elected.
+
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        # the super method says call the Election class
+        super().__init__(profile, ballot_ties=False)
+        self.seats = seats
+
+    def next_round(self) -> bool:
+        """
+        Determines if another round is needed.
+
+        Returns:
+            True if number of seats has not been met, False otherwise
+        """
+        cands_elected = 0
+        for s in self.state.winners():
+            cands_elected += len(s)
+        return cands_elected < self.seats
+
+    def run_step(self):
+        if self.next_round():
+            remaining = self.state.profile.get_candidates()
+
+            ballots = self.state.profile.ballots
+            weights = [b.weight for b in ballots]
+            random_ballot = random.choices(
+                self.state.profile.ballots, weights=weights, k=1
+            )[0]
+
+            # randomly choose a winner from the first place rankings
+            winning_candidate = list(random_ballot.ranking[0])[0]
+
+            # some formatting to make it compatible with ElectionState, which
+            # requires a list of sets of strings
+            elected = [{winning_candidate}]
+
+            # remove the winner from the ballots
+            # Does this move second place votes up to first place?
+            new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
+            new_profile = PreferenceProfile(ballots=new_ballots)
+
+            # determine who remains
+            remaining = [{c} for c in remaining if c != winning_candidate]
+
+            # update for the next round
+            self.state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=elected,
+                eliminated_cands=[],
+                remaining=remaining,
+                profile=new_profile,
+                previous=self.state,
+            )
+
+            # if this is the last round, move remaining to eliminated
+            if not self.next_round():
+                self.state = ElectionState(
+                    curr_round=self.state.curr_round,
+                    elected=elected,
+                    eliminated_cands=remaining,
+                    remaining=[],
+                    profile=new_profile,
+                    previous=self.state.previous,
+                )
+            return self.state
+
+    def run_election(self):
+        # run steps until we elect the required number of candidates
+        while self.next_round():
+            self.run_step()
+
+        return self.state
+
+
+class BoostedRandomDictator(RandomDictator):
+    """
+    Modified random dictator where we
+        - Choose a winner randomly from the distribution of first
+          place votes with probability (1 - 1/(# Candidates - 1))
+        - Choose a winner via a proportional to squares rule with
+          probability 1/(# of Candidates - 1)
+
+    For multi-winner elections
+    repeat this process for every winner, removing that candidate from every voter's ballot
+    once they have been elected
+
+    Args:
+      profile (PreferenceProfile): PreferenceProfile to run election on
+      seats (int): number of seats to select
+
+    Attributes:
+      _profile (PreferenceProfile): PreferenceProfile to run election on
+      seats (int): Number of seats to be elected.
+
+    """
+
+    def __init__(self, profile: PreferenceProfile, seats: int):
+        # the super method says call the Election class
+        # ballot_ties = True means it will resolve any ties in our ballots
+        super().__init__(profile, seats)
+
+    def run_step(self):
+        if self.next_round():
+            remaining = self.state.profile.get_candidates()
+            u = random.uniform(0, 1)
+
+            if len(remaining) == 1:
+                winning_candidate = remaining[0]
+
+            elif u <= 1 / (len(remaining) - 1):
+                # Choose via proportional to squares
+                candidate_votes = {c: 0 for c in remaining}
+                for ballot in self.state.profile.get_ballots():
+                    top_choice = list(ballot.ranking[0])[0]
+                    candidate_votes[top_choice] += float(ballot.weight)
+
+                squares = np.array(
+                    [(i / len(remaining)) ** 2 for i in candidate_votes.values()]
+                )
+                sum_of_squares = np.sum(squares)
+                probabilities = squares / sum_of_squares
+                winning_candidate = np.random.choice(remaining, p=probabilities)
+
+            else:
+                ballots = self.state.profile.ballots
+                weights = [b.weight for b in ballots]
+                random_ballot = random.choices(
+                    self.state.profile.ballots, weights=weights, k=1
+                )[0]
+                # randomly choose a winner according to first place rankings
+                winning_candidate = list(random_ballot.ranking[0])[0]
+
+            # some formatting to make it compatible with ElectionState, which
+            # requires a list of sets of strings
+            elected = [{winning_candidate}]
+
+            # remove the winner from the ballots
+            new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
+            new_profile = PreferenceProfile(ballots=new_ballots)
+
+            # determine who remains
+            remaining = [{c} for c in remaining if c != winning_candidate]
+
+            # update for the next round
+            self.state = ElectionState(
+                curr_round=self.state.curr_round + 1,
+                elected=elected,
+                eliminated_cands=[],
+                remaining=remaining,
+                profile=new_profile,
+                previous=self.state,
+            )
+
+            # if this is the last round, move remaining to eliminated
+            if not self.next_round():
+                self.state = ElectionState(
+                    curr_round=self.state.curr_round,
+                    elected=elected,
+                    eliminated_cands=remaining,
+                    remaining=[],
+                    profile=new_profile,
+                    previous=self.state.previous,
+                )
+            return self.state

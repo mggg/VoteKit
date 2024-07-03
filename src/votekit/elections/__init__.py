@@ -13,6 +13,8 @@ from .election_types import (  # noqa
     IRV,
     HighestScore,
     Cumulative,
+    RandomDictator,
+    BoostedRandomDictator,
 )
 
 from .transfers import fractional_transfer, random_transfer  # noqa
