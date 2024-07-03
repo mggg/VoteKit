@@ -1,8 +1,6 @@
 import pytest
 
-from votekit.ballot_generator import (
-    name_PlackettLuce,
-)
+from votekit.ballot_generator import name_PlackettLuce, CambridgeSampler
 
 from votekit.pref_interval import PreferenceInterval
 
@@ -62,4 +60,46 @@ def test_incorrect_bloc_props():
             bloc_voter_prop=blocs,
             cohesion_parameters=cohesion,
             alphas=alphas,
+        )
+
+
+def test_Cambridge_maj_bloc_error():
+    # need to provide both W_bloc and C_bloc
+    with pytest.raises(ValueError):
+        CambridgeSampler(
+            candidates=["W1", "W2", "C1", "C2"],
+            slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
+            pref_intervals_by_bloc={
+                "A": {
+                    "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                    "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+                },
+                "B": {
+                    "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                    "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+                },
+            },
+            bloc_voter_prop={"A": 0.7, "B": 0.3},
+            cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+            W_bloc="A",
+        )
+    # must be distinct
+    with pytest.raises(ValueError):
+        CambridgeSampler(
+            candidates=["W1", "W2", "C1", "C2"],
+            slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
+            pref_intervals_by_bloc={
+                "A": {
+                    "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                    "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+                },
+                "B": {
+                    "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                    "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+                },
+            },
+            bloc_voter_prop={"A": 0.7, "B": 0.3},
+            cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+            W_bloc="A",
+            C_bloc="A",
         )
