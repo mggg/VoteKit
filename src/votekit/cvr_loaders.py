@@ -1,5 +1,6 @@
 from fractions import Fraction
 import os
+import csv
 import pandas as pd
 from pandas.errors import EmptyDataError, DataError
 import pathlib
@@ -116,59 +117,67 @@ def load_scottish(
     if os.path.getsize(fpath) == 0:
         raise EmptyDataError(f"CSV at {fpath} is empty.")
 
-    with open(fpath, "r") as file:
-        lines = list(file)
+    # Convert the ballot rows to ints while leaving the candidates as strings
+    def convert_row(row):
+        return [int(item) if item.isdigit() else item for item in row]
 
-        # remove errant blank character at end of line
-        row_0 = lines[0].split(",")[:-1]
+    data = []
+    with open(fpath, "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            # This just removes any empty strings that are hanging out since
+            # we don't need to preserve columns
+            filtered_row = list(filter(lambda x: x != "", row))
 
-        if len(row_0) != 2:
-            raise DataError(
-                "The metadata in the first show should be number of \
+            # only save non-empty rows
+            if len(filtered_row) > 0:
+                data.append(convert_row(filtered_row))
+
+    if len(data[0]) != 2:
+        raise DataError(
+            "The metadata in the first row should be number of \
                             candidates, seats."
-            )
+        )
 
-        cand_num, seats = int(row_0[0]), int(row_0[1])
-        ward = lines[-1].split(",")[0].strip('"')
+    cand_num, seats = data[0][0], data[0][1]
+    ward = data[-1][0]
 
-        num_to_cand = {}
-        cand_to_party = {}
+    num_to_cand = {}
+    cand_to_party = {}
 
-        # record candidate names, which are up until the final row
-        for i, line in enumerate(lines[len(lines) - (cand_num + 1) : -1]):
-            parsed_line = line.split(",")
-            if "Candidate" not in parsed_line[0]:
-                raise DataError(
-                    f"The number of candidates on line 1 is {cand_num}, which\
-                                does not match the metadata."
-                )
-            cand = parsed_line[1].strip('"')
-            party = parsed_line[2].strip('"')
+    data_cand_num = len([r for r in data if "Candidate" in str(r[0])])
+    if data_cand_num != cand_num:
+        raise DataError(
+            "Incorrect number of candidates in either first row metadata \
+                        or in candidate list at end of csv file."
+        )
 
-            # candidates are 1 indexed
-            num_to_cand[str(i + 1)] = cand
-            cand_to_party[cand] = party
-
-        cand_list = list(cand_to_party.keys())
-
-        if len(cand_list) != cand_num:
+    # record candidate names, which are up until the final row
+    for i, line in enumerate(data[len(data) - (cand_num + 1) : -1]):
+        if "Candidate" not in line[0]:
             raise DataError(
-                "Incorrect number of candidates in either first row metadata \
-                            or in candidate list at end of csv file."
+                f"The number of candidates on line 1 is {cand_num}, which\
+                            does not match the metadata."
             )
-        ballots = [Ballot()] * len(lines[1 : len(lines) - (cand_num + 1)])
+        cand = line[1]
+        party = line[2]
 
-        for i, line in enumerate(lines[1 : len(lines) - (cand_num + 1)]):
-            # remove carriage return and blank string after final comma
-            parsed_line = line.strip("\n").split(",")[:-1]
+        # candidates are 1 indexed
+        num_to_cand[i + 1] = cand
+        cand_to_party[cand] = party
 
-            ballot_weight = Fraction(parsed_line[0])
-            cand_ordering = parsed_line[1:]
-            ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
+    cand_list = list(cand_to_party.keys())
 
-            ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
+    ballots = [Ballot()] * len(data[1 : len(data) - (cand_num + 1)])
 
-        profile = PreferenceProfile(
-            ballots=ballots, candidates=cand_list
-        ).condense_ballots()
-        return (profile, seats, cand_list, cand_to_party, ward)
+    for i, line in enumerate(data[1 : len(data) - (cand_num + 1)]):
+        ballot_weight = Fraction(line[0])
+        cand_ordering = line[1:]
+        ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
+
+        ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
+
+    profile = PreferenceProfile(
+        ballots=ballots, candidates=cand_list
+    ).condense_ballots()
+    return (profile, seats, cand_list, cand_to_party, ward)
