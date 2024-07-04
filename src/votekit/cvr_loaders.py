@@ -122,7 +122,7 @@ def load_scottish(
         return [int(item) if item.isdigit() else item for item in row]
 
     data = []
-    with open(fpath, "r") as f:
+    with open(fpath, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
         for row in reader:
             # This just removes any empty strings that are hanging out since
