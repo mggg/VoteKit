@@ -11,3 +11,16 @@ extra_data/
 .docs_venv
 docs/_build
 .dev
+
+# Latex aux files
+
+*.aux
+*.bbl
+*.blg
+*.bcf
+*.fb_latexmk
+*.log
+*.out
+*.files
+*.run.xml
+*.synctex*
