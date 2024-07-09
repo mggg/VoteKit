@@ -1,11 +1,7 @@
 ---
-author:
-- |
-  Christopher Donnay, Moon Duchin, Jack Gibson, Zach Glaser,\
-  Andrew Hong, Malavika Mukundan, and Jennifer Wang
-bibliography:
-- ref.bib
-title: "`VoteKit`: A Python package for computational social choice research"
+author: Christopher Donnay, Moon Duchin, Jack Gibson, Zach Glaser, Andrew Hong, Malavika Mukundan, and Jennifer Wang
+bibliography: ref.bib
+title: "VoteKit: A Python package for computational social choice research"
 ---
 
 # Summary
