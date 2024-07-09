@@ -5,7 +5,7 @@ author:
   Andrew Hong, Malavika Mukundan, and Jennifer Wang
 bibliography:
 - ref.bib
-title: ": A Python package for computational social choice research"
+title: "`VoteKit`: A Python package for computational social choice research"
 ---
 
 # Summary
