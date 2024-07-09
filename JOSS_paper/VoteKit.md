@@ -134,9 +134,7 @@ this.
 
 For a given preference profile, basic `VoteKit` functions provide
 statistics and visuals for first-place votes, Borda count, and mention
-frequency, as well as head-to-head comparisons (see Figure
-[1](#fig: votekit summary stats){reference-type="ref"
-reference="fig: votekit summary stats"}). The pairwise comparison graph
+frequency, as well as head-to-head comparisons (see Figure 1). The pairwise comparison graph
 shows head-to-head margins between candidates. For instance, 282 more
 voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to
 make the figure. Note that $W_1$, who has the most first-place votes by
@@ -150,9 +148,7 @@ properties of earlier generative models; `VoteKit` facilitates robust
 comparisons across a more comprehensive and up-to-date list of
 alternatives. It also offers new analytical tools that will support
 research on elections. Some examples of more sophisticated functionality
-are shown in Figure
-[2](#fig: votekit visualization){reference-type="ref"
-reference="fig: votekit visualization"}. At left is a *ballot graph*,
+are shown in Figure 2. At left is a *ballot graph*,
 where nodes are ballots weighted by their frequency in the profile; a
 recent research paper shows that ballot graphs can be metrized to
 realize classical statistical ranking distances, like Kendall tau and
@@ -221,7 +217,7 @@ the following.
     optimizing to "learn\" blocs and slates in real-world elections
     [@duchin_tapp_24].
 
-## Acknowledgements {#acknowledgements .unnumbered}
+## Acknowledgements
 
 This work was initiated in a research cluster in Summer 2023, funded by
 the Democracy Fund and graciously hosted at the Faculty of Computing and
@@ -237,6 +233,8 @@ helpful feedback. FairVote's data repository in Dataverse
 code on GitHub (<https://github.com/fairvotereform/rcv_cruncher/>) are
 excellent open-source efforts that were inspirational for the current
 project.
+
+## References
 
 [^1]: Recent ranked-choice voting reforms include the adoption of
     instant runoff voting (IRV) in Maine, Alaska, New York City, and
