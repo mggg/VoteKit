@@ -1,6 +1,8 @@
 ---
 title: "VoteKit: A Python package for computational social choice research"
 tags:
+ - Python
+ - Computational Social Choice
 authors: 
  - name: Christopher Donnay
  - name: Moon Duchin
