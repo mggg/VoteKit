@@ -235,7 +235,7 @@ project.
     single transferable vote (STV) in Portland, Oregon. Advocacy groups
     claiming various pro-democratic properties of ranked choice include
     [Campaign Legal Center](https://perma.cc/77MM-DCPH),
-    [FairVote](https://perma.cc/L66Z-AB4R), and many more.
+    [FairVote](https://perma.cc/L66Z-AB4R), and many others.
 
 [^2]: Nobel Laureates with significant work in social choice include
     Arrow, Sen, Maskin, and Myerson.
