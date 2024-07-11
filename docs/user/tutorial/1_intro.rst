@@ -461,11 +461,11 @@ their bloc.
     # note that we include candidates with 0 support, 
     # and that our preference intervals will automatically rescale to sum to 1
     
-    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B":.15}),
-                                        "Xenon": PreferenceInterval({"X":0, "Y": .05})},
+    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B":.2}),
+                                        "Xenon": PreferenceInterval({"X":0, "Y": 1})},
     
-                             "Xenon": {"Alpha": PreferenceInterval({"A": .05, "B":.05}),
-                                       "Xenon": PreferenceInterval({"X":.45, "Y": .45})}}
+                             "Xenon": {"Alpha": PreferenceInterval({"A": .5, "B":.5}),
+                                       "Xenon": PreferenceInterval({"X":.5, "Y": .5})}}
     
     
     bloc_voter_prop = {"Alpha": .8, "Xenon": .2}
