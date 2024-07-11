@@ -1,7 +1,16 @@
 ---
-author: Christopher Donnay, Moon Duchin, Jack Gibson, Zach Glaser, Andrew Hong, Malavika Mukundan, and Jennifer Wang
-bibliography: ref.bib
 title: "VoteKit: A Python package for computational social choice research"
+tags:
+authors: 
+ - name: Christopher Donnay
+ - name: Moon Duchin
+ - name: Jack Gibson
+ - name: Zach Glaser
+ - name: Andrew Hong
+ - name: Malavika Mukundan
+ - name: Jennifer Wang
+date:
+bibliography: VoteKit.bib
 ---
 
 # Summary
@@ -123,18 +132,11 @@ likely outcomes effectively to members of their communities. `VoteKit`
 includes a variety of metrics and visualizations intended to facilitate
 this.
 
-
-<figure style="width: 100%; text-align: center; margin: 20px auto;">
-  <img src="./figures/comparison.png", alt="Comparison of Preference Profile viz methods", width="100%">
-  <figcaption style="caption-side: bottom; font-size: medium; font-weight: normal; margin-top: 10px;">
-    Four visualizations for the same synthetic four-candidate preference profile with 1000 voters. The profile was generated with the CS model, which produces incomplete ballots at a realistic rate.
-  </figcaption>
-</figure>
-
+![Four visualizations for the same synthetic four-candidate preference profile with 1000 voters. The profile was generated with the CS model, which produces incomplete ballots at a realistic rate. \label{fig:comparison}](./figures/comparison.png){width=100%}
 
 For a given preference profile, basic `VoteKit` functions provide
 statistics and visuals for first-place votes, Borda count, and mention
-frequency, as well as head-to-head comparisons (see Figure 1). The pairwise comparison graph
+frequency, as well as head-to-head comparisons (see \autoref{fig:comparison}). The pairwise comparison graph
 shows head-to-head margins between candidates. For instance, 282 more
 voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to
 make the figure. Note that $W_1$, who has the most first-place votes by
@@ -162,19 +164,13 @@ generated profiles across various selections of model (shown in colors)
 and candidate strength parameters (shown with symbols), enabling
 comparisons in the style of [@drawing-a-map].
 
-
-<figure style="width: 100%; text-align: center; margin: 20px auto;">
-  <img src="./figures/viz_plots.png", alt="Examples of Ballot graph viz methods", width="100%">
-
-<figcaption>At left, the ballot graph for a 3-candidate election. There
+![At left, the ballot graph for a 3-candidate election. There
 is one node per possible ballot, and the weights show the number of
 instances of that ballot in the profile. At right, a multidimensional
 scaling (MDS) plot for 160 synthetic profiles made with various
 generative models and candidate strength parameters for two slates of 3
 candidates each. The MDS plot is a low-distortion planar embedding of
-those 160 profiles and their pairwise differences.</figcaption>
-</figure>
-
+those 160 profiles and their pairwise differences. \label{fig:viz_plots}](./figures/viz_plots.png){width=100%}
 
 Finally, `VoteKit` interacts seamlessly with a wide range of actual vote
 data, such as thousands of political elections collected by FairVote and
@@ -217,7 +213,7 @@ the following.
     optimizing to "learn\" blocs and slates in real-world elections
     [@duchin_tapp_24].
 
-## Acknowledgements
+# Acknowledgements
 
 This work was initiated in a research cluster in Summer 2023, funded by
 the Democracy Fund and graciously hosted at the Faculty of Computing and
@@ -234,7 +230,7 @@ code on GitHub (<https://github.com/fairvotereform/rcv_cruncher/>) are
 excellent open-source efforts that were inspirational for the current
 project.
 
-## References
+# References
 
 [^1]: Recent ranked-choice voting reforms include the adoption of
     instant runoff voting (IRV) in Maine, Alaska, New York City, and
