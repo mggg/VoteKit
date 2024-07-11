@@ -1,16 +1,6 @@
 ---
 title: "VoteKit: A Python package for computational social choice research"
-tags:
- - Python
- - Computational Social Choice
-authors: 
- - name: Christopher Donnay
- - name: Moon Duchin
- - name: Jack Gibson
- - name: Zach Glaser
- - name: Andrew Hong
- - name: Malavika Mukundan
- - name: Jennifer Wang
+authors: Christopher Donnay, Moon Duchin, Jack Gibson, Zach Glaser, Andrew Hong, Malavika Mukundan, Jennifer Wang
 date:
 bibliography: paper.bib
 ---
@@ -32,7 +22,7 @@ substantially. From both a scholarly and a practical perspective, many
 questions arise about comparing the properties and tendencies of diverse
 systems of election in a rigorous manner.
 
-`VoteKit`[@VoteKit] is a Python package designed to facilitate just that
+`VoteKit` [@VoteKit] is a Python package designed to facilitate just that
 kind of analysis, bringing together multiple types of functionality.
 Users can:
 
