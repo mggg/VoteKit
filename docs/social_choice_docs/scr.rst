@@ -492,7 +492,7 @@ Plurality scores. Equivalent to Limited with :math:`k=1` and SNTV.
 HighestScore
 ------------
 Conducts an election based on points from a score vector.
-A score vector is a vector whose :math:`i`th entry denotes the number of points given
+A score vector is a vector whose :math:`i` th entry denotes the number of points given
 to a candidate in position :math:`i`. Normally a score vector is non-negative and 
 decreasing. A HighestScore election chooses the :math:`m` candidates with highest scores.
 Ties are broken by randomly permuting the tied candidates.

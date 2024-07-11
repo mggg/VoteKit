@@ -47,21 +47,21 @@ case.
 
     IC profile:
       Ballots Weight
-    (B, C, A)    175
-    (B, A, C)    175
+    (B, A, C)    173
+    (C, B, A)    172
     (A, C, B)    170
-    (C, B, A)    169
-    (C, A, B)    163
-    (A, B, C)    148
+    (B, C, A)    170
+    (C, A, B)    162
+    (A, B, C)    153
     
     IAC profile:
       Ballots Weight
-    (B, C, A)    218
-    (B, A, C)    192
-    (A, C, B)    180
-    (C, B, A)    176
-    (C, A, B)    129
-    (A, B, C)    105
+    (B, C, A)    388
+    (B, A, C)    254
+    (A, B, C)    135
+    (A, C, B)    103
+    (C, A, B)     62
+    (C, B, A)     58
 
 
 Now we’ll plot some summary statistics for the generated elections.
@@ -143,23 +143,23 @@ times :math:`B` is preferred to :math:`A`.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 101 rows.
+    PreferenceProfile too long, only showing 15 out of 97 rows.
              Ballots Weight
-    (W2, W1, C2, C1)     78
-            (W2, W1)     61
-            (W1, W2)     46
-    (W1, W2, C2, C1)     44
-        (W2, W1, C2)     42
-    (W1, C2, W2, C1)     38
-        (W1, W2, C2)     36
-               (W2,)     36
-    (W2, C2, C1, W1)     36
-               (W1,)     33
-    (W2, C2, W1, C1)     32
-    (W2, W1, C1, C2)     26
-        (W2, C2, W1)     23
-    (W1, W2, C1, C2)     22
-    (W1, C2, C1, W2)     22
+    (W1, W2, C2, C1)     73
+            (W1, W2)     70
+    (W1, W2, C1, C2)     62
+               (W1,)     58
+        (W1, W2, C2)     44
+    (W1, C2, W2, C1)     40
+    (W1, C2, C1, W2)     34
+            (W2, W1)     32
+        (W1, C2, W2)     26
+        (W1, W2, C1)     25
+    (W2, W1, C2, C1)     23
+    (C2, W2, W1, C1)     23
+    (W2, W1, C1, C2)     22
+    (W1, C1, C2, W2)     21
+        (W2, W1, C1)     21
 
 
 
@@ -189,8 +189,8 @@ that beats every lower-tier candidate in a head-to-head comparison.
 
 .. parsed-literal::
 
-    tiers: [{'W2'}, {'W1'}, {'C2'}, {'C1'}]
-    The Condorcet candidate is: W2
+    tiers: [{'W1'}, {'W2'}, {'C2'}, {'C1'}]
+    The Condorcet candidate is: W1
 
 
 MDS Plots
@@ -428,12 +428,12 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
       Ballots Weight
-    (B, C, A)    395
-    (C, B, A)    315
-    (A, B, C)    165
-    (B, A, C)     61
-    (A, C, B)     41
-    (C, A, B)     23
+    (C, B, A)    772
+    (C, A, B)    121
+    (B, C, A)     48
+    (A, C, B)     47
+    (A, B, C)      8
+    (B, A, C)      4
 
 
 
@@ -443,14 +443,14 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(165, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(41, 1), 'cast': True}
+    (1, 2, 3) {'weight': Fraction(4, 1), 'cast': True}
+    (1, 3, 2) {'weight': Fraction(48, 1), 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(395, 1), 'cast': True}
-    (2, 1, 3) {'weight': Fraction(61, 1), 'cast': True}
+    (2, 3, 1) {'weight': Fraction(47, 1), 'cast': True}
+    (2, 1, 3) {'weight': Fraction(8, 1), 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(23, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(315, 1), 'cast': True}
+    (3, 1, 2) {'weight': Fraction(772, 1), 'cast': True}
+    (3, 2, 1) {'weight': Fraction(121, 1), 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -524,15 +524,18 @@ and place it in your working directory (the same folder as your code).
     from votekit.cvr_loaders import load_scottish
     from votekit.graphs import BallotGraph
     
-    # the load_scottish function returns a tuple, the first element is the preference
-    # profile and the second is the number of seats in the election
-    scottish_profile, num_seats = load_scottish("eilean_siar_2012_ward3.csv")
+    # the load_scottish function returns a tuple of information:
+    # the first element is the profile itself, the second is the number of seats in the election
+    # the third is a list of candidates, the fourth a dictionary mapping candidatess to parties,
+    # and the fourth the ward name
+    scottish_profile, seats, cand_list, cand_to_party, ward = load_scottish("eilean_siar_2012_ward3.csv")
     
     
     # we don't want to alter any ballots so we'll turn off "fix_short"
     ballot_graph = BallotGraph(scottish_profile, fix_short = False)
     
     print(scottish_profile)
+    
     
     # only show us the ballots cast
     ballot_graph.draw(show_cast = False,labels = False, scale=3)
@@ -541,27 +544,27 @@ and place it in your working directory (the same folder as your code).
 .. parsed-literal::
 
     PreferenceProfile too long, only showing 15 out of 57 rows.
-                                                                                                                                  Ballots Weight
-                                                                                                     (('Catherine', 'MACDONALD', 'Ind'),)    155
-                              (('Catherine', 'MACDONALD', 'Ind'), ('Philip Robert', 'MCLEAN', 'SNP'), ('David Cameron', 'WILSON', 'SNP'))     74
-                                                                  (('Catherine', 'MACDONALD', 'Ind'), ('Philip Robert', 'MCLEAN', 'SNP'))     63
-                                                                            (('Catherine', 'MACDONALD', 'Ind'), ('D J', 'MACRAE', 'Lab'))     52
-                                                                 (('Philip Robert', 'MCLEAN', 'SNP'), ('David Cameron', 'WILSON', 'SNP'))     48
-                                                                  (('Philip Robert', 'MCLEAN', 'SNP'), ('Catherine', 'MACDONALD', 'Ind'))     36
-                              (('Philip Robert', 'MCLEAN', 'SNP'), ('David Cameron', 'WILSON', 'SNP'), ('Catherine', 'MACDONALD', 'Ind'))     31
-                                        (('Catherine', 'MACDONALD', 'Ind'), ('D J', 'MACRAE', 'Lab'), ('Philip Robert', 'MCLEAN', 'SNP'))     29
-                                        (('Catherine', 'MACDONALD', 'Ind'), ('Philip Robert', 'MCLEAN', 'SNP'), ('D J', 'MACRAE', 'Lab'))     27
-                                                                                                    (('Philip Robert', 'MCLEAN', 'SNP'),)     24
-    (('Catherine', 'MACDONALD', 'Ind'), ('Philip Robert', 'MCLEAN', 'SNP'), ('David Cameron', 'WILSON', 'SNP'), ('D J', 'MACRAE', 'Lab'))     22
-                                                                            (('D J', 'MACRAE', 'Lab'), ('Catherine', 'MACDONALD', 'Ind'))     18
-    (('Catherine', 'MACDONALD', 'Ind'), ('D J', 'MACRAE', 'Lab'), ('Philip Robert', 'MCLEAN', 'SNP'), ('David Cameron', 'WILSON', 'SNP'))     17
-                              (('Philip Robert', 'MCLEAN', 'SNP'), ('Catherine', 'MACDONALD', 'Ind'), ('David Cameron', 'WILSON', 'SNP'))     17
-                                        (('Catherine', 'MACDONALD', 'Ind'), ('D J', 'MACRAE', 'Lab'), ('David Cameron', 'WILSON', 'SNP'))     15
+                                                                          Ballots Weight
+                                                           (Catherine Macdonald,)    155
+                (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson)     74
+                                      (Catherine Macdonald, Philip Robert Mclean)     63
+                                                (Catherine Macdonald, D J Macrae)     52
+                                     (Philip Robert Mclean, David Cameron Wilson)     48
+                                      (Philip Robert Mclean, Catherine Macdonald)     36
+                (Philip Robert Mclean, David Cameron Wilson, Catherine Macdonald)     31
+                          (Catherine Macdonald, D J Macrae, Philip Robert Mclean)     29
+                          (Catherine Macdonald, Philip Robert Mclean, D J Macrae)     27
+                                                          (Philip Robert Mclean,)     24
+    (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson, D J Macrae)     22
+                                                (D J Macrae, Catherine Macdonald)     18
+    (Catherine Macdonald, D J Macrae, Philip Robert Mclean, David Cameron Wilson)     17
+                (Philip Robert Mclean, Catherine Macdonald, David Cameron Wilson)     17
+                          (Catherine Macdonald, D J Macrae, David Cameron Wilson)     15
     The candidates are labeled as follows.
-    1 ('D J', 'MACRAE', 'Lab')
-    2 ('David Cameron', 'WILSON', 'SNP')
-    3 ('Philip Robert', 'MCLEAN', 'SNP')
-    4 ('Catherine', 'MACDONALD', 'Ind')
+    1 David Cameron Wilson
+    2 Catherine Macdonald
+    3 D J Macrae
+    4 Philip Robert Mclean
 
 
 
@@ -577,36 +580,24 @@ you want to display the node.
 
 .. code:: ipython3
 
-    scottish_dictionary = ballot_graph._number_cands(cands = 
-                                                     tuple(scottish_profile.get_candidates()))
-    
-    for key,value in scottish_dictionary.items():
-      print(value,key)
-    
-    print()
-    print("Missing ballots:")
     def show_zero(graph, node):
         # display nodes with no votes
         if graph.nodes[node]["weight"] == 0:
             return True
         return False
     
+    print("Displaying missing ballots:")
     ballot_graph.draw(labels=False, to_display=show_zero)
 
 
 .. parsed-literal::
 
-    1 ('D J', 'MACRAE', 'Lab')
-    2 ('David Cameron', 'WILSON', 'SNP')
-    3 ('Philip Robert', 'MCLEAN', 'SNP')
-    4 ('Catherine', 'MACDONALD', 'Ind')
-    
-    Missing ballots:
+    Displaying missing ballots:
     The candidates are labeled as follows.
-    1 ('D J', 'MACRAE', 'Lab')
-    2 ('David Cameron', 'WILSON', 'SNP')
-    3 ('Philip Robert', 'MCLEAN', 'SNP')
-    4 ('Catherine', 'MACDONALD', 'Ind')
+    1 David Cameron Wilson
+    2 Catherine Macdonald
+    3 D J Macrae
+    4 Philip Robert Mclean
 
 
 

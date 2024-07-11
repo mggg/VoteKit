@@ -106,7 +106,8 @@ def load_scottish(
         DataError: If there is missing or incorrect metadata or candidate data.
 
     Returns:
-        tuple: A tuple ``(PreferenceProfile, seats, cand_list, cand_to_party, ward)``
+        tuple:
+            A tuple ``(PreferenceProfile, seats, cand_list, cand_to_party, ward)``
             representing the election, the number of seats in the election, the candidate
             names, a dictionary mapping candidates to their party, and the ward. The
             candidate names are also stored in the PreferenceProfile object.
