@@ -167,6 +167,8 @@ def test_scot_csv_parse():
 
     assert seats == 1
     assert isinstance(pp, PreferenceProfile)
+    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
+    assert len(pp.get_candidates()) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
     assert cand_to_party == {
         "Paul": "Orange (O)",
@@ -194,6 +196,8 @@ def test_scot_csv_blank_rows():
 
     assert seats == 1
     assert isinstance(pp, PreferenceProfile)
+    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
+    assert len(pp.get_candidates()) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
     assert cand_to_party == {
         "Paul": "Orange (O)",
