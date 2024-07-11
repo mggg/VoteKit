@@ -1,13 +1,18 @@
 ---
 title: "VoteKit: A Python package for computational social choice research"
+tags:
+  - Python
 authors: 
- - name: Christopher Donnay
- - name: Moon Duchin
- - name: Jack Gibson
- - name: Zach Glaser
- - name: Andrew Hong
- - name: Malavika Mukundan
- - name: Jennifer Wang
+  - name: Christopher Donnay
+  - name: Moon Duchin
+  - name: Jack Gibson
+  - name: Zach Glaser
+  - name: Andrew Hong
+  - name: Malavika Mukundan
+  - name: Jennifer Wang
+affiliations:
+  - name: Metric Geometry and Gerrymandering Group (MGGG)
+    index: 1
 bibliography: paper.bib
 ---
 
