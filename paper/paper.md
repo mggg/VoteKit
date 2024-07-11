@@ -10,7 +10,7 @@ authors:
  - name: Malavika Mukundan
  - name: Jennifer Wang
 date:
-bibliography: VoteKit.bib
+bibliography: paper.bib
 ---
 
 # Summary
