@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "votekit"
-version = "2.0.0"
+version = "2.0.1"
 description = "A Swiss Army Knife for computational social choice research"
 authors = ["MGGG <engineering@mggg.org>"]
 readme = "README.md"
