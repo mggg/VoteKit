@@ -1,3 +1,5 @@
+from .election_state import ElectionState  # noqa
+
 from .election_types import (  # noqa
     STV,
     SNTV,
