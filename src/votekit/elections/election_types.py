@@ -1124,20 +1124,19 @@ class RandomDictator(Election):
     """
     Choose a winner randomly from the distribution of first place votes. For multi-winner elections
     repeat this process for every winner, removing that candidate from every voter's ballot
-    once they have been elected
+    once they have been elected.
 
     Args:
-      profile (PreferenceProfile): PreferenceProfile to run election on
-      seats (int): number of seats to select
+      profile (PreferenceProfile): PreferenceProfile to run election on.
+      seats (int): Number of seats to elect.
 
     Attributes:
-      _profile (PreferenceProfile): PreferenceProfile to run election on
+      _profile (PreferenceProfile): PreferenceProfile to run election on.
       seats (int): Number of seats to be elected.
 
     """
 
     def __init__(self, profile: PreferenceProfile, seats: int):
-        # the super method says call the Election class
         super().__init__(profile, ballot_ties=False)
         self.seats = seats
 
@@ -1146,12 +1145,10 @@ class RandomDictator(Election):
         Determines if another round is needed.
 
         Returns:
-            True if number of seats has not been met, False otherwise
+            (bool) True if number of seats has not been met, False otherwise.
         """
-        cands_elected = 0
-        for s in self.state.winners():
-            cands_elected += len(s)
-        return cands_elected < self.seats
+        cands_elected = [len(s) for s in self.state.winners()]
+        return sum(cands_elected) < self.seats
 
     def run_step(self):
         if self.next_round():
@@ -1164,14 +1161,13 @@ class RandomDictator(Election):
             )[0]
 
             # randomly choose a winner from the first place rankings
-            winning_candidate = list(random_ballot.ranking[0])[0]
+            winning_candidate = random.choice(list(random_ballot.ranking[0]))
 
             # some formatting to make it compatible with ElectionState, which
             # requires a list of sets of strings
             elected = [{winning_candidate}]
 
             # remove the winner from the ballots
-            # Does this move second place votes up to first place?
             new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
             new_profile = PreferenceProfile(ballots=new_ballots)
 
@@ -1208,32 +1204,41 @@ class RandomDictator(Election):
         return self.state
 
 
-class BoostedRandomDictator(RandomDictator):
+class BoostedRandomDictator(Election):
     """
-    Modified random dictator where we
-        - Choose a winner randomly from the distribution of first
-          place votes with probability (1 - 1/(# Candidates - 1))
-        - Choose a winner via a proportional to squares rule with
-          probability 1/(# of Candidates - 1)
+    Modified random dictator where
+        - With probability (1 - 1/(# Candidates - 1))
+        choose a winner randomly from the distribution of first place votes.
+        - With probability 1/(# of Candidates - 1)
+          Choose a winner via a proportional to squares rule.
 
     For multi-winner elections
-    repeat this process for every winner, removing that candidate from every voter's ballot
-    once they have been elected
+    repeat this process for every winner, removing that candidate from every
+    voter's ballot once they have been elected.
 
     Args:
-      profile (PreferenceProfile): PreferenceProfile to run election on
-      seats (int): number of seats to select
+      profile (PreferenceProfile): PreferenceProfile to run election on.
+      seats (int): Number of seats to elect.
 
     Attributes:
-      _profile (PreferenceProfile): PreferenceProfile to run election on
+      _profile (PreferenceProfile): PreferenceProfile to run election on.
       seats (int): Number of seats to be elected.
 
     """
 
     def __init__(self, profile: PreferenceProfile, seats: int):
-        # the super method says call the Election class
-        # ballot_ties = True means it will resolve any ties in our ballots
-        super().__init__(profile, seats)
+        super().__init__(profile, ballot_ties=False)
+        self.seats = seats
+
+    def next_round(self) -> bool:
+        """
+        Determines if another round is needed.
+
+        Returns:
+            (bool) True if number of seats has not been met, False otherwise.
+        """
+        cands_elected = [len(s) for s in self.state.winners()]
+        return sum(cands_elected) < self.seats
 
     def run_step(self):
         if self.next_round():
@@ -1247,7 +1252,7 @@ class BoostedRandomDictator(RandomDictator):
                 # Choose via proportional to squares
                 candidate_votes = {c: 0 for c in remaining}
                 for ballot in self.state.profile.get_ballots():
-                    top_choice = list(ballot.ranking[0])[0]
+                    top_choice = random.choice(list(ballot.ranking[0]))
                     candidate_votes[top_choice] += float(ballot.weight)
 
                 squares = np.array(
@@ -1264,7 +1269,7 @@ class BoostedRandomDictator(RandomDictator):
                     self.state.profile.ballots, weights=weights, k=1
                 )[0]
                 # randomly choose a winner according to first place rankings
-                winning_candidate = list(random_ballot.ranking[0])[0]
+                winning_candidate = random.choice(list(random_ballot.ranking[0]))
 
             # some formatting to make it compatible with ElectionState, which
             # requires a list of sets of strings
@@ -1298,3 +1303,10 @@ class BoostedRandomDictator(RandomDictator):
                     previous=self.state.previous,
                 )
             return self.state
+
+    def run_election(self):
+        # run steps until we elect the required number of candidates
+        while self.next_round():
+            self.run_step()
+
+        return self.state
