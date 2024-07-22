@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .election_state import ElectionState
+from .elections import ElectionState
 from .pref_profile import PreferenceProfile
 from .utils import recursively_fix_ties, fix_ties
 
@@ -93,59 +93,3 @@ class Election(ABC):
                 new_ballots += recursively_fix_ties(resolved_ties, num_ties)
 
         return PreferenceProfile(ballots=new_ballots)
-
-
-## Having second thoughts about this so commenting out for now
-
-# class Simulation(ABC):
-#     """
-#     Base class for model complex elections or statewide simulations as
-#     done in MGGG's RCV research.
-
-#     *Attributes*
-
-#     `Ballots`
-#     :   PreferenceProfile or dictionary of ballot generators
-
-#     **Methods**
-#     """
-
-#     def __init__(self, ballots: Union[PreferenceProfile, dict, None] = None):
-#         if ballots:
-#             self.ballots = ballots
-
-#     @abstractmethod
-#     def run_simulation(self) -> Any:
-#         """
-#         User written function to feed parameters into election simulation
-#         """
-#         pass
-
-#     @abstractmethod
-#     def sim_election(self) -> Union[ElectionState, list]:
-#         """
-#         Runs election(s) with specified parameters.
-#         """
-#         pass
-
-#     def generate_ballots(
-#         self, num_ballots: int, candidates: Union[list, dict], params: dict
-#     ) -> list[tuple[Any, PreferenceProfile]]:
-#         """
-#         Generates perference profiles if ballot generator models
-#         are assigned to the class.
-
-#         Can be overridden based on user needs.
-#         """
-#         if isinstance(self.ballots, PreferenceProfile):
-#             raise TypeError("No generator assigned to produce ballots")
-
-#         ballots = []
-#         for model_name, model in self.ballots.items():
-#             generator: BallotGenerator = model(
-#                 candidates=candidates,
-#                 hyperparams=params,
-#             )
-#             ballots.append((model_name, generator.generate_profile(num_ballots)))
-
-#         return ballots

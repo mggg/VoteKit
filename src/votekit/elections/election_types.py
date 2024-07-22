@@ -4,8 +4,8 @@ import numpy as np
 from typing import Callable, Optional, Union
 from functools import lru_cache
 
+from .election_state import ElectionState
 from ..models import Election
-from ..election_state import ElectionState
 from ..graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from ..pref_profile import PreferenceProfile
 from .transfers import fractional_transfer
