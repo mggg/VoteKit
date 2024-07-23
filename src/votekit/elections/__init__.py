@@ -18,3 +18,5 @@ from .election_types import (  # noqa
 )
 
 from .transfers import fractional_transfer, random_transfer  # noqa
+
+from ..models import Election  # noqa
