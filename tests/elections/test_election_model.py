@@ -1,6 +1,6 @@
 from votekit.elections import ElectionState, Election
 from votekit import PreferenceProfile, Ballot
-from votekit.utils import score_dict_to_tos_ranking
+from votekit.utils import score_dict_to_ranking
 import pandas as pd
 import pytest
 
@@ -24,11 +24,11 @@ class TestElection(Election):
 
         super().__init__(profile, score_function=score, sort_high_low=sort_high_low)
 
-    def _next_round(self):
+    def _is_finished(self):
         # 2 round election, so 3 states
         if len(self.election_states) == 3:
-            return False
-        return True
+            return True
+        return False
 
     def _run_step(
         self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
@@ -59,7 +59,7 @@ class TestElection(Election):
 
             new_state = ElectionState(
                 round_number=(prev_state.round_number + 1),
-                remaining=score_dict_to_tos_ranking(scores, self.sort_high_low),
+                remaining=score_dict_to_ranking(scores, self.sort_high_low),
                 elected=tuple([frozenset(elected)]),
                 eliminated=tuple([frozenset(eliminated)]),
                 scores=scores,
@@ -128,16 +128,58 @@ def test_election_state_list():
     assert e.length == len(e.election_states) - 1
 
 
+def test_get_profile():
+    assert e.get_profile() == e.get_profile(2)  # default behavior is get last round
+    assert e.get_profile(0) == profile
+    assert e.get_profile(1) == profile_1
+    assert e.get_profile(2) == profile_2
+    assert e.get_profile(-3) == profile
+    assert e.get_profile(-2) == profile_1
+    assert e.get_profile(-1) == profile_2
+
+
+def test_get_profile_errors():
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_profile(-4)  # supports -3 through 2
+
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_profile(3)  # supports -3 through 2
+
+
+def test_get_step():
+    assert e.get_step() == e.get_step(2)  # default behavior is get last round
+    assert e.get_step(0) == (profile, states[0])
+    assert e.get_step(1) == (profile_1, states[1])
+    assert e.get_step(2) == (profile_2, states[2])
+    assert e.get_step(-3) == (profile, states[0])
+    assert e.get_step(-2) == (profile_1, states[1])
+    assert e.get_step(-1) == (profile_2, states[2])
+
+
+def test_get_step_errors():
+    with pytest.raises(IndexError):
+        e.get_step(-4)  # supports -3 through 2
+
+    with pytest.raises(IndexError):
+        e.get_step(3)  # supports -3 through 2
+
+
 def test_get_elected():
     assert e.get_elected() == e.get_elected(2)  # default behavior is get last round
     assert e.get_elected(0) == []
     assert e.get_elected(1) == [{"A"}]
     assert e.get_elected(2) == [{"A"}, {"C"}]
+    assert e.get_elected(-3) == []
+    assert e.get_elected(-2) == [{"A"}]
+    assert e.get_elected(-1) == [{"A"}, {"C"}]
 
 
 def test_get_elected_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_elected(-2)
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_elected(-4)  # supports -3 through 2
+
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_elected(3)  # supports -3 through 2
 
 
 def test_get_eliminated():
@@ -147,11 +189,17 @@ def test_get_eliminated():
     assert e.get_eliminated(0) == []
     assert e.get_eliminated(1) == [{"B"}]
     assert e.get_eliminated(2) == [{"D"}, {"B"}]
+    assert e.get_eliminated(-3) == []
+    assert e.get_eliminated(-2) == [{"B"}]
+    assert e.get_eliminated(-1) == [{"D"}, {"B"}]
 
 
 def test_get_eliminated_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_eliminated(-2)
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_eliminated(-4)  # supports -3 through 2
+
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_eliminated(3)  # supports -3 through 2
 
 
 def test_get_remaining():
@@ -159,11 +207,17 @@ def test_get_remaining():
     assert e.get_remaining(0) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
     assert e.get_remaining(1) == [{"F"}, {"E"}, {"D"}, {"C"}]
     assert e.get_remaining(2) == [{"F"}, {"E"}]
+    assert e.get_remaining(-3) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
+    assert e.get_remaining(-2) == [{"F"}, {"E"}, {"D"}, {"C"}]
+    assert e.get_remaining(-1) == [{"F"}, {"E"}]
 
 
 def test_get_remaining_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_remaining(-2)
+    with pytest.raises(IndexError):
+        e.get_remaining(-4)  # supports -3 through 2
+
+    with pytest.raises(IndexError):
+        e.get_remaining(3)  # supports -3 through 2
 
 
 def test_get_ranking():
@@ -171,35 +225,17 @@ def test_get_ranking():
     assert e.get_ranking(0) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
     assert e.get_ranking(1) == [{"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"}]
     assert e.get_ranking(2) == [{"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"}]
+    assert e.get_ranking(-3) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
+    assert e.get_ranking(-2) == [{"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"}]
+    assert e.get_ranking(-1) == [{"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"}]
 
 
 def test_get_ranking_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_ranking(-2)
+    with pytest.raises(IndexError):
+        e.get_ranking(-4)  # supports -3 through 2
 
-
-def test_get_profile():
-    assert e.get_profile() == e.get_profile(2)  # default behavior is get last round
-    assert e.get_profile(0) == profile
-    assert e.get_profile(1) == profile_1
-    assert e.get_profile(2) == profile_2
-
-
-def test_get_profile_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_profile(-2)
-
-
-def test_get_step():
-    assert e.get_step() == e.get_step(2)  # default behavior is get last round
-    assert e.get_step(0) == (profile, states[0])
-    assert e.get_step(1) == (profile_1, states[1])
-    assert e.get_step(2) == (profile_2, states[2])
-
-
-def test_get_step_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_step(-2)
+    with pytest.raises(IndexError):
+        e.get_ranking(3)  # supports -3 through 2
 
 
 def test_get_status_df():
@@ -247,8 +283,10 @@ def test_get_status_df():
 
 
 def test_get_status_df_errors():
-    with pytest.raises(ValueError, match="round_number must be -1 or non-negative."):
-        e.get_status_df(-2)
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_status_df(-4)  # supports -3 through 2
+    with pytest.raises(IndexError, match="round_number out of range."):
+        e.get_status_df(3)  # supports -3 through 2
 
 
 def test_score_sort():

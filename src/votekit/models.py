@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from .elections import ElectionState
 from .pref_profile import PreferenceProfile
 import pandas as pd
-from .utils import score_dict_to_tos_ranking
+from .utils import score_dict_to_ranking
 from typing import Callable, Optional
 
 
@@ -49,18 +49,17 @@ class Election(ABC):
         Fetch the PreferenceProfile of the given round number.
 
         Args:
-            round_number (int, optional): The round number. Defaults to -1,
-                which accesses the final profile.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             PreferenceProfile
 
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
+        if round_number < -len(self) - 1 or round_number > len(self):
+            raise IndexError("round_number out of range.")
 
-        if round_number == -1:
-            round_number = len(self)
+        round_number = round_number % (len(self) + 1)
 
         profile = self._profile
 
@@ -76,18 +75,12 @@ class Election(ABC):
         Fetches the profile and ElectionState of the given round number.
 
         Args:
-            round_number (int, optional): The round number to fetch. Defaults to -1,
-                which fetches the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             tuple[PreferenceProfile, ElectionState]
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
-
-        if round_number == -1:
-            round_number = len(self)
-
         return (self.get_profile(round_number), self.election_states[round_number])
 
     def get_elected(self, round_number: int = -1) -> list[frozenset[str]]:
@@ -95,19 +88,18 @@ class Election(ABC):
         Fetch the elected candidates up to the given round number.
 
         Args:
-            round_number (int, optional): Round number, defaults to -1 which corresponds to
-                the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             list[frozenset[str]]: List of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
                 they are tied.
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
+        if round_number < -len(self) - 1 or round_number > len(self):
+            raise IndexError("round_number out of range.")
 
-        if round_number == -1:
-            round_number = len(self)
+        round_number = round_number % (len(self) + 1)
 
         return [
             s
@@ -121,19 +113,18 @@ class Election(ABC):
         Fetch the eliminated candidates up to the given round number.
 
         Args:
-            round_number (int, optional): Round number, defaults to -1 which corresponds to
-                the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             list[frozenset[str]]: List of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
                 they are tied.
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
+        if round_number < -len(self) - 1 or round_number > len(self):
+            raise IndexError("round_number out of range.")
 
-        if round_number == -1:
-            round_number = len(self)
+        round_number = round_number % (len(self) + 1)
 
         # reverses order to match ranking convention
         return [
@@ -148,19 +139,13 @@ class Election(ABC):
         Fetch the remaining candidates after the given round.
 
         Args:
-            round_number (int, optional): Round number, defaults to -1 which corresponds to
-                the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             list[frozenset[str]]: List of sets of remaining candidates. Ordering of tuple
             denotes ranking of remaining candidates, sets denote ties.
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
-
-        if round_number == -1:
-            round_number = len(self)
-
         return list(self.election_states[round_number].remaining)
 
     def get_ranking(self, round_number: int = -1) -> list[frozenset[str]]:
@@ -168,18 +153,12 @@ class Election(ABC):
         Fetch the ranking of candidates after a given round.
 
         Args:
-            round_number (int, optional): Round number, defaults to -1 which corresponds to
-                the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
 
         Returns:
             list[set[str]]: Ranking of candidates.
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
-
-        if round_number == -1:
-            round_number = len(self)
-
         # len condition handles empty remaining candidates
         return [
             s
@@ -195,15 +174,18 @@ class Election(ABC):
         DataFrame is sorted by current ranking.
 
         Args:
-            round_number (int, optional): Round number, defaults to -1 which corresponds to
-                the final round.
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
         Returns:
             pd.DataFrame:
                 Data frame displaying candidate, status (elected, eliminated,
                 remaining), and the round their status updated.
         """
-        if round_number < -1:
-            raise ValueError("round_number must be -1 or non-negative.")
+        if round_number < -len(self) - 1 or round_number > len(self):
+            raise IndexError("round_number out of range.")
+
+        round_number = round_number % (len(self) + 1)
 
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
@@ -257,9 +239,9 @@ class Election(ABC):
         pass
 
     @abstractmethod
-    def _next_round(self) -> bool:
+    def _is_finished(self) -> bool:
         """
-        Returns True if another round of the election is needed, False if the election is over.
+        Returns True if election is finished, False if another round is needed.
         """
         pass
 
@@ -275,7 +257,7 @@ class Election(ABC):
         if self.score_function:
             # compute scores and sort
             scores = self.score_function(profile)
-            remaining = score_dict_to_tos_ranking(scores, self.sort_high_low)
+            remaining = score_dict_to_ranking(scores, self.sort_high_low)
 
         else:
             # if no scores, all candidates are tied
@@ -283,7 +265,7 @@ class Election(ABC):
 
         self.election_states.append(ElectionState(remaining=remaining, scores=scores))
 
-        while self._next_round():
+        while not self._is_finished():
             profile = self._run_step(
                 profile, self.election_states[-1], store_states=True
             )
