@@ -34,24 +34,36 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 
 
 def remove_cand(
-    removed: Union[str, list], profile: PreferenceProfile
-) -> PreferenceProfile:
+    removed: Union[str, list],
+    profile_or_ballots: Union[PreferenceProfile, list[Ballot], Ballot],
+) -> Union[PreferenceProfile, list[Ballot], Ballot]:
     """
-    Removes specified candidate(s) from profile. When a candidate is removed from a ballot, lower
-    ranked candidates are moved up. Automatically condenses the profile.
+    Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
+    removed from a ballot, lower ranked candidates are moved up.
+    Automatically condenses any ballots that match as result of scrubbing.
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile (PreferenceProfile): Profile to remove candidates from.
+        profile_or_ballots (Union[PreferenceProfile, list[Ballot], Ballot]): Collection
+            of ballots to remove candidates from.
 
     Returns:
-        PreferenceProfile: Updated profile of ballots with candidate(s) removed.
+        Union[PreferenceProfile, list[Ballot],Ballot]:
+            Updated collection of ballots with  candidate(s) removed.
     """
     if isinstance(removed, str):
         removed = [removed]
 
-    scrubbed_ballots: list[Union[int, Ballot]] = [-1] * len(profile.ballots)
-    for i, ballot in enumerate(profile.ballots):
+    # map to list of ballots
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        ballots = profile_or_ballots.condense_ballots().get_ballots()
+    elif isinstance(profile_or_ballots, Ballot):
+        ballots = [profile_or_ballots]
+    else:
+        ballots = profile_or_ballots
+
+    scrubbed_ballots: list[Union[int, Ballot]] = [-1] * len(ballots)
+    for i, ballot in enumerate(ballots):
         new_ranking = []
         for s in ballot.ranking:
             new_s = []
@@ -65,9 +77,18 @@ def remove_cand(
                 ranking=tuple(new_ranking), weight=ballot.weight
             )
 
-    return PreferenceProfile(
+    # easiest way to condense ballots
+    clean_profile = PreferenceProfile(
         ballots=[b for b in scrubbed_ballots if isinstance(b, Ballot)]
     ).condense_ballots()
+
+    # return matching input data type
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        return clean_profile
+    elif isinstance(profile_or_ballots, Ballot):
+        return clean_profile.get_ballots()[0]
+    else:
+        return clean_profile.get_ballots()
 
 
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:

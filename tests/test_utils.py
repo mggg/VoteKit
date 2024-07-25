@@ -64,6 +64,20 @@ def test_ballots_by_first_cand_error():
         ballots_by_first_cand(profile_with_ties)
 
 
+def test_remove_cand_dif_types():
+    no_a_true = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"B"}], weight=1),
+            Ballot(ranking=[{"B"}, {"C"}], weight=1 / 2),
+            Ballot(ranking=[{"C"}, {"B"}], weight=3),
+        ]
+    )
+
+    assert remove_cand("A", profile_no_ties) == no_a_true
+    assert remove_cand("A", profile_no_ties.get_ballots()) == no_a_true.get_ballots()
+    assert remove_cand("A", Ballot(ranking=[{"A"}, {"B"}])) == Ballot(ranking=[{"B"}])
+
+
 def test_remove_cand_no_ties():
     no_a = remove_cand("A", profile_no_ties)
     no_a_true = PreferenceProfile(
