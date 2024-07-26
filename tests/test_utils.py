@@ -10,7 +10,8 @@ from votekit.utils import (
     first_place_votes,
     mentions,
     borda_scores,
-    tie_broken_ranking,
+    tiebreak_set,
+    tiebroken_ranking,
     score_dict_to_ranking,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
@@ -74,7 +75,8 @@ def test_remove_cand_dif_types():
     )
 
     assert remove_cand("A", profile_no_ties) == no_a_true
-    assert remove_cand("A", profile_no_ties.get_ballots()) == no_a_true.get_ballots()
+    assert profile_no_ties != no_a_true  # check that remove cand does not alter profile
+    assert remove_cand("A", profile_no_ties.ballots) == no_a_true.ballots
     assert remove_cand("A", Ballot(ranking=[{"A"}, {"B"}])) == Ballot(ranking=[{"B"}])
 
 
@@ -229,15 +231,62 @@ def test_borda_with_ties():
     assert isinstance(borda["A"], Fraction)
 
 
-def test_tie_broken_ranking():
+def test_tiebreak_set():
     fpv_ranking = (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     borda_ranking = (frozenset({"A"}), frozenset({"C"}), frozenset({"B"}))
-    tied_ranking = (frozenset({"A", "C", "B"}),)
-    assert tie_broken_ranking(tied_ranking, profile_with_ties, "none") == tied_ranking
-    assert (
-        tie_broken_ranking(tied_ranking, profile_with_ties, "firstplace") == fpv_ranking
+    tied_set = frozenset({"A", "C", "B"})
+    assert tiebreak_set(tied_set, profile_with_ties, "first_place") == fpv_ranking
+    assert tiebreak_set(tied_set, profile_with_ties, "borda") == borda_ranking
+    assert len(tiebreak_set(tied_set)) == 3
+
+
+def test_tiebreak_set_errors():
+    tied_set = frozenset({"A", "C", "B"})
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        tiebreak_set(tied_set, tiebreak="first_place")
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        tiebreak_set(tied_set, tiebreak="borda")
+    with pytest.raises(ValueError, match="Invalid tiebreak code was provided"):
+        tiebreak_set(tied_set, profile_no_ties, tiebreak="mine")
+
+
+def test_tiebreak_no_res():
+    profile = PreferenceProfile(
+        ballots=[Ballot(ranking=({"A"},)), Ballot(ranking=({"B"},))]
     )
-    assert tie_broken_ranking(tied_ranking, profile_with_ties, "borda") == borda_ranking
+
+    assert len(tiebreak_set(frozenset({"A", "B"}), profile, "first_place")) == 2
+
+
+def test_tiebroken_ranking():
+    fpv_ranking = (
+        frozenset({"A"}),
+        frozenset({"B"}),
+        frozenset({"C"}),
+        frozenset({"D"}),
+    )
+    borda_ranking = (
+        frozenset({"A"}),
+        frozenset({"C"}),
+        frozenset({"B"}),
+        frozenset({"D"}),
+    )
+    tied_ranking = (frozenset({"A", "C", "B"}), frozenset({"D"}))
+    assert (
+        tiebroken_ranking(tied_ranking, profile_with_ties, "first_place") == fpv_ranking
+    )
+    assert tiebroken_ranking(tied_ranking, profile_with_ties, "borda") == borda_ranking
+    assert len(tiebroken_ranking(tied_ranking)) == 4
+
+
+def test_tiebroken_ranking_errors():
+    tied_ranking = (frozenset({"A", "C", "B"}),)
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        tiebroken_ranking(tied_ranking, tiebreak="first_place")
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        tiebroken_ranking(tied_ranking, tiebreak="borda")
+    with pytest.raises(ValueError, match="Invalid tiebreak code was provided"):
+        tiebroken_ranking(tied_ranking, profile_no_ties, tiebreak="mine")
 
 
 def test_score_dict_to_ranking():
@@ -265,6 +314,11 @@ def test_elect_cands_from_set_ranking():
 def test_elect_cands_from_set_ranking_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         elect_cands_from_set_ranking(({"A", "B"},), 0)
+
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
+        elect_cands_from_set_ranking(({"A", "B"},), 3)
 
     with pytest.raises(
         ValueError,

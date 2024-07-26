@@ -1,10 +1,27 @@
 from fractions import Fraction
-from typing import Union, Sequence
+from typing import Union, Sequence, Optional, TypeVar, cast
 from itertools import permutations
 import math
 import random
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
+
+COLOR_LIST = [
+    (0.55, 0.71, 0.0),
+    (0.82, 0.1, 0.26),
+    (0.44, 0.5, 0.56),
+    (1.0, 0.75, 0.0),
+    (1.0, 0.77, 0.05),
+    (0.0, 0.42, 0.24),
+    (0.13, 0.55, 0.13),
+    (0.9, 0.13, 0.13),
+    (0.08, 0.38, 0.74),
+    (0.41, 0.21, 0.61),
+    (1.0, 0.72, 0.77),
+    (1.0, 0.66, 0.07),
+    (1.0, 0.88, 0.21),
+    (0.55, 0.82, 0.77),
+]
 
 
 def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]:
@@ -20,7 +37,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
             A dictionary whose keys are candidates and values are lists of ballots that
             have that candidate first.
     """
-    cand_dict: dict[str, list[Ballot]] = {c: [] for c in profile.get_candidates()}
+    cand_dict: dict[str, list[Ballot]] = {c: [] for c in profile.candidates}
 
     for b in profile.ballots:
         # find first place candidate, ensure there is only one
@@ -33,10 +50,13 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
     return cand_dict
 
 
+COB = TypeVar("COB", PreferenceProfile, tuple[Ballot, ...], Ballot)
+
+
 def remove_cand(
     removed: Union[str, list],
-    profile_or_ballots: Union[PreferenceProfile, list[Ballot], Ballot],
-) -> Union[PreferenceProfile, list[Ballot], Ballot]:
+    profile_or_ballots: COB,
+) -> COB:
     """
     Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
     removed from a ballot, lower ranked candidates are moved up.
@@ -44,23 +64,23 @@ def remove_cand(
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile_or_ballots (Union[PreferenceProfile, list[Ballot], Ballot]): Collection
+        profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
             of ballots to remove candidates from.
 
     Returns:
-        Union[PreferenceProfile, list[Ballot],Ballot]:
-            Updated collection of ballots with  candidate(s) removed.
+        Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
+            Updated collection of ballots with candidate(s) removed.
     """
     if isinstance(removed, str):
         removed = [removed]
 
-    # map to list of ballots
+    # map to tuple of ballots
     if isinstance(profile_or_ballots, PreferenceProfile):
-        ballots = profile_or_ballots.condense_ballots().get_ballots()
+        ballots = profile_or_ballots.condense_ballots().ballots
     elif isinstance(profile_or_ballots, Ballot):
-        ballots = [profile_or_ballots]
+        ballots = (profile_or_ballots,)
     else:
-        ballots = profile_or_ballots
+        ballots = profile_or_ballots[:]
 
     scrubbed_ballots: list[Union[int, Ballot]] = [-1] * len(ballots)
     for i, ballot in enumerate(ballots):
@@ -79,21 +99,21 @@ def remove_cand(
 
     # easiest way to condense ballots
     clean_profile = PreferenceProfile(
-        ballots=[b for b in scrubbed_ballots if isinstance(b, Ballot)]
+        ballots=tuple([b for b in scrubbed_ballots if isinstance(b, Ballot)])
     ).condense_ballots()
 
     # return matching input data type
     if isinstance(profile_or_ballots, PreferenceProfile):
-        return clean_profile
+        return cast(COB, clean_profile)
     elif isinstance(profile_or_ballots, Ballot):
-        return clean_profile.get_ballots()[0]
+        return cast(COB, clean_profile.ballots[0])
     else:
-        return clean_profile.get_ballots()
+        return cast(COB, clean_profile.ballots)
 
 
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
-    Add any candidates from `profile.get_candidates()` that are not listed on a ballot
+    Add any candidates from `profile.candidates` that are not listed on a ballot
     as tied in last place. Helper function for scoring profiles. Automatically
     condenses profile.
 
@@ -105,7 +125,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
 
     new_ballots = [Ballot()] * len(profile.ballots)
-    candidates = set(profile.get_candidates())
+    candidates = set(profile.candidates)
 
     for i, ballot in enumerate(profile.ballots):
         b_cands = [c for s in ballot.ranking for c in s]
@@ -124,15 +144,15 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
             ranking=tuple([frozenset(s) for s in new_ranking]),
         )
 
-    return PreferenceProfile(ballots=new_ballots).condense_ballots()
+    return PreferenceProfile(ballots=tuple(new_ballots)).condense_ballots()
 
 
-def validate_score_vector(score_vector: Sequence[Union[float, int, Fraction]]):
+def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
     """
     Validator function for score vectors. Vectors should be non-increasing and non-negative.
 
     Args:
-        score_vector (Sequence[Union[float, int, Fraction]]): Score vector.
+        score_vector (Sequence[Union[float, Fraction]]): Score vector.
 
     Raises:
         ValueError: If any score is negative.
@@ -153,7 +173,7 @@ def validate_score_vector(score_vector: Sequence[Union[float, int, Fraction]]):
 
 def score_profile(
     profile: PreferenceProfile,
-    score_vector: Sequence[Union[float, int, Fraction]],
+    score_vector: Sequence[Union[float, Fraction]],
     to_float: bool = False,
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
@@ -167,24 +187,25 @@ def score_profile(
 
     Args:
         profile (PreferenceProfile): Profile to score.
-        score_vector (Sequence[Union[float, int, Fraction]]): Score vector. Should be
+        score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as the number of candidates.
             If it is shorter, we add 0s.
         to_float (bool, optional): If True, compute scores as floats instead of Fractions.
             Defaults to False.
 
     Returns:
-        Union[dict[str, Fraction], dict[str, float]]: Dictionary mapping candidates to scores.
+        Union[dict[str, Fraction], dict[str, float]]:
+            Dictionary mapping candidates to scores.
     """
     validate_score_vector(score_vector)
 
-    max_length = len(profile.get_candidates())
+    max_length = len(profile.candidates)
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
     profile = add_missing_cands(profile)
 
-    scores = {c: Fraction(0) for c in profile.get_candidates()}
+    scores = {c: Fraction(0) for c in profile.candidates}
     for ballot in profile.ballots:
         current_ind = 0
         for s in ballot.ranking:
@@ -216,7 +237,7 @@ def first_place_votes(
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
-    return score_profile(profile, [1] + [0] * len(profile.get_candidates()), to_float)
+    return score_profile(profile, [1] + [0] * len(profile.candidates), to_float)
 
 
 def mentions(
@@ -234,7 +255,7 @@ def mentions(
         Union[dict[str, Fraction], dict[str, float]]:
             Dictionary mapping candidates to mention totals (values).
     """
-    mentions = {c: Fraction(0) for c in profile.get_candidates()}
+    mentions = {c: Fraction(0) for c in profile.candidates}
 
     for ballot in profile.ballots:
         for s in ballot.ranking:
@@ -262,51 +283,91 @@ def borda_scores(
         Union[dict[str, Fraction], dict[str, float]]:
             Dictionary mapping candidates to Borda scores.
     """
-    score_vector = list(range(len(profile.get_candidates()), 0, -1))
+    score_vector = list(range(len(profile.candidates), 0, -1))
 
     return score_profile(profile, score_vector, to_float)
 
 
-def tie_broken_ranking(
+def tiebreak_set(
+    r_set: frozenset[str],
+    profile: Optional[PreferenceProfile] = None,
+    tiebreak: str = "random",
+) -> tuple[frozenset[str], ...]:
+    """
+    Break a single set of candidates into multiple sets each with a single candidate according
+    to a tiebreak rule. Rule 1: random. Rule 2: first-place votes; break the tie based on
+    first-place votes in the profile. Rule 3: borda; break the tie based on Borda points in the
+    profile.
+
+    Args:
+        r_set (frozenset[str]): Set of candidates on which to break tie.
+        profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
+            Borda setting. Defaults to None, which implies a random tiebreak.
+        tiebreak (str, optional): Tiebreak method to use. Options are "random", "first_place", and
+            "borda". Defaults to "random".
+
+    Returns:
+        tuple[frozenset[str],...]: tiebroken ranking
+    """
+    if tiebreak == "random":
+        new_ranking = tuple(
+            frozenset({c}) for c in random.sample(list(r_set), k=len(r_set))
+        )
+    elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
+        if tiebreak == "borda":
+            tiebreak_scores = borda_scores(profile)
+        else:
+            tiebreak_scores = first_place_votes(profile)
+        tiebreak_scores = {
+            c: Fraction(score) for c, score in tiebreak_scores.items() if c in r_set
+        }
+        new_ranking = score_dict_to_ranking(tiebreak_scores)
+
+    elif not profile:
+        raise ValueError("Method of tiebreak requires profile.")
+    else:
+        raise ValueError("Invalid tiebreak code was provided")
+
+    if len(new_ranking) == 1:
+        print("Initial tiebreak was unsuccessful, performing random tiebreak")
+        new_ranking = tiebreak_set(new_ranking[0], profile=profile, tiebreak="random")
+
+    return new_ranking
+
+
+def tiebroken_ranking(
     ranking: tuple[frozenset[str], ...],
-    profile: PreferenceProfile,
-    tiebreak: str = "none",
+    profile: Optional[PreferenceProfile] = None,
+    tiebreak: str = "random",
 ) -> tuple[frozenset[str], ...]:
     """
     Breaks ties in a list-of-sets ranking according to a given scheme.
 
     Args:
         ranking (list[set[str]]): A list-of-set ranking of candidates.
-        profile (PreferenceProfile): PreferenceProfile.
-        tiebreak (str, optional): Method of tiebreak, currently supports 'none', 'random', 'borda',
-            'firstplace'. Defaults to 'none'.
+        profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
+            Borda setting. Defaults to None, which implies a random tiebreak.
+        tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
+            'first_place'. Defaults to random.
 
     Returns:
         tuple[frozenset[str], ...]: A list-of-set ranking of candidates (broken down to one
-        candidate sets unless tiebreak = 'none').
+        candidate sets).
     """
-    if tiebreak == "none":
-        return ranking
-    elif tiebreak == "random":
-        new_ranking = tuple(
-            frozenset({c}) for s in ranking for c in random.sample(list(s), k=len(s))
-        )
-    elif tiebreak == "firstplace":
-        tiebreak_scores = first_place_votes(profile)
-        new_ranking = score_dict_to_ranking(tiebreak_scores)
-    elif tiebreak == "borda":
-        tiebreak_scores = borda_scores(profile)
-        new_ranking = score_dict_to_ranking(tiebreak_scores)
-    else:
-        raise ValueError("Invalid tiebreak code was provided")
+    new_ranking: list[frozenset[str]] = [frozenset()] * len(
+        [c for s in ranking for c in s]
+    )
 
-    if tiebreak != "none" and any(len(s) > 1 for s in new_ranking):
-        print("Initial tiebreak was unsuccessful, performing random tiebreak")
-        new_ranking = tie_broken_ranking(
-            ranking=new_ranking, profile=profile, tiebreak="random"
-        )
+    i = 0
+    for s in ranking:
+        if len(s) > 1:
+            tiebroken = list(tiebreak_set(s, profile, tiebreak))
+        else:
+            tiebroken = [s]
+        new_ranking[i : (i + len(tiebroken))] = tiebroken
+        i += len(tiebroken)
 
-    return new_ranking
+    return tuple(new_ranking)
 
 
 def score_dict_to_ranking(
@@ -343,7 +404,7 @@ def score_dict_to_ranking(
 
 
 def elect_cands_from_set_ranking(
-    ranking: tuple[frozenset[str]], m: int
+    ranking: tuple[frozenset[str], ...], m: int
 ) -> tuple[tuple[frozenset[str], ...], tuple[frozenset[str], ...]]:
     """
     Given a ranking, elect the top m candidates in the ranking.
@@ -351,7 +412,7 @@ def elect_cands_from_set_ranking(
     Returns a tuple of elected candidates, remaining candidates.
 
     Args:
-        ranking (tuple[frozenset[str]]): A list-of-set ranking of candidates.
+        ranking (tuple[frozenset[str],...]): A list-of-set ranking of candidates.
         m (int): Number of seats to elect.
 
     Returns:
@@ -360,6 +421,10 @@ def elect_cands_from_set_ranking(
     """
     if m < 1:
         raise ValueError("m must be strictly positive")
+
+    # if there are more seats than candidates
+    if m > len([c for s in ranking for c in s]):
+        raise ValueError("m must be no more than the number of candidates.")
 
     num_elected = 0
     elected = []
@@ -427,5 +492,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
         PreferenceProfile: A PreferenceProfile with resolved ties.
     """
 
-    new_ballots = [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
+    new_ballots = tuple(
+        [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
+    )
     return PreferenceProfile(ballots=new_ballots).condense_ballots()
