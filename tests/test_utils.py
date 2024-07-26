@@ -273,10 +273,21 @@ def test_tiebroken_ranking():
     )
     tied_ranking = (frozenset({"A", "C", "B"}), frozenset({"D"}))
     assert (
-        tiebroken_ranking(tied_ranking, profile_with_ties, "first_place") == fpv_ranking
+        tiebroken_ranking(tied_ranking, profile_with_ties, "first_place")[0]
+        == fpv_ranking
     )
-    assert tiebroken_ranking(tied_ranking, profile_with_ties, "borda") == borda_ranking
-    assert len(tiebroken_ranking(tied_ranking)) == 4
+    assert (
+        tiebroken_ranking(tied_ranking, profile_with_ties, "borda")[0] == borda_ranking
+    )
+    assert len(tiebroken_ranking(tied_ranking)[0]) == 4
+
+    assert tiebroken_ranking(tied_ranking, profile_with_ties, "first_place")[1] == {
+        frozenset({"A", "C", "B"}): (
+            frozenset({"A"}),
+            frozenset({"B"}),
+            frozenset({"C"}),
+        )
+    }
 
 
 def test_tiebroken_ranking_errors():

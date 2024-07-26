@@ -339,7 +339,9 @@ def tiebroken_ranking(
     ranking: tuple[frozenset[str], ...],
     profile: Optional[PreferenceProfile] = None,
     tiebreak: str = "random",
-) -> tuple[frozenset[str], ...]:
+) -> tuple[
+    tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str], ...]]
+]:
     """
     Breaks ties in a list-of-sets ranking according to a given scheme.
 
@@ -351,23 +353,27 @@ def tiebroken_ranking(
             'first_place'. Defaults to random.
 
     Returns:
-        tuple[frozenset[str], ...]: A list-of-set ranking of candidates (broken down to one
-        candidate sets).
+        tuple[tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str],...]]]:
+            The first entry of the tuple is a list-of-set ranking of candidates (broken down to one
+            candidate sets). The second entry is a dictionary that maps tied sets to their
+            resolution.
     """
     new_ranking: list[frozenset[str]] = [frozenset()] * len(
         [c for s in ranking for c in s]
     )
 
     i = 0
+    tied_dict = {}
     for s in ranking:
         if len(s) > 1:
             tiebroken = list(tiebreak_set(s, profile, tiebreak))
+            tied_dict[s] = tuple(tiebroken)
         else:
             tiebroken = [s]
         new_ranking[i : (i + len(tiebroken))] = tiebroken
         i += len(tiebroken)
 
-    return tuple(new_ranking)
+    return (tuple(new_ranking), tied_dict)
 
 
 def score_dict_to_ranking(
