@@ -8,12 +8,13 @@ from pathlib import Path
 import pickle
 import random
 import warnings
-from typing import Optional, Union, Tuple, Callable, Dict
+from typing import Optional, Union, Tuple, Callable, Dict, Any
 import apportionment.methods as apportion  # type: ignore
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
+from votekit.metrics import euclidean_dist
 
 
 def sample_cohesion_ballot_types(
@@ -1932,11 +1933,6 @@ class slate_BradleyTerry(BallotGenerator):
             return pp
 
 
-# Not sure where to put this! Poetry complains if I try to put it inside the class
-def euclidean_distance(point1: np.ndarray, point2: np.ndarray) -> float:
-    return float(np.linalg.norm(point1 - point2))
-
-
 class DSpatial(BallotGenerator):
     """
     Spatial model for ballot generation. In some metric space determined
@@ -1947,41 +1943,42 @@ class DSpatial(BallotGenerator):
 
     Args:
         candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray]): Distribution to sample a single
-        voter's position from, defaults to uniform distribution.
-        voter_params: (dict[str, float], optional): Parameters to be passed to
-        voter_dist, defaults to uniform(0,1) in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray]): Distribution to sample a
-        single candidate's position from, defaults to uniform distribution.
-        candidate_params: Optional[Dict[str, float]]: Parameters to be passed
-        to candidate_dist, defaults to uniform(0,1) in 2 dimensions.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+            to candidate_dist, defaults to None, which creates the unif(0,1)
+            distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-        Computes distance between a voter and a candidate,
-        defaults to euclidean distance.
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
     Attributes:
         candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray]): Distribution to sample a single
-        voter's position from, defaults to uniform distribution.
-        voter_params: (dict[str, float], optional): Parameters to be passed to
-        voter_dist, defaults to uniform(0,1) in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray]): Distribution to sample a
-        single candidate's position from, defaults to uniform distribution.
-        candidate_params: Optional[Dict[str, float]]: Parameters to be passed
-        to candidate_dist, defaults to uniform(0,1) in 2 dimensions.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+            to candidate_dist, defaults to None, which creates the unif(0,1)
+            distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-        Computes distance between a voter and a candidate,
-        defaults to euclidean distance.
-
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
     """
 
     def __init__(
         self,
         candidates: list[str],
         voter_dist: Callable[..., np.ndarray] = np.random.uniform,
-        voter_params: Optional[Dict[str, float]] = None,
+        voter_params: Optional[Dict[str, Any]] = None,
         candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_params: Optional[Dict[str, float]] = None,
-        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_distance,
+        candidate_params: Optional[Dict[str, Any]] = None,
+        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     ):
         super().__init__(candidates=candidates)
         self.voter_dist = voter_dist
@@ -2012,8 +2009,14 @@ class DSpatial(BallotGenerator):
             which resets the random seed.
 
         Returns:
-            preference profile, candidate positions, voter positions:
-            (Union[PreferenceProfile, Tuple])
+            (Union[PreferenceProfile, Tuple]):
+            preference profile (Preference Profile),
+            candidate positions (dict[str, np.ndarray),
+            voter positions (np.ndarray):
+                A tuple containing the preference profile object,
+                a dictionary with each candidate's position in the metric
+                space, and a matrix where each row is a single voter's position
+                in the metric space.
         """
 
         np.random.seed(seed)
@@ -2054,41 +2057,42 @@ class Clustered_DSpatial(BallotGenerator):
 
     Args:
         candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray]): Distribution to sample a single
-        voter's position from, defaults to uniform distribution.
-        voter_params: (dict[str, float], optional): Parameters to be passed to
-        voter_dist, defaults to uniform(0,1) in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray]): Distribution to sample a
-        single candidate's position from, defaults to uniform distribution.
-        candidate_params: Optional[Dict[str, float]]: Parameters to be passed
-        to candidate_dist, defaults to uniform(0,1) in 2 dimensions.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+            to candidate_dist, defaults None which creates the unif(0,1) 
+            distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-        Computes distance between a voter and a candidate,
-        defaults to euclidean distance.
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
     Attributes:
         candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray]): Distribution to sample a single
-        voter's position from, defaults to uniform distribution.
-        voter_params: (dict[str, float], optional): Parameters to be passed to
-        voter_dist, defaults to uniform(0,1) in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray]): Distribution to sample a
-        single candidate's position from, defaults to uniform distribution.
-        candidate_params: Optional[Dict[str, float]]: Parameters to be passed
-        to candidate_dist, defaults to uniform(0,1) in 2 dimensions.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+            to candidate_dist, defaults None which creates the unif(0,1) 
+            distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-        Computes distance between a voter and a candidate,
-        defaults to euclidean distance.
-
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
     """
 
     def __init__(
         self,
         candidates: list[str],
         voter_dist: Callable[..., np.ndarray] = np.random.uniform,
-        voter_params: Optional[Dict[str, np.ndarray]] = None,
+        voter_params: Optional[Dict[str, Any]] = None,
         candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_params: Optional[Dict[str, float]] = None,
-        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_distance,
+        candidate_params: Optional[Dict[str, Any]] = None,
+        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     ):
         super().__init__(candidates=candidates)
         self.candidate_dist = candidate_dist
@@ -2112,15 +2116,21 @@ class Clustered_DSpatial(BallotGenerator):
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
-            number_of_ballots (dict): The number of voters attributed
+            number_of_ballots (dict[str, int]): The number of voters attributed
                         to each candidate {candidate string: # voters}
             by_bloc (bool): Dummy variable from parent class.
             seed (int, optional): Seed for random generation, defaults to None
-            which resets the random seed.
+                which resets the random seed.
 
         Returns:
-            preference profile, candidate positions, voter positions:
-            (Union[PreferenceProfile, Tuple])
+            (Union[PreferenceProfile, Tuple]):
+            preference profile (Preference Profile),
+            candidate positions (dict[str, np.ndarray),
+            voter positions (np.ndarray):
+                A tuple containing the preference profile object,
+                a dictionary with each candidate's position in the metric
+                space, and a matrix where each row is a single voter's position
+                in the metric space.
         """
 
         np.random.seed(seed)
@@ -2139,9 +2149,10 @@ class Clustered_DSpatial(BallotGenerator):
         voter_positions_array = np.vstack(voter_positions)
 
         ballot_pool = []
-        for vp in voter_positions:
+        for v_position in voter_positions:
             distance_dict = {
-                i: self.distance(vp, c) for i, c, in candidate_position_dict.items()
+                c: self.distance(v_position, c_position)
+                for c, c_position, in candidate_position_dict.items()
             }
             candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
             ballot_pool.append(candidate_order)

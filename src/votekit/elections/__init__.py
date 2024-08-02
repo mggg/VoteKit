@@ -15,6 +15,7 @@ from .election_types import (  # noqa
     Cumulative,
     RandomDictator,
     BoostedRandomDictator,
+    PluralityVeto,
 )
 
 from .transfers import fractional_transfer, random_transfer  # noqa
