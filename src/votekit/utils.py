@@ -39,7 +39,8 @@ def ballots_by_first_cand(candidates: list[str], ballots: list[Ballot]) -> dict:
         ballots (list[Ballot]): A list of ballots.
 
     Returns:
-        dict: A dictionary whose keys are candidates and values are lists of ballots that
+        dict:
+            A dictionary whose keys are candidates and values are lists of ballots that
             have that candidate first.
     """
     cand_dict = {c: [] for c in candidates}  # type: dict
@@ -70,7 +71,8 @@ def compute_votes(
         ballots (list[Ballot]): List of Ballot objects.
 
     Returns:
-        tuple: A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes)
+        tuple:
+            A tuple (ordered, votes) where ordered is a list of tuples (cand, first place votes)
             ordered by decreasing first place votes and votes is a dictionary whose keys are
             candidates and values are first place votes.
     """
@@ -376,7 +378,7 @@ def compute_scores_from_vector(
 
     Args:
         profile (PreferenceProfile): ``PreferenceProfile`` to compute scores for.
-        score_vector (list[float]): List of floats where :math:`i`th position denotes points given
+        score_vector (list[float]): List of floats where :math:`i` th position denotes points given
             to candidates in position :math:`i`.
 
     Returns:

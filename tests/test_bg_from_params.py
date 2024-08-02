@@ -201,6 +201,26 @@ def test_CS_from_params():
     profile = cs.generate_profile(3)
     assert type(profile) is PreferenceProfile
 
+    # chekc that W,C bloc assignments work
+    cs = CambridgeSampler.from_params(
+        bloc_voter_prop=blocs,
+        alphas=alphas,
+        slate_to_candidates=slate_to_cands,
+        cohesion_parameters=cohesion_parameters,
+        W_bloc="R",
+        C_bloc="D",
+    )
+
+    # check if intervals add up to one
+    assert all(
+        math.isclose(sum(cs.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
+        for curr_bloc in blocs.keys()
+        for b in blocs.keys()
+    )
+
+    profile = cs.generate_profile(3)
+    assert type(profile) is PreferenceProfile
+
 
 def test_interval_sum_from_params():
     blocs = {"R": 0.6, "D": 0.4}

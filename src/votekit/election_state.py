@@ -70,7 +70,8 @@ class ElectionState(BaseModel):
         Eliminated candidates up to current round.
 
         Returns:
-            list[set[str]]: A list of eliminated candidates ordered from current round to first
+            list[set[str]]:
+                A list of eliminated candidates ordered from current round to first
                 round.
         """
         if self.previous:
@@ -83,7 +84,8 @@ class ElectionState(BaseModel):
         Show the current rankings of all candidates.
 
         Returns:
-            list[set[str]]: List of all candidates in order of their ranking after each round,
+            list[set[str]]:
+                List of all candidates in order of their ranking after each round,
                 first the winners, then remaining, then the eliminated candidates.
         """
         if self.remaining != [{}]:
@@ -134,7 +136,8 @@ class ElectionState(BaseModel):
         Which candidates changed rank between current and previous round.
 
         Returns:
-            dict: A dictionary with keys = candidate(s) who changed ranking from previous round
+            dict:
+                A dictionary with keys = candidate(s) who changed ranking from previous round
                 and values = a tuple of (previous rank, new rank).
         """
 
@@ -157,7 +160,8 @@ class ElectionState(BaseModel):
         Yield the status of the candidates in the current round.
 
         Returns:
-            pd.DataFrame: Data frame displaying candidate, status (elected, eliminated,
+            pd.DataFrame:
+                Data frame displaying candidate, status (elected, eliminated,
                 remaining), and the round their status updated.
         """
         all_cands = [c for s in self.rankings() for c in s]

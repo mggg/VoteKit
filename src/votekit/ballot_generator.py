@@ -1155,8 +1155,9 @@ class CambridgeSampler(BallotGenerator):
     """
     Class for generating ballots based on historical RCV elections occurring
     in Cambridge, MA. Alternative election data can be used if specified. Assumes that there are two
-    blocs, a majority and a minority bloc, and determines this based on the ``bloc_voter_prop``
-    attr.
+    blocs, a W and C bloc, which corresponds to the historical Cambridge data.
+    By default, it assigns the W bloc to the majority bloc and C to the minority, but this
+    can be changed.
 
     Based on cohesion parameters, decides if a voter casts their top choice within their bloc
     or in the opposing bloc. Then uses historical data; given their first choice, choose a
@@ -1172,12 +1173,16 @@ class CambridgeSampler(BallotGenerator):
         cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
             keys are bloc strings and values are cohesion parameters,
             eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
-        historical_majority (str): Name of majority bloc in historical data, defaults to W for
-            Cambridge data.
-        historical_minority (str): Name of minority bloc in historical data, defaults to C for
-            Cambridge data.
-        path (str): File path to an election data file to sample from. Defaults to Cambridge
-            elections.
+        W_bloc (str, optional): Name of the bloc corresponding to the W bloc. Defaults to
+            whichever bloc has majority via ``bloc_voter_prop``.
+        C_bloc (str, optional): Name of the bloc corresponding to the C bloc. Defaults to
+            whichever bloc has minority via ``bloc_voter_prop``.
+        historical_majority (str, optional): Name of majority bloc in historical data, defaults to W
+            for Cambridge data.
+        historical_minority (str, optional): Name of minority bloc in historical data, defaults to C
+            for Cambridge data.
+        path (str, optional): File path to an election data file to sample from. Defaults to
+            Cambridge elections.
 
     Attributes:
         candidates (list): List of candidate strings.
@@ -1190,14 +1195,10 @@ class CambridgeSampler(BallotGenerator):
         cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
             keys are bloc strings and values are cohesion parameters,
             eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
-        historical_majority (str): Name of majority bloc in historical data, defaults to W for
-            Cambridge data.
-        historical_minority (str): Name of minority bloc in historical data, defaults to C for
-            Cambridge data.
-        majority_bloc (str): The name of the bloc determined to be the majority by
-            ``bloc_voter_prop``.
-        minority_bloc (str): The name of the bloc determined to be the minority by
-            ``bloc_voter_prop``.
+        W_bloc (str): The name of the W bloc.
+        C_bloc (str): The name of the C bloc.
+        historical_majority (str): Name of majority bloc in historical data.
+        historical_minority (str): Name of minority bloc in historical data.
         path (str): File path to an election data file to sample from. Defaults to Cambridge
             elections.
         bloc_to_historical (dict): Dictionary which converts bloc names to historical bloc names.
@@ -1207,6 +1208,8 @@ class CambridgeSampler(BallotGenerator):
         self,
         cohesion_parameters: dict,
         path: Optional[Path] = None,
+        W_bloc: Optional[str] = None,
+        C_bloc: Optional[str] = None,
         historical_majority: Optional[str] = "W",
         historical_minority: Optional[str] = "C",
         **data,
@@ -1223,17 +1226,32 @@ class CambridgeSampler(BallotGenerator):
                               passed {len(self.slate_to_candidates.keys())}"
             )
 
-        self.majority_bloc = [
-            bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
-        ][0]
+        if (W_bloc is None) != (C_bloc is None):
+            raise ValueError(
+                "Both W_bloc and C_bloc must be provided or not provided. \
+                             You have provided only one."
+            )
 
-        self.minority_bloc = [
-            bloc for bloc in self.bloc_voter_prop.keys() if bloc != self.majority_bloc
-        ][0]
+        elif W_bloc is not None and W_bloc == C_bloc:
+            raise ValueError("W and C bloc must be distinct.")
+
+        if W_bloc is None:
+            self.W_bloc = [
+                bloc for bloc, prop in self.bloc_voter_prop.items() if prop >= 0.5
+            ][0]
+        else:
+            self.W_bloc = W_bloc
+
+        if C_bloc is None:
+            self.C_bloc = [
+                bloc for bloc in self.bloc_voter_prop.keys() if bloc != self.W_bloc
+            ][0]
+        else:
+            self.C_bloc = C_bloc
 
         self.bloc_to_historical = {
-            self.majority_bloc: self.historical_majority,
-            self.minority_bloc: self.historical_minority,
+            self.W_bloc: self.historical_majority,
+            self.C_bloc: self.historical_minority,
         }
 
         if path:

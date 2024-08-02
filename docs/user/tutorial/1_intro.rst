@@ -371,7 +371,7 @@ candidate will appear at the bottom of the ballot.
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
 
-
+   png
 
 One of the generative models is called the **slate-Plackett-Luce
 model**, or s-PL. In s-PL, voters fill in their ballot from the top
@@ -396,7 +396,7 @@ but bear with us.
     
     # the preference interval (80,15,5)
     pref_intervals_by_bloc = {"all_voters":  
-                              {"all_voters": PreferenceInterval({"A": .80,  "B":.15,  "C":.05})}
+                              {"all_voters": PreferenceInterval({"A": .80,  "B": .15,  "C": .05})}
                               }
     
     # the sPL model needs an estimate of cohesion between blocs, 
@@ -415,11 +415,11 @@ but bear with us.
 .. parsed-literal::
 
       Ballots Weight
-    (A, B, C)     61
-    (A, C, B)     17
-    (B, A, C)     17
-    (C, A, B)      4
-    (B, C, A)      1
+    (A, B, C)     56
+    (A, C, B)     23
+    (B, A, C)     12
+    (C, A, B)      7
+    (C, B, A)      2
 
 
 Re-run the above block several times to see that the elections will come
@@ -461,11 +461,11 @@ their bloc.
     # note that we include candidates with 0 support, 
     # and that our preference intervals will automatically rescale to sum to 1
     
-    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B":.15}),
-                                        "Xenon": PreferenceInterval({"X":0, "Y": .05})},
+    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B": .2}),
+                                        "Xenon": PreferenceInterval({"X": 0, "Y": 1})},
     
-                             "Xenon": {"Alpha": PreferenceInterval({"A": .05, "B":.05}),
-                                       "Xenon": PreferenceInterval({"X":.45, "Y": .45})}}
+                             "Xenon": {"Alpha": PreferenceInterval({"A": .5, "B": .5}),
+                                       "Xenon": PreferenceInterval({"X": .5, "Y": .5})}}
     
     
     bloc_voter_prop = {"Alpha": .8, "Xenon": .2}
@@ -493,48 +493,48 @@ their bloc.
 
     The ballots from Alpha voters
           Ballots Weight
-    (A, B, Y, X)   5527
-    (B, A, Y, X)    967
-    (Y, A, B, X)    673
-    (A, Y, B, X)    605
-    (Y, B, A, X)    123
-    (B, Y, A, X)    105
+    (A, B, Y, X)   5184
+    (B, A, Y, X)   1283
+    (Y, A, B, X)    659
+    (A, Y, B, X)    580
+    (Y, B, A, X)    154
+    (B, Y, A, X)    140
     The ballots from Xenon voters
      PreferenceProfile too long, only showing 15 out of 24 rows.
          Ballots Weight
-    (Y, X, A, B)    415
-    (X, Y, B, A)    405
-    (Y, X, B, A)    401
-    (X, Y, A, B)    397
+    (Y, X, A, B)    420
+    (X, Y, A, B)    412
+    (X, Y, B, A)    397
+    (Y, X, B, A)    378
     (B, Y, X, A)     50
-    (A, X, Y, B)     45
-    (B, X, Y, A)     44
-    (Y, B, X, A)     41
-    (X, A, Y, B)     40
-    (Y, A, X, B)     36
-    (X, B, Y, A)     35
-    (A, Y, X, B)     33
-    (A, B, X, Y)      9
-    (B, Y, A, X)      9
-    (A, X, B, Y)      7
+    (X, A, Y, B)     48
+    (B, X, Y, A)     47
+    (A, X, Y, B)     44
+    (A, Y, X, B)     41
+    (Y, B, X, A)     37
+    (Y, A, X, B)     37
+    (X, B, Y, A)     34
+    (A, B, X, Y)      8
+    (B, A, Y, X)      7
+    (X, B, A, Y)      6
     Aggregated ballots
      PreferenceProfile too long, only showing 15 out of 30 rows.
          Ballots Weight
-    (A, B, Y, X)   5527
-    (B, A, Y, X)    967
-    (Y, A, B, X)    673
-    (A, Y, B, X)    605
-    (Y, X, A, B)    415
-    (X, Y, B, A)    405
-    (Y, X, B, A)    401
-    (X, Y, A, B)    397
-    (Y, B, A, X)    123
-    (B, Y, A, X)    105
+    (A, B, Y, X)   5184
+    (B, A, Y, X)   1283
+    (Y, A, B, X)    659
+    (A, Y, B, X)    580
+    (Y, X, A, B)    420
+    (X, Y, A, B)    412
+    (X, Y, B, A)    397
+    (Y, X, B, A)    378
+    (Y, B, A, X)    154
+    (B, Y, A, X)    140
     (B, Y, X, A)     50
-    (A, X, Y, B)     45
-    (B, X, Y, A)     44
-    (Y, B, X, A)     41
-    (X, A, Y, B)     40
+    (X, A, Y, B)     48
+    (B, X, Y, A)     47
+    (A, X, Y, B)     44
+    (A, Y, X, B)     41
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
