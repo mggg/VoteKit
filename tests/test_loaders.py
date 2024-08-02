@@ -10,7 +10,6 @@ from votekit.pref_profile import PreferenceProfile
 
 BASE_DIR = Path(__file__).resolve().parent
 CSV_DIR = BASE_DIR / "data/csv/"
-BLT_DIR = BASE_DIR / "data/txt/"
 
 
 def is_equal(b1: list[Ballot], b2: list[Ballot]) -> bool:
@@ -161,21 +160,82 @@ def test_same_name():
 #     # print(p)
 
 
-def test_blt_seats_parse():
-    pp, seats = load_scottish(BLT_DIR / "edinburgh17-01_abridged.blt")
-    assert seats == 4
+def test_scot_csv_parse():
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        CSV_DIR / "scot_wardy_mc_ward.csv"
+    )
+
+    assert seats == 1
+    assert isinstance(pp, PreferenceProfile)
+    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
+    assert len(pp.get_candidates()) == 3
+    assert cand_list == ["Paul", "George", "Ringo"]
+    assert cand_to_party == {
+        "Paul": "Orange (O)",
+        "George": "Yellow (Y)",
+        "Ringo": "Red (R)",
+    }
+    assert ward == "Wardy McWard Ward"
+    assert int(pp.num_ballots()) == 146
+    assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
+    assert (
+        Ballot(
+            ranking=tuple(
+                [frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]
+            ),
+            weight=1,
+        )
+        in pp.ballots
+    )
 
 
-def test_empty_file_blt():
+def test_scot_csv_blank_rows():
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        CSV_DIR / "scot_blank_rows.csv"
+    )
+
+    assert seats == 1
+    assert isinstance(pp, PreferenceProfile)
+    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
+    assert len(pp.get_candidates()) == 3
+    assert cand_list == ["Paul", "George", "Ringo"]
+    assert cand_to_party == {
+        "Paul": "Orange (O)",
+        "George": "Yellow (Y)",
+        "Ringo": "Red (R)",
+    }
+    assert ward == "Wardy McWard Ward"
+    assert int(pp.num_ballots()) == 146
+    assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
+    assert (
+        Ballot(
+            ranking=tuple(
+                [frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]
+            ),
+            weight=1,
+        )
+        in pp.ballots
+    )
+
+
+def test_bad_file_path_scot_csv():
+    with pytest.raises(FileNotFoundError):
+        load_scottish("")
+
+
+def test_empty_file_scot_csv():
     with pytest.raises(EmptyDataError):
-        pp, seats = load_scottish(BLT_DIR / "empty.blt")
+        load_scottish(CSV_DIR / "scot_empty.csv")
 
 
-def test_bad_metadata_blt():
+def test_bad_metadata_scot_csv():
     with pytest.raises(DataError):
-        pp, seats = load_scottish(BLT_DIR / "bad_metadata.blt")
+        load_scottish(CSV_DIR / "scot_bad_metadata.csv")
 
 
-def test_incorrect_metadata_blt():
+def test_incorrect_metadata_scot_csv():
     with pytest.raises(DataError):
-        pp, seats = load_scottish(BLT_DIR / "candidate_metadata_conflict.blt")
+        load_scottish(CSV_DIR / "scot_candidate_overcount.csv")
+
+    with pytest.raises(DataError):
+        load_scottish(CSV_DIR / "scot_candidate_undercount.csv")

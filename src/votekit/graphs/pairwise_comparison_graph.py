@@ -104,8 +104,9 @@ class PairwiseComparisonGraph(Graph):
         cand_b.
 
         Returns:
-            dict: A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is
-            preferred to cand_b.
+            dict:
+                A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is
+                preferred to cand_b.
         """
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
         cand_pairs = combinations(self.candidates, 2)
@@ -237,7 +238,7 @@ class PairwiseComparisonGraph(Graph):
 
     def has_condorcet_cycles(self) -> bool:
         """
-        Checks if graph has any condorcet cycles, which we define as any cycle of length
+            Checks if graph has any condorcet cycles, which we define as any cycle of length
             greater than 2 in the graph.
 
         Returns:
@@ -253,7 +254,7 @@ class PairwiseComparisonGraph(Graph):
     @cache
     def get_condorcet_cycles(self) -> list:
         """
-        Returns a list of condorcet cycles in the graph, which we define as any cycle of length
+            Returns a list of condorcet cycles in the graph, which we define as any cycle of length
             greater than 2.
 
         Returns:

@@ -155,8 +155,9 @@ class BallotGraph(Graph):
 
 
         Returns:
-            networkx.Graph: Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
-                    ballots cast in ``PreferenceProfile``.
+            networkx.Graph:
+                Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
+                ballots cast in ``PreferenceProfile``.
         """
         if not self.profile:
             self.profile = profile
