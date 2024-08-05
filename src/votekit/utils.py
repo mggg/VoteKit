@@ -85,7 +85,7 @@ def remove_cand(
     else:
         ballots = profile_or_ballots[:]
 
-    scrubbed_ballots: list[Union[int, Ballot]] = [-1] * len(ballots)
+    scrubbed_ballots = [Ballot()] * len(ballots)
     for i, ballot in enumerate(ballots):
         new_ranking = []
         new_scores = {}
@@ -115,11 +115,15 @@ def remove_cand(
         elif len(new_scores) > 0:
             scrubbed_ballots[i] = Ballot(weight=ballot.weight, scores=new_scores)
 
+        # else ballot exhausted
+        else:
+            scrubbed_ballots[i] = Ballot(weight=Fraction(0))
+
     # return matching input data type
     if isinstance(profile_or_ballots, PreferenceProfile):
         # easiest way to condense ballots
         clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if isinstance(b, Ballot)]),
+            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
             candidates=tuple(
                 [c for c in profile_or_ballots.candidates if c not in removed]
             ),
@@ -129,13 +133,13 @@ def remove_cand(
     elif isinstance(profile_or_ballots, Ballot):
         # easiest way to condense ballots
         clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if isinstance(b, Ballot)]),
+            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
         ).condense_ballots()
         return cast(COB, clean_profile.ballots[0])
     else:
         # easiest way to condense ballots
         clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if isinstance(b, Ballot)]),
+            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
         ).condense_ballots()
         return cast(COB, clean_profile.ballots)
 
@@ -248,7 +252,7 @@ def score_profile_from_rankings(
             for s in ballot.ranking:
                 position_size = len(s)
                 if len(s) == 0:
-                    raise ValueError(f"Ballot {ballot} has an empty ranking position.")
+                    raise TypeError(f"Ballot {ballot} has an empty ranking position.")
                 local_score_vector = score_vector[
                     current_ind : current_ind + position_size
                 ]
@@ -338,7 +342,6 @@ def tiebreak_set(
     r_set: frozenset[str],
     profile: Optional[PreferenceProfile] = None,
     tiebreak: str = "random",
-    random_seed: Optional[int] = None,
 ) -> tuple[frozenset[str], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
@@ -415,10 +418,10 @@ def tiebroken_ranking(
     tied_dict = {}
     for s in ranking:
         if len(s) > 1:
-            tiebroken = list(tiebreak_set(s, profile, tiebreak))
-            tied_dict[s] = tuple(tiebroken)
+            tiebroken = tiebreak_set(s, profile, tiebreak)
+            tied_dict[s] = tiebroken
         else:
-            tiebroken = [s]
+            tiebroken = (s,)
         new_ranking[i : (i + len(tiebroken))] = tiebroken
         i += len(tiebroken)
 

@@ -65,6 +65,9 @@ def test_ballots_by_first_cand_error():
     with pytest.raises(ValueError, match="has a tie for first."):
         ballots_by_first_cand(profile_with_ties)
 
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        ballots_by_first_cand(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+
 
 def test_remove_cand_dif_types():
     no_a_true = PreferenceProfile(
@@ -192,6 +195,13 @@ def test_add_missing_cands():
     assert add_missing_cands(profile_with_missing) == true_add
 
 
+def test_add_missing_cands_errors():
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        add_missing_cands(
+            PreferenceProfile(ballots=(Ballot(scores={"A": 3}),), candidates=["A", "B"])
+        )
+
+
 def test_validate_score_vector():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
         validate_score_vector([3, 2, -1])
@@ -203,7 +213,7 @@ def test_validate_score_vector():
     validate_score_vector([3, 3, 3, 3])
 
 
-def test_score_profile():
+def test_score_profile_from_rankings():
     true_scores = {
         "A": Fraction(105, 4),
         "B": Fraction(73, 4),
@@ -217,7 +227,7 @@ def test_score_profile():
     assert isinstance(comp_scores["A"], Fraction)
 
 
-def test_score_profile_to_float():
+def test_score_profile_from_rankings_to_float():
     true_scores = {"A": 105 / 4, "B": 73 / 4, "C": 77 / 4, "D": 45 / 4, "E": 30 / 4}
 
     comp_scores = score_profile_from_rankings(
@@ -227,7 +237,7 @@ def test_score_profile_to_float():
     assert isinstance(comp_scores["A"], float)
 
 
-def test_score_profile_error():
+def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
         score_profile_from_rankings(PreferenceProfile(), [3, 2, -1])
 
@@ -237,6 +247,16 @@ def test_score_profile_error():
     with pytest.raises(ValueError):
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(ranking=({}, {"A"})),))
+        )
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        score_profile_from_rankings(
+            PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
+        )
+
+    with pytest.raises(TypeError, match="has an empty ranking position."):
+        score_profile_from_rankings(
+            PreferenceProfile(ballots=(Ballot(ranking=({"A"}, frozenset(), {"B"})),)),
+            [3, 2, 1],
         )
 
 
@@ -256,6 +276,11 @@ def test_first_place_votes_to_float():
     assert isinstance(votes["A"], float)
 
 
+def test_fpv_errors():
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        first_place_votes(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+
+
 def test_mentions():
     correct = {"A": Fraction(9, 2), "B": Fraction(9, 2), "C": Fraction(7, 2)}
     test = mentions(profile_no_ties)
@@ -268,6 +293,11 @@ def test_mentions_to_float():
     test = mentions(profile_no_ties, to_float=True)
     assert correct == test
     assert isinstance(test["A"], float)
+
+
+def test_mentions_errors():
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        mentions(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
 def test_borda_no_ties():
@@ -294,6 +324,11 @@ def test_borda_with_ties():
 
     assert borda == true_borda
     assert isinstance(borda["A"], Fraction)
+
+
+def test_borda_errors():
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
 def test_tiebreak_set():
@@ -459,6 +494,11 @@ def test_expand_tied_ballot():
     ]
 
     assert set(expand_tied_ballot(ballot)) == set(no_ties)
+
+
+def test_expand_tied_ballot_errors():
+    with pytest.raises(TypeError, match="Ballot must have ranking."):
+        expand_tied_ballot(Ballot(scores={"A": 3}))
 
 
 def test_resolve_profile_ties():
