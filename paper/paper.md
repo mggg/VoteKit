@@ -131,7 +131,11 @@ See generally
 references.
 
 Reform advocates also need to describe voting mechanisms and their
-likely outcomes effectively to members of their communities. `VoteKit`
+likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes.
+
+![A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature [@washington_leg]. \label{fig:WA_comparison}](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
+
+<!-- `VoteKit`
 includes a variety of metrics and visualizations intended to facilitate
 this.
 
@@ -144,7 +148,7 @@ shows head-to-head margins between candidates. For instance, 282 more
 voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to
 make the figure. Note that $W_1$, who has the most first-place votes by
 far, is also preferred head-to-head over all alternatives, making them
-the *Condorcet candidate* in this election.
+the *Condorcet candidate* in this election. -->
 
 ## Area of need: Resources for research
 

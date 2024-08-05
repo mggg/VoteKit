@@ -90,36 +90,40 @@ Dominating sets/Smith method, Condo-Borda\footnote{This system orders candidates
 \end{itemize}
 See generally \cite{electoralhandbook,STV,Borda,TopTwo,SequentialRCV} for references.
 
-Reform advocates also need to describe voting mechanisms and their likely outcomes effectively to members of their communities. 
-\VK includes a variety of metrics and visualizations intended to facilitate this. 
-
-\begin{figure}[bht!] \hspace{-.5in}
-\begin{tikzpicture}
-
-\node at (2.5,-5.2) {\includegraphics[height=2.5in]{../figures/pwc_graph.png}};
-\node at (2.5,-8.2) {\bf Pairwise Comparison Graph};
-
-\node at (10,-5.2) {\includegraphics[height=2in]{../figures/profile.png}};
-\node at (10,-8.2) {\bf Preference Profile};
-
-
-\node at (0,0) {\includegraphics[width=2.5in]{../figures/fpv.png}};
-\node at (0,2.2) {\bf First-Place Votes};
-\node at (6,0) {\includegraphics[width=2.5in]{../figures/borda.png}};
-\node at (6,2.2) {\bf Borda Points};
-\node at (12,0) {\includegraphics[width=2.5in]{../figures/mentions.png}};
-\node at (12,2.2) {\bf Mentions};
-
-\end{tikzpicture}
-
- \caption{Four visualizations for the same synthetic four-candidate preference profile with 1000 voters.  The profile was generated with the CS model, which produces incomplete ballots at a realistic rate.}
- \label{fig: votekit summary stats}
+Reform advocates also need to describe voting mechanisms and their
+likely outcomes effectively to members of their communities. The end-to-end pipeline provided by \VK allows advocates to toggle different system settings and compare expected outcomes.
+\begin{figure}[bht!]
+    \includegraphics[options]{./figures/WA_poc_seats_chartsystem_compare_pared.png}
+    \caption{A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature \cite{washington_leg}.}
+    \label{fig:comparison}
 \end{figure}
+% \begin{figure}[bht!] \hspace{-.5in}
+% \begin{tikzpicture}
+
+% \node at (2.5,-5.2) {\includegraphics[height=2.5in]{../figures/pwc_graph.png}};
+% \node at (2.5,-8.2) {\bf Pairwise Comparison Graph};
+
+% \node at (10,-5.2) {\includegraphics[height=2in]{../figures/profile.png}};
+% \node at (10,-8.2) {\bf Preference Profile};
+
+
+% \node at (0,0) {\includegraphics[width=2.5in]{../figures/fpv.png}};
+% \node at (0,2.2) {\bf First-Place Votes};
+% \node at (6,0) {\includegraphics[width=2.5in]{../figures/borda.png}};
+% \node at (6,2.2) {\bf Borda Points};
+% \node at (12,0) {\includegraphics[width=2.5in]{../figures/mentions.png}};
+% \node at (12,2.2) {\bf Mentions};
+
+% \end{tikzpicture}
+
+%  \caption{Four visualizations for the same synthetic four-candidate preference profile with 1000 voters.  The profile was generated with the CS model, which produces incomplete ballots at a realistic rate.}
+%  \label{fig: votekit summary stats}
+% \end{figure}
 
 
 
 
-For a given preference profile, basic \VK functions provide statistics and visuals for first-place votes, Borda count, and mention frequency, as well as head-to-head comparisons (see Figure \ref{fig: votekit summary stats}).   The pairwise comparison graph shows  head-to-head margins between candidates.  For instance, 282 more voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to make the figure.  Note that $W_1$, who has the most first-place votes by far, is also preferred head-to-head over all alternatives, making them the {\em Condorcet candidate} in this election.
+% For a given preference profile, basic \VK functions provide statistics and visuals for first-place votes, Borda count, and mention frequency, as well as head-to-head comparisons (see Figure \ref{fig: votekit summary stats}).   The pairwise comparison graph shows  head-to-head margins between candidates.  For instance, 282 more voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to make the figure.  Note that $W_1$, who has the most first-place votes by far, is also preferred head-to-head over all alternatives, making them the {\em Condorcet candidate} in this election.
 
 \FloatBarrier
 %%%%%%%%%%%%%%%
