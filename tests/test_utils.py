@@ -6,7 +6,7 @@ from votekit.utils import (
     remove_cand,
     add_missing_cands,
     validate_score_vector,
-    score_profile,
+    score_profile_from_rankings,
     first_place_votes,
     mentions,
     borda_scores,
@@ -16,6 +16,7 @@ from votekit.utils import (
     elect_cands_from_set_ranking,
     expand_tied_ballot,
     resolve_profile_ties,
+    score_profile_from_ballot_scores,
 )
 import pytest
 
@@ -71,7 +72,8 @@ def test_remove_cand_dif_types():
             Ballot(ranking=[{"B"}], weight=1),
             Ballot(ranking=[{"B"}, {"C"}], weight=1 / 2),
             Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ]
+        ],
+        candidates=("B", "C"),
     )
 
     assert remove_cand("A", profile_no_ties) == no_a_true
@@ -87,14 +89,16 @@ def test_remove_cand_no_ties():
             Ballot(ranking=[{"B"}], weight=1),
             Ballot(ranking=[{"B"}, {"C"}], weight=1 / 2),
             Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ]
+        ],
+        candidates=("B", "C"),
     )
 
     no_a_b = remove_cand(["A", "B"], profile_no_ties)
     no_a_b_true = PreferenceProfile(
         ballots=[
             Ballot(ranking=[{"C"}], weight=7 / 2),
-        ]
+        ],
+        candidates=("C",),
     )
 
     assert no_a == no_a_true
@@ -108,17 +112,71 @@ def test_remove_cand_with_ties():
             Ballot(ranking=[{"B"}], weight=1),
             Ballot(ranking=[{"B", "C"}], weight=1 / 2),
             Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ]
+        ],
+        candidates=("B", "C"),
     )
 
     no_a_b = remove_cand(["A", "B"], profile_no_ties)
     no_a_b_true = PreferenceProfile(
         ballots=[
             Ballot(ranking=[{"C"}], weight=7 / 2),
-        ]
+        ],
+        candidates=("C",),
     )
     assert no_a == no_a_true
     assert no_a_b == no_a_b_true
+
+
+def test_remove_cands_scores():
+    profile = PreferenceProfile(
+        ballots=(
+            Ballot(
+                ranking=({"A"}, {"B"}, {"C"}),
+            ),
+            Ballot(
+                scores={"A": 3, "B": 2},
+            ),
+            Ballot(
+                ranking=({"A"}, {"B"}, {"C"}),
+                scores={"A": 3, "B": 2},
+            ),
+            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
+            Ballot(
+                ranking=({"A"}, {"B"}, {"C"}),
+                scores={"A": 3, "B": 2},
+                weight=Fraction(2),
+            ),
+        ),
+        candidates=("A", "B", "C"),
+    )
+
+    no_a_true = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(3)),
+            Ballot(
+                scores={"B": 2},
+            ),
+            Ballot(
+                ranking=({"B"}, {"C"}),
+                scores={"B": 2},
+                weight=Fraction(3),
+            ),
+        ),
+        candidates=("B", "C"),
+    )
+
+    no_a_b_true = PreferenceProfile(
+        ballots=(
+            Ballot(
+                ranking=({"C"},),
+                weight=Fraction(6),
+            ),
+        ),
+        candidates=("C",),
+    )
+
+    assert remove_cand("A", profile) == no_a_true
+    assert remove_cand(["A", "B"], profile) == no_a_b_true
 
 
 def test_add_missing_cands():
@@ -154,7 +212,7 @@ def test_score_profile():
         "E": Fraction(30, 4),
     }
 
-    comp_scores = score_profile(profile_with_missing, [5, 4, 3, 2, 1])
+    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
     assert comp_scores == true_scores
     assert isinstance(comp_scores["A"], Fraction)
 
@@ -162,17 +220,24 @@ def test_score_profile():
 def test_score_profile_to_float():
     true_scores = {"A": 105 / 4, "B": 73 / 4, "C": 77 / 4, "D": 45 / 4, "E": 30 / 4}
 
-    comp_scores = score_profile(profile_with_missing, [5, 4, 3, 2, 1], to_float=True)
+    comp_scores = score_profile_from_rankings(
+        profile_with_missing, [5, 4, 3, 2, 1], to_float=True
+    )
     assert comp_scores == true_scores
     assert isinstance(comp_scores["A"], float)
 
 
 def test_score_profile_error():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
-        score_profile(PreferenceProfile(), [3, 2, -1])
+        score_profile_from_rankings(PreferenceProfile(), [3, 2, -1])
 
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
-        score_profile(PreferenceProfile(), [3, 2, 3])
+        score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
+
+    with pytest.raises(ValueError):
+        score_profile_from_rankings(
+            PreferenceProfile(ballots=(Ballot(ranking=({}, {"A"})),))
+        )
 
 
 def test_first_place_votes():
@@ -252,10 +317,13 @@ def test_tiebreak_set_errors():
 
 def test_tiebreak_no_res():
     profile = PreferenceProfile(
-        ballots=[Ballot(ranking=({"A"},)), Ballot(ranking=({"B"},))]
+        ballots=[
+            Ballot(ranking=({"A"},), weight=2),
+            Ballot(ranking=({"B"},), weight=2),
+            Ballot(ranking=({"C"},)),
+        ]
     )
-
-    assert len(tiebreak_set(frozenset({"A", "B"}), profile, "first_place")) == 2
+    assert len(tiebreak_set(frozenset({"A", "B", "C"}), profile, "first_place")) == 3
 
 
 def test_tiebroken_ranking():
@@ -315,11 +383,49 @@ def test_score_dict_to_ranking():
 
 
 def test_elect_cands_from_set_ranking():
-    elected, remaining = elect_cands_from_set_ranking(
+    elected, remaining, tiebroken_ranking = elect_cands_from_set_ranking(
         ({"A", "B"}, {"C"}, {"D", "E"}, {"F"}), 3
     )
     assert elected == ({"A", "B"}, {"C"})
     assert remaining == ({"D", "E"}, {"F"})
+    assert not tiebroken_ranking
+
+
+def test_elect_cands_from_set_ranking_tiebreaks():
+    ranking = ({"D", "E"}, {"A"}, {"B", "C"}, {"F"})
+    fpv_elected, fpv_remaining, fpv_tiebroken_ranking = elect_cands_from_set_ranking(
+        ranking, 4, profile=profile_with_ties, tiebreak="first_place"
+    )
+    (
+        borda_elected,
+        borda_remaining,
+        borda_tiebroken_ranking,
+    ) = elect_cands_from_set_ranking(
+        ranking, 4, profile=profile_with_ties, tiebreak="borda"
+    )
+    (
+        random_elected,
+        random_remaining,
+        random_tiebroken_ranking,
+    ) = elect_cands_from_set_ranking(ranking, 4, tiebreak="random")
+
+    print(fpv_remaining)
+    print(fpv_tiebroken_ranking)
+    assert fpv_elected == (frozenset({"D", "E"}), frozenset({"A"}), frozenset({"B"}))
+    assert fpv_remaining == (frozenset({"C"}), frozenset({"F"}))
+    assert fpv_tiebroken_ranking == (
+        frozenset({"B", "C"}),
+        (frozenset({"B"}), frozenset({"C"})),
+    )
+
+    assert borda_elected == (frozenset({"D", "E"}), frozenset({"A"}), frozenset({"C"}))
+    assert borda_remaining == (frozenset({"B"}), frozenset({"F"}))
+    assert borda_tiebroken_ranking == (
+        frozenset({"B", "C"}),
+        (frozenset({"C"}), frozenset({"B"})),
+    )
+
+    assert len([c for s in random_elected for c in s]) == 4
 
 
 def test_elect_cands_from_set_ranking_errors():
@@ -336,6 +442,11 @@ def test_elect_cands_from_set_ranking_errors():
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
         elect_cands_from_set_ranking(({"A", "B"},), 1)
+
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        elect_cands_from_set_ranking(({"A", "B"},), 1, tiebreak="first_place")
+    with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
+        elect_cands_from_set_ranking(({"A", "B"},), 1, tiebreak="borda")
 
 
 def test_expand_tied_ballot():
@@ -365,3 +476,45 @@ def test_resolve_profile_ties():
     )
 
     assert resolve_profile_ties(profile_with_ties) == no_ties
+
+
+def test_score_profile_from_ballot_scores():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(
+                ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
+            ),
+            Ballot(
+                scores={"A": Fraction(3)},
+            ),
+        ]
+    )
+    scores = score_profile_from_ballot_scores(profile)
+    assert scores == {"A": Fraction(7), "C": Fraction(8)}
+    assert isinstance(scores["A"], Fraction)
+
+
+def test_score_profile_from_ballot_scores_float():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(
+                ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
+            ),
+            Ballot(
+                scores={"A": Fraction(3)},
+            ),
+        ]
+    )
+    scores = score_profile_from_ballot_scores(profile, to_float=True)
+    assert scores == {"A": 7.0, "C": 8.0}
+    assert isinstance(scores["A"], float)
+
+
+def test_score_profile_from_ballot_scores_error():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=(frozenset({"A"}),), weight=2),
+        ]
+    )
+    with pytest.raises(TypeError, match="has no scores."):
+        score_profile_from_ballot_scores(profile)
