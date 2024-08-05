@@ -2068,7 +2068,7 @@ class Clustered_DSpatial(BallotGenerator):
     Clustered spatial model for ballot generation. In some metric space
     determined by an input distance function, randomly sample
     each candidate's positions from input candidate distribution. Then
-    sample voters's positions from normal distributions centered around each
+    sample voters's positions from a distribution centered around each
     of the candidate's positions. Using generate_profile()
     outputs a ranked profile which is consistent
     with the sampled positions (respects distances).
@@ -2076,7 +2076,7 @@ class Clustered_DSpatial(BallotGenerator):
     Args:
         candidates (list[str]): List of candidate strings.
         voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
-            voter's position from, defaults to uniform distribution.
+            voter's position from, defaults to normal(0,1) distribution.
         voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
             voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
         candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
@@ -2106,7 +2106,7 @@ class Clustered_DSpatial(BallotGenerator):
     def __init__(
         self,
         candidates: list[str],
-        voter_dist: Callable[..., np.ndarray] = np.random.uniform,
+        voter_dist: Callable[..., np.ndarray] = np.random.normal,
         voter_params: Optional[Dict[str, Any]] = None,
         candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
         candidate_params: Optional[Dict[str, Any]] = None,
@@ -2114,11 +2114,21 @@ class Clustered_DSpatial(BallotGenerator):
     ):
         super().__init__(candidates=candidates)
         self.candidate_dist = candidate_dist
+        self.voter_dist = voter_dist
 
         if voter_params is None:
             # default params used for np.random.normal
-            self.voter_params = {"std": np.array(1.0), "size": np.array(2.0)}
+            self.voter_params = {"loc": 0, "std": np.array(1.0), "size": np.array(2.0)}
         else:
+            # Trying to ensure that the input distribution's mean is parameterized.
+            # This allows me to center it on the candidates themselves later
+            try:
+                voter_params['loc'] = 0
+                self.voter_dist(**voter_params)
+            except TypeError:
+                raise ValueError("Invalid parameters for the voter distribution, make sure\
+                        that the input distribution has a 'loc' parameter specifying the mean.")
+            
             self.voter_params = voter_params
 
         if candidate_params is None:
@@ -2130,7 +2140,7 @@ class Clustered_DSpatial(BallotGenerator):
         self.distance = distance
 
     def generate_profile_with_dict(
-        self, number_of_ballots: dict, by_bloc: bool = False, seed: Optional[int] = None
+        self, number_of_ballots: dict[str,int], by_bloc: bool = False, seed: Optional[int] = None
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Args:
@@ -2158,11 +2168,8 @@ class Clustered_DSpatial(BallotGenerator):
         voter_positions = []
         for c in self.candidates:
             for v in range(number_of_ballots[c]):
-                voter_positions.append(
-                    np.random.normal(
-                        loc=candidate_position_dict[c], **self.voter_params
-                    )
-                )
+                self.voter_params['loc'] = candidate_position_dict[c]
+                voter_positions.append(self.voter_dist(**self.voter_params))
 
         voter_positions_array = np.vstack(voter_positions)
 
