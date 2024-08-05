@@ -19,15 +19,16 @@ bibliography: paper.bib
 # Summary
 
 The scholarly study of elections, known as *social choice theory*,
-centers on the provable properties of voting rules. The practical study
-of democracy reform focuses on designing or selecting systems of
+centers on the provable properties of voting rules. Practical work
+in democracy reform focuses on designing or selecting systems of
 election to produce electoral outcomes that promote legitimacy and
 broad-based representation. For instance, the dominant electoral system
 in the United States is a one-person-one-vote/winner-take-all system,
-sometimes known as PSMD (plurality in single member districts), but
+sometimes known as PSMD (plurality in single member districts); today,
 there is considerable reform momentum in favor of ranked choice voting
 because it is thought to mitigate the effects of vote-splitting and
-strengthen prospects for minority representation.[^1] Across the world,
+to strengthen prospects for minority representation, among other
+claimed properties.[^1]  Across the world,
 systems of election---and prospects for system change---vary
 substantially. From both a scholarly and a practical perspective, many
 questions arise about comparing the properties and tendencies of diverse
