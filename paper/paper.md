@@ -66,10 +66,16 @@ literature---and in the landscape of software---between the theory and
 the practice of democracy.
 
 On the software side, researchers have built a multitude of different
-packages for generating and analyzing elections, and users have had to
-invest substantial work in cleaning CVRs to make them usable across
-multiple packages.[^4] `VoteKit` is built to provide an end-to-end
-pipeline.
+packages for generating and analyzing elections.[^4] 
+Some of the packages do not create an end-to-end pipeline, like 
+[@boehmer2024guidenumericalexperimentselections], which generate profiles but does not conduct 
+elections, or [@votelib] which *only* conducts elections.
+Others, like [@preflibtools] and [@prefvoting], provide support for generating profiles and conducting 
+single-winner elections but do not support multi-winner elections like STV.
+Multi-winner packages like [@abcvoting] or [@apportionment] do not support ranked voting.
+`VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
+as well as single and multi-winner elections and their analysis.
+
 
 ## Area of need: Generative models
 
@@ -132,7 +138,21 @@ See generally
 references.
 
 Reform advocates also need to describe voting mechanisms and their
-likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes.
+likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
+in Figure \@ref(fig:WA_comparison), there are six proposed electoral systems for the Washington state legislature:
+
+0. 49 districts, each electing one Senator and two House
+members, each by single-seat Instant-Runoff-Voting (IRV);
+1. 16 districts, each electing three Senators and six House members; 
+2. 33 districts,
+each electing one Senator and three House members; 
+3. 7 districts, each electing seven Senators
+and subdivided into two House districts, each electing seven House members; 
+4. 150 districts, each
+electing one legislator (unicameral); and 
+5. 30 districts, each electing five legislators (unicameral).
+
+Using `VoteKit` one can study the expected outcomes for minority representation under these six systems.
 
 ![A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature [@washington_leg]. \label{fig:WA_comparison}](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
@@ -260,7 +280,7 @@ project.
 [^4]: See for instance the extensive array of open-source tools on the
     Computational Social Choice (COMSOC) community page [@ComSoc]
     including the widely used collection of ranked data called PrefLib
-    [@ComSoc] See also the materials provided by FairVote, including
+    [@ComSoc]. See also the materials provided by FairVote, including
     their DataVerse and GitHub [@RCV-Cruncher]. The ArXiV preprint
     [@GuideExperiments] provides an impressively comprehensive list of
     numerical experiments on elections. The PRAGMA Project
