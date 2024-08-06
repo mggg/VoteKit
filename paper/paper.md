@@ -67,14 +67,13 @@ the practice of democracy.
 
 On the software side, researchers have built a multitude of different
 packages for generating and analyzing elections.[^4] 
-Some of the packages do not create an end-to-end pipeline, like 
-[@boehmer2024guidenumericalexperimentselections], which generate profiles but does not conduct 
-elections, or [@votelib] which *only* conducts elections.
-Others, like [@preflibtools] and [@prefvoting], provide support for generating profiles and conducting 
-single-winner elections but do not support multi-winner elections like STV.
-Multi-winner packages like [@abcvoting] or [@apportionment] do not support ranked voting.
-`VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
-as well as single and multi-winner elections and their analysis.
+Most packages, to our knowledge, handle just one part of the research arc; for instance, 
+`PrefSampling` [@boehmer2024guidenumericalexperimentselections] generates profiles but does not conduct 
+elections, while `VoteLib` [@votelib] *only* conducts elections.
+Others, like `PrefLibTools` [@preflibtools] and `PrefVoting` [@prefvoting], provide support for generating profiles and conducting single-winner elections.
+Packages with multi-winner capability, like `abcvoting` [@abcvoting] or `Apportionment` [@apportionment], do not support ranked voting.
+To illustrate the gap this leaves, note that single transferable voting (STV), a voting system actually used for political election in six countries, is curiously absent.  `VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
+as well as single- and multi-winner elections, with an emphasis on practical applicability.
 
 
 ## Area of need: Generative models
@@ -133,56 +132,30 @@ under study. Available voting rules include:
 
 -   **Approval-based (set).** Approval voting, Bloc plurality.
 
+This list does not include every method that has attracted theoretical investigation; rather, it is oriented to methods used or considered for political representation, such as the final-four system in Alaska or the sequential RCV in Utah local elections. 
 See generally
 [@electoralhandbook; @STV; @Borda; @TopTwo; @SequentialRCV] for
-references.
+references.  In addition, `VoteKit` is flexible enough to allow users to write custom voting rules.
 
 Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
-in Figure \@ref(fig:WA_comparison), there are six proposed electoral systems for the Washington state legislature:
-
-0. 49 districts, each electing one Senator and two House
-members, each by single-seat Instant-Runoff-Voting (IRV);
-1. 16 districts, each electing three Senators and six House members; 
-2. 33 districts,
-each electing one Senator and three House members; 
-3. 7 districts, each electing seven Senators
-and subdivided into two House districts, each electing seven House members; 
-4. 150 districts, each
-electing one legislator (unicameral); and 
-5. 30 districts, each electing five legislators (unicameral).
-
-Using `VoteKit` one can study the expected outcomes for minority representation under these six systems.
+Figure \@ref(fig:WA_comparison) comes from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
 
 ![A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature [@washington_leg]. \label{fig:WA_comparison}](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
-<!-- `VoteKit`
-includes a variety of metrics and visualizations intended to facilitate
-this.
-
-![Four visualizations for the same synthetic four-candidate preference profile with 1000 voters. The profile was generated with the CS model, which produces incomplete ballots at a realistic rate. \label{fig:comparison}](./figures/comparison.png){width=100%}
-
-For a given preference profile, basic `VoteKit` functions provide
-statistics and visuals for first-place votes, Borda count, and mention
-frequency, as well as head-to-head comparisons (see \autoref{fig:comparison}). The pairwise comparison graph
-shows head-to-head margins between candidates. For instance, 282 more
-voters ranked $W_2>C_1$ than $C_1>W_2$ in the preference profile used to
-make the figure. Note that $W_1$, who has the most first-place votes by
-far, is also preferred head-to-head over all alternatives, making them
-the *Condorcet candidate* in this election. -->
 
 ## Area of need: Resources for research
 
 Previous research works such as [@elkind2017multiwinner] have compared
-properties of earlier generative models; `VoteKit` facilitates robust
+properties of earlier generative models; `VoteKit` has functionality to fully
+replicate this work and facilitates robust
 comparisons across a more comprehensive and up-to-date list of
 alternatives. It also offers new analytical tools that will support
-research on elections. Some examples of more sophisticated functionality
-are shown in Figure 2. At left is a *ballot graph*,
+research on elections. Some examples are shown in Figure 2. At left is a *ballot graph*,
 where nodes are ballots weighted by their frequency in the profile; a
 recent research paper shows that ballot graphs can be metrized to
 realize classical statistical ranking distances, like Kendall tau and
-the Spearman footrule [@duchin_tapp_24]. VoteKit also implements a class
+the Spearman footrule [@duchin_tapp_24]. `VoteKit` also implements a class
 of election distances, as surveyed in [@distance-elex]. Choices for
 measuring the difference between two profiles on the same set of
 candidates include $L^p$ distance and Wasserstein (earth-mover)
