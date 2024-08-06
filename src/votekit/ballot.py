@@ -97,7 +97,7 @@ class Ballot:
         return hash(self.ranking)
 
     def __str__(self):
-        weight_str = f"Weight: {self.weight}\n"
+        weight_str = f"Weight: {self.weight}"
 
         if self.ranking:
             ranking_str = "Ranking\n"

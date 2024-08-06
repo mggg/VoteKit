@@ -79,5 +79,8 @@ def test_ballot_str():
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
-    str(b)
     print(b)
+    assert (
+        str(b)
+        == "Ranking\n1.) A, \n2.) B, \n3.) C, \nScores\nA: 1.00\nB: 0.50\nWeight: 3"
+    )
