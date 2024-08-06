@@ -2,41 +2,46 @@ from abc import ABC, abstractmethod
 from .elections import ElectionState
 from .pref_profile import PreferenceProfile
 import pandas as pd
-from .utils import score_dict_to_ranking
-from typing import Callable, Optional
+from .utils import (
+    score_dict_to_ranking,
+)
+from typing import Callable, Optional, Union
+from fractions import Fraction
 
 
 class Election(ABC):
     """
     Abstract base class for election types.
 
-    Parameters:
-        profile (PreferenceProfile): the initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], dict[str, float]], optional): A function
-            that converts profiles to a score dictionary mapping candidates to their current score.
-            Used in creating ElectionState objects and sorting candidates in Round 0. If None, no
-            score dictionary is saved and all candidates are tied in Round 0. Defaults to None.
+    Args:
+        profile (PreferenceProfile): The initial profile of ballots.
+        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+            A function that converts profiles to a score dictionary mapping candidates to
+            their current score. Used in creating ElectionState objects and sorting candidates in
+            Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
+            Defaults to None.
         sort_high_low (bool, optional): How to sort candidates based on `score_function`. True sorts
             from high to low. Defaults to True.
 
     Attributes:
-        election_states (list[ElectionState]): a list of election states, one for each round of
+        election_states (list[ElectionState]): A list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], dict[str, float]], optional): A function
-            that converts profiles to a score dictionary mapping candidates to their current score.
-            Used in creating ElectionState objects. Defaults to None.
-        length (int): the number of rounds of the election.
-    """
+        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+            A function that converts profiles to a score dictionary mapping candidates to
+            their current score. Used in creating ElectionState objects. Defaults to None.
+        length (int): The number of rounds of the election.
+    """  # noqa
 
     def __init__(
         self,
         profile: PreferenceProfile,
         score_function: Optional[
-            Callable[[PreferenceProfile], dict[str, float]]
+            Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]]
         ] = None,
         sort_high_low: bool = True,
     ):
+        self._validate_profile(profile)
         self._profile = profile
         self.score_function = score_function
         self.sort_high_low = sort_high_low
@@ -56,10 +61,13 @@ class Election(ABC):
             PreferenceProfile
 
         """
-        if round_number < -len(self) - 1 or round_number > len(self):
+        if (
+            round_number < -len(self.election_states)
+            or round_number > len(self.election_states) - 1
+        ):
             raise IndexError("round_number out of range.")
 
-        round_number = round_number % (len(self) + 1)
+        round_number = round_number % len(self.election_states)
 
         profile = self._profile
 
@@ -83,7 +91,7 @@ class Election(ABC):
         """
         return (self.get_profile(round_number), self.election_states[round_number])
 
-    def get_elected(self, round_number: int = -1) -> list[frozenset[str]]:
+    def get_elected(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the elected candidates up to the given round number.
 
@@ -92,23 +100,29 @@ class Election(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            list[frozenset[str]]: List of winning candidates in order of election. Candidates
+            tuple[frozenset[str],...]:
+                List of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
                 they are tied.
         """
-        if round_number < -len(self) - 1 or round_number > len(self):
+        if (
+            round_number < -len(self.election_states)
+            or round_number > len(self.election_states) - 1
+        ):
             raise IndexError("round_number out of range.")
 
-        round_number = round_number % (len(self) + 1)
+        round_number = round_number % len(self.election_states)
 
-        return [
-            s
-            for state in self.election_states[: (round_number + 1)]
-            for s in state.elected
-            if state.elected != (frozenset(),)
-        ]
+        return tuple(
+            [
+                s
+                for state in self.election_states[: (round_number + 1)]
+                for s in state.elected
+                if state.elected != (frozenset(),)
+            ]
+        )
 
-    def get_eliminated(self, round_number: int = -1) -> list[frozenset[str]]:
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the eliminated candidates up to the given round number.
 
@@ -117,24 +131,30 @@ class Election(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            list[frozenset[str]]: List of eliminated candidates in reverse order of elimination.
+            tuple[frozenset[str],...]:
+                Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
                 they are tied.
         """
-        if round_number < -len(self) - 1 or round_number > len(self):
+        if (
+            round_number < -len(self.election_states)
+            or round_number > len(self.election_states) - 1
+        ):
             raise IndexError("round_number out of range.")
 
-        round_number = round_number % (len(self) + 1)
+        round_number = round_number % len(self.election_states)
 
         # reverses order to match ranking convention
-        return [
-            s
-            for state in self.election_states[round_number::-1]
-            for s in state.eliminated[::-1]
-            if state.eliminated != (frozenset(),)
-        ]
+        return tuple(
+            [
+                s
+                for state in self.election_states[round_number::-1]
+                for s in state.eliminated[::-1]
+                if state.eliminated != (frozenset(),)
+            ]
+        )
 
-    def get_remaining(self, round_number: int = -1) -> list[frozenset[str]]:
+    def get_remaining(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the remaining candidates after the given round.
 
@@ -143,12 +163,13 @@ class Election(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            list[frozenset[str]]: List of sets of remaining candidates. Ordering of tuple
-            denotes ranking of remaining candidates, sets denote ties.
+            tuple[frozenset[str],...]:
+                Tuple of sets of remaining candidates. Ordering of tuple
+                denotes ranking of remaining candidates, sets denote ties.
         """
-        return list(self.election_states[round_number].remaining)
+        return tuple(self.election_states[round_number].remaining)
 
-    def get_ranking(self, round_number: int = -1) -> list[frozenset[str]]:
+    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the ranking of candidates after a given round.
 
@@ -157,16 +178,18 @@ class Election(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            list[set[str]]: Ranking of candidates.
+            tuple[frozenset[str],...]: Ranking of candidates.
         """
         # len condition handles empty remaining candidates
-        return [
-            s
-            for s in self.get_elected(round_number)
-            + self.get_remaining(round_number)
-            + self.get_eliminated(round_number)
-            if len(s) != 0
-        ]
+        return tuple(
+            [
+                s
+                for s in self.get_elected(round_number)
+                + self.get_remaining(round_number)
+                + self.get_eliminated(round_number)
+                if len(s) != 0
+            ]
+        )
 
     def get_status_df(self, round_number: int = -1) -> pd.DataFrame:
         """
@@ -182,17 +205,20 @@ class Election(ABC):
                 Data frame displaying candidate, status (elected, eliminated,
                 remaining), and the round their status updated.
         """
-        if round_number < -len(self) - 1 or round_number > len(self):
+        if (
+            round_number < -len(self.election_states)
+            or round_number > len(self.election_states) - 1
+        ):
             raise IndexError("round_number out of range.")
 
-        round_number = round_number % (len(self) + 1)
+        round_number = round_number % len(self.election_states)
 
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
         if round_number == -1:
-            round_number = len(self)
+            round_number = len(self.election_states) - 1
 
-        candidates = self._profile.get_candidates()
+        candidates = self._profile.candidates
 
         status_df = pd.DataFrame(
             {"Status": ["Remaining"] * len(candidates), "Round": [0] * len(candidates)},
@@ -218,6 +244,17 @@ class Election(ABC):
 
         status_df = status_df.reindex(new_index)
         return status_df
+
+    @abstractmethod
+    def _validate_profile(self, profile: PreferenceProfile):
+        """
+        Validate that a profile contains appropriate ballots for election. Raises
+        TypeError if not.
+
+        Args:
+            profile (PreferenceProfile): Profile of ballots.
+        """
+        pass
 
     @abstractmethod
     def _run_step(
@@ -252,7 +289,7 @@ class Election(ABC):
         profile = self._profile
 
         scores = {}
-        remaining = profile.get_candidates()
+        remaining = profile.candidates
 
         if self.score_function:
             # compute scores and sort
@@ -272,3 +309,8 @@ class Election(ABC):
 
     def __len__(self):
         return self.length
+
+    def __str__(self):
+        return self.get_status_df().to_string(index=True, justify="justify")
+
+    __repr__ = __str__
