@@ -4,7 +4,6 @@ from fractions import Fraction
 import pandas as pd
 from pydantic import ConfigDict, field_validator, model_validator
 from typing import Optional
-import numpy as np
 from .ballot import Ballot
 from pydantic.dataclasses import dataclass
 from typing_extensions import Self
@@ -59,7 +58,7 @@ class PreferenceProfile:
                 if ballot.ranking:
                     candidates_cast.update(*ballot.ranking)
                 if ballot.scores:
-                    candidates_cast.update(ballot.scores)
+                    candidates_cast.update(ballot.scores.keys())
 
         object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
         if not self.candidates:
@@ -109,10 +108,7 @@ class PreferenceProfile:
         try:
             df["Percent"] = df["Weight"] / df["Weight"].sum()
         except ZeroDivisionError:
-            df["Percent"] = np.nan
-
-        # fill nans with zero for edge cases
-        df["Percent"] = df["Percent"].fillna(0.0)
+            df["Percent"] = 0.0
 
         def format_as_percent(frac):
             return f"{float(frac):.2%}"

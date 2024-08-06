@@ -10,7 +10,6 @@ def test_init():
     empty_profile = PreferenceProfile()
     assert empty_profile.ballots == ()
     assert not empty_profile.candidates
-    print(empty_profile.df)
     assert empty_profile.df.equals(
         pd.DataFrame({"Ranking": [], "Scores": [], "Weight": [], "Percent": []})
     )
@@ -383,7 +382,10 @@ def test_str():
             Ballot(ranking=({"C"}, {"B"}), weight=2),
         )
     )
-    print(profile)
+    assert (
+        str(profile)
+        == "Ranking Scores Weight\n (C, B)     ()      2\n (A, B)     ()    3/2\n (A, B)     ()      1"  # noqa
+    )
 
 
 def test_csv():
