@@ -139,7 +139,7 @@ references.  In addition, `VoteKit` is flexible enough to allow users to write c
 
 Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
-Figure \@ref(fig:WA_comparison) comes from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
+Figure \ref(fig:WA_comparison) comes from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
 
 ![A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature [@washington_leg]. \label{fig:WA_comparison}](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
