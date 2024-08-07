@@ -35,12 +35,16 @@ class GeneralRating(Election):
         k: Optional[Union[float, Fraction]] = None,
         tiebreak: Optional[str] = None,
     ):
+        if m <= 0:
+            raise ValueError("m must be positive.")
         self.m = m
         if L <= 0:
             raise ValueError("L must be positive.")
         self.L = L
         if k and k <= 0:
             raise ValueError("k must be positive.")
+        if k and L > k:
+            raise ValueError("L must be less than or equal to k.")
         self.k = k
         self.tiebreak = tiebreak
         self._validate_profile(profile)
@@ -104,12 +108,11 @@ class GeneralRating(Election):
         new_profile = remove_cand([c for s in elected for c in s], profile)
 
         if store_states:
-            if self.score_function:  # mypy
+            if self.score_function:
                 scores = self.score_function(new_profile)
             else:
                 raise ValueError()
 
-            # if there was a tiebreak, store resolution
             if tie_resolution:
                 tiebreaks = {tie_resolution[0]: tie_resolution[1]}
             else:
@@ -175,7 +178,7 @@ class Limited(GeneralRating):
     ):
         if k > m:
             raise ValueError("k must be less than or equal to m.")
-        # if budget is k, limit per candidate is k
+
         super().__init__(profile, m=m, L=k, k=k, tiebreak=tiebreak)
 
 

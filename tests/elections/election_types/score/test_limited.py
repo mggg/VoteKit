@@ -130,32 +130,37 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m must be non negative
-        Limited(profile_no_tied_limited, m=0, k=2)
+    with pytest.raises(ValueError, match="m must be positive."):
+        Limited(profile_no_tied_limited, m=0, k=0)
 
-    with pytest.raises(ValueError):  # m must be less than num cands
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
         Limited(profile_no_tied_limited, m=5, k=2)
 
-    with pytest.raises(ValueError):  # needs tiebreak
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         Limited(profile_tied_limited, m=3, k=2)
 
-    with pytest.raises(ValueError):  # k<m
+    with pytest.raises(ValueError, match="k must be less than or equal to m."):
         Limited(profile_tied_limited, m=2, k=3)
 
 
 def test_validate_profile():
-    with pytest.raises(TypeError):  # must be less than limit
+    with pytest.raises(TypeError, match="violates score limit"):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
         Limited(profile, m=2, k=2)
 
-    with pytest.raises(TypeError):  # must be less than total budget
+    with pytest.raises(TypeError, match="violates total score budget"):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": 1, "B": 1, "C": 1})])
         Limited(profile, m=2, k=2)
 
-    with pytest.raises(TypeError):  # must be non-negative
+    with pytest.raises(TypeError, match="must have non-negative scores."):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
         Limited(profile, m=1)
 
-    with pytest.raises(TypeError):  # must have scores
+    with pytest.raises(TypeError, match="All ballots must have score dictionary."):
         profile = PreferenceProfile(ballots=[Ballot()])
         Limited(profile, m=2)
