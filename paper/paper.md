@@ -11,7 +11,7 @@ authors:
   - name: Malavika Mukundan
   - name: Jennifer Wang
 affiliations:
-  - name: Metric Geometry and Gerrymandering Group (MGGG)
+  - name: MGGG Redistricting Lab
     index: 1
 bibliography: paper.bib
 ---
@@ -139,9 +139,9 @@ references.  In addition, `VoteKit` is flexible enough to allow users to write c
 
 Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
-Figure 1 comes from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
+Figure 1 is reprinted from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
 
-![A comparison of a variety of electoral systems and their affect on minority representation in a case study of the Washington state legislature [@washington_leg].](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
+![A comparison of a variety of electoral systems and their effect on minority representation in a case study of reform proposals for the Washington state legislature [@washington_leg].](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
 
 ## Area of need: Resources for research
@@ -185,7 +185,7 @@ been a survey of 5000 respondents' sushi preferences
 # Projects
 
 A significant number of white papers and scholarly articles have used
-`VoteKit`(and its predecessor codebase) in recent years. These include
+`VoteKit` (and its predecessor codebase) in recent years. These include
 the following.
 
 -   A large number of case studies in ranked-choice modeling, such as
@@ -223,8 +223,9 @@ at Tufts University. Major contributors to the initiation of the project
 include Brenda Macias, Emarie De La Nuez, Greg Kehne, Jordan Phan, Rory
 Erlich, James Turk, and David McCune. Earlier code contributions were
 made by Chanel Richardson, Anthony Pizzimenti, Gabe Schoenbach, Dylan
-Phelan, Thomas Weighill, Dara Gold, and Amy Becker. The authors also
-thank Deb Otis, Peter Rock, Jeanne Clelland, and Michael Parsons for
+Phelan, Thomas Weighill, Dara Gold, and Amy Becker; recent code contributions
+also come from Peter Rock, Kevin Quinn, and Divij Sinha. The authors also
+thank Deb Otis, Jeanne Clelland, and Michael Parsons for
 helpful feedback. FairVote's data repository in Dataverse
 (<https://dataverse.harvard.edu/dataverse/rcv_cvrs>) and RCV Cruncher
 code on GitHub (<https://github.com/fairvotereform/rcv_cruncher/>) are
