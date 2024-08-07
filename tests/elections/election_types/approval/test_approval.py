@@ -124,25 +124,30 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m must be non negative
+    with pytest.raises(ValueError, match="m must be positive."):
         Approval(profile_no_tied_approval, m=0)
 
-    with pytest.raises(ValueError):  # m must be less than num cands
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
         Approval(profile_no_tied_approval, m=5)
 
-    with pytest.raises(ValueError):  # needs tiebreak
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         Approval(profile_tied_approval, m=1)
 
 
 def test_validate_profile():
-    with pytest.raises(TypeError):  # must be less than 1 per can
+    with pytest.raises(TypeError, match="violates score limit"):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
         Approval(profile, m=1)
 
-    with pytest.raises(TypeError):  # must be non-negative
+    with pytest.raises(TypeError, match="must have non-negative scores."):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
         Approval(profile, m=2)
 
-    with pytest.raises(TypeError):  # must have scores
+    with pytest.raises(TypeError, match="All ballots must have score dictionary."):
         profile = PreferenceProfile(ballots=[Ballot()])
         Approval(profile, m=2)

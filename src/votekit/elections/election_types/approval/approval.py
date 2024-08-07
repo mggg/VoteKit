@@ -46,6 +46,6 @@ class BlocPlurality(GeneralRating):
         tiebreak: Optional[str] = None,
     ):
         if not k:
-            k = len(profile.candidates)
+            k = m
         # limit one per candidate, total budget limit k
         super().__init__(profile, m=m, L=1, k=k, tiebreak=tiebreak)
