@@ -32,6 +32,8 @@ class DominatingSets(RankingElection):
     ) -> PreferenceProfile:
         """
         Run one step of an election from the given profile and previous state.
+        Computes the dominating tiers and returns the highest tier, candidates that beat
+        every other candidate in head-to-head comparisons.
 
         Args:
             profile (PreferenceProfile): Profile of ballots.

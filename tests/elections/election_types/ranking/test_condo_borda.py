@@ -153,11 +153,13 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m must be non negative
+    with pytest.raises(ValueError, match="m must be strictly positive"):
         CondoBorda(profile_tied_set, m=0)
 
-    with pytest.raises(ValueError):  # m must be less than num cands
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
         CondoBorda(profile_tied_set, m=4)
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="has no ranking."):
         CondoBorda(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

@@ -110,5 +110,5 @@ def test_get_ranking():
 
 
 def test_errors():
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="has no ranking."):
         DominatingSets(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

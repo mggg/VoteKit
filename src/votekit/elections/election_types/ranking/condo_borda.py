@@ -31,6 +31,8 @@ class CondoBorda(RankingElection):
     ) -> PreferenceProfile:
         """
         Run one step of an election from the given profile and previous state.
+        Compute the dominating tiers, and return the top :math:`m` candidates by tier.
+        Breaks ties using Borda scores.
 
         Args:
             profile (PreferenceProfile): Profile of ballots.
@@ -42,12 +44,9 @@ class CondoBorda(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-        # find dominating tiers
-
         pwc_graph = PairwiseComparisonGraph(profile)
         dominating_tiers = pwc_graph.dominating_tiers()
 
-        # convert to ranking and elect m cands from ranking, break ties with borda
         dt_ranking = tuple([frozenset(s) for s in dominating_tiers])
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
             dt_ranking, self.m, profile, tiebreak="borda"
