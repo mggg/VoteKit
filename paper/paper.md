@@ -141,7 +141,7 @@ Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
 Figure 1 is reprinted from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
 
-![A comparison of a variety of electoral systems and their effect on minority representation in a case study of reform proposals for the Washington state legislature [@washington_leg].](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
+![A comparison of a variety of electoral systems and their effect on minority representation in a [case study](https://mggg.org/washington) of reform proposals for the Washington state legislature [@washington_leg].](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
 
 ## Area of need: Resources for research
@@ -223,8 +223,8 @@ at Tufts University. Major contributors to the initiation of the project
 include Brenda Macias, Emarie De La Nuez, Greg Kehne, Jordan Phan, Rory
 Erlich, James Turk, and David McCune. Earlier code contributions were
 made by Chanel Richardson, Anthony Pizzimenti, Gabe Schoenbach, Dylan
-Phelan, Thomas Weighill, Dara Gold, and Amy Becker; recent code contributions
-also come from Peter Rock, Kevin Quinn, and Divij Sinha. The authors also
+Phelan, Thomas Weighill, Dara Gold, and Amy Becker; recent code contributors
+include Peter Rock, Kevin Quinn, and Divij Sinha. The authors also
 thank Deb Otis, Jeanne Clelland, and Michael Parsons for
 helpful feedback. FairVote's data repository in Dataverse
 (<https://dataverse.harvard.edu/dataverse/rcv_cvrs>) and RCV Cruncher
