@@ -15,7 +15,7 @@ class TestElection(Election):
 
     def __init__(self, profile: PreferenceProfile, sort_high_low: bool = True):
         def score(profile):
-            score_dict = {c: 0 for c in profile.get_candidates()}
+            score_dict = {c: 0 for c in profile.candidates}
             for ballot in profile.ballots:
                 for s in ballot.ranking:
                     for c in s:
@@ -23,6 +23,11 @@ class TestElection(Election):
             return score_dict
 
         super().__init__(profile, score_function=score, sort_high_low=sort_high_low)
+
+    def _validate_profile(self, profile):
+        for ballot in profile.ballots:
+            if not ballot.ranking:
+                raise TypeError("Ballots must having rankings.")
 
     def _is_finished(self):
         # 2 round election, so 3 states
@@ -52,7 +57,7 @@ class TestElection(Election):
         if store_states:
             elected = list(profile.ballots[0].ranking[0])[0]
             eliminated = list(profile.ballots[0].ranking[1])[0]
-            remaining = profile.get_candidates()
+            remaining = list(profile.candidates)
             remaining.remove(elected)
             remaining.remove(eliminated)
             scores = self.score_function(new_profile)
@@ -166,12 +171,12 @@ def test_get_step_errors():
 
 def test_get_elected():
     assert e.get_elected() == e.get_elected(2)  # default behavior is get last round
-    assert e.get_elected(0) == []
-    assert e.get_elected(1) == [{"A"}]
-    assert e.get_elected(2) == [{"A"}, {"C"}]
-    assert e.get_elected(-3) == []
-    assert e.get_elected(-2) == [{"A"}]
-    assert e.get_elected(-1) == [{"A"}, {"C"}]
+    assert e.get_elected(0) == tuple()
+    assert e.get_elected(1) == ({"A"},)
+    assert e.get_elected(2) == ({"A"}, {"C"})
+    assert e.get_elected(-3) == tuple()
+    assert e.get_elected(-2) == ({"A"},)
+    assert e.get_elected(-1) == ({"A"}, {"C"})
 
 
 def test_get_elected_errors():
@@ -186,12 +191,12 @@ def test_get_eliminated():
     assert e.get_eliminated() == e.get_eliminated(
         2
     )  # default behavior is get last round
-    assert e.get_eliminated(0) == []
-    assert e.get_eliminated(1) == [{"B"}]
-    assert e.get_eliminated(2) == [{"D"}, {"B"}]
-    assert e.get_eliminated(-3) == []
-    assert e.get_eliminated(-2) == [{"B"}]
-    assert e.get_eliminated(-1) == [{"D"}, {"B"}]
+    assert e.get_eliminated(0) == tuple()
+    assert e.get_eliminated(1) == ({"B"},)
+    assert e.get_eliminated(2) == ({"D"}, {"B"})
+    assert e.get_eliminated(-3) == tuple()
+    assert e.get_eliminated(-2) == ({"B"},)
+    assert e.get_eliminated(-1) == ({"D"}, {"B"})
 
 
 def test_get_eliminated_errors():
@@ -204,12 +209,12 @@ def test_get_eliminated_errors():
 
 def test_get_remaining():
     assert e.get_remaining() == e.get_remaining(2)  # default behavior is get last round
-    assert e.get_remaining(0) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
-    assert e.get_remaining(1) == [{"F"}, {"E"}, {"D"}, {"C"}]
-    assert e.get_remaining(2) == [{"F"}, {"E"}]
-    assert e.get_remaining(-3) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
-    assert e.get_remaining(-2) == [{"F"}, {"E"}, {"D"}, {"C"}]
-    assert e.get_remaining(-1) == [{"F"}, {"E"}]
+    assert e.get_remaining(0) == ({"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"})
+    assert e.get_remaining(1) == ({"F"}, {"E"}, {"D"}, {"C"})
+    assert e.get_remaining(2) == ({"F"}, {"E"})
+    assert e.get_remaining(-3) == ({"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"})
+    assert e.get_remaining(-2) == ({"F"}, {"E"}, {"D"}, {"C"})
+    assert e.get_remaining(-1) == ({"F"}, {"E"})
 
 
 def test_get_remaining_errors():
@@ -222,12 +227,12 @@ def test_get_remaining_errors():
 
 def test_get_ranking():
     assert e.get_ranking() == e.get_ranking(2)  # default behavior is get last round
-    assert e.get_ranking(0) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
-    assert e.get_ranking(1) == [{"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"}]
-    assert e.get_ranking(2) == [{"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"}]
-    assert e.get_ranking(-3) == [{"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"}]
-    assert e.get_ranking(-2) == [{"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"}]
-    assert e.get_ranking(-1) == [{"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"}]
+    assert e.get_ranking(0) == ({"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"})
+    assert e.get_ranking(1) == ({"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"})
+    assert e.get_ranking(2) == ({"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"})
+    assert e.get_ranking(-3) == ({"F"}, {"E"}, {"D"}, {"C"}, {"B"}, {"A"})
+    assert e.get_ranking(-2) == ({"A"}, {"F"}, {"E"}, {"D"}, {"C"}, {"B"})
+    assert e.get_ranking(-1) == ({"A"}, {"C"}, {"F"}, {"E"}, {"D"}, {"B"})
 
 
 def test_get_ranking_errors():
@@ -342,3 +347,10 @@ def test_score_sort():
 
     assert e_low_high.election_states == low_high_states
     assert e_low_high.get_status_df(2).equals(round_2)
+
+
+def test_print():
+    assert (
+        str(e)
+        == "       Status  Round\nA     Elected      1\nC     Elected      2\nF   Remaining      2\nE   Remaining      2\nD  Eliminated      2\nB  Eliminated      1"  # noqa
+    )
