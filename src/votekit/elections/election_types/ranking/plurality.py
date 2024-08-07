@@ -35,6 +35,8 @@ class Plurality(RankingElection):
     ) -> PreferenceProfile:
         """
         Run one step of an election from the given profile and previous state.
+        In a Plurality election, find the :math:`m` candidates with the highest first-place vote
+        totals.
 
         Args:
             profile (PreferenceProfile): Profile of ballots.
@@ -55,12 +57,11 @@ class Plurality(RankingElection):
 
         new_profile = remove_cand([c for s in elected for c in s], profile)
         if store_states:
-            if self.score_function:  # mypy
+            if self.score_function:
                 scores = self.score_function(new_profile)
             else:
                 raise ValueError()
 
-            # if there was a tiebreak, store resolution
             if tie_resolution:
                 tiebreaks = {tie_resolution[0]: tie_resolution[1]}
             else:

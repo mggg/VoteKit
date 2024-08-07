@@ -45,7 +45,7 @@ def test_init():
 
 
 def test_multiwinner_ties():
-    e_random = Plurality(profile_with_tied_fpv, m=3, tiebreak="random")  # noqa
+    e_random = Plurality(profile_with_tied_fpv, m=3, tiebreak="random")
     e_borda = Plurality(profile_with_tied_fpv, m=3, tiebreak="borda")
 
     assert e_borda.election_states[1].tiebreaks == {
@@ -65,6 +65,8 @@ def test_multiwinner_ties():
         frozenset({"D"}),
         frozenset({"E"}),
     )
+
+    assert len(e_random.get_elected()) == 3
 
 
 def test_state_list():
@@ -124,16 +126,21 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m must be non negative
+    with pytest.raises(ValueError, match="m must be strictly positive"):
         Plurality(profile_no_tied_fpv, m=0)
 
-    with pytest.raises(ValueError):  # m must be less than num cands
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
         Plurality(profile_no_tied_fpv, m=4)
 
-    with pytest.raises(ValueError):  # needs tiebreak
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         Plurality(profile_with_tied_fpv, m=3)
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="has no ranking."):
         Plurality(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
 
 
