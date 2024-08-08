@@ -296,7 +296,7 @@ class BallotGenerator:
             b = Ballot(ranking=rank, weight=Fraction(count))
             ballot_list.append(b)
 
-        return PreferenceProfile(ballots=ballot_list, candidates=candidates)
+        return PreferenceProfile(ballots=tuple(ballot_list), candidates=candidates)
 
 
 class BallotSimplex(BallotGenerator):
@@ -570,12 +570,12 @@ class short_name_PlackettLuce(BallotGenerator):
                 ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
             # create PP for this bloc
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile(ballots=tuple())
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -819,12 +819,12 @@ class name_BradleyTerry(BallotGenerator):
 
                 ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -951,7 +951,7 @@ class name_BradleyTerry(BallotGenerator):
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -1093,12 +1093,12 @@ class AlternatingCrossover(BallotGenerator):
                 ballot = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
                 ballot_pool.append(ballot)
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -1396,12 +1396,12 @@ class CambridgeSampler(BallotGenerator):
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
                 ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -1415,8 +1415,8 @@ class CambridgeSampler(BallotGenerator):
 
 class name_Cumulative(BallotGenerator):
     """
-    Class for generating cumulative ballots. This model samples with
-    replacement from a combined preference interval and counts candidates with multiplicity.
+    Class for generating cumulative ballots, which have scores, not rankings. This model samples
+    with replacement from a combined preference interval and counts candidates with multiplicity.
     Can be initialized with an interval or can be constructed with the Dirichlet distribution
     using the `from_params` method of `BallotGenerator`.
 
@@ -1517,16 +1517,18 @@ class name_Cumulative(BallotGenerator):
                     )
                 )
 
-                ranking = tuple([frozenset({cand}) for cand in list_ranking])
+                scores = {c: Fraction(0) for c in list_ranking}
+                for c in list_ranking:
+                    scores[c] += Fraction(1)
 
-                ballot_pool.append(Ballot(ranking=ranking, weight=Fraction(1, 1)))
+                ballot_pool.append(Ballot(scores=scores, weight=Fraction(1, 1)))
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 
@@ -1649,12 +1651,12 @@ class slate_PlackettLuce(BallotGenerator):
                     ranking.append(frozenset(zero_cands))
                 ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pref_profile_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pref_profile_by_bloc.values():
             pp += profile
 
@@ -1933,12 +1935,12 @@ class slate_BradleyTerry(BallotGenerator):
                     ranking.append(frozenset(zero_cands))
                 ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
 
-            pp = PreferenceProfile(ballots=ballot_pool)
+            pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.condense_ballots()
             pref_profile_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile(ballots=[])
+        pp = PreferenceProfile()
         for profile in pref_profile_by_bloc.values():
             pp += profile
 

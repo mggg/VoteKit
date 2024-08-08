@@ -3,12 +3,11 @@ from fractions import Fraction
 
 from votekit.cvr_loaders import load_scottish
 import votekit.cleaning as clean
-from votekit.election_state import ElectionState
+from votekit.elections import Election
 import votekit.ballot_generator as bg
 import votekit.elections.election_types as elections
 from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
-from votekit.elections.transfers import fractional_transfer
 from votekit.pref_interval import PreferenceInterval
 
 # TODO:
@@ -38,10 +37,7 @@ def test_load_clean_completion():
 
     # run election using a configured RCV step object
     election_borda = elections.Borda(cleaned_pp, 1, score_vector=None)
-
-    outcome_borda = election_borda.run_election()
-
-    assert isinstance(outcome_borda, ElectionState)
+    assert isinstance(election_borda, Election)
 
     # plot_results(outcome)
 
@@ -79,9 +75,7 @@ def test_generate_election_completion():
 
     election_borda = elections.Borda(pp, 1, score_vector=None)
 
-    outcome_borda = election_borda.run_election()
-
-    assert isinstance(outcome_borda, ElectionState)
+    assert isinstance(election_borda, Election)
 
 
 def make_ballot(ranking, weight):
@@ -102,20 +96,13 @@ def test_generate_election_diff_res():
     pp = PreferenceProfile(ballots=[b1, b2, b3, b4, b5, b6])
 
     election_borda = elections.Borda(pp, 1, score_vector=None)
-    election_irv = elections.STV(pp, fractional_transfer, 1)
-    election_plurality = elections.Plurality(pp, seats=1, ballot_ties=False)
-    election_seq = elections.SequentialRCV(pp, seats=1)
-    # election_sntv = elections.SNTV(pp, seats=1)
+    election_irv = elections.STV(pp)
+    election_plurality = elections.Plurality(pp)
+    election_seq = elections.SequentialRCV(pp)
 
-    outcome_borda = election_borda.run_election().winners()
-    outcome_irv = election_irv.run_election().winners()
-    outcome_plurality = election_plurality.run_election().winners()
-    outcome_seq = election_seq.run_election().winners()
-    # outcome_sntv = election_sntv.run_election().get_all_winners()
-
-    print(outcome_borda)
-    print(outcome_irv)
-    print(outcome_plurality)
-    print(outcome_seq)
+    outcome_borda = election_borda.get_elected()
+    outcome_irv = election_irv.get_elected()
+    outcome_plurality = election_plurality.get_elected()
+    outcome_seq = election_seq.get_elected()
 
     assert outcome_borda != outcome_irv != outcome_plurality != outcome_seq
