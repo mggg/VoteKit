@@ -247,7 +247,7 @@ thank Deb Otis, Jeanne Clelland, and Michael Parsons for
 helpful feedback. FairVote's data repository in Dataverse
 (<https://dataverse.harvard.edu/dataverse/rcv_cvrs>) and RCV Cruncher
 code on GitHub (<https://github.com/fairvotereform/rcv_cruncher/>) are
-excellent open-source efforts that were inspirational for the current
+open-source efforts that provided inspiration for the current
 project.
 
 # References
