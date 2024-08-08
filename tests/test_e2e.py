@@ -99,17 +99,10 @@ def test_generate_election_diff_res():
     election_irv = elections.STV(pp)
     election_plurality = elections.Plurality(pp)
     election_seq = elections.SequentialRCV(pp)
-    # election_sntv = elections.SNTV(pp, seats=1)
 
     outcome_borda = election_borda.get_elected()
     outcome_irv = election_irv.get_elected()
     outcome_plurality = election_plurality.get_elected()
     outcome_seq = election_seq.get_elected()
-    # outcome_sntv = election_sntv.run_election().get_all_winners()
-
-    print(outcome_borda)
-    print(outcome_irv)
-    print(outcome_plurality)
-    print(outcome_seq)
 
     assert outcome_borda != outcome_irv != outcome_plurality != outcome_seq
