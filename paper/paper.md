@@ -4,15 +4,33 @@ tags:
   - Python
 authors: 
   - name: Christopher Donnay
+    affiliation: 1
   - name: Moon Duchin
+    affiliation: 2
   - name: Jack Gibson
+    affiliation: 3
   - name: Zach Glaser
+    affiliation: 3
   - name: Andrew Hong
+    affiliation: 4
   - name: Malavika Mukundan
+    affiliation: 5
   - name: Jennifer Wang
+    affiliation: 6
 affiliations:
-  - name: MGGG Redistricting Lab
+  - name: The Ohio State University
     index: 1
+  - name: Cornell University
+    index: 2
+  - name: MGGG Redistricting Lab
+    index: 3
+  - name: Stanford University
+    index: 4
+  - name: Boston University
+    index: 5
+  - name: Brown University
+    index: 6
+    
 bibliography: paper.bib
 ---
 
