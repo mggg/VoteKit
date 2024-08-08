@@ -23,14 +23,14 @@ A simple example of how to use VoteKit to load, clean, and run an election using
 
 ```python
 from votekit import load_csv, remove_noncands
-from votekit.elections import STV, fractional_transfer
+from votekit.elections import STV
 
 minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
 
 # clean downloaded file to remove edited aspects of the cast vote record
 minneapolis_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
 
-minn_election = STV(profile = minneapolis_profile, transfer = fractional_transfer, seats = 1)
+minn_election = STV(profile = minneapolis_profile, m = 1)
 minn_election.run_election()
 ```
 

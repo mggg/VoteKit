@@ -36,14 +36,60 @@ Ballot Generators
 Elections
 ---------
 
-.. automodule:: votekit.elections.election_types   
+.. autoclass:: votekit.elections.election_state.ElectionState
+    :members:
+
+.. autoclass:: votekit.models.Election
+    :members:
+
+
+
+Approval-based
+~~~~~~~~~~~~~~~
+.. automodule:: votekit.elections.election_types.approval.approval
     :members:
     :show-inheritance:
 
-Election State
---------------
 
-.. autoclass:: votekit.election_state.ElectionState
+Ranking-based
+~~~~~~~~~~~~~~
+
+.. automodule:: votekit.elections.election_types.ranking.abstract_ranking
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.alaska
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.borda
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.condo_borda
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.dominating_sets
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.plurality
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.stv
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.top_two
+    :members:
+    :show-inheritance:
+
+Score-based
+~~~~~~~~~~~~
+
+.. automodule:: votekit.elections.election_types.scores.rating
     :members:
     :show-inheritance:
 
@@ -51,11 +97,9 @@ Graphs and Viz.
 ---------------
 .. autoclass:: votekit.graphs.ballot_graph.BallotGraph
     :members:
-    :show-inheritance:
 
 .. autoclass:: votekit.graphs.pairwise_comparison_graph.PairwiseComparisonGraph
     :members:
-    :show-inheritance:
 
 .. automodule:: votekit.plots.mds   
     :members:

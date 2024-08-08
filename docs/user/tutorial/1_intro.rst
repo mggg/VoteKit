@@ -13,6 +13,9 @@ systems.
 Ballots
 -------
 
+Ranked Ballots
+~~~~~~~~~~~~~~
+
 The first order of business is ballots. In the context of ranked choice
 voting, a ballot records a voter’s preferences as a linear ordering of
 the candidates. If a voter casts the ballot :math:`A>B>C`, this means
@@ -32,7 +35,7 @@ import the necessary modules.
 
 .. parsed-literal::
 
-    Ballot
+    Ranking
     1.) A, 
     2.) B, 
     3.) C, 
@@ -43,19 +46,77 @@ import the necessary modules.
 Here, we have created one ballot. The ballot stored the ranking
 :math:`A>B>C`. The weight attribute indicates “how many” of this ballot
 were cast. It defaults to 1, but we have put in 3/2. A fractional weight
-will be useful in single transferable vote (STV) elections!
+will be useful in single transferable vote (STV) elections! While the
+ballot stores the weight as a ``Fraction`` type, you can actually input
+the weight as an integer or float and it will convert it for you.
+
+.. code:: ipython3
+
+    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
+    print(ballot)
+    
+    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 32)
+    print(ballot)
+
+
+.. parsed-literal::
+
+    Ranking
+    1.) A, 
+    2.) B, 
+    3.) C, 
+    Weight: 3/2
+    
+    Ranking
+    1.) A, 
+    2.) B, 
+    3.) C, 
+    Weight: 32
+    
+
 
 **Try it yourself**
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
    Create three new ballots, one with weight 47, one with weight 22/7,
    and one with your own weight idea.
 
 Let’s dig a bit more into how the ranking is stored. It is a list of
-sets, where the first set in the list indicates which candidates were
+sets, where the first set in the tuple indicates which candidates were
 ranked first, the second set is who was ranked second, etc. In the first
 example, we stored a **full linear ranking**. There was only one
-candidate listed in each position, and every candidate was listed.
+candidate listed in each position, and every candidate was listed. To be
+pedantic, it is actually a tuple of frozensets, but much like converting
+an integer weight to a ``Fraction`` type, the ballot also converts lists
+of sets to the correct datatype. What is key to know is that you cannot
+alter a ballot once created; it is frozen.
+
+.. code:: ipython3
+
+    # the following code should raise an error
+    
+    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
+    ballot.ranking = [{"C"}, {"B"}, {"A"}]
+
+
+::
+
+
+    ---------------------------------------------------------------------------
+
+    FrozenInstanceError                       Traceback (most recent call last)
+
+    Cell In[3], line 4
+          1 # the following code should raise an error
+          3 ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
+    ----> 4 ballot.ranking = [{"C"}, {"B"}, {"A"}]
+
+
+    File <string>:4, in __setattr__(self, name, value)
+
+
+    FrozenInstanceError: cannot assign to field 'ranking'
+
 
 Full linear rankings are not the only possible ballots. Real-world
 voters frequently list multiple candidates in the same position (even if
@@ -80,7 +141,7 @@ can do that in VoteKit. But we’ll get to running elections later.
 
 .. parsed-literal::
 
-    A ballot with overvotes: Ballot
+    A ballot with overvotes: Ranking
     1.) D, A, (tie)
     2.) B, 
     3.) E, C, F, (tie)
@@ -88,8 +149,8 @@ can do that in VoteKit. But we’ll get to running elections later.
     
 
 
-This ballot says that candidates :math:`D` and :math:`A` were ranked
-first, :math:`B` second, and :math:`E,C,F` all in third.
+The ballot above says that candidates :math:`D` and :math:`A` were
+ranked first, :math:`B` second, and :math:`E,C,F` all in third.
 
 .. code:: ipython3
 
@@ -101,20 +162,20 @@ first, :math:`B` second, and :math:`E,C,F` all in third.
 .. parsed-literal::
 
     A bullet vote:
-    Ballot
+    Ranking
     1.) B, 
     Weight: 1
     
 
 
-This ballot is a bullet vote; only candidate :math:`B` is listed in
+The ballot above is a bullet vote; only candidate :math:`B` is listed in
 first.
 
 **Automatic cleaning vs specified cleaning**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-What we really mean to illustrate above is that the Ballot class has no
-understanding of the rules of your election. It is flexible enough to
+What we really mean to illustrate above is that the ``Ballot`` class has
+no understanding of the rules of your election. It is flexible enough to
 allow all sorts of rankings, even ones that are not valid.
 
 Since the ranking is a list of *sets*, the only default cleaning that
@@ -127,6 +188,60 @@ to apply those yourself. This is really crucial to know; lots of
 elections will behave strangely if you do not have the correct ballot
 types as input, but it is up to you to clean them to the level needed
 for your method of election.
+
+Scored Ballots
+~~~~~~~~~~~~~~
+
+The other common ballot type is a scored ballot. In this type, each
+candidate is given a score. Of course, a score induces a ranking, but we
+do not automatically generate the induced ranking to 1) make the
+conceptual distinction that ranked elections and scored elections are
+different and 2) to give users more flexibility in the ``Ballot`` class.
+
+.. code:: ipython3
+
+    ballot = Ballot(scores = {"A":4, "B": 3, "C":4})
+    print(ballot)
+    print("ranking:", ballot.ranking)
+
+
+.. parsed-literal::
+
+    Scores
+    A: 4.00
+    B: 3.00
+    C: 4.00
+    Weight: 1
+    
+    ranking: None
+
+
+A ballot can actually have both a ranking and a scoring of candidates,
+but all of the election methods currently implemented in ``VoteKit``
+only use either the rank or score. As we see below, the ranking does not
+have to agree with the scoring.
+
+.. code:: ipython3
+
+    ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores = {"A":4, "B": 3, "C":4})
+    print(ballot)
+
+
+.. parsed-literal::
+
+    Ranking
+    1.) C, 
+    2.) B, 
+    3.) A, 
+    Scores
+    A: 4.00
+    B: 3.00
+    C: 4.00
+    Weight: 1
+    
+
+
+For the remainder of this tutorial, we will use ranked ballots.
 
 Preference Profiles
 -------------------
@@ -161,21 +276,23 @@ they were inputted.
 
 .. parsed-literal::
 
-      Ballots Weight
-    (A, B, C)      3
-    (B, A, C)      1
-    (C, B, A)      1
-    (A, B, C)      1
-    (A, B, C)      1
-    (B, A, C)      1
+      Ranking Scores Weight
+    (A, B, C)     ()      3
+    (B, A, C)     ()      1
+    (C, B, A)     ()      1
+    (A, B, C)     ()      1
+    (A, B, C)     ()      1
+    (B, A, C)     ()      1
 
 
 The ``PreferenceProfile`` class takes a list of ``Ballot`` objects and a
 list of candidates. The candidate names must be distinct, and it will
 raise an error if not. Providing the list of candidates is actually
-optional, and it has no impact on the Profile object. However, later
+optional, and it has no impact on the profile object. If the candidates
+are not provided, the profile automatically computes the candidates as
+anyone who appeared on a ballot with positive weight. However, later
 when we move on to ballot generation, the list of candidates will be
-important.
+important, so it is good practice to specify them.
 
 Notice that printing the profile did not automatically combine like
 ballots into a single line. But there’s an easy way to get the condensed
@@ -189,10 +306,10 @@ profile, as follows.
 
 .. parsed-literal::
 
-      Ballots Weight
-    (A, B, C)      5
-    (B, A, C)      2
-    (C, B, A)      1
+      Ranking Scores Weight
+    (A, B, C)     ()      5
+    (B, A, C)     ()      2
+    (C, B, A)     ()      1
 
 
 In these examples, the profiles are very short, so we can print the
@@ -218,22 +335,22 @@ only showing 15 out of XX rows.”
 .. parsed-literal::
 
     PreferenceProfile too long, only showing 15 out of 36 rows.
-      Ballots Weight
-    (A, B, C)      1
-    (B, A, C)      1
-    (C, B, A)      1
-         (A,)      1
-    (A, B, C)      1
-       (B, A)      1
-    (A, B, C)      1
-    (B, A, C)      1
-    (C, B, A)      1
-         (A,)      1
-    (A, B, C)      1
-       (B, A)      1
-    (A, B, C)      1
-    (B, A, C)      1
-    (C, B, A)      1
+      Ranking Scores Weight
+    (A, B, C)     ()      1
+    (B, A, C)     ()      1
+    (C, B, A)     ()      1
+         (A,)     ()      1
+    (A, B, C)     ()      1
+       (B, A)     ()      1
+    (A, B, C)     ()      1
+    (B, A, C)     ()      1
+    (C, B, A)     ()      1
+         (A,)     ()      1
+    (A, B, C)     ()      1
+       (B, A)     ()      1
+    (A, B, C)     ()      1
+    (B, A, C)     ()      1
+    (C, B, A)     ()      1
 
 
 To see more of the ballots, we can use the ``head`` and ``tail`` methods
@@ -265,55 +382,70 @@ using the ``sort_by_weight`` parameter and setting it to ``True``.
 
 .. parsed-literal::
 
-         Ballots Weight
-    0  (A, B, C)      1
-    1  (B, A, C)      1
-    2  (C, B, A)      1
-    3       (A,)      1
-    4  (A, B, C)      1
-    5     (B, A)      1
-    6  (A, B, C)      1
-    7  (B, A, C)      1
+         Ranking Scores Weight
+    0  (A, B, C)     ()      1
+    1  (B, A, C)     ()      1
+    2  (C, B, A)     ()      1
+    3       (A,)     ()      1
+    4  (A, B, C)     ()      1
+    5     (B, A)     ()      1
+    6  (A, B, C)     ()      1
+    7  (B, A, C)     ()      1
     
-          Ballots Weight
-    35  (A, B, C)      1
-    34  (C, B, A)      1
-    33       (A,)      1
-    32  (A, B, C)      1
-    31     (B, A)      1
-    30  (A, B, C)      1
-    29  (B, A, C)      1
-    28  (B, A, C)      1
+          Ranking Scores Weight
+    35  (A, B, C)     ()      1
+    34  (C, B, A)     ()      1
+    33       (A,)     ()      1
+    32  (A, B, C)     ()      1
+    31     (B, A)     ()      1
+    30  (A, B, C)     ()      1
+    29  (B, A, C)     ()      1
+    28  (B, A, C)     ()      1
     
-    Ballots    (A, B, C)
+    Ranking    (A, B, C)
+    Scores            ()
     Weight             1
     Percent        2.78%
     Name: 10, dtype: object
     
-         Ballots Weight
-    0  (A, B, C)     12
-    1  (B, A, C)      6
-    2  (C, B, A)      6
-    3       (A,)      6
-    4     (B, A)      6
+         Ranking Scores Weight
+    0  (A, B, C)     ()     12
+    1  (B, A, C)     ()      6
+    2  (C, B, A)     ()      6
+    3       (A,)     ()      6
+    4     (B, A)     ()      6
 
 
-A few other useful methods are listed here. Use ``profile.METHODNAME()``
-for each one.
+A few other useful attributes/methods are listed here. Use
+``profile.ATTR`` for each one.
 
--  ``get_candidates()`` returns the list of candidates who received any
+-  ``candidates`` returns the list of candidates input to the profile.
+
+-  ``candidates_cast`` returns the list of candidates who received
    votes.
 
--  ``get_ballots()`` returns the list of ballots (useful if you want to
-   extract the ballots as a list to write custom code, say).
+-  ``ballots`` returns the list of ballots (useful if you want to
+   extract the ballots to write custom code, say).
 
--  ``num_ballots()`` returns the number of ballots, which is the sum of
-   the weights.
+-  ``num_ballots`` returns the number of ballots, which is the length of
+   ``ballots``.
 
--  ``to_dict(standardize = False)`` returns the profile as dictionary
-   whose keys are the rankings that received votes and whose values are
-   the weights (condensed). Comes with an optional ``standardize``
-   argument which divides the weights by the total weight.
+-  ``total_ballot_wt`` returns the sum of the ballot weights.
+
+-  ``to_ballot_dict(standardize = False)`` returns the profile as
+   dictionary whose keys are the ballots and whose values are the
+   weights (condensed). Comes with an optional ``standardize`` argument
+   which divides the weights by the total weight.
+
+-  ``to_ranking_dict(standardize = False)`` returns the profile as
+   dictionary whose keys are the rankings and whose values are the
+   weights (condensed). Comes with an optional ``standardize`` argument
+   which divides the weights by the total weight.
+
+-  ``to_scores_dict(standardize = False)`` returns the profile as
+   dictionary whose keys are the scores and whose values are the weights
+   (condensed). Comes with an optional ``standardize`` argument which
+   divides the weights by the total weight.
 
 -  ``to_csv(fpath = "name_of_file.csv")`` saves the profile as a csv
    (useful if you want to replicate runs of an experiment).
@@ -321,10 +453,10 @@ for each one.
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
 
-   Try using all five of the above methods, with or without condensing
-   the ballots. Try switching the ``standardize`` parameter in
-   ``to_dict`` from False to True, and change the ``fpath`` parameter in
-   ``to_csv`` to a file name that makes sense.
+   Try using all of the above attributes/methods, with or without
+   condensing the ballots. Try switching the ``standardize`` parameter
+   in ``to_dict`` from False to True, and change the ``fpath`` parameter
+   in ``to_csv`` to a file name that makes sense.
 
 Preference Intervals
 --------------------
@@ -371,7 +503,6 @@ candidate will appear at the bottom of the ballot.
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
 
-   png
 
 One of the generative models is called the **slate-Plackett-Luce
 model**, or s-PL. In s-PL, voters fill in their ballot from the top
@@ -414,12 +545,13 @@ but bear with us.
 
 .. parsed-literal::
 
-      Ballots Weight
-    (A, B, C)     56
-    (A, C, B)     23
-    (B, A, C)     12
-    (C, A, B)      7
-    (C, B, A)      2
+      Ranking Scores Weight
+    (A, B, C)     ()     57
+    (B, A, C)     ()     19
+    (A, C, B)     ()     18
+    (C, A, B)     ()      4
+    (B, C, A)     ()      1
+    (C, B, A)     ()      1
 
 
 Re-run the above block several times to see that the elections will come
@@ -492,49 +624,49 @@ their bloc.
 .. parsed-literal::
 
     The ballots from Alpha voters
-          Ballots Weight
-    (A, B, Y, X)   5184
-    (B, A, Y, X)   1283
-    (Y, A, B, X)    659
-    (A, Y, B, X)    580
-    (Y, B, A, X)    154
-    (B, Y, A, X)    140
+          Ranking Scores Weight
+    (A, B, Y, X)     ()   5239
+    (B, A, Y, X)     ()   1272
+    (Y, A, B, X)     ()    626
+    (A, Y, B, X)     ()    538
+    (Y, B, A, X)     ()    172
+    (B, Y, A, X)     ()    153
     The ballots from Xenon voters
      PreferenceProfile too long, only showing 15 out of 24 rows.
-         Ballots Weight
-    (Y, X, A, B)    420
-    (X, Y, A, B)    412
-    (X, Y, B, A)    397
-    (Y, X, B, A)    378
-    (B, Y, X, A)     50
-    (X, A, Y, B)     48
-    (B, X, Y, A)     47
-    (A, X, Y, B)     44
-    (A, Y, X, B)     41
-    (Y, B, X, A)     37
-    (Y, A, X, B)     37
-    (X, B, Y, A)     34
-    (A, B, X, Y)      8
-    (B, A, Y, X)      7
-    (X, B, A, Y)      6
+         Ranking Scores Weight
+    (Y, X, B, A)     ()    441
+    (X, Y, B, A)     ()    421
+    (X, Y, A, B)     ()    393
+    (Y, X, A, B)     ()    381
+    (A, Y, X, B)     ()     50
+    (X, A, Y, B)     ()     42
+    (X, B, Y, A)     ()     40
+    (Y, B, X, A)     ()     40
+    (A, X, Y, B)     ()     36
+    (B, X, Y, A)     ()     35
+    (B, Y, X, A)     ()     35
+    (Y, A, X, B)     ()     34
+    (B, A, Y, X)     ()      7
+    (A, B, X, Y)     ()      7
+    (B, X, A, Y)     ()      6
     Aggregated ballots
      PreferenceProfile too long, only showing 15 out of 30 rows.
-         Ballots Weight
-    (A, B, Y, X)   5184
-    (B, A, Y, X)   1283
-    (Y, A, B, X)    659
-    (A, Y, B, X)    580
-    (Y, X, A, B)    420
-    (X, Y, A, B)    412
-    (X, Y, B, A)    397
-    (Y, X, B, A)    378
-    (Y, B, A, X)    154
-    (B, Y, A, X)    140
-    (B, Y, X, A)     50
-    (X, A, Y, B)     48
-    (B, X, Y, A)     47
-    (A, X, Y, B)     44
-    (A, Y, X, B)     41
+         Ranking Scores Weight
+    (A, B, Y, X)     ()   5239
+    (B, A, Y, X)     ()   1272
+    (Y, A, B, X)     ()    626
+    (A, Y, B, X)     ()    538
+    (Y, X, B, A)     ()    441
+    (X, Y, B, A)     ()    421
+    (X, Y, A, B)     ()    393
+    (Y, X, A, B)     ()    381
+    (Y, B, A, X)     ()    172
+    (B, Y, A, X)     ()    153
+    (A, Y, X, B)     ()     50
+    (X, A, Y, B)     ()     42
+    (Y, B, X, A)     ()     40
+    (X, B, Y, A)     ()     40
+    (A, X, Y, B)     ()     36
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
@@ -573,27 +705,27 @@ it should.
     
     print(profile)
     
+    # m is the number of seats to elect
     election = Plurality(profile = profile,
-                         seats = 1)
+                         m = 1)
     
-    print(election.run_election())
+    print(election)
 
 
 .. parsed-literal::
 
-      Ballots Weight
-    (A, B, C)     18
-    (B, A, C)     12
-    (C, B, A)      6
-    Current Round: 1
-    Candidate     Status  Round
-            A    Elected      1
-            B Eliminated      1
-            C Eliminated      1
+      Ranking Scores Weight
+    (A, B, C)     ()     18
+    (B, A, C)     ()     12
+    (C, B, A)     ()      6
+          Status  Round
+    A    Elected      1
+    B  Remaining      1
+    C  Remaining      1
 
 
 If everything worked as intended, you should see that :math:`A` was
-elected, while :math:`B,C` were eliminated. There is only one round, as
+elected, while :math:`B,C` were remaining. There is only one round, as
 plurality elections are single step.
 
 You can also run a plurality election with more seats than one; it just
@@ -601,12 +733,11 @@ takes the :math:`m` candidates with the most first-place support as
 winners.
 
 For advanced users: if several candidates had the same level of
-first-place support, the default tiebreaker in VoteKit is just uniformly
-random. Please note: when ``run_election`` is run for the first time,
-the result is cached. Any subsequent call will use the same will return
-the same result, randomness and all. If you want to re-run with
-different randomness, be sure the call to ``run_election`` is in the
-same code block that the election is defined.
+first-place support, the default tiebreaker in VoteKit is ``None``, and
+it will raise an error telling you to choose a tiebreak method. This can
+be done by setting ``tiebreak='random'`` or ``tiebreak='borda'`` in the
+``Plurality`` init method. There is also a ``'first_place'`` option, but
+that won’t help in a plurality tie.
 
 Conclusion
 ~~~~~~~~~~

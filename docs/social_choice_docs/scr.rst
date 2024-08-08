@@ -387,124 +387,151 @@ voter’s ranking is determined by their distance from each candidate.
 Elections
 =========
 
+Ranking-based
+-------------
+
+Plurality/SNTV
+~~~~~~~~~~~~~~
+Plurality or single non-transferable vote (SNTV). Winners are the :math:`m`` candidates with the most first-place votes. 
+As a system of election, this is equivalent to bloc plurality voting (see below), but this version 
+is limited to one choice per voter and is read off of a ranked ballot rather than an approval 
+ballot. It is also equivalent to limited voting when that system uses :math:`k=1`.
+
+Borda 
+~~~~~~
+Positional voting system that assigns a decreasing number of points to
+candidates based on order using a global score vector :math:`(r_1,r_2,..,r_n)`. The conventional score
+vector is :math:`(n, n-1, \dots, 1)`, where `n` is the number of candidates.
+A candidate in position 1 is given :math:`r_1` points, a candidate in position 2 is given 
+:math:`r_2`, and so on. If a ballot is incomplete, the remaining points of the score 
+vector are evenly distributed to the unlisted candidates (see ``score_profile_from_rankings`` 
+function in ``utils``). If a ballot has ties, the tied candidates are awarded an average of their 
+the scores over all possible completions of the tie.
+The default for a Borda election is one winner -- whoever has the highest point total -- but 
+you can also use this Borda election method to elect multiple winners.
+
 STV
----
+~~~~~~
 
 STV stands for single transferable vote. Voters cast ranked
 choice ballots. A threshold is set; if a candidate crosses the
-threshold, they are elected. The threshold defaults to the Droop quota.
+threshold, they are elected. The threshold defaults to the Droop quota (defined below).
 We also enable functionality for the Hare quota.
 
-In the first round, the first place votes for each candidate are
-tallied. If a candidate crosses the threshold, they are elected. Any
-surplus votes are distributed amongst the other candidates according to
-a transfer rule. If another candidate crosses the threshold, they are
-elected. If no candidate does, the candidate with the least first place
-votes is eliminated, and their ballots are redistributed according to
-the transfer rule. This repeats until all seats are filled.
-
--  An STV election can use either the Droop or Hare quota.
+In the first round, the first-place votes for each candidate are
+tallied. If a candidate crosses the threshold, they are marked “elected.” Any surplus votes 
+for an elected candidate are distributed to the remaining candidates according to a transfer rule 
+(all are transferred with fractional weight, by default). A further default specifies that multiple 
+candidates over threshold can be simultaneously elected in a given round, as is the practice in 
+Cambridge, MA; users have the option to opt for one-by-one election instead.  If no candidate 
+crosses threshold, the candidate with the fewest first-place votes is eliminated, and their ballots 
+are fully redistributed according to the transfer rule. This repeats until all seats are filled. 
+If too many ballots are exhausted for :math:`m` candidates to cross threshold, then the 
+top-positioned ones left at the end of the process fill out the seats.
 
 -  The current transfer methods are stored in the
    ``elections`` module.
 
--  If there is a tiebreak needed, STV defaults to a random tiebreak.
-   Other methods of tiebreak are given in the ``tie_broken_ranking``
-   function of the ``utils`` module.
 
 Quotas and Transfers for STV
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Droop
 ^^^^^
-If there are :math:`k` seats up for election and :math:`N` votes, the Droop quota is :math:`\frac{N}{k+1}+1`.
+If there are :math:`m` seats up for election and :math:`N` votes, the Droop quota is :math:`\frac{N}{m+1}+1`.
 
 Hare
 ^^^^
-If there are :math:`k` seats up for election and :math:`N` votes, the Droop quota is :math:`\frac{N}{k}+1`.
+If there are :math:`m` seats up for election and :math:`N` votes, the Droop quota is :math:`\frac{N}{m}+1`.
 
 Fractional Transfer
 ^^^^^^^^^^^^^^^^^^^
-Under fractional transfer, all ballots that can be transferred (i.e. those with a second place ranking) are assigned a new weight proprotional to the number of surplus votes for the winning candidate.
+Under fractional transfer, all ballots that can be transferred (i.e., those with a next ranking specified) 
+are assigned a new weight according to the share of votes for the elected candidate that were in 
+excess of the threshold. For instance, if the threshold is 1000 votes and the candidate received 1500, 
+their votes are transferred with 1/3 weight.
 
 Random Transfer
 ^^^^^^^^^^^^^^^^^^^
-Under random transfer, if there are :math:`S` surplus votes for the winning candidate, :math:`S` ballots are chosen uniformly at random to transfer.
+Under random transfer, if there are :math:`S` surplus votes for the winning candidate, 
+:math:`S` ballots are chosen uniformly at random to (fully) transfer, rather than transferring all 
+ballots with fractional weight.
 
 IRV
----
-Instant run off voting (IRV); An STV election for one seat.
-
-Limited
--------
-In our limited electiion, we elect :math:`m` candidates with the highest :math:`k`-approval scores.
-The :math:`k`-approval score of a candidate is equal to the number of voters who
-rank this candidate among their :math:`k` top ranked candidates.
-
-Bloc
-----
-Elect :math:`m` candidates with the highest :math:`m`-approval scores. Specific case of Limited election
-where :math:`k = m`.
-
-SNTV
-----
-Single nontransferable vote (SNTV): Elects :math:`k` candidates with the highest
-Plurality scores. Equivalent to Limited with :math:`k=1` and Plurality.
-
-SNTV_STV_Hybrid
----------------
-Election method that first runs SNTV to a cutoff number of candidates, then runs STV to
-pick a committee with a given number of seats.
-
-TopTwo
-------
-Eliminates all but the top two plurality vote getters, and then conducts a runoff between them, reallocating other ballots.
-
-DominatingSets
---------------
-Finds tiers of candidates by dominating set, which is a set of candidates
-such that every candidate in the set wins head to head comparisons against
-candidates outside of it. Elects all candidates in the top tier.
-
-Condo Borda
------------
-Elects candidates ordered by dominating set, but breaks ties between candidates with Borda.
+~~~~
+Instant runoff voting (IRV); An STV election for one seat.  
+(This is intentionally redundant with STV, :math:`m=1`.)  This system is widely practiced around the U.S.
 
 SequentialRCV
+~~~~~~~~~~~~~~
+An STV election in which votes are not transferred after a candidate has reached threshold, or been elected. 
+This system is actually used in parts of Utah.
+
+Alaska
+~~~~~~~~~~~~~~~~
+Election method that first runs a Plurality election to choose a user-specified number of final-round candidates, 
+then runs STV to choose :math:`m` winners.
+
+
+TopTwo
+~~~~~~~
+Eliminates all but the top two plurality vote-getters, and then conducts a runoff between them, 
+reallocating other ballots.
+
+
+DominatingSets (Smith method)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A "dominating set" is any set :math:`S` of candidates such that everyone in :math:`S` beats everyone 
+outside of :math:`S` head-to-head. The top tier (which is well defined) is often called the "Smith set,"
+and if it is just one person, they are called the "Condorcet candidate." The Smith method of election 
+declares the Smith set to be the winners, which means that users do not get to specify the number of 
+winners.
+
+
+Condo Borda
+~~~~~~~~~~~~~
+Just like Smith method, but user gets to choose the number of winners, :math:`m`.  
+Ties are broken with Borda scores.  
+
+
+
+
+Score-based
 -------------
-An STV election in which votes are not transferred after a candidate has reached threshold, or been elected.
 
-Borda
------
-Positional voting system that assigns a decreasing number of points to
-candidates based on order and a score vector. The conventional score
-vector is :math:`(n, n-1, \dots, 1)`, where `n` is the number of candidates.
-A candidate in position 1 is given :math:`n` points, a candidate in position 2 is given 
-:math:`n-1`, and so on. If a ballot is incomplete, the remaining points of the score 
-vectorare evenly distributed to the unlisted candidates (see ``borda_scores`` 
-function in ``utils``).
+Rating (score or range voting)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Plurality
----------
-Elects :math:`k` candidates with the highest
-Plurality scores. Equivalent to Limited with :math:`k=1` and SNTV.
+To fill :math:`m` seats, voters score each candidate independently from :math:`0-L`, where :math:`L` is 
+some user-specified limit.  The :math:`m` winners are those with the highest total score.
 
-HighestScore
-------------
-Conducts an election based on points from a score vector.
-A score vector is a vector whose :math:`i` th entry denotes the number of points given
-to a candidate in position :math:`i`. Normally a score vector is non-negative and 
-decreasing. A HighestScore election chooses the :math:`m` candidates with highest scores.
-Ties are broken by randomly permuting the tied candidates.
+Cumulative
+~~~~~~~~~~~
+
+Voters can score each candidate, but have a total budget of :math:`m` points, where :math:`m` is the 
+number of seats to be filled.  Spending all your points on one candidate is called "plumping" the vote.
+Winners are those with highest total score.
 
 
-Cumulative 
-----------
-Voting system where voters are allowed to vote for candidates with multiplicity.
-Each ranking position should have one candidate, and every candidate ranked will receive
-one point, i.e., the score vector is :math:`(1,\dots,1)`. Recall a score vector is a 
-vector whose :math:`i` th entry denotes the number of points given to a candidate in 
-position :math:`i`. Normally a score vector is non-negative and decreasing.
+Limited
+~~~~~~~~~
+
+Just like cumulative voting, except total score must sum to no more than a user-specified :math:`k`, 
+which is assumed strictly less than :math:`m`.  (This is why it’s called "limited.")
+
+Approval-based
+--------------
+
+Approval
+~~~~~~~~
+Standard approval voting lets voters choose any subset of candidates to 
+approve.  Winners are the :math:`m` candidates who received the most approval votes.
+
+Bloc Plurality
+~~~~~~~~~~~~~~
+Like approval voting, but there is a user-specified limit of :math:`k` approvals per voter.  
+Most commonly, this would be run with :math:`k=m`.
+
 
 Distances between PreferenceProfiles
 ====================================
@@ -514,18 +541,18 @@ Earthmover Distance
 
 The Earthmover distance is a measure of how far apart two distributions
 are over a given metric space. In our case, the metric space is the
-``BallotGraph`` endowed with the shortest path metric. We then consider a
-``PreferenceProfile`` to be a distribution that assigns the number of
-times a ballot was cast to a node of the ``BallotGraph``. Informally,
-the Earthmover distance is the minimum cost of moving the “dirt” piled
-on the nodes by the first profile to the second profile given the
-distance it must travel. For a formal definition, see `here. <https://en.wikipedia.org/wiki/Earth_mover%27s_distance>`_
+``BallotGraph`` endowed with the shortest-path metric. We then consider a
+``PreferenceProfile`` to be a probability distribution that weights each node (ballot) by the share 
+of the profile consisting of that ballot. Informally, the Earthmover distance considers "transportation plans"
+that move mass from one distribution to the other; the cost of moving weight is the mass times the 
+graph distance moved.  The distance between two distributions is minimum cost of a plan that moves 
+all mass from one to the other. For a more formal definition, see `this wiki. <https://en.wikipedia.org/wiki/Earth_mover%27s_distance>`_
 
 
 :math:`L_p` Distance
 --------------------
 
-The :math:`L_p` distance is a metric parameterized by
+The :math:`L_p` distance is a family of metrics parameterized by
 :math:`p\in (0,\infty]`. It is computed as
 :math:`d(P_1,P_2) = \left(\sum |P_1(b)-P_2(b)|^p\right)^{1/p}`, where
 the sum is indexed over all possible ballots, and :math:`P_i(b)` denotes
