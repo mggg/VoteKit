@@ -148,4 +148,4 @@ def em_array(pp: PreferenceProfile) -> list:
 
 
 def euclidean_dist(point1: np.ndarray, point2: np.ndarray) -> float:
-    return float(np.linalg.norm(point1 - point2))
+    return float(np.linalg.norm(point1 - point2, ord=2))

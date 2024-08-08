@@ -1130,17 +1130,20 @@ class RandomDictator(Election):
 
     Args:
       profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to elect.
+      m (int): Number of seats to elect.
 
     Attributes:
       _profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to be elected.
+      m (int): Number of seats to be elected.
 
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int):
+    def __init__(self, profile: PreferenceProfile, m: int):
         super().__init__(profile, ballot_ties=False)
-        self.seats = seats
+        if m <= 0 or m > len(profile.get_candidates()):
+            raise ValueError("Invalid number of candidates to elect")
+
+        self.m = m
 
     def next_round(self) -> bool:
         """
@@ -1150,9 +1153,18 @@ class RandomDictator(Election):
             (bool) True if number of seats has not been met, False otherwise.
         """
         cands_elected = [len(s) for s in self.state.winners()]
-        return sum(cands_elected) < self.seats
+        return sum(cands_elected) < self.m
 
     def run_step(self):
+        """
+        If m candidates have not yet been elected:
+        finds a single winning candidate to add to the list of elected
+        candidates by sampling from the distribution of first place votes.
+        Removes that candidate from all ballots in the preference profile.
+
+        Returns:
+            ElectionState: An ElectionState object for a complete election.
+        """
         if self.next_round():
             remaining = self.state.profile.get_candidates()
 
@@ -1162,21 +1174,12 @@ class RandomDictator(Election):
                 self.state.profile.ballots, weights=weights, k=1
             )[0]
 
-            # randomly choose a winner from the first place rankings
             winning_candidate = random.choice(list(random_ballot.ranking[0]))
-
-            # some formatting to make it compatible with ElectionState, which
-            # requires a list of sets of strings
             elected = [{winning_candidate}]
-
-            # remove the winner from the ballots
             new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
             new_profile = PreferenceProfile(ballots=new_ballots)
-
-            # determine who remains
             remaining = [{c} for c in remaining if c != winning_candidate]
 
-            # update for the next round
             self.state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=elected,
@@ -1185,17 +1188,6 @@ class RandomDictator(Election):
                 profile=new_profile,
                 previous=self.state,
             )
-
-            # if this is the last round, move remaining to eliminated
-            if not self.next_round():
-                self.state = ElectionState(
-                    curr_round=self.state.curr_round,
-                    elected=elected,
-                    eliminated_cands=remaining,
-                    remaining=[],
-                    profile=new_profile,
-                    previous=self.state.previous,
-                )
             return self.state
 
     def run_election(self):
@@ -1209,9 +1201,9 @@ class RandomDictator(Election):
 class BoostedRandomDictator(Election):
     """
     Modified random dictator where
-        - With probability (1 - 1/(# Candidates - 1))
+        - With probability (1 - 1/(n_candidates - 1))
         choose a winner randomly from the distribution of first place votes.
-        - With probability 1/(# of Candidates - 1)
+        - With probability 1/(n_candidates - 1)
           Choose a winner via a proportional to squares rule.
 
     For multi-winner elections
@@ -1220,17 +1212,20 @@ class BoostedRandomDictator(Election):
 
     Args:
       profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to elect.
+      m (int): Number of seats to elect.
 
     Attributes:
       _profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to be elected.
+      m (int): Number of seats to be elected.
 
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int):
+    def __init__(self, profile: PreferenceProfile, m: int):
         super().__init__(profile, ballot_ties=False)
-        self.seats = seats
+        if m <= 0 or m > len(profile.get_candidates()):
+            raise ValueError("Invalid number of candidates to elect")
+
+        self.m = m
 
     def next_round(self) -> bool:
         """
@@ -1240,9 +1235,19 @@ class BoostedRandomDictator(Election):
             (bool) True if number of seats has not been met, False otherwise.
         """
         cands_elected = [len(s) for s in self.state.winners()]
-        return sum(cands_elected) < self.seats
+        return sum(cands_elected) < self.m
 
     def run_step(self):
+        """
+        If m candidates have not yet been elected:
+        finds a single winning candidate to add to the list of elected
+        candidates by sampling from the distribution induced by the combination
+        of random dictator and proportional to squares election rules.
+        Removes that candidate from all ballots in the preference profile.
+
+        Returns:
+            ElectionState: An ElectionState object for a complete election.
+        """
         if self.next_round():
             remaining = self.state.profile.get_candidates()
             u = random.uniform(0, 1)
@@ -1251,18 +1256,12 @@ class BoostedRandomDictator(Election):
                 winning_candidate = remaining[0]
 
             elif u <= 1 / (len(remaining) - 1):
-                # Choose via proportional to squares
-                candidate_votes = {c: 0 for c in remaining}
-                for ballot in self.state.profile.get_ballots():
-                    top_choice = random.choice(list(ballot.ranking[0]))
-                    candidate_votes[top_choice] += float(ballot.weight)
-
-                squares = np.array(
-                    [(i / len(remaining)) ** 2 for i in candidate_votes.values()]
-                )
-                sum_of_squares = np.sum(squares)
-                probabilities = squares / sum_of_squares
-                winning_candidate = np.random.choice(remaining, p=probabilities)
+                candidate_votes = first_place_votes(self.state.profile, to_float=True)
+                p = np.array([i for i in candidate_votes.values()])
+                p /= float(self.state.profile.num_ballots())
+                p = np.power(p, 2)
+                p /= np.sum(p)
+                winning_candidate = np.random.choice(remaining, p=p)
 
             else:
                 ballots = self.state.profile.ballots
@@ -1270,21 +1269,13 @@ class BoostedRandomDictator(Election):
                 random_ballot = random.choices(
                     self.state.profile.ballots, weights=weights, k=1
                 )[0]
-                # randomly choose a winner according to first place rankings
                 winning_candidate = random.choice(list(random_ballot.ranking[0]))
 
-            # some formatting to make it compatible with ElectionState, which
-            # requires a list of sets of strings
             elected = [{winning_candidate}]
-
-            # remove the winner from the ballots
             new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
             new_profile = PreferenceProfile(ballots=new_ballots)
-
-            # determine who remains
             remaining = [{c} for c in remaining if c != winning_candidate]
 
-            # update for the next round
             self.state = ElectionState(
                 curr_round=self.state.curr_round + 1,
                 elected=elected,
@@ -1293,21 +1284,9 @@ class BoostedRandomDictator(Election):
                 profile=new_profile,
                 previous=self.state,
             )
-
-            # if this is the last round, move remaining to eliminated
-            if not self.next_round():
-                self.state = ElectionState(
-                    curr_round=self.state.curr_round,
-                    elected=elected,
-                    eliminated_cands=remaining,
-                    remaining=[],
-                    profile=new_profile,
-                    previous=self.state.previous,
-                )
             return self.state
 
     def run_election(self):
-        # run steps until we elect the required number of candidates
         while self.next_round():
             self.run_step()
 
@@ -1323,17 +1302,37 @@ class PluralityVeto(Election):
 
     Args:
       profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to elect.
+      m (int): Number of seats to elect.
 
     Attributes:
       _profile (PreferenceProfile): PreferenceProfile to run election on.
-      seats (int): Number of seats to be elected.
+      m (int): Number of seats to be elected.
+      ballot_idx (dict[int, int]): indexes individual voters to condensed profile ballots
+      random_order (list[int]): randomly shuffled order of voter indices
+      candidate_approvals (dict[str,int]): dictionary tracking current candidate scores
+
 
     """
 
-    def __init__(self, profile: PreferenceProfile, seats: int):
+    def __init__(self, profile: PreferenceProfile, m: int):
         super().__init__(profile, ballot_ties=False)
-        self.seats = seats
+        if m <= 0 or m > len(profile.get_candidates()):
+            raise ValueError("Invalid number of candidates to elect.")
+
+        self.m = m
+
+        bidx = 0
+        self.ballot_idx = {i: -1 for i in range(int(self.state.profile.num_ballots()))}
+        for i, ballot in enumerate(self.state.profile.get_ballots()):
+            if not int(ballot.weight) == ballot.weight:
+                raise ValueError("Ballots must have integer weight.")
+
+            for j in range(int(ballot.weight)):
+                self.ballot_idx[i] = bidx
+                bidx += 1
+
+        self.random_order = None
+        self.candidate_approvals = None
 
     def next_round(self) -> bool:
         """
@@ -1343,93 +1342,87 @@ class PluralityVeto(Election):
             (bool) True if number of seats has not been met, False otherwise.
         """
         cands_elected = [len(s) for s in self.state.winners()]
-        return sum(cands_elected) < self.seats
+        return sum(cands_elected) < self.m
 
     def run_step(self):
+        """
+        If m candidates have not yet been elected:
+        if the current round is 0, count plurality scores and remove all
+        candidates with a score of 0 to eliminated. Otherwise, this method
+        eliminates a single candidate by decrementing scores of candidates on
+        the current ticket until someone falls to a score of 0. Once we find
+        that there are exactly m candidates remaining on the ticket, elect all
+        of them.
+
+        Returns:
+            ElectionState: An ElectionState object for a complete election.
+        """
         if self.next_round():
             candidates = self.state.profile.get_candidates()
             ballots = self.state.profile.ballots
 
-            # First, count a plurality score for each of the candidates
-            candidate_approvals = {c: Fraction(0) for c in candidates}
-            for ballot in ballots:
-                # From each ballot, randomly choose one candidate from the
-                # set of their first place ranking candidates to accept
-                first_choice = random.choice(list(ballot.ranking[0]))
-                candidate_approvals[first_choice] += ballot.weight
-
-            # Next take a randomized ordering of the ballots:
-            random_order = np.random.permutation(len(ballots))
-
-            # Use another dictionary to keep track of which candidates have
-            # non-zero approval scores
-            A = {c: score for c, score in candidate_approvals.items() if score > 0}
-
-            # Finally, decrement scores with vetos from each of the voters
-            last_eliminated = None
-            for r in random_order:
-                # From each ballot, look at all the remaining candidates
-                # in A, and veto one which this ballot ranks lowest.
-                # This might be expensive, let me know if you have any ideas for how to improve
-                ballot = ballots[r]
-
-                max_rank = -1
-                max_rank_cands = []
-                for c in A.keys():
-                    for i, cand_set in enumerate(ballot.ranking):
-                        if c in cand_set:
-                            if i > max_rank:
-                                max_rank = i
-                                max_rank_cands = [c]
-                            elif i == max_rank:
-                                max_rank_cands.append(c)
-
-                last_choice = random.choice(max_rank_cands)
-                A[last_choice] -= ballot.weight
-
-                # if score falls below 0, eliminate that candidate
-                if A[last_choice] <= 0:
-                    del A[last_choice]
-                    last_eliminated = last_choice
-
-            # The very last eliminated candidate is the winner
-            winning_candidate = last_eliminated
-
-            # some formatting to make it compatible with ElectionState, which
-            # requires a list of sets of strings
-            elected = [{winning_candidate}]
-
-            # remove the winner from the ballots
-            new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
-            new_profile = PreferenceProfile(ballots=new_ballots)
-
-            # determine who remains
-            remaining = [{c} for c in candidates if c != winning_candidate]
-
-            # update for the next round
-            self.state = ElectionState(
-                curr_round=self.state.curr_round + 1,
-                elected=elected,
-                eliminated_cands=[],
-                remaining=remaining,
-                profile=new_profile,
-                previous=self.state,
-            )
-
-            # if this is the last round, move remaining to eliminated
-            if not self.next_round():
+            if len(candidates) == self.m:
+                # move all to elected, this is the last round
+                elected = [{c} for c in candidates]
                 self.state = ElectionState(
-                    curr_round=self.state.curr_round,
+                    curr_round=self.state.curr_round + 1,
                     elected=elected,
-                    eliminated_cands=remaining,
+                    eliminated_cands=[],
                     remaining=[],
-                    profile=new_profile,
-                    previous=self.state.previous,
+                    profile=self.state.profile,
+                    previous=self.state,
                 )
+
+            else:
+                if self.state.curr_round == 0:
+                    eliminated = [
+                        c for c, score in self.candidate_approvals.items() if score <= 0
+                    ]
+
+                else:
+                    eliminated = ["c"]
+                    last_idx = 0
+                    for i in range(len(self.random_order)):
+                        last_idx = i
+                        r = self.random_order[i]
+                        ballot = ballots[self.ballot_idx[r]]
+                        # Need to make a random choice between last place candidates,
+                        # because voters should only get one veto
+                        # if len(ballot.ranking) > 0:
+                        least_preferred = random.choice(list(ballot.ranking[-1]))
+                        self.candidate_approvals[least_preferred] -= 1
+                        if self.candidate_approvals[least_preferred] <= 0:
+                            eliminated[0] = least_preferred
+                            # Only want to eliminate one candidate per round so we break here
+                            break
+
+                    # Update the randomized order so that
+                    # we can continue where we left off next round
+                    self.random_order = (
+                        self.random_order[last_idx + 1 :]
+                        + self.random_order[: last_idx + 1]
+                    )
+
+                new_ballots = remove_cand(eliminated, self.state.profile.ballots)
+                new_profile = PreferenceProfile(ballots=new_ballots)
+                eliminated = [{c} for c in eliminated]
+                remaining = [{c} for c in new_profile.get_candidates()]
+                self.state = ElectionState(
+                    curr_round=self.state.curr_round + 1,
+                    elected=[],
+                    eliminated_cands=eliminated,
+                    remaining=remaining,
+                    profile=new_profile,
+                    previous=self.state,
+                )
+
             return self.state
 
     def run_election(self):
-        # run steps until we elect the required number of candidates
+        self.random_order = list(range(int(self.state.profile.num_ballots())))
+        np.random.shuffle(self.random_order)
+        self.candidate_approvals = first_place_votes(self.state.profile, to_float=True)
+
         while self.next_round():
             self.run_step()
 
