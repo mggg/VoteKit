@@ -32,7 +32,7 @@ def test_fractional_transfer():
 
 
 def test_fractional_transfer_error():
-    with pytest.raises(TypeError):  # all need ranking
+    with pytest.raises(TypeError, match="has no ranking."):
         fractional_transfer("A", 4, ranking_error_ballot_list, 2)
 
 
@@ -54,8 +54,8 @@ def test_random_transfer():
 
 
 def test_random_transfer_error():
-    with pytest.raises(TypeError):  # all need ranking
+    with pytest.raises(TypeError, match="has no ranking."):
         random_transfer("A", 4, ranking_error_ballot_list, 2)
 
-    with pytest.raises(TypeError):  # all need integer weights
+    with pytest.raises(TypeError, match="does not have integer weight."):
         random_transfer("A", 4, integer_error_ballot_list, 2)

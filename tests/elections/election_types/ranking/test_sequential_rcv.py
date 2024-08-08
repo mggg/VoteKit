@@ -239,13 +239,22 @@ def test_simul_v_1by1_():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m must be non negative
+    with pytest.raises(
+        ValueError,
+        match="m must be non-negative and less than or equal to the number of candidates.",
+    ):
         SequentialRCV(simult_same_as_one_by_one_profile, m=0)
 
-    with pytest.raises(ValueError):  # m must be less than num cands
+    with pytest.raises(
+        ValueError,
+        match="m must be non-negative and less than or equal to the number of candidates.",
+    ):
         SequentialRCV(simult_same_as_one_by_one_profile, m=8)
 
-    with pytest.raises(ValueError):  # needs tiebreak
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         profile = PreferenceProfile(
             ballots=(
                 Ballot(ranking=(frozenset({"A"}),)),
@@ -257,8 +266,8 @@ def test_errors():
         # A and B are tied
         SequentialRCV(profile, m=2, simultaneous=False)
 
-    with pytest.raises(ValueError):  # quota string
-        SequentialRCV(PreferenceProfile(), m=1, quota="Drip")
+    with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
+        SequentialRCV(PreferenceProfile(candidates=["A"]), m=1, quota="Drip")
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
         SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

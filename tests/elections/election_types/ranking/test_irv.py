@@ -283,8 +283,8 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # quota string
-        IRV(PreferenceProfile(), quota="Drip")
+    with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
+        IRV(PreferenceProfile(ballots=(Ballot(ranking=({"A"},)),)), quota="Drip")
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
         IRV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

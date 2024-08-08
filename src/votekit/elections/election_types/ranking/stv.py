@@ -61,7 +61,9 @@ class STV(RankingElection):
         self.m = m
         self.transfer = transfer
         self.quota = quota
-        self.threshold = 0  # for caching purposes
+        # Set to 0 initially so that first call to `get_threshold` returns the
+        # proper threshold.
+        self.threshold = 0
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
@@ -100,7 +102,6 @@ class STV(RankingElection):
             return self.threshold
 
     def _is_finished(self):
-        # when m candidates are elected
         elected_cands = [c for s in self.get_elected() for c in s]
 
         if len(elected_cands) == self.m:
@@ -125,7 +126,6 @@ class STV(RankingElection):
         """
         ranking_by_fpv = prev_state.remaining
 
-        # find ranking of cands above threshold
         elected = []
         for s in ranking_by_fpv:
             c = list(s)[0]  # all cands in set have same score
@@ -136,17 +136,12 @@ class STV(RankingElection):
             else:
                 break
 
-        # no tiebreaks needed here, since threshold is such that
-        # no more than m candidates can be elected
-
         ballots_by_fpv = ballots_by_first_cand(profile)
         new_ballots = [Ballot()] * profile.num_ballots
         ballot_index = 0
 
-        # for candidate sets above threshold
         for s in elected:
             for candidate in s:
-                # transfer ballots with candidate in first, using transfer method
                 transfer_ballots = self.transfer(
                     candidate,
                     prev_state.scores[candidate],
@@ -158,7 +153,6 @@ class STV(RankingElection):
                 ] = transfer_ballots
                 ballot_index += len(transfer_ballots)
 
-        # preserve remaining ballots
         for candidate in set([c for s in ranking_by_fpv for c in s]).difference(
             [c for s in elected for c in s]
         ):
@@ -168,7 +162,6 @@ class STV(RankingElection):
             ] = transfer_ballots
             ballot_index += len(transfer_ballots)
 
-        # remove elected from all ballots
         cleaned_ballots = remove_cand(
             [c for s in elected for c in s],
             tuple([b for b in new_ballots if b.ranking]),
@@ -204,7 +197,7 @@ class STV(RankingElection):
                 and whose third entry is the profile of ballots after transfers.
         """
         ranking_by_fpv = prev_state.remaining
-        # find one cand who crossed threshold with highest FPV
+
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
             ranking_by_fpv, m=1, profile=profile, tiebreak=self.tiebreak
         )
@@ -219,7 +212,6 @@ class STV(RankingElection):
 
         elected_c = list(elected[0])[0]
 
-        # transfer ballots with elected candidate in first, using transfer method
         transfer_ballots = self.transfer(
             elected_c,
             prev_state.scores[elected_c],
@@ -231,7 +223,6 @@ class STV(RankingElection):
         ] = transfer_ballots
         ballot_index += len(transfer_ballots)
 
-        # preserve remaining ballots
         for s in remaining:
             for candidate in s:
                 transfer_ballots = tuple(ballots_by_fpv[candidate])
@@ -240,7 +231,6 @@ class STV(RankingElection):
                 ] = transfer_ballots
                 ballot_index += len(transfer_ballots)
 
-        # remove elected from all ballots
         cleaned_ballots = remove_cand(
             elected_c, tuple([b for b in new_ballots if b.ranking])
         )
@@ -258,6 +248,12 @@ class STV(RankingElection):
     ) -> PreferenceProfile:
         """
         Run one step of an election from the given profile and previous state.
+        STV sets a threshold for first-place votes. If a candidate passes it, they are elected.
+        We remove them from all ballots and transfer any surplus ballots to other candidates.
+        If no one passes, we eliminate the lowest ranked candidate and reallocate their ballots.
+
+        Can be run 1-by-1 or simultaneous, which determines what happens if multiple people cross
+        threshold.
 
         Args:
             profile (PreferenceProfile): Profile of ballots.
@@ -275,7 +271,6 @@ class STV(RankingElection):
             c for c, score in prev_state.scores.items() if score >= self.threshold
         ]
 
-        # if any candidates have passed threshold
         if len(above_thresh_cands) > 0:
             if self.simultaneous:
                 elected, new_profile = self._simultaneous_elect_step(
@@ -287,7 +282,7 @@ class STV(RankingElection):
                     profile, prev_state
                 )
 
-            # no one eliminated in an elect round
+            # no on eliminated in elect round
             eliminated: tuple[frozenset[str], ...] = (frozenset(),)
 
         # catches the possibility that we exhaust all ballots
@@ -299,18 +294,15 @@ class STV(RankingElection):
             eliminated = (frozenset(),)
             new_profile = PreferenceProfile()
 
-        # if all candidates are below threshold, eliminate lowest fpv
         else:
             lowest_fpv_cands = prev_state.remaining[-1]
 
             if len(lowest_fpv_cands) > 1:
-                # try to tiebreak using FPV from original profile
                 tiebroken_ranking = tiebreak_set(
                     lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
                 )
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}
 
-                # want least FPV votes, or if random tiebreak it doesn't matter
                 eliminated_cand = list(tiebroken_ranking[-1])[0]
 
             else:
@@ -323,7 +315,7 @@ class STV(RankingElection):
         if store_states:
             if self.score_function:
                 scores = self.score_function(new_profile)
-            # sort remaining cands by FPV
+
             remaining = score_dict_to_ranking(scores)
 
             new_state = ElectionState(
@@ -391,7 +383,6 @@ class SequentialRCV(STV):
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
     ):
-        # transfer method just removes winner from ballots
         super().__init__(
             profile,
             m=m,
