@@ -157,8 +157,11 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # needs tiebreak str
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         TopTwo(profile_with_tied_top_two)
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="has no ranking."):
         TopTwo(PreferenceProfile(ballots=(Ballot(scores={"A": 4, "B": 3}),)))

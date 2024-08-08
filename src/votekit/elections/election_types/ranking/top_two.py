@@ -33,6 +33,8 @@ class TopTwo(RankingElection):
     ) -> PreferenceProfile:
         """
         Run one step of an election from the given profile and previous state.
+        Choose top two candidates by first-place votes, then remove all other candidates
+        from ballots and re-run to elect single winner by first-place votes.
 
         Args:
             profile (PreferenceProfile): Profile of ballots.
@@ -44,7 +46,6 @@ class TopTwo(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-        # for first round, Plurality to 2
         if prev_state.round_number == 0:
             plurality = Plurality(profile, 2, self.tiebreak)
 
@@ -66,7 +67,6 @@ class TopTwo(RankingElection):
 
                 self.election_states.append(new_state)
 
-        # for other round, Plurality to 1
         else:
             plurality = Plurality(profile, 1, self.tiebreak)
             new_profile = plurality.get_profile()

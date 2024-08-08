@@ -119,23 +119,28 @@ def test_get_ranking():
 
 
 def test_errors():
-    with pytest.raises(ValueError):  # m_1 must be non negative
+    with pytest.raises(ValueError, match="m_1 must be positive."):
         Alaska(test_profile, m_1=0)
 
-    with pytest.raises(ValueError):  # m_2 must be non negative
+    with pytest.raises(ValueError, match="m_2 must be positive."):
         Alaska(test_profile, m_2=0)
 
-    with pytest.raises(ValueError):  # m_1 must be less than num cands
+    with pytest.raises(
+        ValueError, match="m must be no more than the number of candidates."
+    ):
         Alaska(test_profile, m_1=5)
 
-    with pytest.raises(ValueError):  # m_2 must be less than num cands after round 1
+    with pytest.raises(ValueError, match="m_1 must be greater than or equal to m_2."):
         Alaska(test_profile, m_2=5)
 
-    with pytest.raises(ValueError):  # needs tiebreak
+    with pytest.raises(
+        ValueError,
+        match="Cannot elect correct number of candidates without breaking ties.",
+    ):
         Alaska(test_profile_ties, m_1=3, m_2=3)
 
-    with pytest.raises(ValueError):  # quota str
-        Alaska(test_profile_ties, quota="drip")
+    with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
+        Alaska(PreferenceProfile(candidates=["A", "B"]), quota="drip")
 
-    with pytest.raises(TypeError):  # need rankings
+    with pytest.raises(TypeError, match="has no ranking."):
         Alaska(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

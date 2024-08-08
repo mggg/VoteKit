@@ -48,9 +48,13 @@ class Alaska(RankingElection):
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
     ):
+        if m_1 <= 0:
+            raise ValueError("m_1 must be positive.")
+        elif m_2 <= 0:
+            raise ValueError("m_2 must be positive.")
+        elif m_1 < m_2:
+            raise ValueError("m_1 must be greater than or equal to m_2.")
         self.m_1 = m_1
-        if m_2 <= 0:
-            raise ValueError("m must be positive.")
         self.m_2 = m_2
         self.transfer = transfer
         self.quota = quota
@@ -80,7 +84,6 @@ class Alaska(RankingElection):
 
         profile = self._profile
 
-        # return the Plurality profile
         if round_number in [0, 1]:
             for i in range(round_number):
                 profile = self._run_step(profile, self.election_states[i])
@@ -101,7 +104,6 @@ class Alaska(RankingElection):
         return profile
 
     def _is_finished(self):
-        # when m candidates are elected
         elected_cands = [c for s in self.get_elected() for c in s]
 
         if len(elected_cands) == self.m_2:
@@ -124,7 +126,6 @@ class Alaska(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-        # for first round, Plurality
         if prev_state.round_number == 0:
             plurality = Plurality(profile, self.m_1, self.tiebreak)
 
@@ -146,7 +147,6 @@ class Alaska(RankingElection):
 
                 self.election_states.append(new_state)
 
-        # for other rounds, STV
         else:
             stv = STV(
                 profile,
