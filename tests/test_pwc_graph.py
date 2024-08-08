@@ -9,25 +9,27 @@ from votekit.pref_profile import PreferenceProfile
 
 
 ballot_list = [
-    Ballot(
-        id=None, ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)
-    ),
-    Ballot(
-        id=None, ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)
-    ),
-    Ballot(
-        id=None, ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)
-    ),
-    Ballot(id=None, ranking=[{"A"}], weight=Fraction(24, 1)),
+    Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"A"}], weight=Fraction(24, 1)),
 ]
 TEST_PROFILE = PreferenceProfile(ballots=ballot_list)
 
 simple_ballot_list = [
-    Ballot(id=None, ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(10, 1)),
-    Ballot(id=None, ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(10, 1)),
-    Ballot(id=None, ranking=[{"B"}, {"A"}, {"C"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=Fraction(10, 1)),
 ]
 SIMPLE_TEST_PROFILE = PreferenceProfile(ballots=simple_ballot_list)
+
+EDGE_WEIGHT_0_PROFILE = PreferenceProfile(
+    ballots=[
+        Ballot(ranking=({"A"}, {"B"}, {"C"})),
+        Ballot(ranking=({"A"}, {"C"}, {"B"})),
+        Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
+    ]
+)
 
 
 def test_constructor_sequence():
@@ -40,19 +42,13 @@ def test_pwcg_ballot_fill():
     filled_ballots = pwcg.ballot_fill(TEST_PROFILE, 5)
 
     target_ballot_list = [
-        Ballot(
-            id=None, ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)
-        ),
-        Ballot(
-            id=None, ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)
-        ),
-        Ballot(
-            id=None, ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)
-        ),
+        Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)),
+        Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)),
     ]
 
     for perm in list(it.permutations([{"B"}, {"C"}, {"D"}, {"E"}])):
-        perm_ballot = Ballot(id=None, ranking=[{"A"}] + list(perm), weight=Fraction(1))
+        perm_ballot = Ballot(ranking=[{"A"}] + list(perm), weight=Fraction(1))
         target_ballot_list.append(perm_ballot)
     target_filled_ballots = PreferenceProfile(ballots=target_ballot_list)
 
@@ -64,6 +60,14 @@ def test_pwcg_dominating_tiers():
     dominating_tiers = pwcg.dominating_tiers()
 
     target_dominating_tiers = [{"A"}, {"B", "C", "D"}, {"E"}]
+
+    assert dominating_tiers == target_dominating_tiers
+
+    # edge with 0 weight
+    pwcg = PairwiseComparisonGraph(EDGE_WEIGHT_0_PROFILE)
+    dominating_tiers = pwcg.dominating_tiers()
+
+    target_dominating_tiers = [{"A", "B"}, {"C"}]
 
     assert dominating_tiers == target_dominating_tiers
 
@@ -94,6 +98,18 @@ def test_pairwise_dict():
         ("A", "C"): Fraction(10),
         ("B", "A"): Fraction(10),
         ("C", "B"): Fraction(10),
+    }
+
+    assert pwcg_pairwise_dict == target_pairwise_dict
+
+    pwcg = PairwiseComparisonGraph(EDGE_WEIGHT_0_PROFILE)
+    pwcg_pairwise_dict = pwcg.compute_pairwise_dict()
+
+    target_pairwise_dict = {
+        ("A", "C"): Fraction(4),
+        ("B", "C"): Fraction(2),
+        ("A", "B"): Fraction(0),
+        ("B", "A"): Fraction(0),
     }
 
     assert pwcg_pairwise_dict == target_pairwise_dict

@@ -167,8 +167,8 @@ def test_scot_csv_parse():
 
     assert seats == 1
     assert isinstance(pp, PreferenceProfile)
-    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
-    assert len(pp.get_candidates()) == 3
+    assert set(["Paul", "George", "Ringo"]) == set(pp.candidates)
+    assert len(pp.candidates) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
     assert cand_to_party == {
         "Paul": "Orange (O)",
@@ -176,7 +176,7 @@ def test_scot_csv_parse():
         "Ringo": "Red (R)",
     }
     assert ward == "Wardy McWard Ward"
-    assert int(pp.num_ballots()) == 146
+    assert int(pp.total_ballot_wt) == 146
     assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
     assert (
         Ballot(
@@ -196,8 +196,8 @@ def test_scot_csv_blank_rows():
 
     assert seats == 1
     assert isinstance(pp, PreferenceProfile)
-    assert set(["Paul", "George", "Ringo"]) == set(pp.get_candidates())
-    assert len(pp.get_candidates()) == 3
+    assert set(["Paul", "George", "Ringo"]) == set(pp.candidates)
+    assert len(pp.candidates) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
     assert cand_to_party == {
         "Paul": "Orange (O)",
@@ -205,7 +205,7 @@ def test_scot_csv_blank_rows():
         "Ringo": "Red (R)",
     }
     assert ward == "Wardy McWard Ward"
-    assert int(pp.num_ballots()) == 146
+    assert int(pp.total_ballot_wt) == 146
     assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
     assert (
         Ballot(

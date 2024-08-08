@@ -87,7 +87,7 @@ def load_csv(
         b = Ballot(ranking=ranking, weight=Fraction(weight), voter_set=voter_set)
         ballots.append(b)
 
-    return PreferenceProfile(ballots=ballots)
+    return PreferenceProfile(ballots=tuple(ballots))
 
 
 def load_scottish(
@@ -179,6 +179,6 @@ def load_scottish(
         ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
 
     profile = PreferenceProfile(
-        ballots=ballots, candidates=cand_list
+        ballots=tuple(ballots), candidates=tuple(cand_list)
     ).condense_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

@@ -1,5 +1,5 @@
 from votekit.plots import compute_MDS, plot_MDS, plot_summary_stats
-from votekit import name_PlackettLuce
+from votekit.ballot_generator import name_PlackettLuce
 from votekit.metrics import lp_dist
 import numpy as np
 from matplotlib.axes import Axes
