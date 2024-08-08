@@ -68,14 +68,19 @@
            }
 }
 
-@misc{boehmer2024guidenumericalexperimentselections,
-      title={Guide to Numerical Experiments on Elections in Computational Social Choice}, 
-      author={Niclas Boehmer and Piotr Faliszewski and Łukasz Janeczko and Andrzej Kaczmarczyk and Grzegorz Lisowski and Grzegorz Pierczyński and Simon Rey and Dariusz Stolicki and Stanisław Szufa and Tomasz Wąs},
-      year={2024},
-      eprint={2402.11765},
-      archivePrefix={arXiv},
-      primaryClass={cs.GT},
-      url={https://arxiv.org/abs/2402.11765}, 
+@inproceedings{boehmer2024guidenumericalexperimentselections,
+  title     = {Guide to Numerical Experiments on Elections in Computational Social Choice},
+  author    = {Boehmer, Niclas and Faliszewski, Piotr and Janeczko, Łukasz and Kaczmarczyk, Andrzej and Lisowski, Grzegorz and Pierczyński, Grzegorz and Rey, Simon and Stolicki, Dariusz and Szufa, Stanisław and Wąs, Tomasz},
+  booktitle = {Proceedings of the Thirty-Third International Joint Conference on
+               Artificial Intelligence, {IJCAI-24}},
+  publisher = {International Joint Conferences on Artificial Intelligence Organization},
+  editor    = {Kate Larson},
+  pages     = {7962--7970},
+  year      = {2024},
+  month     = {8},
+  note      = {Survey Track},
+  doi       = {10.24963/ijcai.2024/881},
+  url       = {https://doi.org/10.24963/ijcai.2024/881},
 }
 
 @unpublished{RCV-Cruncher, 
@@ -92,19 +97,20 @@
 }
 
 @inproceedings{drawing-a-map,
-author = {Szufa, Stanis\l{}aw and Faliszewski, Piotr and Skowron, Piotr and Slinko, Arkadii and Talmon, Nimrod},
-title = {Drawing a Map of Elections in the Space of Statistical Cultures},
-year = {2020},
-isbn = {9781450375184},
-publisher = {International Foundation for Autonomous Agents and Multiagent Systems},
-address = {Richland, SC},
-abstract = {We consider the problem of forming a testbed of elections to be used for numerical experiments (such as testing algorithms or estimating the frequency of a given phenomenon). We seek elections that come from well-known statistical distributions and are as diverse as possible. To this end, we define a (pseudo)metric over elections, generate a set of election instances, and measure distances between them, to assess how diverse they are. Finally, we show how to use these elections to test election-related algorithms.},
-booktitle = {Proceedings of the 19th International Conference on Autonomous Agents and MultiAgent Systems},
-pages = {1341–1349},
-numpages = {9},
-keywords = {generative models, experimental social choice, elections, distances},
-location = {Auckland, New Zealand},
-series = {AAMAS '20}
+ author = {Szufa, Stanis\l{}aw and Faliszewski, Piotr and Skowron, Piotr and Slinko, Arkadii and Talmon, Nimrod},
+ title = {Drawing a Map of Elections in the Space of Statistical Cultures},
+ year = {2020},
+ isbn = {9781450375184},
+ doi={10.5555/3398761.3398916},
+ publisher = {International Foundation for Autonomous Agents and Multiagent Systems},
+ address = {Richland, SC},
+ abstract = {We consider the problem of forming a testbed of elections to be used for numerical experiments (such as testing algorithms or estimating the frequency of a given phenomenon). We seek elections that come from well-known statistical distributions and are as diverse as possible. To this end, we define a (pseudo)metric over elections, generate a set of election instances, and measure distances between them, to assess how diverse they are. Finally, we show how to use these elections to test election-related algorithms.},
+ booktitle = {Proceedings of the 19th International Conference on Autonomous Agents and MultiAgent Systems},
+ pages = {1341–1349},
+ numpages = {9},
+ keywords = {generative models, experimental social choice, elections, distances},
+ location = {Auckland, New Zealand},
+ series = {AAMAS '20}
 }
 
 @inproceedings{distance-elex,
@@ -195,6 +201,7 @@ WA School District},
   title = {Ranked Choice Voting and Proportional Representation},
   year = {2021},
   month = {February},
+  doi={10.2139/ssrn.3778021},
   note = {Available at SSRN: \url{https://ssrn.com/abstract=3778021} or \url{http://dx.doi.org/10.2139/ssrn.3778021}}
 }
 
@@ -248,9 +255,10 @@ WA School District},
  pages = {1150--1169},
  publisher = {[Midwest Political Science Association, Wiley]},
  title = {Deterministic and Probabilistic Voting Models},
+ doi={10.2307/2960485},
  urldate = {2024-07-02},
  volume = {41},
- year = {1997}
+ year = {1997},
 }
 
 
@@ -284,17 +292,22 @@ WA School District},
       title={A Comparison of Sequential Ranked-Choice Voting and Single Transferable Vote}, 
       author={David McCune and Erin Martin and Grant Latina and Kaitlyn Simms},
       year={2023},
+	  doi={10.1007/s42001-024-00249-8},
       eprint={2306.17341},
       archivePrefix={arXiv},
       primaryClass={econ.GN}
 }
 
-@book{Black,
-    author={Duncan Black},
-    title={The Theory of Committees and Elections},
-    publisher={Springer Dordrecht},
-    year={2012}
-}
+ @book{Black, 
+ title={The Theory of Committees and Elections}, 
+ ISBN={9789400942257}, 
+ url={http://dx.doi.org/10.1007/978-94-009-4225-7}, 
+ DOI={10.1007/978-94-009-4225-7}, 
+ publisher={Springer Netherlands}, 
+ author={Black, Duncan}, 
+ year={1986} 
+ }
+
 
 @article{MGGGBallots,
     author ={Gerdus Benade and Ruth Buck and Moon Duchin and Dara Gold and Thomas Weighill},
@@ -345,42 +358,63 @@ WA School District},
   doi={10.1109/ICCV.1998.710701}
 }
 
-@inproceedings{sanchez2017proportional,
-  title={Proportional justified representation},
-  author={S{\'a}nchez-Fern{\'a}ndez, Luis and Elkind, Edith and Lackner, Martin and Fern{\'a}ndez, Norberto and Fisteus, Jes{\'u}s and Val, Pablo Basanta and Skowron, Piotr},
-  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
-  volume={31},
-  number={1},
-  year={2017}
+ @article{sanchez2017proportional, 
+ title={Proportional Justified Representation}, 
+ volume={31}, 
+ ISSN={2159-5399}, 
+ url={http://dx.doi.org/10.1609/aaai.v31i1.10611}, 
+ DOI={10.1609/aaai.v31i1.10611}, 
+ number={1}, 
+ journal={Proceedings of the AAAI Conference on Artificial Intelligence}, 
+ publisher={Association for the Advancement of Artificial Intelligence (AAAI)}, 
+ author={Sánchez-Fernández, Luis and Elkind, Edith and Lackner, Martin and Fernández, Norberto and Fisteus, Jesús and Basanta Val, Pablo and Skowron, Piotr}, 
+ year={2017}, 
+ month=feb 
 }
 
 @article{aziz2017justified,
-  title={Justified representation in approval-based committee voting},
-  author={Aziz, Haris and Brill, Markus and Conitzer, Vincent and Elkind, Edith and Freeman, Rupert and Walsh, Toby},
-  journal={Social Choice and Welfare},
-  volume={48},
-  number={2},
-  pages={461--485},
-  year={2017},
-  publisher={Springer}
+ title={Justified representation in approval-based committee voting},
+ volume={48},
+ ISSN={1432-217X},
+ url={http://dx.doi.org/10.1007/s00355-016-1019-3},
+ DOI={10.1007/s00355-016-1019-3},
+ number={2},
+ journal={Social Choice and Welfare},
+ publisher={Springer Science and Business Media LLC},
+ author={Aziz, Haris and Brill, Markus and Conitzer, Vincent and Elkind, Edith and Freeman, Rupert and Walsh, Toby},
+ year={2017},
+ month=jan,
+ pages={461–485} 
 }
+
 
 @inproceedings{skowron2017proportional,
-  title={Proportional rankings},
-  author={Skowron, P and Lackner, M and Brill, M and Peters, D and Elkind, E},
-  booktitle={International Joint Conference on Artificial Intelligence (IJCAI 2017)},
-  year={2017},
-  organization={Association for the Advancement of Artificial Intelligence}
+ series={IJCAI-2017},
+ title={Proportional Rankings},
+ url={http://dx.doi.org/10.24963/ijcai.2017/58},
+ DOI={10.24963/ijcai.2017/58},
+ booktitle={Proceedings of the Twenty-Sixth International Joint Conference on Artificial Intelligence},
+ publisher={International Joint Conferences on Artificial Intelligence Organization},
+ author={Skowron, Piotr and Lackner, Martin and Brill, Markus and Peters, Dominik and Elkind, Edith},
+ year={2017},
+ month=aug,
+ pages={409–415},
+ collection={IJCAI-2017} 
 }
 
 
-@inproceedings{elkind2017multiwinner,
-  title={What do multiwinner voting rules do? An experiment over the two-dimensional euclidean domain},
-  author={Elkind, Edith and Faliszewski, Piotr and Laslier, Jean-Fran{\c{c}}ois and Skowron, Piotr and Slinko, Arkadii and Talmon, Nimrod},
-  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
-  volume={31},
-  number={1},
-  year={2017}
+@article{elkind2017multiwinner,
+ title={What Do Multiwinner Voting Rules Do? An Experiment Over the Two-Dimensional Euclidean Domain},
+ volume={31},
+ ISSN={2159-5399},
+ url={http://dx.doi.org/10.1609/aaai.v31i1.10612},
+ DOI={10.1609/aaai.v31i1.10612},
+ number={1},
+ journal={Proceedings of the AAAI Conference on Artificial Intelligence},
+ publisher={Association for the Advancement of Artificial Intelligence (AAAI)},
+ author={Elkind, Edith and Faliszewski, Piotr and Laslier, Jean-Francois and Skowron, Piotr and Slinko, Arkadii and Talmon, Nimrod},
+ year={2017},
+ month=feb
 }
 
 - All of the election datasets
