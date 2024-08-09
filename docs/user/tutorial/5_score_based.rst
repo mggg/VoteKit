@@ -28,12 +28,11 @@ First, let’s revisit how to define score ballots.
     B: 3.00
     C: 4.00
     Weight: 3
-    
     ranking: None
 
 
-Notice that despite the scores inducing the ranking :math:`{A,C}>B`,
-the ballot only knows the scores. This is to conceptually separate score
+Notice that despite the scores inducing the ranking :math:`A,C>B`, the
+ballot only knows the scores. This is to conceptually separate score
 ballots from ranking ballots. If you want to convert a score ballot to a
 ranking, you can use the ``score_dict_to_ranking`` function from the
 ``utils`` module.
@@ -51,12 +50,11 @@ ranking, you can use the ``score_dict_to_ranking`` function from the
 
 .. parsed-literal::
 
-    (frozenset({'C', 'A'}), frozenset({'B'}))
+    (frozenset({'A', 'C'}), frozenset({'B'}))
     Ranking
-    1.) C, A, (tie)
+    1.) A, C, (tie)
     2.) B, 
     Weight: 3
-    
 
 
 If you had an entire profile of score ballots and wanted to convert them
@@ -93,7 +91,7 @@ all to ranked, you could do so as follows.
     Ranked profile
                    Ranking Scores Weight
                 (B, C, A)     ()      5
-    ({'C', 'A'} (Tie), B)     ()      3
+    ({'A', 'C'} (Tie), B)     ()      3
                      (B,)     ()      3
                 (C, B, A)     ()      2
 
@@ -116,7 +114,6 @@ an invalid score is passed.
     A: -1.00
     B: 3.14
     Weight: 3
-    
 
 
 Rating Election
@@ -158,7 +155,7 @@ Let’s look at the score totals to convince ourselves B was the winner.
 
 .. parsed-literal::
 
-    {'B': Fraction(46, 1), 'C': Fraction(40, 1), 'A': Fraction(21, 1)}
+    {'A': Fraction(21, 1), 'B': Fraction(46, 1), 'C': Fraction(40, 1)}
 
 
 Now let’s see that the Rating election validates our profile before
@@ -170,52 +167,16 @@ running the election. All of these code blocks should raise
     ranking_profile = PreferenceProfile(ballots = [Ballot(ranking= [{"A"}, {"B"}, {"C"}])])
     
     # should raise a TypeError since this profile has no scores
-    election = Rating(ranking_profile, m = 1, L = 5)
+    try:
+        election = Rating(ranking_profile, m = 1, L = 5)
+    except Exception as e:
+        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
 
-::
+.. parsed-literal::
 
-
-    ---------------------------------------------------------------------------
-
-    TypeError                                 Traceback (most recent call last)
-
-    Cell In[11], line 4
-          1 ranking_profile = PreferenceProfile(ballots = [Ballot(ranking= [{"A"}, {"B"}, {"C"}])])
-          3 # should raise a TypeError since this profile has no scores
-    ----> 4 election = Rating(ranking_profile, m = 1, L = 5)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:153, in Rating.__init__(self, profile, m, L, tiebreak)
-        146 def __init__(
-        147     self,
-        148     profile: PreferenceProfile,
-       (...)
-        151     tiebreak: Optional[str] = None,
-        152 ):
-    --> 153     super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:46, in GeneralRating.__init__(self, profile, m, L, k, tiebreak)
-         44 self.k = k
-         45 self.tiebreak = tiebreak
-    ---> 46 self._validate_profile(profile)
-         47 super().__init__(
-         48     profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
-         49 )
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:63, in GeneralRating._validate_profile(self, profile)
-         61 for b in profile.ballots:
-         62     if not b.scores:
-    ---> 63         raise TypeError("All ballots must have score dictionary.")
-         64     elif any(score > self.L for score in b.scores.values()):
-         65         raise TypeError(
-         66             f"Ballot {b} violates score limit {self.L} per candidate."
-         67         )
-
-
-    TypeError: All ballots must have score dictionary.
+    Found the following error:
+    	TypeError: All ballots must have score dictionary.
 
 
 .. code:: ipython3
@@ -223,56 +184,19 @@ running the election. All of these code blocks should raise
     negative_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":-1, "B": 3.14159, "C":0})])
     
     # should raise a TypeError since this profile has negative score
-    election = Rating(negative_profile, m = 1, L = 5)
+    try:
+        election = Rating(negative_profile, m = 1, L = 5)
+    except Exception as e:
+        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
 
-::
+.. parsed-literal::
 
-
-    ---------------------------------------------------------------------------
-
-    TypeError                                 Traceback (most recent call last)
-
-    Cell In[13], line 4
-          1 negative_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":-1, "B": 3.14159, "C":0})])
-          3 # should raise a TypeError since this profile has negative
-    ----> 4 election = Rating(negative_profile, m = 1, L = 5)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:153, in Rating.__init__(self, profile, m, L, tiebreak)
-        146 def __init__(
-        147     self,
-        148     profile: PreferenceProfile,
-       (...)
-        151     tiebreak: Optional[str] = None,
-        152 ):
-    --> 153     super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:46, in GeneralRating.__init__(self, profile, m, L, k, tiebreak)
-         44 self.k = k
-         45 self.tiebreak = tiebreak
-    ---> 46 self._validate_profile(profile)
-         47 super().__init__(
-         48     profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
-         49 )
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:69, in GeneralRating._validate_profile(self, profile)
-         65     raise TypeError(
-         66         f"Ballot {b} violates score limit {self.L} per candidate."
-         67     )
-         68 elif any(score < 0 for score in b.scores.values()):
-    ---> 69     raise TypeError(f"Ballot {b} must have non-negative scores.")
-         71 if self.k:
-         72     if sum(b.scores.values()) > self.k:
-
-
-    TypeError: Ballot Scores
+    Found the following error:
+    	TypeError: Ballot Scores
     A: -1.00
     B: 3.14
-    Weight: 1
-     must have non-negative scores.
+    Weight: 1 must have non-negative scores.
 
 
 .. code:: ipython3
@@ -280,66 +204,28 @@ running the election. All of these code blocks should raise
     over_L_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":0, "B": 10, "C":1})])
     
     # should raise a TypeError since this profile has score over 5
-    election = Rating(over_L_profile, m = 1, L = 5)
+    try:
+        election = Rating(over_L_profile, m = 1, L = 5)
+    except Exception as e:
+        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
 
-::
+.. parsed-literal::
 
-
-    ---------------------------------------------------------------------------
-
-    TypeError                                 Traceback (most recent call last)
-
-    Cell In[14], line 4
-          1 over_L_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":0, "B": 10, "C":1})])
-          3 # should raise a TypeError since this profile has score over 5
-    ----> 4 election = Rating(over_L_profile, m = 1, L = 5)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:153, in Rating.__init__(self, profile, m, L, tiebreak)
-        146 def __init__(
-        147     self,
-        148     profile: PreferenceProfile,
-       (...)
-        151     tiebreak: Optional[str] = None,
-        152 ):
-    --> 153     super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:46, in GeneralRating.__init__(self, profile, m, L, k, tiebreak)
-         44 self.k = k
-         45 self.tiebreak = tiebreak
-    ---> 46 self._validate_profile(profile)
-         47 super().__init__(
-         48     profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
-         49 )
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:65, in GeneralRating._validate_profile(self, profile)
-         63     raise TypeError("All ballots must have score dictionary.")
-         64 elif any(score > self.L for score in b.scores.values()):
-    ---> 65     raise TypeError(
-         66         f"Ballot {b} violates score limit {self.L} per candidate."
-         67     )
-         68 elif any(score < 0 for score in b.scores.values()):
-         69     raise TypeError(f"Ballot {b} must have non-negative scores.")
-
-
-    TypeError: Ballot Scores
+    Found the following error:
+    	TypeError: Ballot Scores
     B: 10.00
     C: 1.00
-    Weight: 1
-     violates score limit 5 per candidate.
+    Weight: 1 violates score limit 5 per candidate.
 
 
 Cumulative election
 -------------------
 
 In a Cumulative election, voters can score each candidate as in a Rating
-election, but have a total budget of :math:`m` points, where
-:math:`m` is the number of seats to be filled. This means candidates
-cannot be scored independently, the total must sum to no more than
-:math:`m`.
+election, but have a total budget of :math:`m` points, where :math:`m`
+is the number of seats to be filled. This means candidates cannot be
+scored independently, the total must sum to no more than :math:`m`.
 
 Winners are those with highest total score. Giving a candidate multiple
 points is known as “plumping” the vote.
@@ -367,7 +253,7 @@ points is known as “plumping” the vote.
     C    Elected      1
     A  Remaining      1
     (frozenset({'B', 'C'}), frozenset({'A'}))
-    {'B': Fraction(10, 1), 'C': Fraction(10, 1), 'A': Fraction(8, 1)}
+    {'A': Fraction(8, 1), 'B': Fraction(10, 1), 'C': Fraction(10, 1)}
 
 
 Here, B and C tied for 10 points and are thus elected in the same set.
@@ -379,55 +265,19 @@ Again, the Cumulative class does validation for us.
     over_m_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":0, "B": 2, "C":1})])
     
     # should raise a TypeError since this profile has total score over 2
-    election = Cumulative(over_m_profile, m = 2)
+    try:
+        election = Cumulative(over_m_profile, m = 2)
+    except Exception as e:
+        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
 
-::
+.. parsed-literal::
 
-
-    ---------------------------------------------------------------------------
-
-    TypeError                                 Traceback (most recent call last)
-
-    Cell In[22], line 4
-          1 over_m_profile = PreferenceProfile(ballots = [Ballot(scores = {"A":0, "B": 2, "C":1})])
-          3 # should raise a TypeError since this profile has total score over 2
-    ----> 4 election = Cumulative(over_m_profile, m = 2)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:197, in Cumulative.__init__(self, profile, m, tiebreak)
-        194 def __init__(
-        195     self, profile: PreferenceProfile, m: int = 1, tiebreak: Optional[str] = None
-        196 ):
-    --> 197     super().__init__(profile, m=m, k=m, tiebreak=tiebreak)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:179, in Limited.__init__(self, profile, m, k, tiebreak)
-        177     raise ValueError("k must be less than or equal to m.")
-        178 # if budget is k, limit per candidate is k
-    --> 179 super().__init__(profile, m=m, L=k, k=k, tiebreak=tiebreak)
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:46, in GeneralRating.__init__(self, profile, m, L, k, tiebreak)
-         44 self.k = k
-         45 self.tiebreak = tiebreak
-    ---> 46 self._validate_profile(profile)
-         47 super().__init__(
-         48     profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
-         49 )
-
-
-    File ~/PycharmProjects/VoteKit/src/votekit/elections/election_types/scores/rating.py:73, in GeneralRating._validate_profile(self, profile)
-         71 if self.k:
-         72     if sum(b.scores.values()) > self.k:
-    ---> 73         raise TypeError(f"Ballot {b} violates total score budget {self.k}.")
-
-
-    TypeError: Ballot Scores
+    Found the following error:
+    	TypeError: Ballot Scores
     B: 2.00
     C: 1.00
-    Weight: 1
-     violates total score budget 2.
+    Weight: 1 violates total score budget 2.
 
 
 Cumulative generator
@@ -470,11 +320,12 @@ known as “plumping”).
 .. parsed-literal::
 
     Ranking           Scores Weight
-         ()        (A:2.00,)     63
-         () (A:1.00, B:1.00)     28
-         () (A:1.00, C:1.00)      5
-         () (B:1.00, C:1.00)      2
-         ()        (B:2.00,)      2
+         ()        (A:2.00,)     61
+         () (A:1.00, B:1.00)     24
+         () (A:1.00, C:1.00)     12
+         ()        (B:2.00,)      1
+         () (C:1.00, B:1.00)      1
+         ()        (C:2.00,)      1
 
 
 Verify that the ballots make sense given the interval. A should receive

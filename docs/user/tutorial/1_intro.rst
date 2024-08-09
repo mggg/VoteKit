@@ -40,7 +40,6 @@ import the necessary modules.
     2.) B, 
     3.) C, 
     Weight: 3/2
-    
 
 
 Here, we have created one ballot. The ballot stored the ranking
@@ -66,13 +65,11 @@ the weight as an integer or float and it will convert it for you.
     2.) B, 
     3.) C, 
     Weight: 3/2
-    
     Ranking
     1.) A, 
     2.) B, 
     3.) C, 
     Weight: 32
-    
 
 
 **Try it yourself**
@@ -94,28 +91,20 @@ alter a ballot once created; it is frozen.
 .. code:: ipython3
 
     # the following code should raise an error
+    try:
+        ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
+        ballot.ranking = [{"C"}, {"B"}, {"A"}]
     
-    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
-    ballot.ranking = [{"C"}, {"B"}, {"A"}]
+    except Exception as e:
+        print("You cannot change a ballot once it is created.")
+        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
 
-::
+.. parsed-literal::
 
-
-    ---------------------------------------------------------------------------
-
-    FrozenInstanceError                       Traceback (most recent call last)
-
-    Cell In[3], line 4
-          1 # the following code should raise an error
-          3 ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
-    ----> 4 ballot.ranking = [{"C"}, {"B"}, {"A"}]
-
-
-    File <string>:4, in __setattr__(self, name, value)
-
-
-    FrozenInstanceError: cannot assign to field 'ranking'
+    You cannot change a ballot once it is created.
+    Found the following error:
+    	FrozenInstanceError: cannot assign to field 'ranking'
 
 
 Full linear rankings are not the only possible ballots. Real-world
@@ -144,9 +133,8 @@ can do that in VoteKit. But we’ll get to running elections later.
     A ballot with overvotes: Ranking
     1.) D, A, (tie)
     2.) B, 
-    3.) E, C, F, (tie)
+    3.) F, C, E, (tie)
     Weight: 1
-    
 
 
 The ballot above says that candidates :math:`D` and :math:`A` were
@@ -165,7 +153,6 @@ ranked first, :math:`B` second, and :math:`E,C,F` all in third.
     Ranking
     1.) B, 
     Weight: 1
-    
 
 
 The ballot above is a bullet vote; only candidate :math:`B` is listed in
@@ -212,7 +199,6 @@ different and 2) to give users more flexibility in the ``Ballot`` class.
     B: 3.00
     C: 4.00
     Weight: 1
-    
     ranking: None
 
 
@@ -238,7 +224,6 @@ have to agree with the scoring.
     B: 3.00
     C: 4.00
     Weight: 1
-    
 
 
 For the remainder of this tutorial, we will use ranked ballots.
@@ -546,11 +531,11 @@ but bear with us.
 .. parsed-literal::
 
       Ranking Scores Weight
-    (A, B, C)     ()     57
-    (B, A, C)     ()     19
-    (A, C, B)     ()     18
-    (C, A, B)     ()      4
-    (B, C, A)     ()      1
+    (A, B, C)     ()     60
+    (B, A, C)     ()     17
+    (A, C, B)     ()     13
+    (C, A, B)     ()      7
+    (B, C, A)     ()      2
     (C, B, A)     ()      1
 
 
@@ -625,48 +610,48 @@ their bloc.
 
     The ballots from Alpha voters
           Ranking Scores Weight
-    (A, B, Y, X)     ()   5239
-    (B, A, Y, X)     ()   1272
-    (Y, A, B, X)     ()    626
-    (A, Y, B, X)     ()    538
-    (Y, B, A, X)     ()    172
-    (B, Y, A, X)     ()    153
+    (A, B, Y, X)     ()   5238
+    (B, A, Y, X)     ()   1265
+    (Y, A, B, X)     ()    657
+    (A, Y, B, X)     ()    557
+    (Y, B, A, X)     ()    154
+    (B, Y, A, X)     ()    129
     The ballots from Xenon voters
      PreferenceProfile too long, only showing 15 out of 24 rows.
          Ranking Scores Weight
-    (Y, X, B, A)     ()    441
-    (X, Y, B, A)     ()    421
+    (X, Y, B, A)     ()    420
+    (Y, X, B, A)     ()    404
     (X, Y, A, B)     ()    393
-    (Y, X, A, B)     ()    381
-    (A, Y, X, B)     ()     50
-    (X, A, Y, B)     ()     42
-    (X, B, Y, A)     ()     40
-    (Y, B, X, A)     ()     40
-    (A, X, Y, B)     ()     36
-    (B, X, Y, A)     ()     35
-    (B, Y, X, A)     ()     35
-    (Y, A, X, B)     ()     34
-    (B, A, Y, X)     ()      7
-    (A, B, X, Y)     ()      7
-    (B, X, A, Y)     ()      6
+    (Y, X, A, B)     ()    369
+    (Y, B, X, A)     ()     55
+    (A, X, Y, B)     ()     55
+    (Y, A, X, B)     ()     48
+    (X, A, Y, B)     ()     48
+    (B, X, Y, A)     ()     39
+    (X, B, Y, A)     ()     37
+    (A, Y, X, B)     ()     36
+    (B, Y, X, A)     ()     34
+    (Y, A, B, X)     ()     10
+    (A, B, Y, X)     ()      9
+    (B, Y, A, X)     ()      9
     Aggregated ballots
      PreferenceProfile too long, only showing 15 out of 30 rows.
          Ranking Scores Weight
-    (A, B, Y, X)     ()   5239
-    (B, A, Y, X)     ()   1272
-    (Y, A, B, X)     ()    626
-    (A, Y, B, X)     ()    538
-    (Y, X, B, A)     ()    441
-    (X, Y, B, A)     ()    421
+    (A, B, Y, X)     ()   5238
+    (B, A, Y, X)     ()   1265
+    (Y, A, B, X)     ()    657
+    (A, Y, B, X)     ()    557
+    (X, Y, B, A)     ()    420
+    (Y, X, B, A)     ()    404
     (X, Y, A, B)     ()    393
-    (Y, X, A, B)     ()    381
-    (Y, B, A, X)     ()    172
-    (B, Y, A, X)     ()    153
-    (A, Y, X, B)     ()     50
-    (X, A, Y, B)     ()     42
-    (Y, B, X, A)     ()     40
-    (X, B, Y, A)     ()     40
-    (A, X, Y, B)     ()     36
+    (Y, X, A, B)     ()    369
+    (Y, B, A, X)     ()    154
+    (B, Y, A, X)     ()    129
+    (Y, B, X, A)     ()     55
+    (A, X, Y, B)     ()     55
+    (Y, A, X, B)     ()     48
+    (X, A, Y, B)     ()     48
+    (B, X, Y, A)     ()     39
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
