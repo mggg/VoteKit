@@ -58,8 +58,13 @@ class PluralityVeto(RankingElection):
             ballots=tuple(new_ballots), candidates=profile.candidates
         )
 
+        self.ballot_list = profile.ballots
         self.random_order = list(range(int(profile.num_ballots)))
         np.random.shuffle(self.random_order)
+        # self.ballot_eliminated = np.zeros(int(profile.num_ballots), dtype = bool)
+        self.preference_index = [len(ballot.ranking) - 1 for ballot in profile.ballots
+                                 if ballot.ranking is not None]
+        self.eliminated_dict = {c: False for c in profile.candidates}
 
         super().__init__(profile, score_function=first_place_votes)
 
@@ -102,10 +107,9 @@ class PluralityVeto(RankingElection):
             PreferenceProfile: The profile of ballots after the round is completed.
         """
 
-        candidates = profile.candidates
-        ballots = profile.ballots
+        remaining_count = sum(1 for _ in self.eliminated_dict.values() if not _)
 
-        if len(candidates) == self.m:
+        if remaining_count == self.m:
             # move all to elected, this is the last round
             elected = prev_state.remaining
             new_profile = PreferenceProfile()
@@ -135,38 +139,50 @@ class PluralityVeto(RankingElection):
                 # TODO problem, if ballot disappears after all candidates are removed,
                 # possible that an index will appear that is beyond the current list
                 # of ballots
-                ballot = ballots[ballot_index]
+                if not self.preference_index[ballot_index] < 0:
+                    ballot = self.ballot_list[ballot_index]
+                    last_place = self.preference_index[ballot_index]
 
-                if ballot.ranking:
-                    # do with tiebreak methods
-                    if len(ballot.ranking[-1]) > 1:
-                        if self.tiebreak:
-                            tiebroken_ranking = tiebreak_set(
-                                ballot.ranking[-1], profile, self.tiebreak
-                            )
-                        tiebreaks = {ballot.ranking[-1]: tiebroken_ranking}
-                    else:
-                        tiebroken_ranking = (ballot.ranking[-1],)
+                    if ballot.ranking:
+                        # do with tiebreak methods
+                        if len(ballot.ranking[last_place]) > 1:
+                            if self.tiebreak:
+                                tiebroken_ranking = tiebreak_set(
+                                    ballot.ranking[last_place], profile, self.tiebreak
+                                )
+                            tiebreaks = {ballot.ranking[last_place]: tiebroken_ranking}
+                        else:
+                            tiebroken_ranking = (ballot.ranking[last_place],)
 
-                least_preferred = list(tiebroken_ranking[-1])[0]
-                new_scores[least_preferred] -= Fraction(1)
+                    least_preferred = list(tiebroken_ranking[-1])[0]
+                    new_scores[least_preferred] -= Fraction(1)
 
-                if new_scores[least_preferred] <= 0:
-                    eliminated_cands.append(least_preferred)
-                    break
+                    if new_scores[least_preferred] <= 0:
+                        eliminated_cands.append(least_preferred)
+                        break
 
             # Update the randomized order so that
             # we can continue where we left off next round
-            self.random_order = (self.random_order[rand_index + 1 :] 
-                                 + self.random_order[: rand_index + 1])
+            self.random_order = (
+                self.random_order[rand_index + 1 :]
+                + self.random_order[: rand_index + 1]
+            )
 
-            # Adjust for exhausted ballots.
-            for i,ballot_index in enumerate(self.random_order):
-                ballot = ballots[ballot_index]
-                ballot_cands = [list(_)[0] for _ in ballot.ranking]
-                if set(ballot_cands) == set(eliminated_cands):
-                    self.random_order = [r - 1 if r > ballot_index else r 
-                                         for r in self.random_order if r != ballot_index]
+            for c in eliminated_cands:
+                self.eliminated_dict[c] = True
+
+            # Adjust voter's least preferred indices
+            for i, ballot_index in enumerate(self.random_order):
+                ballot = self.ballot_list[ballot_index]
+                last_place = self.preference_index[ballot_index]
+                if ballot.ranking is not None:
+                    while (
+                        self.eliminated_dict[list(ballot.ranking[last_place])[0]]
+                        and last_place > 0
+                    ):
+                        last_place -= 1
+
+                self.preference_index[ballot_index] = last_place
 
             new_profile = remove_cand(eliminated_cands, profile)
 
