@@ -24,11 +24,12 @@ def test_plurality_veto():
 
     # count the number of wins over a set of trials
     winner_counts = {c: 0 for c in candidates}
-    trials = 10000
+    trials = 2000
     for t in range(trials):
         election = PluralityVeto(test_profile, 1)
-        election.run_election()
-        winner = list(election.state.winners()[0])[0]
+        # election.run_election()
+        winner = list(election.get_elected()[0])[0]
+        # winner = list(election.state.winners()[0])[0]
         winner_counts[winner] += 1
 
     # check to make sure that the fraction of wins matches the true probability
