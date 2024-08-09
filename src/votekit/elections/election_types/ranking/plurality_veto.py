@@ -131,7 +131,7 @@ class PluralityVeto(RankingElection):
                     c for c, score in prev_state.scores.items() if score <= 0
                 ]
 
-            for i, ballot_index in enumerate(self.random_order):
+            for rand_index, ballot_index in enumerate(self.random_order):
                 # TODO problem, if ballot disappears after all candidates are removed,
                 # possible that an index will appear that is beyond the current list
                 # of ballots
@@ -157,7 +157,16 @@ class PluralityVeto(RankingElection):
 
             # Update the randomized order so that
             # we can continue where we left off next round
-            self.random_order = self.random_order[i + 1 :]
+            self.random_order = (self.random_order[rand_index + 1 :] 
+                                 + self.random_order[: rand_index + 1])
+
+            # Adjust for exhausted ballots.
+            for i,ballot_index in enumerate(self.random_order):
+                ballot = ballots[ballot_index]
+                ballot_cands = [list(_)[0] for _ in ballot.ranking]
+                if set(ballot_cands) == set(eliminated_cands):
+                    self.random_order = [r - 1 if r > ballot_index else r 
+                                         for r in self.random_order if r != ballot_index]
 
             new_profile = remove_cand(eliminated_cands, profile)
 
