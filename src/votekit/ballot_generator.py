@@ -8,12 +8,13 @@ from pathlib import Path
 import pickle
 import random
 import warnings
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Callable, Dict, Any
 import apportionment.methods as apportion  # type: ignore
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
+from votekit.metrics import euclidean_dist
 
 
 def sample_cohesion_ballot_types(
@@ -1950,3 +1951,315 @@ class slate_BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+
+
+class Spatial(BallotGenerator):
+    """
+    Spatial model for ballot generation. In some metric space determined
+    by an input distance function, randomly sample each voter's and
+    each candidate's positions from input voter and candidate distributions.
+    Using generate_profile() outputs a ranked profile which is consistent
+    with the sampled positions (respects distances).
+
+    Args:
+        candidates (list[str]): List of candidate strings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+            to candidate_dist, defaults to None, which creates the unif(0,1)
+            distribution in 2 dimensions.
+        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
+    Attributes:
+        candidates (list[str]): List of candidate strings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+            to candidate_dist, defaults to None, which creates the unif(0,1)
+            distribution in 2 dimensions.
+        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
+    """
+
+    def __init__(
+        self,
+        candidates: list[str],
+        voter_dist: Callable[..., np.ndarray] = np.random.uniform,
+        voter_params: Optional[Dict[str, Any]] = None,
+        candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
+        candidate_params: Optional[Dict[str, Any]] = None,
+        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
+    ):
+        super().__init__(candidates=candidates)
+        self.voter_dist = voter_dist
+        self.candidate_dist = candidate_dist
+
+        if voter_params is None:
+            if voter_dist is np.random.uniform:
+                self.voter_params = {"low": 0.0, "high": 1.0, "size": 2.0}
+            else:
+                raise ValueError(
+                    "No parameters were given for the input voter distribution."
+                )
+        else:
+            try:
+                self.voter_dist(**voter_params)
+            except TypeError:
+                raise TypeError("Invalid parameters for the voter distribution.")
+
+            self.voter_params = voter_params
+
+        if candidate_params is None:
+            if candidate_dist is np.random.uniform:
+                self.candidate_params = {"low": 0.0, "high": 1.0, "size": 2.0}
+            else:
+                raise ValueError(
+                    "No parameters were given for the input candidate distribution."
+                )
+        else:
+            try:
+                self.candidate_dist(**candidate_params)
+            except TypeError:
+                raise TypeError("Invalid parameters for the candidate distribution.")
+
+            self.candidate_params = candidate_params
+
+        try:
+            v = self.voter_dist(**self.voter_params)
+            c = self.candidate_dist(**self.candidate_params)
+            distance(v, c)
+        except TypeError:
+            raise ValueError(
+                "Distance function is invalid or incompatible "
+                "with voter/candidate distributions."
+            )
+
+        self.distance = distance
+
+    def generate_profile(
+        self, number_of_ballots: int, by_bloc: bool = False
+    ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Samples a metric position for number_of_ballots voters from
+        the voter distribution. Samples a metric position for each candidate
+        from the input candidate distribution. With sampled
+        positions, this method then creates a ranked PreferenceProfile in which
+        voter's preferences are consistent with their distances to the candidates
+        in the metric space.
+
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            by_bloc (bool): Dummy variable from parent class.
+
+        Returns:
+            (Union[PreferenceProfile, Tuple]):
+            preference profile (Preference Profile),
+            candidate positions (dict[str, np.ndarray),
+            voter positions (np.ndarray):
+                A tuple containing the preference profile object,
+                a dictionary with each candidate's position in the metric
+                space, and a matrix where each row is a single voter's position
+                in the metric space.
+        """
+
+        candidate_position_dict = {
+            c: self.candidate_dist(**self.candidate_params) for c in self.candidates
+        }
+        voter_positions = np.array(
+            [self.voter_dist(**self.voter_params) for v in range(number_of_ballots)]
+        )
+
+        ballot_pool = [["c"] * len(self.candidates) for _ in range(number_of_ballots)]
+        for v in range(number_of_ballots):
+            distance_dict = {
+                c: self.distance(voter_positions[v], c_position)
+                for c, c_position in candidate_position_dict.items()
+            }
+            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            ballot_pool[v] = candidate_order
+
+        return (
+            self.ballot_pool_to_profile(ballot_pool, self.candidates),
+            candidate_position_dict,
+            voter_positions,
+        )
+
+
+class ClusteredSpatial(BallotGenerator):
+    """
+    Clustered spatial model for ballot generation. In some metric space
+    determined by an input distance function, randomly sample
+    each candidate's positions from input candidate distribution. Then
+    sample voters's positions from a distribution centered around each
+    of the candidate's positions.
+
+    NOTE: We currently only support the following list of voter distributions:
+    [np.random.normal, np.random.laplace, np.random.logistic, np.random.gumbel],
+    which is the complete list of numpy distributions that accept a 'loc' parameter allowing
+    us to center the distribution around each candidate. For more
+    information on numpy supported distributions and their parameters, please visit:
+    https://numpy.org/doc/1.16/reference/routines.random.html.
+
+    Args:
+        candidates (list[str]): List of candidate strings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to normal(0,1) distribution.
+        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+            to candidate_dist, defaults None which creates the unif(0,1)
+            distribution in 2 dimensions.
+        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
+    Attributes:
+        candidates (list[str]): List of candidate strings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
+            voter's position from, defaults to uniform distribution.
+        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
+        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
+            single candidate's position from, defaults to uniform distribution.
+        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+            to candidate_dist, defaults None which creates the unif(0,1)
+            distribution in 2 dimensions.
+        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
+            Computes distance between a voter and a candidate,
+            defaults to euclidean distance.
+    """
+
+    def __init__(
+        self,
+        candidates: list[str],
+        voter_dist: Callable[..., np.ndarray] = np.random.normal,
+        voter_params: Optional[Dict[str, Any]] = None,
+        candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
+        candidate_params: Optional[Dict[str, Any]] = None,
+        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
+    ):
+        super().__init__(candidates=candidates)
+        self.candidate_dist = candidate_dist
+        self.voter_dist = voter_dist
+
+        if voter_params is None:
+            if self.voter_dist is np.random.normal:
+                self.voter_params = {
+                    "loc": 0,
+                    "std": np.array(1.0),
+                    "size": np.array(2.0),
+                }
+            else:
+                raise ValueError(
+                    "No parameters were given for the input voter distribution."
+                )
+        else:
+            if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
+                raise ValueError("Input voter distribution not supported.")
+
+            try:
+                voter_params["loc"] = 0
+                self.voter_dist(**voter_params)
+            except TypeError:
+                raise TypeError("Invalid parameters for the voter distribution.")
+
+            self.voter_params = voter_params
+
+        if candidate_params is None:
+            if self.candidate_dist is np.random.uniform:
+                self.candidate_params = {"low": 0.0, "high": 1.0, "size": 2.0}
+            else:
+                raise ValueError(
+                    "No parameters were given for the input candidate distribution."
+                )
+        else:
+            try:
+                self.candidate_dist(**candidate_params)
+            except TypeError:
+                raise TypeError("Invalid parameters for the candidate distribution.")
+
+            self.candidate_params = candidate_params
+
+        try:
+            v = self.voter_dist(**self.voter_params)
+            c = self.candidate_dist(**self.candidate_params)
+            distance(v, c)
+        except TypeError:
+            raise ValueError(
+                "Distance function is invalid or incompatible "
+                "with voter/candidate distributions."
+            )
+
+        self.distance = distance
+
+    def generate_profile_with_dict(
+        self, number_of_ballots: dict[str, int], by_bloc: bool = False
+    ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Samples a metric position for each candidate
+        from the input candidate distribution. For each candidate, then sample
+        number_of_ballots[candidate] metric positions for voters
+        which will be centered around the candidate.
+        With sampled positions, this method then creates a ranked PreferenceProfile in which
+        voter's preferences are consistent with their distances to the candidates
+        in the metric space.
+
+        Args:
+            number_of_ballots (dict[str, int]): The number of voters attributed
+                        to each candidate {candidate string: # voters}.
+            by_bloc (bool): Dummy variable from parent class.
+
+        Returns:
+            (Union[PreferenceProfile, Tuple]):
+            preference profile (Preference Profile),
+            candidate positions (dict[str, np.ndarray),
+            voter positions (np.ndarray):
+                A tuple containing the preference profile object,
+                a dictionary with each candidate's position in the metric
+                space, and a matrix where each row is a single voter's position
+                in the metric space.
+        """
+
+        candidate_position_dict = {
+            c: self.candidate_dist(**self.candidate_params) for c in self.candidates
+        }
+
+        n_voters = sum(number_of_ballots.values())
+        voter_positions = [np.zeros(2) for _ in range(n_voters)]
+        vidx = 0
+        for c, c_position in candidate_position_dict.items():
+            for v in range(number_of_ballots[c]):
+                self.voter_params["loc"] = c_position
+                voter_positions[vidx] = self.voter_dist(**self.voter_params)
+                vidx += 1
+
+        ballot_pool = [
+            ["c"] * len(self.candidates) for _ in range(len(voter_positions))
+        ]
+        for v in range(len(voter_positions)):
+            v_position = voter_positions[v]
+            distance_dict = {
+                c: self.distance(v_position, c_position)
+                for c, c_position, in candidate_position_dict.items()
+            }
+            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            ballot_pool[v] = candidate_order
+
+        voter_positions_array = np.vstack(voter_positions)
+
+        return (
+            self.ballot_pool_to_profile(ballot_pool, self.candidates),
+            candidate_position_dict,
+            voter_positions_array,
+        )
