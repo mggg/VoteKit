@@ -119,63 +119,37 @@ def test_spatial_generator():
     def bad_dist(x, y, z):
         return x + y + z
 
+    with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
+        Spatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=uniform_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
+        )
+
     with pytest.raises(
-        ValueError,
-        match="No parameters were given for " "the input voter distribution.",
+        TypeError, match="Invalid kwargs for the candidate distribution."
     ):
         Spatial(
             candidates=candidates,
             voter_dist=np.random.normal,
-            voter_params=None,
+            voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
-            candidate_params=normal_params,
+            candidate_dist_kwargs=uniform_params,
         )
 
     with pytest.raises(
-        ValueError,
-        match="No parameters were given for " "the input candidate distribution.",
-    ):
-        Spatial(
-            candidates=candidates,
-            voter_dist=np.random.normal,
-            voter_params=normal_params,
-            candidate_dist=np.random.normal,
-            candidate_params=None,
-        )
-
-    with pytest.raises(
-        TypeError, match="Invalid parameters for the voter distribution."
-    ):
-        Spatial(
-            candidates=candidates,
-            voter_dist=np.random.normal,
-            voter_params=uniform_params,
-            candidate_dist=np.random.normal,
-            candidate_params=normal_params,
-        )
-
-    with pytest.raises(
-        TypeError, match="Invalid parameters for the candidate distribution."
-    ):
-        Spatial(
-            candidates=candidates,
-            voter_dist=np.random.normal,
-            voter_params=normal_params,
-            candidate_dist=np.random.normal,
-            candidate_params=uniform_params,
-        )
-
-    with pytest.raises(
-        ValueError,
+        TypeError,
         match="Distance function is invalid or "
         "incompatible with voter/candidate distributions.",
     ):
         Spatial(
             candidates=candidates,
             voter_dist=np.random.normal,
-            voter_params=normal_params,
+            voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
-            candidate_params=normal_params,
+            candidate_dist_kwargs=normal_params,
             distance=bad_dist,
         )
 
@@ -188,63 +162,37 @@ def test_clustered_spatial_generator():
     def bad_dist(x, y, z):
         return x + y + z
 
-    with pytest.raises(
-        ValueError,
-        match="No parameters were given for " "the input voter distribution.",
-    ):
+    with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
         ClusteredSpatial(
             candidates=candidates,
-            voter_dist=np.random.logistic,
-            voter_params=None,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=uniform_params,
             candidate_dist=np.random.normal,
-            candidate_params=normal_params,
+            candidate_dist_kwargs=normal_params,
         )
 
     with pytest.raises(
-        ValueError,
-        match="No parameters were given for " "the input candidate distribution.",
+        TypeError, match="Invalid kwargs for the candidate distribution."
     ):
         ClusteredSpatial(
             candidates=candidates,
             voter_dist=np.random.normal,
-            voter_params=normal_params,
+            voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
-            candidate_params=None,
+            candidate_dist_kwargs=uniform_params,
         )
 
     with pytest.raises(
-        TypeError, match="Invalid parameters for the voter distribution."
-    ):
-        ClusteredSpatial(
-            candidates=candidates,
-            voter_dist=np.random.normal,
-            voter_params=uniform_params,
-            candidate_dist=np.random.normal,
-            candidate_params=normal_params,
-        )
-
-    with pytest.raises(
-        TypeError, match="Invalid parameters for the candidate distribution."
-    ):
-        ClusteredSpatial(
-            candidates=candidates,
-            voter_dist=np.random.normal,
-            voter_params=normal_params,
-            candidate_dist=np.random.normal,
-            candidate_params=uniform_params,
-        )
-
-    with pytest.raises(
-        ValueError,
+        TypeError,
         match="Distance function is invalid or "
         "incompatible with voter/candidate distributions.",
     ):
         ClusteredSpatial(
             candidates=candidates,
             voter_dist=np.random.normal,
-            voter_params=normal_params,
+            voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
-            candidate_params=normal_params,
+            candidate_dist_kwargs=normal_params,
             distance=bad_dist,
         )
 
@@ -252,7 +200,7 @@ def test_clustered_spatial_generator():
         ClusteredSpatial(
             candidates=candidates,
             voter_dist=np.random.uniform,
-            voter_params=normal_params,
+            voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
-            candidate_params=normal_params,
+            candidate_dist_kwargs=normal_params,
         )

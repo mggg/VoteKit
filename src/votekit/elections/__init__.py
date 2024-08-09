@@ -19,4 +19,7 @@ from .election_types import (  # noqa
     Cumulative,
     Approval,
     BlocPlurality,
+    PluralityVeto,
+    RandomDictator,
+    BoostedRandomDictator,
 )

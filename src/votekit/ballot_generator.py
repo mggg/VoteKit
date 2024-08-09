@@ -1965,11 +1965,11 @@ class Spatial(BallotGenerator):
         candidates (list[str]): List of candidate strings.
         voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
             voter's position from, defaults to uniform distribution.
-        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+        voter_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed to
             voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
         candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
             single candidate's position from, defaults to uniform distribution.
-        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+        candidate_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed
             to candidate_dist, defaults to None, which creates the unif(0,1)
             distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
@@ -1979,11 +1979,11 @@ class Spatial(BallotGenerator):
         candidates (list[str]): List of candidate strings.
         voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
             voter's position from, defaults to uniform distribution.
-        voter_params: (Optional[Dict[str, Any]], optional): Parameters to be passed to
+        voter_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed to
             voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
         candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
             single candidate's position from, defaults to uniform distribution.
-        candidate_params: (Optional[Dict[str, Any]], optional): Parameters to be passed
+        candidate_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed
             to candidate_dist, defaults to None, which creates the unif(0,1)
             distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
@@ -1995,51 +1995,47 @@ class Spatial(BallotGenerator):
         self,
         candidates: list[str],
         voter_dist: Callable[..., np.ndarray] = np.random.uniform,
-        voter_params: Optional[Dict[str, Any]] = None,
+        voter_dist_kwargs: Optional[Dict[str, Any]] = None,
         candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_params: Optional[Dict[str, Any]] = None,
+        candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
         distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     ):
         super().__init__(candidates=candidates)
         self.voter_dist = voter_dist
         self.candidate_dist = candidate_dist
 
-        if voter_params is None:
+        if voter_dist_kwargs is None:
             if voter_dist is np.random.uniform:
-                self.voter_params = {"low": 0.0, "high": 1.0, "size": 2.0}
+                voter_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
             else:
-                raise ValueError(
-                    "No parameters were given for the input voter distribution."
-                )
-        else:
-            try:
-                self.voter_dist(**voter_params)
-            except TypeError:
-                raise TypeError("Invalid parameters for the voter distribution.")
-
-            self.voter_params = voter_params
-
-        if candidate_params is None:
-            if candidate_dist is np.random.uniform:
-                self.candidate_params = {"low": 0.0, "high": 1.0, "size": 2.0}
-            else:
-                raise ValueError(
-                    "No parameters were given for the input candidate distribution."
-                )
-        else:
-            try:
-                self.candidate_dist(**candidate_params)
-            except TypeError:
-                raise TypeError("Invalid parameters for the candidate distribution.")
-
-            self.candidate_params = candidate_params
+                voter_dist_kwargs = {}
 
         try:
-            v = self.voter_dist(**self.voter_params)
-            c = self.candidate_dist(**self.candidate_params)
+            self.voter_dist(**voter_dist_kwargs)
+        except TypeError:
+            raise TypeError("Invalid kwargs for the voter distribution.")
+
+        self.voter_dist_kwargs = voter_dist_kwargs
+
+        if candidate_dist_kwargs is None:
+            if candidate_dist is np.random.uniform:
+                candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+            else:
+                candidate_dist_kwargs = {}
+
+        try:
+            self.candidate_dist(**candidate_dist_kwargs)
+        except TypeError:
+            raise TypeError("Invalid kwargs for the candidate distribution.")
+
+        self.candidate_dist_kwargs = candidate_dist_kwargs
+
+        try:
+            v = self.voter_dist(**self.voter_dist_kwargs)
+            c = self.candidate_dist(**self.candidate_dist_kwargs)
             distance(v, c)
         except TypeError:
-            raise ValueError(
+            raise TypeError(
                 "Distance function is invalid or incompatible "
                 "with voter/candidate distributions."
             )
@@ -2048,7 +2044,7 @@ class Spatial(BallotGenerator):
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
+    ) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
         """
         Samples a metric position for number_of_ballots voters from
         the voter distribution. Samples a metric position for each candidate
@@ -2062,10 +2058,7 @@ class Spatial(BallotGenerator):
             by_bloc (bool): Dummy variable from parent class.
 
         Returns:
-            (Union[PreferenceProfile, Tuple]):
-            preference profile (Preference Profile),
-            candidate positions (dict[str, np.ndarray),
-            voter positions (np.ndarray):
+            Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
                 A tuple containing the preference profile object,
                 a dictionary with each candidate's position in the metric
                 space, and a matrix where each row is a single voter's position
@@ -2073,10 +2066,14 @@ class Spatial(BallotGenerator):
         """
 
         candidate_position_dict = {
-            c: self.candidate_dist(**self.candidate_params) for c in self.candidates
+            c: self.candidate_dist(**self.candidate_dist_kwargs)
+            for c in self.candidates
         }
         voter_positions = np.array(
-            [self.voter_dist(**self.voter_params) for v in range(number_of_ballots)]
+            [
+                self.voter_dist(**self.voter_dist_kwargs)
+                for v in range(number_of_ballots)
+            ]
         )
 
         ballot_pool = [["c"] * len(self.candidates) for _ in range(number_of_ballots)]
@@ -2114,11 +2111,11 @@ class ClusteredSpatial(BallotGenerator):
         candidates (list[str]): List of candidate strings.
         voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
             voter's position from, defaults to normal(0,1) distribution.
-        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+        voter_dist_kwargs: (Optional[dict[str, Any]], optional): Keyword args to be passed to
             voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
         candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
             single candidate's position from, defaults to uniform distribution.
-        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+        candidate_dist_kwargs: (Optional[Dict[str, float]], optional): Keyword args to be passed
             to candidate_dist, defaults None which creates the unif(0,1)
             distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
@@ -2128,11 +2125,11 @@ class ClusteredSpatial(BallotGenerator):
         candidates (list[str]): List of candidate strings.
         voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
             voter's position from, defaults to uniform distribution.
-        voter_params: (Optional[dict[str, Any]], optional): Parameters to be passed to
+        voter_dist_kwargs: (Optional[dict[str, Any]], optional): Keyword args to be passed to
             voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
         candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
             single candidate's position from, defaults to uniform distribution.
-        candidate_params: (Optional[Dict[str, float]], optional): Parameters to be passed
+        candidate_dist_kwargs: (Optional[Dict[str, float]], optional): Keyword args to be passed
             to candidate_dist, defaults None which creates the unif(0,1)
             distribution in 2 dimensions.
         distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
@@ -2144,59 +2141,55 @@ class ClusteredSpatial(BallotGenerator):
         self,
         candidates: list[str],
         voter_dist: Callable[..., np.ndarray] = np.random.normal,
-        voter_params: Optional[Dict[str, Any]] = None,
+        voter_dist_kwargs: Optional[Dict[str, Any]] = None,
         candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_params: Optional[Dict[str, Any]] = None,
+        candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
         distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     ):
         super().__init__(candidates=candidates)
         self.candidate_dist = candidate_dist
         self.voter_dist = voter_dist
 
-        if voter_params is None:
+        if voter_dist_kwargs is None:
             if self.voter_dist is np.random.normal:
-                self.voter_params = {
+                voter_dist_kwargs = {
                     "loc": 0,
                     "std": np.array(1.0),
                     "size": np.array(2.0),
                 }
             else:
-                raise ValueError(
-                    "No parameters were given for the input voter distribution."
-                )
-        else:
-            if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
-                raise ValueError("Input voter distribution not supported.")
+                voter_dist_kwargs = {}
 
-            try:
-                voter_params["loc"] = 0
-                self.voter_dist(**voter_params)
-            except TypeError:
-                raise TypeError("Invalid parameters for the voter distribution.")
-
-            self.voter_params = voter_params
-
-        if candidate_params is None:
-            if self.candidate_dist is np.random.uniform:
-                self.candidate_params = {"low": 0.0, "high": 1.0, "size": 2.0}
-            else:
-                raise ValueError(
-                    "No parameters were given for the input candidate distribution."
-                )
-        else:
-            try:
-                self.candidate_dist(**candidate_params)
-            except TypeError:
-                raise TypeError("Invalid parameters for the candidate distribution.")
-
-            self.candidate_params = candidate_params
+        if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
+            raise ValueError("Input voter distribution not supported.")
 
         try:
-            v = self.voter_dist(**self.voter_params)
-            c = self.candidate_dist(**self.candidate_params)
+            voter_dist_kwargs["loc"] = 0
+            self.voter_dist(**voter_dist_kwargs)
+        except TypeError:
+            raise TypeError("Invalid kwargs for the voter distribution.")
+
+        self.voter_dist_kwargs = voter_dist_kwargs
+
+        if candidate_dist_kwargs is None:
+            if self.candidate_dist is np.random.uniform:
+                candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+            else:
+                candidate_dist_kwargs = {}
+
+        try:
+            self.candidate_dist(**candidate_dist_kwargs)
+        except TypeError:
+            raise TypeError("Invalid kwargs for the candidate distribution.")
+
+        self.candidate_dist_kwargs = candidate_dist_kwargs
+
+        try:
+            v = self.voter_dist(**self.voter_dist_kwargs)
+            c = self.candidate_dist(**self.candidate_dist_kwargs)
             distance(v, c)
         except TypeError:
-            raise ValueError(
+            raise TypeError(
                 "Distance function is invalid or incompatible "
                 "with voter/candidate distributions."
             )
@@ -2205,7 +2198,7 @@ class ClusteredSpatial(BallotGenerator):
 
     def generate_profile_with_dict(
         self, number_of_ballots: dict[str, int], by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
+    ) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
         """
         Samples a metric position for each candidate
         from the input candidate distribution. For each candidate, then sample
@@ -2221,10 +2214,7 @@ class ClusteredSpatial(BallotGenerator):
             by_bloc (bool): Dummy variable from parent class.
 
         Returns:
-            (Union[PreferenceProfile, Tuple]):
-            preference profile (Preference Profile),
-            candidate positions (dict[str, np.ndarray),
-            voter positions (np.ndarray):
+            Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
                 A tuple containing the preference profile object,
                 a dictionary with each candidate's position in the metric
                 space, and a matrix where each row is a single voter's position
@@ -2232,7 +2222,8 @@ class ClusteredSpatial(BallotGenerator):
         """
 
         candidate_position_dict = {
-            c: self.candidate_dist(**self.candidate_params) for c in self.candidates
+            c: self.candidate_dist(**self.candidate_dist_kwargs)
+            for c in self.candidates
         }
 
         n_voters = sum(number_of_ballots.values())
@@ -2240,8 +2231,8 @@ class ClusteredSpatial(BallotGenerator):
         vidx = 0
         for c, c_position in candidate_position_dict.items():
             for v in range(number_of_ballots[c]):
-                self.voter_params["loc"] = c_position
-                voter_positions[vidx] = self.voter_dist(**self.voter_params)
+                self.voter_dist_kwargs["loc"] = c_position
+                voter_positions[vidx] = self.voter_dist(**self.voter_dist_kwargs)
                 vidx += 1
 
         ballot_pool = [
