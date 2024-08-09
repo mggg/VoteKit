@@ -8,8 +8,8 @@ whether the output is a single winner, a set of winners, or a consensus
 ranking. VoteKit has a host of built-in election methods, as well as the
 functionality to let you create your own system of election. By the end
 of this section, you will have been introduced to the STV and Borda
-elections, learned about the ``ElectionState`` object, and created your
-own election type.
+elections, learned about the ``Election`` object, and created your own
+election type.
 
 STV
 ---
@@ -27,65 +27,57 @@ all of the same cleaning we did before.
 .. code:: ipython3
 
     from votekit.cvr_loaders import load_csv
-    from votekit.elections import STV, fractional_transfer
+    from votekit.elections import STV
     from votekit.cleaning import remove_noncands
     
     minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
     minneapolis_profile = remove_noncands(minneapolis_profile, 
                                           ["undervote", "overvote", "UWI"])
     
+    # m = 1 means 1 seat
     minn_election = STV(profile = minneapolis_profile, 
-                        transfer = fractional_transfer, 
-                        seats = 1)
-    minn_election.run_election()
+                        m = 1)
+    print(minn_election)
 
 
 .. parsed-literal::
 
-    Current Round: 35
-
-
-
-
-.. parsed-literal::
-
-                       Candidate     Status  Round
-                    BETSY HODGES    Elected     35
-                     MARK ANDREW Eliminated     34
-                     DON SAMUELS Eliminated     33
-                      CAM WINTON Eliminated     32
-              JACKIE CHERRYHOMES Eliminated     31
-                        BOB FINE Eliminated     30
-                       DAN COHEN Eliminated     29
-              STEPHANIE WOODRUFF Eliminated     28
-                 MARK V ANDERSON Eliminated     27
-                       DOUG MANN Eliminated     26
-                      OLE SAVIOR Eliminated     25
-                   JAMES EVERETT Eliminated     24
-               ALICIA K. BENNETT Eliminated     23
-      ABDUL M RAHAMAN "THE ROCK" Eliminated     22
-            CAPTAIN JACK SPARROW Eliminated     21
-               CHRISTOPHER CLARK Eliminated     20
-                       TONY LANE Eliminated     19
-                    JAYMIE KELLY Eliminated     18
-                      MIKE GOULD Eliminated     17
-                 KURTIS W. HANNA Eliminated     16
-     CHRISTOPHER ROBIN ZIMMERMAN Eliminated     15
-             JEFFREY ALAN WAGNER Eliminated     14
-                     NEAL BAXTER Eliminated     13
-                TROY BENJEGERDES Eliminated     12
-                GREGG A. IVERSON Eliminated     11
-                MERRILL ANDERSON Eliminated     10
-                      JOSHUA REA Eliminated      9
-                       BILL KAHN Eliminated      8
-             JOHN LESLIE HARTWIG Eliminated      7
-          EDMUND BERNARD BRUYERE Eliminated      6
-    JAMES "JIMMY" L. STROUD, JR. Eliminated      5
-                RAHN V. WORKCUFF Eliminated      4
-           BOB "AGAIN" CARNEY JR Eliminated      3
-                      CYD GORMAN Eliminated      2
-             JOHN CHARLES WILSON Eliminated      1
-
+                                      Status  Round
+    BETSY HODGES                     Elected     35
+    MARK ANDREW                   Eliminated     34
+    DON SAMUELS                   Eliminated     33
+    CAM WINTON                    Eliminated     32
+    JACKIE CHERRYHOMES            Eliminated     31
+    BOB FINE                      Eliminated     30
+    DAN COHEN                     Eliminated     29
+    STEPHANIE WOODRUFF            Eliminated     28
+    MARK V ANDERSON               Eliminated     27
+    DOUG MANN                     Eliminated     26
+    OLE SAVIOR                    Eliminated     25
+    JAMES EVERETT                 Eliminated     24
+    ALICIA K. BENNETT             Eliminated     23
+    ABDUL M RAHAMAN "THE ROCK"    Eliminated     22
+    CAPTAIN JACK SPARROW          Eliminated     21
+    CHRISTOPHER CLARK             Eliminated     20
+    TONY LANE                     Eliminated     19
+    JAYMIE KELLY                  Eliminated     18
+    MIKE GOULD                    Eliminated     17
+    KURTIS W. HANNA               Eliminated     16
+    CHRISTOPHER ROBIN ZIMMERMAN   Eliminated     15
+    JEFFREY ALAN WAGNER           Eliminated     14
+    NEAL BAXTER                   Eliminated     13
+    TROY BENJEGERDES              Eliminated     12
+    GREGG A. IVERSON              Eliminated     11
+    MERRILL ANDERSON              Eliminated     10
+    JOSHUA REA                    Eliminated      9
+    BILL KAHN                     Eliminated      8
+    JOHN LESLIE HARTWIG           Eliminated      7
+    EDMUND BERNARD BRUYERE        Eliminated      6
+    JAMES "JIMMY" L. STROUD, JR.  Eliminated      5
+    RAHN V. WORKCUFF              Eliminated      4
+    BOB "AGAIN" CARNEY JR         Eliminated      3
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
 
 
 First, what is this showing? Generally, the winners are listed in the
@@ -153,135 +145,118 @@ candidates running for :math:`m=3` seats with the following profile.
     profile = PreferenceProfile(ballots= ballots)
     
     print(profile)
-    print("Number of ballots:", profile.num_ballots())
-    print("Number of candidates:", len(profile.get_candidates()))
+    print("Sum of ballot weights:", profile.total_ballot_wt)
+    print("Number of candidates:", len(profile.candidates))
     
-    election = STV(profile = profile, transfer = fractional_transfer, seats = 3)
+    election = STV(profile = profile, m = 3)
     
     print("Threshold:", election.threshold)
+    print("Number of rounds", len(election))
+    print(election)
 
 
 
 .. parsed-literal::
 
-      Ballots Weight
-    (B, C, D)      8
-       (F, G)      4
-       (A, B)      3
-       (D, E)      3
-    (G, E, F)      3
-    (C, A, B)      1
-    (E, D, F)      1
-    Number of ballots: 23
+      Ranking Scores Weight
+    (B, C, D)     ()      8
+       (F, G)     ()      4
+       (A, B)     ()      3
+       (D, E)     ()      3
+    (G, E, F)     ()      3
+    (C, A, B)     ()      1
+    (E, D, F)     ()      1
+    Sum of ballot weights: 23
     Number of candidates: 7
+    Initial tiebreak was unsuccessful, performing random tiebreak
     Threshold: 6
+    Number of rounds 6
+           Status  Round
+    B     Elected      1
+    D     Elected      4
+    F     Elected      6
+    A   Remaining      6
+    G  Eliminated      5
+    C  Eliminated      3
+    E  Eliminated      2
 
 
-What this code block did is create an ``election`` object that lets us
+What this code block did is create an ``Election`` object that lets us
 access all the information, round-by-round, about what would happen
-under the designated election method.
+under the designated election method. The message about a tiebreak
+indicates that in some round, a random tiebreak was needed.
 
-Now we can review it step by step instead of all at once. Just from a
-brief glance at the profile and threshold, we see that candidate B
-should be elected in the first round. Let’s see this happen in two ways.
+We can review it step-by-step instead of all at once. Just from a brief
+glance at the profile and threshold, we see that candidate B should be
+elected in the first round. Let’s see this happen in two ways.
 
-First, observe the first-place votes for each candidate.
+First, observe the first-place votes for each candidate. These are
+stored in the round 0 ``ElectionState`` object, which can be accessed as
+follows.
 
 .. code:: ipython3
 
-    from votekit.utils import first_place_votes
-    print(first_place_votes(election.state.profile))
+    election.election_states[0].scores
+
+
 
 
 .. parsed-literal::
 
-    {'B': Fraction(8, 1), 'F': Fraction(4, 1), 'D': Fraction(3, 1), 'G': Fraction(3, 1), 'A': Fraction(3, 1), 'E': Fraction(1, 1), 'C': Fraction(1, 1)}
+    {'D': Fraction(3, 1),
+     'A': Fraction(3, 1),
+     'F': Fraction(4, 1),
+     'C': Fraction(1, 1),
+     'E': Fraction(1, 1),
+     'B': Fraction(8, 1),
+     'G': Fraction(3, 1)}
+
 
 
 We can see from this that only B is over the threshold. The other way we
-can see who wins in the first round is by running just one step of the
-election.
+can see who wins in the first round is by looking at the next
+``ElectionState``.
 
 .. code:: ipython3
 
-    print(election.run_step())
+    print("elected", election.election_states[1].elected)
+    print("\neliminated", election.election_states[1].eliminated)
+    print("\nremaining", election.election_states[1].remaining)
 
 
 .. parsed-literal::
 
-    Current Round: 1
-    Candidate                       Status  Round
-            B                      Elected      1
-            F                    Remaining      1
-            G Remaining (tie with C, D, A)      1
-            C Remaining (tie with G, D, A)      1
-            D Remaining (tie with G, C, A)      1
-            A Remaining (tie with G, C, D)      1
-            E                    Remaining      1
+    elected (frozenset({'B'}),)
+    
+    eliminated (frozenset(),)
+    
+    remaining (frozenset({'F'}), frozenset({'A', 'D', 'C', 'G'}), frozenset({'E'}))
 
 
 :math:`B` passed the threshold by 2 votes with a total of 8, so the
 :math:`B,C,D` ballot is going to have :math:`B` removed and be given
 weight :math:`2/8` (excess/total) times its previous weight of 8. To
-check this, election objects have an ``ElectionState`` class within them
-that stores this information.
-
-Run this code block a few times, and you’re stepping through the rounds
-of the election one at a time. However, once you run the block, the
-previous state of the election is overwritten. To restore a state of the
-election, you can use the following code.
+check this, election objects have a method called ``get_profile()`` that
+returns the ``PreferenceProfile`` after a particular round.
 
 .. code:: ipython3
 
-    # automatically runs steps 1 through 5
-    election.run_to_step(5)
-    print("Round 5 state", election.state)
-    print()
-    
-    # resets the election to its ground state
-    election.reset()
-    print("Ground state", election.state)
-    print()
+    election.get_profile(1)
+
+
 
 
 .. parsed-literal::
 
-    Round 5 state Current Round: 5
-    Candidate     Status  Round
-            B    Elected      1
-            F    Elected      4
-            D  Remaining      5
-            C  Remaining      5
-            A Eliminated      5
-            G Eliminated      3
-            E Eliminated      2
-    
-    Ground state Current Round: 0
-    Empty DataFrame
-    Columns: [Candidate, Status, Round]
-    Index: []
-    
+      Ranking Scores Weight
+       (F, G)     ()      4
+       (D, E)     ()      3
+         (A,)     ()      3
+    (G, E, F)     ()      3
+       (C, D)     ()      2
+    (E, D, F)     ()      1
+       (C, A)     ()      1
 
-
-Back to what happened after one step…
-
-.. code:: ipython3
-
-    election.run_to_step(1)
-    
-    print(election.state.profile)
-
-
-.. parsed-literal::
-
-      Ballots Weight
-       (F, G)      4
-       (D, E)      3
-    (G, E, F)      3
-         (A,)      3
-       (C, D)      2
-    (E, D, F)      1
-       (C, A)      1
 
 
 Look, :math:`B` is now removed from all ballots, and the :math:`B,C,D`
@@ -289,39 +264,40 @@ ballot became :math:`C,D` with weight 2. No one has enough votes to
 cross the 6 threshold, so the candidate with the least support will be
 eliminated—that is candidate :math:`E`, with only one first-place vote.
 
+We also introduce the ``get_step()`` method which accesses the profile
+and state of a given round.
+
 .. code:: ipython3
 
-    print(first_place_votes(election.state.profile))
-    print()
-    print(election.run_to_step(2))
-    print()
-    # now, since the election state is at step 2, 
-    # the profile will return the status at that step
-    print(election.state.profile)
+    print("fpv after round 1:",election.election_states[1].scores)
+    print("go to the next step\n")
+    
+    profile, state = election.get_step(2)
+    print("elected", state.elected)
+    print("\neliminated", state.eliminated)
+    print("\nremaining", state.remaining)
+    print(profile)
+
 
 
 .. parsed-literal::
 
-    {'F': Fraction(4, 1), 'D': Fraction(3, 1), 'G': Fraction(3, 1), 'A': Fraction(3, 1), 'E': Fraction(1, 1), 'C': Fraction(3, 1)}
+    fpv after round 1: {'D': Fraction(3, 1), 'A': Fraction(3, 1), 'F': Fraction(4, 1), 'C': Fraction(3, 1), 'E': Fraction(1, 1), 'G': Fraction(3, 1)}
+    go to the next step
     
-    Current Round: 2
-    Candidate                    Status  Round
-            B                   Elected      1
-            F    Remaining (tie with D)      2
-            D    Remaining (tie with F)      2
-            C Remaining (tie with G, A)      2
-            G Remaining (tie with C, A)      2
-            A Remaining (tie with C, G)      2
-            E                Eliminated      2
+    elected (frozenset(),)
     
-    Ballots Weight
-     (F, G)      4
-       (D,)      3
-     (G, F)      3
-       (A,)      3
-     (C, D)      2
-     (D, F)      1
-     (C, A)      1
+    eliminated (frozenset({'E'}),)
+    
+    remaining (frozenset({'D', 'F'}), frozenset({'A', 'C', 'G'}))
+    Ranking Scores Weight
+     (F, G)     ()      4
+       (D,)     ()      3
+       (A,)     ()      3
+     (G, F)     ()      3
+     (C, D)     ()      2
+     (D, F)     ()      1
+     (C, A)     ()      1
 
 
 :math:`E` has been removed from all of the ballots. Again, no one
@@ -330,46 +306,50 @@ will be eliminated.
 
 .. code:: ipython3
 
-    print(first_place_votes(election.state.profile))
+    print("fpv after round 2:",election.election_states[2].scores)
+    print("go to the next step\n")
+    
+    
+    print("elected", election.election_states[3].elected)
+    print("\neliminated", election.election_states[3].eliminated)
+    print("\nremaining", election.election_states[3].remaining)
+    print("\ntiebreak resolution", election.election_states[3].tiebreaks)
     print()
-    print(election.run_to_step(3))
-    print()
-    print(election.state.profile)
+    print(election.get_profile(3))
 
 
 .. parsed-literal::
 
-    {'F': Fraction(4, 1), 'D': Fraction(4, 1), 'G': Fraction(3, 1), 'A': Fraction(3, 1), 'C': Fraction(3, 1)}
+    fpv after round 2: {'D': Fraction(4, 1), 'A': Fraction(3, 1), 'F': Fraction(4, 1), 'C': Fraction(3, 1), 'G': Fraction(3, 1)}
+    go to the next step
     
-    Current Round: 3
-    Candidate                 Status  Round
-            B                Elected      1
-            F Remaining (tie with D)      3
-            D Remaining (tie with F)      3
-            C Remaining (tie with G)      3
-            G Remaining (tie with C)      3
-            A             Eliminated      3
-            E             Eliminated      2
+    elected (frozenset(),)
     
-    Ballots Weight
-     (F, G)      4
-       (D,)      3
-     (G, F)      3
-         ()      3
-     (C, D)      2
-     (D, F)      1
-       (C,)      1
+    eliminated (frozenset({'C'}),)
+    
+    remaining (frozenset({'D'}), frozenset({'A', 'F'}), frozenset({'G'}))
+    
+    tiebreak resolution {frozenset({'A', 'C', 'G'}): (frozenset({'A'}), frozenset({'G'}), frozenset({'C'}))}
+    
+    Initial tiebreak was unsuccessful, performing random tiebreak
+    Ranking Scores Weight
+       (D,)     ()      5
+       (A,)     ()      4
+     (F, G)     ()      4
+     (G, F)     ()      3
+     (D, F)     ()      1
 
 
 Note that here, several candidates were tied for the fewest first-place
-votes at this stage. When this happens, VoteKit uses a tiebreaker to
-decide who advances. This is customizable; it defaults to ``random``,
-but VoteKit also includes ``borda`` and ``firstplace``. The former
-breaks ties based on Borda scores, while the latter breaks ties based on
-(initial) first-place votes.
-
-The randomization prevents us from saying what exactly is going to
-happen as you run the code from here forward.
+votes at this stage. When this happens in STV, you use the first-place
+votes from the original profile to break ties. This means C will be
+eliminated. The ``tiebreaks`` parameter records the resolution of the
+tie; since we are looking for the person with the least first-place
+votes, the candidate in the final entry of the tuple is eliminated. The
+reason the message “Initial tiebreak was unsuccessful, performing random
+tiebreak” appeared is that A and G were tied by first-place votes, and
+thus a random tiebreak was needed to separate them. This didn’t affect
+the outcome, since C had the fewest first-place votes.
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
@@ -379,13 +359,13 @@ happen as you run the code from here forward.
    through why the election state transitioned as it did.
 
 We now change the transfer type. Using the same profile as above, we’ll
-now use ``random_transfer``. In fractional transfer, we reweighted all
-of the ballots in proportion to the surplus. Here, we will randomly
-choose the appropriate number of ballots to transfer (the same number as
-the surplus). Though it sounds strange, this is the method actually used
-in Cambridge, MA. (Recall that Cambridge has used STV continuously since
-1941 so back in the day they probably needed a low-tech physical way to
-do the transfers.)
+now use ``random_transfer``. In the default fractional transfer, we
+reweighted all of the ballots in proportion to the surplus. Here, we
+will randomly choose the appropriate number of ballots to transfer (the
+same number as the surplus). Though it sounds strange, this is the
+method actually used in Cambridge, MA. (Recall that Cambridge has used
+STV continuously since 1941 so back in the day they probably needed a
+low-tech physical way to do the transfers.)
 
 .. code:: ipython3
 
@@ -404,47 +384,38 @@ do the transfers.)
     profile = PreferenceProfile(ballots= ballots)
     
     print(profile)
-    print("Number of ballots:", profile.num_ballots())
-    print("Number of candidates:", len(profile.get_candidates()))
-    print()
+    print("Sum of ballot weights:", profile.total_ballot_wt)
+    print("Number of candidates:", len(profile.candidates))
     
-    election = STV(profile = profile, transfer = random_transfer, seats = 2)
+    election = STV(profile = profile, transfer = random_transfer, m = 2)
     
-    election.run_election()
+    print(election)
     
 
 
 
 .. parsed-literal::
 
-      Ballots Weight
-    (B, C, D)      8
-    (B, D, C)      8
-       (F, G)      4
-       (A, B)      3
-    (C, A, B)      1
-       (D, E)      1
-    (E, D, F)      1
-    (G, E, F)      1
-    Number of ballots: 27
+      Ranking Scores Weight
+    (B, C, D)     ()      8
+    (B, D, C)     ()      8
+       (F, G)     ()      4
+       (A, B)     ()      3
+    (C, A, B)     ()      1
+       (D, E)     ()      1
+    (E, D, F)     ()      1
+    (G, E, F)     ()      1
+    Sum of ballot weights: 27
     Number of candidates: 7
-    
-    Current Round: 7
-
-
-
-
-.. parsed-literal::
-
-    Candidate     Status  Round
-            B    Elected      1
-            D    Elected      7
-            F Eliminated      6
-            A Eliminated      5
-            C Eliminated      4
-            E Eliminated      3
-            G Eliminated      2
-
+    Initial tiebreak was unsuccessful, performing random tiebreak
+           Status  Round
+    B     Elected      1
+    D     Elected      7
+    F  Eliminated      6
+    A  Eliminated      5
+    C  Eliminated      4
+    G  Eliminated      3
+    E  Eliminated      2
 
 
 **Try it yourself**
@@ -453,12 +424,12 @@ do the transfers.)
    Rerun the code above until you see that different candidates can win
    under random transfer.
 
-Election State
---------------
+Election
+--------
 
-Let’s poke around the ``ElectionState`` class a bit more. It contains a
-lot of useful information about what is happening in an election. We
-will also introduce the Borda election.
+Let’s poke around the ``Election`` class a bit more. It contains a lot
+of useful information about what is happening in an election. We will
+also introduce the Borda election.
 
 Borda Election
 ~~~~~~~~~~~~~~
@@ -481,102 +452,79 @@ using the ``score_vector`` parameter.
     iac = bg.ImpartialAnonymousCulture(candidates = candidates)
     profile = iac.generate_profile(number_of_ballots= 1000)
     
-    election = Borda(profile, seats = 3)
-
-At first, the ``ElectionState`` is empty and the associated profile is
-just the raw profile, since nothing has occurred in the election. Only
-after either running the election, or running a step in the election, is
-an update made to ``ElectionState``.
+    election = Borda(profile, m = 3)
 
 .. code:: ipython3
 
-    print(election.state.profile)
+    print(election.get_profile(0))
     print()
     
-    print(election.run_step())
-    state = election.state
+    print(election)
+    
 
 
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 415 rows.
-               Ballots Weight
-    (E, A, B, D, C, F)     11
-    (E, B, A, C, D, F)      9
-    (C, F, E, D, B, A)      9
-    (B, A, C, F, D, E)      9
-    (C, F, B, D, A, E)      8
-    (C, A, B, F, E, D)      8
-    (F, C, B, D, E, A)      8
-    (C, B, E, F, A, D)      8
-    (A, B, E, C, D, F)      8
-    (E, C, A, B, F, D)      8
-    (C, F, E, B, A, D)      7
-    (E, B, F, A, C, D)      7
-    (F, A, C, D, B, E)      7
-    (A, E, D, C, B, F)      7
-    (C, A, B, D, E, F)      7
+    PreferenceProfile too long, only showing 15 out of 430 rows.
+               Ranking Scores Weight
+    (D, F, C, B, E, A)     ()     12
+    (F, E, B, A, C, D)     ()     10
+    (B, A, C, D, F, E)     ()     10
+    (F, E, A, B, D, C)     ()     10
+    (D, E, B, A, F, C)     ()      9
+    (E, A, C, F, B, D)     ()      9
+    (E, F, B, D, A, C)     ()      9
+    (C, E, F, D, A, B)     ()      9
+    (A, E, D, B, F, C)     ()      9
+    (A, B, D, F, C, E)     ()      8
+    (D, C, E, F, A, B)     ()      8
+    (F, C, A, B, D, E)     ()      8
+    (E, C, A, B, F, D)     ()      7
+    (A, C, E, D, B, F)     ()      7
+    (F, C, E, A, D, B)     ()      7
     
-    Current Round: 1
-    Candidate     Status  Round
-            C    Elected      1
-            A    Elected      1
-            E    Elected      1
-            B Eliminated      1
-            D Eliminated      1
-            F Eliminated      1
+          Status  Round
+    E    Elected      1
+    C    Elected      1
+    F    Elected      1
+    D  Remaining      1
+    A  Remaining      1
+    B  Remaining      1
 
 
 The Borda election is one-shot (like plurality), so running a step or
-the election is equivalent. Let’s see what the election state stores.
+the election is equivalent. Let’s see what the election stores.
 
 .. code:: ipython3
 
-    # the winners up to the current round
-    print("Winners:", state.winners())
+    # the winners up to the given round, -1 means final round
+    print("Winners:", election.get_elected(-1))
     
-    # the eliminated candidates up to the current round
-    print("Eliminated:", state.eliminated())
+    # the eliminated candidates up to the given round
+    print("Eliminated:", election.get_eliminated(-1))
     
-    # the current ranking of the candidates
-    print("Ranking:", state.rankings())
+    # the ranking of the candidates up to the given round
+    print("Ranking:", election.get_ranking(-1))
     
     # the outcome of the given round
-    print("Outcome of round 1:", state.round_outcome(1))
-    
-    # the pandas dataframe that stores information
-    print("Pandas dataframe:")
-    print(state.status())
-    
-    # as a dictionary
-    print("Dictionary")
-    print(state.to_dict())
+    print("Outcome of round 1:\n", election.get_status_df(1))
 
 
 .. parsed-literal::
 
-    Winners: [{'C'}, {'A'}, {'E'}]
-    Eliminated: [{'B'}, {'D'}, {'F'}]
-    Ranking: [{'C'}, {'A'}, {'E'}, {'B'}, {'D'}, {'F'}]
-    Outcome of round 1: {'Elected': [{'C'}, {'A'}, {'E'}], 'Eliminated': [{'B'}, {'D'}, {'F'}], 'Remaining': []}
-    Pandas dataframe:
-      Candidate Status       Round
-    0  C            Elected  1    
-    1  A            Elected  1    
-    2  E            Elected  1    
-    3  B         Eliminated  1    
-    4  D         Eliminated  1    
-    5  F         Eliminated  1    
-    Dictionary
-    {'elected': ['C', 'A', 'E'], 'eliminated': ['B', 'D', 'F'], 'remaining': [], 'ranking': ['C', 'A', 'E', 'B', 'D', 'F']}
+    Winners: (frozenset({'E'}), frozenset({'C'}), frozenset({'F'}))
+    Eliminated: ()
+    Ranking: (frozenset({'E'}), frozenset({'C'}), frozenset({'F'}), frozenset({'D'}), frozenset({'A'}), frozenset({'B'}))
+    Outcome of round 1:
+           Status  Round
+    E    Elected      1
+    C    Elected      1
+    F    Elected      1
+    D  Remaining      1
+    A  Remaining      1
+    B  Remaining      1
 
-
-We can also save the election state as a json file.
-
-.. code:: ipython3
-
-    state.to_json("borda_results.json")
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
@@ -597,22 +545,21 @@ We can also save the election state as a json file.
     
     # borda election
     score_vector = [3,2,1]
-    election = Borda(profile, seats = 1, score_vector = score_vector)
-    print(election.run_election())
+    election = Borda(profile, m = 1, score_vector = score_vector)
+    print(election)
 
 
 .. parsed-literal::
 
-    Current Round: 1
-    Candidate     Status  Round
-            C    Elected      1
-            B Eliminated      1
-            A Eliminated      1
+          Status  Round
+    C    Elected      1
+    B  Remaining      1
+    A  Remaining      1
 
 
 Since a Borda election is a one-shot election, most of the information
-stored in the ``ElectionState`` is extraneous, but you can see its
-utility in an STV election where there are many rounds.
+stored in the ``Election`` is extraneous, but you can see its utility in
+an STV election where there are many rounds.
 
 .. code:: ipython3
 
@@ -621,64 +568,236 @@ utility in an STV election where there are many rounds.
                                           ["undervote", "overvote", "UWI"])
     
     minn_election = STV(profile = minneapolis_profile, 
-                        transfer = fractional_transfer, 
-                        seats = 1)
+                        m = 1)
     
     for i in range(1,6):
-      minn_election.run_step()
-      state = minn_election.state
-    
-      print(f"Round {i+1}\n")
+      print(f"Round {i}\n")
       # the winners up to the current round
-      print("Winners:", state.winners())
+      print("Winners:", minn_election.get_elected(i))
     
       # the eliminated candidates up to the current round
-      print("Eliminated:", state.eliminated())
+      print("Eliminated:", minn_election.get_eliminated(i))
     
-      # the current ranking of the candidates
-      print("Ranking:", state.rankings())
+      # the remaining candidates, sorted by first-place votes
+      print("Remaining:", minn_election.get_remaining(i))
     
-      # the outcome of the given round
-      print(f"Outcome of round {i}:", state.round_outcome(i))
+      # the same information as a df
+      print(minn_election.get_status_df(i))
+    
       print()
 
 
 .. parsed-literal::
 
+    Round 1
+    
+    Winners: ()
+    Eliminated: (frozenset({'JOHN CHARLES WILSON'}),)
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'NEAL BAXTER', 'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.', 'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}))
+                                      Status  Round
+    BETSY HODGES                   Remaining      1
+    MARK ANDREW                    Remaining      1
+    DON SAMUELS                    Remaining      1
+    CAM WINTON                     Remaining      1
+    JACKIE CHERRYHOMES             Remaining      1
+    BOB FINE                       Remaining      1
+    DAN COHEN                      Remaining      1
+    STEPHANIE WOODRUFF             Remaining      1
+    MARK V ANDERSON                Remaining      1
+    DOUG MANN                      Remaining      1
+    OLE SAVIOR                     Remaining      1
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      1
+    ALICIA K. BENNETT              Remaining      1
+    JAMES EVERETT                  Remaining      1
+    CAPTAIN JACK SPARROW           Remaining      1
+    TONY LANE                      Remaining      1
+    MIKE GOULD                     Remaining      1
+    KURTIS W. HANNA                Remaining      1
+    JAYMIE KELLY                   Remaining      1
+    CHRISTOPHER CLARK              Remaining      1
+    CHRISTOPHER ROBIN ZIMMERMAN    Remaining      1
+    JEFFREY ALAN WAGNER            Remaining      1
+    TROY BENJEGERDES               Remaining      1
+    NEAL BAXTER                    Remaining      1
+    GREGG A. IVERSON               Remaining      1
+    JOSHUA REA                     Remaining      1
+    MERRILL ANDERSON               Remaining      1
+    BILL KAHN                      Remaining      1
+    JOHN LESLIE HARTWIG            Remaining      1
+    EDMUND BERNARD BRUYERE         Remaining      1
+    JAMES "JIMMY" L. STROUD, JR.   Remaining      1
+    RAHN V. WORKCUFF               Remaining      1
+    BOB "AGAIN" CARNEY JR          Remaining      1
+    CYD GORMAN                     Remaining      1
+    JOHN CHARLES WILSON           Eliminated      1
+    
     Round 2
     
-    Winners: []
-    Eliminated: [{'JOHN CHARLES WILSON'}]
-    Ranking: [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'NEAL BAXTER', 'GREGG A. IVERSON'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'RAHN V. WORKCUFF', 'JAMES "JIMMY" L. STROUD, JR.'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Outcome of round 1: {'Elected': [], 'Eliminated': [{'JOHN CHARLES WILSON'}], 'Remaining': [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'NEAL BAXTER', 'GREGG A. IVERSON'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'RAHN V. WORKCUFF', 'JAMES "JIMMY" L. STROUD, JR.'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}]}
+    Winners: ()
+    Eliminated: (frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'NEAL BAXTER'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.', 'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}))
+                                      Status  Round
+    BETSY HODGES                   Remaining      2
+    MARK ANDREW                    Remaining      2
+    DON SAMUELS                    Remaining      2
+    CAM WINTON                     Remaining      2
+    JACKIE CHERRYHOMES             Remaining      2
+    BOB FINE                       Remaining      2
+    DAN COHEN                      Remaining      2
+    STEPHANIE WOODRUFF             Remaining      2
+    MARK V ANDERSON                Remaining      2
+    DOUG MANN                      Remaining      2
+    OLE SAVIOR                     Remaining      2
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      2
+    ALICIA K. BENNETT              Remaining      2
+    JAMES EVERETT                  Remaining      2
+    CAPTAIN JACK SPARROW           Remaining      2
+    TONY LANE                      Remaining      2
+    MIKE GOULD                     Remaining      2
+    KURTIS W. HANNA                Remaining      2
+    JAYMIE KELLY                   Remaining      2
+    CHRISTOPHER CLARK              Remaining      2
+    CHRISTOPHER ROBIN ZIMMERMAN    Remaining      2
+    JEFFREY ALAN WAGNER            Remaining      2
+    TROY BENJEGERDES               Remaining      2
+    GREGG A. IVERSON               Remaining      2
+    NEAL BAXTER                    Remaining      2
+    JOSHUA REA                     Remaining      2
+    MERRILL ANDERSON               Remaining      2
+    BILL KAHN                      Remaining      2
+    JOHN LESLIE HARTWIG            Remaining      2
+    EDMUND BERNARD BRUYERE         Remaining      2
+    JAMES "JIMMY" L. STROUD, JR.   Remaining      2
+    RAHN V. WORKCUFF               Remaining      2
+    BOB "AGAIN" CARNEY JR          Remaining      2
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
     
     Round 3
     
-    Winners: []
-    Eliminated: [{'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Ranking: [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'NEAL BAXTER'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'RAHN V. WORKCUFF', 'JAMES "JIMMY" L. STROUD, JR.'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Outcome of round 2: {'Elected': [], 'Eliminated': [{'CYD GORMAN'}], 'Remaining': [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'NEAL BAXTER'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'RAHN V. WORKCUFF', 'JAMES "JIMMY" L. STROUD, JR.'}, {'BOB "AGAIN" CARNEY JR'}]}
+    Winners: ()
+    Eliminated: (frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'NEAL BAXTER'}), frozenset({'MERRILL ANDERSON', 'JOSHUA REA'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}), frozenset({'RAHN V. WORKCUFF'}))
+                                      Status  Round
+    BETSY HODGES                   Remaining      3
+    MARK ANDREW                    Remaining      3
+    DON SAMUELS                    Remaining      3
+    CAM WINTON                     Remaining      3
+    JACKIE CHERRYHOMES             Remaining      3
+    BOB FINE                       Remaining      3
+    DAN COHEN                      Remaining      3
+    STEPHANIE WOODRUFF             Remaining      3
+    MARK V ANDERSON                Remaining      3
+    DOUG MANN                      Remaining      3
+    OLE SAVIOR                     Remaining      3
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      3
+    ALICIA K. BENNETT              Remaining      3
+    JAMES EVERETT                  Remaining      3
+    CAPTAIN JACK SPARROW           Remaining      3
+    TONY LANE                      Remaining      3
+    MIKE GOULD                     Remaining      3
+    KURTIS W. HANNA                Remaining      3
+    JAYMIE KELLY                   Remaining      3
+    CHRISTOPHER CLARK              Remaining      3
+    CHRISTOPHER ROBIN ZIMMERMAN    Remaining      3
+    JEFFREY ALAN WAGNER            Remaining      3
+    TROY BENJEGERDES               Remaining      3
+    GREGG A. IVERSON               Remaining      3
+    NEAL BAXTER                    Remaining      3
+    MERRILL ANDERSON               Remaining      3
+    JOSHUA REA                     Remaining      3
+    BILL KAHN                      Remaining      3
+    JOHN LESLIE HARTWIG            Remaining      3
+    EDMUND BERNARD BRUYERE         Remaining      3
+    JAMES "JIMMY" L. STROUD, JR.   Remaining      3
+    RAHN V. WORKCUFF               Remaining      3
+    BOB "AGAIN" CARNEY JR         Eliminated      3
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
     
     Round 4
     
-    Winners: []
-    Eliminated: [{'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Ranking: [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'NEAL BAXTER'}, {'MERRILL ANDERSON', 'JOSHUA REA'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'JAMES "JIMMY" L. STROUD, JR.'}, {'RAHN V. WORKCUFF'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Outcome of round 3: {'Elected': [], 'Eliminated': [{'BOB "AGAIN" CARNEY JR'}], 'Remaining': [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'NEAL BAXTER'}, {'MERRILL ANDERSON', 'JOSHUA REA'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'JAMES "JIMMY" L. STROUD, JR.'}, {'RAHN V. WORKCUFF'}]}
+    Winners: ()
+    Eliminated: (frozenset({'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"', 'JAMES EVERETT'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}))
+                                      Status  Round
+    BETSY HODGES                   Remaining      4
+    MARK ANDREW                    Remaining      4
+    DON SAMUELS                    Remaining      4
+    CAM WINTON                     Remaining      4
+    JACKIE CHERRYHOMES             Remaining      4
+    BOB FINE                       Remaining      4
+    DAN COHEN                      Remaining      4
+    STEPHANIE WOODRUFF             Remaining      4
+    MARK V ANDERSON                Remaining      4
+    DOUG MANN                      Remaining      4
+    OLE SAVIOR                     Remaining      4
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      4
+    JAMES EVERETT                  Remaining      4
+    ALICIA K. BENNETT              Remaining      4
+    CAPTAIN JACK SPARROW           Remaining      4
+    TONY LANE                      Remaining      4
+    MIKE GOULD                     Remaining      4
+    KURTIS W. HANNA                Remaining      4
+    JAYMIE KELLY                   Remaining      4
+    CHRISTOPHER CLARK              Remaining      4
+    CHRISTOPHER ROBIN ZIMMERMAN    Remaining      4
+    JEFFREY ALAN WAGNER            Remaining      4
+    NEAL BAXTER                    Remaining      4
+    TROY BENJEGERDES               Remaining      4
+    GREGG A. IVERSON               Remaining      4
+    JOSHUA REA                     Remaining      4
+    MERRILL ANDERSON               Remaining      4
+    BILL KAHN                      Remaining      4
+    JOHN LESLIE HARTWIG            Remaining      4
+    EDMUND BERNARD BRUYERE         Remaining      4
+    JAMES "JIMMY" L. STROUD, JR.   Remaining      4
+    RAHN V. WORKCUFF              Eliminated      4
+    BOB "AGAIN" CARNEY JR         Eliminated      3
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
     
     Round 5
     
-    Winners: []
-    Eliminated: [{'RAHN V. WORKCUFF'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Ranking: [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'JAMES EVERETT', 'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'NEAL BAXTER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'JAMES "JIMMY" L. STROUD, JR.'}, {'RAHN V. WORKCUFF'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Outcome of round 4: {'Elected': [], 'Eliminated': [{'RAHN V. WORKCUFF'}], 'Remaining': [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'JAMES EVERETT', 'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'KURTIS W. HANNA'}, {'JAYMIE KELLY'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'NEAL BAXTER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'JOSHUA REA'}, {'MERRILL ANDERSON'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'JAMES "JIMMY" L. STROUD, JR.'}]}
-    
-    Round 6
-    
-    Winners: []
-    Eliminated: [{'JAMES "JIMMY" L. STROUD, JR.'}, {'RAHN V. WORKCUFF'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Ranking: [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'JAYMIE KELLY'}, {'KURTIS W. HANNA'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'NEAL BAXTER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'MERRILL ANDERSON'}, {'JOSHUA REA'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}, {'JAMES "JIMMY" L. STROUD, JR.'}, {'RAHN V. WORKCUFF'}, {'BOB "AGAIN" CARNEY JR'}, {'CYD GORMAN'}, {'JOHN CHARLES WILSON'}]
-    Outcome of round 5: {'Elected': [], 'Eliminated': [{'JAMES "JIMMY" L. STROUD, JR.'}], 'Remaining': [{'BETSY HODGES'}, {'MARK ANDREW'}, {'DON SAMUELS'}, {'CAM WINTON'}, {'JACKIE CHERRYHOMES'}, {'BOB FINE'}, {'DAN COHEN'}, {'STEPHANIE WOODRUFF'}, {'MARK V ANDERSON'}, {'DOUG MANN'}, {'OLE SAVIOR'}, {'ABDUL M RAHAMAN "THE ROCK"'}, {'ALICIA K. BENNETT'}, {'JAMES EVERETT'}, {'CAPTAIN JACK SPARROW'}, {'TONY LANE'}, {'MIKE GOULD'}, {'JAYMIE KELLY'}, {'KURTIS W. HANNA'}, {'CHRISTOPHER CLARK'}, {'CHRISTOPHER ROBIN ZIMMERMAN'}, {'JEFFREY ALAN WAGNER'}, {'NEAL BAXTER'}, {'TROY BENJEGERDES'}, {'GREGG A. IVERSON'}, {'MERRILL ANDERSON'}, {'JOSHUA REA'}, {'BILL KAHN'}, {'JOHN LESLIE HARTWIG'}, {'EDMUND BERNARD BRUYERE'}]}
+    Winners: ()
+    Eliminated: (frozenset({'JAMES "JIMMY" L. STROUD, JR.'}), frozenset({'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'JAYMIE KELLY'}), frozenset({'KURTIS W. HANNA'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'MERRILL ANDERSON'}), frozenset({'JOSHUA REA'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}))
+                                      Status  Round
+    BETSY HODGES                   Remaining      5
+    MARK ANDREW                    Remaining      5
+    DON SAMUELS                    Remaining      5
+    CAM WINTON                     Remaining      5
+    JACKIE CHERRYHOMES             Remaining      5
+    BOB FINE                       Remaining      5
+    DAN COHEN                      Remaining      5
+    STEPHANIE WOODRUFF             Remaining      5
+    MARK V ANDERSON                Remaining      5
+    DOUG MANN                      Remaining      5
+    OLE SAVIOR                     Remaining      5
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      5
+    ALICIA K. BENNETT              Remaining      5
+    JAMES EVERETT                  Remaining      5
+    CAPTAIN JACK SPARROW           Remaining      5
+    TONY LANE                      Remaining      5
+    MIKE GOULD                     Remaining      5
+    JAYMIE KELLY                   Remaining      5
+    KURTIS W. HANNA                Remaining      5
+    CHRISTOPHER CLARK              Remaining      5
+    CHRISTOPHER ROBIN ZIMMERMAN    Remaining      5
+    JEFFREY ALAN WAGNER            Remaining      5
+    NEAL BAXTER                    Remaining      5
+    TROY BENJEGERDES               Remaining      5
+    GREGG A. IVERSON               Remaining      5
+    MERRILL ANDERSON               Remaining      5
+    JOSHUA REA                     Remaining      5
+    BILL KAHN                      Remaining      5
+    JOHN LESLIE HARTWIG            Remaining      5
+    EDMUND BERNARD BRUYERE         Remaining      5
+    JAMES "JIMMY" L. STROUD, JR.  Eliminated      5
+    RAHN V. WORKCUFF              Eliminated      4
+    BOB "AGAIN" CARNEY JR         Eliminated      3
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
     
 
 
@@ -686,107 +805,88 @@ Conclusion
 ----------
 
 There are many different possible election methods, both for choosing a
-single seat or multiple seats. VoteKit has a host of built-in election
-methods, as well as the functionality to let you create your own kind of
-election. You have been introduced to the STV and Borda elections and
-learned about the ``ElectionState`` object. This should allow you to
-model any kind of elections you see in the real world, including rules
-that have not yet been implemented in VoteKit.
+single seat or multiple seats. ``VoteKit`` has a host of built-in
+election methods, as well as the functionality to let you create your
+own kind of election. You have been introduced to the STV and Borda
+elections and learned about the ``Election`` object. This should allow
+you to model any kind of elections you see in the real world, including
+rules that have not yet been implemented in ``VoteKit``.
 
 Further Prompts: Creating your own election system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VoteKit can’t be comprehensive in terms of possible election rules.
+``VoteKit`` can’t be comprehensive in terms of possible election rules.
 However, with the ``Election`` and ``ElectionState`` classes, you can
 create your own. Let’s create a bit of a silly example; to elect
 :math:`m` seats, at each stage of the election we randomly choose one
-candidate to elect.
+candidate to elect. Most of the methods are handled by the
+``RankingElection`` class, so we really only need to define how a step
+works, and how to know when it’s over.
 
 .. code:: ipython3
 
-    from votekit.models import Election
-    from votekit.election_state import ElectionState
+    from votekit.elections import RankingElection, ElectionState
     from votekit.utils import remove_cand
     import random
     
-    class RandomWinners(Election):
+    class RandomWinners(RankingElection):
         """
         Simulates an election where we randomly choose winners at each stage.
     
-        **Attributes**
-    
-        `profile`
-        :   PreferenceProfile to run election on
-    
-        `seats`
-        :   number of seats to be elected
-    
-    
+        Args:
+            profile (PreferenceProfile): Profile to run election on.
+            m (int, optional): Number of seats to elect.
         """
     
-        def __init__(self, profile: PreferenceProfile, seats: int):
-            # the super method says call the Election class
-            # ballot_ties = True means it will resolve any ties in our ballots
-            super().__init__(profile, ballot_ties = True)
+        def __init__(self, profile: PreferenceProfile, m: int=1):
+            # the super method says call the RankingElection class
+            self.m = m
+            super().__init__(profile)
     
-            self.seats = seats
-    
-        def next_round(self) -> bool:
+        def _is_finished(self) -> bool:
             """
             Determines if another round is needed.
     
             Returns:
-                True if number of seats has not been met, False otherwise
+                bool: True if number of seats has been met, False otherwise.
             """
-            cands_elected = 0
-            for s in self.state.winners():
-                cands_elected += len(s)
-            return cands_elected < self.seats
+            # need to unpack list of sets
+            elected = [c for s in self.get_elected() for c in s]
     
-        def run_step(self):
-            if self.next_round():
-              # get the remaining candidates
-              remaining = self.state.profile.get_candidates()
+            if len(elected) == self.m:
+                return True
     
-              # randomly choose one
-              winning_candidate  = random.choice(remaining)
-              # some formatting to make it compatible with ElectionState, which
-              # requires a list of sets of strings
-              elected =[{winning_candidate}]
+            return False
+        
+        def _run_step(
+            self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
+        ) -> PreferenceProfile:
+            """
+            Run one step of an election from the given profile and previous state.
     
-              # remove the winner from the ballots
-              new_ballots = remove_cand(winning_candidate, self.state.profile.ballots)
-              new_profile = PreferenceProfile(ballots= new_ballots)
+            Args:
+                profile (PreferenceProfile): Profile of ballots.
+                prev_state (ElectionState): The previous ElectionState.
+                store_states (bool, optional): True if `self.election_states` should be updated with the
+                    ElectionState generated by this round. This should only be True when used by
+                    `self._run_election()`. Defaults to False.
     
-              # determine who remains
-              remaining = [{c} for c in remaining if c != winning_candidate]
+            Returns:
+                PreferenceProfile: The profile of ballots after the round is completed.
+            """
     
+            elected_cand = random.choice(profile.candidates)
+            new_profile = remove_cand(elected_cand, profile) 
     
-              # update for the next round
-              self.state = ElectionState(curr_round = self.state.curr_round + 1,
-                                        elected = elected,
-                                        eliminated_cands = [],
-                                        remaining = remaining,
-                                        profile = new_profile,
-                                        previous= self.state)
+            # we only store the states the first time an election is run,
+            # but this is all handled by the other methods of the class
+            if store_states:
+                self.election_states.append(ElectionState(round_number = prev_state.round_number +1,
+                                                          remaining = (frozenset(new_profile.candidates),),
+                                                          elected = (frozenset(elected_cand),),))
+                
+            return new_profile
     
-              # if this is the last round, move remaining to eliminated
-              if not self.next_round():
-                self.state = ElectionState(curr_round = self.state.curr_round,
-                                        elected = elected,
-                                        eliminated_cands = remaining,
-                                        remaining = [],
-                                        profile = new_profile,
-                                        previous= self.state.previous)
-              return(self.state)
-    
-    
-        def run_election(self):
-            # run steps until we elect the required number of candidates
-            while self.next_round():
-                self.run_step()
-    
-            return(self.state)
 
 
 .. code:: ipython3
@@ -794,41 +894,22 @@ candidate to elect.
     candidates  = ["A", "B", "C", "D", "E", "F"]
     profile = bg.ImpartialCulture(candidates = candidates).generate_profile(1000)
     
-    election = RandomWinners(profile= profile, seats  = 3)
+    election = RandomWinners(profile= profile, m  = 3)
 
 .. code:: ipython3
 
-    print(election.run_step())
-    print(election.run_step())
-    print(election.run_step())
+    print(election)
 
 
 .. parsed-literal::
 
-    Current Round: 1
-    Candidate    Status  Round
-            F   Elected      1
-            B Remaining      1
-            D Remaining      1
-            A Remaining      1
-            E Remaining      1
-            C Remaining      1
-    Current Round: 2
-    Candidate    Status  Round
-            F   Elected      1
-            E   Elected      2
-            B Remaining      2
-            D Remaining      2
-            A Remaining      2
-            C Remaining      2
-    Current Round: 3
-    Candidate     Status  Round
-            F    Elected      1
-            E    Elected      2
-            D    Elected      3
-            B Eliminated      3
-            A Eliminated      3
-            C Eliminated      3
+          Status  Round
+    D    Elected      1
+    E    Elected      2
+    F    Elected      3
+    A  Remaining      3
+    C  Remaining      3
+    B  Remaining      3
 
 
 **Try it yourself**
@@ -858,52 +939,52 @@ candidate to elect.
 
 .. code:: ipython3
 
-    class AlphabeticaElection(Election):
+    class AlphabeticaElection(RankingElection):
         """
-        Simulates an election where we choose alphabetically.
+        Simulates an election where we choose winners alphabetically at each stage.
     
-        **Attributes**
-    
-        `profile`
-        :   PreferenceProfile to run election on
-    
-        `seats`
-        :   number of seats to be elected
-    
-    
+        Args:
+            profile (PreferenceProfile): Profile to run election on.
+            m (int, optional): Number of seats to elect.
         """
     
-        def __init__(self, profile: PreferenceProfile, seats: int):
-            # the super method says call the Election class
-            # ballot_ties = True means it will resolve any ties in our ballots
-            super().__init__(profile, ballot_ties = True)
+        def __init__(self, profile: PreferenceProfile, m: int=1):
+            # the super method says call the RankingElection class
+            self.m = m
+            super().__init__(profile)
     
-            self.seats = seats
-    
-        def next_round(self) -> bool:
+        def _is_finished(self) -> bool:
             """
             Determines if another round is needed.
     
             Returns:
-                True if number of seats has not been met, False otherwise
+                bool: True if number of seats has been met, False otherwise.
             """
-            cands_elected = 0
-            for s in self.state.winners():
-                cands_elected += len(s)
-            return cands_elected < self.seats
+            # need to unpack list of sets
+            elected = [c for s in self.get_elected() for c in s]
     
-        def run_step(self):
-            if self.next_round():
+            if len(elected) == self.m:
+                return True
     
-              # do some stuff!
+            return False
+        
+        def _run_step(
+            self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
+        ) -> PreferenceProfile:
+            """
+            Run one step of an election from the given profile and previous state.
     
-              return(self.state)
+            Args:
+                profile (PreferenceProfile): Profile of ballots.
+                prev_state (ElectionState): The previous ElectionState.
+                store_states (bool, optional): True if `self.election_states` should be updated with the
+                    ElectionState generated by this round. This should only be True when used by
+                    `self._run_election()`. Defaults to False.
     
+            Returns:
+                PreferenceProfile: The profile of ballots after the round is completed.
+            """
     
-        def run_election(self):
-            # run steps until we elect the required number of candidates
-            while self.next_round():
-                self.run_step()
+            pass
     
-            return(self.state)
 
