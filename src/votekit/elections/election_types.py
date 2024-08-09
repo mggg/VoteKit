@@ -9,6 +9,7 @@ from ..models import Election
 from ..election_state import ElectionState
 from ..graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from ..pref_profile import PreferenceProfile
+from ..ballot import Ballot
 from .transfers import fractional_transfer
 from ..utils import (
     compute_votes,
@@ -1301,13 +1302,13 @@ class PluralityVeto(Election):
     then chosen as the winner.
 
     Args:
-      profile (PreferenceProfile): PreferenceProfile to run election on.
+      profile (PreferenceProfile): PreferenceProfile to run election on. Note that
+        ballots muts have integer weights to be considered valid for this mechanism.
       m (int): Number of seats to elect.
 
     Attributes:
       _profile (PreferenceProfile): PreferenceProfile to run election on.
       m (int): Number of seats to be elected.
-      ballot_idx (dict[int, int]): indexes individual voters to condensed profile ballots
       random_order (list[int]): randomly shuffled order of voter indices
       candidate_approvals (dict[str,int]): dictionary tracking current candidate scores
 
@@ -1321,15 +1322,30 @@ class PluralityVeto(Election):
 
         self.m = m
 
+        # Decondense ballots
+        ballots = self.state.profile.get_ballots()
+        new_ballots = [Ballot() for i in range(int(self.state.profile.num_ballots()))]
         bidx = 0
-        self.ballot_idx = {i: -1 for i in range(int(self.state.profile.num_ballots()))}
-        for i, ballot in enumerate(self.state.profile.get_ballots()):
-            if not int(ballot.weight) == ballot.weight:
+        for i, b in enumerate(ballots):
+            if not int(b.weight) == b.weight:
                 raise ValueError("Ballots must have integer weight.")
 
-            for j in range(int(ballot.weight)):
-                self.ballot_idx[i] = bidx
+            for j in range(int(b.weight)):
+                new_ballots[bidx] = Ballot(b.ranking, weight=Fraction(1, 1))
                 bidx += 1
+
+        new_profile = PreferenceProfile(
+            ballots=new_ballots, candidates=self.state.profile.get_candidates()
+        )
+
+        self.state = ElectionState(
+            curr_round=self.state.curr_round,
+            elected=[],
+            eliminated_cands=[],
+            remaining=self.state.remaining,
+            profile=new_profile,
+            previous=self.state.previous,
+        )
 
         self.random_order = None
         self.candidate_approvals = None
@@ -1359,7 +1375,7 @@ class PluralityVeto(Election):
         """
         if self.next_round():
             candidates = self.state.profile.get_candidates()
-            ballots = self.state.profile.ballots
+            ballots = self.state.profile.get_ballots()
 
             if len(candidates) == self.m:
                 # move all to elected, this is the last round
@@ -1385,7 +1401,7 @@ class PluralityVeto(Election):
                     for i in range(len(self.random_order)):
                         last_idx = i
                         r = self.random_order[i]
-                        ballot = ballots[self.ballot_idx[r]]
+                        ballot = ballots[r]
                         # Need to make a random choice between last place candidates,
                         # because voters should only get one veto
                         # if len(ballot.ranking) > 0:
