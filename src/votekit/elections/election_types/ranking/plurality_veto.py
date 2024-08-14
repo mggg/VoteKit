@@ -27,12 +27,44 @@ class PluralityVeto(RankingElection):
       tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
 
+    Attributes:
+        m (int): The number of seats to be filled in the election.
+        tiebreak (Optional[str]): The tiebreak method selected for the election. Could be None,
+            'random', or 'borda'.
+        ballot_list (List[Ballot]): A list of Ballot instances representing the decondensed ballots
+            where each ballot has a weight of 1.
+        random_order (List[int]): A list of indices representing the randomized order in which
+            voters' preferences are processed.
+        preference_index (List[int]): A list of integers where each entry corresponds to the
+            index of the least preferred candidate for each ballot.
+        eliminated_dict (Dict[str, bool]): A dictionary mapping each candidate to a boolean value
+            indicating whether the candidate has been eliminated.
 
+    Raises:
+        ValueError: If ``m`` is not positive or if it exceeds the number of candidates.
     """
 
     def __init__(
         self, profile: PreferenceProfile, m: int, tiebreak: Optional[str] = None
     ):
+        """
+        Initializes the Plurality Veto election class.
+
+        This constructor sets up the initial state of the election, including
+        validating the profile, decondensing ballots (necessary for the running the steps of the
+        election), and preparing other necessary data structures.
+
+        Args:
+            profile (PreferenceProfile): The preference profile to be used in the election.
+            m (int): The number of seats to be filled in the election.
+            tiebreak (Optional[str]): The method used to resolve ties. Defaults to None.
+
+        Raises:
+            ValueError: If ``m`` is less than or equal to 0, or if ``m`` exceeds the number of
+                candidates in the profile.
+            AttributeError: If there are any ballots with ties and no tiebreak method is specified.
+            TypeError: If the profile contains invalid ballots.
+        """
         self._pv_validate_profile(profile)
 
         if m <= 0:
@@ -44,6 +76,13 @@ class PluralityVeto(RankingElection):
 
         self.m = m
         self.tiebreak = tiebreak
+
+        if self.tiebreak is None:
+            for ballot in profile.ballots:
+                if any(len(s) > 1 for s in ballot.ranking):
+                    raise AttributeError(
+                        "Found Ballots with ties but no tiebreak method was specified."
+                    )
 
         # Decondense ballots
         ballots = profile.ballots
@@ -61,9 +100,11 @@ class PluralityVeto(RankingElection):
         self.ballot_list = profile.ballots
         self.random_order = list(range(int(profile.num_ballots)))
         np.random.shuffle(self.random_order)
-        # self.ballot_eliminated = np.zeros(int(profile.num_ballots), dtype = bool)
-        self.preference_index = [len(ballot.ranking) - 1 for ballot in profile.ballots
-                                 if ballot.ranking is not None]
+        self.preference_index = [
+            len(ballot.ranking) - 1 if ballot.ranking else -1
+            for ballot in self.ballot_list
+        ]
+
         self.eliminated_dict = {c: False for c in profile.candidates}
 
         super().__init__(profile, score_function=first_place_votes)
@@ -107,7 +148,7 @@ class PluralityVeto(RankingElection):
             PreferenceProfile: The profile of ballots after the round is completed.
         """
 
-        remaining_count = sum(1 for _ in self.eliminated_dict.values() if not _)
+        remaining_count = len(self.eliminated_dict) - sum(self.eliminated_dict.values())
 
         if remaining_count == self.m:
             # move all to elected, this is the last round
@@ -136,15 +177,11 @@ class PluralityVeto(RankingElection):
                 ]
 
             for rand_index, ballot_index in enumerate(self.random_order):
-                # TODO problem, if ballot disappears after all candidates are removed,
-                # possible that an index will appear that is beyond the current list
-                # of ballots
                 if not self.preference_index[ballot_index] < 0:
                     ballot = self.ballot_list[ballot_index]
                     last_place = self.preference_index[ballot_index]
 
                     if ballot.ranking:
-                        # do with tiebreak methods
                         if len(ballot.ranking[last_place]) > 1:
                             if self.tiebreak:
                                 tiebroken_ranking = tiebreak_set(
@@ -161,8 +198,8 @@ class PluralityVeto(RankingElection):
                         eliminated_cands.append(least_preferred)
                         break
 
-            # Update the randomized order so that
-            # we can continue where we left off next round
+            # Circularly shift the randomized order array so that
+            # we can continue where we left off in the next round
             self.random_order = (
                 self.random_order[rand_index + 1 :]
                 + self.random_order[: rand_index + 1]
@@ -171,25 +208,31 @@ class PluralityVeto(RankingElection):
             for c in eliminated_cands:
                 self.eliminated_dict[c] = True
 
-            # Adjust voter's least preferred indices
-            for i, ballot_index in enumerate(self.random_order):
-                ballot = self.ballot_list[ballot_index]
-                last_place = self.preference_index[ballot_index]
-                if ballot.ranking is not None:
-                    while (
-                        self.eliminated_dict[list(ballot.ranking[last_place])[0]]
-                        and last_place > 0
-                    ):
-                        last_place -= 1
+            new_profile = remove_cand(
+                eliminated_cands,
+                profile,
+                condense=False,
+                leave_zero_weight_ballots=True,
+            )
 
-                self.preference_index[ballot_index] = last_place
+            self.ballot_list = new_profile.ballots
 
-            new_profile = remove_cand(eliminated_cands, profile)
+            self.preference_index = [
+                len(ballot.ranking) - 1 if ballot.ranking else -1
+                for ballot in self.ballot_list
+            ]
 
             if store_states:
                 eliminated = (frozenset(eliminated_cands),)
+
+                score_ballots = [
+                    ballot for ballot in new_profile.ballots if ballot.ranking
+                ]
+                score_profile = PreferenceProfile(ballots=score_ballots)
+
                 if self.score_function:
-                    scores = self.score_function(new_profile)
+                    scores = self.score_function(score_profile)
+
                 remaining = score_dict_to_ranking(scores)
                 new_state = ElectionState(
                     round_number=prev_state.round_number + 1,
@@ -200,5 +243,4 @@ class PluralityVeto(RankingElection):
                 )
 
                 self.election_states.append(new_state)
-
         return new_profile
