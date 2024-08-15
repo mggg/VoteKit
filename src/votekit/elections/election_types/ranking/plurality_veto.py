@@ -77,9 +77,11 @@ class PluralityVeto(RankingElection):
         self.m = m
         self.tiebreak = tiebreak
 
-        if self.tiebreak is None:
+        if self.tiebreak is None and profile.ballots is not None:
             for ballot in profile.ballots:
-                if any(len(s) > 1 for s in ballot.ranking):
+                if ballot.ranking is not None and any(
+                    len(s) > 1 for s in ballot.ranking
+                ):
                     raise AttributeError(
                         "Found Ballots with ties but no tiebreak method was specified."
                     )
@@ -225,9 +227,9 @@ class PluralityVeto(RankingElection):
             if store_states:
                 eliminated = (frozenset(eliminated_cands),)
 
-                score_ballots = [
+                score_ballots = tuple(
                     ballot for ballot in new_profile.ballots if ballot.ranking
-                ]
+                )
                 score_profile = PreferenceProfile(ballots=score_ballots)
 
                 if self.score_function:

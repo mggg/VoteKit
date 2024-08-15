@@ -46,7 +46,7 @@ def lp_dist(
     pp2: PreferenceProfile,
     p_value: Optional[Union[int, str]] = 1,
 ) -> int:
-    """
+    r"""
     Computes the :math:`L_p` distance between two profiles.
     Use 'inf' for infinity norm.
     Assumes both elections share the same candidates.
