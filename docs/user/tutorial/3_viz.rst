@@ -12,7 +12,8 @@ VoteKit comes with some summary statistics built in for analyzing
 ballots. For this, we will introduce the **Impartial Culture** and
 **Impartial Anonymous Culture** models of ballot generation, which are
 frequently used in social choice scholarly literature, even though they
-are far less realistic and flexible than the models we ran above!
+are far less realistic and flexible than the models we ran in previous
+sections!
 
 Impartial Culture (IC) is essentially the :math:`\alpha=\infty` extreme
 of the family of Dirichlet measures `from
@@ -46,22 +47,22 @@ case.
 .. parsed-literal::
 
     IC profile:
-      Ballots Weight
-    (B, A, C)    173
-    (C, B, A)    172
-    (A, C, B)    170
-    (B, C, A)    170
-    (C, A, B)    162
-    (A, B, C)    153
+      Ranking Scores Weight
+    (A, C, B)     ()    203
+    (C, B, A)     ()    182
+    (B, C, A)     ()    168
+    (B, A, C)     ()    157
+    (A, B, C)     ()    149
+    (C, A, B)     ()    141
     
     IAC profile:
-      Ballots Weight
-    (B, C, A)    388
-    (B, A, C)    254
-    (A, B, C)    135
-    (A, C, B)    103
-    (C, A, B)     62
-    (C, B, A)     58
+      Ranking Scores Weight
+    (A, C, B)     ()    378
+    (C, B, A)     ()    197
+    (B, A, C)     ()    144
+    (A, B, C)     ()    140
+    (C, A, B)     ()    123
+    (B, C, A)     ()     18
 
 
 Now we’ll plot some summary statistics for the generated elections.
@@ -105,7 +106,7 @@ Now we’ll plot some summary statistics for the generated elections.
 Pairwise Comparison Graph
 -------------------------
 
-The pairwise comparison graph is used for examining head to head
+The pairwise comparison graph is used for examining head-to-head
 contests. Each vertex of the graph is a candidate. If there is an edge
 going from :math:`A` to :math:`B`, that means :math:`A` is preferred to
 :math:`B` more times in the profile. The weight on the edge is the
@@ -143,23 +144,23 @@ times :math:`B` is preferred to :math:`A`.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 97 rows.
-             Ballots Weight
-    (W1, W2, C2, C1)     73
-            (W1, W2)     70
-    (W1, W2, C1, C2)     62
-               (W1,)     58
-        (W1, W2, C2)     44
-    (W1, C2, W2, C1)     40
-    (W1, C2, C1, W2)     34
-            (W2, W1)     32
-        (W1, C2, W2)     26
-        (W1, W2, C1)     25
-    (W2, W1, C2, C1)     23
-    (C2, W2, W1, C1)     23
-    (W2, W1, C1, C2)     22
-    (W1, C1, C2, W2)     21
-        (W2, W1, C1)     21
+    PreferenceProfile too long, only showing 15 out of 78 rows.
+             Ranking Scores Weight
+    (W1, W2, C1, C2)     ()     91
+            (W1, W2)     ()     72
+        (W1, W2, C1)     ()     58
+    (C1, C2, W2, W1)     ()     47
+               (W1,)     ()     47
+    (W1, W2, C2, C1)     ()     45
+    (W2, W1, C1, C2)     ()     44
+    (W1, C1, W2, C2)     ()     39
+    (C1, W2, W1, C2)     ()     31
+            (W2, W1)     ()     31
+        (W1, C1, W2)     ()     30
+    (W1, C1, C2, W2)     ()     30
+    (W1, C2, W2, C1)     ()     30
+        (W2, W1, C1)     ()     23
+            (C1, C2)     ()     22
 
 
 
@@ -189,7 +190,7 @@ that beats every lower-tier candidate in a head-to-head comparison.
 
 .. parsed-literal::
 
-    tiers: [{'W1'}, {'W2'}, {'C2'}, {'C1'}]
+    tiers: [{'W1'}, {'W2'}, {'C1'}, {'C2'}]
     The Condorcet candidate is: W1
 
 
@@ -302,10 +303,10 @@ styles of ranking. This is encouraging!
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
 
-   Increase the size of each profile to 1000 ballots instead of 100;
-   then there’s more opportunity for the differences between PL and BT
-   to emerge. Make the preference intervals more similar or more
-   different; the picture will change accordingly.
+   Increase the size of each profile to 1000 ballots instead of 10; then
+   there’s more opportunity for the differences between PL and BT to
+   emerge. Make the preference intervals more similar or more different;
+   the picture will change accordingly.
 
 Ballot Graph
 ------------
@@ -427,13 +428,13 @@ Now let’s generate a ballot graph from election data.
 
 .. parsed-literal::
 
-      Ballots Weight
-    (C, B, A)    772
-    (C, A, B)    121
-    (B, C, A)     48
-    (A, C, B)     47
-    (A, B, C)      8
-    (B, A, C)      4
+      Ranking Scores Weight
+    (A, B, C)     ()    327
+    (B, C, A)     ()    269
+    (A, C, B)     ()    168
+    (C, A, B)     ()    113
+    (C, B, A)     ()    107
+    (B, A, C)     ()     16
 
 
 
@@ -443,14 +444,14 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(4, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(48, 1), 'cast': True}
+    (1, 2, 3) {'weight': Fraction(327, 1), 'cast': True}
+    (1, 3, 2) {'weight': Fraction(168, 1), 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(47, 1), 'cast': True}
-    (2, 1, 3) {'weight': Fraction(8, 1), 'cast': True}
+    (2, 3, 1) {'weight': Fraction(269, 1), 'cast': True}
+    (2, 1, 3) {'weight': Fraction(16, 1), 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(772, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(121, 1), 'cast': True}
+    (3, 1, 2) {'weight': Fraction(113, 1), 'cast': True}
+    (3, 2, 1) {'weight': Fraction(107, 1), 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -526,7 +527,7 @@ and place it in your working directory (the same folder as your code).
     
     # the load_scottish function returns a tuple of information:
     # the first element is the profile itself, the second is the number of seats in the election
-    # the third is a list of candidates, the fourth a dictionary mapping candidatess to parties,
+    # the third is a list of candidates, the fourth a dictionary mapping candidates to parties,
     # and the fourth the ward name
     scottish_profile, seats, cand_list, cand_to_party, ward = load_scottish("eilean_siar_2012_ward3.csv")
     
@@ -544,27 +545,27 @@ and place it in your working directory (the same folder as your code).
 .. parsed-literal::
 
     PreferenceProfile too long, only showing 15 out of 57 rows.
-                                                                          Ballots Weight
-                                                           (Catherine Macdonald,)    155
-                (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson)     74
-                                      (Catherine Macdonald, Philip Robert Mclean)     63
-                                                (Catherine Macdonald, D J Macrae)     52
-                                     (Philip Robert Mclean, David Cameron Wilson)     48
-                                      (Philip Robert Mclean, Catherine Macdonald)     36
-                (Philip Robert Mclean, David Cameron Wilson, Catherine Macdonald)     31
-                          (Catherine Macdonald, D J Macrae, Philip Robert Mclean)     29
-                          (Catherine Macdonald, Philip Robert Mclean, D J Macrae)     27
-                                                          (Philip Robert Mclean,)     24
-    (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson, D J Macrae)     22
-                                                (D J Macrae, Catherine Macdonald)     18
-    (Catherine Macdonald, D J Macrae, Philip Robert Mclean, David Cameron Wilson)     17
-                (Philip Robert Mclean, Catherine Macdonald, David Cameron Wilson)     17
-                          (Catherine Macdonald, D J Macrae, David Cameron Wilson)     15
+                                                                          Ranking Scores Weight
+                                                           (Catherine Macdonald,)     ()    155
+                (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson)     ()     74
+                                      (Catherine Macdonald, Philip Robert Mclean)     ()     63
+                                                (Catherine Macdonald, D J Macrae)     ()     52
+                                     (Philip Robert Mclean, David Cameron Wilson)     ()     48
+                                      (Philip Robert Mclean, Catherine Macdonald)     ()     36
+                (Philip Robert Mclean, David Cameron Wilson, Catherine Macdonald)     ()     31
+                          (Catherine Macdonald, D J Macrae, Philip Robert Mclean)     ()     29
+                          (Catherine Macdonald, Philip Robert Mclean, D J Macrae)     ()     27
+                                                          (Philip Robert Mclean,)     ()     24
+    (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson, D J Macrae)     ()     22
+                                                (D J Macrae, Catherine Macdonald)     ()     18
+    (Catherine Macdonald, D J Macrae, Philip Robert Mclean, David Cameron Wilson)     ()     17
+                (Philip Robert Mclean, Catherine Macdonald, David Cameron Wilson)     ()     17
+                          (Catherine Macdonald, D J Macrae, David Cameron Wilson)     ()     15
     The candidates are labeled as follows.
-    1 David Cameron Wilson
-    2 Catherine Macdonald
-    3 D J Macrae
-    4 Philip Robert Mclean
+    1 Catherine Macdonald
+    2 D J Macrae
+    3 Philip Robert Mclean
+    4 David Cameron Wilson
 
 
 
@@ -594,10 +595,10 @@ you want to display the node.
 
     Displaying missing ballots:
     The candidates are labeled as follows.
-    1 David Cameron Wilson
-    2 Catherine Macdonald
-    3 D J Macrae
-    4 Philip Robert Mclean
+    1 Catherine Macdonald
+    2 D J Macrae
+    3 Philip Robert Mclean
+    4 David Cameron Wilson
 
 
 

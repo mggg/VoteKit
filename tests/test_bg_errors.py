@@ -1,6 +1,12 @@
 import pytest
+import numpy as np
 
-from votekit.ballot_generator import name_PlackettLuce, CambridgeSampler
+from votekit.ballot_generator import (
+    name_PlackettLuce,
+    CambridgeSampler,
+    Spatial,
+    ClusteredSpatial,
+)
 
 from votekit.pref_interval import PreferenceInterval
 
@@ -102,4 +108,99 @@ def test_Cambridge_maj_bloc_error():
             cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
             W_bloc="A",
             C_bloc="A",
+        )
+
+
+def test_spatial_generator():
+    candidates = [str(i) for i in range(25)]
+    uniform_params = {"low": 0, "high": 1, "size": 2}
+    normal_params = {"loc": 0.5, "scale": 0.1, "size": 2}
+
+    def bad_dist(x, y, z):
+        return x + y + z
+
+    with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
+        Spatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=uniform_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
+        )
+
+    with pytest.raises(
+        TypeError, match="Invalid kwargs for the candidate distribution."
+    ):
+        Spatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=normal_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=uniform_params,
+        )
+
+    with pytest.raises(
+        TypeError,
+        match="Distance function is invalid or "
+        "incompatible with voter/candidate distributions.",
+    ):
+        Spatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=normal_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
+            distance=bad_dist,
+        )
+
+
+def test_clustered_spatial_generator():
+    candidates = [str(i) for i in range(25)]
+    uniform_params = {"low": 0, "high": 1, "size": 2}
+    normal_params = {"loc": 0.5, "scale": 0.1, "size": 2}
+
+    def bad_dist(x, y, z):
+        return x + y + z
+
+    with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
+        ClusteredSpatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=uniform_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
+        )
+
+    with pytest.raises(
+        TypeError, match="Invalid kwargs for the candidate distribution."
+    ):
+        ClusteredSpatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=normal_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=uniform_params,
+        )
+
+    with pytest.raises(
+        TypeError,
+        match="Distance function is invalid or "
+        "incompatible with voter/candidate distributions.",
+    ):
+        ClusteredSpatial(
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=normal_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
+            distance=bad_dist,
+        )
+
+    with pytest.raises(ValueError, match="Input voter distribution not supported."):
+        ClusteredSpatial(
+            candidates=candidates,
+            voter_dist=np.random.uniform,
+            voter_dist_kwargs=normal_params,
+            candidate_dist=np.random.normal,
+            candidate_dist_kwargs=normal_params,
         )

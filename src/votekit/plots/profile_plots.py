@@ -34,7 +34,7 @@ def plot_summary_stats(
 
     fig, ax = plt.subplots()
 
-    candidates = profile.get_candidates(received_votes=False)
+    candidates = profile.candidates
     y_data = [data[c] for c in candidates]
 
     ax.bar(candidates, y_data, color=colors, width=0.35)

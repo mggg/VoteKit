@@ -24,14 +24,14 @@ def test_IC_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = ic.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
-    assert profile.num_ballots() == 100
+    assert profile.total_ballot_wt == 100
 
 
 def test_IAC_completion():
     iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = iac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
-    assert profile.num_ballots() == 100
+    assert profile.total_ballot_wt == 100
 
 
 def test_NPL_completion():
@@ -59,7 +59,7 @@ def test_NPL_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_name_Cumulative_completion():
@@ -88,7 +88,7 @@ def test_name_Cumulative_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_NBT_completion():
@@ -116,7 +116,7 @@ def test_NBT_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_SPL_completion():
@@ -145,7 +145,7 @@ def test_SPL_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_SPL_completion_zero_cand():
@@ -177,7 +177,7 @@ def test_SPL_completion_zero_cand():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_SBT_completion_zero_cand():
@@ -209,7 +209,7 @@ def test_SBT_completion_zero_cand():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_SBT_completion():
@@ -238,7 +238,7 @@ def test_SBT_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_AC_completion():
@@ -260,14 +260,14 @@ def test_AC_completion():
     )
     profile = ac.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
-    assert profile.num_ballots() == 100
+    assert profile.total_ballot_wt == 100
 
 
 def test_1D_completion():
     ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"])
     profile = ods.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
-    assert profile.num_ballots() == 100
+    assert profile.total_ballot_wt == 100
 
 
 def test_Cambridge_completion():
@@ -296,7 +296,7 @@ def test_Cambridge_completion():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_Cambridge_completion_W_C_bloc():
@@ -328,7 +328,7 @@ def test_Cambridge_completion_W_C_bloc():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
     # W as minority
     cs = CambridgeSampler(
@@ -358,7 +358,7 @@ def test_Cambridge_completion_W_C_bloc():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.num_ballots() == 100
+    assert agg_prof.total_ballot_wt == 100
 
 
 def test_ballot_simplex_from_point():
@@ -370,7 +370,7 @@ def test_ballot_simplex_from_point():
     ).generate_profile(number_of_ballots=10)
     # Test
     assert isinstance(generated_profile, PreferenceProfile)
-    assert generated_profile.num_ballots() == 10
+    assert generated_profile.total_ballot_wt == 10
 
 
 def test_ballot_simplex_from_alpha():
@@ -380,4 +380,4 @@ def test_ballot_simplex_from_alpha():
     generated_profile = BallotSimplex.from_alpha(
         alpha=0, candidates=candidates
     ).generate_profile(number_of_ballots=number_of_ballots)
-    assert generated_profile.num_ballots() == 100
+    assert generated_profile.total_ballot_wt == 100

@@ -46,7 +46,7 @@ def lp_dist(
     pp2: PreferenceProfile,
     p_value: Optional[Union[int, str]] = 1,
 ) -> int:
-    """
+    r"""
     Computes the :math:`L_p` distance between two profiles.
     Use 'inf' for infinity norm.
     Assumes both elections share the same candidates.
@@ -98,7 +98,7 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     cast_ballots: list = []
     profile_dicts: list[dict] = []
     for pp in profiles:
-        election_dict = pp.to_dict(standardize=True)
+        election_dict = pp.to_ranking_dict(standardize=True)
         profile_dicts.append(election_dict)
         for key in election_dict.keys():
             if key not in cast_ballots:
@@ -126,8 +126,8 @@ def em_array(pp: PreferenceProfile) -> list:
         list: Distribution of ballots for the profile.
     """
     ballot_graph = BallotGraph(source=pp)
-    node_cand_map = ballot_graph.label_cands(sorted(pp.get_candidates()))
-    pp_dict = pp.to_dict(True)
+    node_cand_map = ballot_graph.label_cands(sorted(pp.candidates))
+    pp_dict = pp.to_ranking_dict(True)
 
     # invert node_cand_map to map to pp_dict
     # split is used to remove the custom labeling from the ballotgraph
@@ -136,7 +136,12 @@ def em_array(pp: PreferenceProfile) -> list:
 
     # map nodes with weight of corresponding rank
     # labels on ballotgraph are strings so need to convert key to string
-    node_pp_dict = {inverted[str(key)]: pp_dict[key] for key in pp_dict}
+    formatted_pp_dict = {
+        tuple(next(iter(item)) for item in k): v for k, v in pp_dict.items()
+    }
+    node_pp_dict = {
+        inverted[str(ranking)]: weight for ranking, weight in formatted_pp_dict.items()
+    }
 
     complete_election_dict = combined_dict | node_pp_dict
     elect_distr = [
@@ -145,3 +150,7 @@ def em_array(pp: PreferenceProfile) -> list:
     ]
 
     return elect_distr
+
+
+def euclidean_dist(point1: np.ndarray, point2: np.ndarray) -> float:
+    return float(np.linalg.norm(point1 - point2, ord=2))

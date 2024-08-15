@@ -1,4 +1,3 @@
-from copy import deepcopy
 from fractions import Fraction
 from functools import reduce
 from itertools import groupby
@@ -24,11 +23,9 @@ def remove_empty_ballots(
         PreferenceProfile: A cleaned PreferenceProfile.
     """
 
-    ballots_nonempty = [
-        deepcopy(ballot) for ballot in pp.get_ballots() if ballot.ranking
-    ]
+    ballots_nonempty = tuple([ballot for ballot in pp.ballots if ballot.ranking])
     if keep_candidates:
-        old_cands = deepcopy(pp.get_candidates())
+        old_cands = pp.candidates
         pp_clean = PreferenceProfile(ballots=ballots_nonempty, candidates=old_cands)
     else:
         pp_clean = PreferenceProfile(ballots=ballots_nonempty)
@@ -60,7 +57,7 @@ def clean_profile(
         for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
     ]
     # merge ballots in the same groups
-    new_ballots = [merge_ballots(b) for b in grouped_ballots]
+    new_ballots = tuple([merge_ballots(b) for b in grouped_ballots])
     return PreferenceProfile(ballots=new_ballots)
 
 
@@ -107,6 +104,8 @@ def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
         Returns:
             Ballot: a ballot without duplicates.
         """
+        if not ballot.ranking:
+            raise TypeError("Ballots must have rankings.")
         ranking = ballot.ranking
         dedup_ranking = []
         for cand in ranking:
@@ -151,7 +150,8 @@ def remove_noncands(
             Ballot: returns a cleaned Ballot.
         """
         # TODO: adjust so string and list of strings are acceptable inputes
-
+        if not ballot.ranking:
+            raise TypeError("Ballot must have ranking.")
         to_remove = []
         for item in non_cands:
             to_remove.append({item})
@@ -181,5 +181,5 @@ def remove_noncands(
         for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
     ]
     # merge ballots in the same groups
-    new_ballots = [merge_ballots(b) for b in grouped_ballots]
+    new_ballots = tuple([merge_ballots(b) for b in grouped_ballots])
     return PreferenceProfile(ballots=new_ballots)

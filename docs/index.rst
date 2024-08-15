@@ -41,6 +41,7 @@ repository, where `bug reports and feature requests`_, as well as
    user/tutorial/2_real_and_simulated_profiles
    user/tutorial/3_viz
    user/tutorial/4_election_systems
+   user/tutorial/5_score_based
 
 .. toctree::
     :caption: Social Choice Reference
