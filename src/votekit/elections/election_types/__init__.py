@@ -10,6 +10,9 @@ from .ranking import (  # noqa
     SequentialRCV,
     CondoBorda,
     TopTwo,
+    PluralityVeto,
+    RandomDictator,
+    BoostedRandomDictator,
 )
 
 

@@ -59,6 +59,8 @@ COB = TypeVar("COB", PreferenceProfile, tuple[Ballot, ...], Ballot)
 def remove_cand(
     removed: Union[str, list],
     profile_or_ballots: COB,
+    condense: bool = True,
+    leave_zero_weight_ballots: bool = False,
 ) -> COB:
     """
     Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
@@ -69,6 +71,9 @@ def remove_cand(
         removed (Union[str, list]): Candidate or list of candidates to be removed.
         profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
             of ballots to remove candidates from.
+        condense (bool, optional): Whether or not to return a condensed profile. Defaults to True.
+        leave_zero_weight_ballots (bool, optional): Whether or not to leave ballots with zero
+            weight in the PreferenceProfile. Defaults to False.
 
     Returns:
         Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
@@ -79,7 +84,7 @@ def remove_cand(
 
     # map to tuple of ballots
     if isinstance(profile_or_ballots, PreferenceProfile):
-        ballots = profile_or_ballots.condense_ballots().ballots
+        ballots = profile_or_ballots.ballots
     elif isinstance(profile_or_ballots, Ballot):
         ballots = (profile_or_ballots,)
     else:
@@ -121,26 +126,57 @@ def remove_cand(
 
     # return matching input data type
     if isinstance(profile_or_ballots, PreferenceProfile):
-        # easiest way to condense ballots
         clean_profile = PreferenceProfile(
             ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
             candidates=tuple(
                 [c for c in profile_or_ballots.candidates if c not in removed]
             ),
-        ).condense_ballots()
+        )
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+                candidates=tuple(
+                    [c for c in profile_or_ballots.candidates if c not in removed]
+                ),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
 
         return cast(COB, clean_profile)
+
     elif isinstance(profile_or_ballots, Ballot):
-        # easiest way to condense ballots
-        clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
-        ).condense_ballots()
+        clean_profile = None
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+            )
+        else:
+            clean_profile = PreferenceProfile(
+                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
+
         return cast(COB, clean_profile.ballots[0])
     else:
-        # easiest way to condense ballots
-        clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
-        ).condense_ballots()
+        clean_profile = None
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+            )
+        else:
+            clean_profile = PreferenceProfile(
+                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
+
         return cast(COB, clean_profile.ballots)
 
 
@@ -320,7 +356,7 @@ def borda_scores(
     profile: PreferenceProfile,
     to_float: bool = False,
 ) -> Union[dict[str, Fraction], dict[str, float]]:
-    """
+    r"""
     Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is :math:`(n,n-1,\dots,1)`
     where :math:`n` is the number of candidates.
 

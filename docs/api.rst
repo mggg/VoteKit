@@ -66,6 +66,10 @@ Ranking-based
     :members:
     :show-inheritance:
 
+.. automodule:: votekit.elections.election_types.ranking.boosted_random_dictator
+    :members:
+    :show-inheritance:
+
 .. automodule:: votekit.elections.election_types.ranking.condo_borda
     :members:
     :show-inheritance:
@@ -74,7 +78,15 @@ Ranking-based
     :members:
     :show-inheritance:
 
+.. automodule:: votekit.elections.election_types.ranking.plurality_veto
+    :members:
+    :show-inheritance:
+
 .. automodule:: votekit.elections.election_types.ranking.plurality
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.random_dictator
     :members:
     :show-inheritance:
 

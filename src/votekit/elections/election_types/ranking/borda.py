@@ -13,7 +13,7 @@ from functools import partial
 
 
 class Borda(RankingElection):
-    """
+    r"""
     Borda election. Positional voting system that assigns a decreasing number of points to
     candidates based on their ordering. The conventional score vector is :math:`(n, n-1, \dots, 1)`
     where :math:`n` is the number of candidates. Candidates with the highest scores are elected.
