@@ -157,7 +157,7 @@ class Rating(GeneralRating):
 
 
 class Limited(GeneralRating):
-    """
+    r"""
     Voters can score each candidate, but have a total budget of :math:`k\le m` points.
     Winners are those with highest total score.
 
