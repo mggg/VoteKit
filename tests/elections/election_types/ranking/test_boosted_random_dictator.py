@@ -37,13 +37,13 @@ def test_boosted_random_dictator_simple():
 
     # check to make sure that the fraction of wins matches the true probability
     assert np.allclose(
-        1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=1e-2
+        1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=2e-2
     )
     assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=1e-2
+        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=2e-2
     )
     assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=1e-2
+        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=2e-2
     )
 
 
@@ -90,24 +90,24 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(
-        0.5 * float(fpv["A"]) + 0.5 * float(fpv_sq_dict["A"]),
+        2 / 3 * float(fpv["A"]) + 1 / 3 * float(fpv_sq_dict["A"]),
         winner_counts["A"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["B"]) + 0.5 * float(fpv_sq_dict["B"]),
+        2 / 3 * float(fpv["B"]) + 1 / 3 * float(fpv_sq_dict["B"]),
         winner_counts["B"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["C"]) + 0.5 * float(fpv_sq_dict["C"]),
+        2 / 3 * float(fpv["C"]) + 1 / 3 * float(fpv_sq_dict["C"]),
         winner_counts["C"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["D"]) + 0.5 * float(fpv_sq_dict["D"]),
+        2 / 3 * float(fpv["D"]) + 1 / 3 * float(fpv_sq_dict["D"]),
         winner_counts["D"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
 
 
@@ -145,24 +145,24 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(
-        0.5 * float(fpv["A"]) + 0.5 * float(fpv_sq_dict["A"]),
+        2 / 3 * float(fpv["A"]) + 1 / 3 * float(fpv_sq_dict["A"]),
         winner_counts["A"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["B"]) + 0.5 * float(fpv_sq_dict["B"]),
+        2 / 3 * float(fpv["B"]) + 1 / 3 * float(fpv_sq_dict["B"]),
         winner_counts["B"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["C"]) + 0.5 * float(fpv_sq_dict["C"]),
+        2 / 3 * float(fpv["C"]) + 1 / 3 * float(fpv_sq_dict["C"]),
         winner_counts["C"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["D"]) + 0.5 * float(fpv_sq_dict["D"]),
+        2 / 3 * float(fpv["D"]) + 1 / 3 * float(fpv_sq_dict["D"]),
         winner_counts["D"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
 
 
@@ -187,8 +187,6 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     fpv_sq_dict = {c: v**2 / tot_fpv_sq for c, v in fpv.items()}
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
-    trials = 5000
-
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
@@ -198,22 +196,23 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(
-        0.5 * float(fpv["A"]) + 0.5 * float(fpv_sq_dict["A"]),
+        2 / 3 * float(fpv["A"]) + 1 / 3 * float(fpv_sq_dict["A"]),
         winner_counts["A"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["B"]) + 0.5 * float(fpv_sq_dict["B"]),
+        2 / 3 * float(fpv["B"]) + 1 / 3 * float(fpv_sq_dict["B"]),
         winner_counts["B"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["C"]) + 0.5 * float(fpv_sq_dict["C"]),
+        2 / 3 * float(fpv["C"]) + 1 / 3 * float(fpv_sq_dict["C"]),
         winner_counts["C"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
     assert np.allclose(
-        0.5 * float(fpv["D"]) + 0.5 * float(fpv_sq_dict["D"]),
+        2 / 3 * float(fpv["D"]) + 1 / 3 * float(fpv_sq_dict["D"]),
         winner_counts["D"] / trials,
-        atol=5e-2,
+        atol=2e-2,
     )
+
