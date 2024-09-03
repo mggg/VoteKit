@@ -289,7 +289,7 @@ project.
     spatial models have been argued to perform adequately to model roll
     call voting in Congress, their efficacy for selecting political
     representation is debatable. In a meta-analysis of 163 papers
-    [@GuideExperiments], the authors report that Impartial Culture and
+    [@boehmer2024guidenumericalexperimentselections], the authors report that Impartial Culture and
     Euclidean (spatial) models make up more than $75\%$ of the election
     experiments found in 163 papers.
 
