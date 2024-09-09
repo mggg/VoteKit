@@ -198,7 +198,7 @@ elections [@RCV-Cruncher; @Scot-Elex]. Previously, the use of real data
 in election research was often extremely limited; for instance, a recent
 survey reports that the single most popular "real-life\" dataset has
 been a survey of 5000 respondents' sushi preferences
-[@GuideExperiments].
+[@boehmer2024guidenumericalexperimentselections].
 
 # Projects
 
@@ -274,7 +274,7 @@ project.
     including the widely used collection of ranked data called PrefLib
     [@ComSoc]. See also the materials provided by FairVote, including
     their DataVerse and GitHub [@RCV-Cruncher]. The ArXiV preprint
-    [@GuideExperiments] provides an impressively comprehensive list of
+    [@boehmer2024guidenumericalexperimentselections] provides an impressively comprehensive list of
     numerical experiments on elections. The PRAGMA Project
     (<https://perma.cc/2P6V-8ZER>) echoes our statement of need, noting
     that the current literature and software falls short in practical
