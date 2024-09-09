@@ -72,7 +72,7 @@ Users can:
 
 # Statement of need
 
-Social choice theory grew out of welfare economics in the mid-twentieth
+<!-- Social choice theory grew out of welfare economics in the mid-twentieth
 century and has been recognized as a deep and highly applicable area of
 economic theory, forming part of the basis for at least four Nobel Prize
 awards.[^2] Since the 1990s, a new fusion of economics and computer
@@ -81,8 +81,10 @@ studying questions of complexity and design and further advancing the
 axiomatic study of elections.[^3] But most of these innovations have
 been highly abstract, and there has been a significant gap in the
 literature---and in the landscape of software---between the theory and
-the practice of democracy.
-
+the practice of democracy. -->
+There has been a significant gap in the
+literature of computational social choice---and in the landscape of software---between 
+the theory and the practice of democracy.
 On the software side, researchers have built a multitude of different
 packages for generating and analyzing elections.[^4] 
 Most packages, to our knowledge, handle just one part of the research arc; for instance, 
@@ -109,7 +111,8 @@ research program to probe the properties of voting rules. Good
 generative models are also essential to advise reformers deciding
 between options in a new locality, as they enable generation of
 synthetic profiles keyed to the scale, demographics, and election specs
-of that specific place. But most of the models in the literature, like
+of that specific place. 
+<!-- But most of the models in the literature, like
 the Impartial Culture model (all permutations of candidates are equally
 likely) or the Impartial Anonymous Culture model (sampling proportional
 to volume measure on the simplex of weighted averages of permutations)
@@ -119,9 +122,9 @@ their words, "None of the 11 models discussed so far are based on the
 belief that the associated distributions \[\...\] might actually
 describe rankings in actual elections\" [@Tideman2010TheSO]. They
 therefore recommend *spatial models* instead, which themselves are of
-dubious realism for the selection of political candidates.[^5]
+dubious realism for the selection of political candidates.[^5] -->
 
-`VoteKit` implements many of the models described in those surveys, as
+`VoteKit` implements many of the models typically used in computational social choice, as
 well as newer mathematical models that give users the ability to
 generate profiles that are designed to comport with real-world ranking
 behavior and particularly to generate polarized elections. Two leading
@@ -208,18 +211,19 @@ the following.
 
 -   A large number of case studies in ranked-choice modeling, such as
     studies for the city councils of Chicago, IL [@chicago_city] and
-    Lowell, MA [@lowell_city]; the state legislatures of Oregon and
-    Washington [@oregon_state; @washington_leg], and a range of county
+    Lowell, MA [@lowell_city].
+     the state legislatures of Oregon and
+    <!-- Washington [@oregon_state; @washington_leg], and a range of county
     commissions and school boards across the Pacific Northwest
-    [@tukwila_school; @chelan_county];
+    [@tukwila_school; @chelan_county]; -->
 
 -   A study modeling the impact of proposed legislation called the Fair
     Representation Act, which would convert U.S. Congressional elections
     to the single transferable vote system [@FairVote];
 
--   A detailed study isolating the impacts of varying hypotheses about
+<!-- -   A detailed study isolating the impacts of varying hypotheses about
     voter behavior and candidate availability on the Massachusetts
-    legislature [@massachusetts_leg];
+    legislature [@massachusetts_leg]; -->
 
 -   A peer-reviewed article for an election law audience on the impact
     of STV elections on minority representation [@Benade2021];
@@ -259,15 +263,15 @@ project.
     [Campaign Legal Center](https://perma.cc/77MM-DCPH),
     [FairVote](https://perma.cc/L66Z-AB4R), and many others.
 
-[^2]: Nobel Laureates with significant work in social choice include
-    Arrow, Sen, Maskin, and Myerson.
+<!-- [^2]: Nobel Laureates with significant work in social choice include
+    Arrow, Sen, Maskin, and Myerson. -->
 
-[^3]: For example, a very active research direction in computational
+<!-- [^3]: For example, a very active research direction in computational
     social choice theory has been the development of fairness axioms for
     approval elections, such as the definition called JR (justified
     representation) and its relatives, which have been extended to
     rankings. See [@aziz2017justified; @skowron2017proportional] and
-    their references.
+    their references. -->
 
 [^4]: See for instance the extensive array of open-source tools on the
     Computational Social Choice (COMSOC) community page [@ComSoc]
@@ -281,7 +285,7 @@ project.
     applicability and that the understanding of real and synthetic data
     is "very limited.\"
 
-[^5]: Spatial models assume voters rank by proximity in a metric space
+<!-- [^5]: Spatial models assume voters rank by proximity in a metric space
     defined by issue positions or other attributes; the metric space may
     be latent, or unknown to voters, but it is presumed to universally
     govern the way voters rank candidates. See for instance [@Burden],
@@ -291,7 +295,7 @@ project.
     representation is debatable. In a meta-analysis of 163 papers
     [@boehmer2024guidenumericalexperimentselections], the authors report that Impartial Culture and
     Euclidean (spatial) models make up more than $75\%$ of the election
-    experiments found in 163 papers.
+    experiments found in 163 papers. -->
 
 [^6]: Our model of the Alaska method is an SNTV/STV hybrid that uses
     single non-transferable vote to choose a set of finalists, then runs
