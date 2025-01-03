@@ -27,14 +27,14 @@ repository, where `bug reports and feature requests`_, as well as
 
 
 .. _`MGGG/VoteKit`: https://github.com/mggg/VoteKit
-.. _`bug reports and feature requests`: https://github.com/mggg/votekit/issues
-.. _`contributions`: https://github.com/mggg/votekit/pulls
+.. _`bug reports and feature requests`: package_info/issues.rst
+.. _`contributions`: package_info/contributing.rst
 
 
 .. include:: user/install.rst
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: VoteKit Tutorial:
 
    user/tutorial/1_intro
@@ -45,21 +45,23 @@ repository, where `bug reports and feature requests`_, as well as
 
 .. toctree::
     :caption: Social Choice Reference
-    :maxdepth: 2
+    :maxdepth: 1
 
     social_choice_docs/scr.rst
     
 
 .. toctree::
-    :caption: API Reference
-    :maxdepth: 2
+    :caption: Package Information 
+    :maxdepth: 1
 
-    api
+    package_info/issues.rst
+    package_info/contributing.rst
+    package_info/api.rst
 
-Indices and tables
-==================
+.. Indices and tables
+.. ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
 
