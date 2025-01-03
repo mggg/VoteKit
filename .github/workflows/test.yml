@@ -23,14 +23,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: install Poetry
       uses: snok/install-poetry@v1.3.3
-    # - name: cache Poetry virtualenv
-    #   uses: actions/cache@v2
-    #   id: cache
-    #   with:
-    #     path: ~/.virtualenvs/
-    #     key: poetry-${{ hashFiles('**/poetry.lock') }}
-    #     restore-keys: |
-    #       poetry-${{ hashFiles('**/poetry.lock') }}
     - name: install dependencies
       run: poetry install
     - name: lint with ruff
@@ -38,4 +30,5 @@ jobs:
     - name: lint with mypy
       run: poetry run mypy src
     - name: pytest
-      run: poetry run pytest
+      run: poetry run pytest 
+      
