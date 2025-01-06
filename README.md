@@ -2,7 +2,7 @@
 
 `VoteKit` is a Swiss army knife for computational social choice research.
 
-**Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Documentation](https://votekit.readthedocs.io/en/latest/) | [Issues](https://github.com/mggg/VoteKit/issues) | [MGGG.org](https://mggg.org/)
+**Helpful links:** [Source Repository](https://github.com/mggg/VoteKit) | [Documentation](https://votekit.readthedocs.io/en/latest/) | [Issues & Feature Requests](https://votekit.readthedocs.io/en/latest/package_info/issues/) | [Contributing](https://votekit.readthedocs.io/en/latest/package_info/contributing/) | [MGGG.org](https://mggg.org/)
 
 
 [![PyPI badge](https://badge.fury.io/py/votekit.svg)](https://badge.fury.io/py/votekit)
@@ -13,9 +13,7 @@ Votekit can be installed through any standard package management tool:
 
     pip install votekit
 
-or
-
-    poetry add votekit
+For more detailed instructions, please see the [installation](https://votekit.readthedocs.io/en/latest/#installation) section of the VoteKit documentation.
 
 ## Example
 
@@ -71,15 +69,7 @@ minn_election.run_election()
                       CYD GORMAN Eliminated      2
              JOHN CHARLES WILSON Eliminated      1
 
-## Development
-*This project is in active development* in the [mggg/VoteKit](https://github.com/mggg/VoteKit) GitHub repository, where bug reports and feature requests, as well as contributions, are welcome.
+## Issues and Contributing
+This project is in active development in the [mggg/VoteKit](https://github.com/mggg/VoteKit) GitHub repository, where [bug reports and feature requests](https://votekit.readthedocs.io/en/latest/package_info/issues/), as well as [contributions](https://votekit.readthedocs.io/en/latest/package_info/contributing/), are welcome.
 
-VoteKit project requires [`poetry`](https://python-poetry.org/docs/#installation), and Python >= 3.9. (This version chosen somewhat arbitrarily.)
 
-To get up and running, run `poetry install` from within the project directory to install all dependencies. This will create a `.venv` directory that will contain dependencies. You can interact with this virtualenv by running your commands prefixed with `poetry run`, or use `poetry shell` to activate the virtualenv.
-
-Once you've run `poetry install`, if you run `poetry run pre-commit install` it will install code linting hooks that will run on every commit. This helps ensure code quality.
-
-To run tests run `poetry run pytest` or `./run_tests.sh` (the latter will generate a coverage report).
-
-To release, run `poetry publish --build`.
