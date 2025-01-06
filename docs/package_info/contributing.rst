@@ -23,12 +23,47 @@ to show you how these work. Depending on the scale of your feature, you may need
 At minimum, your tests should 
 
 - check the basic functionality of your feature, such as a test case of an algorithm or an instantiation of a class, and 
-- ensure that any error messages are correctly raised.
+- ensure that any error messages are correctly raised. As a part of the error messages, it is expected that you try to predict, test for, and handle relevant edge cases. It will not be possible to get all of them, but obvious edge cases should be checked (type errors, empty elements, etc.).
 
 **Documentation**: For any new features that you add, please make sure to include
 a comprehensive docstring. We have a defined format for docstrings that we use
-throughout the `codebase <https://github.com/mggg/VoteKit/blob/main/src/votekit>`_, so please make sure that any additions are consistent
+throughout the `codebase <https://github.com/mggg/VoteKit/blob/main/src/votekit>`_.  This format is a slight riff on the Google Python `style <https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings>`_,
+where we move the first line of the docstring onto its own line. Please make sure that any additions are consistent
 with that format.
+
+Broadly. we write a short description of the function or class.,
+We then list the arguments, their type, whether they are optional, and what the default behavior is if they are optional.
+We then list the return type and a short description of what is being returned.
+
+For example, 
+
+.. code-block:: python
+
+   def remove_cand(
+    removed: Union[str, list],
+    profile_or_ballots: COB,
+    condense: bool = True,
+    leave_zero_weight_ballots: bool = False,
+    ) -> COB:
+    """
+    Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
+    removed from a ballot, lower ranked candidates are moved up.
+    Automatically condenses any ballots that match as result of scrubbing.
+
+    Args:
+        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
+            of ballots to remove candidates from.
+        condense (bool, optional): Whether or not to return a condensed profile. Defaults to True.
+        leave_zero_weight_ballots (bool, optional): Whether or not to leave ballots with zero
+            weight in the PreferenceProfile. Defaults to False.
+
+    Returns:
+        Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
+            Updated collection of ballots with candidate(s) removed.
+    """
+
+
 
 Poetry
 =============
