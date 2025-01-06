@@ -193,7 +193,7 @@ instances of that ballot in the profile. At right, a multidimensional
 scaling (MDS) plot for 160 synthetic profiles made with various
 generative models and candidate strength parameters for two slates of 3
 candidates each. The MDS plot is a low-distortion planar embedding of
-those 160 profiles and their pairwise differences. \label{fig:viz_plots}](./figures/viz_plots.png){width=100%}
+those 160 profiles and their pairwise differences. \label{fig:viz_plots}](./figures/fig_2.png){width=100%}
 
 Finally, `VoteKit` interacts seamlessly with a wide range of actual vote
 data, such as thousands of political elections collected by FairVote and
