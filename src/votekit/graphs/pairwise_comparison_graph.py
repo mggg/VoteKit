@@ -30,12 +30,12 @@ class PairwiseComparisonGraph(Graph):
 
     def __init__(self, profile: PreferenceProfile, ballot_length: Optional[int] = None):
         if ballot_length is None:
-            self.ballot_length = len(profile.get_candidates())
+            self.ballot_length = len(profile.candidates)
         else:
             self.ballot_length = ballot_length
         full_profile = self.ballot_fill(profile, self.ballot_length)
         self.profile = full_profile
-        self.candidates = self.profile.get_candidates()
+        self.candidates = self.profile.candidates
         self.pairwise_dict = self.compute_pairwise_dict()
         self.pairwise_graph = self.build_graph()
 
@@ -50,10 +50,12 @@ class PairwiseComparisonGraph(Graph):
         Returns:
             PreferenceProfile: A ``PreferenceProfile`` with incomplete ballots filled in.
         """
-        cand_list = [{cand} for cand in profile.get_candidates()]
+        cand_list = [{cand} for cand in profile.candidates]
         updated_ballot_list = []
 
-        for ballot in profile.get_ballots():
+        for ballot in profile.ballots:
+            if not ballot.ranking:
+                raise TypeError("Ballots must have rankings.")
             if len(ballot.ranking) < ballot_length:
                 missing_cands = [
                     cand for cand in cand_list if cand not in ballot.ranking
@@ -70,7 +72,7 @@ class PairwiseComparisonGraph(Graph):
                     updated_ballot_list.append(updated_ballot)
             else:
                 updated_ballot_list.append(ballot)
-        return PreferenceProfile(ballots=updated_ballot_list)
+        return PreferenceProfile(ballots=tuple(updated_ballot_list))
 
     # Helper functions to make pairwise comparison graph
     def head2head_count(self, cand1: str, cand2: str) -> Fraction:
@@ -86,7 +88,7 @@ class PairwiseComparisonGraph(Graph):
             Fraction: A count of the number of times cand1 is preferred to cand2.
         """
         count = 0
-        ballots_list = self.profile.get_ballots()
+        ballots_list = self.profile.ballots
         for ballot in ballots_list:
             rank_list = ballot.ranking
             for s in rank_list:
@@ -104,8 +106,9 @@ class PairwiseComparisonGraph(Graph):
         cand_b.
 
         Returns:
-            dict: A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is
-            preferred to cand_b.
+            dict:
+                A dictionary with keys = (cand_a, cand_b) and values = frequency cand_a is
+                preferred to cand_b.
         """
         pairwise_dict = {}  # {(cand_a, cand_b): freq cand_a is preferred over cand_b}
         cand_pairs = combinations(self.candidates, 2)
@@ -117,10 +120,18 @@ class PairwiseComparisonGraph(Graph):
                 (cand_b, cand_a): self.head2head_count(cand_b, cand_a),
             }
             max_pair = max(zip(head_2_head_dict.values(), head_2_head_dict.keys()))
-            pairwise_dict[max_pair[1]] = abs(
+            if (
                 self.head2head_count(cand_a, cand_b)
                 - self.head2head_count(cand_b, cand_a)
-            )
+                != 0
+            ):
+                pairwise_dict[max_pair[1]] = abs(
+                    self.head2head_count(cand_a, cand_b)
+                    - self.head2head_count(cand_b, cand_a)
+                )
+            else:
+                pairwise_dict[(cand_a, cand_b)] = Fraction(0)
+                pairwise_dict[(cand_b, cand_a)] = Fraction(0)
 
             ## would display x:y instead of abs(x-y)
             # winner, loser = max_pair[1]
@@ -217,14 +228,13 @@ class PairwiseComparisonGraph(Graph):
             list[set]: A list of dominating tiers.
         """
         beat_set_size_dict = {}
-        for i, cand in enumerate(self.candidates):
+        for cand in self.candidates:
             beat_set = set()
-            for j, other_cand in enumerate(self.candidates):
-                if i != j:
+            for other_cand in self.candidates:
+                if cand != other_cand:
                     if nx.has_path(self.pairwise_graph, cand, other_cand):
                         beat_set.add(other_cand)
             beat_set_size_dict[cand] = len(beat_set)
-
         # We want to return candidates sorted and grouped by beat set size
         tier_dict: dict = {}
         for k, v in beat_set_size_dict.items():
@@ -237,7 +247,7 @@ class PairwiseComparisonGraph(Graph):
 
     def has_condorcet_cycles(self) -> bool:
         """
-        Checks if graph has any condorcet cycles, which we define as any cycle of length
+            Checks if graph has any condorcet cycles, which we define as any cycle of length
             greater than 2 in the graph.
 
         Returns:
@@ -253,7 +263,7 @@ class PairwiseComparisonGraph(Graph):
     @cache
     def get_condorcet_cycles(self) -> list:
         """
-        Returns a list of condorcet cycles in the graph, which we define as any cycle of length
+            Returns a list of condorcet cycles in the graph, which we define as any cycle of length
             greater than 2.
 
         Returns:

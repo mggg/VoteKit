@@ -49,13 +49,13 @@ object.
 
 .. parsed-literal::
 
-      Ballots                                          Weight
-    0              (MARK ANDREW, undervote, undervote)  3864 
-    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)  3309 
-    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)  3031 
-    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)  2502 
-    4             (BETSY HODGES, undervote, undervote)  2212 
-    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)  1831 
+                                               Ranking Scores Weight
+    0              (MARK ANDREW, undervote, undervote)     ()   3864
+    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)     ()   3309
+    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)     ()   3031
+    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)     ()   2502
+    4             (BETSY HODGES, undervote, undervote)     ()   2212
+    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)     ()   1831
 
 
 Note that the ``load_csv`` function automatically condenses the profile.
@@ -66,15 +66,15 @@ previous notebook.
 .. code:: ipython3
 
     print("The list of candidates is")
-    print(minneapolis_profile.get_candidates())
+    print(minneapolis_profile.candidates)
     
-    print(f"There are {len(minneapolis_profile.get_candidates())} candidates.")
+    print(f"There are {len(minneapolis_profile.candidates)} candidates.")
 
 
 .. parsed-literal::
 
     The list of candidates is
-    ['JOHN LESLIE HARTWIG', 'ALICIA K. BENNETT', 'ABDUL M RAHAMAN "THE ROCK"', 'CAPTAIN JACK SPARROW', 'STEPHANIE WOODRUFF', 'JAMES EVERETT', 'JAMES "JIMMY" L. STROUD, JR.', 'DOUG MANN', 'CHRISTOPHER CLARK', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'DON SAMUELS', 'KURTIS W. HANNA', 'overvote', 'MARK ANDREW', 'OLE SAVIOR', 'TONY LANE', 'JAYMIE KELLY', 'MIKE GOULD', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'DAN COHEN', 'CYD GORMAN', 'UWI', 'BILL KAHN', 'RAHN V. WORKCUFF', 'MERRILL ANDERSON', 'CAM WINTON', 'EDMUND BERNARD BRUYERE', 'BETSY HODGES', 'undervote', 'BOB FINE', 'JOHN CHARLES WILSON', 'JEFFREY ALAN WAGNER', 'JOSHUA REA', 'MARK V ANDERSON', 'NEAL BAXTER', 'BOB "AGAIN" CARNEY JR']
+    ('JAMES "JIMMY" L. STROUD, JR.', 'BOB FINE', 'EDMUND BERNARD BRUYERE', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'CHRISTOPHER CLARK', 'ABDUL M RAHAMAN "THE ROCK"', 'JACKIE CHERRYHOMES', 'DON SAMUELS', 'JOSHUA REA', 'MIKE GOULD', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JAMES EVERETT', 'JAYMIE KELLY', 'MARK V ANDERSON', 'undervote', 'DOUG MANN', 'JOHN CHARLES WILSON', 'CAPTAIN JACK SPARROW', 'UWI', 'BILL KAHN', 'TONY LANE', 'MERRILL ANDERSON', 'BOB "AGAIN" CARNEY JR', 'JOHN LESLIE HARTWIG', 'BETSY HODGES', 'DAN COHEN', 'TROY BENJEGERDES', 'STEPHANIE WOODRUFF', 'MARK ANDREW', 'overvote', 'NEAL BAXTER', 'GREGG A. IVERSON', 'OLE SAVIOR', 'KURTIS W. HANNA', 'JEFFREY ALAN WAGNER', 'CAM WINTON')
     There are 38 candidates.
 
 
@@ -100,12 +100,12 @@ be “A B” as well. Many other cleaning options are reasonable.
 
 .. code:: ipython3
 
-    print("There were",len(minneapolis_profile.get_candidates()),"candidates\n")
+    print("There were",len(minneapolis_profile.candidates),"candidates\n")
     
     clean_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
-    print(clean_profile.get_candidates())
+    print(clean_profile.candidates)
     
-    print("\nThere are now",len(clean_profile.get_candidates()),"candidates")
+    print("\nThere are now",len(clean_profile.candidates),"candidates")
     
     print(clean_profile.head(6, percents=True))
 
@@ -114,16 +114,16 @@ be “A B” as well. Many other cleaning options are reasonable.
 
     There were 38 candidates
     
-    ['NEAL BAXTER', 'JAYMIE KELLY', 'MIKE GOULD', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'DAN COHEN', 'JOHN LESLIE HARTWIG', 'ALICIA K. BENNETT', 'CYD GORMAN', 'BILL KAHN', 'RAHN V. WORKCUFF', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'STEPHANIE WOODRUFF', 'EDMUND BERNARD BRUYERE', 'JAMES EVERETT', 'BETSY HODGES', 'JAMES "JIMMY" L. STROUD, JR.', 'DOUG MANN', 'CHRISTOPHER CLARK', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'BOB FINE', 'JOHN CHARLES WILSON', 'DON SAMUELS', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'JOSHUA REA', 'MARK ANDREW', 'OLE SAVIOR', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'TONY LANE', 'BOB "AGAIN" CARNEY JR']
+    ('BILL KAHN', 'TONY LANE', 'BOB FINE', 'MERRILL ANDERSON', 'BOB "AGAIN" CARNEY JR', 'JAMES "JIMMY" L. STROUD, JR.', 'JOHN LESLIE HARTWIG', 'EDMUND BERNARD BRUYERE', 'BETSY HODGES', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'CHRISTOPHER CLARK', 'ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'JOSHUA REA', 'DON SAMUELS', 'MIKE GOULD', 'STEPHANIE WOODRUFF', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JOHN CHARLES WILSON', 'NEAL BAXTER', 'GREGG A. IVERSON', 'OLE SAVIOR', 'JAMES EVERETT', 'KURTIS W. HANNA', 'JAYMIE KELLY', 'MARK V ANDERSON', 'JEFFREY ALAN WAGNER', 'DOUG MANN', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
     
     There are now 35 candidates
-      Ballots                                          Weight Percent
-    0                                   (MARK ANDREW,)  3864   4.87% 
-    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)  3309   4.17% 
-    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)  3031   3.82% 
-    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)  2502   3.15% 
-    4                                  (BETSY HODGES,)  2212   2.79% 
-    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)  1831   2.31% 
+                                               Ranking Scores Weight Percent
+    0                                   (MARK ANDREW,)     ()   3864   4.87%
+    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)     ()   3309   4.17%
+    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)     ()   3031   3.82%
+    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)     ()   2502   3.15%
+    4                                  (BETSY HODGES,)     ()   2212   2.79%
+    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)     ()   1831   2.31%
 
 
 Things look a bit cleaner; all three of the non-candidate strings have
@@ -140,55 +140,47 @@ are equivalent to STV for one seat). Let’s check it out.
 
     # an IRV election for one seat
     minn_election = IRV(profile = clean_profile)
-    minn_election.run_election()
+    print(minn_election)
 
 
 .. parsed-literal::
 
-    Current Round: 35
-
-
-
-
-.. parsed-literal::
-
-                       Candidate     Status  Round
-                    BETSY HODGES    Elected     35
-                     MARK ANDREW Eliminated     34
-                     DON SAMUELS Eliminated     33
-                      CAM WINTON Eliminated     32
-              JACKIE CHERRYHOMES Eliminated     31
-                        BOB FINE Eliminated     30
-                       DAN COHEN Eliminated     29
-              STEPHANIE WOODRUFF Eliminated     28
-                 MARK V ANDERSON Eliminated     27
-                       DOUG MANN Eliminated     26
-                      OLE SAVIOR Eliminated     25
-                   JAMES EVERETT Eliminated     24
-               ALICIA K. BENNETT Eliminated     23
-      ABDUL M RAHAMAN "THE ROCK" Eliminated     22
-            CAPTAIN JACK SPARROW Eliminated     21
-               CHRISTOPHER CLARK Eliminated     20
-                       TONY LANE Eliminated     19
-                    JAYMIE KELLY Eliminated     18
-                      MIKE GOULD Eliminated     17
-                 KURTIS W. HANNA Eliminated     16
-     CHRISTOPHER ROBIN ZIMMERMAN Eliminated     15
-             JEFFREY ALAN WAGNER Eliminated     14
-                     NEAL BAXTER Eliminated     13
-                TROY BENJEGERDES Eliminated     12
-                GREGG A. IVERSON Eliminated     11
-                MERRILL ANDERSON Eliminated     10
-                      JOSHUA REA Eliminated      9
-                       BILL KAHN Eliminated      8
-             JOHN LESLIE HARTWIG Eliminated      7
-          EDMUND BERNARD BRUYERE Eliminated      6
-    JAMES "JIMMY" L. STROUD, JR. Eliminated      5
-                RAHN V. WORKCUFF Eliminated      4
-           BOB "AGAIN" CARNEY JR Eliminated      3
-                      CYD GORMAN Eliminated      2
-             JOHN CHARLES WILSON Eliminated      1
-
+                                      Status  Round
+    BETSY HODGES                     Elected     35
+    MARK ANDREW                   Eliminated     34
+    DON SAMUELS                   Eliminated     33
+    CAM WINTON                    Eliminated     32
+    JACKIE CHERRYHOMES            Eliminated     31
+    BOB FINE                      Eliminated     30
+    DAN COHEN                     Eliminated     29
+    STEPHANIE WOODRUFF            Eliminated     28
+    MARK V ANDERSON               Eliminated     27
+    DOUG MANN                     Eliminated     26
+    OLE SAVIOR                    Eliminated     25
+    JAMES EVERETT                 Eliminated     24
+    ALICIA K. BENNETT             Eliminated     23
+    ABDUL M RAHAMAN "THE ROCK"    Eliminated     22
+    CAPTAIN JACK SPARROW          Eliminated     21
+    CHRISTOPHER CLARK             Eliminated     20
+    TONY LANE                     Eliminated     19
+    JAYMIE KELLY                  Eliminated     18
+    MIKE GOULD                    Eliminated     17
+    KURTIS W. HANNA               Eliminated     16
+    CHRISTOPHER ROBIN ZIMMERMAN   Eliminated     15
+    JEFFREY ALAN WAGNER           Eliminated     14
+    NEAL BAXTER                   Eliminated     13
+    TROY BENJEGERDES              Eliminated     12
+    GREGG A. IVERSON              Eliminated     11
+    MERRILL ANDERSON              Eliminated     10
+    JOSHUA REA                    Eliminated      9
+    BILL KAHN                     Eliminated      8
+    JOHN LESLIE HARTWIG           Eliminated      7
+    EDMUND BERNARD BRUYERE        Eliminated      6
+    JAMES "JIMMY" L. STROUD, JR.  Eliminated      5
+    RAHN V. WORKCUFF              Eliminated      4
+    BOB "AGAIN" CARNEY JR         Eliminated      3
+    CYD GORMAN                    Eliminated      2
+    JOHN CHARLES WILSON           Eliminated      1
 
 
 If you’re so moved, take a moment to `go
@@ -253,26 +245,28 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. parsed-literal::
 
-         Ballots Weight
-    (A, B, Y, X)     57
-    (B, A, Y, X)     16
-    (Y, X, B, A)      9
-    (X, Y, B, A)      5
-    (A, Y, B, X)      4
-    (X, Y, A, B)      3
-    (Y, X, A, B)      3
-    (Y, A, B, X)      2
-    (B, Y, A, X)      1
+         Ranking Scores Weight
+    (A, B, Y, X)     ()     60
+    (A, Y, B, X)     ()     10
+    (B, A, Y, X)     ()     10
+    (Y, X, A, B)     ()      5
+    (Y, X, B, A)     ()      5
+    (X, Y, A, B)     ()      4
+    (X, Y, B, A)     ()      4
+    (X, B, Y, A)     ()      1
+    (X, A, Y, B)     ()      1
 
 
 .. admonition:: A note on s-BT 
     :class: note 
 
-    The probability distribution that s-BT samples from is too cumbersome to compute for 
-    more than 11 candidates. We have implemented a Markov chain Monte Carlo (MCMC)
-    sampling method to account for this. Simply set
-    ``deterministic = False`` in the ``generate_profile`` method to use the
-    MCMC code. The sample size should be increased to ensure mixing of the chain.
+        The probability distribution
+        that s-BT samples from is too cumbersome to compute for more than 12
+        candidates. We have implemented a Markov chain Monte Carlo (MCMC)
+        sampling method to account for this. Simply set
+        ``deterministic = False`` in the ``generate_profile`` method to use the
+        MCMC code. The sample size should be increased to ensure mixing of the
+        chain.
 
 .. code:: ipython3
 
@@ -282,16 +276,16 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. parsed-literal::
 
-         Ballots Weight
-    (A, B, Y, X)     57
-    (B, A, Y, X)     16
-    (Y, X, B, A)      9
-    (X, Y, B, A)      5
-    (A, Y, B, X)      4
-    (X, Y, A, B)      3
-    (Y, X, A, B)      3
-    (Y, A, B, X)      2
-    (B, Y, A, X)      1
+         Ranking Scores Weight
+    (A, B, Y, X)     ()     60
+    (A, Y, B, X)     ()     10
+    (B, A, Y, X)     ()     10
+    (Y, X, A, B)     ()      5
+    (Y, X, B, A)     ()      5
+    (X, Y, A, B)     ()      4
+    (X, Y, B, A)     ()      4
+    (X, B, Y, A)     ()      1
+    (X, A, Y, B)     ()      1
 
 
 Generating Preference Intervals from Hyperparameters
@@ -361,7 +355,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-
+   
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -384,9 +378,9 @@ these change with randomness.
 
 .. parsed-literal::
 
-    Strong preference for one candidate {'A': 0.9407, 'B': 0.0592, 'C': 0.0001}
-    All bets are off preference {'A': 0.5257, 'B': 0.0162, 'C': 0.4582}
-    Uniform preference for all candidates {'A': 0.3208, 'B': 0.3846, 'C': 0.2946}
+    Strong preference for one candidate {'A': 0.0036, 'B': 0.942, 'C': 0.0544}
+    All bets are off preference {'A': 0.3234, 'B': 0.0994, 'C': 0.5772}
+    Uniform preference for all candidates {'A': 0.3159, 'B': 0.3591, 'C': 0.325}
 
 
 Let’s initialize the s-PL model from the Dirichlet distribution, using
@@ -431,24 +425,23 @@ the opposing candidates.
 .. parsed-literal::
 
     Preference interval for X bloc and X candidates
-    {'X1': 0.3711, 'X2': 0.6289}
+    {'X1': 0.4825, 'X2': 0.5175}
     
     Preference interval for X bloc and Y candidates
-    {'Y1': 0.1051, 'Y2': 0.8949}
+    {'Y1': 0.2228, 'Y2': 0.7772}
     
-             Ballots Weight
-    (X2, X1, Y2, Y1)     39
-    (X1, X2, Y2, Y1)     17
-    (X2, X1, Y1, Y2)      4
-    (Y2, X1, X2, Y1)      4
-    (Y2, X2, X1, Y1)      4
-    (X2, Y2, X1, Y1)      3
-    (X1, Y2, X2, Y1)      3
-    (X1, X2, Y1, Y2)      2
-    (Y1, X2, Y2, X1)      1
-    (Y2, X2, Y1, X1)      1
-    (Y2, Y1, X2, X1)      1
-    (X2, Y2, Y1, X1)      1
+             Ranking Scores Weight
+    (X2, X1, Y2, Y1)     ()     29
+    (X1, X2, Y2, Y1)     ()     25
+    (X2, X1, Y1, Y2)     ()      9
+    (X1, X2, Y1, Y2)     ()      4
+    (X2, Y2, X1, Y1)     ()      3
+    (Y2, X2, X1, Y1)     ()      2
+    (Y1, X2, X1, Y2)     ()      2
+    (X2, Y2, Y1, X1)     ()      2
+    (X1, Y2, X2, Y1)     ()      2
+    (Y2, X1, X2, Y1)     ()      1
+    (Y1, X1, X2, Y2)     ()      1
 
 
 Let’s confirm that the intervals and ballots look reasonable. We have
@@ -511,23 +504,23 @@ data.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 277 rows.
-                 Ballots Weight
-                   (W2,)     24
-            (W2, W1, W3)     21
-            (W1, W2, W3)     18
-    (W3, W2, W1, C1, C2)     17
-                   (C1,)     17
-    (W2, W3, W1, C1, C2)     15
-                   (W1,)     15
-                (C1, C2)     14
-            (W2, W3, W1)     14
-                   (W3,)     13
-    (W2, C1, C2, W3, W1)     13
-            (W2, C1, C2)     12
-    (W2, W1, W3, C1, C2)     12
-        (W2, W3, W1, C1)     12
-        (W2, W1, W3, C1)     12
+    PreferenceProfile too long, only showing 15 out of 268 rows.
+                 Ranking Scores Weight
+                   (W2,)     ()     36
+            (W2, W1, W3)     ()     26
+            (W1, W2, W3)     ()     21
+    (W2, W1, W3, C1, C2)     ()     21
+                   (W1,)     ()     17
+                (C1, C2)     ()     17
+                   (C1,)     ()     16
+    (W2, C1, W1, W3, C2)     ()     16
+    (W1, C1, C2, W2, W3)     ()     14
+                   (W3,)     ()     14
+                (W1, W2)     ()     14
+    (W1, W2, W3, C1, C2)     ()     13
+                (W2, W1)     ()     13
+    (C1, C2, W1, W2, W3)     ()     13
+            (W2, W3, W1)     ()     12
 
 
 Note: the ballot type (as in, Ws and Cs) is strictly drawn from the
@@ -542,5 +535,5 @@ Conclusion
 There are many other models of ballot generation in VoteKit, both for
 ranked choice ballots and points based ballots (think cumulative or
 approval voting). See the `ballot
-generator <../../api#Ballot_Generators>`__ section of the VoteKit
+generator <../../api.html#module-votekit.ballot_generator>`__ section of the VoteKit
 documentation for more.

@@ -25,7 +25,7 @@ class BallotGraph(Graph):
 
     Attributes:
         profile (PreferenceProfile): Profile used to create graph, None if not provided.
-        candidates (list[str]): List of candidates, None if not provided.
+        candidates (tuple[str]): Tuple of candidates, None if not provided.
         num_cands (int): Number of candidates.
         num_voters (Fraction): Sum of weights of profile if provided.
         allow_partial (bool, optional): If True, builds graph using all possible ballots,
@@ -53,15 +53,15 @@ class BallotGraph(Graph):
         if isinstance(source, list):
             self.num_cands = len(source)
             self.graph = self.build_graph(len(source))
-            self.candidates = source
+            self.candidates = tuple(source)
 
         if isinstance(source, PreferenceProfile):
             self.profile = source
-            self.num_voters = source.num_ballots()
-            self.num_cands = len(source.get_candidates())
+            self.num_voters = source.total_ballot_wt
+            self.num_cands = len(source.candidates)
             self.allow_partial = True
             if not self.graph:
-                self.graph = self.build_graph(len(source.get_candidates()))
+                self.graph = self.build_graph(len(source.candidates))
             self.graph = self.from_profile(source, fix_short=fix_short)
 
         self.num_voters = sum(self.node_weights.values())
@@ -155,22 +155,25 @@ class BallotGraph(Graph):
 
 
         Returns:
-            networkx.Graph: Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
-                    ballots cast in ``PreferenceProfile``.
+            networkx.Graph:
+                Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
+                ballots cast in ``PreferenceProfile``.
         """
         if not self.profile:
             self.profile = profile
 
         if not self.num_voters:
-            self.num_voters = profile.num_ballots()
+            self.num_voters = profile.total_ballot_wt
 
-        self.candidates = profile.get_candidates()
-        ballots = profile.get_ballots()
-        self.cand_num = self._number_cands(tuple(self.candidates))
+        self.candidates = profile.candidates
+        ballots = profile.ballots
+        self.cand_num = self._number_cands(self.candidates)
         self.node_weights = {ballot: 0 for ballot in self.graph.nodes}
 
         for ballot in ballots:
             ballot_node = []
+            if not ballot.ranking:
+                raise TypeError("Ballots must have rankings.")
             for position in ballot.ranking:
                 if len(position) > 1:
                     raise ValueError(
