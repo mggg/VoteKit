@@ -92,7 +92,8 @@ Most packages, to our knowledge, handle just one part of the research arc; for i
 elections, while `VoteLib` [@votelib] *only* conducts elections.
 Others, like `PrefLibTools` [@preflibtools] and `PrefVoting` [@prefvoting], provide support for generating profiles and conducting single-winner elections.
 Packages with multi-winner capability, like `abcvoting` [@joss-abcvoting] or `Apportionment` [@apportionment], do not support ranked voting.
-To illustrate the gap this leaves, note that single transferable voting (STV), a voting system actually used for political election in six countries, is curiously absent.  `VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
+<!-- To illustrate the gap this leaves,  -->
+Note that single transferable voting (STV), a voting system actually used for political election in six countries, is curiously absent.  `VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
 as well as single- and multi-winner elections, with an emphasis on practical applicability.
 
 
