@@ -8,8 +8,9 @@ The most recent version of VoteKit (as of June 2024) supports
 
 - Python 3.9,
 - Python 3.10,
-- Python 3.11, and
-- Python 3.12.
+- Python 3.11,
+- Python 3.12, and
+- Python 3.13.
 
 If you do not have one of these versions installed on your machine, we
 recommend that you go to the 

@@ -215,4 +215,3 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
         winner_counts["D"] / trials,
         atol=2e-2,
     )
-
