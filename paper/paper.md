@@ -165,7 +165,7 @@ Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
 Figure 1 is reprinted from a report on reform proposals for the chambers of the Washington state legislature, with Systems 0-3 as paired bicameral systems and Systems 4-5 as unicameral solutions.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under these six systems.
 
-![A comparison of a variety of electoral systems and their effect on minority representation in a [case study](https://mggg.org/washington) of reform proposals for the Washington state legislature [@washington_leg].](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
+![A comparison of a variety of electoral systems and their effect on minority representation in a [case study](https://mggg.org/washington) of reform proposals for the Washington state legislature [@washington_leg]. It can be seen that certain systems, like System 0, are projected to be less successful for minority represenation, while other systems, like System 1, tend to secure proportional representation for minorities.](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
 
 ## Area of need: Resources for research
@@ -190,12 +190,12 @@ and candidate strength parameters (shown with symbols), enabling
 comparisons in the style of [@drawing-a-map].
 
 ![At left, the ballot graph for a 3-candidate election. There
-is one node per possible ballot, and the weights show the number of
-instances of that ballot in the profile. At right, a multidimensional
-scaling (MDS) plot for 160 synthetic profiles made with various
+is one node per possible ballot, an edge goes between two ballots if they either differ by one candidate at the end of the ballot, or by swapping two adjacent candidates, and the weights show the number of
+instances of that ballot in the profile. We note that ballots of length 2 are identified with ballots of length 3. At right, a multidimensional
+scaling (MDS) plot for 80 synthetic profiles containing 1000 ballots made with various
 generative models and candidate strength parameters for two slates of 3
 candidates each. The MDS plot is a low-distortion planar embedding of
-those 160 profiles and their pairwise differences. \label{fig:viz_plots}](./figures/fig_2.png){width=100%}
+those 80 profiles and their pairwise differences. This  plot shows that two of the generative models, s-BT and s-PL, are more similar to each other than to either CS model, and that different candidate strength settings cause the models to stratify within themselves. \label{fig:viz_plots}](./figures/fig_2.png){width=100%}
 
 Finally, `VoteKit` interacts seamlessly with a wide range of actual vote
 data, such as thousands of political elections collected by FairVote and
