@@ -15,7 +15,7 @@ STV
 ---
 
 To start, let’s return to the Minneapolis 2013 mayoral race. We first
-saw this in `previous notebooks <2_real_and_simulated_profiles.html>`__.
+saw this in :ref:`previous notebooks<user/tutorial/2_real_and_simulated_profiles:Real-World Data>`.
 As a reminder, this election had 35 named candidates running for one
 seat, and used an IRV election system (which is mathematically
 equivalent to a single-winner STV election) to choose the winner. Voters

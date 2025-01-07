@@ -16,8 +16,8 @@ are far less realistic and flexible than the models we ran in previous
 sections!
 
 Impartial Culture (IC) is essentially the :math:`\alpha=\infty` extreme
-of the family of Dirichlet measures `from
-earlier <2_real_and_simulated_profiles.html#dirichlet-distribution>`__;
+of the family of Dirichlet measures :ref:`from
+earlier<user/tutorial/2_real_and_simulated_profiles:Dirichlet Distribution>`;
 that is, the probability of each ranking is set exactly equal. Impartial
 Anonymous Culture (IAC) is the :math:`\alpha=1` (“all bets are off”)
 case.
@@ -204,8 +204,8 @@ plots, using different notions of distance between
 representation of high-dimensional data that attempts to minimize the
 distortion of the data. VoteKit comes with two kinds of distance
 metrics: earth-mover distance and :math:`L_p` distance. You can read
-about these in the `VoteKit
-documentation <../../social_choice_docs/scr.html#distances-between-preferenceprofiles>`__.
+about these in the :ref:`VoteKit
+documentation<social_choice_docs/scr:Distances between PreferenceProfiles>`.
 
 Let’s explore how an MDS plot can provide a powerful visualization.
 First we will initialize our generators.
