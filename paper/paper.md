@@ -6,30 +6,28 @@ authors:
   - name: Christopher Donnay
     affiliation: 1
   - name: Moon Duchin
-    affiliation: 2
+    affiliation: 1
   - name: Jack Gibson
-    affiliation: 3
+    affiliation: 2
   - name: Zach Glaser
-    affiliation: 3
+    affiliation: 2
   - name: Andrew Hong
-    affiliation: 4
+    affiliation: 3
   - name: Malavika Mukundan
-    affiliation: 5
+    affiliation: 4
   - name: Jennifer Wang
-    affiliation: 6
+    affiliation: 5
 affiliations:
-  - name: The Ohio State University
-    index: 1
   - name: Cornell University
-    index: 2
+    index: 1
   - name: MGGG Redistricting Lab
-    index: 3
+    index: 2
   - name: Stanford University
-    index: 4
+    index: 3
   - name: Boston University
-    index: 5
+    index: 4
   - name: Brown University
-    index: 6
+    index: 5
     
 bibliography: paper.bib
 ---
