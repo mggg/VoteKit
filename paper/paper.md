@@ -70,6 +70,8 @@ Users can:
     visualizations* to compare and analyze profiles and election
     outcomes.
 
+A tutorial that includes step-by-step example code for all of the aforementioned topics can be found in the VoteKit documentation [@VoteKitDocs].
+
 # Statement of need
 
 <!-- Social choice theory grew out of welfare economics in the mid-twentieth
