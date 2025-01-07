@@ -55,6 +55,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
+    "sphinx.ext.autosectionlabel",
     "recommonmark",
 ]
 
@@ -198,3 +199,8 @@ for module in MOCK_MODULES:
 # Prepend the module name of classes.
 add_module_names = True
 autodoc_inherit_docstrings = False
+autosectionlabel_prefix_document = True
+
+suppress_warnings = [
+    "autosectionlabel.*"
+]  # removes warnings about repeated section headers
