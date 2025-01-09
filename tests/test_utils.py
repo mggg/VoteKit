@@ -326,6 +326,41 @@ def test_borda_with_ties():
     assert isinstance(borda["A"], Fraction)
 
 
+def test_borda_short_ballot():
+    true_borda = {
+        "A": Fraction(2),
+        "B": Fraction(2),
+        "C": Fraction(2),
+        "D": Fraction(0),
+    }
+
+    borda = borda_scores(
+        PreferenceProfile(
+            ballots=(Ballot(ranking=({"A"}, {"B"})), Ballot(ranking=({"C"}, {"B"}))),
+            candidates=["A", "B", "C", "D"],
+        )
+    )
+
+    assert borda == true_borda
+
+    true_borda = {
+        "A": Fraction(1),
+        "B": Fraction(0),
+        "C": Fraction(1),
+        "D": Fraction(0),
+    }
+
+    borda = borda_scores(
+        PreferenceProfile(
+            ballots=(Ballot(ranking=({"A"}, {"B"})), Ballot(ranking=({"C"}, {"B"}))),
+            candidates=["A", "B", "C", "D"],
+        ),
+        borda_max=1,
+    )
+
+    assert borda == true_borda
+
+
 def test_borda_errors():
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))

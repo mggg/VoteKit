@@ -354,14 +354,20 @@ def mentions(
 
 def borda_scores(
     profile: PreferenceProfile,
+    borda_max: Optional[int] = None,
     to_float: bool = False,
 ) -> Union[dict[str, Fraction], dict[str, float]]:
-    r"""
-    Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is :math:`(n,n-1,\dots,1)`
-    where :math:`n` is the number of candidates.
+    """
+    Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
+    :math:`(n,n-1,\dots,1, 0,\dots,0)` where :math:`n` is the ``borda_max`.
+    Candidates tied in a position receive an average of the points they would have
+    received had it been untied. Any candidates not listed on a ballot are considered tied in last
+    place (and thus receive an average of any remaining points).
 
     Args:
         profile (PreferenceProfile): ``PreferenceProfile`` of ballots.
+        borda_max (int, optional): The maximum value of the Borda vector. Defaults to
+            the length of the longest allowable ballot in the profile.
         to_float (bool): If True, compute Borda as floats instead of Fractions.
             Defaults to False.
 
@@ -369,7 +375,10 @@ def borda_scores(
         Union[dict[str, Fraction], dict[str, float]]:
             Dictionary mapping candidates to Borda scores.
     """
-    score_vector = list(range(len(profile.candidates), 0, -1))
+    if not borda_max:
+        borda_max = profile.max_ballot_length
+
+    score_vector = list(range(borda_max, 0, -1))
 
     return score_profile_from_rankings(profile, score_vector, to_float)
 
