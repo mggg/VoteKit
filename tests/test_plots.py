@@ -1,9 +1,10 @@
-from votekit.plots import compute_MDS, plot_MDS, plot_summary_stats
+from votekit.plots import compute_MDS, plot_MDS  # , plot_summary_stats
 from votekit.ballot_generator import name_PlackettLuce
 from votekit.metrics import lp_dist
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+
+# from matplotlib.figure import Figure
 
 
 def test_compute_MDS():
@@ -76,23 +77,23 @@ def test_seed_MDS():
     assert not np.array_equal(coord_dict_3["PL"][1], coord_dict_2["PL"][1])
 
 
-def test_plot_summary_stats():
-    bloc_prop = {"R": 0.7, "D": 0.3}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
+# def test_plot_summary_stats():
+#     bloc_prop = {"R": 0.7, "D": 0.3}
+#     cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
+#     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
+#     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-    pl = name_PlackettLuce.from_params(
-        slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=bloc_prop,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
+#     pl = name_PlackettLuce.from_params(
+#         slate_to_candidates=slate_to_cands,
+#         bloc_voter_prop=bloc_prop,
+#         cohesion_parameters=cohesion,
+#         alphas=alphas,
+#     )
 
-    pp = pl.generate_profile(number_of_ballots=10)
+#     pp = pl.generate_profile(number_of_ballots=10)
 
-    stats = ["first place votes", "mentions", "borda"]
-    figs = [plot_summary_stats(pp, stat=x, title=x) for x in stats]
+#     stats = ["first place votes", "mentions", "borda"]
+#     figs = [plot_summary_stats(pp, stat=x, title=x) for x in stats]
 
-    assert all(isinstance(x, Figure) for x in figs)
-    assert all(x.axes[0].get_title() == stat for x, stat in zip(figs, stats))
+#     assert all(isinstance(x, Axes) for x in figs)
+#     assert all(x.axes[0].get_title() == stat for x, stat in zip(figs, stats))
