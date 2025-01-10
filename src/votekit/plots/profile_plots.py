@@ -5,12 +5,43 @@ from matplotlib.axes import Axes
 from typing import Optional, Union, Tuple, Literal
 import matplotlib.patches as mpatches
 from copy import deepcopy
+import warnings
+from matplotlib.legend import Legend
+
+
+def add_null_keys(data: list[dict[str, float]]) -> list[dict[str, float]]:
+    """
+    Prepares list of dictionaries to be passed to ``bar_plot()``. If a key is missing from
+    a dictionary, this function adds the key with value 0.
+
+    Args:
+        data (list[dict[str, float]]): Categorical data to be cleaned. The value of each dict
+            should be the frequency of the key which is the category name.
+
+    Returns:
+        list[dict[str, float]]: Cleaned data.
+    """
+    data = deepcopy(data)
+
+    x_labels = []
+    for data_dict in data:
+        for x_label in data_dict.keys():
+            if x_label not in x_labels:
+                x_labels.append(x_label)
+
+    for x_label in x_labels:
+        for data_dict in data:
+            if x_label not in data_dict:
+                data_dict[x_label] = 0
+
+    return data
 
 
 def _validate_bar_plot_args(
     data: list[dict[str, float]],
     data_set_labels: list[str],
     x_label_ordering: list[str],
+    bar_width: float,
 ):
     """
     Validates bar plot arguments. Raises ValueError.
@@ -20,17 +51,39 @@ def _validate_bar_plot_args(
             should be the frequency of the key which is the category name.
         data_set_labels (list[str], optional): List of labels for data sets. Must be on per data
             set and must be unique.
-        x_label_ordering (list[str]): Ordering of x labels.
+        x_label_ordering (list[str]): Ordering of x labels. Must match data keys.
+        bar_width (float): Width of bars. Must be between 0 and 1/len(data).
 
     """
+    if any(set(data_dict.keys()) != set(data[0].keys()) for data_dict in data):
+        raise ValueError("All data dictionaries must have the same keys.")
+
     if len(set(data_set_labels)) != len(data_set_labels):
-        raise ValueError("Data set labels must be unique.")
+        raise ValueError("Each data set must have a unique label.")
 
     if len(data_set_labels) != len(data):
         raise ValueError("There must be one data set label for each data set.")
 
-    if set(x_label_ordering) != set(k for data_dict in data for k in data_dict.keys()):
-        raise ValueError("x_label_ordering must match the keys of the data.")
+    sym_dif = set(x_label_ordering) ^ set(
+        k for data_dict in data for k in data_dict.keys()
+    )
+    if len(sym_dif) != 0:
+        raise ValueError(
+            (
+                "x_label_ordering must match the keys of the data. Here is the symmetric "
+                f"difference of the two sets: {sym_dif}"
+            )
+        )
+
+    if bar_width <= 0:
+        raise ValueError("Bar width must be positive.")
+
+    elif bar_width > 1 / len(data):
+        warnings.warn(
+            "Bar width must be less than 1. Bar width has now been set to 1.",
+            category=UserWarning,
+        )
+        bar_width = 1 / len(data)
 
 
 def _set_default_bar_plot_args(
@@ -39,8 +92,11 @@ def _set_default_bar_plot_args(
     data_set_to_color: Optional[dict],
     bar_width: Optional[float],
     x_label_ordering: Optional[list[str]],
+    legend_font_size: Optional[float],
     ax: Optional[Axes],
-) -> Tuple[list[dict[str, float]], list[str], dict, float, list[str], Axes]:
+) -> Tuple[
+    list[dict[str, float]], list[str], dict, float, list[str], float, float, Axes
+]:
     """
     Handles setting default arguments.
 
@@ -54,13 +110,14 @@ def _set_default_bar_plot_args(
         bar_width (float, optional): Width of bars, defaults to None which computes the bar width
             as 0.7 divided by the number of data sets.
         x_label_ordering (list[str], optional): Ordering of x labels. Defaults to order retrieved
-            from data dictionary.
+            from first data dictionary.
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes.
 
     Returns:
-        Tuple[list[dict[str, float]], list[str], dict, float, list[str], Axes]: data,
-        data_set_labels, data_set_to_color, bar_width, x_label_ordering, ax
+        Tuple[list[dict[str, float]], list[str], dict, float, list[str], float, float, Axes]: data,
+        data_set_labels, data_set_to_color, bar_width, x_label_ordering, FONT_SIZE,
+        legend_font_size, ax
     """
     if not isinstance(data, list):
         data = [data]
@@ -71,18 +128,32 @@ def _set_default_bar_plot_args(
     if not data_set_to_color:
         data_set_to_color = {d: COLOR_LIST[i] for i, d in enumerate(data_set_labels)}
 
-    if not bar_width:
+    if bar_width is None:
         bar_width = 0.7 / len(data)
-
-    if ax is None:
-        fig, ax = plt.subplots()
+    else:
+        bar_width *= 1 / len(data)
 
     if not x_label_ordering:
-        x_label_ordering = list(
-            set([k for data_dict in data for k in data_dict.keys()])
-        )
+        x_label_ordering = list(data[0].keys())
 
-    return data, data_set_labels, data_set_to_color, bar_width, x_label_ordering, ax
+    FONT_SIZE = len(x_label_ordering) + 10
+
+    if legend_font_size is None:
+        legend_font_size = FONT_SIZE
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(3 * len(x_label_ordering), 6))
+
+    return (
+        data,
+        data_set_labels,
+        data_set_to_color,
+        bar_width,
+        x_label_ordering,
+        FONT_SIZE,
+        legend_font_size,
+        ax,
+    )
 
 
 def _normalize_data(data: dict[str, float]) -> dict[str, float]:
@@ -128,11 +199,6 @@ def _prepare_data_bar_plot(
     if normalize:
         data = [_normalize_data(data_dict) for data_dict in data]
 
-    for x_label in x_label_ordering:
-        for data_dict in data:
-            if x_label not in data_dict:
-                data_dict[x_label] = 0
-
     y_data = [
         [data_dict[x_label] for x_label in x_label_ordering] for data_dict in data
     ]
@@ -147,6 +213,7 @@ def _plot_datasets_on_bar_plot(
     data_set_labels: list[str],
     bar_width: float,
     data_set_to_color: dict,
+    FONT_SIZE: float,
 ) -> Axes:
     """
 
@@ -157,6 +224,7 @@ def _plot_datasets_on_bar_plot(
         data_set_labels (list[str]): List of labels for data sets.
         bar_width (float): Width of bars.
         data_set_to_color (dict): Dictionary mapping data set labels to colors.
+        FONT_SIZE (float): Font size for figure.
 
     Returns:
         Axes: Matplotlib axes containing bar plot.
@@ -188,55 +256,50 @@ def _plot_datasets_on_bar_plot(
                 color=data_set_to_color[data_set_labels[i]],
             )
 
+    ax.tick_params(axis="x", labelsize=FONT_SIZE)
     return ax
 
 
 def _label_bar_plot(
     ax: Axes,
-    normalize: bool,
     x_axis_name: Optional[str],
     y_axis_name: Optional[str],
     title: Optional[str],
+    FONT_SIZE: float,
 ) -> Axes:
     """
     Add x,y axes labels and title to bar plot.
 
     Args:
         ax (Axes): Matplotlib axes containing barplot.
-        normalize (bool): Whether or not to normalize data.
         x_axis_name (str, optional): Name of x-axis.
-        y_axis_name (str, optional): Name of y-axis. Defaults to "Frequency" if
-            ``normalize = True`` or "Density" if ``normalize = False``.
+        y_axis_name (str, optional): Name of y-axis.
         title (str, optional): Title for the figure.
+        FONT_SIZE (float): Font size for figure.
 
     Returns:
         Axes: Labeled bar plot.
 
     """
     if x_axis_name:
-        ax.set_xlabel(x_axis_name)
+        ax.set_xlabel(x_axis_name, fontsize=FONT_SIZE)
     if y_axis_name:
-        ax.set_ylabel(y_axis_name)
-    elif normalize:
-        ax.set_ylabel("Density")
-    else:
-        ax.set_ylabel("Frequency")
-
+        ax.set_ylabel(y_axis_name, fontsize=FONT_SIZE)
     if title:
-        ax.set_title(title)
+        ax.set_title(title, fontsize=FONT_SIZE)
 
     return ax
 
 
-def _add_legend_data_sets_bar_plot(
+def _add_data_sets_legend_bar_plot(
     ax: Axes,
     data_set_labels: list[str],
     data_set_to_color: dict,
-    categories_to_legend_description: Optional[dict[str, str]],
+    categories_legend: Optional[dict[str, str]],
     legend_font_size: float,
-    legend_location: str,
+    legend_loc: str,
     legend_bbox_to_anchor: Tuple[float, float],
-) -> Axes:
+) -> Tuple[Axes, Legend]:
     """
     Add legend to bar plot for data sets.
 
@@ -244,15 +307,15 @@ def _add_legend_data_sets_bar_plot(
         ax (Axes): Matplotlib axes containing barplot.
         data_set_labels (list[str]): Labels for each data set.
         data_set_to_color (dict): Dictionary mapping data set labels to colors.
-        categories_to_legend_description (dict[str, str], optional): Dictionary mapping x-axis
+        categories_legend (dict[str, str], optional): Dictionary mapping x-axis
             categories to description in legend. Defaults to None, in which case legend is just
             x-axis labels.
         legend_font_size (float): The font size to use for the legend.
-        legend_location (str): The location to place the legend.
+        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
         legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
 
     Returns:
-        Axes: Matplotlib axes containing bar plot with legend for data sets.
+        Tuple[Axes, Legend]: Matplotlib axes containing bar plot with legend for data sets.
     """
     proxy_artists = []
 
@@ -263,7 +326,7 @@ def _add_legend_data_sets_bar_plot(
     if proxy_artists:
         leg = ax.legend(
             handles=proxy_artists,
-            loc=legend_location,
+            loc=legend_loc,
             bbox_to_anchor=legend_bbox_to_anchor,
             fontsize=legend_font_size,
             ncol=len(proxy_artists) // 15 + 1,
@@ -271,28 +334,31 @@ def _add_legend_data_sets_bar_plot(
             fancybox=True,
         )
 
-    if categories_to_legend_description:
+    if categories_legend:
         ax.add_artist(leg)
-    return ax
+
+    return ax, leg
 
 
-def _add_legend_x_labels_bar_plot(
+def _add_categories_legend_bar_plot(
     ax: Axes,
-    categories_to_legend_description: dict[str, str],
+    categories_legend: dict[str, str],
     legend_font_size: float,
-    legend_location: str,
+    legend_loc: str,
     legend_bbox_to_anchor: Tuple[float, float],
+    data_set_legend: Optional[Legend],
 ) -> Axes:
     """
     Add legend to bar plot.
 
     Args:
         ax (Axes): Matplotlib axes containing barplot.
-        categories_to_legend_description (dict[str, str]): Dictionary mapping x-axis
-            categories to description in legend
+        categories_legend (dict[str, str]): Dictionary mapping x-axis
+            categories to description in legend.
         legend_font_size (float): The font size to use for the legend.
-        legend_location (str): The location to place the legend.
+        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
         legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
+        data_set_legend (Legend, optional): The data set legend. Defaults to None.
 
 
     Returns:
@@ -300,22 +366,26 @@ def _add_legend_x_labels_bar_plot(
     """
     proxy_artists = []
 
-    for label, description in categories_to_legend_description.items():
+    for label, description in categories_legend.items():
         patch = mpatches.Patch(color="white", label=f"{label}: {description}")
         proxy_artists.append(patch)
 
     if proxy_artists:
-        bbox = ax.legend().get_window_extent()
-        fig = plt.gcf()
-        width = bbox.transformed(fig.transFigure.inverted()).width
-        legend_bbox_to_anchor = (
-            legend_bbox_to_anchor[0] + 1.5 * width,
-            legend_bbox_to_anchor[1],
-        )
+
+        if data_set_legend:
+            bbox = data_set_legend.get_window_extent()
+            fig = plt.gcf()
+            # fig.canvas.draw()
+
+            width = bbox.transformed(fig.transFigure.inverted()).width
+            legend_bbox_to_anchor = (
+                legend_bbox_to_anchor[0] + 1.4 * width,
+                legend_bbox_to_anchor[1],
+            )
 
         ax.legend(
             handles=proxy_artists,
-            loc=legend_location,
+            loc=legend_loc,
             bbox_to_anchor=legend_bbox_to_anchor,
             fontsize=legend_font_size,
             ncol=len(proxy_artists) // 15 + 1,
@@ -339,11 +409,11 @@ def bar_plot(
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
-    legend: bool = False,
-    categories_to_legend_description: Optional[dict[str, str]] = None,
-    legend_font_size: float = 10.0,
-    legend_location: str = "center left",
-    legend_bbox_to_anchor: Tuple[float, float] = (1.03, 0.5),
+    show_data_set_legend: bool = False,
+    categories_legend: Optional[dict[str, str]] = None,
+    legend_font_size: Optional[float] = None,
+    legend_loc: str = "center left",
+    legend_bbox_to_anchor: Tuple[float, float] = (1, 0.5),
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
@@ -352,31 +422,34 @@ def bar_plot(
     Args:
         data (Union[list[dict[str, float]], dict[str, float]]): Categorical data to be plotted.
             If a list of data sets is provided, will plot all data sets on same plot.
-            The value of each dict should be the frequency of the key which is the category name.
+            The value of each dict should be the height of the bar corresponding to the key which
+            is the category name.
         data_set_labels (list[str], optional): List of labels for data sets. Must be one per data
             set and must be unique. Defaults to "Data Set i" for each i.
         data_set_to_color (dict, optional): Dictionary mapping data set labels to colors. Defaults
             to subset of ``COLOR_LIST`` from ``utils`` module.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
-            as 0.7 divided by the number of data sets.
+            as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
         x_label_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
             from data dictionary.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
-        y_axis_name (str, optional): Name of y-axis. Defaults to "Frequency" if
-            ``normalize = True`` or "Density" if ``normalize = False``.
-        title (str, optional): Title for the figure. Defaults to no title.
-        legend (bool, optional): Whether or not to plot the legend. Defaults to False.
-        categories_to_legend_description (dict[str, str], optional): Dictionary mapping x-labels
-            to description in legend. Defaults to None, in which case legend is just
-            data set labels.
-        legend_font_size (float, optional): The font size to use for the legend. Defaults to 10.0.
-        legend_location (str, optional): The location to place the legend.
+        y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
+        title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
+        show_data_set_legend (bool, optional): Whether or not to plot the data set legend.
+            Defaults to False.
+        categories_legend (dict[str, str], optional): Dictionary mapping data categories
+            to description. Defaults to None. If provided, generates a second legend for data
+            categories.
+        legend_font_size (float, optional): The font size to use for the legend. Defaults to 10.0
+            + the number of categories.
+        legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
         legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
-            the legend to. Defaults to (1.03, 0.5).
+            the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
-            which case the function creates and returns a new axes.
+            which case the function creates and returns a new axes. The figure height is 6 inches
+            and the figure width is 3 inches times the number of categories.
 
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
@@ -387,6 +460,8 @@ def bar_plot(
         data_set_to_color,
         bar_width,
         x_label_ordering,
+        FONT_SIZE,
+        legend_font_size,
         ax,
     ) = _set_default_bar_plot_args(
         data,
@@ -394,38 +469,47 @@ def bar_plot(
         data_set_to_color,
         bar_width,
         x_label_ordering,
+        legend_font_size,
         ax,
     )
 
-    _validate_bar_plot_args(data, data_set_labels, x_label_ordering)
+    _validate_bar_plot_args(data, data_set_labels, x_label_ordering, bar_width)
 
     y_data = _prepare_data_bar_plot(normalize, deepcopy(data), x_label_ordering)
 
     ax = _plot_datasets_on_bar_plot(
-        ax, x_label_ordering, y_data, data_set_labels, bar_width, data_set_to_color
+        ax,
+        x_label_ordering,
+        y_data,
+        data_set_labels,
+        bar_width,
+        data_set_to_color,
+        FONT_SIZE,
     )
 
-    ax = _label_bar_plot(ax, normalize, x_axis_name, y_axis_name, title)
+    ax = _label_bar_plot(ax, x_axis_name, y_axis_name, title, FONT_SIZE)
 
-    if legend:
-        ax = _add_legend_data_sets_bar_plot(
+    data_set_legend = None
+    if show_data_set_legend:
+        ax, data_set_legend = _add_data_sets_legend_bar_plot(
             ax,
             data_set_labels,
             data_set_to_color,
-            categories_to_legend_description,
+            categories_legend,
             legend_font_size,
-            legend_location,
+            legend_loc,
             legend_bbox_to_anchor,
         )
 
-        if categories_to_legend_description:
-            ax = _add_legend_x_labels_bar_plot(
-                ax,
-                categories_to_legend_description,
-                legend_font_size,
-                legend_location,
-                legend_bbox_to_anchor,
-            )
+    if categories_legend:
+        ax = _add_categories_legend_bar_plot(
+            ax,
+            categories_legend,
+            legend_font_size,
+            legend_loc,
+            legend_bbox_to_anchor,
+            data_set_legend,
+        )
 
     return ax
 
