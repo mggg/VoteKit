@@ -19,18 +19,18 @@ or
 
 ## Example
 
-A simple example of how to use VoteKit to load, clean, and run an election using real [data](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/) taken from the 2013 Minneapolis Mayoral election. For a more comprehensive walkthrough, see the [documentation](https://mggg.github.io/VoteKit/). 
+A simple example of how to use VoteKit to load, clean, and run an election using real [data](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/) taken from the 2013 Minneapolis Mayoral election. For a more comprehensive walkthrough, see the [documentation](https://votekit.readthedocs.io/en/latest/). 
 
 ```python
 from votekit import load_csv, remove_noncands
-from votekit.elections import STV, fractional_transfer
+from votekit.elections import STV
 
 minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
 
 # clean downloaded file to remove edited aspects of the cast vote record
 minneapolis_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
 
-minn_election = STV(profile = minneapolis_profile, transfer = fractional_transfer, seats = 1)
+minn_election = STV(profile = minneapolis_profile, m = 1)
 minn_election.run_election()
 ```
 

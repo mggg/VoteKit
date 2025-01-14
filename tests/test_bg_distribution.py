@@ -42,7 +42,7 @@ def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
 def do_ballot_probs_match_ballot_dist(
     ballot_prob_dict: dict, generated_profile: PreferenceProfile, alpha=0.95
 ):
-    n_ballots = generated_profile.num_ballots()
+    n_ballots = generated_profile.total_ballot_wt
     ballot_conf_dict = {
         b: binomial_confidence_interval(p, n_attempts=int(n_ballots), alpha=alpha)
         for b, p in ballot_prob_dict.items()

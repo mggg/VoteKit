@@ -47,7 +47,7 @@ def test_allow_partial():
 
 def test_graph_labels():
     test = BallotGraph(three_cand)
-    labels = test.label_cands(three_cand.get_candidates())
+    labels = test.label_cands(three_cand.candidates)
     assert len(labels) == 9
 
 

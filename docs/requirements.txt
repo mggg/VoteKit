@@ -26,6 +26,7 @@ Jinja2==3.1.4
 joblib==1.4.2
 jsonschema==4.22.0
 jsonschema-specifications==2023.12.1
+jupyter==1.0.0
 kiwisolver==1.4.5
 MarkupSafe==2.1.5
 matplotlib==3.9.0
@@ -43,12 +44,12 @@ parso==0.8.4
 pexpect==4.9.0
 pillow==10.3.0
 platformdirs==4.2.2
-POT==0.9.0
+POT==0.9.4
 prompt_toolkit==3.0.45
 psutil==5.9.8
 ptyprocess==0.7.0
 pure-eval==0.2.2
-pydantic==1.10.15
+pydantic==2.8.2
 Pygments==2.18.0
 pyparsing==3.1.2
 python-dateutil==2.9.0.post0
@@ -81,6 +82,6 @@ traitlets==5.14.3
 types-pytz==2024.1.0.20240417
 typing_extensions==4.12.1
 urllib3==2.2.1
-votekit==2.0.0
+votekit==3.0.0
 wcwidth==0.2.13
 webencodings==0.5.1
