@@ -216,7 +216,7 @@ the following.
 -   A large number of case studies in ranked-choice modeling, such as
     studies for the city councils of Chicago, IL [@chicago_city] and
     Lowell, MA [@lowell_city] and a range of jurisdictions across the Pacific
-    Northwest[@oregon_state; @washington_leg, @tukwila_school; @chelan_county];
+    Northwest [@oregon_state; @washington_leg, @tukwila_school; @chelan_county];
     <!-- the state legislatures of Oregon and
     Washington [@oregon_state; @washington_leg], and a range of county
     commissions and school boards across the Pacific Northwest
