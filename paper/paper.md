@@ -314,9 +314,6 @@ project.
     elections run this in two distinct stages with four finalists and one seat; 
     the top-two system amounts to running this with two finalists and one seat.
 
-[^7]: Here, candidates are ordered by dominating sets (so that earlier ones in    
-    the list beat later 
-    ones in the list head-to-head), and ties are broken 
-    by Borda score. Note that this is distinct from Black's method [@Black],
-    which uses Borda score as a backup system in case the smallest
-    dominating set is not a singleton.
+[^7]: Here, candidates are ordered by dominating sets (so that earlier ones in the list beat later 
+    ones in the list head-to-head), and ties are broken by Borda score. Note that this is distinct from Black's method [@Black],
+    which uses Borda score as a backup system in case the smallest dominating set is not a singleton.
