@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt  # type: ignore
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import first_place_votes, mentions, COLOR_LIST, borda_scores
 from matplotlib.axes import Axes
-from typing import Optional, Union, Tuple, Literal
+from typing import Optional, Union, Tuple, Literal, Callable
 import matplotlib.patches as mpatches
 from copy import deepcopy
 import warnings
@@ -35,55 +35,6 @@ def add_null_keys(data: list[dict[str, float]]) -> list[dict[str, float]]:
                 data_dict[x_label] = 0
 
     return data
-
-
-def _validate_bar_plot_args(
-    data: list[dict[str, float]],
-    data_set_labels: list[str],
-    x_label_ordering: list[str],
-    bar_width: float,
-):
-    """
-    Validates bar plot arguments. Raises ValueError.
-
-    Args:
-        data (list[dict[str, float]]): Categorical data to be plotted. The value of the dict
-            should be the frequency of the key which is the category name.
-        data_set_labels (list[str], optional): List of labels for data sets. Must be on per data
-            set and must be unique.
-        x_label_ordering (list[str]): Ordering of x labels. Must match data keys.
-        bar_width (float): Width of bars. Must be between 0 and 1/len(data).
-
-    """
-    if any(set(data_dict.keys()) != set(data[0].keys()) for data_dict in data):
-        raise ValueError("All data dictionaries must have the same keys.")
-
-    if len(set(data_set_labels)) != len(data_set_labels):
-        raise ValueError("Each data set must have a unique label.")
-
-    if len(data_set_labels) != len(data):
-        raise ValueError("There must be one data set label for each data set.")
-
-    sym_dif = set(x_label_ordering) ^ set(
-        k for data_dict in data for k in data_dict.keys()
-    )
-    if len(sym_dif) != 0:
-        raise ValueError(
-            (
-                "x_label_ordering must match the keys of the data. Here is the symmetric "
-                f"difference of the two sets: {sym_dif}"
-            )
-        )
-
-    if bar_width <= 0:
-        raise ValueError("Bar width must be positive.")
-
-    elif bar_width > 1 / len(data):
-        warnings.warn(
-            "Bar width must be less than 1. Bar width has now been set to 1.",
-            category=UserWarning,
-        )
-        bar_width = 1 / len(data)
 
 
 def _set_default_bar_plot_args(
@@ -154,6 +105,55 @@ def _set_default_bar_plot_args(
         legend_font_size,
         ax,
     )
+
+
+def _validate_bar_plot_args(
+    data: list[dict[str, float]],
+    data_set_labels: list[str],
+    x_label_ordering: list[str],
+    bar_width: float,
+):
+    """
+    Validates bar plot arguments. Raises ValueError.
+
+    Args:
+        data (list[dict[str, float]]): Categorical data to be plotted. The value of the dict
+            should be the frequency of the key which is the category name.
+        data_set_labels (list[str], optional): List of labels for data sets. Must be on per data
+            set and must be unique.
+        x_label_ordering (list[str]): Ordering of x labels. Must match data keys.
+        bar_width (float): Width of bars. Must be between 0 and 1/len(data).
+
+    """
+    if any(set(data_dict.keys()) != set(data[0].keys()) for data_dict in data):
+        raise ValueError("All data dictionaries must have the same keys.")
+
+    if len(set(data_set_labels)) != len(data_set_labels):
+        raise ValueError("Each data set must have a unique label.")
+
+    if len(data_set_labels) != len(data):
+        raise ValueError("There must be one data set label for each data set.")
+
+    sym_dif = set(x_label_ordering) ^ set(
+        k for data_dict in data for k in data_dict.keys()
+    )
+    if len(sym_dif) != 0:
+        raise ValueError(
+            (
+                "x_label_ordering must match the keys of the data. Here is the symmetric "
+                f"difference of the two sets: {sym_dif}"
+            )
+        )
+
+    if bar_width <= 0:
+        raise ValueError("Bar width must be positive.")
+
+    elif bar_width > 1 / len(data):
+        warnings.warn(
+            "Bar width must be less than 1. Bar width has now been set to 1.",
+            category=UserWarning,
+        )
+        bar_width = 1 / len(data)
 
 
 def _normalize_data(data: dict[str, float]) -> dict[str, float]:
@@ -514,65 +514,226 @@ def bar_plot(
     return ax
 
 
-def plot_summary_stats(
-    profile: PreferenceProfile,
-    stat: str,
-    *,
-    title: str = "",
-    threshold: Optional[int] = None,
-    threshold_line_kwds: dict = {
-        "label": "Threshold",
-        "color": "red",
-        "linestyle": "--",
-    },
-    ax: Optional[Axes] = None,
-) -> Axes:
-    """
-    Plots histogram of election summary statistics.
+def _set_default_args_plot_summary_stats(
+    profile_list,
+    stats_to_plot,
+    stat_funcs_to_plot,
+    profile_labels,
+    threshold_value,
+    threshold_label,
+    candidate_ordering,
+    use_integer_labels,
+    candidate_legend,
+):
 
-    Args:
-        profile (Union[Iterable[PreferenceProfile], PreferenceProfile]): The ``PreferenceProfile``s
-            to visualize. If an iterable is provided,
-        stat (str): 'first place votes', 'mentions', or 'borda'.
-        title (str, optional): Title for the figure. Defaults to empty string.
-        threshold (int, optional): Threshold line. Defaults to None in which case no line is
-            plotted.
+    if not isinstance(profile_list, list):
+        profile_list = [profile_list]
 
-        threshold_line_kwds (dict, optional): Keyword arguments to be passed to matplotlib axhline
-            to plot the threshold. Defaults to
-            ``{"label":"Threshold", "color":"red", "linestyle":"--"}``.
-        ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
-            which case the function creates and returns a new axes.
+    if not isinstance(stats_to_plot, list):
+        if stats_to_plot:
+            stats_to_plot = [stats_to_plot]
+        else:
+            stats_to_plot = []
 
-    Returns:
-        Axes: A ``matplotlib`` axes.
-    """
-    stats = {
+    for i, stat in enumerate(stats_to_plot):
+        if stat == "fpv":
+            stats_to_plot[i] = "first place votes"
+
+    stats_to_func = {
         "first place votes": first_place_votes,
         "mentions": mentions,
         "borda": borda_scores,
     }
 
-    stat_func = stats[stat]
-    data: dict = stat_func(profile)  # type: ignore
+    if not stat_funcs_to_plot:
+        stat_funcs_to_plot = {}
 
-    colors = COLOR_LIST[0]
+    stat_funcs_to_plot.update({stat: stats_to_func[stat] for stat in stats_to_plot})
 
-    fig, ax = plt.subplots()
+    if not profile_labels:
+        profile_labels = [f"Profile {i+1}" for i in range(len(profile_list))]
 
-    candidates = profile.candidates
-    y_data = [data[c] for c in candidates]
+    if threshold_value and not threshold_label:
+        threshold_label = f"Threshold: {threshold_value}"
 
-    ax.bar(candidates, y_data, color=colors, width=0.35)
-    ax.set_xlabel("Candidates")
-    ax.set_ylabel("Frequency")
+    if not candidate_ordering:
+        if len(stat_funcs_to_plot) == 1:
+            sort_func = list(stat_funcs_to_plot.values())[0]
+        else:
+            sort_func = first_place_votes
 
-    if threshold:
-        ax.axhline(y=threshold, **threshold_line_kwds)
+        # default to reverse order
+        sort_dict = sort_func(profile_list[0])
+        candidate_ordering = sorted(
+            sort_dict.keys(), key=lambda x: sort_dict[x], reverse=True
+        )
 
-    ax.legend()
+    if not candidate_legend and use_integer_labels:
+        candidate_legend = {i: c for i, c in enumerate(candidate_ordering)}
+        candidate_ordering = list(candidate_legend.keys())
 
-    if title:
-        ax.set_title(title)
+    return (
+        profile_list,
+        stat_funcs_to_plot,
+        profile_labels,
+        threshold_label,
+        candidate_ordering,
+        candidate_legend,
+    )
 
+
+def _validate_args_plot_summary_stats(profile_list, stat_funcs_to_plot):
+
+    if any(set(p.candidates) != set(profile_list[0].candidates) for p in profile_list):
+        raise ValueError("All PreferenceProfiles must have the same candidates.")
+
+    if not stat_funcs_to_plot:
+        raise ValueError(
+            "At least one of stats_to_plot and stat_funcs_to_plot must be provided."
+        )
+
+
+def _prepare_data_plot_summary_stats(
+    profile_list, stat_funcs_to_plot, profile_labels, candidate_legend
+):
+    # TODO this is where the order of bars within a candidate is decided
+    data = [
+        stat_func(profile)
+        for profile in profile_list
+        for stat_func in stat_funcs_to_plot.values()
+    ]
+
+    if candidate_legend:
+        cand_to_label = {v: k for k, v in candidate_legend.items()}
+        data = [
+            {cand_to_label[c]: v for c, v in data_dict.items()} for data_dict in data
+        ]
+
+    else:
+        data = [{c: v for c, v in data_dict.items()} for data_dict in data]
+
+    data_set_labels = [
+        f"{stat}, {label}" for stat in stat_funcs_to_plot for label in profile_labels
+    ]
+
+    return data, data_set_labels
+
+
+def _add_threshold_line(
+    threshold_value: float,
+    threshold_color: str,
+    threshold_line_style: str,
+    threshold_line_width: float,
+    threshold_label: str,
+    ax: Axes,
+):
+
+    ax.axhline(
+        threshold_value,
+        linestyle=threshold_line_style,
+        color=threshold_color,
+        label=threshold_label,
+        linewidth=threshold_line_width,
+    )
+
+    return ax
+
+
+def plot_candidate_summary_stats(
+    profile_list: Union[list[PreferenceProfile], PreferenceProfile],
+    stats_to_plot: Optional[
+        Union[
+            list[Literal["fpv", "mentions", "borda", "first place votes"]],
+            Literal["fpv", "mentions", "borda", "first place votes"],
+        ]
+    ] = None,
+    stat_funcs_to_plot: Optional[
+        dict[str, Callable]
+    ] = None,  # if you want a custom function for score dict,
+    profile_labels: Optional[list[str]] = None,
+    normalize: bool = False,
+    ax: Optional[Axes] = None,
+    threshold_value: Optional[float] = None,
+    threshold_color: str = "red",
+    threshold_line_style: str = "--",
+    threshold_line_width: float = 1,
+    threshold_label: Optional[str] = None,
+    candidate_ordering: Optional[list[str]] = None,
+    use_integer_labels: bool = False,
+    candidate_legend: Optional[dict[str, str]] = None,
+    bar_width: Optional[float] = None,
+    x_axis_name: Optional[str] = None,
+    y_axis_name: Optional[str] = None,
+    title: Optional[str] = None,
+    show_stat_legend: bool = False,
+    legend_font_size: Optional[float] = None,
+    legend_loc: str = "center left",
+    legend_bbox_to_anchor: Tuple[float, float] = (1, 0.5),
+) -> Axes:
+    """
+    Plot a histogram of statistics about PreferenceProfiles. Has built in options for first-place
+    votes, mentions, and Borda points. Allows users to choose a custom statistic.
+    Allows users to plot multiple profiles and multiple stats on the same plot.
+
+    Args:
+
+    Returns:
+        Axes: Matplotlib axes object with bar plot.
+    """
+
+    (
+        profile_list,
+        stat_funcs_to_plot,
+        profile_labels,
+        threshold_label,
+        candidate_ordering,
+        candidate_legend,
+    ) = _set_default_args_plot_summary_stats(
+        profile_list,
+        stats_to_plot,
+        stat_funcs_to_plot,
+        profile_labels,
+        threshold_value,
+        threshold_label,
+        candidate_ordering,
+        use_integer_labels,
+        candidate_legend,
+    )
+
+    _validate_args_plot_summary_stats(profile_list, stat_funcs_to_plot)
+
+    data, data_set_labels = _prepare_data_plot_summary_stats(
+        profile_list, stat_funcs_to_plot, profile_labels, candidate_legend
+    )
+
+    ax = bar_plot(
+        data,
+        data_set_labels=data_set_labels,
+        normalize=normalize,
+        bar_width=bar_width,
+        x_label_ordering=candidate_ordering,
+        x_axis_name=x_axis_name,
+        y_axis_name=y_axis_name,
+        title=title,
+        show_data_set_legend=show_stat_legend,
+        categories_legend=candidate_legend,
+        legend_font_size=legend_font_size,
+        legend_loc=legend_loc,
+        legend_bbox_to_anchor=legend_bbox_to_anchor,
+        ax=ax,
+    )
+
+    if threshold_value:
+        # todo threshold and normalizing
+        # threshold and profiles with different thresholds?
+        ax = _add_threshold_line(
+            threshold_value,
+            threshold_color,
+            threshold_line_style,
+            threshold_line_width,
+            threshold_label,
+            ax,
+        )
+
+        # TODO add to legend
     return ax
