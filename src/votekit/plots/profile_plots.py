@@ -7,6 +7,15 @@ import matplotlib.patches as mpatches
 from copy import deepcopy
 import warnings
 from matplotlib.legend import Legend
+from matplotlib.lines import Line2D
+
+VALID_STATS = ["fpv", "mentions", "borda", "first place votes"]
+# Valid_stat = Literal[*VALID_STATS]
+Valid_stat = Literal["fpv", "mentions", "borda", "first place votes"]
+DEFAULT_LINE_KWDS = {
+    "ls": "-",
+    "linewidth": 2,
+}
 
 
 def add_null_keys(data: list[dict[str, float]]) -> list[dict[str, float]]:
@@ -44,6 +53,8 @@ def _set_default_bar_plot_args(
     bar_width: Optional[float],
     x_label_ordering: Optional[list[str]],
     legend_font_size: Optional[float],
+    threshold_values: Optional[list[float] | float],
+    threshold_kwds: Optional[list[dict[str, str]] | dict[str, str]],
     ax: Optional[Axes],
 ) -> Tuple[
     list[dict[str, float]], list[str], dict, float, list[str], float, float, Axes
@@ -62,6 +73,10 @@ def _set_default_bar_plot_args(
             as 0.7 divided by the number of data sets.
         x_label_ordering (list[str], optional): Ordering of x labels. Defaults to order retrieved
             from first data dictionary.
+        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+            lines at. Can be provided as a list or a single float.
+        threshold_kwds (Union[list[dict[str, str]], dict[str, str]], optional): List of plotting
+            keywords for the horizontal lines. Can be a list or single dictionary.
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes.
 
@@ -92,6 +107,29 @@ def _set_default_bar_plot_args(
     if legend_font_size is None:
         legend_font_size = FONT_SIZE
 
+    if threshold_values and not isinstance(threshold_values, list):
+        threshold_values = [threshold_values]
+
+    if threshold_kwds and not isinstance(threshold_kwds, list):
+        threshold_kwds = [threshold_kwds]
+
+    if threshold_values and not threshold_kwds:
+        threshold_kwds = [
+            DEFAULT_LINE_KWDS.update(
+                {"label": f"Line {i}"} for i in range(len(threshold_values))
+            )
+        ]
+
+    elif threshold_values and threshold_kwds:
+        for i, kwd_dict in enumerate(threshold_kwds):
+            if "color" not in kwd_dict:
+                kwd_dict["color"] = COLOR_LIST[-(i + 1)]
+            if "label" not in kwd_dict:
+                kwd_dict["label"] = f"Line {i}"
+            for k, v in DEFAULT_LINE_KWDS.items():
+                if k not in kwd_dict:
+                    kwd_dict[k] = v
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(3 * len(x_label_ordering), 6))
 
@@ -103,6 +141,8 @@ def _set_default_bar_plot_args(
         x_label_ordering,
         FONT_SIZE,
         legend_font_size,
+        threshold_values,
+        threshold_kwds,
         ax,
     )
 
@@ -112,6 +152,8 @@ def _validate_bar_plot_args(
     data_set_labels: list[str],
     x_label_ordering: list[str],
     bar_width: float,
+    threshold_values: Optional[list[float]],
+    threshold_kwds: Optional[list[dict[str, str]]],
 ):
     """
     Validates bar plot arguments. Raises ValueError.
@@ -123,6 +165,10 @@ def _validate_bar_plot_args(
             set and must be unique.
         x_label_ordering (list[str]): Ordering of x labels. Must match data keys.
         bar_width (float): Width of bars. Must be between 0 and 1/len(data).
+        threshold_values (list[float], optional): List of values to plot horizontal
+            lines at.
+        threshold_kwds (list[dict[str, str]], optional): List of plotting
+            keywords for the horizontal lines.
 
     """
     if any(set(data_dict.keys()) != set(data[0].keys()) for data_dict in data):
@@ -154,6 +200,12 @@ def _validate_bar_plot_args(
             category=UserWarning,
         )
         bar_width = 1 / len(data)
+
+    if threshold_values and threshold_kwds:
+        if len(threshold_kwds) != len(threshold_values):
+            raise ValueError(
+                "threshold_values must have the same length as threshold_kwds."
+            )
 
 
 def _normalize_data(data: dict[str, float]) -> dict[str, float]:
@@ -291,17 +343,42 @@ def _label_bar_plot(
     return ax
 
 
+def _add_horizontal_lines_bar_plot(
+    threshold_values: list[float],
+    threshold_kwds: list[dict[str, str]],
+    ax: Axes,
+):
+    """
+    Add horizontal lines to the bar plot.
+
+    Args:
+        threshold_values (list[float]): Display a horizontal line at given y-values.
+        threshold_kwds (list[dict[str, str]]): Matplotlib keywords for plotting lines.
+        ax (Axes): Axes to plot on.
+
+    Returns:
+        Axes: Axes with horizontal lines added.
+
+    """
+
+    for i, y in enumerate(threshold_values):
+        ax.axhline(y, **threshold_kwds[i])
+
+    return ax
+
+
 def _add_data_sets_legend_bar_plot(
     ax: Axes,
     data_set_labels: list[str],
     data_set_to_color: dict,
     categories_legend: Optional[dict[str, str]],
+    threshold_kwds: Optional[list[dict[str, str]]],
     legend_font_size: float,
     legend_loc: str,
     legend_bbox_to_anchor: Tuple[float, float],
 ) -> Tuple[Axes, Legend]:
     """
-    Add legend to bar plot for data sets.
+    Add legend to bar plot for data sets and any horizontal lines.
 
     Args:
         ax (Axes): Matplotlib axes containing barplot.
@@ -310,6 +387,8 @@ def _add_data_sets_legend_bar_plot(
         categories_legend (dict[str, str], optional): Dictionary mapping x-axis
             categories to description in legend. Defaults to None, in which case legend is just
             x-axis labels.
+        threshold_kwds (list[dict[str, str]], optional): List of plotting
+            keywords for the horizontal lines.
         legend_font_size (float): The font size to use for the legend.
         legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
         legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
@@ -322,6 +401,10 @@ def _add_data_sets_legend_bar_plot(
     for label in data_set_labels:
         patch = mpatches.Patch(color=data_set_to_color[label], label=label)
         proxy_artists.append(patch)
+
+    for kwd_dict in threshold_kwds:
+        line = Line2D([0], [0], **kwd_dict)
+        proxy_artists.append(line)
 
     if proxy_artists:
         leg = ax.legend(
@@ -371,7 +454,6 @@ def _add_categories_legend_bar_plot(
         proxy_artists.append(patch)
 
     if proxy_artists:
-
         if data_set_legend:
             bbox = data_set_legend.get_window_extent()
             fig = plt.gcf()
@@ -411,6 +493,8 @@ def bar_plot(
     title: Optional[str] = None,
     show_data_set_legend: bool = False,
     categories_legend: Optional[dict[str, str]] = None,
+    threshold_values: Optional[list[float] | float] = None,
+    threshold_kwds: Optional[list[dict[str, str]] | dict[str, str]] = None,
     legend_font_size: Optional[float] = None,
     legend_loc: str = "center left",
     legend_bbox_to_anchor: Tuple[float, float] = (1, 0.5),
@@ -441,6 +525,10 @@ def bar_plot(
         categories_legend (dict[str, str], optional): Dictionary mapping data categories
             to description. Defaults to None. If provided, generates a second legend for data
             categories.
+        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+            lines at. Can be provided as a list or a single float.
+        threshold_kwds (Union[list[dict[str, str]], dict[str, str]], optional): List of plotting
+            keywords for the horizontal lines. Can be a list or single dictionary.
         legend_font_size (float, optional): The font size to use for the legend. Defaults to 10.0
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
@@ -462,6 +550,8 @@ def bar_plot(
         x_label_ordering,
         FONT_SIZE,
         legend_font_size,
+        threshold_values,
+        threshold_kwds,
         ax,
     ) = _set_default_bar_plot_args(
         data,
@@ -470,10 +560,19 @@ def bar_plot(
         bar_width,
         x_label_ordering,
         legend_font_size,
+        threshold_values,
+        threshold_kwds,
         ax,
     )
 
-    _validate_bar_plot_args(data, data_set_labels, x_label_ordering, bar_width)
+    _validate_bar_plot_args(
+        data,
+        data_set_labels,
+        x_label_ordering,
+        bar_width,
+        threshold_values,
+        threshold_kwds,
+    )
 
     y_data = _prepare_data_bar_plot(normalize, deepcopy(data), x_label_ordering)
 
@@ -489,13 +588,22 @@ def bar_plot(
 
     ax = _label_bar_plot(ax, x_axis_name, y_axis_name, title, FONT_SIZE)
 
+    if threshold_values:
+        ax = _add_horizontal_lines_bar_plot(
+            threshold_values,
+            threshold_kwds,
+            ax,
+        )
+
     data_set_legend = None
+
     if show_data_set_legend:
         ax, data_set_legend = _add_data_sets_legend_bar_plot(
             ax,
             data_set_labels,
             data_set_to_color,
             categories_legend,
+            threshold_kwds,
             legend_font_size,
             legend_loc,
             legend_bbox_to_anchor,
@@ -515,16 +623,45 @@ def bar_plot(
 
 
 def _set_default_args_plot_summary_stats(
-    profile_list,
-    stats_to_plot,
-    stat_funcs_to_plot,
-    profile_labels,
-    threshold_value,
-    threshold_label,
-    candidate_ordering,
-    use_integer_labels,
-    candidate_legend,
-):
+    profile_list: Union[list[PreferenceProfile], PreferenceProfile],
+    stats_to_plot: Optional[Union[list[str], str]],
+    stat_funcs_to_plot: Optional[dict[str, Callable]],
+    profile_labels: Optional[list[str]],
+    candidate_ordering: Optional[list[str]],
+    use_integer_labels: bool,
+    candidate_legend: Optional[dict[str, str]],
+) -> Tuple[
+    list[PreferenceProfile],
+    dict[str, Callable],
+    list[str],
+    list[str],
+    Optional[dict[str, str]],
+    list[str],
+]:
+    """
+    Set the correct defaults for plotting.
+
+    Args:
+        profile_list (Union[list[PreferenceProfile], PreferenceProfile]): List of
+            PreferenceProfiles to compute statistics for.
+        stats_to_plot (Union[list[str], str], optional): Which statistic to plot. Must be one of
+            ["fpv", "first place votes", "mentions", "borda"].
+        stat_funcs_to_plot (dict[str, Callable], optional): Custom statistics to plot.
+            Keys should be names of statistics, and values should be Callables. Callable should
+            take a PreferenceProfile as input and return a dictionary whose keys are candidate names
+            and values are the statistic.
+        profile_labels (list[str], optional): List of labels for each profile.
+        candidate_ordering (list[str], optional): Order in which to list candidates on the x-axis.
+        use_integer_labels (bool): Use integer labels for candidates on x-axis.
+        candidate_legend (dict[str, str, optional): Dictionary that maps x-axis labels to a
+            description.
+
+    Returns:
+        Tuple[list[PreferenceProfile], dict[str, Callable], list[str], list[str],
+        Optional[dict[str, str]], list[str]]: profile_list, stat_funcs_to_plot, profile_labels,
+        candidate_ordering, candidate_legend, stats_to_plot
+
+    """
 
     if not isinstance(profile_list, list):
         profile_list = [profile_list]
@@ -548,19 +685,24 @@ def _set_default_args_plot_summary_stats(
     if not stat_funcs_to_plot:
         stat_funcs_to_plot = {}
 
-    stat_funcs_to_plot.update({stat: stats_to_func[stat] for stat in stats_to_plot})
+    try:
+        stat_funcs_to_plot.update(
+            {stat.capitalize(): stats_to_func[stat] for stat in stats_to_plot}
+        )
+    except KeyError as e:
+        stat = e.args[0]
+        raise ValueError(
+            (
+                f"{stat} is an invalid argument to stats_to_plot. "
+                "Must be one of {VALID_STATS}."
+            )
+        )
 
     if not profile_labels:
         profile_labels = [f"Profile {i+1}" for i in range(len(profile_list))]
 
-    if threshold_value and not threshold_label:
-        threshold_label = f"Threshold: {threshold_value}"
-
     if not candidate_ordering:
-        if len(stat_funcs_to_plot) == 1:
-            sort_func = list(stat_funcs_to_plot.values())[0]
-        else:
-            sort_func = first_place_votes
+        sort_func = list(stat_funcs_to_plot.values())[0]
 
         # default to reverse order
         sort_dict = sort_func(profile_list[0])
@@ -569,20 +711,46 @@ def _set_default_args_plot_summary_stats(
         )
 
     if not candidate_legend and use_integer_labels:
-        candidate_legend = {i: c for i, c in enumerate(candidate_ordering)}
+        candidate_legend = {str(i): c for i, c in enumerate(candidate_ordering)}
         candidate_ordering = list(candidate_legend.keys())
 
     return (
         profile_list,
         stat_funcs_to_plot,
         profile_labels,
-        threshold_label,
         candidate_ordering,
         candidate_legend,
+        stats_to_plot,
     )
 
 
-def _validate_args_plot_summary_stats(profile_list, stat_funcs_to_plot):
+def _validate_args_plot_summary_stats(
+    profile_list: list[PreferenceProfile],
+    stat_funcs_to_plot: dict[str, Callable],
+    candidate_ordering: list[str],
+    candidate_legend: Optional[dict[str, str]],
+    use_integer_labels: bool,
+    stats_to_plot: list[str],
+):
+    """
+    Validate and raise errors on arguments.
+
+    Args:
+        profile_list (list[PreferenceProfile]): List of
+            PreferenceProfiles to compute statistics for.
+        stat_funcs_to_plot (dict[str, Callable]): Custom statistics to plot.
+            Keys should be names of statistics, and values should be Callables. Callable should
+            take a PreferenceProfile as input and return a dictionary whose keys are candidate names
+            and values are the statistic.
+        candidate_ordering (list[str]): Order in which to list candidates on the x-axis.
+        candidate_legend (dict[str, str, optional): Dictionary that maps x-axis labels to a
+            description.
+        use_integer_labels (bool): Use integer labels for candidates on x-axis.
+        stats_to_plot (list[str]): Which statistic to plot. Must be one of
+            ["fpv", "first place votes", "mentions", "borda"].
+
+
+    """
 
     if any(set(p.candidates) != set(profile_list[0].candidates) for p in profile_list):
         raise ValueError("All PreferenceProfiles must have the same candidates.")
@@ -592,11 +760,45 @@ def _validate_args_plot_summary_stats(profile_list, stat_funcs_to_plot):
             "At least one of stats_to_plot and stat_funcs_to_plot must be provided."
         )
 
+    if use_integer_labels and candidate_legend:
+        sym_dif = set(candidate_legend.values()) ^ set(profile_list[0].candidates)
+
+    else:
+        sym_dif = set(candidate_ordering) ^ set(profile_list[0].candidates)
+
+    if len(sym_dif) != 0:
+        raise ValueError(
+            (
+                "Candidates listed in candidate_ordering must match the candidates in each profile."
+                f" Here is the symmetric difference of the two sets: {sym_dif}"
+            )
+        )
+
 
 def _prepare_data_plot_summary_stats(
-    profile_list, stat_funcs_to_plot, profile_labels, candidate_legend
-):
-    # TODO this is where the order of bars within a candidate is decided
+    profile_list: list[PreferenceProfile],
+    stat_funcs_to_plot: dict[str, Callable],
+    profile_labels: list[str],
+    candidate_legend: Optional[dict[str, str]],
+) -> Tuple[list[dict[str, float]], list[str]]:
+    """
+    Convert PreferenceProfiles to correct dictionary data format.
+
+    Args:
+        profile_list (list[PreferenceProfile]): List of
+            PreferenceProfiles to compute statistics for.
+        stat_funcs_to_plot (dict[str, Callable]): Custom statistics to plot.
+            Keys should be names of statistics, and values should be Callables. Callable should
+            take a PreferenceProfile as input and return a dictionary whose keys are candidate names
+            and values are the statistic.
+        profile_labels (list[str]): List of labels for each profile.
+        candidate_legend (dict[str, str], optional): Dictionary that maps x-axis labels to a
+            description.
+
+    Returns:
+        Tuple[list[dict[str, float]], list[str]]: data, data_set_labels
+
+    """
     data = [
         stat_func(profile)
         for profile in profile_list
@@ -619,45 +821,20 @@ def _prepare_data_plot_summary_stats(
     return data, data_set_labels
 
 
-def _add_threshold_line(
-    threshold_value: float,
-    threshold_color: str,
-    threshold_line_style: str,
-    threshold_line_width: float,
-    threshold_label: str,
-    ax: Axes,
-):
-
-    ax.axhline(
-        threshold_value,
-        linestyle=threshold_line_style,
-        color=threshold_color,
-        label=threshold_label,
-        linewidth=threshold_line_width,
-    )
-
-    return ax
-
-
 def plot_candidate_summary_stats(
     profile_list: Union[list[PreferenceProfile], PreferenceProfile],
     stats_to_plot: Optional[
         Union[
-            list[Literal["fpv", "mentions", "borda", "first place votes"]],
-            Literal["fpv", "mentions", "borda", "first place votes"],
+            list[Valid_stat],
+            Valid_stat,
         ]
     ] = None,
-    stat_funcs_to_plot: Optional[
-        dict[str, Callable]
-    ] = None,  # if you want a custom function for score dict,
+    stat_funcs_to_plot: Optional[dict[str, Callable]] = None,
     profile_labels: Optional[list[str]] = None,
+    show_stat_legend: bool = False,
     normalize: bool = False,
-    ax: Optional[Axes] = None,
-    threshold_value: Optional[float] = None,
-    threshold_color: str = "red",
-    threshold_line_style: str = "--",
-    threshold_line_width: float = 1,
-    threshold_label: Optional[str] = None,
+    threshold_values: Optional[list[float] | float] = None,
+    threshold_kwds: Optional[list[dict[str, str]] | dict[str, str]] = None,
     candidate_ordering: Optional[list[str]] = None,
     use_integer_labels: bool = False,
     candidate_legend: Optional[dict[str, str]] = None,
@@ -665,10 +842,10 @@ def plot_candidate_summary_stats(
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
-    show_stat_legend: bool = False,
     legend_font_size: Optional[float] = None,
     legend_loc: str = "center left",
     legend_bbox_to_anchor: Tuple[float, float] = (1, 0.5),
+    ax: Optional[Axes] = None,
 ) -> Axes:
     """
     Plot a histogram of statistics about PreferenceProfiles. Has built in options for first-place
@@ -676,64 +853,108 @@ def plot_candidate_summary_stats(
     Allows users to plot multiple profiles and multiple stats on the same plot.
 
     Args:
+        profile_list (Union[list[PreferenceProfile], PreferenceProfile]): List of
+            PreferenceProfiles to compute statistics for. Can be provided as a single
+            profile.
+        stats_to_plot (Union[list[str],str], optional): Which statistic to plot. Can be either
+            a list or a single stat. Must be one of ["fpv", "first place votes",
+            "mentions", "borda"]. Defaults to None, in which case ``stat_funcs_to_plot`` is used.
+        stat_funcs_to_plot (dict[str, Callable], optional): Custom statistics to plot.
+            Keys should be names of statistics, and values should be Callables. Callable should
+            take a PreferenceProfile as input and return a dictionary whose keys are candidate names
+            and values are the statistic. Defaults to None, in which case ``stats_to_plot`` is used.
+        profile_labels (list[str], optional): List of labels for each profile. Defaults to None,
+            in which case labels default to "Profile i".
+        show_stat_legend (bool, optional): Whether or not to show the legend containing profile
+            and statistic labels. Defaults to False.
+        normalize (bool, optional): Whether or not to normalize data. Defaults to False.
+        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+            lines at. Can be provided as a list or a single float.
+        threshold_kwds (Union[list[dict[str, str]], dict[str, str]], optional): List of plotting
+            keywords for the horizontal lines. Can be a list or single dictionary.
+        candidate_ordering (list[str], optional): Order in which to list candidates on the x-axis.
+            Defaults to None, in which case candidates are ordered in decreasing order of statistic.
+            If multiple stats are listed, canonically chooses first statistic listed.
+        use_integer_labels (bool, optional): Use integer labels for candidates on x-axis. Defaults
+            to False. If True and ``candidate_legend`` is not provided, automatically draws a
+            legend of the integer labels.
+        candidate_legend (dict[str, str], optional): Dictionary that maps x-axis labels to a
+            description. Defaults to None, in which case no candidate legend is displayed.
+            If provided and ``use_integer_labels`` is True, this parameter overwrites the integer
+            labeling legend.
+        bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
+            as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
+        x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
+        y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
+        title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
+        legend_font_size (float, optional): The font size to use for the legend. Defaults to 10.0
+            + the number of categories.
+        legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
+            Defaults to "center left".
+        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+            the legend to. Defaults to (1, 0.5).
+        ax (Axes, optional): A Matplotlib axes object to plot the figure on. Defaults to None, in
+            which case the function creates and returns a new axes. The figure height is 6 inches
+            and the figure width is 3 inches times the number of candidates.
 
     Returns:
-        Axes: Matplotlib axes object with bar plot.
+        Axes: Matplotlib axes object with bar plot showing stats.
     """
 
     (
         profile_list,
         stat_funcs_to_plot,
         profile_labels,
-        threshold_label,
         candidate_ordering,
         candidate_legend,
+        stats_to_plot,
     ) = _set_default_args_plot_summary_stats(
         profile_list,
         stats_to_plot,
         stat_funcs_to_plot,
         profile_labels,
-        threshold_value,
-        threshold_label,
         candidate_ordering,
         use_integer_labels,
         candidate_legend,
     )
 
-    _validate_args_plot_summary_stats(profile_list, stat_funcs_to_plot)
+    _validate_args_plot_summary_stats(
+        profile_list,
+        stat_funcs_to_plot,
+        candidate_ordering,
+        candidate_legend,
+        use_integer_labels,
+        stats_to_plot,
+    )
 
     data, data_set_labels = _prepare_data_plot_summary_stats(
         profile_list, stat_funcs_to_plot, profile_labels, candidate_legend
     )
 
-    ax = bar_plot(
-        data,
-        data_set_labels=data_set_labels,
-        normalize=normalize,
-        bar_width=bar_width,
-        x_label_ordering=candidate_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_data_set_legend=show_stat_legend,
-        categories_legend=candidate_legend,
-        legend_font_size=legend_font_size,
-        legend_loc=legend_loc,
-        legend_bbox_to_anchor=legend_bbox_to_anchor,
-        ax=ax,
-    )
-
-    if threshold_value:
-        # todo threshold and normalizing
-        # threshold and profiles with different thresholds?
-        ax = _add_threshold_line(
-            threshold_value,
-            threshold_color,
-            threshold_line_style,
-            threshold_line_width,
-            threshold_label,
-            ax,
+    try:
+        ax = bar_plot(
+            data,
+            data_set_labels=data_set_labels,
+            normalize=normalize,
+            bar_width=bar_width,
+            x_label_ordering=candidate_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_stat_legend,
+            categories_legend=candidate_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            legend_loc=legend_loc,
+            legend_bbox_to_anchor=legend_bbox_to_anchor,
+            ax=ax,
         )
 
-        # TODO add to legend
+    except Exception as e:
+        if e.args[0] == "There must be one data set label for each data set.":
+            raise ValueError(
+                "There must be exactly one profile label for each profile."
+            )
+
     return ax
