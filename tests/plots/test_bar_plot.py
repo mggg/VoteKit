@@ -39,6 +39,10 @@ def test_bar_plot_multi_sets():
     assert isinstance(bar_plot(data, data_set_labels=["1", "3"]), Axes)
 
 
+def test_bar_plot_threshold_lines():
+    assert isinstance(bar_plot(test_data_1, threshold_values=[2, 3]), Axes)
+
+
 def test_bar_plot_validation_errors():
     with pytest.raises(
         ValueError, match="All data dictionaries must have the same keys."
@@ -101,6 +105,12 @@ def test_bar_plot_validation_errors():
     ):
         bar_plot(test_data_1, bar_width=2)
 
+    with pytest.raises(
+        ValueError,
+        match="threshold_values must have the same length as threshold_kwds.",
+    ):
+        bar_plot(test_data_1, threshold_values=[2, 3], threshold_kwds=[{"lw": 4}])
+
 
 def test_normalization():
     assert _normalize_data(test_data_1) == {"Moon": 4 / 6, "Chris": 2 / 6, "Peter": 0}
@@ -123,8 +133,12 @@ def test_default_bar_plot_args_with_defaults():
         x_label_ordering,
         FONT_SIZE,
         legend_font_size,
+        threshold_values,
+        threshold_kwds,
         ax,
-    ) = _set_default_bar_plot_args(test_data_1, None, None, None, None, None, None)
+    ) = _set_default_bar_plot_args(
+        test_data_1, None, None, None, None, None, None, None, None
+    )
 
     assert isinstance(data, list)
     assert data[0] == test_data_1
@@ -145,6 +159,9 @@ def test_default_bar_plot_args_with_defaults():
     assert ax.figure.get_size_inches()[0] == 3 * len(test_data_1)
     assert ax.figure.get_size_inches()[1] == 6
 
+    assert threshold_values is None
+    assert threshold_kwds is None
+
 
 def test_default_bar_plot_args_without_defaults():
     fig, ax = plt.subplots()
@@ -156,6 +173,8 @@ def test_default_bar_plot_args_without_defaults():
         x_label_ordering,
         FONT_SIZE,
         legend_font_size,
+        threshold_values,
+        threshold_kwds,
         ax_new,
     ) = _set_default_bar_plot_args(
         [test_data_1, test_data_2],
@@ -164,6 +183,8 @@ def test_default_bar_plot_args_without_defaults():
         bar_width=0.35,
         x_label_ordering=["Chris", "Moon", "Peter"],
         legend_font_size=15,
+        threshold_values=5,
+        threshold_kwds={"ls": "--"},
         ax=ax,
     )
 
@@ -179,6 +200,11 @@ def test_default_bar_plot_args_without_defaults():
 
     assert FONT_SIZE == 13
     assert legend_font_size == 15
+
+    assert threshold_values == [5]
+    assert threshold_kwds == [
+        {"ls": "--", "linewidth": 2, "color": "#6200EA", "label": "Line 0"}
+    ]
 
     assert ax_new == ax
 
