@@ -687,13 +687,13 @@ def _set_default_args_plot_summary_stats(
         "borda": borda_scores,
     }
 
-    if not stat_funcs_to_plot:
+    if not stat_funcs_to_plot and len(stats_to_plot) > 0:
         stat_funcs_to_plot = {}
+    elif not stat_funcs_to_plot:
+        stat_funcs_to_plot = {"first place votes": first_place_votes}
 
     try:
-        stat_funcs_to_plot.update(
-            {stat.capitalize(): stats_to_func[stat] for stat in stats_to_plot}
-        )
+        stat_funcs_to_plot.update({stat: stats_to_func[stat] for stat in stats_to_plot})
     except KeyError as e:
         stat = e.args[0]
         raise ValueError(
@@ -731,7 +731,6 @@ def _set_default_args_plot_summary_stats(
 
 def _validate_args_plot_summary_stats(
     profile_list: list[PreferenceProfile],
-    stat_funcs_to_plot: dict[str, Callable],
     candidate_ordering: list[str],
     candidate_legend: Optional[dict[str, str]],
     use_integer_labels: bool,
@@ -742,10 +741,6 @@ def _validate_args_plot_summary_stats(
     Args:
         profile_list (list[PreferenceProfile]): List of
             PreferenceProfiles to compute statistics for.
-        stat_funcs_to_plot (dict[str, Callable]): Custom statistics to plot.
-            Keys should be names of statistics, and values should be Callables. Callable should
-            take a PreferenceProfile as input and return a dictionary whose keys are candidate names
-            and values are the statistic.
         candidate_ordering (list[str]): Order in which to list candidates on the x-axis.
         candidate_legend (dict[str, str, optional): Dictionary that maps x-axis labels to a
             description.
@@ -755,11 +750,6 @@ def _validate_args_plot_summary_stats(
 
     if any(set(p.candidates) != set(profile_list[0].candidates) for p in profile_list):
         raise ValueError("All PreferenceProfiles must have the same candidates.")
-
-    if not stat_funcs_to_plot:
-        raise ValueError(
-            "At least one of stats_to_plot and stat_funcs_to_plot must be provided."
-        )
 
     if use_integer_labels and candidate_legend:
         sym_dif = set(candidate_legend.values()) ^ set(profile_list[0].candidates)
@@ -816,7 +806,9 @@ def _prepare_data_plot_summary_stats(
         data = [{c: v for c, v in data_dict.items()} for data_dict in data]
 
     data_set_labels = [
-        f"{stat}, {label}" for stat in stat_funcs_to_plot for label in profile_labels
+        f"{stat.capitalize()}, {label}"
+        for stat in stat_funcs_to_plot
+        for label in profile_labels
     ]
 
     return data, data_set_labels
@@ -860,10 +852,12 @@ def plot_candidate_summary_stats(
         stats_to_plot (Union[list[str],str], optional): Which statistic to plot. Can be either
             a list or a single stat. Must be one of ["fpv", "first place votes",
             "mentions", "borda"]. Defaults to None, in which case ``stat_funcs_to_plot`` is used.
+            If neither are provided, defaults to first place votes.
         stat_funcs_to_plot (dict[str, Callable], optional): Custom statistics to plot.
             Keys should be names of statistics, and values should be Callables. Callable should
             take a PreferenceProfile as input and return a dictionary whose keys are candidate names
             and values are the statistic. Defaults to None, in which case ``stats_to_plot`` is used.
+            If neither are provided, defaults to first place votes.
         profile_labels (list[str], optional): List of labels for each profile. Defaults to None,
             in which case labels default to "Profile i".
         show_stat_legend (bool, optional): Whether or not to show the legend containing profile
@@ -921,7 +915,6 @@ def plot_candidate_summary_stats(
 
     _validate_args_plot_summary_stats(
         profile_list,
-        stat_funcs_to_plot,
         candidate_ordering,
         candidate_legend,
         use_integer_labels,
