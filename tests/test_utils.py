@@ -213,13 +213,13 @@ def test_validate_score_vector():
     validate_score_vector([3, 3, 3, 3])
 
 
-def test_score_profile_from_rankings():
+def test_score_profile_from_rankings_low():
     true_scores = {
-        "A": Fraction(105, 4),
-        "B": Fraction(73, 4),
-        "C": Fraction(77, 4),
-        "D": Fraction(45, 4),
-        "E": Fraction(30, 4),
+        "A": Fraction(25),
+        "B": Fraction(17),
+        "C": Fraction(17),
+        "D": Fraction(6),
+        "E": Fraction(1),
     }
 
     comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
@@ -227,8 +227,46 @@ def test_score_profile_from_rankings():
     assert isinstance(comp_scores["A"], Fraction)
 
 
+def test_score_profile_from_rankings_high():
+    true_scores = {
+        "A": Fraction(27.5),
+        "B": Fraction(19.5),
+        "C": Fraction(18.5),
+        "D": Fraction(7.5),
+        "E": Fraction(1),
+    }
+
+    comp_scores = score_profile_from_rankings(
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
+    )
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], Fraction)
+
+
+def test_score_profile_from_rankings_avg():
+    true_scores = {
+        "A": Fraction(26.25),
+        "B": Fraction(18.25),
+        "C": Fraction(17.75),
+        "D": Fraction(6.75),
+        "E": Fraction(1),
+    }
+
+    comp_scores = score_profile_from_rankings(
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
+    )
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], Fraction)
+
+
 def test_score_profile_from_rankings_to_float():
-    true_scores = {"A": 105 / 4, "B": 73 / 4, "C": 77 / 4, "D": 45 / 4, "E": 30 / 4}
+    true_scores = {
+        "A": 25,
+        "B": 17,
+        "C": 17,
+        "D": 6,
+        "E": 1,
+    }
 
     comp_scores = score_profile_from_rankings(
         profile_with_missing, [5, 4, 3, 2, 1], to_float=True
@@ -257,6 +295,13 @@ def test_score_profile_from_rankings_errors():
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(ranking=({"A"}, frozenset(), {"B"})),)),
             [3, 2, 1],
+        )
+    with pytest.raises(
+        ValueError,
+        match=("tie_convention must be one of 'high', 'low', 'average', " "not highlo"),
+    ):
+        score_profile_from_rankings(
+            profile_no_ties, [5, 4, 3, 2, 1], tie_convention="highlo"
         )
 
 
@@ -301,7 +346,7 @@ def test_mentions_errors():
 
 
 def test_borda_no_ties():
-    true_borda = {"A": Fraction(15, 2), "B": Fraction(9), "C": Fraction(21, 2)}
+    true_borda = {"A": Fraction(15, 2), "B": Fraction(9), "C": Fraction(19, 2)}
 
     borda = borda_scores(profile_no_ties)
 
@@ -310,7 +355,7 @@ def test_borda_no_ties():
 
 
 def test_borda_no_ties_to_float():
-    true_borda = {"A": 15 / 2, "B": 9, "C": 21 / 2}
+    true_borda = {"A": 15 / 2, "B": 9, "C": 19 / 2}
 
     borda = borda_scores(profile_no_ties, to_float=True)
     assert borda == true_borda
@@ -318,9 +363,9 @@ def test_borda_no_ties_to_float():
 
 
 def test_borda_with_ties():
-    true_borda = {"A": Fraction(25, 2), "B": Fraction(13, 2), "C": Fraction(8)}
+    true_borda = {"A": Fraction(25, 2), "B": Fraction(13, 2), "C": Fraction(7)}
 
-    borda = borda_scores(profile_with_ties)
+    borda = borda_scores(profile_with_ties, tie_convention="average")
 
     assert borda == true_borda
     assert isinstance(borda["A"], Fraction)
@@ -363,10 +408,10 @@ def test_borda_short_ballot():
 
 def test_borda_mismatched_length():
     true_borda = {
-        "A": Fraction(97.5),
+        "A": Fraction(50),
         "B": Fraction(98),
-        "C": Fraction(97.5),
-        "D": Fraction(95),
+        "C": Fraction(50),
+        "D": Fraction(0),
     }
 
     borda = borda_scores(
@@ -407,10 +452,19 @@ def test_borda_errors():
 
 def test_tiebreak_set():
     fpv_ranking = (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
-    borda_ranking = (frozenset({"A"}), frozenset({"C"}), frozenset({"B"}))
+    borda_ranking = (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     tied_set = frozenset({"A", "C", "B"})
-    assert tiebreak_set(tied_set, profile_with_ties, "first_place") == fpv_ranking
-    assert tiebreak_set(tied_set, profile_with_ties, "borda") == borda_ranking
+
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"B"}], weight=1.5),
+            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        ]
+    )
+
+    assert tiebreak_set(tied_set, profile, "first_place") == fpv_ranking
+    assert tiebreak_set(tied_set, profile, "borda") == borda_ranking
     assert len(tiebreak_set(tied_set)) == 3
 
 
@@ -436,6 +490,15 @@ def test_tiebreak_no_res():
 
 
 def test_tiebroken_ranking():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"B"}], weight=1.5),
+            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        ],
+        candidates=["A", "B", "C", "D"],
+    )
+
     fpv_ranking = (
         frozenset({"A"}),
         frozenset({"B"}),
@@ -444,21 +507,16 @@ def test_tiebroken_ranking():
     )
     borda_ranking = (
         frozenset({"A"}),
-        frozenset({"C"}),
         frozenset({"B"}),
+        frozenset({"C"}),
         frozenset({"D"}),
     )
     tied_ranking = (frozenset({"A", "C", "B"}), frozenset({"D"}))
-    assert (
-        tiebroken_ranking(tied_ranking, profile_with_ties, "first_place")[0]
-        == fpv_ranking
-    )
-    assert (
-        tiebroken_ranking(tied_ranking, profile_with_ties, "borda")[0] == borda_ranking
-    )
+    assert tiebroken_ranking(tied_ranking, profile, "first_place")[0] == fpv_ranking
+    assert tiebroken_ranking(tied_ranking, profile, "borda")[0] == borda_ranking
     assert len(tiebroken_ranking(tied_ranking)[0]) == 4
 
-    assert tiebroken_ranking(tied_ranking, profile_with_ties, "first_place")[1] == {
+    assert tiebroken_ranking(tied_ranking, profile, "first_place")[1] == {
         frozenset({"A", "C", "B"}): (
             frozenset({"A"}),
             frozenset({"B"}),
@@ -502,24 +560,30 @@ def test_elect_cands_from_set_ranking():
 
 def test_elect_cands_from_set_ranking_tiebreaks():
     ranking = ({"D", "E"}, {"A"}, {"B", "C"}, {"F"})
+
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"B"}], weight=1.5),
+            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        ],
+        candidates=["A", "B", "C", "D", "E", "F"],
+    )
+
     fpv_elected, fpv_remaining, fpv_tiebroken_ranking = elect_cands_from_set_ranking(
-        ranking, 4, profile=profile_with_ties, tiebreak="first_place"
+        ranking, 4, profile, tiebreak="first_place"
     )
     (
         borda_elected,
         borda_remaining,
         borda_tiebroken_ranking,
-    ) = elect_cands_from_set_ranking(
-        ranking, 4, profile=profile_with_ties, tiebreak="borda"
-    )
+    ) = elect_cands_from_set_ranking(ranking, 4, profile, tiebreak="borda")
     (
         random_elected,
         random_remaining,
         random_tiebroken_ranking,
     ) = elect_cands_from_set_ranking(ranking, 4, tiebreak="random")
 
-    print(fpv_remaining)
-    print(fpv_tiebroken_ranking)
     assert fpv_elected == (frozenset({"D", "E"}), frozenset({"A"}), frozenset({"B"}))
     assert fpv_remaining == (frozenset({"C"}), frozenset({"F"}))
     assert fpv_tiebroken_ranking == (
@@ -527,11 +591,11 @@ def test_elect_cands_from_set_ranking_tiebreaks():
         (frozenset({"B"}), frozenset({"C"})),
     )
 
-    assert borda_elected == (frozenset({"D", "E"}), frozenset({"A"}), frozenset({"C"}))
-    assert borda_remaining == (frozenset({"B"}), frozenset({"F"}))
+    assert borda_elected == (frozenset({"D", "E"}), frozenset({"A"}), frozenset({"B"}))
+    assert borda_remaining == (frozenset({"C"}), frozenset({"F"}))
     assert borda_tiebroken_ranking == (
         frozenset({"B", "C"}),
-        (frozenset({"C"}), frozenset({"B"})),
+        (frozenset({"B"}), frozenset({"C"})),
     )
 
     assert len([c for s in random_elected for c in s]) == 4
