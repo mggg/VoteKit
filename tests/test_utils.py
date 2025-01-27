@@ -361,6 +361,45 @@ def test_borda_short_ballot():
     assert borda == true_borda
 
 
+def test_borda_mismatched_length():
+    true_borda = {
+        "A": Fraction(97.5),
+        "B": Fraction(98),
+        "C": Fraction(97.5),
+        "D": Fraction(95),
+    }
+
+    borda = borda_scores(
+        PreferenceProfile(
+            ballots=(Ballot(ranking=({"A"}, {"B"})), Ballot(ranking=({"C"}, {"B"}))),
+            candidates=["A", "B", "C", "D"],
+        ),
+        borda_max=50,
+    )
+
+    assert borda == true_borda
+
+    true_borda = {
+        "A": Fraction(1),
+        "B": Fraction(0),
+        "C": Fraction(1),
+        "D": Fraction(0),
+    }
+
+    borda = borda_scores(
+        PreferenceProfile(
+            ballots=(
+                Ballot(ranking=({"A"}, {"B"}, {"C"})),
+                Ballot(ranking=({"C"}, {"B"})),
+            ),
+            candidates=["A", "B", "C", "D"],
+        ),
+        borda_max=1,
+    )
+
+    assert borda == true_borda
+
+
 def test_borda_errors():
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
