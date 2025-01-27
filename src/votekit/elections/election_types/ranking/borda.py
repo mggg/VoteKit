@@ -7,7 +7,7 @@ from ....utils import (
     validate_score_vector,
     score_profile_from_rankings,
 )
-from typing import Optional, Union, Sequence
+from typing import Optional, Union, Sequence, Literal
 from fractions import Fraction
 from functools import partial
 
@@ -28,6 +28,12 @@ class Borda(RankingElection):
             If it is shorter, we add 0s. Defaults to None, which is the conventional Borda vector.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and
             'first_place'. Defaults to None, in which case a tie raises a ValueError.
+        scoring_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied rankings. Defaults to "low", where any candidates tied receive the lowest
+            possible points for their position, eg three people tied for 3rd would each receive the
+            points for 5th. "high" awards the highest possible points, so in the previous example,
+            they would each receive the points for 3rd. "average" averages the points, so they would
+            each receive the points for 4th place.
 
     """
 
@@ -37,6 +43,7 @@ class Borda(RankingElection):
         m: int = 1,
         score_vector: Optional[Sequence[Union[float, Fraction]]] = None,
         tiebreak: Optional[str] = None,
+        scoring_tie_convention: Literal["high", "average", "low"] = "low",
     ):
         self.m = m
         self.tiebreak = tiebreak
@@ -46,7 +53,10 @@ class Borda(RankingElection):
         validate_score_vector(score_vector)
         self.score_vector = score_vector
         score_function = partial(
-            score_profile_from_rankings, score_vector=score_vector, to_float=False
+            score_profile_from_rankings,
+            score_vector=score_vector,
+            to_float=False,
+            tie_convention=scoring_tie_convention,
         )
         super().__init__(profile, score_function=score_function, sort_high_low=True)
 
