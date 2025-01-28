@@ -21,10 +21,15 @@ class PreferenceProfile:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
         candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
+        max_ballot_length (int, optional): The length of the longest allowable ballot, i.e., how
+            many candidates are allowed to be ranked in an election. Defaults to longest observed
+            ballot.
 
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
         candidates (tuple[str]): Tuple of candidate strings.
+        max_ballot_length (int): The length of the longest allowable ballot, i.e., how
+            many candidates are allowed to be ranked in an election.
         df (pandas.DataFrame): Data frame view of the ballots.
         candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive
             weight, either in the ranking or in the score dictionary.
@@ -35,6 +40,7 @@ class PreferenceProfile:
 
     ballots: tuple[Ballot, ...] = field(default_factory=tuple)
     candidates: tuple[str, ...] = field(default_factory=tuple)
+    max_ballot_length: int = 0
     df: pd.DataFrame = field(default_factory=pd.DataFrame)
     candidates_cast: tuple[str, ...] = field(default_factory=tuple)
     num_ballots: int = 0
@@ -63,6 +69,25 @@ class PreferenceProfile:
         object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
         if not self.candidates:
             object.__setattr__(self, "candidates", tuple(candidates_cast))
+        return self
+
+    @model_validator(mode="after")
+    def check_ballot_length(self) -> Self:
+        if self.max_ballot_length == 0:
+            for ballot in self.ballots:
+                ballot_len = len(ballot.ranking) if ballot.ranking else 0
+
+                if ballot_len > self.max_ballot_length:
+                    object.__setattr__(self, "max_ballot_length", ballot_len)
+
+        else:
+            for ballot in self.ballots:
+                if ballot.ranking:
+                    if len(ballot.ranking) > self.max_ballot_length:
+                        raise ValueError(
+                            "Profile contains a ballot with a ranking that is too long."
+                        )
+
         return self
 
     @model_validator(mode="after")

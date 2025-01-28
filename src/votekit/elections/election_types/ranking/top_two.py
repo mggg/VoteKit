@@ -3,7 +3,8 @@ from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....utils import first_place_votes, remove_cand
 from ..ranking import Plurality
-from typing import Optional
+from typing import Optional, Literal
+from functools import partial
 
 
 class TopTwo(RankingElection):
@@ -15,12 +16,27 @@ class TopTwo(RankingElection):
         profile (PreferenceProfile): Profile to conduct election on.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
+        fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+            Only used by ``score_function`` parameter.
 
     """
 
-    def __init__(self, profile: PreferenceProfile, tiebreak: Optional[str] = None):
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        tiebreak: Optional[str] = None,
+        fpv_tie_convention: Literal["high", "low", "average"] = "average",
+    ):
         self.tiebreak = tiebreak
-        super().__init__(profile, score_function=first_place_votes, sort_high_low=True)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+            sort_high_low=True,
+        )
 
     def _is_finished(self):
         # two round election
