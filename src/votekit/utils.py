@@ -255,7 +255,7 @@ def score_profile_from_rankings(
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
     non-negative. Vector should be as long as the number of candidates. If it is shorter,
-    we add 0s.
+    we add 0s. Unlisted candidates receive 0 points.
 
 
     Args:
@@ -383,9 +383,8 @@ def borda_scores(
     """
     Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1, 0,\dots,0)` where :math:`n` is the ``borda_max`.
-    Candidates tied in a position receive an average of the points they would have
-    received had it been untied. Any candidates not listed on a ballot are considered tied in last
-    place (and thus receive an average of any remaining points).
+    Unlisted candidates receive 0 points.
+
 
     Args:
         profile (PreferenceProfile): ``PreferenceProfile`` of ballots.
