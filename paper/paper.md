@@ -4,8 +4,10 @@ tags:
   - Python
 authors: 
   - name: Christopher Donnay
+    orcid: 0000-0002-4782-124X
     affiliation: 1
   - name: Moon Duchin
+    orcid: 0000-0003-4498-4067
     affiliation: 1
   - name: Jack Gibson
     affiliation: 2
@@ -18,15 +20,15 @@ authors:
   - name: Jennifer Wang
     affiliation: 5
 affiliations:
-  - name: Cornell University
+  - name: Cornell University, United States
     index: 1
-  - name: MGGG Redistricting Lab
+  - name: MGGG Redistricting Lab, United States
     index: 2
-  - name: Stanford University
+  - name: Stanford University, United States
     index: 3
-  - name: Boston University
+  - name: Boston University, United States
     index: 4
-  - name: Brown University
+  - name: Brown University, United States
     index: 5
     
 bibliography: paper.bib
@@ -50,7 +52,7 @@ substantially. From both a scholarly and a practical perspective, many
 questions arise about comparing the properties and tendencies of diverse
 systems of election in a rigorous manner.
 
-`VoteKit` [@VoteKit] is a Python package designed to facilitate just that
+`VoteKit` [https://github.com/mggg/VoteKit](https://github.com/mggg/VoteKit) is a Python package designed to facilitate just that
 kind of analysis, bringing together multiple types of functionality.
 Users can:
 
