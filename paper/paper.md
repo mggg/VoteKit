@@ -170,7 +170,7 @@ Figure 1 is reprinted with permission from a report on reform proposals for the 
 
 ## Area of need: Resources for research
 
-Previous research works such as [@elkind2017multiwinner] have compared
+Previous research works such as @elkind2017multiwinner have compared
 properties of generative models; `VoteKit` has functionality to fully
 replicate this work and facilitates robust
 comparisons across a more comprehensive and up-to-date list of
@@ -179,7 +179,7 @@ research on elections. Some examples are shown in Figure 2. At left is a
 *ballot graph*, which shows the possible ballots, connected by 
 elementary moves.  At right is a visualization of similarity and 
 difference between profiles produced by various generative methods, 
-enabling comparisons in the style of [@drawing-a-map].
+enabling comparisons in the style of @drawing-a-map.
 
 
 
