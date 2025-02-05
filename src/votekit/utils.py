@@ -253,7 +253,7 @@ def score_profile_from_rankings(
     """
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
-    non-negative. Vector should be as long as the number of candidates. If it is shorter,
+    non-negative. Vector should be as long as ``max_ballot_length`` in the profile.
     If it is shorter, we add 0s. Unlisted candidates receive 0 points.
 
 
@@ -261,7 +261,7 @@ def score_profile_from_rankings(
         profile (PreferenceProfile): Profile to score.
         score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as ``max_ballot_length`` in
-            If it is shorter, we add 0s.
+            the profile. If it is shorter, we add 0s.
         to_float (bool, optional): If True, compute scores as floats instead of Fractions.
             Defaults to False.
         tie_convention (Literal["high", "average", "low"], optional): How to award points for

@@ -17,8 +17,8 @@ class Borda(RankingElection):
     Borda election. Positional voting system that assigns a decreasing number of points to
     candidates based on their ordering. The conventional score vector is :math:`(n, n-1, \dots, 1)`
     where :math:`n` is the ``max_ballot_length`` of the profile. Candidates with the highest scores
-    This class uses the `utils.score_profile_from_rankings()` to handle ballots with ties and
-    missing candidates.
+    are elected. This class uses the ``utils.score_profile_from_rankings()`` to handle ballots with
+    ties.
 
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
