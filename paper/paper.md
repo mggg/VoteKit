@@ -16,8 +16,10 @@ authors:
   - name: Andrew Hong
     affiliation: 3
   - name: Malavika Mukundan
+    orcid: 0000-0003-4783-0231
     affiliation: 4
   - name: Jennifer Wang
+    orcid: 0009-0004-0897-7163
     affiliation: 5
 affiliations:
   - name: Cornell University, United States
