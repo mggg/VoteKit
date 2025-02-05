@@ -48,7 +48,7 @@ class Borda(RankingElection):
         self.m = m
         self.tiebreak = tiebreak
         if not score_vector:
-            score_vector = list(range(len(profile.candidates), 0, -1))
+            score_vector = list(range(profile.max_ballot_length, 0, -1))
 
         validate_score_vector(score_vector)
         self.score_vector = score_vector

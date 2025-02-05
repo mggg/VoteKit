@@ -278,7 +278,7 @@ def score_profile_from_rankings(
     """
     validate_score_vector(score_vector)
 
-    max_length = len(profile.candidates)
+    max_length = profile.max_ballot_length
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
@@ -340,7 +340,7 @@ def first_place_votes(
     """
     # equiv to score vector of (1,0,0,...)
     return score_profile_from_rankings(
-        profile, [1] + [0] * len(profile.candidates), to_float, tie_convention
+        profile, [1] + [0] * (profile.max_ballot_length - 1), to_float, tie_convention
     )
 
 
