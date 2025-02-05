@@ -183,8 +183,7 @@ def remove_cand(
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Add any candidates from `profile.candidates` that are not listed on a ballot
-    as tied in last place. Helper function for scoring profiles. Automatically
-    condenses profile.
+    as tied in last place. Automatically condenses profile.
 
     Args:
         profile (PreferenceProfile): Input profile.
@@ -255,13 +254,13 @@ def score_profile_from_rankings(
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
     non-negative. Vector should be as long as the number of candidates. If it is shorter,
-    we add 0s. Unlisted candidates receive 0 points.
+    If it is shorter, we add 0s. Unlisted candidates receive 0 points.
 
 
     Args:
         profile (PreferenceProfile): Profile to score.
         score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
-            non-increasing and non-negative. Vector should be as long as the number of candidates.
+            non-increasing and non-negative. Vector should be as long as ``max_ballot_length`` in
             If it is shorter, we add 0s.
         to_float (bool, optional): If True, compute scores as floats instead of Fractions.
             Defaults to False.
@@ -382,9 +381,7 @@ def borda_scores(
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
     Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
-    :math:`(n,n-1,\dots,1, 0,\dots,0)` where :math:`n` is the ``borda_max`.
-    Unlisted candidates receive 0 points.
-
+    :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
 
     Args:
         profile (PreferenceProfile): ``PreferenceProfile`` of ballots.
