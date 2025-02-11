@@ -6,7 +6,7 @@ from fractions import Fraction
 from typing import Union
 
 
-def mention(cands: Union[str, list[str]], ballot: Ballot):
+def comention(cands: Union[str, list[str]], ballot: Ballot):
     """
     Takes cands and returns true if they all appear on the ballot, either in the ranking
     or the scoring. Candidates who receive 0 points are not counted as mentioned.
@@ -30,23 +30,6 @@ def mention(cands: Union[str, list[str]], ballot: Ballot):
         cands = [cands]
 
     return set(cands).issubset(all_cands)
-
-
-def comention(i: str, j: str, ballot: Ballot) -> bool:
-    """
-    Takes candidates i,j and returns true if they both appear on the ballot, either in the ranking
-    or the scoring. Candidates who receive 0 points are not counted as mentioned.
-
-    Args:
-      i (str): Candidate name.
-      j (str): Candidate name.
-      ballot (Ballot): Ballot.
-
-    Returns:
-      bool: True if both i and j appear in ballot.
-    """
-
-    return mention(i, ballot) and mention(j, ballot)
 
 
 def comention_above(i: str, j: str, ballot: Ballot) -> bool:
@@ -105,7 +88,7 @@ def comentions_matrix(
             for ballot in pref_profile.ballots:
 
                 if symmetric:
-                    if comention(i, j, ballot):
+                    if comention([i, j], ballot):
                         comentions_matrix[i][j] += ballot.weight
                 else:
                     if comention_above(i, j, ballot):

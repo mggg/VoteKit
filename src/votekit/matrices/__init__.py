@@ -1,1 +1,1 @@
-from .mentions import mention, comention, comention_above, comentions_matrix  # noqa
+from .comentions import comention, comention_above, comentions_matrix  # noqa
