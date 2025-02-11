@@ -1,30 +1,35 @@
 from ..ballot import Ballot
 from ..pref_profile import PreferenceProfile
-from ._convert_dict_to_mat import _convert_dict_to_matrix
+from ._utils import _convert_dict_to_matrix
 import numpy as np
 from fractions import Fraction
+from typing import Union
 
 
-def mention(i: str, ballot: Ballot) -> bool:
+def mention(cands: Union[str, list[str]], ballot: Ballot):
     """
-    Returns true if candidate i is on the ballot, either in the ranking or the scoring.
-    Candidates who receive 0 points are not counted as mentioned.
+    Takes cands and returns true if they all appear on the ballot, either in the ranking
+    or the scoring. Candidates who receive 0 points are not counted as mentioned.
 
     Args:
-      i (str): Candidate name.
+      cands (Union[str, list[str]]): Candidate name or list of candidate names.
       ballot (Ballot): Ballot.
 
     Returns:
-      bool: True if i appears anywhere in ballot.
+      bool: True if all candidates appear in ballot.
     """
-    cands: set[str] = set()
+
+    all_cands: set[str] = set()
     if ballot.scores:
-        cands = cands.union(ballot.scores.keys())
+        all_cands = all_cands.union(ballot.scores.keys())
 
     if ballot.ranking:
-        cands = cands.union(c for s in ballot.ranking for c in s)
+        all_cands = all_cands.union(c for s in ballot.ranking for c in s)
 
-    return i in cands
+    if isinstance(cands, str):
+        cands = [cands]
+
+    return set(cands).issubset(all_cands)
 
 
 def comention(i: str, j: str, ballot: Ballot) -> bool:
@@ -41,19 +46,12 @@ def comention(i: str, j: str, ballot: Ballot) -> bool:
       bool: True if both i and j appear in ballot.
     """
 
-    cands: set[str] = set()
-    if ballot.scores:
-        cands = cands.union(ballot.scores.keys())
-
-    if ballot.ranking:
-        cands = cands.union(c for s in ballot.ranking for c in s)
-
-    return i in cands and j in cands
+    return mention(i, ballot) and mention(j, ballot)
 
 
 def comention_above(i: str, j: str, ballot: Ballot) -> bool:
     """
-    Takes candidates i,j and returns true if i appears tied with or before j in the ranking.
+    Takes candidates i,j and returns True if i appears tied with or before j in the ranking.
     Requires that the ballot has a ranking.
 
 
@@ -86,7 +84,7 @@ def comentions_matrix(
     Takes a preference profile and converts to a numpy array
     where the i,j entry shows the number of times candidates i,j were mentioned on the same
     ballot with i above j. There is an option to make it symmetric so that the i,j entry is just
-    the comentions of i,j. Comentions are counted using ballot weight. The indexing of the
+    where the i,j entry shows the number of times candidates i and j were mentioned on the same
     matrix matches the indexing of ``candidates``.
 
     Args:
