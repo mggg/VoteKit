@@ -107,7 +107,7 @@ def test_random_dictator_4_candidates_with_ties():
 
     trials = 5000
 
-    fpv = first_place_votes(test_profile)
+    fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
@@ -140,7 +140,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    fpv = first_place_votes(test_profile)
+    fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 

@@ -1029,9 +1029,11 @@ class AlternatingCrossover(BallotGenerator):
         voter_types = [(b, type) for b in self.blocs for type in ["bloc", "cross"]]
 
         voter_props = [
-            cohesion_parameters[b] * self.bloc_voter_prop[b]
-            if t == "bloc"
-            else (1 - cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            (
+                cohesion_parameters[b] * self.bloc_voter_prop[b]
+                if t == "bloc"
+                else (1 - cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            )
             for b, t in voter_types
         ]
 
@@ -1286,9 +1288,11 @@ class CambridgeSampler(BallotGenerator):
         ]
 
         voter_props = [
-            cohesion_parameters[b] * self.bloc_voter_prop[b]
-            if t == "bloc"
-            else (1 - cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            (
+                cohesion_parameters[b] * self.bloc_voter_prop[b]
+                if t == "bloc"
+                else (1 - cohesion_parameters[b]) * self.bloc_voter_prop[b]
+            )
             for b, t in voter_types
         ]
 

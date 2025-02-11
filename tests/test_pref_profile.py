@@ -16,6 +16,7 @@ def test_init():
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots
+    assert empty_profile.max_ballot_length == 0
 
 
 def test_unique_cands_validator():
@@ -104,6 +105,46 @@ def test_total_ballot_wt():
         match="cannot assign to field 'total_ballot_wt'",
     ):
         profile.total_ballot_wt = 0
+
+
+def test_ballot_length_default():
+    profile = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
+            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
+            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
+            Ballot(scores={"A": 4}),
+        )
+    )
+
+    assert profile.max_ballot_length == 3
+
+
+def test_ballot_length_no_default():
+    profile = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
+            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
+            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
+            Ballot(scores={"A": 4}),
+        ),
+        max_ballot_length=4,
+    )
+
+    assert profile.max_ballot_length == 4
+
+    with pytest.raises(
+        ValueError, match="Profile contains a ballot with a ranking that is too long."
+    ):
+        profile = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
+                Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
+                Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
+                Ballot(scores={"A": 4}),
+            ),
+            max_ballot_length=2,
+        )
 
 
 def test_to_ballot_dict():
