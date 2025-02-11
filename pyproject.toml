@@ -20,9 +20,7 @@ dependencies = [
     "numpy (>=1.26.0, <2.0)",
 ]
 
-#[tool.poetry.dependencies]
-#python = "
- 
+
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.275"
 black = "^24.8.0"
@@ -35,9 +33,6 @@ sphinx-copybutton = "^0.5.2"
 recommonmark = "^0.7.1"
 sphinx-rtd-theme = "^3.0.2"
 
-#[build-system]
-#requires = ["poetry-core"]
-#build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 100

@@ -41,7 +41,7 @@ def compute_MDS(
     distance: Callable[..., int],
     random_seed: int = 47,
     *args,
-    **kwargs
+    **kwargs,
 ):
     """
     Computes the coordinates of an MDS plot. This is time intensive, so it is decoupled from
