@@ -160,18 +160,18 @@ class STV(RankingElection):
                     ballots_by_fpv[candidate],
                     self.threshold,
                 )
-                new_ballots[
-                    ballot_index : (ballot_index + len(transfer_ballots))
-                ] = transfer_ballots
+                new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                    transfer_ballots
+                )
                 ballot_index += len(transfer_ballots)
 
         for candidate in set([c for s in ranking_by_fpv for c in s]).difference(
             [c for s in elected for c in s]
         ):
             transfer_ballots = tuple(ballots_by_fpv[candidate])
-            new_ballots[
-                ballot_index : (ballot_index + len(transfer_ballots))
-            ] = transfer_ballots
+            new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                transfer_ballots
+            )
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = remove_cand(
@@ -230,17 +230,17 @@ class STV(RankingElection):
             ballots_by_fpv[elected_c],
             self.threshold,
         )
-        new_ballots[
-            ballot_index : (ballot_index + len(transfer_ballots))
-        ] = transfer_ballots
+        new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+            transfer_ballots
+        )
         ballot_index += len(transfer_ballots)
 
         for s in remaining:
             for candidate in s:
                 transfer_ballots = tuple(ballots_by_fpv[candidate])
-                new_ballots[
-                    ballot_index : (ballot_index + len(transfer_ballots))
-                ] = transfer_ballots
+                new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                    transfer_ballots
+                )
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = remove_cand(

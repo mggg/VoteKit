@@ -106,9 +106,9 @@ def random_transfer(
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)
-                winner_ballots[
-                    winner_index : (winner_index + len(new_ballots))
-                ] = new_ballots
+                winner_ballots[winner_index : (winner_index + len(new_ballots))] = (
+                    new_ballots
+                )
                 winner_index += len(new_ballots)
 
             else:

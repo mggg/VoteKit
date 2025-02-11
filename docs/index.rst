@@ -21,14 +21,10 @@ Welcome to VoteKit's documentation!
     :target: https://pypi.org/project/votekit/
     :alt: PyPI Package
 
-The project is in active development in the `mggg/VoteKit`_ GitHub
-repository, where `bug reports and feature requests`_, as well as 
-`contributions`_, are welcome.
+The project is in active development in the `mggg/VoteKit <https://github.com/mggg/VoteKit>`_ GitHub
+repository, where :doc:`bug reports and feature requests <./package_info/issues>`, as well as 
+:doc:`contributions <./package_info/contributing>`, are welcome.
 
-
-.. _`MGGG/VoteKit`: https://github.com/mggg/VoteKit
-.. _`bug reports and feature requests`: package_info/issues.rst
-.. _`contributions`: package_info/contributing.rst
 
 
 .. include:: user/install.rst
@@ -58,10 +54,4 @@ repository, where `bug reports and feature requests`_, as well as
     package_info/contributing.rst
     package_info/api.rst
 
-.. Indices and tables
-.. ==================
-
-.. * :ref:`genindex`
-.. * :ref:`modindex`
-.. * :ref:`search`
 
