@@ -24,7 +24,7 @@ def test_convert_float_error():
         "Moon": {"Chris": 0, "Peter": -1, "Moon": 0.25},
     }
 
-    with pytest.raises(ValueError, match="Unable to parse (.*?) at position"):
+    with pytest.raises(ValueError, match="could not convert (.*?) to float"):
         _convert_dict_to_matrix(data)
 
 

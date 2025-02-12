@@ -34,7 +34,7 @@ def comention(cands: Union[str, list[str]], ballot: Ballot):
 
 def comention_above(i: str, j: str, ballot: Ballot) -> bool:
     """
-    Takes candidates i,j and returns True if i appears tied with or before j in the ranking.
+    Takes candidates i,j and returns True if i >= j in the ranking.
     Requires that the ballot has a ranking.
 
 
@@ -44,7 +44,7 @@ def comention_above(i: str, j: str, ballot: Ballot) -> bool:
       ballot (Ballot): Ballot.
 
     Returns:
-      bool: True if both i and j appear in ballot and i is above j.
+      bool: True if both i and j appear in ballot and i >= j.
     """
 
     if not ballot.ranking:
@@ -64,19 +64,18 @@ def comentions_matrix(
     pref_profile: PreferenceProfile, candidates: list[str], symmetric: bool = False
 ) -> np.ndarray:
     """
-    Takes a preference profile and converts to a numpy array
+    Takes a preference profile and converts to a matrix
     where the i,j entry shows the number of times candidates i,j were mentioned on the same
-    ballot with i above j. There is an option to make it symmetric so that the i,j entry is just
-    where the i,j entry shows the number of times candidates i and j were mentioned on the same
-    matrix matches the indexing of ``candidates``.
+    ballot with i >= j. There is an option to make it symmetric so that the i,j entry is just
+    the number of times candidates i and j were mentioned on the same ballot.
 
     Args:
       pref_profile (PreferenceProfile): Profile.
       candidates (list[str]): List of candidates to use. Indexing of this list matches indexing of
         output array.
       symmetric (bool, optional): Whether or not to make the matrix symmetric. Defaults to False
-        in which case the i,j entry is comentions where i>j. True means the i,j entry is comentions
-        of i,j.
+        in which case the i,j entry is comentions where i >= j. True means the i,j entry is
+        comentions of i,j.
 
     Returns:
       np.ndarray: Numpy array of comentions.
