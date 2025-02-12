@@ -3,7 +3,6 @@ from ..pref_profile import PreferenceProfile
 import numpy as np
 import itertools as it
 from ._utils import _convert_dict_to_matrix
-from fractions import Fraction
 
 
 def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
@@ -55,8 +54,8 @@ def candidate_distance_matrix(
         np.ndarray: Numpy array of average distances.
     """
 
-    dist_matrix = {c: {c: Fraction(0) for c in candidates} for c in candidates}
-    weight_matrix = {c: {c: Fraction(0) for c in candidates} for c in candidates}
+    dist_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
+    weight_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
     avg_dist_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
 
     for i, j in it.combinations_with_replacement(candidates, 2):
@@ -73,13 +72,10 @@ def candidate_distance_matrix(
                 dist_matrix[j][i] += (-d) * ballot.weight
                 weight_matrix[j][i] += ballot.weight
 
-            elif np.isnan(d):
-                continue
-
     for c, row in dist_matrix.items():
         for k, v in row.items():
             avg_dist_matrix[c][k] = (
                 float(v / weight_matrix[c][k]) if weight_matrix[c][k] > 0 else np.nan
             )
 
-    return _convert_dict_to_matrix(dist_matrix)
+    return _convert_dict_to_matrix(avg_dist_matrix)
