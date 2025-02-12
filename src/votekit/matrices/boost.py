@@ -37,10 +37,10 @@ def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, 
             both_mentions += ballot.weight
 
     return (
-        float(both_mentions) / j_mentions if j_mentions else np.nan,
+        float(both_mentions) / j_mentions if (j_mentions != 0) else np.nan,
         (
             float(i_mentions) / pref_profile.total_ballot_wt
-            if pref_profile.total_ballot_wt
+            if (pref_profile.total_ballot_wt != 0)
             else np.nan
         ),
     )
