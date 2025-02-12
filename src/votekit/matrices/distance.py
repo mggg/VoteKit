@@ -6,7 +6,7 @@ from ._utils import _convert_dict_to_matrix
 from fractions import Fraction
 
 
-def candidate_distance(i: str, j: str, ballot: Ballot):
+def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
     """
     Takes candidates i,j and returns distance r(j)-r(i) in ranking.
     Returns numpy.nan if a candidate is not on ballot. Note that this is non-symmetric,
@@ -18,7 +18,7 @@ def candidate_distance(i: str, j: str, ballot: Ballot):
       ballot (Ballot): Ballot.
 
     Returns:
-      int: Distance r(j)-r(i) in ranking.
+      float: Distance r(j)-r(i) in ranking.
     """
     if not ballot.ranking:
         raise TypeError("Ballot must have a ranking.")
