@@ -26,8 +26,6 @@ def _convert_dict_to_matrix(data_dict: dict[str, dict[str, Any]]) -> np.ndarray:
 
     df = pd.DataFrame.from_dict(data_dict).T
 
-    df = df.map(
-        lambda x: pd.to_numeric(x) if x not in ("NaN", "nan", None, np.nan) else np.nan
-    )
+    df = df.map(lambda x: float(x) if x not in ("NaN", "nan", None, np.nan) else np.nan)
 
     return df.to_numpy()
