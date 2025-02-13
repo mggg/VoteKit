@@ -7,3 +7,5 @@ from .candidate import (
     candidate_distance,  # noqa
     candidate_distance_matrix,  # noqa
 )
+
+from .heatmap import matrix_heatmap  # noqa
