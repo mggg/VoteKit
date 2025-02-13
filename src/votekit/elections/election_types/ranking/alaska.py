@@ -5,8 +5,9 @@ from ....utils import first_place_votes, remove_cand
 from ..ranking import Plurality, STV
 from ...transfers import fractional_transfer
 from ....ballot import Ballot
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, Literal
 from fractions import Fraction
+from functools import partial
 
 
 class Alaska(RankingElection):
@@ -32,6 +33,10 @@ class Alaska(RankingElection):
             who crosses the threshold is elected in a round. Defaults to True.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
+        fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+            Only used by ``score_function`` parameter.
 
     """  # noqa
 
@@ -47,6 +52,7 @@ class Alaska(RankingElection):
         quota: str = "droop",
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
+        fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         if m_1 <= 0:
             raise ValueError("m_1 must be positive.")
@@ -60,7 +66,13 @@ class Alaska(RankingElection):
         self.quota = quota
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
-        super().__init__(profile, score_function=first_place_votes, sort_high_low=True)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+            sort_high_low=True,
+        )
 
     def get_profile(self, round_number: int = -1) -> PreferenceProfile:
         """

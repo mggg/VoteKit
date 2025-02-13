@@ -130,7 +130,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
 
     trials = 10000
 
-    fpv = first_place_votes(test_profile)
+    fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
     tot_fpv_sq = sum(x**2 for x in fpv.values())
     fpv_sq_dict = {c: v**2 / tot_fpv_sq for c, v in fpv.items()}
@@ -143,7 +143,6 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
-
     assert np.allclose(
         2 / 3 * float(fpv["A"]) + 1 / 3 * float(fpv_sq_dict["A"]),
         winner_counts["A"] / trials,
@@ -181,7 +180,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    fpv = first_place_votes(test_profile)
+    fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
     tot_fpv_sq = sum(x**2 for x in fpv.values())
     fpv_sq_dict = {c: v**2 / tot_fpv_sq for c, v in fpv.items()}

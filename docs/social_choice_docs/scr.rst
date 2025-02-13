@@ -291,6 +291,7 @@ the slates on the ballot, we fill in candidate ordering by sampling
 without replacement from each individual preference interval (we do not
 concatenate them!).
 
+
 Slate-Bradley-Terry
 ~~~~~~~~~~~~~~~~~~~
 

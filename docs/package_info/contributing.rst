@@ -5,7 +5,8 @@ Contributing to VoteKit
 Thank you for your interest in contributing to VoteKit! This document provides
 guidelines for contributing to the VoteKit project. All contributions and 
 feedback are welcome and appreciated 😊. The closer you can follow these guidelines, the 
-faster your contributions can enter the codebase.
+faster your contributions can enter the codebase. Before drafting your contribution, we recommend reaching out to 
+"code[at]mggg[dot]org" to discuss your feature and how you plan to incorporate it into the codebase.
 
 
 Contributing Guidelines
@@ -15,11 +16,10 @@ Contributing Guidelines
 ask that any contributors do the same to ensure that the codebase is consistent. For
 more information, see the `PEP 8 Style Guide <https://www.python.org/dev/peps/pep-0008/>`_.
 
-**Writing Tests**: If you write a new feature, please make sure that it is
-included in a test somewhere. A test is a short piece of code that checks that the package is working as intended.
+**Writing Tests**: If you write a new feature, you also need to write a set of tests. A test is a short piece of code that checks that the package is working as intended.
 While it is not feasible to test every single aspect of a package, adding tests for new features is a crucial part
 of open-source software. You can use our `current tests <https://github.com/mggg/VoteKit/blob/main/tests>`_  as a starting place 
-to show you how these work. Depending on the scale of your feature, you may need multiple tests.
+to show you how these work, or read this `tutorial <https://realpython.com/python-testing/>`_. Depending on the scale of your feature, you may need multiple tests.
 At minimum, your tests should 
 
 - check the basic functionality of your feature, such as a test case of an algorithm or an instantiation of a class, and 
@@ -31,7 +31,7 @@ throughout the `codebase <https://github.com/mggg/VoteKit/blob/main/src/votekit>
 where we move the first line of the docstring onto its own line. Please make sure that any additions are consistent
 with that format.
 
-Broadly. we write a short description of the function or class.,
+Broadly, we write a short description of the function or class.
 We then list the arguments, their type, whether they are optional, and what the default behavior is if they are optional.
 We then list the return type and a short description of what is being returned.
 
@@ -69,7 +69,7 @@ Poetry
 =============
 
 VoteKit uses Poetry to manage the package and all of its dependencies; Poetry is not needed for standard users, but developers will find it useful.
-To install Poetry, within your `virtual environment <../user/install.rst>`_, run ``pip install poetry``.
+To install Poetry, within your :doc:`virtual environment <../user/install>`, run ``pip install poetry``.
 Then, run ``poetry install`` from within the root of your VoteKit project directory to install all dependencies. 
 This will add the necessary dependencies to a ``.venv`` directory.
 Once you've run ``poetry install``,  run ``poetry run pre-commit install``, which will install code linting hooks that will run on every commit. 

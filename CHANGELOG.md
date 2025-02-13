@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## Added
+- added support for three types of averaging conventions within `score_profile_from_rankings`: average,
+low, and high.
 
+## Changed 
+- changed the default Borda scoring to use low averaging, where tied rankings receive the lowest possible
+points
+- changed the sampling method for `boosted_random_dictator` and `random_dictator` to more clearly
+use the first place votes distribution
+
+## Fixed
 
 ## [3.0.0] - 2024-08-15
 

@@ -10,7 +10,8 @@ from ....utils import (
 )
 from fractions import Fraction
 import numpy as np
-from typing import Optional
+from typing import Optional, Literal
+from functools import partial
 
 
 class PluralityVeto(RankingElection):
@@ -26,6 +27,10 @@ class PluralityVeto(RankingElection):
       m (int): Number of seats to elect.
       tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
+      fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+            Only used by ``score_function`` parameter.
 
     Attributes:
         m (int): The number of seats to be filled in the election.
@@ -45,7 +50,11 @@ class PluralityVeto(RankingElection):
     """
 
     def __init__(
-        self, profile: PreferenceProfile, m: int, tiebreak: Optional[str] = None
+        self,
+        profile: PreferenceProfile,
+        m: int,
+        tiebreak: Optional[str] = None,
+        fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         """
         Initializes the Plurality Veto election class.
@@ -109,7 +118,12 @@ class PluralityVeto(RankingElection):
 
         self.eliminated_dict = {c: False for c in profile.candidates}
 
-        super().__init__(profile, score_function=first_place_votes)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+        )
 
     def _pv_validate_profile(self, profile: PreferenceProfile):
         """
