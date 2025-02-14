@@ -1,3 +1,11 @@
-from .comentions import comention, comention_above, comentions_matrix  # noqa
-from .boost import boost_prob, boost_matrix  # noqa
-from .distance import candidate_distance, candidate_distance_matrix  # noqa
+from .candidate import (
+    comention,  # noqa
+    comention_above,  # noqa
+    comentions_matrix,  # noqa
+    boost_prob,  # noqa
+    boost_matrix,  # noqa
+    candidate_distance,  # noqa
+    candidate_distance_matrix,  # noqa
+)
+
+from .heatmap import matrix_heatmap  # noqa

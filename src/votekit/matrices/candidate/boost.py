@@ -1,8 +1,8 @@
-from ..pref_profile import PreferenceProfile
+from ...pref_profile import PreferenceProfile
 from .comentions import comention
 import numpy as np
 from typing import Tuple
-from ._utils import _convert_dict_to_matrix
+from .._utils import _convert_dict_to_matrix
 from fractions import Fraction
 
 
