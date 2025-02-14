@@ -4,8 +4,10 @@ tags:
   - Python
 authors: 
   - name: Christopher Donnay
+    orcid: 0000-0002-4782-124X
     affiliation: 1
   - name: Moon Duchin
+    orcid: 0000-0003-4498-4067
     affiliation: 1
   - name: Jack Gibson
     affiliation: 2
@@ -14,19 +16,21 @@ authors:
   - name: Andrew Hong
     affiliation: 3
   - name: Malavika Mukundan
+    orcid: 0000-0003-4783-0231
     affiliation: 4
   - name: Jennifer Wang
+    orcid: 0009-0004-0897-7163
     affiliation: 5
 affiliations:
-  - name: Cornell University
+  - name: Cornell University, United States
     index: 1
-  - name: MGGG Redistricting Lab
+  - name: MGGG Redistricting Lab, United States
     index: 2
-  - name: Stanford University
+  - name: Stanford University, United States
     index: 3
-  - name: Boston University
+  - name: Boston University, United States
     index: 4
-  - name: Brown University
+  - name: Brown University, United States
     index: 5
     
 bibliography: paper.bib
@@ -50,7 +54,7 @@ substantially. From both a scholarly and a practical perspective, many
 questions arise about comparing the properties and tendencies of diverse
 systems of election in a rigorous manner.
 
-`VoteKit` [@VoteKit] is a Python package designed to facilitate just that
+`VoteKit` [https://github.com/mggg/VoteKit](https://github.com/mggg/VoteKit) is a Python package designed to facilitate just that
 kind of analysis, bringing together multiple types of functionality.
 Users can:
 
@@ -130,7 +134,7 @@ behavior and particularly to generate polarized elections. Two leading
 choices are based on classic statistical ranking mechanisms, called the
 Plackett--Luce (PL) and Bradley--Terry (BT) models; another model called
 the Cambridge Sampler (CS) draws from historical ranking data in
-Cambridge, MA city council elections. These models have flexible
+Cambridge, MA city council elections [@benade_donnay_duchin_weighill_24]. These models have flexible
 parameters---allowing users to vary voting bloc proportions, candidate
 strength within slates, and polarization between blocs---that can be 
 specified or randomly sampled.
@@ -159,14 +163,14 @@ references.  In addition, `VoteKit` is flexible enough to allow users to write c
 
 Reform advocates also need to describe voting mechanisms and their
 likely outcomes effectively to members of their communities. The end-to-end pipeline provided by `VoteKit` allows advocates to toggle different system settings and compare expected outcomes. For example, 
-Figure 1 is reprinted from a report on reform proposals for the chambers of the Washington state legislature.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under six possible electoral systems.
+Figure 1 is reprinted with permission from a report on reform proposals for the chambers of the Washington state legislature.  Using the codebase that formed the foundation of `VoteKit`, researchers compared the expected outcomes for minority representation under six possible electoral systems.
 
-![A comparison of a variety of electoral systems and their effect on minority representation in a [case study](https://mggg.org/washington) of reform proposals for the Washington state legislature [@washington_leg]. Even within ranked-choice proposals, certain options, like System 0 (based on single-member districts), are projected to be less successful for minority representation, while other systems, like System 1 (based on multi-member districts), predict that candidates of choice for people of color ("POC") are elected more in line with the POC share of population or citizen voting age population ("CVAP").](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
+![A comparison of a variety of electoral systems and their effect on minority representation, reprinted with permission, from a [case study](https://mggg.org/washington) of reform proposals for the Washington state legislature [@washington_leg]. Even within ranked-choice proposals, certain options, like System 0 (based on single-member districts), are projected to be less successful for minority representation, while other systems, like System 1 (based on multi-member districts), predict that candidates of choice for people of color ("POC") are elected more in line with the POC share of population or citizen voting age population ("CVAP").](./figures/WA_poc_seats_chartsystem_compare_pared.png){width=100%}
 
 
 ## Area of need: Resources for research
 
-Previous research works such as [@elkind2017multiwinner] have compared
+Previous research works such as @elkind2017multiwinner have compared
 properties of generative models; `VoteKit` has functionality to fully
 replicate this work and facilitates robust
 comparisons across a more comprehensive and up-to-date list of
@@ -175,7 +179,7 @@ research on elections. Some examples are shown in Figure 2. At left is a
 *ballot graph*, which shows the possible ballots, connected by 
 elementary moves.  At right is a visualization of similarity and 
 difference between profiles produced by various generative methods, 
-enabling comparisons in the style of [@drawing-a-map].
+enabling comparisons in the style of @drawing-a-map.
 
 
 
@@ -233,11 +237,11 @@ the following.
 -   A peer-reviewed article for an election law audience on the impact
     of STV elections on minority representation [@Benade2021];
 
--   A peer-reviewed article for a CS/econ audience that probes whether
+-   A peer-reviewed article for a computer science and econ audience that probes whether
     STV delivers proportional representation
     [@benade_donnay_duchin_weighill_24]; and
 
--   A peer-reviewed article for an CS/operations research audience on
+-   A peer-reviewed article for a computer science and operations research audience on
     optimizing to "learn\" blocs and slates in real-world elections
     [@duchin_tapp_24].
 
