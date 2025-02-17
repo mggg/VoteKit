@@ -7,12 +7,7 @@ import warnings
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 
-VALID_STATS = ["fpv", "mentions", "borda", "first place votes"]
-Valid_stat = Literal["fpv", "mentions", "borda", "first place votes"]
-DEFAULT_LINE_KWDS = {
-    "linestyle": "-",
-    "linewidth": 2,
-}
+DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "black"}
 
 
 def add_null_keys(data: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
@@ -107,10 +102,6 @@ def _set_default_bar_plot_args(
         if not isinstance(threshold_kwds, list):
             threshold_kwds = [dict() for _ in range(len(threshold_values))]
         for i, kwd_dict in enumerate(threshold_kwds):
-            if "color" not in kwd_dict:
-                kwd_dict["color"] = COLOR_LIST[-(i + 1)]
-            if "label" not in kwd_dict:
-                kwd_dict["label"] = f"Line {i+1}"
             for k, v in DEFAULT_LINE_KWDS.items():
                 if k not in kwd_dict:
                     kwd_dict[k] = v
@@ -154,7 +145,10 @@ def _validate_bar_plot_args(
     Raises:
         ValueError: All bar heights must be positive.
         ValueError: All sub dictionaries in data must have the same keys.
-        ValueError: category_ordering must match the keys of data (unordered).
+        ValueError: Cannot plot more than len(COLOR_LIST) data sets.
+        ValueError: category_ordering must be the same length as the keys of sub-dictionaries.
+        ValueError: category_ordering must have no extraneous labels.
+        ValueError: category_ordering must have no missing labels.
         ValueError: Bar width must be positive.
         UserWarning: Bar width must be less than 1.
         ValueError: threshold_values and kwds must have the same length.
@@ -172,13 +166,29 @@ def _validate_bar_plot_args(
     ):
         raise ValueError("All data dictionaries must have the same categorical keys.")
 
-    sym_dif = set(category_ordering) ^ set(next(iter(data.values())).keys())
-    if len(sym_dif) != 0:
+    if len(data) > len(COLOR_LIST):
+        raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} data sets.")
+
+    true_categories = next(iter(data.values())).keys()
+
+    if len(category_ordering) != len(true_categories):
+        raise ValueError(
+            "category_ordering must be the same length as sub-dictionaries."
+        )
+
+    if set(category_ordering).difference(true_categories) != set():
         raise ValueError(
             (
-                "category_ordering must match the keys of the data sub-dictionaries. "
-                "Here is the symmetric "
-                f"difference of the two sets: {sym_dif}"
+                "category_ordering has extraneous labels: "
+                f"{set(category_ordering).difference(true_categories)}"
+            )
+        )
+
+    if set(true_categories).difference(category_ordering) != set():
+        raise ValueError(
+            (
+                "category_ordering has missing labels: "
+                f"{set(true_categories).difference(category_ordering)}"
             )
         )
 
@@ -287,7 +297,7 @@ def _plot_datasets_on_bar_plot(
     """
 
     for i, data_set in enumerate(y_data):
-        bar_shift = bar_width * i - len(y_data) / 2 * bar_width
+        bar_shift = bar_width * (i - len(y_data) / 2)
         bar_centers = [x + bar_shift for x in range(len(category_ordering))]
 
         align: Literal["center", "edge"] = "edge" if len(y_data) % 2 == 0 else "center"
@@ -313,6 +323,21 @@ def _plot_datasets_on_bar_plot(
             )
 
     ax.tick_params(axis="x", labelsize=font_size)
+    ax.tick_params(axis="y", labelsize=font_size)
+
+    if len(y_data) % 2 == 0:
+        lower_bar_edge = -bar_width / 2 * len(y_data)
+        upper_bar_edge = len(category_ordering) - 1 + 0.5 * bar_width * len(y_data)
+
+    else:
+        lower_bar_edge = -bar_width / 2 * (1 + len(y_data))
+        upper_bar_edge = len(category_ordering) - 1 + bar_width * (len(y_data) - 2)
+
+    gap_size = 0.25 / len(y_data)
+    lower = lower_bar_edge - gap_size
+    upper = upper_bar_edge + gap_size
+    ax.set_xbound(lower, upper)
+
     return ax
 
 
@@ -489,7 +514,7 @@ def _add_categories_legend_bar_plot(
     return ax
 
 
-def bar_plot(
+def multi_bar_plot(
     data: dict[str, dict[str, float]],
     *,
     normalize: bool = False,
@@ -504,8 +529,6 @@ def bar_plot(
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
-    legend_loc: str = "center left",
-    legend_bbox_to_anchor: Tuple[float, float] = (1, 0.5),
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
@@ -526,14 +549,17 @@ def bar_plot(
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
         show_data_set_legend (bool, optional): Whether or not to plot the data set legend.
-            Defaults to False.
+            Defaults to False. Is automatically shown if any threshold lines have the keyword
+            "label" passed through ``threshold_kwds``.
         categories_legend (dict[str, str], optional): Dictionary mapping data categories
             to description. Defaults to None. If provided, generates a second legend for data
             categories.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
         threshold_kwds (Union[list[dict], dict], optional): List of plotting
-            keywords for the horizontal lines. Can be a list or single dictionary.
+            keywords for the horizontal lines. Can be a list or single dictionary. These will be
+            passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
+            If "label" is passed, automatically plots the data set legend with the labels.
         legend_font_size (float, optional): The font size to use for the legend. Defaults to 10.0
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
@@ -548,7 +574,7 @@ def bar_plot(
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
 
-    default_values_dict = _set_default_bar_plot_args(
+    barplot_kwds = _set_default_bar_plot_args(
         data=data,
         data_set_colors=data_set_colors,
         bar_width=bar_width,
@@ -559,28 +585,28 @@ def bar_plot(
         ax=ax,
     )
 
-    bar_width = _validate_bar_plot_args(
+    barplot_kwds["bar_width"] = _validate_bar_plot_args(
         data=data,
-        category_ordering=default_values_dict["category_ordering"],
-        bar_width=default_values_dict["bar_width"],
-        threshold_values=default_values_dict["threshold_values"],
-        threshold_kwds=default_values_dict["threshold_kwds"],
+        category_ordering=barplot_kwds["category_ordering"],
+        bar_width=barplot_kwds["bar_width"],
+        threshold_values=barplot_kwds["threshold_values"],
+        threshold_kwds=barplot_kwds["threshold_kwds"],
     )
 
     y_data = _prepare_data_bar_plot(
         normalize=normalize,
         data=data,
-        category_ordering=default_values_dict["category_ordering"],
+        category_ordering=barplot_kwds["category_ordering"],
     )
 
     ax = _plot_datasets_on_bar_plot(
-        ax=default_values_dict["ax"],
-        category_ordering=default_values_dict["category_ordering"],
+        ax=barplot_kwds["ax"],
+        category_ordering=barplot_kwds["category_ordering"],
         y_data=y_data,
         data_set_labels=list(data.keys()),
-        bar_width=default_values_dict["bar_width"],
-        data_set_to_color=default_values_dict["data_set_to_color"],
-        font_size=default_values_dict["font_size"],
+        bar_width=barplot_kwds["bar_width"],
+        data_set_to_color=barplot_kwds["data_set_to_color"],
+        font_size=barplot_kwds["font_size"],
     )
 
     ax = _label_bar_plot(
@@ -588,18 +614,20 @@ def bar_plot(
         x_axis_name=x_axis_name,
         y_axis_name=y_axis_name,
         title=title,
-        font_size=default_values_dict["font_size"],
+        font_size=barplot_kwds["font_size"],
     )
 
-    if (
-        default_values_dict["threshold_values"]
-        and default_values_dict["threshold_kwds"]
-    ):
+    if barplot_kwds["threshold_values"] and barplot_kwds["threshold_kwds"]:
         ax = _add_horizontal_lines_bar_plot(
-            threshold_values=default_values_dict["threshold_values"],
-            threshold_kwds=default_values_dict["threshold_kwds"],
+            threshold_values=barplot_kwds["threshold_values"],
+            threshold_kwds=barplot_kwds["threshold_kwds"],
             ax=ax,
         )
+
+        for kwd_dict in barplot_kwds["threshold_kwds"]:
+            if "label" in kwd_dict:
+                show_data_set_legend = True
+                break
 
     data_set_legend = None
 
@@ -607,22 +635,27 @@ def bar_plot(
         ax, data_set_legend = _add_data_sets_legend_bar_plot(
             ax=ax,  # type: ignore[arg-type]
             data_set_labels=list(data.keys()),
-            data_set_to_color=default_values_dict["data_set_to_color"],
+            data_set_to_color=barplot_kwds["data_set_to_color"],
             categories_legend=categories_legend,
-            threshold_kwds=default_values_dict["threshold_kwds"],
-            legend_font_size=default_values_dict["legend_font_size"],
-            legend_loc=legend_loc,
-            legend_bbox_to_anchor=legend_bbox_to_anchor,
+            threshold_kwds=barplot_kwds["threshold_kwds"],
+            legend_font_size=barplot_kwds["legend_font_size"],
+            legend_loc="center left",
+            legend_bbox_to_anchor=(1, 1 / 2),
         )
 
     if categories_legend:
         ax = _add_categories_legend_bar_plot(
             ax=ax,  # type: ignore[arg-type]
             categories_legend=categories_legend,
-            legend_font_size=default_values_dict["legend_font_size"],
-            legend_loc=legend_loc,
-            legend_bbox_to_anchor=legend_bbox_to_anchor,
+            legend_font_size=barplot_kwds["legend_font_size"],
+            legend_loc="center left",
+            legend_bbox_to_anchor=(1, 1 / 2),
             data_set_legend=data_set_legend,
         )
 
     return ax  # type: ignore[return-value]
+
+
+# TODO
+def bar_plot():
+    pass
