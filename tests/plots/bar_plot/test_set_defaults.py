@@ -58,7 +58,11 @@ def test_set_defaults_values_provided():
     assert default_dict["legend_font_size"] == 20
     assert default_dict["threshold_values"] == [5, 4]
     assert default_dict["threshold_kwds"] == [
-        {"linestyle": "--", "color": COLOR_LIST[-1], "label": "Line 1", "linewidth": 2},
-        {"linewidth": 4, "linestyle": "-", "color": COLOR_LIST[-2], "label": "Line 2"},
+        {"linestyle": "--", "color": "black", "linewidth": 2},
+        {
+            "linewidth": 4,
+            "linestyle": "-",
+            "color": "black",
+        },
     ]
     assert default_dict["ax"] == ax

@@ -1,6 +1,7 @@
 import pytest
 
 from votekit.plots.bar_plot import _validate_bar_plot_args
+from votekit.utils import COLOR_LIST
 
 
 def test_validate_non_neg_bars():
@@ -43,7 +44,21 @@ def test_validate_sub_dictionary_keys():
         )
 
 
-def test_validate_x_label_ordering():
+def test_validate_number_of_data_sets():
+    data = {f"Label_{i}": {"C": 4} for i in range(len(COLOR_LIST) + 1)}
+    with pytest.raises(
+        ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} data sets."
+    ):
+        _validate_bar_plot_args(
+            data=data,
+            category_ordering=["C"],
+            bar_width=1 / 4,
+            threshold_values=None,
+            threshold_kwds=None,
+        )
+
+
+def test_validate_category_ordering_length():
     data = {
         "Profile 1": {
             "Chris": 5,
@@ -57,14 +72,55 @@ def test_validate_x_label_ordering():
 
     with pytest.raises(
         ValueError,
-        match=(
-            "category_ordering must match the keys of the data sub-dictionaries. Here is the"
-            " symmetric difference of the two sets: (.*?)"
-        ),
+        match="category_ordering must be the same length as sub-dictionaries.",
     ):
         _validate_bar_plot_args(
             data=data,
+            category_ordering=["Peter", "Moon", "Peter"],
+            bar_width=1 / 4,
+            threshold_values=None,
+            threshold_kwds=None,
+        )
+
+
+def test_validate_category_ordering_extraneous():
+    data = {
+        "Profile 1": {
+            "Chris": 5,
+            "Peter": 6,
+        },
+        "Profile 2": {
+            "Chris": 4,
+            "Peter": 3,
+        },
+    }
+
+    with pytest.raises(ValueError, match="category_ordering has extraneous labels: "):
+        _validate_bar_plot_args(
+            data=data,
             category_ordering=["Peter", "Moon"],
+            bar_width=1 / 4,
+            threshold_values=None,
+            threshold_kwds=None,
+        )
+
+
+def test_validate_category_ordering_missing():
+    data = {
+        "Profile 1": {
+            "Chris": 5,
+            "Peter": 6,
+        },
+        "Profile 2": {
+            "Chris": 4,
+            "Peter": 3,
+        },
+    }
+
+    with pytest.raises(ValueError, match="category_ordering has missing labels: "):
+        _validate_bar_plot_args(
+            data=data,
+            category_ordering=["Peter", "Peter"],
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,

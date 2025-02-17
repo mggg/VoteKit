@@ -1,4 +1,4 @@
-from votekit.plots import bar_plot
+from votekit.plots import multi_bar_plot
 from matplotlib.axes import Axes
 
 
@@ -9,6 +9,6 @@ data = {
 
 
 def test_barplot_with_defaults():
-    ax = bar_plot(data)
+    ax = multi_bar_plot(data)
 
     assert isinstance(ax, Axes)
