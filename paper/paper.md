@@ -76,10 +76,6 @@ A tutorial that includes step-by-step example code can be found in the VoteKit d
 
 # Statement of need
 
-<!-- Social choice theory grew out of welfare economics in the mid-twentieth
-century and has been recognized as a deep and highly applicable area of
-economic theory, forming part of the basis for at least four Nobel Prize
-awards.[^2]--> 
 Since the 1990s, a fusion of economics and computer
 science has emerged under the name of *computational social choice*,
 studying questions of complexity and design and further advancing the
@@ -94,7 +90,6 @@ Most packages, to our knowledge, handle just one part of the research arc; for i
 elections, while `VoteLib` [@votelib] *only* conducts elections.
 Others, like `PrefLibTools` [@preflibtools] and `PrefVoting` [@prefvoting], provide support for generating profiles and conducting single-winner elections.
 Packages with multi-winner capability, like `abcvoting` [@joss-abcvoting] or `Apportionment` [@apportionment], do not support ranked voting.
-<!-- To illustrate the gap this leaves,  -->
 Note that single transferable voting (STV), a voting system actually used for political election in six countries, is curiously absent.  `VoteKit` is built to provide an end-to-end pipeline that supports ranked, scored, and approval profiles
 as well as single- and multi-winner elections, with an emphasis on practical applicability.
 
@@ -115,17 +110,7 @@ generative models are also a fundamental tool to advise reformers deciding
 between alternative electoral systems in a new locality, as they enable generation of
 synthetic profiles keyed to the scale, demographics, and election styles
 considered for that specific place. 
-<!-- But most of the models in the literature, like
-the Impartial Culture model (all permutations of candidates are equally
-likely) or the Impartial Anonymous Culture model (sampling proportional
-to volume measure on the simplex of weighted averages of permutations)
-are mathematically tractable but highly unrealistic. This is bluntly
-described by Tideman and Plassman in a survey of generative methods: in
-their words, "None of the 11 models discussed so far are based on the
-belief that the associated distributions \[\...\] might actually
-describe rankings in actual elections\" [@Tideman2010TheSO]. They
-therefore recommend *spatial models* instead, which themselves are of
-dubious realism for the selection of political candidates.[^5] -->
+
 
 `VoteKit` implements many of the models typically used in computational social choice research,[^5] as
 well as newer parametrized models that give users the ability to
@@ -183,19 +168,6 @@ enabling comparisons in the style of @drawing-a-map.
 
 
 
-<!-- where nodes are ballots weighted by their frequency in the profile; a
-recent research paper shows that ballot graphs can be metrized to
-realize classical statistical ranking distances, like Kendall tau and
-the Spearman footrule [@duchin_tapp_24]. `VoteKit` also implements a class
-of election distances, as surveyed in [@distance-elex]. Choices for
-measuring the difference between two profiles on the same set of
-candidates include $L^p$ distance and Wasserstein (earth-mover)
-distance. At right is a multidimensional scaling (MDS) plot of a
-different set of data, showing mutual $L^1$ differences between
-generated profiles across various selections of model (shown in colors)
-and candidate strength parameters (shown with symbols), enabling
-comparisons in the style of [@drawing-a-map]. -->
-
 ![At left, the ballot graph for a 3-candidate election. The edges
 record swap moves and extension/truncation.  (Note that the ballot
 $A>B>C$ is identified with the ballot $A>B$, since they are informationally equivalent in putting $C$ last.)
@@ -221,10 +193,6 @@ the following.
     studies for the city councils of Chicago, IL [@chicago_city] and
     Lowell, MA [@lowell_city] and a range of jurisdictions across the Pacific
     Northwest [@oregon_state; @washington_leg; @tukwila_school; @chelan_county];
-    <!-- the state legislatures of Oregon and
-    Washington [@oregon_state; @washington_leg], and a range of county
-    commissions and school boards across the Pacific Northwest
-    [@tukwila_school; @chelan_county]; -->
 
 -   A study modeling the impact of proposed legislation called the Fair
     Representation Act, which would convert U.S. Congressional elections
