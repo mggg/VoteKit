@@ -158,7 +158,7 @@ parameters designed to be tailored by the user to the specific locality. Availab
 
 This list does not include every method that has attracted theoretical investigation; rather, it is oriented to methods used or considered for political representation, such as the final-four system in Alaska or the sequential RCV in Utah local elections. 
 See generally
-[@electoralhandbook; @STV; @Borda; @TopTwo; @SequentialRCV] for
+@electoralhandbook; @STV; @Borda; @TopTwo; @SequentialRCV for
 references.  In addition, `VoteKit` is flexible enough to allow users to write custom voting rules.
 
 Reform advocates also need to describe voting mechanisms and their
