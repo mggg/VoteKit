@@ -52,6 +52,7 @@ repository, where :doc:`bug reports and feature requests <./package_info/issues>
 
     package_info/issues.rst
     package_info/contributing.rst
+    package_info/related_resources.rst
     package_info/api.rst
 
 
