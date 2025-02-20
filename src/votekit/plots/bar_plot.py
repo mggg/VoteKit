@@ -7,13 +7,13 @@ import warnings
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 
-DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "black"}
+DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "grey", "alpha": 0.5}
 
 
 def add_null_keys(data: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
     """
-    Prepares dictionary of dictionaries to be passed to ``bar_plot()``. If a key is missing from
-    a dictionary, this function adds the key with value 0.
+    Prepares dictionary of dictionaries to be passed to ``multi_bar_plot()``. If a key is missing
+    from a dictionary, this function adds the key with value 0.
 
     Args:
         data (dict[str, dict[str, float]]): Categorical data to be cleaned. The value of each dict
