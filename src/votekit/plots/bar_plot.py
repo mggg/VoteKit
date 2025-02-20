@@ -73,7 +73,9 @@ def _set_default_bar_plot_args(
         legend_font_size, threshold_values, threshold_kwds, ax
     """
 
-    data_set_to_color = {d: COLOR_LIST[i] for i, d in enumerate(data.keys())}
+    data_set_to_color = {
+        d: COLOR_LIST[i % len(COLOR_LIST)] for i, d in enumerate(data.keys())
+    }
 
     if data_set_colors:
         for data_set, color in data_set_colors.items():
