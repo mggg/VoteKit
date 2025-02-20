@@ -1,2 +1,2 @@
 from .mds import plot_MDS, compute_MDS  # noqa
-from .profile_plots import plot_summary_stats  # noqa
+from .bar_plot import multi_bar_plot, bar_plot  # noqa

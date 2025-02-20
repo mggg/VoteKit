@@ -4,7 +4,7 @@ version = "3.1.0"
 description = "A Swiss army knife for computational social choice research."
 authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, <3.14"
 dependencies = [
     "scipy (>=1.11.1, <2.0)",
     "mypy (==1.15)",
