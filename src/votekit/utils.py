@@ -727,3 +727,38 @@ def score_profile_from_ballot_scores(
     if to_float:
         return {c: float(v) for c, v in scores.items()}
     return scores
+
+
+def ballot_lengths(
+    profile: PreferenceProfile, to_float: bool = False
+) -> Union[dict[int, float], dict[int, Fraction]]:
+    """
+    Compute the frequency of ballot lengths in the profile.
+    Includes all lengths from 1 to ``max_ballot_length`` as keys.
+    Ballots must have rankings.
+
+    Args:
+        profile (PreferenceProfile): Profile to compute ballot lengths.
+        to_float (bool): If True, compute mention as floats instead of Fractions.
+            Defaults to False.
+
+    Returns:
+        Union[dict[int, float], dict[int, Fraction]]: Dictionary of ballot length frequency.
+
+    Raises:
+        TypeError: All ballots must have rankings.
+    """
+
+    ballot_lengths = {i: Fraction(0) for i in range(1, profile.max_ballot_length + 1)}
+
+    for ballot in profile.ballots:
+        if not ballot.ranking:
+            raise TypeError("All ballots must have rankings.")
+
+        length = len(ballot.ranking)
+        ballot_lengths[length] += ballot.weight
+
+    if to_float:
+        return {length: float(f) for length, f in ballot_lengths.items()}
+
+    return ballot_lengths
