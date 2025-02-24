@@ -1,6 +1,12 @@
 from votekit.representation_scores import winner_sets_r_representation_scores
 from votekit import PreferenceProfile, Ballot
+from votekit.cvr_loaders import load_csv
+from votekit.utils import remove_cand
+from pathlib import Path
 import pytest
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+CSV_DIR = BASE_DIR / "data/csv/"
 
 profile = PreferenceProfile(
     ballots=(
@@ -63,3 +69,30 @@ def test_winner_sets_r_rep_score_error_m():
         match="Number of seats m \(2\) must be less than number of candidates \(1\).",
     ):
         winner_sets_r_representation_scores(PreferenceProfile(), 2, 1, ["Chris"])
+
+
+def test_winner_sets_r_rep_score_portland():
+    profile = load_csv(
+        CSV_DIR / "Portland_D1_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6]
+    )
+    clean_profile = remove_cand("skipped", profile)
+
+    score_dict = winner_sets_r_representation_scores(
+        clean_profile,
+        3,
+        3,
+        ["Candace Avalos", "Loretta Smith", "Jamie Dunphy", "Steph Routh"],
+    )
+    assert (
+        round(
+            score_dict[frozenset(["Candace Avalos", "Loretta Smith", "Jamie Dunphy"])],
+            3,
+        )
+        == 0.709
+    )
+    assert (
+        round(
+            score_dict[frozenset(["Candace Avalos", "Steph Routh", "Jamie Dunphy"])], 3
+        )
+        == 0.636
+    )

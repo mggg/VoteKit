@@ -2,6 +2,7 @@ from ..pref_profile import PreferenceProfile
 from itertools import combinations
 from typing import Optional
 from fractions import Fraction
+import warnings
 
 
 def r_representation_score(
@@ -26,10 +27,21 @@ def r_representation_score(
 
     Raises:
         ValueError: r must be at least 1.
-        TypeError: ballots must have ranking.
+        ValueError: ballots must have ranking.
+        Warning: if you list a candidate not in the profile.
     """
     if r <= 0:
         raise ValueError(f"r ({r}) must be at least 1.")
+
+    unlisted_cands = set(candidate_list).difference(profile.candidates)
+    if len(unlisted_cands) > 0:
+        warnings.warn(
+            (
+                f"{unlisted_cands} are not found in the profile's"
+                f" candidate list: {profile.candidates}"
+            ),
+            UserWarning,
+        )
 
     satisfied_voters = Fraction(0)
     for ballot in profile.ballots:
@@ -75,7 +87,7 @@ def winner_sets_r_representation_scores(
         ValueError: m must be at least 1.
         ValueError: m must be at most the number of candidates.
         ValueError: r must be at least 1.
-        TypeError: ballots must have ranking.
+        ValueError: ballots must have ranking.
     """
     if not candidate_list:
         candidate_list = list(profile.candidates_cast)
