@@ -19,7 +19,7 @@ Let’s load in the **cast vote record** (CVR) from the election, which we
 have stored in the VoteKit GitHub repository. Please download the file
 and place it in your working directory (the same folder as your code).
 The file can be found
-`here <https://github.com/mggg/VoteKit/blob/main/src/votekit/data/mn_2013_cast_vote_record.csv>`__.
+`here <https://github.com/mggg/VoteKit/blob/main/examples/data/mn_2013_cast_vote_record.csv>`__.
 
 First we load the appropriate modules.
 
