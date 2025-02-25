@@ -333,7 +333,7 @@ def _plot_datasets_on_bar_plot(
 
     else:
         lower_bar_edge = -bar_width / 2 * (1 + len(y_data))
-        upper_bar_edge = len(category_ordering) - 1 + bar_width * (len(y_data) - 2)
+        upper_bar_edge = len(category_ordering) - 1 + bar_width / 2 * (len(y_data) - 1)
 
     gap_size = 0.25 / len(y_data)
     lower = lower_bar_edge - gap_size
