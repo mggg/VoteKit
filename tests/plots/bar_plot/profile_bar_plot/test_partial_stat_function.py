@@ -12,4 +12,4 @@ def test_partial_stat_function_no_kwds():
     assert _partial_stat_function("first place votes", None) == first_place_votes
     assert _partial_stat_function("mentions", None) == mentions
     assert _partial_stat_function("borda", None) == borda_scores
-    assert _partial_stat_function("ballot length", None) == ballot_lengths
+    assert _partial_stat_function("ballot lengths", None) == ballot_lengths

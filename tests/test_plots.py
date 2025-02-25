@@ -3,8 +3,7 @@ from votekit.ballot_generator import name_PlackettLuce
 from votekit.metrics import lp_dist
 import numpy as np
 from matplotlib.axes import Axes
-
-# from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 
 def test_compute_MDS():
@@ -50,6 +49,7 @@ def test_plot_MDS():
     ax = plot_MDS(coord_dict)
 
     assert isinstance(ax, Axes)
+    plt.close()
 
 
 def test_seed_MDS():

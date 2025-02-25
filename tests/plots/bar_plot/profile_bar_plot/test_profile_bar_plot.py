@@ -1,6 +1,7 @@
 from votekit.plots import profile_bar_plot
 from votekit import Ballot, PreferenceProfile
 from matplotlib.axes import Axes
+import matplotlib.pyplot as plt
 
 ballot_1 = Ballot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1
@@ -16,6 +17,7 @@ def test_profile_barplot_with_defaults():
     ax = profile_bar_plot(profile, "borda")
 
     assert isinstance(ax, Axes)
+    plt.close()
 
 
 def test_profile_barplot_with_kwds():
@@ -38,3 +40,4 @@ def test_profile_barplot_with_kwds():
     )
 
     assert isinstance(ax, Axes)
+    plt.close()

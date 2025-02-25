@@ -13,4 +13,4 @@ def test_validate_inputs():
     _validate_inputs("first place votes")
     _validate_inputs("mentions")
     _validate_inputs("borda")
-    _validate_inputs("ballot length")
+    _validate_inputs("ballot lengths")

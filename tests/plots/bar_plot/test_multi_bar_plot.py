@@ -1,6 +1,6 @@
 from votekit.plots import multi_bar_plot
 from matplotlib.axes import Axes
-
+import matplotlib.pyplot as plt
 
 data = {
     "Profile 1": {"Chris": 5, "Peter": 6, "Moon": 7},
@@ -12,3 +12,4 @@ def test_barplot_with_defaults():
     ax = multi_bar_plot(data)
 
     assert isinstance(ax, Axes)
+    plt.close()

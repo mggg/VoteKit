@@ -1,5 +1,6 @@
 from votekit.plots import bar_plot
 from matplotlib.axes import Axes
+import matplotlib.pyplot as plt
 
 data = {"Chris": 5, "Peter": 6, "Moon": 7}
 
@@ -8,6 +9,7 @@ def test_barplot_with_defaults():
     ax = bar_plot(data)
 
     assert isinstance(ax, Axes)
+    plt.close()
 
 
 def test_barplot_with_kwds():
@@ -29,3 +31,4 @@ def test_barplot_with_kwds():
     )
 
     assert isinstance(ax, Axes)
+    plt.close()
