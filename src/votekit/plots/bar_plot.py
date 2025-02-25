@@ -127,6 +127,7 @@ def _validate_bar_plot_args(
     *,
     data: dict[str, dict[str, float]],
     category_ordering: list[str],
+    categories_legend: Optional[dict[str, str]],
     bar_width: float,
     threshold_values: Optional[list[float]],
     threshold_kwds: Optional[list[dict[str, str]]],
@@ -138,6 +139,9 @@ def _validate_bar_plot_args(
         data (dict[str, dict[str, float]]): Categorical data to be plotted. Top level keys are
             data set labels. Inner keys are categories, and inner values are the height of the bars.
         category_ordering (list[str]): Ordering of x labels. Must match data keys.
+        categories_legend (dict[str, str], optional): Dictionary mapping data categories
+            to relabeling. If provided, generates a second legend for data
+            categories and relabels the x-axis accordingly. Can be a subset of the data keys.
         bar_width (float): Width of bars. Must be between 0 and 1/len(data).
         threshold_values (list[float], optional): List of values to plot horizontal
             lines at.
@@ -151,6 +155,7 @@ def _validate_bar_plot_args(
         ValueError: category_ordering must be the same length as the keys of sub-dictionaries.
         ValueError: category_ordering must have no extraneous labels.
         ValueError: category_ordering must have no missing labels.
+        ValueError: All keys in category_legend must be a subset of data keys.
         ValueError: Bar width must be positive.
         UserWarning: Bar width must be less than 1.
         ValueError: threshold_values and kwds must have the same length.
@@ -194,6 +199,14 @@ def _validate_bar_plot_args(
             )
         )
 
+    if categories_legend:
+        mislabeled_keys = set(categories_legend.keys()).difference(true_categories)
+
+        if mislabeled_keys != set():
+            raise ValueError(
+                f"{mislabeled_keys} in categories_legend must "
+                f"be a subset of {set(true_categories)}"
+            )
     if bar_width <= 0:
         raise ValueError("Bar width must be positive.")
 
@@ -279,6 +292,7 @@ def _plot_datasets_on_bar_plot(
     category_ordering: list[str],
     y_data: list[list[float]],
     data_set_labels: list[str],
+    categories_legend: Optional[dict[str, str]],
     bar_width: float,
     data_set_to_color: dict,
     font_size: float,
@@ -290,6 +304,9 @@ def _plot_datasets_on_bar_plot(
         y_data (list[list[floats]]): List of lists where each sublist is the bar heights for a
             data set.
         data_set_labels (list[str]): List of labels for data sets.
+        categories_legend (dict[str, str], optional): Dictionary mapping data categories
+            to relabeling. If provided, generates a second legend for data
+            categories and relabels the x-axis accordingly. Can be a subset of the data keys.
         bar_width (float): Width of bars.
         data_set_to_color (dict): Dictionary mapping data set labels to colors.
         font_size (float): Font size for figure.
@@ -297,6 +314,10 @@ def _plot_datasets_on_bar_plot(
     Returns:
         Axes: Matplotlib axes containing bar plot.
     """
+    if categories_legend:
+        tick_labels = [categories_legend.get(c, c) for c in category_ordering]
+    else:
+        tick_labels = category_ordering
 
     for i, data_set in enumerate(y_data):
         bar_shift = bar_width * (i - len(y_data) / 2)
@@ -308,7 +329,7 @@ def _plot_datasets_on_bar_plot(
             ax.bar(
                 bar_centers,
                 data_set,
-                tick_label=category_ordering,
+                tick_label=tick_labels,
                 label=data_set_labels[i],
                 align=align,
                 width=bar_width,
@@ -485,8 +506,8 @@ def _add_categories_legend_bar_plot(
     """
     proxy_artists = []
 
-    for label, description in categories_legend.items():
-        patch = mpatches.Patch(color="white", label=f"{label}: {description}")
+    for category, relabel in categories_legend.items():
+        patch = mpatches.Patch(color="white", label=f"{relabel}: {category}")
         proxy_artists.append(patch)
 
     if proxy_artists:
@@ -554,8 +575,8 @@ def multi_bar_plot(
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
         categories_legend (dict[str, str], optional): Dictionary mapping data categories
-            to description. Defaults to None. If provided, generates a second legend for data
-            categories.
+            to relabeling. Defaults to None. If provided, generates a second legend for data
+            categories and relabels the x-axis accordingly. Can be a subset of the data keys.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
         threshold_kwds (Union[list[dict], dict], optional): List of plotting
@@ -590,6 +611,7 @@ def multi_bar_plot(
     barplot_kwds["bar_width"] = _validate_bar_plot_args(
         data=data,
         category_ordering=barplot_kwds["category_ordering"],
+        categories_legend=categories_legend,
         bar_width=barplot_kwds["bar_width"],
         threshold_values=barplot_kwds["threshold_values"],
         threshold_kwds=barplot_kwds["threshold_kwds"],
@@ -606,6 +628,7 @@ def multi_bar_plot(
         category_ordering=barplot_kwds["category_ordering"],
         y_data=y_data,
         data_set_labels=list(data.keys()),
+        categories_legend=categories_legend,
         bar_width=barplot_kwds["bar_width"],
         data_set_to_color=barplot_kwds["data_set_to_color"],
         font_size=barplot_kwds["font_size"],

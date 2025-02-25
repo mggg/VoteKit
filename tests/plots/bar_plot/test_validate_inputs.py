@@ -17,6 +17,7 @@ def test_validate_non_neg_bars():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -38,6 +39,7 @@ def test_validate_sub_dictionary_keys():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -52,6 +54,7 @@ def test_validate_number_of_data_sets():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["C"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -77,6 +80,7 @@ def test_validate_category_ordering_length():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Moon", "Peter"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -99,6 +103,7 @@ def test_validate_category_ordering_extraneous():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Moon"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -121,6 +126,31 @@ def test_validate_category_ordering_missing():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Peter"],
+            categories_legend=None,
+            bar_width=1 / 4,
+            threshold_values=None,
+            threshold_kwds=None,
+        )
+
+
+def test_validate_categories_legend():
+    data = {
+        "Profile 1": {
+            "Chris": 5,
+            "Peter": 6,
+        },
+        "Profile 2": {
+            "Chris": 4,
+            "Peter": 3,
+        },
+    }
+    with pytest.raises(
+        ValueError, match="{'xyz'} in categories_legend must be a subset of"
+    ):
+        _validate_bar_plot_args(
+            data=data,
+            category_ordering=["Peter", "Chris"],
+            categories_legend={"Peter": 4, "xyz": 5},
             bar_width=1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -143,6 +173,7 @@ def test_validate_bar_width():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=-1 / 4,
             threshold_values=None,
             threshold_kwds=None,
@@ -155,6 +186,7 @@ def test_validate_bar_width():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=2,
             threshold_values=None,
             threshold_kwds=None,
@@ -180,6 +212,7 @@ def test_validate_thresholds():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=[4, 5],
             threshold_kwds=[{"h": "4"}],
@@ -189,6 +222,7 @@ def test_validate_thresholds():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=[4],
             threshold_kwds=[{"ls": "-"}],
@@ -198,6 +232,7 @@ def test_validate_thresholds():
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],
+            categories_legend=None,
             bar_width=1 / 4,
             threshold_values=[4],
             threshold_kwds=[{"lw": 4}],
