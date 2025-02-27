@@ -1,7 +1,5 @@
 from typing import Callable, Optional, Union, Any
 from ...pref_profile import PreferenceProfile
-from .multi_profile_bar_plot import multi_profile_bar_plot
-from ..bar_plot import bar_plot
 from matplotlib.axes import Axes
 from ...utils import (
     first_place_votes,
@@ -10,15 +8,42 @@ from ...utils import (
     ballot_lengths,
     COLOR_LIST,
 )
+from functools import partial
+from ..bar_plot import add_null_keys, multi_bar_plot
 
 
-def profile_bar_plot(
-    profile: PreferenceProfile,
+def _create_data_dict(
+    profile_dict: dict[str, PreferenceProfile],
     stat_function: Callable[[PreferenceProfile], dict[str, float]],
-    *,
-    profile_label: str = "Profile",
+) -> dict[str, dict[str, float]]:
+    """
+    Create the correctly formatted dict to pass to ``multi_bar_plot``. Ensures each
+    subdictionary has the same keys, and uses the default value 0 if a key is missing.
+
+    Args:
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
+        stat_function (Callable[[PreferenceProfile], dict[str, float]]): Which stat
+            to use for the bar plot. Must be a callable that takes a profile and returns
+            a dict with str keys and float values.
+
+    Returns:
+        dict[str, dict[str, float]]: Data dictionary for ``multi_bar_plot``.
+
+    """
+
+    data_dict = {
+        label: stat_function(profile) for label, profile in profile_dict.items()
+    }
+
+    return add_null_keys(data_dict)
+
+
+def multi_profile_bar_plot(
+    profile_dict: dict[str, PreferenceProfile],
+    stat_function: Callable[[PreferenceProfile], dict[str, float]],
     normalize: bool = False,
-    profile_color: str = COLOR_LIST[0],
+    profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
     category_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
@@ -32,17 +57,19 @@ def profile_bar_plot(
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots bar plot of single profile. Wrapper for ``multi_profile_bar_plot``.
+    Plot a multi bar plot over a set of preference profiles and some statistic about the profile,
+    like ballot length, first place votes for candidate, etc.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
         stat_function (Callable[[PreferenceProfile], dict[str, float]]): Which stat
             to use for the bar plot. Must be a callable that takes a profile and returns
             a dict with str keys and float values.
-        profile_label (str, optional): Label for profile. Defaults to "Profile".
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
-        profile_color (str, optional): Color to plot. Defaults to the first color from
-            ``COLOR_LIST`` from ``utils`` module.
+        profile_colors (dict[str, str], optional): Dictionary mapping profile labels
+            to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``
+            from ``utils`` module. Dictionary keys can be a subset of the profiles.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
         category_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
@@ -75,33 +102,48 @@ def profile_bar_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
+    data_dict = _create_data_dict(profile_dict, stat_function)
 
-    return multi_profile_bar_plot(
-        {profile_label: profile},
-        stat_function=stat_function,
-        normalize=normalize,
-        profile_colors={profile_label: profile_color},
-        bar_width=bar_width,
-        category_ordering=category_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_profile_legend=show_profile_legend,
-        categories_legend=categories_legend,
-        threshold_values=threshold_values,
-        threshold_kwds=threshold_kwds,
-        legend_font_size=legend_font_size,
-        ax=ax,
-    )
+    try:
+        ax = multi_bar_plot(
+            data_dict,
+            normalize=normalize,
+            data_set_colors=profile_colors,
+            bar_width=bar_width,
+            category_ordering=category_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_profile_legend,
+            categories_legend=categories_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            ax=ax,
+        )
+
+        return ax
+    except Exception as e:
+        if "Cannot plot more than" in str(e):
+            raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} profiles.")
+
+        elif str(e) == "category_ordering must be the same length as sub-dictionaries.":
+            raise ValueError(
+                (
+                    "category_ordering must be the same length as the dictionary "
+                    f"produced by stat_function: {len(next(iter(data_dict.values())))}."
+                )
+            )
+
+        else:
+            raise e
 
 
-def profile_borda_plot(
-    profile: PreferenceProfile,
-    *,
-    profile_label: str = "Profile",
+def multi_profile_borda_plot(
+    profile_dict: dict[str, PreferenceProfile],
     borda_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_color: str = COLOR_LIST[0],
+    profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
@@ -116,21 +158,22 @@ def profile_borda_plot(
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots borda points of candidates in profile. Wrapper for ``profile_bar_plot``.
+    Plot the borda scores for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
-        profile_label (str, optional): Label for profile. Defaults to "Profile".
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
         borda_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``borda_scores``. Defaults to None, in which case default values for ``borda_scores``
             are used.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
-        profile_color (str, optional): Color to plot. Defaults to the first color from
-            ``COLOR_LIST`` from ``utils`` module.
+        profile_colors (dict[str, str], optional): Dictionary mapping profile labels
+            to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``
+            from ``utils`` module. Dictionary keys can be a subset of the profiles.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
         candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of Borda scores.
+            borda scores from the first profile.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
@@ -138,7 +181,8 @@ def profile_borda_plot(
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
         candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+            to relableing. Defaults to None. If provided, generates a second legend for data
+            categories.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
@@ -160,44 +204,60 @@ def profile_borda_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        borda_scores(profile, **borda_kwds) if borda_kwds else borda_scores(profile)
-    )
+
+    stat_function = partial(borda_scores, **borda_kwds) if borda_kwds else borda_scores
+    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
     if not candidate_ordering:
         candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
+            next(iter(data_dict.values())).keys(),
+            reverse=True,
+            key=lambda x: next(iter(data_dict.values()))[x],
         )
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
-    return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
-        data_set_label=profile_label,
-        normalize=normalize,
-        data_set_color=profile_color,
-        bar_width=bar_width,
-        category_ordering=candidate_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_data_set_legend=show_profile_legend,
-        categories_legend=candidate_legend,
-        threshold_values=threshold_values,
-        threshold_kwds=threshold_kwds,
-        legend_font_size=legend_font_size,
-        ax=ax,
-    )
+    try:
+        ax = multi_bar_plot(
+            data_dict,
+            normalize=normalize,
+            data_set_colors=profile_colors,
+            bar_width=bar_width,
+            category_ordering=candidate_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_profile_legend,
+            categories_legend=candidate_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            ax=ax,
+        )
+
+        return ax
+    except Exception as e:
+        if "Cannot plot more than" in str(e):
+            raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} profiles.")
+
+        elif str(e) == "category_ordering must be the same length as sub-dictionaries.":
+            raise ValueError(
+                (
+                    "candidate_ordering must be the same length as the dictionary "
+                    f"produced by borda_scores: {len(next(iter(data_dict.values())))}."
+                )
+            )
+
+        else:
+            raise e
 
 
-def profile_mentions_plot(
-    profile: PreferenceProfile,
-    *,
-    profile_label: str = "Profile",
+def multi_profile_mentions_plot(
+    profile_dict: dict[str, PreferenceProfile],
     mentions_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_color: str = COLOR_LIST[0],
+    profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
@@ -212,21 +272,22 @@ def profile_mentions_plot(
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots mentions of candidates in profile. Wrapper for ``profile_bar_plot``.
+    Plot the mentions for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
-        profile_label (str, optional): Label for profile. Defaults to "Profile".
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
         mentions_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``mentions``. Defaults to None, in which case default values for ``mentions``
             are used.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
-        profile_color (str, optional): Color to plot. Defaults to the first color from
-            ``COLOR_LIST`` from ``utils`` module.
+        profile_colors (dict[str, str], optional): Dictionary mapping profile labels
+            to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``
+            from ``utils`` module. Dictionary keys can be a subset of the profiles.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of mentions.
+        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
+            from score dictionary.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
@@ -234,7 +295,8 @@ def profile_mentions_plot(
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
         candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+            to relableing. Defaults to None. If provided, generates a second legend for data
+            categories.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
@@ -256,44 +318,59 @@ def profile_mentions_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        mentions(profile, **mentions_kwds) if mentions_kwds else mentions(profile)
-    )
+    stat_function = partial(mentions, **mentions_kwds) if mentions_kwds else mentions
+    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
     if not candidate_ordering:
         candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
+            next(iter(data_dict.values())).keys(),
+            reverse=True,
+            key=lambda x: next(iter(data_dict.values()))[x],
         )
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
-    return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
-        data_set_label=profile_label,
-        normalize=normalize,
-        data_set_color=profile_color,
-        bar_width=bar_width,
-        category_ordering=candidate_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_data_set_legend=show_profile_legend,
-        categories_legend=candidate_legend,
-        threshold_values=threshold_values,
-        threshold_kwds=threshold_kwds,
-        legend_font_size=legend_font_size,
-        ax=ax,
-    )
+    try:
+        ax = multi_bar_plot(
+            data_dict,
+            normalize=normalize,
+            data_set_colors=profile_colors,
+            bar_width=bar_width,
+            category_ordering=candidate_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_profile_legend,
+            categories_legend=candidate_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            ax=ax,
+        )
+
+        return ax
+    except Exception as e:
+        if "Cannot plot more than" in str(e):
+            raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} profiles.")
+
+        elif str(e) == "category_ordering must be the same length as sub-dictionaries.":
+            raise ValueError(
+                (
+                    "candidate_ordering must be the same length as the dictionary "
+                    f"produced by mentions: {len(next(iter(data_dict.values())))}."
+                )
+            )
+
+        else:
+            raise e
 
 
-def profile_fpv_plot(
-    profile: PreferenceProfile,
-    *,
-    profile_label: str = "Profile",
+def multi_profile_fpv_plot(
+    profile_dict: dict[str, PreferenceProfile],
     fpv_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_color: str = COLOR_LIST[0],
+    profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
@@ -308,21 +385,22 @@ def profile_fpv_plot(
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots first place votes of candidates in profile. Wrapper for ``profile_bar_plot``.
+    Plot the first place votes for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
-        profile_label (str, optional): Label for profile. Defaults to "Profile".
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
         fpv_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``first_place_votes``. Defaults to None, in which case default values for
             ``first_place_votes`` are used.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
-        profile_color (str, optional): Color to plot. Defaults to the first color from
-            ``COLOR_LIST`` from ``utils`` module.
+        profile_colors (dict[str, str], optional): Dictionary mapping profile labels
+            to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``
+            from ``utils`` module. Dictionary keys can be a subset of the profiles.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of first place votes.
+        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
+            from score dictionary.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
@@ -330,7 +408,8 @@ def profile_fpv_plot(
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
         candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+            to relableing. Defaults to None. If provided, generates a second legend for data
+            categories.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
@@ -352,46 +431,61 @@ def profile_fpv_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        first_place_votes(profile, **fpv_kwds)
-        if fpv_kwds
-        else first_place_votes(profile)
+    stat_function = (
+        partial(first_place_votes, **fpv_kwds) if fpv_kwds else first_place_votes
     )
+    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
     if not candidate_ordering:
         candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
+            next(iter(data_dict.values())).keys(),
+            reverse=True,
+            key=lambda x: next(iter(data_dict.values()))[x],
         )
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
-    return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
-        data_set_label=profile_label,
-        normalize=normalize,
-        data_set_color=profile_color,
-        bar_width=bar_width,
-        category_ordering=candidate_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_data_set_legend=show_profile_legend,
-        categories_legend=candidate_legend,
-        threshold_values=threshold_values,
-        threshold_kwds=threshold_kwds,
-        legend_font_size=legend_font_size,
-        ax=ax,
-    )
+    try:
+        ax = multi_bar_plot(
+            data_dict,
+            normalize=normalize,
+            data_set_colors=profile_colors,
+            bar_width=bar_width,
+            category_ordering=candidate_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_profile_legend,
+            categories_legend=candidate_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            ax=ax,
+        )
+
+        return ax
+    except Exception as e:
+        if "Cannot plot more than" in str(e):
+            raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} profiles.")
+
+        elif str(e) == "category_ordering must be the same length as sub-dictionaries.":
+            raise ValueError(
+                (
+                    "candidate_ordering must be the same length as the dictionary "
+                    f"produced by first_place_votes: {len(next(iter(data_dict.values())))}."
+                )
+            )
+
+        else:
+            raise e
 
 
-def profile_ballot_lengths_plot(
-    profile: PreferenceProfile,
-    *,
-    profile_label: str = "Profile",
+def multi_profile_ballot_lengths_plot(
+    profile_dict: dict[str, PreferenceProfile],
     ballot_lengths_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_color: str = COLOR_LIST[0],
+    profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
     lengths_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
@@ -405,21 +499,22 @@ def profile_ballot_lengths_plot(
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots ballot lengths in profile. Wrapper for ``profile_bar_plot``.
+    Plot the ballot lengths for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
-        profile_label (str, optional): Label for profile. Defaults to "Profile".
+        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+            profiles to plot statistics for.
         ballot_lengths_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``ballot_lengths``. Defaults to None, in which case default values for
             ``ballot_lengths`` are used.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
-        profile_color (str, optional): Color to plot. Defaults to the first color from
-            ``COLOR_LIST`` from ``utils`` module.
+        profile_colors (dict[str, str], optional): Dictionary mapping profile labels
+            to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``
+            from ``utils`` module. Dictionary keys can be a subset of the profiles.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        lengths_ordering (list[str], optional): Ordering of x-labels. Defaults to increasing
-            order of lengths.
+        lengths_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
+            from score dictionary.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
@@ -427,7 +522,8 @@ def profile_ballot_lengths_plot(
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
         lengths_legend (dict[str, str], optional): Dictionary mapping lengths
-            to alternate label. Defaults to None. If provided, generates a second legend.
+            to relableing. Defaults to None. If provided, generates a second legend for data
+            categories.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
         threshold_kwds (Union[list[dict], dict], optional): List of plotting
@@ -447,31 +543,50 @@ def profile_ballot_lengths_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        ballot_lengths(profile, **ballot_lengths_kwds)
+    stat_function = (
+        partial(ballot_lengths, **ballot_lengths_kwds)
         if ballot_lengths_kwds
-        else ballot_lengths(profile)
+        else ballot_lengths
     )
+    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
     if not lengths_ordering:
         lengths_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: x  # type: ignore[arg-type]
+            next(iter(data_dict.values())).keys(),
+            reverse=False,
+            key=lambda x: x,
         )
 
-    return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
-        data_set_label=profile_label,
-        normalize=normalize,
-        data_set_color=profile_color,
-        bar_width=bar_width,
-        category_ordering=lengths_ordering,
-        x_axis_name=x_axis_name,
-        y_axis_name=y_axis_name,
-        title=title,
-        show_data_set_legend=show_profile_legend,
-        categories_legend=lengths_legend,
-        threshold_values=threshold_values,
-        threshold_kwds=threshold_kwds,
-        legend_font_size=legend_font_size,
-        ax=ax,
-    )
+    try:
+        ax = multi_bar_plot(
+            data_dict,
+            normalize=normalize,
+            data_set_colors=profile_colors,
+            bar_width=bar_width,
+            category_ordering=lengths_ordering,
+            x_axis_name=x_axis_name,
+            y_axis_name=y_axis_name,
+            title=title,
+            show_data_set_legend=show_profile_legend,
+            categories_legend=lengths_legend,
+            threshold_values=threshold_values,
+            threshold_kwds=threshold_kwds,
+            legend_font_size=legend_font_size,
+            ax=ax,
+        )
+
+        return ax
+    except Exception as e:
+        if "Cannot plot more than" in str(e):
+            raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} profiles.")
+
+        elif str(e) == "category_ordering must be the same length as sub-dictionaries.":
+            raise ValueError(
+                (
+                    "lengths_ordering must be the same length as the dictionary "
+                    f"produced by ballot_lengths: {len(next(iter(data_dict.values())))}."
+                )
+            )
+
+        else:
+            raise e
