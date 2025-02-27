@@ -1,6 +1,6 @@
 from votekit.plots.profiles import multi_profile_bar_plot
 from votekit.pref_profile import PreferenceProfile
-from votekit.utils import COLOR_LIST
+from votekit.utils import COLOR_LIST, first_place_votes
 from votekit.ballot import Ballot
 from matplotlib.axes import Axes
 import pytest
@@ -20,25 +20,7 @@ profile_2 = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_4))
 def test_barplot_with_defaults():
     ax = multi_profile_bar_plot(
         {"Profile 1": profile_1, "Profile 2": profile_2},
-        stat_function="first place votes",
-    )
-    assert isinstance(ax, Axes)
-    plt.close()
-
-    ax = multi_profile_bar_plot(
-        {"Profile 1": profile_1, "Profile 2": profile_2}, stat_function="mentions"
-    )
-    assert isinstance(ax, Axes)
-    plt.close()
-
-    ax = multi_profile_bar_plot(
-        {"Profile 1": profile_1, "Profile 2": profile_2}, stat_function="borda"
-    )
-    assert isinstance(ax, Axes)
-    plt.close()
-
-    ax = multi_profile_bar_plot(
-        {"Profile 1": profile_1, "Profile 2": profile_2}, stat_function="ballot lengths"
+        stat_function=first_place_votes,
     )
     assert isinstance(ax, Axes)
     plt.close()
@@ -56,8 +38,7 @@ def test_barplot_with_callable():
 def test_barplot_with_no_defaults():
     ax = multi_profile_bar_plot(
         {"Profile 1": profile_1, "Profile 2": profile_2},
-        stat_function="first place votes",
-        stat_function_kwds={"to_float": True},
+        stat_function=first_place_votes,
         normalize=True,
         profile_colors={"Profile 1": "red"},
         bar_width=1,
@@ -81,7 +62,7 @@ def test_wrapped_errors():
     ):
         multi_profile_bar_plot(
             {f"Profile_{i}": profile_1 for i in range(len(COLOR_LIST) + 2)},
-            stat_function="borda",
+            stat_function=first_place_votes,
         )
 
     with pytest.raises(
@@ -89,6 +70,6 @@ def test_wrapped_errors():
     ):
         multi_profile_bar_plot(
             {f"Profile_{i}": profile_1 for i in range(3)},
-            stat_function="borda",
+            stat_function=first_place_votes,
             category_ordering=["Chris"],
         )
