@@ -17,6 +17,7 @@ from votekit.utils import (
     expand_tied_ballot,
     resolve_profile_ties,
     score_profile_from_ballot_scores,
+    ballot_lengths,
 )
 import pytest
 
@@ -696,3 +697,35 @@ def test_score_profile_from_ballot_scores_error():
     )
     with pytest.raises(TypeError, match="has no scores."):
         score_profile_from_ballot_scores(profile)
+
+
+def test_ballot_lengths():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}]),
+            Ballot(ranking=[{"B", "A"}, {"C"}, {"D"}]),
+            Ballot(ranking=[{"B", "A"}, {"C"}, {"D"}]),
+            Ballot(ranking=[{"A"}, {"C"}], weight=3 / 2),
+            Ballot(
+                ranking=[
+                    {"B"},
+                ],
+                weight=2,
+            ),
+        ],
+        max_ballot_length=5,
+    )
+
+    assert ballot_lengths(profile) == {1: 2, 2: 3 / 2, 3: 2, 4: 1, 5: 0}
+
+
+def test_ballot_lengths_ranking_error():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(
+                scores={"A": Fraction(3)},
+            )
+        ]
+    )
+    with pytest.raises(TypeError, match="All ballots must have rankings."):
+        ballot_lengths(profile)
