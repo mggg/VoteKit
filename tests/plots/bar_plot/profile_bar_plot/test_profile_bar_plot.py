@@ -1,5 +1,6 @@
 from votekit.plots import profile_bar_plot
 from votekit import Ballot, PreferenceProfile
+from votekit.utils import borda_scores
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 
@@ -14,7 +15,7 @@ profile = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
 
 
 def test_profile_barplot_with_defaults():
-    ax = profile_bar_plot(profile, "borda")
+    ax = profile_bar_plot(profile, borda_scores)
 
     assert isinstance(ax, Axes)
     plt.close()
@@ -23,7 +24,7 @@ def test_profile_barplot_with_defaults():
 def test_profile_barplot_with_kwds():
     ax = profile_bar_plot(
         profile,
-        stat_function="first place votes",
+        stat_function=borda_scores,
         profile_label="Profile Portland",
         normalize=True,
         profile_color="red",
