@@ -9,10 +9,6 @@
 import os
 import sys
 
-try:
-    import mock
-except ImportError:
-    import unittest.mock as mock
 
 # -- Path setup --------------------------------------------------------------
 
@@ -171,15 +167,8 @@ autodoc_default_flags = ["members"]
 # RTD is unable to install libraries with C dependencies.
 # We're using the mock module to mock those away.
 
-MOCK_MODULES = [
+autodoc_mock_imports = [
     "geopandas",
-    "matplotlib",
-    "matplotlib.pyplot",
-    # "networkx",
-    # "networkx.readwrite",
-    # "networkx.algorithms",
-    # "networkx.algorithms.shortest_paths",
-    # "networkx.algorithms.shortest_paths.weighted",
     "shapely",
     "shapely.ops",
     "shapely.strtree",
@@ -187,12 +176,7 @@ MOCK_MODULES = [
     "shapely.prepared",
     "shapely.validation",
     "matplotlib",
-    "matplotlib.axes",
-    "matplotlib.figure",
 ]
-
-for module in MOCK_MODULES:
-    sys.modules[module] = mock.Mock()
 
 # -- Extension configuration -------------------------------------------------
 
