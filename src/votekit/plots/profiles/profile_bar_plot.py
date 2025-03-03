@@ -438,7 +438,7 @@ def profile_ballot_lengths_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (Tuple[float, float], optional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -455,7 +455,7 @@ def profile_ballot_lengths_plot(
 
     if not lengths_ordering:
         lengths_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: x  # type: ignore[arg-type]
+            score_dict.keys(), reverse=False, key=lambda x: x  # type: ignore[arg-type]
         )
 
     return bar_plot(
