@@ -404,7 +404,7 @@ def borda_scores(
     to_float: bool = False,
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> Union[dict[str, Fraction], dict[str, float]]:
-    """
+    r"""
     Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
 

@@ -34,7 +34,8 @@ sphinx = "^7.4.7"
 sphinx-copybutton = "^0.5.2"
 recommonmark = "^0.7.1"
 sphinx-rtd-theme = "^3.0.2"
-
+seaborn = "^0.13.2"
+ipykernel = "^6.29.5"
 
 [tool.ruff]
 line-length = 100
