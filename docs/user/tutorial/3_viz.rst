@@ -100,6 +100,22 @@ as follows.
 .. image:: 3_viz_files/3_viz_5_1.png
 
 
+By default, the candidate ordering is determined by the first profile in
+the dictionary, and is listed in decreasing order of first place votes.
+We can override this with the parameter ``candidate_ordering``.
+
+.. code:: ipython3
+
+    fig2 = multi_profile_fpv_plot({"Profile 1":profile1, "Profile 2":profile2}, 
+                                  title= "First Place Votes", 
+                                  show_profile_legend=True,
+                                  candidate_ordering=['A', 'B', 'C'])
+
+
+
+.. image:: 3_viz_files/3_viz_7_0.png
+
+
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
 
@@ -175,7 +191,7 @@ times :math:`B` is preferred to :math:`A`.
 
 
 
-.. image:: 3_viz_files/3_viz_9_1.png
+.. image:: 3_viz_files/3_viz_11_1.png
 
 
 Again, due to randomization, do not expect your graph labels to exactly
@@ -293,7 +309,7 @@ with the plot without recomputing the coordinates.
 
 
 
-.. image:: 3_viz_files/3_viz_15_0.png
+.. image:: 3_viz_files/3_viz_17_0.png
 
 
 In this plot, each red mark represents a simulated election built from
@@ -347,11 +363,11 @@ allow incomplete ballots, so when set to ``False`` it only shows the
 
 
 
-.. image:: 3_viz_files/3_viz_18_0.png
+.. image:: 3_viz_files/3_viz_20_0.png
 
 
 
-.. image:: 3_viz_files/3_viz_18_1.png
+.. image:: 3_viz_files/3_viz_20_1.png
 
 
 When we set ``labels=True``, the ballot graph displays the candidate
@@ -449,7 +465,7 @@ Now let’s generate a ballot graph from election data.
 
 
 
-.. image:: 3_viz_files/3_viz_24_1.png
+.. image:: 3_viz_files/3_viz_26_1.png
 
 
 .. parsed-literal::
@@ -499,11 +515,11 @@ the crowded graph.
 
 
 
-.. image:: 3_viz_files/3_viz_27_0.png
+.. image:: 3_viz_files/3_viz_29_0.png
 
 
 
-.. image:: 3_viz_files/3_viz_27_1.png
+.. image:: 3_viz_files/3_viz_29_1.png
 
 
 We can also draw multiple neighborhoods.
@@ -580,7 +596,7 @@ and place it in your working directory (the same folder as your code).
 
 
 
-.. image:: 3_viz_files/3_viz_30_1.png
+.. image:: 3_viz_files/3_viz_32_1.png
 
 
 There are 64 possible ballots in an election with 4 candidates (65 if
@@ -613,7 +629,7 @@ you want to display the node.
 
 
 
-.. image:: 3_viz_files/3_viz_32_1.png
+.. image:: 3_viz_files/3_viz_34_1.png
 
 
 Further Prompts
