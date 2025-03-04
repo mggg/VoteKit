@@ -19,7 +19,7 @@ Let’s load in the **cast vote record** (CVR) from the election, which we
 have stored in the VoteKit GitHub repository. Please download the file
 and place it in your working directory (the same folder as your code).
 The file can be found
-`here <https://github.com/mggg/VoteKit/blob/main/examples/data/mn_2013_cast_vote_record.csv>`__.
+`here <https://github.com/mggg/VoteKit/blob/main/notebooks/mn_2013_cast_vote_record.csv>`__.
 
 First we load the appropriate modules.
 
@@ -207,9 +207,8 @@ parameters as s-PL: ``slate_to_candidates``, ``bloc_voter_prop``,
 ``cohesion_parameters``, and ``pref_intervals_by_bloc``. We call s-BT
 the deliberative voter model because part of the generation process
 involves making all pairwise comparisons between candidates on the
-ballot. A more detailed discussion can be found in our :ref:`social choice
-documentation <social_choice_docs/scr:Slate-Bradley-Terry>`.
-
+ballot. A more detailed discussion can be found in our `social choice
+documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. code:: ipython3
 
@@ -327,7 +326,7 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
-
+   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -356,7 +355,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-   
+   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -534,7 +533,7 @@ Conclusion
 ----------
 
 There are many other models of ballot generation in VoteKit, both for
-ranked choice ballots and points based ballots (think cumulative or
-approval voting). See the :ref:`ballot
-generator<package_info/api:Ballot Generators>` section of the VoteKit
-documentation for more.
+ranked choice ballots and score based ballots (think cumulative or
+approval voting). See the `ballot
+generator <../../api.html#module-votekit.ballot_generator>`__ section of
+the VoteKit documentation for more.

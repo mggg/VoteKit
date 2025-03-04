@@ -67,20 +67,20 @@ case.
 
 Now we’ll plot some summary statistics for the generated profiles.
 
-- ``first place votes`` will measure how many first place votes each
-  candidate received.
+-  ``first place votes`` will measure how many first place votes each
+   candidate received.
 
-- ``borda`` reports the **Borda score** of each candidate. If there are
-  :math:`n` candidates on a ballot, the first place candidate gets
-  :math:`n` points, the second :math:`n-1`, and so on.
+-  ``borda`` reports the **Borda score** of each candidate. If there are
+   :math:`n` candidates on a ballot, the first place candidate gets
+   :math:`n` points, the second :math:`n-1`, and so on.
 
-- ``mentions`` simply counts the number of times candidates were listed
-  at all. Note that if we use generative methods that produce complete
-  rankings, everyone will necessarily have the same number of mentions!
+-  ``mentions`` simply counts the number of times candidates were listed
+   at all. Note that if we use generative methods that produce complete
+   rankings, everyone will necessarily have the same number of mentions!
 
-- ``ballot lengths`` is the distribution of ballot lengths in the
-  profile. Again, if we use generative methods that produce complete
-  rankings, every ballot will be the same length.
+-  ``ballot lengths`` is the distribution of ballot lengths in the
+   profile. Again, if we use generative methods that produce complete
+   rankings, every ballot will be the same length.
 
 We can plot first place votes for one profile or for multiple profiles
 as follows.
@@ -129,6 +129,8 @@ Remember! Some generated profiles only have complete ballots.
 .. code:: ipython3
 
     from votekit.plots import multi_profile_borda_plot, multi_profile_ballot_lengths_plot, profile_borda_plot, profile_ballot_lengths_plot
+    
+    # TODO add your code here
 
 Pairwise Comparison Graph
 -------------------------
@@ -635,17 +637,17 @@ you want to display the node.
 Further Prompts
 ---------------
 
-- Generate profiles on three candidates in a manner that is reasonably
-  likely to result in a **Condorcet cycle**, in which there is no
-  Condorcet winner because the arrows go around in, well, a cycle.
-- Make MDS plots that include ``ImpartialCulture`` and
-  ``CambridgeSampler`` simulations in addition to PL and BT.
-- We have also implemented ``lp_dist`` as an alternative to
-  ``earth_mover_dist``. The :math:`L_p` distance is parameterized by
-  :math:`p\in (0, \infty]`. It defaults to :math:`p=1`. If we want
-  another value for :math:`p` we will need to use the ``partial``
-  function from the ``functools`` module. (If you want :math:`p=\infty`,
-  type ``p_value="inf"``.)
+-  Generate profiles on three candidates in a manner that is reasonably
+   likely to result in a **Condorcet cycle**, in which there is no
+   Condorcet winner because the arrows go around in, well, a cycle.
+-  Make MDS plots that include ``ImpartialCulture`` and
+   ``CambridgeSampler`` simulations in addition to PL and BT.
+-  We have also implemented ``lp_dist`` as an alternative to
+   ``earth_mover_dist``. The :math:`L_p` distance is parameterized by
+   :math:`p\in (0, \infty]`. It defaults to :math:`p=1`. If we want
+   another value for :math:`p` we will need to use the ``partial``
+   function from the ``functools`` module. (If you want
+   :math:`p=\infty`, type ``p_value="inf"``.)
 
 .. code:: ipython3
 
@@ -655,11 +657,11 @@ Further Prompts
     # if you wanted something other than p=1
     distance = partial(lp_dist, p_value=47)
 
-- Generate a ballot graph from a ``PreferenceProfile`` so we can see how
-  these attributes change. Create a profile with 3 candidates using the
-  ``ImpartialCulture`` model. To create the ballot graph from a profile,
-  simply pass it in as ``BallotGraph(profile)``. Print your profile,
-  display the ballot graph, and print out the data of each node. Confirm
-  that these all match!
-- Write a custom display function for a ballot graph to display ballots
-  that have more than 30 votes.
+-  Generate a ballot graph from a ``PreferenceProfile`` so we can see
+   how these attributes change. Create a profile with 3 candidates using
+   the ``ImpartialCulture`` model. To create the ballot graph from a
+   profile, simply pass it in as ``BallotGraph(profile)``. Print your
+   profile, display the ballot graph, and print out the data of each
+   node. Confirm that these all match!
+-  Write a custom display function for a ballot graph to display ballots
+   that have more than 30 votes.
