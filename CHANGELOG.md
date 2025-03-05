@@ -6,15 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.1.0] - 2025-03-03
 ## Added
 - added support for three types of averaging conventions within `score_profile_from_rankings`: average,
 low, and high.
+- r-representation scores: compute how "satisfied" voters are with a given winners set.
+- matrices: create three kinds of matrices based on profiles: boost, mentions, and average distance. Accompanying heatmap
+code that plots them.
+- support for Python 3.12, 3.13
+- contributing guidelines and community resources to our docs.
 
 ## Changed 
 - changed the default Borda scoring to use low averaging, where tied rankings receive the lowest possible
 points
 - changed the sampling method for `boosted_random_dictator` and `random_dictator` to more clearly
 use the first place votes distribution
+- changed the structure of `plot_summary_stats`. Is now split into many functions, all called
+`profile_STAT_plot` or `multi_profile_STAT_plot`, where `STAT` can be `fpv`, `borda`, `mentions`, 
+and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plot` functions.
+- removed support for Python 3.9.
 
 ## Fixed
 

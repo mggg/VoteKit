@@ -16,15 +16,15 @@ are far less realistic and flexible than the models we ran in previous
 sections!
 
 Impartial Culture (IC) is essentially the :math:`\alpha=\infty` extreme
-of the family of Dirichlet measures :ref:`from
-earlier<user/tutorial/2_real_and_simulated_profiles:Dirichlet Distribution>`;
+of the family of Dirichlet measures `from
+earlier <2_real_and_simulated_profiles.html#dirichlet-distribution>`__;
 that is, the probability of each ranking is set exactly equal. Impartial
 Anonymous Culture (IAC) is the :math:`\alpha=1` (“all bets are off”)
 case.
 
 .. code:: ipython3
 
-    from votekit.plots import plot_summary_stats
+    from votekit.plots import multi_profile_fpv_plot, profile_fpv_plot
     import votekit.ballot_generator as bg
     
     # generate a profile to work with first
@@ -48,24 +48,24 @@ case.
 
     IC profile:
       Ranking Scores Weight
-    (A, C, B)     ()    203
-    (C, B, A)     ()    182
-    (B, C, A)     ()    168
+    (C, B, A)     ()    194
+    (A, B, C)     ()    169
+    (A, C, B)     ()    166
+    (C, A, B)     ()    160
     (B, A, C)     ()    157
-    (A, B, C)     ()    149
-    (C, A, B)     ()    141
+    (B, C, A)     ()    154
     
     IAC profile:
       Ranking Scores Weight
-    (A, C, B)     ()    378
-    (C, B, A)     ()    197
-    (B, A, C)     ()    144
-    (A, B, C)     ()    140
-    (C, A, B)     ()    123
-    (B, C, A)     ()     18
+    (C, B, A)     ()    593
+    (A, B, C)     ()    235
+    (B, C, A)     ()     90
+    (A, C, B)     ()     49
+    (B, A, C)     ()     30
+    (C, A, B)     ()      3
 
 
-Now we’ll plot some summary statistics for the generated elections.
+Now we’ll plot some summary statistics for the generated profiles.
 
 -  ``first place votes`` will measure how many first place votes each
    candidate received.
@@ -78,30 +78,59 @@ Now we’ll plot some summary statistics for the generated elections.
    at all. Note that if we use generative methods that produce complete
    rankings, everyone will necessarily have the same number of mentions!
 
+-  ``ballot lengths`` is the distribution of ballot lengths in the
+   profile. Again, if we use generative methods that produce complete
+   rankings, every ballot will be the same length.
+
+We can plot first place votes for one profile or for multiple profiles
+as follows.
+
 .. code:: ipython3
 
-    fig1 = plot_summary_stats(profile1, "first place votes", multi_color = False, 
-                              title = "First Place Votes in Profile 1")
-    fig2 = plot_summary_stats(profile2, "first place votes", multi_color = False, 
-                              title = "First Place Votes in Profile 2")
+    fig1 = profile_fpv_plot(profile1, title = "First Place Votes in Profile 1")
+    fig2 = multi_profile_fpv_plot({"Profile 1":profile1, "Profile 2":profile2}, title= "First Place Votes", show_profile_legend=True)
 
 
 
 
-.. image:: 3_viz_files/3_viz_4_0.png
+.. image:: 3_viz_files/3_viz_5_0.png
 
 
 
-.. image:: 3_viz_files/3_viz_4_1.png
+.. image:: 3_viz_files/3_viz_5_1.png
+
+
+By default, the candidate ordering is determined by the first profile in
+the dictionary, and is listed in decreasing order of first place votes.
+We can override this with the parameter ``candidate_ordering``.
+
+.. code:: ipython3
+
+    fig2 = multi_profile_fpv_plot({"Profile 1":profile1, "Profile 2":profile2}, 
+                                  title= "First Place Votes", 
+                                  show_profile_legend=True,
+                                  candidate_ordering=['A', 'B', 'C'])
+
+
+
+.. image:: 3_viz_files/3_viz_7_0.png
 
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
 
-   Change the statistic from ``first place votes`` to ``borda`` and then
-   ``mentions``. Change the title of the plot accordingly. Change the
-   ``multicolor`` parameter to True to see what it does. Give them
-   appropriate titles.
+   Use some of the other statistics available. Change the function from
+   ``profile_fpv_plot`` to ``profile_borda_plot`` and to
+   ``profile_ballot_lengths_plot``. Adapt the multi-profile plot
+   accordingly. Change the title of the plot to reflect the stat.
+
+Remember! Some generated profiles only have complete ballots.
+
+.. code:: ipython3
+
+    from votekit.plots import multi_profile_borda_plot, multi_profile_ballot_lengths_plot, profile_borda_plot, profile_ballot_lengths_plot
+    
+    # TODO add your code here
 
 Pairwise Comparison Graph
 -------------------------
@@ -144,27 +173,27 @@ times :math:`B` is preferred to :math:`A`.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 78 rows.
+    PreferenceProfile too long, only showing 15 out of 87 rows.
              Ranking Scores Weight
-    (W1, W2, C1, C2)     ()     91
-            (W1, W2)     ()     72
-        (W1, W2, C1)     ()     58
-    (C1, C2, W2, W1)     ()     47
-               (W1,)     ()     47
-    (W1, W2, C2, C1)     ()     45
-    (W2, W1, C1, C2)     ()     44
-    (W1, C1, W2, C2)     ()     39
-    (C1, W2, W1, C2)     ()     31
-            (W2, W1)     ()     31
-        (W1, C1, W2)     ()     30
-    (W1, C1, C2, W2)     ()     30
-    (W1, C2, W2, C1)     ()     30
-        (W2, W1, C1)     ()     23
-            (C1, C2)     ()     22
+    (W1, W2, C2, C1)     ()    107
+    (W2, W1, C2, C1)     ()     84
+        (W1, W2, C2)     ()     62
+            (W1, W2)     ()     53
+            (W2, W1)     ()     52
+    (W1, C2, W2, C1)     ()     45
+        (W2, W1, C2)     ()     44
+    (W2, C2, W1, C1)     ()     40
+               (W1,)     ()     36
+    (W2, C2, C1, W1)     ()     32
+    (W1, C2, C1, W2)     ()     29
+        (W1, C2, W2)     ()     27
+               (W2,)     ()     23
+        (W2, C2, W1)     ()     23
+               (C2,)     ()     20
 
 
 
-.. image:: 3_viz_files/3_viz_7_1.png
+.. image:: 3_viz_files/3_viz_11_1.png
 
 
 Again, due to randomization, do not expect your graph labels to exactly
@@ -190,7 +219,7 @@ that beats every lower-tier candidate in a head-to-head comparison.
 
 .. parsed-literal::
 
-    tiers: [{'W1'}, {'W2'}, {'C1'}, {'C2'}]
+    tiers: [{'W1'}, {'W2'}, {'C2'}, {'C1'}]
     The Condorcet candidate is: W1
 
 
@@ -204,8 +233,8 @@ plots, using different notions of distance between
 representation of high-dimensional data that attempts to minimize the
 distortion of the data. VoteKit comes with two kinds of distance
 metrics: earth-mover distance and :math:`L_p` distance. You can read
-about these in the :ref:`VoteKit
-documentation<social_choice_docs/scr:Distances between PreferenceProfiles>`.
+about these in the `VoteKit
+documentation <../../social_choice_docs/scr.html#distances-between-preferenceprofiles>`__.
 
 Let’s explore how an MDS plot can provide a powerful visualization.
 First we will initialize our generators.
@@ -282,7 +311,7 @@ with the plot without recomputing the coordinates.
 
 
 
-.. image:: 3_viz_files/3_viz_13_0.png
+.. image:: 3_viz_files/3_viz_17_0.png
 
 
 In this plot, each red mark represents a simulated election built from
@@ -336,11 +365,11 @@ allow incomplete ballots, so when set to ``False`` it only shows the
 
 
 
-.. image:: 3_viz_files/3_viz_16_0.png
+.. image:: 3_viz_files/3_viz_20_0.png
 
 
 
-.. image:: 3_viz_files/3_viz_16_1.png
+.. image:: 3_viz_files/3_viz_20_1.png
 
 
 When we set ``labels=True``, the ballot graph displays the candidate
@@ -429,29 +458,29 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
       Ranking Scores Weight
-    (A, B, C)     ()    327
-    (B, C, A)     ()    269
-    (A, C, B)     ()    168
-    (C, A, B)     ()    113
-    (C, B, A)     ()    107
-    (B, A, C)     ()     16
+    (B, C, A)     ()    284
+    (C, B, A)     ()    229
+    (A, C, B)     ()    215
+    (C, A, B)     ()    135
+    (B, A, C)     ()    111
+    (A, B, C)     ()     26
 
 
 
-.. image:: 3_viz_files/3_viz_22_1.png
+.. image:: 3_viz_files/3_viz_26_1.png
 
 
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(327, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(168, 1), 'cast': True}
+    (1, 2, 3) {'weight': Fraction(26, 1), 'cast': True}
+    (1, 3, 2) {'weight': Fraction(215, 1), 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(269, 1), 'cast': True}
-    (2, 1, 3) {'weight': Fraction(16, 1), 'cast': True}
+    (2, 3, 1) {'weight': Fraction(284, 1), 'cast': True}
+    (2, 1, 3) {'weight': Fraction(111, 1), 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(113, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(107, 1), 'cast': True}
+    (3, 1, 2) {'weight': Fraction(135, 1), 'cast': True}
+    (3, 2, 1) {'weight': Fraction(229, 1), 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -488,11 +517,11 @@ the crowded graph.
 
 
 
-.. image:: 3_viz_files/3_viz_25_0.png
+.. image:: 3_viz_files/3_viz_29_0.png
 
 
 
-.. image:: 3_viz_files/3_viz_25_1.png
+.. image:: 3_viz_files/3_viz_29_1.png
 
 
 We can also draw multiple neighborhoods.
@@ -569,7 +598,7 @@ and place it in your working directory (the same folder as your code).
 
 
 
-.. image:: 3_viz_files/3_viz_28_1.png
+.. image:: 3_viz_files/3_viz_32_1.png
 
 
 There are 64 possible ballots in an election with 4 candidates (65 if
@@ -602,7 +631,7 @@ you want to display the node.
 
 
 
-.. image:: 3_viz_files/3_viz_30_1.png
+.. image:: 3_viz_files/3_viz_34_1.png
 
 
 Further Prompts

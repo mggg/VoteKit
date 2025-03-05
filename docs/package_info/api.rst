@@ -117,7 +117,15 @@ Graphs and Viz.
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.plots.profile_plots   
+.. automodule:: votekit.plots.bar_plot
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.plots.profiles.profile_bar_plot
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.plots.profiles.multi_profile_bar_plot
     :members:
     :show-inheritance:
 
@@ -129,6 +137,26 @@ Cast Vote Records
     :show-inheritance:
 
 .. automodule:: votekit.cleaning   
+    :members:
+    :show-inheritance:
+
+Matrices
+--------
+
+.. automodule:: votekit.matrices.heatmap
+    :members:
+    :show-inheritance:
+
+
+.. automodule:: votekit.matrices.candidate.boost
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.matrices.candidate.candidate_distance
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.matrices.candidate.comentions
     :members:
     :show-inheritance:
 
@@ -146,4 +174,7 @@ Misc.
 
 .. automodule:: votekit.metrics.distances   
     :members:
+    :show-inheritance:
+
+.. automodule:: votekit.representation_scores.representation_score
     :show-inheritance:
