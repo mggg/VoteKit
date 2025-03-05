@@ -5,10 +5,11 @@ from ....utils import (
     first_place_votes,
     remove_cand,
     score_dict_to_ranking,
-    tiebreak_set,
 )
 import random
-import numpy as np
+from typing import Literal, Union
+from fractions import Fraction
+from functools import partial
 
 
 class BoostedRandomDictator(RankingElection):
@@ -25,10 +26,18 @@ class BoostedRandomDictator(RankingElection):
     Args:
       profile (PreferenceProfile): PreferenceProfile to run election on.
       m (int): Number of seats to elect.
+      fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
 
     """
 
-    def __init__(self, profile: PreferenceProfile, m: int):
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        m: int,
+        fpv_tie_convention: Literal["high", "average", "low"] = "average",
+    ):
         if m <= 0:
             raise ValueError("m must be positive.")
         elif m > len(profile.candidates):
@@ -37,7 +46,12 @@ class BoostedRandomDictator(RankingElection):
             )
 
         self.m = m
-        super().__init__(profile, score_function=first_place_votes)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+        )
 
     def _is_finished(self) -> bool:
         cands_elected = [len(s) for s in self.get_elected()]
@@ -71,30 +85,19 @@ class BoostedRandomDictator(RankingElection):
             winning_candidate = remaining_cands[0]
 
         elif u <= 1 / (len(remaining_cands) - 1):
-            candidate_votes = prev_state.scores
-            p = np.array(list(candidate_votes.values())).astype("float64")
-            p /= float(profile.total_ballot_wt)
-            p = np.power(p, 2)
-            p /= np.sum(p)
-            winning_candidate = np.random.choice(list(candidate_votes.keys()), p=p)
-            tiebreaks = {}
+            fpv = prev_state.scores
+            candidates = list(fpv.keys())
+            weights: list[Union[Fraction, float]] = list(fpv.values())
+            sq_weights = [float(x) ** 2 for x in weights]
+            sq_wt_total = sum(sq_weights)
+            sq_weights = [x / sq_wt_total for x in sq_weights]
+            winning_candidate = random.choices(candidates, weights=sq_weights, k=1)[0]
 
         else:
-            ballots = profile.ballots
-            weights = [b.weight for b in ballots]
-            random_ballot = random.choices(profile.ballots, weights=weights, k=1)[0]
-            if random_ballot.ranking:
-                if len(random_ballot.ranking[0]) > 1:
-                    tiebroken_ranking = tiebreak_set(
-                        random_ballot.ranking[0], tiebreak="random"
-                    )
-                    tiebreaks = {random_ballot.ranking[0]: tiebroken_ranking}
-
-                else:
-                    tiebroken_ranking = (random_ballot.ranking[0],)
-                    tiebreaks = {}
-
-            winning_candidate = list(tiebroken_ranking[0])[0]
+            fpv = prev_state.scores
+            candidates = list(fpv.keys())
+            weights = list(fpv.values())
+            winning_candidate = random.choices(candidates, weights=weights, k=1)[0]
 
         new_profile = remove_cand(winning_candidate, profile)
 
@@ -109,7 +112,7 @@ class BoostedRandomDictator(RankingElection):
                 elected=elected,
                 remaining=remaining,
                 scores=scores,
-                tiebreaks=tiebreaks,
+                tiebreaks={},
             )
             self.election_states.append(new_state)
 

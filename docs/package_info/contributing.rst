@@ -19,7 +19,7 @@ more information, see the `PEP 8 Style Guide <https://www.python.org/dev/peps/pe
 **Writing Tests**: If you write a new feature, you also need to write a set of tests. A test is a short piece of code that checks that the package is working as intended.
 While it is not feasible to test every single aspect of a package, adding tests for new features is a crucial part
 of open-source software. You can use our `current tests <https://github.com/mggg/VoteKit/blob/main/tests>`_  as a starting place 
-to show you how these work. Depending on the scale of your feature, you may need multiple tests.
+to show you how these work, or read this `tutorial <https://realpython.com/python-testing/>`_. Depending on the scale of your feature, you may need multiple tests.
 At minimum, your tests should 
 
 - check the basic functionality of your feature, such as a test case of an algorithm or an instantiation of a class, and 

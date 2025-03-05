@@ -5,9 +5,11 @@ from ....utils import (
     first_place_votes,
     remove_cand,
     score_dict_to_ranking,
-    tiebreak_set,
 )
 import random
+from typing import Literal, Union
+from fractions import Fraction
+from functools import partial
 
 
 class RandomDictator(RankingElection):
@@ -19,9 +21,17 @@ class RandomDictator(RankingElection):
     Args:
       profile (PreferenceProfile): PreferenceProfile to run election on.
       m (int): Number of seats to elect.
+      fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
     """
 
-    def __init__(self, profile: PreferenceProfile, m: int):
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        m: int,
+        fpv_tie_convention: Literal["high", "average", "low"] = "average",
+    ):
         if m <= 0:
             raise ValueError("m must be positive.")
         elif m > len(profile.candidates):
@@ -30,7 +40,12 @@ class RandomDictator(RankingElection):
             )
 
         self.m = m
-        super().__init__(profile, score_function=first_place_votes)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+        )
 
     def _is_finished(self) -> bool:
         cands_elected = [len(s) for s in self.get_elected()]
@@ -56,25 +71,10 @@ class RandomDictator(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-
-        ballots = profile.ballots
-        weights = [b.weight for b in ballots]
-        random_ballot = random.choices(ballots, weights=weights, k=1)[0]
-
-        if not random_ballot.ranking:
-            return PreferenceProfile()
-
-        if len(random_ballot.ranking[0]) > 1:
-            tiebroken_ranking = tiebreak_set(
-                random_ballot.ranking[0], tiebreak="random"
-            )
-            tiebreaks = {random_ballot.ranking[0]: tiebroken_ranking}
-
-        else:
-            tiebroken_ranking = (random_ballot.ranking[0],)
-            tiebreaks = {}
-
-        winning_cand = list(tiebroken_ranking[0])[0]
+        fpv = prev_state.scores
+        candidates = list(fpv.keys())
+        weights: list[Union[Fraction, float]] = list(fpv.values())
+        winning_cand = random.choices(candidates, weights=weights, k=1)[0]
         elected = (frozenset({winning_cand}),)
 
         new_profile = remove_cand(winning_cand, profile)
@@ -89,7 +89,7 @@ class RandomDictator(RankingElection):
                 elected=elected,
                 remaining=remaining,
                 scores=scores,
-                tiebreaks=tiebreaks,
+                tiebreaks={},
             )
 
             self.election_states.append(new_state)

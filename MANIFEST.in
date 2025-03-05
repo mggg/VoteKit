@@ -1,0 +1,2 @@
+# Used for installing from the github when testing things
+recursive-include src/votekit/data *

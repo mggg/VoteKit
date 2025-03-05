@@ -11,8 +11,9 @@ from ....utils import (
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, Literal
 from fractions import Fraction
+from functools import partial
 
 
 class STV(RankingElection):
@@ -36,6 +37,10 @@ class STV(RankingElection):
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
+        fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
+            for tied first place votes. Defaults to "average", where if n candidates are tied for
+            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+            Only used by ``score_function`` parameter.
 
     """  # noqa
 
@@ -50,6 +55,7 @@ class STV(RankingElection):
         quota: str = "droop",
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
+        fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         self._stv_validate_profile(profile)
 
@@ -67,7 +73,13 @@ class STV(RankingElection):
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
-        super().__init__(profile, score_function=first_place_votes, sort_high_low=True)
+        super().__init__(
+            profile,
+            score_function=partial(
+                first_place_votes, tie_convention=fpv_tie_convention
+            ),
+            sort_high_low=True,
+        )
 
     def _stv_validate_profile(self, profile: PreferenceProfile):
         """
@@ -148,18 +160,18 @@ class STV(RankingElection):
                     ballots_by_fpv[candidate],
                     self.threshold,
                 )
-                new_ballots[
-                    ballot_index : (ballot_index + len(transfer_ballots))
-                ] = transfer_ballots
+                new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                    transfer_ballots
+                )
                 ballot_index += len(transfer_ballots)
 
         for candidate in set([c for s in ranking_by_fpv for c in s]).difference(
             [c for s in elected for c in s]
         ):
             transfer_ballots = tuple(ballots_by_fpv[candidate])
-            new_ballots[
-                ballot_index : (ballot_index + len(transfer_ballots))
-            ] = transfer_ballots
+            new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                transfer_ballots
+            )
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = remove_cand(
@@ -218,17 +230,17 @@ class STV(RankingElection):
             ballots_by_fpv[elected_c],
             self.threshold,
         )
-        new_ballots[
-            ballot_index : (ballot_index + len(transfer_ballots))
-        ] = transfer_ballots
+        new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+            transfer_ballots
+        )
         ballot_index += len(transfer_ballots)
 
         for s in remaining:
             for candidate in s:
                 transfer_ballots = tuple(ballots_by_fpv[candidate])
-                new_ballots[
-                    ballot_index : (ballot_index + len(transfer_ballots))
-                ] = transfer_ballots
+                new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
+                    transfer_ballots
+                )
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = remove_cand(
