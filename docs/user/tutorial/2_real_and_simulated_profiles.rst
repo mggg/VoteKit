@@ -535,5 +535,5 @@ Conclusion
 There are many other models of ballot generation in VoteKit, both for
 ranked choice ballots and score based ballots (think cumulative or
 approval voting). See the `ballot
-generator <../../api.html#module-votekit.ballot_generator>`__ section of
+generator <../../package_info/api.html#module-votekit.ballot_generator>`__ section of
 the VoteKit documentation for more.
