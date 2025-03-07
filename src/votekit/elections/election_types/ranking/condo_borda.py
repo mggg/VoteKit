@@ -45,7 +45,7 @@ class CondoBorda(RankingElection):
             PreferenceProfile: The profile of ballots after the round is completed.
         """
         pwc_graph = PairwiseComparisonGraph(profile)
-        dominating_tiers = pwc_graph.dominating_tiers()
+        dominating_tiers = pwc_graph.get_dominating_tiers()
 
         dt_ranking = tuple([frozenset(s) for s in dominating_tiers])
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
