@@ -4,8 +4,8 @@ from ...election_state import ElectionState
 from ....utils import (
     score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
-    remove_cand,
 )
+from ....cleaning import remove_cand
 from typing import Optional, Union
 from fractions import Fraction
 

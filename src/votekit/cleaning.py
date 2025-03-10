@@ -1,7 +1,6 @@
 from fractions import Fraction
 from functools import reduce
-from itertools import groupby
-from typing import Callable
+from typing import Callable, Union, TypeVar, cast
 
 from .pref_profile import PreferenceProfile
 from .ballot import Ballot
@@ -47,18 +46,9 @@ def clean_profile(
     Returns:
         PreferenceProfile: A cleaned ``PreferenceProfile``.
     """
+    cleaned = map(clean_ballot_func, pp.ballots)
 
-    # apply cleaning function to clean all ballots
-    if clean_ballot_func is not None:
-        cleaned = map(clean_ballot_func, pp.ballots)
-    # group ballots that have the same ranking after cleaning
-    grouped_ballots = [
-        list(result)
-        for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
-    ]
-    # merge ballots in the same groups
-    new_ballots = tuple([merge_ballots(b) for b in grouped_ballots])
-    return PreferenceProfile(ballots=new_ballots)
+    return PreferenceProfile(ballots=tuple(cleaned)).condense_ballots()
 
 
 def merge_ballots(ballots: list[Ballot]) -> Ballot:
@@ -81,105 +71,204 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     return Ballot(ranking=ranking, voter_set=voter_set, weight=Fraction(weight))
 
 
-def deduplicate_profiles(pp: PreferenceProfile) -> PreferenceProfile:
+COB = TypeVar("COB", PreferenceProfile, tuple[Ballot, ...], Ballot)
+
+
+def remove_repeated_candidates(
+    profile_or_ballots: COB,
+) -> COB:
     """
-    Given a PreferenceProfile, cleans its ballots by removing a candidate from the remainder
-    of the ballot if they have already appeared.
+    Given a collection of ballots (a profile, a tuple, or a single ballot), if a candidate
+    appears multiple times on a ballot, keep the first instance, remove any further instances,
+    and condense any empty rankings as as result. Only works on ranking ballots, not score ballots.
 
     Args:
-        pp (PreferenceProfile): A PreferenceProfile to clean.
+        profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
+            of ballots to remove repeated candidates from.
 
     Returns:
-        PreferenceProfile: A cleaned PreferenceProfile where each ballot has a ranking
-        with no repeated candidates.
+        Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
+            Updated collection of ballots with duplicate candidate(s) removed.
+
+    Raises:
+        TypeError: All ballots must only have rankings, not scores.
+        TypeError: All ballots must have rankings.
     """
 
-    def deduplicate_ballots(ballot: Ballot) -> Ballot:
-        """
-        Takes a ballot and deduplicates its rankings.
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        ballots = profile_or_ballots.ballots
+    elif isinstance(profile_or_ballots, Ballot):
+        ballots = (profile_or_ballots,)
+    else:
+        ballots = profile_or_ballots[:]
 
-        Args:
-            ballot (Ballot): a ballot with duplicates in its ranking.
+    scrubbed_ballots = [Ballot()] * len(ballots)
 
-        Returns:
-            Ballot: a ballot without duplicates.
-        """
+    for i, ballot in enumerate(ballots):
         if not ballot.ranking:
-            raise TypeError("Ballots must have rankings.")
-        ranking = ballot.ranking
+            raise TypeError(f"Ballot must have rankings: {ballot}")
+        elif ballot.scores:
+            raise TypeError(f"Ballot must only have rankings, not scores: {ballot}")
+
         dedup_ranking = []
-        for cand in ranking:
-            if cand in ranking and cand not in dedup_ranking:
-                dedup_ranking.append(cand)
+        seen_cands = []
+
+        for cand_set in ballot.ranking:
+            new_position = []
+            for cand in cand_set:
+                if cand not in seen_cands:
+                    new_position.append(cand)
+                    seen_cands.append(cand)
+
+            if len(new_position) > 0:
+                dedup_ranking.append(frozenset(new_position))
+
         new_ballot = Ballot(
             id=ballot.id,
             weight=Fraction(ballot.weight),
             ranking=tuple(dedup_ranking),
             voter_set=ballot.voter_set,
         )
-        return new_ballot
 
-    pp_clean = clean_profile(pp=pp, clean_ballot_func=deduplicate_ballots)
-    return pp_clean
+        scrubbed_ballots[i] = new_ballot
 
-
-def remove_noncands(
-    profile: PreferenceProfile, non_cands: list[str]
-) -> PreferenceProfile:
-    """
-    Removes user-assigned non-candidates from ballots, deletes ballots
-    that are empty as a result of the removal.
-
-    Args:
-        profile (PreferenceProfile): A PreferenceProfile to clean.
-        non_cands (list[str]): A list of non-candidates to be removed.
-
-    Returns:
-        PreferenceProfile: A profile with non-candidates removed.
-    """
-
-    def remove_from_ballots(ballot: Ballot, non_cands: list[str]) -> Ballot:
-        """
-        Removes non-candidiates from ballot objects.
-
-        Args:
-            ballot (Ballot): a ballot to be cleaned.
-            non_cands (list[str]): a list of candidates to remove.
-
-        Returns:
-            Ballot: returns a cleaned Ballot.
-        """
-        # TODO: adjust so string and list of strings are acceptable inputes
-        if not ballot.ranking:
-            raise TypeError("Ballot must have ranking.")
-        to_remove = []
-        for item in non_cands:
-            to_remove.append({item})
-
-        ranking = ballot.ranking
-        clean_ranking = []
-        for cand in ranking:
-            if cand not in to_remove and cand not in clean_ranking:
-                clean_ranking.append(cand)
-
-        clean_ballot = Ballot(
-            id=ballot.id,
-            ranking=tuple(clean_ranking),
-            weight=Fraction(ballot.weight),
-            voter_set=ballot.voter_set,
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        return cast(
+            COB,
+            PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+                candidates=profile_or_ballots.candidates,
+                max_ballot_length=profile_or_ballots.max_ballot_length,
+            ),
         )
 
-        return clean_ballot
+    elif isinstance(profile_or_ballots, Ballot):
+        return cast(COB, scrubbed_ballots[0])
 
-    cleaned = [
-        remove_from_ballots(ballot, non_cands)
-        for ballot in profile.ballots
-        if remove_from_ballots(ballot, non_cands).ranking
-    ]
-    grouped_ballots = [
-        list(result)
-        for key, result in groupby(cleaned, key=lambda ballot: ballot.ranking)
-    ]
-    # merge ballots in the same groups
-    new_ballots = tuple([merge_ballots(b) for b in grouped_ballots])
-    return PreferenceProfile(ballots=new_ballots)
+    else:
+        return cast(COB, tuple(scrubbed_ballots))
+
+
+def remove_cand(
+    removed: Union[str, list],
+    profile_or_ballots: COB,
+    condense: bool = True,
+    leave_zero_weight_ballots: bool = False,
+) -> COB:
+    """
+    Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
+    removed from a ballot, lower ranked candidates are moved up.
+    Automatically condenses any ballots that match as result of scrubbing.
+
+    Args:
+        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
+            of ballots to remove candidates from.
+        condense (bool, optional):  Whether or not to return a condensed collection of ballots,
+            where they are grouped by multiplicity. Defaults to True.
+        leave_zero_weight_ballots (bool, optional): Whether or not to leave ballots with zero
+            weight in the collection. Defaults to False.
+
+    Returns:
+        Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
+            Updated collection of ballots with candidate(s) removed.
+    """
+    if isinstance(removed, str):
+        removed = [removed]
+
+    # map to tuple of ballots
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        ballots = profile_or_ballots.ballots
+    elif isinstance(profile_or_ballots, Ballot):
+        ballots = (profile_or_ballots,)
+    else:
+        ballots = profile_or_ballots[:]
+
+    scrubbed_ballots = [Ballot()] * len(ballots)
+    for i, ballot in enumerate(ballots):
+        new_ranking = []
+        new_scores = {}
+        if ballot.ranking:
+            for s in ballot.ranking:
+                new_s = []
+                for c in s:
+                    if c not in removed:
+                        new_s.append(c)
+                if len(new_s) > 0:
+                    new_ranking.append(frozenset(new_s))
+
+        if ballot.scores:
+            new_scores = {
+                c: score for c, score in ballot.scores.items() if c not in removed
+            }
+
+        if len(new_ranking) > 0 and len(new_scores) > 0:
+            scrubbed_ballots[i] = Ballot(
+                ranking=tuple(new_ranking), weight=ballot.weight, scores=new_scores
+            )
+        elif len(new_ranking) > 0:
+            scrubbed_ballots[i] = Ballot(
+                ranking=tuple(new_ranking), weight=ballot.weight
+            )
+
+        elif len(new_scores) > 0:
+            scrubbed_ballots[i] = Ballot(weight=ballot.weight, scores=new_scores)
+
+        # else ballot exhausted
+        else:
+            scrubbed_ballots[i] = Ballot(weight=Fraction(0))
+
+    # return matching input data type
+    if isinstance(profile_or_ballots, PreferenceProfile):
+        clean_profile = PreferenceProfile(
+            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
+            candidates=tuple(
+                [c for c in profile_or_ballots.candidates if c not in removed]
+            ),
+        )
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+                candidates=tuple(
+                    [c for c in profile_or_ballots.candidates if c not in removed]
+                ),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
+
+        return cast(COB, clean_profile)
+
+    elif isinstance(profile_or_ballots, Ballot):
+        clean_profile = None
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+            )
+        else:
+            clean_profile = PreferenceProfile(
+                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
+
+        return cast(COB, clean_profile.ballots[0])
+    else:
+        clean_profile = None
+
+        if leave_zero_weight_ballots:
+            clean_profile = PreferenceProfile(
+                ballots=tuple(scrubbed_ballots),
+            )
+        else:
+            clean_profile = PreferenceProfile(
+                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
+            )
+
+        if condense:
+            clean_profile = clean_profile.condense_ballots()
+
+        return cast(COB, clean_profile.ballots)

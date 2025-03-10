@@ -1,7 +1,7 @@
 from votekit.representation_scores import r_representation_score
 from votekit import PreferenceProfile, Ballot
 from votekit.cvr_loaders import load_csv
-from votekit.utils import remove_cand
+from votekit.cleaning import remove_cand
 from pathlib import Path
 import pytest
 
