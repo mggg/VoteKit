@@ -4,10 +4,10 @@ from ....ballot import Ballot
 from ...election_state import ElectionState
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
     tiebreak_set,
 )
+from ....cleaning import remove_cand
 from fractions import Fraction
 import numpy as np
 from typing import Optional, Literal
