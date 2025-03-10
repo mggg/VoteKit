@@ -1,9 +1,9 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
+from ....cleaning import remove_cand
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
 )
 import random

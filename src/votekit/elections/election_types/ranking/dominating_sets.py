@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import remove_cand
+from ....cleaning import remove_cand
 from ....graphs import PairwiseComparisonGraph
 
 

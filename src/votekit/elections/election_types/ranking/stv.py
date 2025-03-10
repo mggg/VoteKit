@@ -3,8 +3,8 @@ from ...transfers import fractional_transfer
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....ballot import Ballot
+from ....cleaning import remove_cand
 from ....utils import (
-    remove_cand,
     first_place_votes,
     ballots_by_first_cand,
     tiebreak_set,

@@ -1,7 +1,8 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import elect_cands_from_set_ranking, remove_cand, borda_scores
+from ....cleaning import remove_cand
+from ....utils import elect_cands_from_set_ranking, borda_scores
 from ....graphs import PairwiseComparisonGraph
 
 

@@ -1,9 +1,9 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
+from ....cleaning import remove_cand
 from ....utils import (
     elect_cands_from_set_ranking,
-    remove_cand,
     validate_score_vector,
     score_profile_from_rankings,
 )

@@ -1,7 +1,8 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import first_place_votes, elect_cands_from_set_ranking, remove_cand
+from ....utils import first_place_votes, elect_cands_from_set_ranking
+from ....cleaning import remove_cand
 from typing import Optional, Literal
 from functools import partial
 
