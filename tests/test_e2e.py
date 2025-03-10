@@ -30,7 +30,7 @@ def test_load_clean_completion():
     )
 
     # apply rules to get new PP
-    cleaned_pp = clean.remove_noncands(pp, ["Paul"])
+    cleaned_pp = clean.remove_cand("Paul", pp)
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")
