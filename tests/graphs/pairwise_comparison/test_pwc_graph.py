@@ -13,7 +13,7 @@ import pytest
 
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
 portland_profile = remove_cand(
     "skipped",

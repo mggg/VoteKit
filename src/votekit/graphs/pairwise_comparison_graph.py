@@ -14,7 +14,7 @@ def pairwise_dict(
 ) -> dict[tuple[str, ...], list[Fraction]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
-    where a denotes the number of times A beats B head to head, and b is the reverse.
+    where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
         profile (PreferenceProfile): Profile to compute dict on.
@@ -69,7 +69,7 @@ def restrict_pairwise_dict_to_subset(
     """
     Restricts the full pairwise dictionary to a subset of candidates. The pairwise dictionary is a
     dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
-    where a denotes the number of times A beats B head to head, and b is the reverse.
+    where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
         cands (list[str] | tuple[str] | set[str]): Candidate subset to restrict to.
@@ -120,7 +120,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
         pairwise_dict (dict[tuple[str, str], list[Fraction]]): Dictionary constructed from
             ``pairwise_dict``. The pairwise dictionary is a
             dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
-            where a denotes the number of times A beats B head to head, and b is the reverse.
+            where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
         pairwise_graph (networkx.DiGraph): Underlying graph.
     """
 
@@ -145,9 +145,10 @@ class PairwiseComparisonGraph(nx.DiGraph):
                 if (c2, c1) not in G.edges():
                     G.add_edge(c2, c1, weight=v2 - v1)
             else:
+                # Add in the tie edges so `ties_or_beats` works
                 if (c1, c2) not in G.edges():
-                    G.add_edge(c1, c2, weight=v1 - v2)
-                    G.add_edge(c2, c1, weight=v2 - v1)
+                    G.add_edge(c1, c2, weight=0)
+                    G.add_edge(c2, c1, weight=0)
 
         return G
 
