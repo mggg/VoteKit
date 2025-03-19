@@ -110,8 +110,9 @@ Graphs and Viz.
 .. autoclass:: votekit.graphs.ballot_graph.BallotGraph
     :members:
 
-.. autoclass:: votekit.graphs.pairwise_comparison_graph.PairwiseComparisonGraph
+.. automodule:: votekit.graphs.pairwise_comparison_graph
     :members:
+    :show-inheritance:
 
 .. automodule:: votekit.plots.mds   
     :members:

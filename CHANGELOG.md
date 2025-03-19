@@ -10,8 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## Changed 
+- separated the computation of the pairwise comparison dictionary from the pairwise comparison graph.
+- renamed `dominating_tiers` method of pairwise comparison graph to `get_dominating_tiers`.
 - renamed `cleaning.deduplicate_profile` to `cleaning.remove_repeated_candidates`.
 - moved `remove_cand` from `utils` to `cleaning`, and removed the older function `remove_noncands`.
+
 
 ## Fixed
 
