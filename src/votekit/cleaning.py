@@ -48,7 +48,7 @@ def clean_profile(
     """
     cleaned = map(clean_ballot_func, pp.ballots)
 
-    return PreferenceProfile(ballots=tuple(cleaned)).condense_ballots()
+    return PreferenceProfile(ballots=tuple(cleaned)).group_ballots()
 
 
 def merge_ballots(ballots: list[Ballot]) -> Ballot:
@@ -250,7 +250,7 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile)
 
@@ -267,7 +267,7 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile.ballots[0])
     else:
@@ -283,6 +283,6 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile.ballots)
