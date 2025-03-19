@@ -180,5 +180,5 @@ def load_scottish(
 
     profile = PreferenceProfile(
         ballots=tuple(ballots), candidates=tuple(cand_list)
-    ).condense_ballots()
+    ).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

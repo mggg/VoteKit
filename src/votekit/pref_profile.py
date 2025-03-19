@@ -362,7 +362,7 @@ class PreferenceProfile:
     # set repr to print outputs
     __repr__ = __str__
 
-    def condense_ballots(self) -> PreferenceProfile:
+    def group_ballots(self) -> PreferenceProfile:
         """
         Groups ballots by rankings and scores and updates weights. Retains voter sets, but
         loses ballot ids.
@@ -417,8 +417,8 @@ class PreferenceProfile:
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
             return False
-        pp_1 = self.condense_ballots()
-        pp_2 = other.condense_ballots()
+        pp_1 = self.group_ballots()
+        pp_2 = other.group_ballots()
         for b in pp_1.ballots:
             if b not in pp_2.ballots:
                 return False
@@ -453,7 +453,7 @@ class PreferenceProfile:
         if isinstance(other, PreferenceProfile):
             ballots = self.ballots + other.ballots
             pp = PreferenceProfile(ballots=ballots)
-            pp.condense_ballots()
+            pp.group_ballots()
             return pp
         else:
             raise TypeError(

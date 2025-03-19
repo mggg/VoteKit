@@ -206,7 +206,7 @@ def test_condense_profile_ranking():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    pp = profile.condense_ballots()
+    pp = profile.group_ballots()
     assert pp.ballots[0] == Ballot(
         ranking=({"A"}, {"B"}, {"C"}),
         weight=Fraction(5),
@@ -233,7 +233,7 @@ def test_condense_profile_scores():
             ),
         )
     )
-    pp = profile.condense_ballots()
+    pp = profile.group_ballots()
 
     for b in pp.ballots:
         print(b.ranking)
