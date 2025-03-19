@@ -14,9 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - renamed `dominating_tiers` method of pairwise comparison graph to `get_dominating_tiers`.
 - renamed `cleaning.deduplicate_profile` to `cleaning.remove_repeated_candidates`.
 - moved `remove_cand` from `utils` to `cleaning`, and removed the older function `remove_noncands`.
+- renamed `PreferenceProfile.condense_ballots()` to `PreferenceProfile.group_ballots()`.
+
 
 
 ## Fixed
+- `PreferenceProfile.group_ballots()` now also groups the `voter_set` attribute of ballots.
 
 ## [3.1.0] - 2025-03-03
 ## Added

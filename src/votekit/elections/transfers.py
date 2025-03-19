@@ -54,7 +54,7 @@ def fractional_transfer(
         PreferenceProfile(
             ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
         )
-        .condense_ballots()
+        .group_ballots()
         .ballots
     )
 
@@ -130,6 +130,6 @@ def random_transfer(
         PreferenceProfile(
             ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
         )
-        .condense_ballots()
+        .group_ballots()
         .ballots
     )

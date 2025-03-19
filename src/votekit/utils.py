@@ -135,19 +135,35 @@ def remove_cand(
 
         if len(new_ranking) > 0 and len(new_scores) > 0:
             scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight, scores=new_scores
+                ranking=tuple(new_ranking),
+                weight=ballot.weight,
+                scores=new_scores,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
             )
         elif len(new_ranking) > 0:
             scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight
+                ranking=tuple(new_ranking),
+                weight=ballot.weight,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
             )
 
         elif len(new_scores) > 0:
-            scrubbed_ballots[i] = Ballot(weight=ballot.weight, scores=new_scores)
+            scrubbed_ballots[i] = Ballot(
+                weight=ballot.weight,
+                scores=new_scores,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
+            )
 
         # else ballot exhausted
         else:
-            scrubbed_ballots[i] = Ballot(weight=Fraction(0))
+            scrubbed_ballots[i] = Ballot(
+                weight=Fraction(0),
+                voter_set=ballot.voter_set,
+                id=ballot.id,
+            )
 
     # return matching input data type
     if isinstance(profile_or_ballots, PreferenceProfile):
@@ -167,7 +183,7 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile)
 
@@ -184,7 +200,7 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile.ballots[0])
     else:
@@ -200,7 +216,7 @@ def remove_cand(
             )
 
         if condense:
-            clean_profile = clean_profile.condense_ballots()
+            clean_profile = clean_profile.group_ballots()
 
         return cast(COB, clean_profile.ballots)
 
@@ -242,7 +258,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
 
     return PreferenceProfile(
         ballots=tuple(new_ballots), candidates=tuple(candidates)
-    ).condense_ballots()
+    ).group_ballots()
 
 
 def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
@@ -695,7 +711,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     new_ballots = tuple(
         [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
     )
-    return PreferenceProfile(ballots=new_ballots).condense_ballots()
+    return PreferenceProfile(ballots=new_ballots).group_ballots()
 
 
 def score_profile_from_ballot_scores(

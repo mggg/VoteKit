@@ -285,7 +285,7 @@ profile, as follows.
 
 .. code:: ipython3
 
-    condensed_profile  = profile.condense_ballots()
+    condensed_profile  = profile.group_ballots()
     print(condensed_profile)
 
 
@@ -360,7 +360,7 @@ using the ``sort_by_weight`` parameter and setting it to ``True``.
     print()
     
     # condense and sort by by weight
-    condensed_profile = profile.condense_ballots()
+    condensed_profile = profile.group_ballots()
     print(condensed_profile.head(8,sort_by_weight=True))
 
 
@@ -686,7 +686,7 @@ it should.
     profile = PreferenceProfile(ballots = ballots*6,
                                 candidates = candidates)
     
-    profile = profile.condense_ballots()
+    profile = profile.group_ballots()
     
     print(profile)
     
