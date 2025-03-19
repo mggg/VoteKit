@@ -135,19 +135,35 @@ def remove_cand(
 
         if len(new_ranking) > 0 and len(new_scores) > 0:
             scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight, scores=new_scores
+                ranking=tuple(new_ranking),
+                weight=ballot.weight,
+                scores=new_scores,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
             )
         elif len(new_ranking) > 0:
             scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight
+                ranking=tuple(new_ranking),
+                weight=ballot.weight,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
             )
 
         elif len(new_scores) > 0:
-            scrubbed_ballots[i] = Ballot(weight=ballot.weight, scores=new_scores)
+            scrubbed_ballots[i] = Ballot(
+                weight=ballot.weight,
+                scores=new_scores,
+                voter_set=ballot.voter_set,
+                id=ballot.id,
+            )
 
         # else ballot exhausted
         else:
-            scrubbed_ballots[i] = Ballot(weight=Fraction(0))
+            scrubbed_ballots[i] = Ballot(
+                weight=Fraction(0),
+                voter_set=ballot.voter_set,
+                id=ballot.id,
+            )
 
     # return matching input data type
     if isinstance(profile_or_ballots, PreferenceProfile):
