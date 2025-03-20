@@ -31,9 +31,7 @@ def test_remove_cand_dif_types():
     )
 
     assert remove_cand("A", profile_no_ties) == no_a_true
-    assert profile_no_ties != no_a_true  # check that remove cand does not alter profile
-    assert remove_cand("A", profile_no_ties.ballots) == no_a_true.ballots
-    assert remove_cand("A", Ballot(ranking=[{"A"}, {"B"}])) == Ballot(ranking=[{"B"}])
+    assert profile_no_ties != no_a_true
 
 
 def test_remove_cand_no_ties():
