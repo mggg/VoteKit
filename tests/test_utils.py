@@ -263,7 +263,6 @@ def test_borda_short_ballot():
         "A": Fraction(2),
         "B": Fraction(2),
         "C": Fraction(2),
-        "D": Fraction(0),
     }
 
     borda = borda_scores(
@@ -279,7 +278,6 @@ def test_borda_short_ballot():
         "A": Fraction(1),
         "B": Fraction(0),
         "C": Fraction(1),
-        "D": Fraction(0),
     }
 
     borda = borda_scores(
@@ -298,7 +296,6 @@ def test_borda_mismatched_length():
         "A": Fraction(50),
         "B": Fraction(98),
         "C": Fraction(50),
-        "D": Fraction(0),
     }
 
     borda = borda_scores(
@@ -315,7 +312,6 @@ def test_borda_mismatched_length():
         "A": Fraction(1),
         "B": Fraction(0),
         "C": Fraction(1),
-        "D": Fraction(0),
     }
 
     borda = borda_scores(

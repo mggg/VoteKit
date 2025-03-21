@@ -155,7 +155,8 @@ def score_profile_from_rankings(
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
     non-negative. Vector should be as long as ``max_ballot_length`` in the profile.
-    If it is shorter, we add 0s. Unlisted candidates receive 0 points.
+    If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
+    in the dictionary.
 
 
     Args:
@@ -182,7 +183,7 @@ def score_profile_from_rankings(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: Fraction(0) for c in profile.candidates}
+    scores = {c: Fraction(0) for c in profile.candidates_cast}
     for ballot in profile.ballots:
         current_ind = 0
         if not ballot.ranking:
@@ -224,7 +225,7 @@ def first_place_votes(
     tie_convention: Literal["high", "average", "low"] = "average",
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
-    Computes first place votes for all candidates in a ``PreferenceProfile``.
+    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): The profile to compute first place votes for.
@@ -249,7 +250,7 @@ def mentions(
     to_float: bool = False,
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
-    Calculates total mentions for a ``PreferenceProfile``.
+    Calculates total mentions for all candidates in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): PreferenceProfile of ballots.
@@ -281,7 +282,7 @@ def borda_scores(
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     r"""
-    Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
+    Calculates Borda scores for candidates_cast in a ``PreferenceProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
 
     Args:
