@@ -1,9 +1,9 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
+from ....cleaning import remove_cand
 from ....utils import (
     elect_cands_from_set_ranking,
-    remove_cand,
     validate_score_vector,
     score_profile_from_rankings,
 )
@@ -45,6 +45,8 @@ class Borda(RankingElection):
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
     ):
+        if len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.tiebreak = tiebreak
         if not score_vector:
@@ -89,7 +91,9 @@ class Borda(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_cand(
+            [c for s in elected for c in s], profile, return_adjusted_count=False
+        )
         if store_states:
             if self.score_function:  # mypy
                 scores = self.score_function(new_profile)

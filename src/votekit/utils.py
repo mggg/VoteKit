@@ -1,5 +1,5 @@
 from fractions import Fraction
-from typing import Union, Sequence, Optional, TypeVar, cast, Literal
+from typing import Union, Sequence, Optional, TypeVar, Literal
 from itertools import permutations
 import math
 import random
@@ -81,130 +81,6 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 COB = TypeVar("COB", PreferenceProfile, tuple[Ballot, ...], Ballot)
 
 
-def remove_cand(
-    removed: Union[str, list],
-    profile_or_ballots: COB,
-    condense: bool = True,
-    leave_zero_weight_ballots: bool = False,
-) -> COB:
-    """
-    Removes specified candidate(s) from profile, ballot, or list of ballots. When a candidate is
-    removed from a ballot, lower ranked candidates are moved up.
-    Automatically condenses any ballots that match as result of scrubbing.
-
-    Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile_or_ballots (Union[PreferenceProfile, tuple[Ballot,...], Ballot]): Collection
-            of ballots to remove candidates from.
-        condense (bool, optional): Whether or not to return a condensed profile. Defaults to True.
-        leave_zero_weight_ballots (bool, optional): Whether or not to leave ballots with zero
-            weight in the PreferenceProfile. Defaults to False.
-
-    Returns:
-        Union[PreferenceProfile, tuple[Ballot,...],Ballot]:
-            Updated collection of ballots with candidate(s) removed.
-    """
-    if isinstance(removed, str):
-        removed = [removed]
-
-    # map to tuple of ballots
-    if isinstance(profile_or_ballots, PreferenceProfile):
-        ballots = profile_or_ballots.ballots
-    elif isinstance(profile_or_ballots, Ballot):
-        ballots = (profile_or_ballots,)
-    else:
-        ballots = profile_or_ballots[:]
-
-    scrubbed_ballots = [Ballot()] * len(ballots)
-    for i, ballot in enumerate(ballots):
-        new_ranking = []
-        new_scores = {}
-        if ballot.ranking:
-            for s in ballot.ranking:
-                new_s = []
-                for c in s:
-                    if c not in removed:
-                        new_s.append(c)
-                if len(new_s) > 0:
-                    new_ranking.append(frozenset(new_s))
-
-        if ballot.scores:
-            new_scores = {
-                c: score for c, score in ballot.scores.items() if c not in removed
-            }
-
-        if len(new_ranking) > 0 and len(new_scores) > 0:
-            scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight, scores=new_scores
-            )
-        elif len(new_ranking) > 0:
-            scrubbed_ballots[i] = Ballot(
-                ranking=tuple(new_ranking), weight=ballot.weight
-            )
-
-        elif len(new_scores) > 0:
-            scrubbed_ballots[i] = Ballot(weight=ballot.weight, scores=new_scores)
-
-        # else ballot exhausted
-        else:
-            scrubbed_ballots[i] = Ballot(weight=Fraction(0))
-
-    # return matching input data type
-    if isinstance(profile_or_ballots, PreferenceProfile):
-        clean_profile = PreferenceProfile(
-            ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
-            candidates=tuple(
-                [c for c in profile_or_ballots.candidates if c not in removed]
-            ),
-        )
-
-        if leave_zero_weight_ballots:
-            clean_profile = PreferenceProfile(
-                ballots=tuple(scrubbed_ballots),
-                candidates=tuple(
-                    [c for c in profile_or_ballots.candidates if c not in removed]
-                ),
-            )
-
-        if condense:
-            clean_profile = clean_profile.condense_ballots()
-
-        return cast(COB, clean_profile)
-
-    elif isinstance(profile_or_ballots, Ballot):
-        clean_profile = None
-
-        if leave_zero_weight_ballots:
-            clean_profile = PreferenceProfile(
-                ballots=tuple(scrubbed_ballots),
-            )
-        else:
-            clean_profile = PreferenceProfile(
-                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
-            )
-
-        if condense:
-            clean_profile = clean_profile.condense_ballots()
-
-        return cast(COB, clean_profile.ballots[0])
-    else:
-        clean_profile = None
-
-        if leave_zero_weight_ballots:
-            clean_profile = PreferenceProfile(
-                ballots=tuple(scrubbed_ballots),
-            )
-        else:
-            clean_profile = PreferenceProfile(
-                ballots=tuple([b for b in scrubbed_ballots if b.weight > 0]),
-            )
-
-        if condense:
-            clean_profile = clean_profile.condense_ballots()
-
-        return cast(COB, clean_profile.ballots)
-
-
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Add any candidates from `profile.candidates` that are not listed on a ballot
@@ -279,7 +155,8 @@ def score_profile_from_rankings(
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
     non-negative. Vector should be as long as ``max_ballot_length`` in the profile.
-    If it is shorter, we add 0s. Unlisted candidates receive 0 points.
+    If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
+    in the dictionary.
 
 
     Args:
@@ -306,7 +183,7 @@ def score_profile_from_rankings(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: Fraction(0) for c in profile.candidates}
+    scores = {c: Fraction(0) for c in profile.candidates_cast}
     for ballot in profile.ballots:
         current_ind = 0
         if not ballot.ranking:
@@ -348,7 +225,7 @@ def first_place_votes(
     tie_convention: Literal["high", "average", "low"] = "average",
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
-    Computes first place votes for all candidates in a ``PreferenceProfile``.
+    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): The profile to compute first place votes for.
@@ -373,7 +250,7 @@ def mentions(
     to_float: bool = False,
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     """
-    Calculates total mentions for a ``PreferenceProfile``.
+    Calculates total mentions for all candidates in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): PreferenceProfile of ballots.
@@ -405,7 +282,7 @@ def borda_scores(
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> Union[dict[str, Fraction], dict[str, float]]:
     r"""
-    Calculates Borda scores for a ``PreferenceProfile``. The Borda vector is
+    Calculates Borda scores for candidates_cast in a ``PreferenceProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
 
     Args:

@@ -134,7 +134,7 @@ def test_errors():
         BlocPlurality(profile_no_tied_bloc_plurality, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         BlocPlurality(profile_no_tied_bloc_plurality, m=5)
 
@@ -155,5 +155,5 @@ def test_validate_profile():
         BlocPlurality(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
-        BlocPlurality(profile, m=2)
+        profile = PreferenceProfile(ballots=[Ballot(ranking=({"A"},))])
+        BlocPlurality(profile, m=1)

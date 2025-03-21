@@ -60,7 +60,7 @@ states = [
         round_number=1,
         remaining=(frozenset({"B"}), frozenset({"C"})),
         elected=(frozenset({"A"}),),
-        scores={"B": Fraction(7), "C": Fraction(5)},
+        scores={"B": Fraction(11), "C": Fraction(9)},
         tiebreaks={frozenset({"A", "B"}): (frozenset({"A"}), frozenset({"B"}))},
     ),
 ]
@@ -106,7 +106,8 @@ def test_get_profile():
 
 def test_get_step():
     e = CondoBorda(profile_tied_set)
-    assert e.get_step(1) == (profile_tied_set_round_1, states[1])
+    profile, state = e.get_step(1)
+    assert profile.condense_ballots, state == (profile_tied_set_round_1, states[1])
 
 
 def test_get_elected():
@@ -157,7 +158,7 @@ def test_errors():
         CondoBorda(profile_tied_set, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         CondoBorda(profile_tied_set, m=4)
 

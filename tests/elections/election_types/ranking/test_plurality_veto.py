@@ -4,9 +4,7 @@ import random
 import numpy as np
 import itertools
 from joblib import Parallel, delayed
-
-
-# TODO add tests for multiple winners
+import pytest
 
 
 def run_election_once(test_profile):
@@ -15,7 +13,13 @@ def run_election_once(test_profile):
     return list(election.get_elected()[0])[0]
 
 
-# TODO make tests in line with other election types
+def test_plurality_veto_error():
+    with pytest.raises(
+        ValueError, match="Not enough candidates received votes to be elected."
+    ):
+        PluralityVeto(PreferenceProfile(), m=1)
+
+
 def test_plurality_veto_simple_3_candidates():
     random.seed(919717)
 
@@ -34,7 +38,6 @@ def test_plurality_veto_simple_3_candidates():
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
     # count the number of wins over a set of trials
-    winner_counts = {c: 0 for c in candidates}
     trials = 2000
 
     # Parallel execution
@@ -66,9 +69,7 @@ def test_plurality_veto_4_candidates_without_ties():
     powerset = [x for sublist in full_power for item in sublist for x in item]
 
     ballots = list(map(lambda x: Ballot(ranking=list(set(y) for y in x)), powerset))
-
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
-
     trials = 5000
 
     # Parallel execution

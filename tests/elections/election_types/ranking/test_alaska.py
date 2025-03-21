@@ -126,7 +126,7 @@ def test_errors():
         Alaska(test_profile, m_2=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Alaska(test_profile, m_1=5)
 
@@ -140,7 +140,7 @@ def test_errors():
         Alaska(test_profile_ties, m_1=3, m_2=3)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        Alaska(PreferenceProfile(candidates=["A", "B"]), quota="drip")
+        Alaska(test_profile, quota="drip")
 
     with pytest.raises(TypeError, match="has no ranking."):
         Alaska(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

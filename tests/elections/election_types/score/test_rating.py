@@ -123,11 +123,6 @@ def test_errors():
         Rating(profile_no_tied_rating, m=0, L=2)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
-    ):
-        Rating(profile_no_tied_rating, m=4, L=2)
-
-    with pytest.raises(
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
@@ -137,12 +132,17 @@ def test_errors():
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
-        Rating(profile, m=2, L=2)
+        Rating(profile, m=1, L=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
-        Rating(profile, m=2, L=2)
+        Rating(profile, m=1, L=2)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
-        Rating(profile, m=2, L=2)
+        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 1})])
+        Rating(profile, m=1, L=2)
+
+    with pytest.raises(
+        ValueError, match="Not enough candidates received votes to be elected."
+    ):
+        Rating(PreferenceProfile(candidates=["A"]), m=1)

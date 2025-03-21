@@ -130,7 +130,7 @@ def test_errors():
         Plurality(profile_no_tied_fpv, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Plurality(profile_no_tied_fpv, m=4)
 

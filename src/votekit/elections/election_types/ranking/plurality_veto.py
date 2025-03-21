@@ -4,10 +4,10 @@ from ....ballot import Ballot
 from ...election_state import ElectionState
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
     tiebreak_set,
 )
+from ....cleaning import remove_cand
 from fractions import Fraction
 import numpy as np
 from typing import Optional, Literal
@@ -78,10 +78,8 @@ class PluralityVeto(RankingElection):
 
         if m <= 0:
             raise ValueError("m must be positive.")
-        elif m > len(profile.candidates):
-            raise ValueError(
-                "m must be less than or equal to the number of candidates."
-            )
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
 
         self.m = m
         self.tiebreak = tiebreak
@@ -227,8 +225,9 @@ class PluralityVeto(RankingElection):
             new_profile = remove_cand(
                 eliminated_cands,
                 profile,
-                condense=False,
-                leave_zero_weight_ballots=True,
+                return_adjusted_count=False,
+                remove_zero_weight_ballots=False,
+                remove_empty_ballots=False,
             )
 
             self.ballot_list = new_profile.ballots
