@@ -39,6 +39,8 @@ def test_clean_profile_change_defaults():
         return_adjusted_count=True,
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,
+        retain_original_candidate_list=True,
+        retain_original_max_ballot_length=False,
     )
 
     assert isinstance(adj_profile, PreferenceProfile)
@@ -52,3 +54,5 @@ def test_clean_profile_change_defaults():
             Ballot(ranking=({"B"},), weight=0),
         )
     )
+    assert adj_profile.candidates == profile.candidates
+    assert adj_profile.max_ballot_length == 2
