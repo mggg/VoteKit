@@ -5,12 +5,20 @@ import numpy as np
 from joblib import Parallel, delayed
 import itertools
 from votekit.utils import first_place_votes
+import pytest
 
 
 def run_election_once(test_profile):
     """Run one election and return the winner."""
     election = BoostedRandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
+
+
+def test_boosted_random_dictator_error():
+    with pytest.raises(
+        ValueError, match="Not enough candidates received votes to be elected."
+    ):
+        BoostedRandomDictator(PreferenceProfile(), m=1)
 
 
 def test_boosted_random_dictator_simple():

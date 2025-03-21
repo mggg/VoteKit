@@ -139,7 +139,7 @@ def test_errors():
         Borda(profile_no_tied_borda, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Borda(profile_no_tied_borda, m=4)
 
