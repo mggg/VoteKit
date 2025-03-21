@@ -3,7 +3,7 @@ from ...transfers import fractional_transfer
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....ballot import Ballot
-from ....cleaning import remove_cand
+from ....cleaning import remove_cand, remove_cand_from_ballot
 from ....utils import (
     first_place_votes,
     ballots_by_first_cand,
@@ -59,11 +59,10 @@ class STV(RankingElection):
     ):
         self._stv_validate_profile(profile)
 
-        if m <= 0 or m > len(profile.candidates):
-            raise ValueError(
-                "m must be non-negative and less than or equal to the number of candidates."
-            )
-
+        if m <= 0:
+            raise ValueError("m must be positive.")
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.transfer = transfer
         self.quota = quota
@@ -174,14 +173,16 @@ class STV(RankingElection):
             )
             ballot_index += len(transfer_ballots)
 
-        cleaned_ballots = remove_cand(
-            [c for s in elected for c in s],
-            tuple([b for b in new_ballots if b.ranking]),
+        cleaned_ballots = tuple(
+            remove_cand_from_ballot([c for s in elected for c in s], b)
+            for b in new_ballots
+            if b.ranking
         )
 
         remaining_cands = set(profile.candidates).difference(
             [c for s in elected for c in s]
         )
+
         new_profile = PreferenceProfile(
             ballots=cleaned_ballots, candidates=tuple(remaining_cands)
         )
@@ -243,8 +244,8 @@ class STV(RankingElection):
                 )
                 ballot_index += len(transfer_ballots)
 
-        cleaned_ballots = remove_cand(
-            elected_c, tuple([b for b in new_ballots if b.ranking])
+        cleaned_ballots = tuple(
+            remove_cand_from_ballot(elected_c, b) for b in new_ballots if b.ranking
         )
 
         remaining_cands = set(profile.candidates).difference(
@@ -293,12 +294,12 @@ class STV(RankingElection):
                 elected, tiebreaks, new_profile = self._single_elect_step(
                     profile, prev_state
                 )
-
-            # no on eliminated in elect round
+            # no one eliminated in elect round
             eliminated: tuple[frozenset[str], ...] = (frozenset(),)
 
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
+
         elif len(profile.candidates) == self.m - len(
             [c for s in self.get_elected() for c in s]
         ):
@@ -320,7 +321,12 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = remove_cand(eliminated_cand, profile)
+            new_profile = remove_cand(
+                eliminated_cand,
+                profile,
+                return_adjusted_count=False,
+                retain_original_candidate_list=False,
+            )
             elected = (frozenset(),)
             eliminated = (frozenset([eliminated_cand]),)
 
@@ -399,8 +405,8 @@ class SequentialRCV(STV):
             profile,
             m=m,
             transfer=(
-                lambda winner, fpv, ballots, threshold: remove_cand(
-                    winner, tuple(ballots)
+                lambda winner, fpv, ballots, threshold: tuple(
+                    remove_cand_from_ballot(winner, b) for b in ballots
                 )
             ),
             quota=quota,

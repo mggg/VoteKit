@@ -48,7 +48,9 @@ class DominatingSets(RankingElection):
 
         pwc_graph = PairwiseComparisonGraph(profile)
         dominating_tiers = pwc_graph.dominating_tiers()
-        new_profile = remove_cand(list(dominating_tiers[0]), profile)
+        new_profile = remove_cand(
+            list(dominating_tiers[0]), profile, return_adjusted_count=False
+        )
 
         if store_states:
             elected = (frozenset(dominating_tiers[0]),)

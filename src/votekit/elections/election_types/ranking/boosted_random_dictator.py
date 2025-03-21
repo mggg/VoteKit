@@ -40,12 +40,10 @@ class BoostedRandomDictator(RankingElection):
     ):
         if m <= 0:
             raise ValueError("m must be positive.")
-        elif m > len(profile.candidates):
-            raise ValueError(
-                "m must be less than or equal to the number of candidates."
-            )
-
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
+
         super().__init__(
             profile,
             score_function=partial(
@@ -99,7 +97,11 @@ class BoostedRandomDictator(RankingElection):
             weights = list(fpv.values())
             winning_candidate = random.choices(candidates, weights=weights, k=1)[0]
 
-        new_profile = remove_cand(winning_candidate, profile)
+        new_profile = remove_cand(
+            winning_candidate,
+            profile,
+            return_adjusted_count=False,
+        )
 
         if store_states:
             elected = (frozenset({winning_candidate}),)

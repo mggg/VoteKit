@@ -30,6 +30,8 @@ class Plurality(RankingElection):
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
+        if len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.tiebreak = tiebreak
         super().__init__(
@@ -71,7 +73,9 @@ class Plurality(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_cand(
+            [c for s in elected for c in s], profile, return_adjusted_count=False
+        )
         if store_states:
             if self.score_function:
                 scores = self.score_function(new_profile)
