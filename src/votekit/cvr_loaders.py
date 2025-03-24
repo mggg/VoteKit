@@ -78,7 +78,7 @@ def load_csv(
             [frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group]
         )
 
-        voter_set = None
+        voter_set = set()
         if id_col is not None:
             voter_set = set(group_df.iloc[:, id_col])
         weight = len(group_df)
@@ -180,5 +180,5 @@ def load_scottish(
 
     profile = PreferenceProfile(
         ballots=tuple(ballots), candidates=tuple(cand_list)
-    ).condense_ballots()
+    ).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

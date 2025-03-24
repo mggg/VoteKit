@@ -74,7 +74,7 @@ def merge_ballots(ballots: list[Ballot]) -> Ballot:
     weight = sum(b.weight for b in ballots)
     ranking = ballots[0].ranking
     voters_to_merge = [b.voter_set for b in ballots if b.voter_set]
-    voter_set = None
+    voter_set = set()
     if len(voters_to_merge) > 0:
         voter_set = reduce(lambda b1, b2: b1.union(b2), voters_to_merge)
         voter_set = set(voter_set)
