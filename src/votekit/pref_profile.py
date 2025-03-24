@@ -368,7 +368,7 @@ class PreferenceProfile:
         loses ballot ids.
 
         Returns:
-            PreferenceProfile: A PreferenceProfile object with condensed ballot list.
+            PreferenceProfile: A PreferenceProfile object with grouped ballot list.
         """
 
         seen_ballots = {}
@@ -381,18 +381,14 @@ class PreferenceProfile:
             if weightless_ballot not in seen_ballots:
                 seen_ballots[weightless_ballot] = {
                     "weight": ballot.weight,
-                    "voter_set": ballot.voter_set if ballot.voter_set else set(),
+                    "voter_set": ballot.voter_set,
                 }
 
             else:
                 seen_ballots[weightless_ballot]["weight"] += ballot.weight  # type: ignore[operator]
-
-                if ballot.voter_set:
-                    seen_ballots[weightless_ballot][
-                        "voter_set"
-                    ].update(  # type: ignore[attr-defined]
-                        ballot.voter_set
-                    )
+                seen_ballots[weightless_ballot]["voter_set"].update(
+                    ballot.voter_set
+                )  # type: ignore[attr-defined]
 
         new_ballots = [Ballot()] * len(seen_ballots)
 
@@ -401,11 +397,7 @@ class PreferenceProfile:
                 ranking=ballot.ranking,
                 scores=ballot.scores,
                 weight=ballot_dict["weight"],  # type: ignore[arg-type]
-                voter_set=(
-                    ballot_dict["voter_set"]  # type: ignore[arg-type]
-                    if len(ballot_dict["voter_set"])  # type: ignore[arg-type]
-                    else None
-                ),
+                voter_set=ballot_dict["voter_set"],  # type: ignore[arg-type]
             )
 
         return PreferenceProfile(

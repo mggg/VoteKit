@@ -78,7 +78,7 @@ def load_csv(
             [frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group]
         )
 
-        voter_set = None
+        voter_set = set()
         if id_col is not None:
             voter_set = set(group_df.iloc[:, id_col])
         weight = len(group_df)
