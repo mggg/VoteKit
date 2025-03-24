@@ -129,3 +129,18 @@ def test_remove_cands_scores():
 
     assert remove_cand("A", profile) == no_a_true
     assert remove_cand(["A", "B"], profile) == no_a_b_true
+
+
+def test_remove_cand_adjusted_count():
+
+    _, count = remove_cand("A", profile_no_ties, return_adjusted_count=True)
+
+    assert count == 4.5
+
+    _, count = remove_cand(["A", "B", "C"], profile_no_ties, return_adjusted_count=True)
+
+    assert count == 0
+
+    _, count = remove_cand(["A", "B"], profile_with_ties, return_adjusted_count=True)
+
+    assert count == 3.5

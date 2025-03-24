@@ -56,3 +56,21 @@ def test_remove_repeated_cands_errors():
                 ballots=(Ballot(ranking=(frozenset({"Chris"}),), scores={"Chris": 1}),)
             )
         )
+
+
+def test_remove_repeated_cands_adjusted_count():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(
+                ranking=[{"C", "A"}, {"A", "C"}, {"B"}],
+            ),
+            Ballot(ranking=[{"A", "C"}, {"C", "A"}, {"B"}], weight=2),
+            Ballot(
+                ranking=[{"A", "C"}, {"B"}],
+            ),
+        ]
+    )
+
+    _, count = remove_repeated_candidates(profile, return_adjusted_count=True)
+
+    assert count == 3
