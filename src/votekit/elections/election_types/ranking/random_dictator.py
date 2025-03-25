@@ -74,7 +74,7 @@ class RandomDictator(RankingElection):
         winning_cand = random.choices(candidates, weights=weights, k=1)[0]
         elected = (frozenset({winning_cand}),)
 
-        new_profile = remove_cand(winning_cand, profile, return_adjusted_count=False)
+        new_profile = remove_cand(winning_cand, profile)
 
         if store_states:
             if self.score_function:

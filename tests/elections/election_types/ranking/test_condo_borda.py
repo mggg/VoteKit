@@ -107,7 +107,7 @@ def test_get_profile():
 def test_get_step():
     e = CondoBorda(profile_tied_set)
     profile, state = e.get_step(1)
-    assert profile.condense_ballots, state == (profile_tied_set_round_1, states[1])
+    assert profile.group_ballots(), state == (profile_tied_set_round_1, states[1])
 
 
 def test_get_elected():

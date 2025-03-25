@@ -144,10 +144,9 @@ class Alaska(RankingElection):
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile = remove_cand(
+            new_profile: PreferenceProfile = remove_cand(
                 [c for s in eliminated for c in s],
                 profile,
-                return_adjusted_count=False,
             )
             if self.score_function:
                 scores = self.score_function(new_profile)

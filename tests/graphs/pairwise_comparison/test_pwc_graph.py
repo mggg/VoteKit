@@ -6,7 +6,7 @@ from votekit.ballot import Ballot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from votekit.pref_profile import PreferenceProfile
 from votekit.cvr_loaders import load_csv
-from votekit.utils import remove_cand
+from votekit.cleaning import remove_cand
 
 from matplotlib.axes import Axes
 import pytest

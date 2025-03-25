@@ -324,7 +324,6 @@ class STV(RankingElection):
             new_profile = remove_cand(
                 eliminated_cand,
                 profile,
-                return_adjusted_count=False,
                 retain_original_candidate_list=False,
             )
             elected = (frozenset(),)

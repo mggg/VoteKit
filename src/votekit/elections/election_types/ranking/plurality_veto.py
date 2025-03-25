@@ -230,7 +230,6 @@ class PluralityVeto(RankingElection):
             new_profile = remove_cand(
                 eliminated_cands,
                 profile,
-                return_adjusted_count=False,
                 remove_zero_weight_ballots=False,
                 remove_empty_ballots=False,
             )

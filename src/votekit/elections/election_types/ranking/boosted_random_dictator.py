@@ -100,7 +100,6 @@ class BoostedRandomDictator(RankingElection):
         new_profile = remove_cand(
             winning_candidate,
             profile,
-            return_adjusted_count=False,
         )
 
         if store_states:

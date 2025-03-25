@@ -114,9 +114,7 @@ class GeneralRating(Election):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand(
-            [c for s in elected for c in s], profile, return_adjusted_count=False
-        )
+        new_profile = remove_cand([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:

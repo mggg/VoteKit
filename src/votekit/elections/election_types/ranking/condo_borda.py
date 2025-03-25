@@ -60,9 +60,7 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_cand(
-            [c for s in elected for c in s], profile, return_adjusted_count=False
-        )
+        new_profile = remove_cand([c for s in elected for c in s], profile)
         print("max ballot length of new profile", new_profile.max_ballot_length)
         if store_states:
             self.election_states.append(
