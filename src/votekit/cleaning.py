@@ -1,42 +1,19 @@
 from fractions import Fraction
 from functools import partial
-from typing import Callable, Union, overload, Literal
+from typing import Callable, Union
 
-from .pref_profile import PreferenceProfile
+from .pref_profile import PreferenceProfile, CleanedProfile
 from .ballot import Ballot
 
 
-@overload
 def clean_profile(
     profile: PreferenceProfile,
     clean_ballot_func: Callable[[Ballot], Ballot],
-    return_adjusted_count: Literal[False],
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
     retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile: ...
-@overload
-def clean_profile(
-    profile: PreferenceProfile,
-    clean_ballot_func: Callable[[Ballot], Ballot],
-    return_adjusted_count: Literal[True],
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
-) -> tuple[PreferenceProfile, Fraction]: ...
-
-
-def clean_profile(
-    profile: PreferenceProfile,
-    clean_ballot_func: Callable[[Ballot], Ballot],
-    return_adjusted_count: Literal[True] | Literal[False] = False,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile | tuple[PreferenceProfile, Fraction]:
+) -> CleanedProfile:
     """
     Allows user-defined cleaning rules for PreferenceProfile. Input function
     that applies modification to a single ballot. Retains all candidates from the original profile.
@@ -45,14 +22,10 @@ def clean_profile(
         profile (PreferenceProfile): A PreferenceProfile to clean.
         clean_ballot_func (Callable[[Ballot], Ballot]): Function that
             takes a ``Ballot`` and returns a cleaned ``Ballot``.
-        return_adjusted_count (bool, optional): Whether or not to return the number of ballots
-            adjusted. An adjusted ballot is a ballot that was not spoiled by the cleaning rule,
-            but did have some adjustment. Count is computed using original ballot weights.
-            Defaults to False. If True, function returns a tuple (cleaned_profile, count).
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
-            ranking or scores as a result of cleaning. Defaults to True.
+            ranking and no scores as a result of the cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
-            weight as a result of cleaning. Defaults to True.
+            weight as a result of the cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
@@ -60,18 +33,30 @@ def clean_profile(
             max_ballot_length from the original profile in the new profile. Defaults to True.
 
     Returns:
-        Union[PreferenceProfile, tuple[PreferenceProfile, Fraction]]:
-            A cleaned ``PreferenceProfile``. If return_adjusted_count, function returns the profile
-            and the adjusted count as a tuple (cleaned_profile, count).
+        CleanedProfile: A cleaned ``PreferenceProfile``.
     """
     new_ballots = [Ballot()] * len(profile.ballots)
 
-    num_adjusted = Fraction(0)
+    no_weight_alt_ballot_indices = []
+    no_ranking_and_no_scores_alt_ballot_indices = []
+    valid_but_alt_ballot_indices = []
+    unalt_ballot_indices = []
+
     for i, b in enumerate(profile.ballots):
         new_b = clean_ballot_func(b)
 
-        if new_b != b and (new_b.ranking or new_b.scores) and new_b.weight > 0:
-            num_adjusted += b.weight
+        if new_b == b:
+            unalt_ballot_indices.append(i)
+
+        else:
+            if (new_b.ranking or new_b.scores) and new_b.weight > 0:
+                valid_but_alt_ballot_indices.append(i)
+
+            if new_b.weight == 0:
+                no_weight_alt_ballot_indices.append(i)
+
+            if not (new_b.ranking or new_b.scores):
+                no_ranking_and_no_scores_alt_ballot_indices.append(i)
 
         new_ballots[i] = new_b
 
@@ -81,31 +66,18 @@ def clean_profile(
     if remove_zero_weight_ballots:
         new_ballots = [b for b in new_ballots if b.weight > 0]
 
-    if return_adjusted_count:
-        return (
-            PreferenceProfile(
-                ballots=tuple(new_ballots),
-                candidates=(
-                    profile.candidates if retain_original_candidate_list else tuple()
-                ),
-                max_ballot_length=(
-                    profile.max_ballot_length
-                    if retain_original_max_ballot_length
-                    else 0
-                ),
-            ),
-            num_adjusted,
-        )
-    else:
-        return PreferenceProfile(
-            ballots=tuple(new_ballots),
-            candidates=(
-                profile.candidates if retain_original_candidate_list else tuple()
-            ),
-            max_ballot_length=(
-                profile.max_ballot_length if retain_original_max_ballot_length else 0
-            ),
-        )
+    return CleanedProfile(
+        ballots=tuple(new_ballots),
+        candidates=(profile.candidates if retain_original_candidate_list else tuple()),
+        max_ballot_length=(
+            profile.max_ballot_length if retain_original_max_ballot_length else 0
+        ),
+        no_weight_alt_ballot_indices=no_weight_alt_ballot_indices,
+        no_ranking_and_no_scores_alt_ballot_indices=no_ranking_and_no_scores_alt_ballot_indices,
+        valid_but_alt_ballot_indices=valid_but_alt_ballot_indices,
+        unalt_ballot_indices=unalt_ballot_indices,
+        parent_profile=profile,
+    )
 
 
 def remove_repeated_candidates_from_ballot(
@@ -155,36 +127,13 @@ def remove_repeated_candidates_from_ballot(
     return new_ballot
 
 
-@overload
 def remove_repeated_candidates(
     profile: PreferenceProfile,
-    return_adjusted_count: Literal[False],
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
     retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile: ...
-
-
-@overload
-def remove_repeated_candidates(
-    profile: PreferenceProfile,
-    return_adjusted_count: Literal[True],
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
-) -> tuple[PreferenceProfile, Fraction]: ...
-
-
-def remove_repeated_candidates(
-    profile: PreferenceProfile,
-    return_adjusted_count: Literal[True] | Literal[False] = False,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile | tuple[PreferenceProfile, Fraction]:
+) -> CleanedProfile:
     """
     Given a profile, if a candidate appears multiple times on a ballot, keep the first instance,
     remove any further instances, and condense any empty rankings as as result.
@@ -192,10 +141,6 @@ def remove_repeated_candidates(
 
     Args:
         profile (PreferenceProfile): Profile to remove repeated candidates from.
-        return_adjusted_count (bool, optional): Whether or not to return the number of ballots
-            adjusted. An adjusted ballot is a ballot that was not spoiled by the cleaning rule,
-            but did have some adjustment. Count is computed using original ballot weights.
-            Defaults to False. If True, function returns a tuple (cleaned_profile, count).
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -207,9 +152,7 @@ def remove_repeated_candidates(
             max_ballot_length from the original profile in the new profile. Defaults to True.
 
     Returns:
-        Union[PreferenceProfile, tuple[PreferenceProfile, Fraction]]:
-            A cleaned ``PreferenceProfile``. If return_adjusted_count, function returns the profile
-            and the adjusted count as a tuple (cleaned_profile, count).
+        CleanedProfile: A cleaned ``PreferenceProfile``.
 
     Raises:
         TypeError: Ballots must only have rankings, not scores.
@@ -219,7 +162,6 @@ def remove_repeated_candidates(
     return clean_profile(
         profile,
         remove_repeated_candidates_from_ballot,
-        return_adjusted_count,
         remove_empty_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list,
@@ -272,39 +214,14 @@ def remove_cand_from_ballot(
     return new_ballot
 
 
-@overload
 def remove_cand(
     removed: Union[str, list],
     profile: PreferenceProfile,
-    return_adjusted_count: Literal[False],
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
     retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile: ...
-
-
-@overload
-def remove_cand(
-    removed: Union[str, list],
-    profile: PreferenceProfile,
-    return_adjusted_count: Literal[True],
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = False,
-    retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile | tuple[PreferenceProfile, Fraction]: ...
-
-
-def remove_cand(
-    removed: Union[str, list],
-    profile: PreferenceProfile,
-    return_adjusted_count: Literal[True] | Literal[False] = False,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = False,
-    retain_original_max_ballot_length: bool = True,
-) -> PreferenceProfile | tuple[PreferenceProfile, Fraction]:
+) -> CleanedProfile:
     """
     Given a profile, remove the given candidate(s) from the ballots. Any ranking left empty
     as a result is condensed. Removes candidates from score dictionary as well.
@@ -312,10 +229,6 @@ def remove_cand(
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
         profile (PreferenceProfile): Profile to remove repeated candidates from.
-        return_adjusted_count (bool, optional): Whether or not to return the number of ballots
-            adjusted. An adjusted ballot is a ballot that was not spoiled by the cleaning rule,
-            but did have some adjustment. Count is computed using original ballot weights.
-            Defaults to False. If True, function returns a tuple (cleaned_profile, count).
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -328,17 +241,14 @@ def remove_cand(
             max_ballot_length from the original profile in the new profile. Defaults to True.
 
     Returns:
-        Union[PreferenceProfile, tuple[PreferenceProfile, Fraction]]:
-            A cleaned ``PreferenceProfile``. If return_adjusted_count, function returns the profile
-            and the adjusted count as a tuple (cleaned_profile, count).
+        CleanedProfile: A cleaned ``PreferenceProfile``.
     """
     if isinstance(removed, str):
         removed = [removed]
 
-    cleaned_profile, adjusted_count = clean_profile(
+    cleaned_profile = clean_profile(
         profile,
         partial(remove_cand_from_ballot, removed),
-        True,
         remove_empty_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list=True,
@@ -351,18 +261,13 @@ def remove_cand(
         else tuple(set(profile.candidates) - set(removed))
     )
 
-    if return_adjusted_count:
-        return (
-            PreferenceProfile(
-                ballots=cleaned_profile.ballots,
-                candidates=new_candidates,
-                max_ballot_length=cleaned_profile.max_ballot_length,
-            ),
-            adjusted_count,
-        )
-    else:
-        return PreferenceProfile(
-            ballots=cleaned_profile.ballots,
-            candidates=new_candidates,
-            max_ballot_length=cleaned_profile.max_ballot_length,
-        )
+    return CleanedProfile(
+        ballots=cleaned_profile.ballots,
+        candidates=new_candidates,
+        max_ballot_length=cleaned_profile.max_ballot_length,
+        parent_profile=cleaned_profile.parent_profile,
+        no_weight_alt_ballot_indices=cleaned_profile.no_weight_alt_ballot_indices,
+        no_ranking_and_no_scores_alt_ballot_indices=cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices,
+        valid_but_alt_ballot_indices=cleaned_profile.valid_but_alt_ballot_indices,
+        unalt_ballot_indices=cleaned_profile.unalt_ballot_indices,
+    )

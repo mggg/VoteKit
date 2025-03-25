@@ -1,4 +1,4 @@
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import clean_profile
 
@@ -21,7 +21,8 @@ def test_clean_profile_with_defaults():
         ),
     )
 
-    assert isinstance(adj_profile, PreferenceProfile)
+    assert isinstance(adj_profile, CleanedProfile)
+    assert adj_profile.parent_profile == profile
     assert adj_profile.ballots == (
         Ballot(ranking=[{"B"}], weight=1),
         Ballot(ranking=[{"B"}, {"C"}], weight=1),
@@ -29,22 +30,26 @@ def test_clean_profile_with_defaults():
     )
     assert adj_profile != profile
 
+    assert adj_profile.no_weight_alt_ballot_indices == []
+    assert adj_profile.no_ranking_and_no_scores_alt_ballot_indices == [3]
+    assert adj_profile.valid_but_alt_ballot_indices == [0, 1, 2]
+    assert adj_profile.unalt_ballot_indices == [4]
+
 
 def test_clean_profile_change_defaults():
-    adj_profile, count = clean_profile(
+    adj_profile = clean_profile(
         profile,
         lambda x: Ballot(
             ranking=[c_set for c_set in x.ranking if "A" not in c_set], weight=x.weight
         ),
-        return_adjusted_count=True,
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,
         retain_original_candidate_list=True,
         retain_original_max_ballot_length=False,
     )
 
-    assert isinstance(adj_profile, PreferenceProfile)
-    assert count == 5
+    assert isinstance(adj_profile, CleanedProfile)
+    assert adj_profile.parent_profile == profile
     assert set(adj_profile.ballots) == set(
         (
             Ballot(ranking=[{"B"}], weight=1),
@@ -56,3 +61,8 @@ def test_clean_profile_change_defaults():
     )
     assert adj_profile.candidates == profile.candidates
     assert adj_profile.max_ballot_length == 2
+
+    assert adj_profile.no_weight_alt_ballot_indices == []
+    assert adj_profile.no_ranking_and_no_scores_alt_ballot_indices == [3]
+    assert adj_profile.valid_but_alt_ballot_indices == [0, 1, 2]
+    assert adj_profile.unalt_ballot_indices == [4]

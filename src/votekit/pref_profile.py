@@ -445,3 +445,45 @@ class PreferenceProfile:
             raise TypeError(
                 "Unsupported operand type. Must be an instance of PreferenceProfile."
             )
+
+
+@dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
+class CleanedProfile(PreferenceProfile):
+    """
+    CleanedProfile class, which is used to keep track of how ballots are altered from the original
+    profile.
+
+    Args:
+        ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
+        candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
+            If empty, computes this from any candidate listed on a ballot with positive weight.
+        max_ballot_length (int, optional): The length of the longest allowable ballot, i.e., how
+            many candidates are allowed to be ranked in an election. Defaults to longest observed
+            ballot.
+        # TODO what am I actually keeping track of
+        parent_profile (PreferenceProfile | CleanedProfile): The profile that was altered.
+            If you apply multiple cleaning functions, the parent is always the profile immediately
+            before cleaning, so you need to recurse to get the original, uncleaned profile.
+
+    Parameters:
+        ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
+        candidates (tuple[str]): Tuple of candidate strings.
+        max_ballot_length (int): The length of the longest allowable ballot, i.e., how
+            many candidates are allowed to be ranked in an election.
+        df (pandas.DataFrame): Data frame view of the ballots.
+        candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive
+            weight, either in the ranking or in the score dictionary.
+        total_ballot_wt (Fraction): Sum of ballot weights.
+        num_ballots (int): Length of ballot list.
+
+    """
+
+    # these are always in regards to the cleaning rule, so a 0 weight ballot in the OG
+    # profile won't appear here unless the cleaning rule touches it.
+    parent_profile: PreferenceProfile | CleanedProfile = PreferenceProfile()
+    no_weight_alt_ballot_indices: list[int] = field(default_factory=list())
+    no_ranking_and_no_scores_alt_ballot_indices: list[int] = field(
+        default_factory=list()
+    )
+    valid_but_alt_ballot_indices: list[int] = field(default_factory=list())
+    unalt_ballot_indices: list[int] = field(default_factory=list())
