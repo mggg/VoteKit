@@ -1,4 +1,4 @@
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_repeated_candidates
 from fractions import Fraction
@@ -11,14 +11,18 @@ def test_remove_repeated_candidates():
     profile = PreferenceProfile(ballots=ballot_tuple)
     cleaned_profile = remove_repeated_candidates(profile)
 
-    assert isinstance(cleaned_profile, PreferenceProfile)
+    assert isinstance(cleaned_profile, CleanedProfile)
+    assert cleaned_profile.parent_profile == profile
 
-    true_cleaned_ballot = Ballot(
-        ranking=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
+    assert cleaned_profile.group_ballots().ballots == (
+        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
     )
 
-    assert cleaned_profile.ballots[0] == true_cleaned_ballot
     assert cleaned_profile != profile
+    assert cleaned_profile.no_weight_alt_ballot_indices == []
+    assert cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices == []
+    assert cleaned_profile.valid_but_alt_ballot_indices == [0, 1]
+    assert cleaned_profile.unalt_ballot_indices == []
 
 
 def test_remove_repeated_candidates_ties():
@@ -32,18 +36,20 @@ def test_remove_repeated_candidates_ties():
             ),
         ]
     )
-    clean_profile = remove_repeated_candidates(profile)
-    true_clean = PreferenceProfile(
-        ballots=[
-            Ballot(
-                ranking=[{"C", "A"}, {"B"}],
-            ),
-            Ballot(
-                ranking=[{"C", "A"}, {"B"}],
-            ),
-        ]
+    cleaned_profile = remove_repeated_candidates(profile)
+
+    assert isinstance(cleaned_profile, CleanedProfile)
+    assert cleaned_profile.parent_profile == profile
+
+    assert cleaned_profile.group_ballots().ballots == (
+        Ballot(ranking=[{"C", "A"}, {"B"}], weight=Fraction(2)),
     )
-    assert clean_profile.ballots == true_clean.ballots
+
+    assert cleaned_profile != profile
+    assert cleaned_profile.no_weight_alt_ballot_indices == []
+    assert cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices == []
+    assert cleaned_profile.valid_but_alt_ballot_indices == [0, 1]
+    assert cleaned_profile.unalt_ballot_indices == []
 
 
 def test_remove_repeated_cands_errors():
@@ -56,21 +62,3 @@ def test_remove_repeated_cands_errors():
                 ballots=(Ballot(ranking=(frozenset({"Chris"}),), scores={"Chris": 1}),)
             )
         )
-
-
-def test_remove_repeated_cands_adjusted_count():
-    profile = PreferenceProfile(
-        ballots=[
-            Ballot(
-                ranking=[{"C", "A"}, {"A", "C"}, {"B"}],
-            ),
-            Ballot(ranking=[{"A", "C"}, {"C", "A"}, {"B"}], weight=2),
-            Ballot(
-                ranking=[{"A", "C"}, {"B"}],
-            ),
-        ]
-    )
-
-    _, count = remove_repeated_candidates(profile, return_adjusted_count=True)
-
-    assert count == 3
