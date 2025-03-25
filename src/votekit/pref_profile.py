@@ -386,10 +386,9 @@ class PreferenceProfile:
 
             else:
                 seen_ballots[weightless_ballot]["weight"] += ballot.weight  # type: ignore[operator]
-                seen_ballots[weightless_ballot]["voter_set"].update(
+                seen_ballots[weightless_ballot]["voter_set"].update(  # type: ignore[attr-defined]
                     ballot.voter_set
-                )  # type: ignore[attr-defined]
-
+                )
         new_ballots = [Ballot()] * len(seen_ballots)
 
         for i, (ballot, ballot_dict) in enumerate(seen_ballots.items()):
@@ -466,10 +465,20 @@ class CleanedProfile(PreferenceProfile):
         max_ballot_length (int, optional): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.
-        # TODO what am I actually keeping track of
         parent_profile (PreferenceProfile | CleanedProfile): The profile that was altered.
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.
+        no_weight_alt_ballot_indices (list[int], optional): List of indices of ballots that have
+            0 weight as a result of cleaning. Indices are with respect
+            to ``parent_profile.ballots``.
+        no_ranking_and_no_scores_alt_ballot_indices (list[int], optional): List of indices of
+            ballots that have no ranking and no scores as a result of cleaning. Indices are with
+            respect to ``parent_profile.ballots``.
+        valid_but_alt_ballot_indices (list[int], optional):  List of indices of ballots that have
+            been altered but still have weight and (ranking or score) as a result of cleaning.
+            Indices are with respect to ``parent_profile.ballots``.
+        unalt_ballot_indices (list[int], optional):  List of indices of ballots that have
+            been unaltered by cleaning. Indices are with respect to ``parent_profile.ballots``.
 
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
@@ -484,12 +493,8 @@ class CleanedProfile(PreferenceProfile):
 
     """
 
-    # these are always in regards to the cleaning rule, so a 0 weight ballot in the OG
-    # profile won't appear here unless the cleaning rule touches it.
     parent_profile: PreferenceProfile | CleanedProfile = PreferenceProfile()
-    no_weight_alt_ballot_indices: list[int] = field(default_factory=list())
-    no_ranking_and_no_scores_alt_ballot_indices: list[int] = field(
-        default_factory=list()
-    )
-    valid_but_alt_ballot_indices: list[int] = field(default_factory=list())
-    unalt_ballot_indices: list[int] = field(default_factory=list())
+    no_weight_alt_ballot_indices: list[int] = field(default_factory=list)
+    no_ranking_and_no_scores_alt_ballot_indices: list[int] = field(default_factory=list)
+    valid_but_alt_ballot_indices: list[int] = field(default_factory=list)
+    unalt_ballot_indices: list[int] = field(default_factory=list)
