@@ -88,9 +88,8 @@ class Ballot:
             return False
 
         # Check scores
-        if self.scores is not None:
-            if self.scores != other.scores:
-                return False
+        if self.scores != other.scores:
+            return False
         return True
 
     def __hash__(self):
