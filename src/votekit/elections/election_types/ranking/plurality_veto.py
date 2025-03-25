@@ -99,7 +99,12 @@ class PluralityVeto(RankingElection):
         bidx = 0
         for b in ballots:
             for _ in range(int(b.weight)):
-                new_ballots[bidx] = Ballot(b.ranking, weight=Fraction(1, 1))
+                new_ballots[bidx] = Ballot(
+                    b.ranking,
+                    weight=Fraction(1, 1),
+                    voter_set=b.voter_set,
+                    id=b.id,
+                )
                 bidx += 1
 
         profile = PreferenceProfile(

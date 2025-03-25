@@ -362,49 +362,55 @@ class PreferenceProfile:
     # set repr to print outputs
     __repr__ = __str__
 
-    def condense_ballots(self) -> PreferenceProfile:
+    def group_ballots(self) -> PreferenceProfile:
         """
-        Groups ballots by rankings and scores and updates weights.
+        Groups ballots by rankings and scores and updates weights. Retains voter sets, but
+        loses ballot ids.
 
         Returns:
-            PreferenceProfile: A PreferenceProfile object with condensed ballot list.
+            PreferenceProfile: A PreferenceProfile object with grouped ballot list.
         """
-        weight_accumulator = {}
 
-        # weightless allows for id of ballots with matching ranking/scores
+        seen_ballots = {}
+
         for ballot in self.ballots:
-            weightless_ballot = (
-                Ballot(ranking=ballot.ranking, weight=Fraction(0), scores=ballot.scores)
-                if ballot.scores
-                else Ballot(ranking=ballot.ranking, weight=Fraction(0))
+            weightless_ballot = Ballot(
+                ranking=ballot.ranking, scores=ballot.scores, weight=Fraction(0)
             )
-            if weightless_ballot not in weight_accumulator:
-                weight_accumulator[weightless_ballot] = Fraction(0)
 
-            weight_accumulator[weightless_ballot] += ballot.weight
+            if weightless_ballot not in seen_ballots:
+                seen_ballots[weightless_ballot] = {
+                    "weight": ballot.weight,
+                    "voter_set": ballot.voter_set,
+                }
 
-        new_ballot_list = [Ballot()] * len(weight_accumulator)
-        i = 0
-        for ballot, weight in weight_accumulator.items():
-            if ballot.scores:
-                new_ballot_list[i] = Ballot(
-                    ranking=ballot.ranking, scores=ballot.scores, weight=weight
-                )
             else:
-                new_ballot_list[i] = Ballot(ranking=ballot.ranking, weight=weight)
+                seen_ballots[weightless_ballot]["weight"] += ballot.weight  # type: ignore[operator]
+                seen_ballots[weightless_ballot]["voter_set"].update(
+                    ballot.voter_set
+                )  # type: ignore[attr-defined]
 
-            i += 1
+        new_ballots = [Ballot()] * len(seen_ballots)
 
-        condensed_profile = PreferenceProfile(
-            ballots=tuple(new_ballot_list), candidates=self.candidates
+        for i, (ballot, ballot_dict) in enumerate(seen_ballots.items()):
+            new_ballots[i] = Ballot(
+                ranking=ballot.ranking,
+                scores=ballot.scores,
+                weight=ballot_dict["weight"],  # type: ignore[arg-type]
+                voter_set=ballot_dict["voter_set"],  # type: ignore[arg-type]
+            )
+
+        return PreferenceProfile(
+            ballots=tuple(new_ballots),
+            candidates=self.candidates,
+            max_ballot_length=self.max_ballot_length,
         )
-        return condensed_profile
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
             return False
-        pp_1 = self.condense_ballots()
-        pp_2 = other.condense_ballots()
+        pp_1 = self.group_ballots()
+        pp_2 = other.group_ballots()
         for b in pp_1.ballots:
             if b not in pp_2.ballots:
                 return False
@@ -439,7 +445,7 @@ class PreferenceProfile:
         if isinstance(other, PreferenceProfile):
             ballots = self.ballots + other.ballots
             pp = PreferenceProfile(ballots=ballots)
-            pp.condense_ballots()
+            pp.group_ballots()
             return pp
         else:
             raise TypeError(

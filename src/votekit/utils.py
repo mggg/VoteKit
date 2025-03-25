@@ -118,7 +118,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
 
     return PreferenceProfile(
         ballots=tuple(new_ballots), candidates=tuple(candidates)
-    ).condense_ballots()
+    ).group_ballots()
 
 
 def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
@@ -572,7 +572,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     new_ballots = tuple(
         [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
     )
-    return PreferenceProfile(ballots=new_ballots).condense_ballots()
+    return PreferenceProfile(ballots=new_ballots).group_ballots()
 
 
 def score_profile_from_ballot_scores(

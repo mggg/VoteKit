@@ -2,6 +2,7 @@ from fractions import Fraction
 from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict, field_validator
 from typing import Optional, Union
+from dataclasses import field
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -31,7 +32,7 @@ class Ballot:
 
     ranking: Optional[tuple[frozenset, ...]] = None
     weight: Fraction = Fraction(1, 1)
-    voter_set: Optional[set[str]] = None
+    voter_set: set[str] = field(default_factory=set)
     id: Optional[str] = None
     scores: Optional[dict[str, Fraction]] = None
 
@@ -83,9 +84,8 @@ class Ballot:
             return False
 
         # Check voters
-        if self.voter_set is not None:
-            if self.voter_set != other.voter_set:
-                return False
+        if self.voter_set != other.voter_set:
+            return False
 
         # Check scores
         if self.scores is not None:
