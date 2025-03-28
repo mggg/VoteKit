@@ -468,16 +468,17 @@ class CleanedProfile(PreferenceProfile):
         parent_profile (PreferenceProfile | CleanedProfile): The profile that was altered.
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.
-        no_weight_alt_ballot_indices (list[int], optional): List of indices of ballots that have
+        no_weight_altr_ballot_indices (list[int], optional): List of indices of ballots that have
             0 weight as a result of cleaning. Indices are with respect
             to ``parent_profile.ballots``.
-        no_ranking_and_no_scores_alt_ballot_indices (list[int], optional): List of indices of
+        empty_ranking_and_no_scores_altr_ballot_indices (list[int], optional): List of indices of
             ballots that have no ranking and no scores as a result of cleaning. Indices are with
-            respect to ``parent_profile.ballots``.
-        valid_but_alt_ballot_indices (list[int], optional):  List of indices of ballots that have
+            respect to ``parent_profile.ballots``. Note that a ranking made entirely of empty
+            frozensets is considered non-empty. The only empty ranking is the empty tuple.
+        nonempty_altr_ballot_indices (list[int], optional):  List of indices of ballots that have
             been altered but still have weight and (ranking or score) as a result of cleaning.
             Indices are with respect to ``parent_profile.ballots``.
-        unalt_ballot_indices (list[int], optional):  List of indices of ballots that have
+        unaltr_ballot_indices (list[int], optional):  List of indices of ballots that have
             been unaltered by cleaning. Indices are with respect to ``parent_profile.ballots``.
 
     Parameters:
@@ -494,7 +495,9 @@ class CleanedProfile(PreferenceProfile):
     """
 
     parent_profile: PreferenceProfile | CleanedProfile = PreferenceProfile()
-    no_weight_alt_ballot_indices: list[int] = field(default_factory=list)
-    no_ranking_and_no_scores_alt_ballot_indices: list[int] = field(default_factory=list)
-    valid_but_alt_ballot_indices: list[int] = field(default_factory=list)
-    unalt_ballot_indices: list[int] = field(default_factory=list)
+    no_weight_altr_ballot_indices: list[int] = field(default_factory=list)
+    empty_ranking_and_no_scores_altr_ballot_indices: list[int] = field(
+        default_factory=list
+    )
+    nonempty_altr_ballot_indices: list[int] = field(default_factory=list)
+    unaltr_ballot_indices: list[int] = field(default_factory=list)

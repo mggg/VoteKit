@@ -15,14 +15,14 @@ def test_remove_repeated_candidates():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
+        Ballot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=Fraction(2)),
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_alt_ballot_indices == []
-    assert cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices == []
-    assert cleaned_profile.valid_but_alt_ballot_indices == [0, 1]
-    assert cleaned_profile.unalt_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == []
+    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
+    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1]
+    assert cleaned_profile.unaltr_ballot_indices == []
 
 
 def test_remove_repeated_candidates_ties():
@@ -42,14 +42,14 @@ def test_remove_repeated_candidates_ties():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=[{"C", "A"}, {"B"}], weight=Fraction(2)),
+        Ballot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=Fraction(2)),
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_alt_ballot_indices == []
-    assert cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices == []
-    assert cleaned_profile.valid_but_alt_ballot_indices == [0, 1]
-    assert cleaned_profile.unalt_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == []
+    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
+    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1]
+    assert cleaned_profile.unaltr_ballot_indices == []
 
 
 def test_remove_repeated_cands_errors():

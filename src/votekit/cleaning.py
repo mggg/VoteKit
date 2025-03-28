@@ -37,26 +37,26 @@ def clean_profile(
     """
     new_ballots = [Ballot()] * len(profile.ballots)
 
-    no_weight_alt_ballot_indices = []
-    no_ranking_and_no_scores_alt_ballot_indices = []
-    valid_but_alt_ballot_indices = []
-    unalt_ballot_indices = []
+    no_weight_altr_ballot_indices = []
+    empty_ranking_and_no_scores_altr_ballot_indices = []
+    nonempty_altr_ballot_indices = []
+    unaltr_ballot_indices = []
 
     for i, b in enumerate(profile.ballots):
         new_b = clean_ballot_func(b)
 
         if new_b == b:
-            unalt_ballot_indices.append(i)
+            unaltr_ballot_indices.append(i)
 
         else:
             if (new_b.ranking or new_b.scores) and new_b.weight > 0:
-                valid_but_alt_ballot_indices.append(i)
+                nonempty_altr_ballot_indices.append(i)
 
             if new_b.weight == 0:
-                no_weight_alt_ballot_indices.append(i)
+                no_weight_altr_ballot_indices.append(i)
 
             if not (new_b.ranking or new_b.scores):
-                no_ranking_and_no_scores_alt_ballot_indices.append(i)
+                empty_ranking_and_no_scores_altr_ballot_indices.append(i)
 
         new_ballots[i] = new_b
 
@@ -72,10 +72,10 @@ def clean_profile(
         max_ballot_length=(
             profile.max_ballot_length if retain_original_max_ballot_length else 0
         ),
-        no_weight_alt_ballot_indices=no_weight_alt_ballot_indices,
-        no_ranking_and_no_scores_alt_ballot_indices=no_ranking_and_no_scores_alt_ballot_indices,
-        valid_but_alt_ballot_indices=valid_but_alt_ballot_indices,
-        unalt_ballot_indices=unalt_ballot_indices,
+        no_weight_altr_ballot_indices=no_weight_altr_ballot_indices,
+        empty_ranking_and_no_scores_altr_ballot_indices=empty_ranking_and_no_scores_altr_ballot_indices,
+        nonempty_altr_ballot_indices=nonempty_altr_ballot_indices,
+        unaltr_ballot_indices=unaltr_ballot_indices,
         parent_profile=profile,
     )
 
@@ -85,7 +85,7 @@ def remove_repeated_candidates_from_ballot(
 ) -> Ballot:
     """
     Given a ballot, if a candidate appears multiple times on a ballot, keep the first instance,
-    remove any further instances, and condense any empty rankings as as result.
+    and remove any further instances. Does not condense the ballot.
     Only works on ranking ballots, not score ballots.
 
     Args:
@@ -114,8 +114,7 @@ def remove_repeated_candidates_from_ballot(
                 new_position.append(cand)
                 seen_cands.append(cand)
 
-        if len(new_position) > 0:
-            dedup_ranking.append(frozenset(new_position))
+        dedup_ranking.append(frozenset(new_position))
 
     new_ballot = Ballot(
         id=ballot.id,
@@ -135,8 +134,8 @@ def remove_repeated_candidates(
     retain_original_max_ballot_length: bool = True,
 ) -> CleanedProfile:
     """
-    Given a profile, if a candidate appears multiple times on a ballot, keep the first instance,
-    remove any further instances, and condense any empty rankings as as result.
+    Given a profile, if a candidate appears multiple times on a ballot, keep the first instance and
+    remove any further instances. Does not condense any empty rankings as as result.
     Only works on ranking ballots, not score ballots.
 
     Args:
@@ -174,8 +173,7 @@ def remove_cand_from_ballot(
     ballot: Ballot,
 ) -> Ballot:
     """
-    Removes specified candidate(s) from ballot. When a candidate is
-    removed from a ballot, lower ranked candidates are moved up.
+    Removes specified candidate(s) from ballot. Does not condense the resulting ballot.
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
@@ -194,8 +192,7 @@ def remove_cand_from_ballot(
             for c in s:
                 if c not in removed:
                     new_s.append(c)
-            if len(new_s) > 0:
-                new_ranking.append(frozenset(new_s))
+            new_ranking.append(frozenset(new_s))
 
     new_scores = {}
     if ballot.scores:
@@ -223,8 +220,8 @@ def remove_cand(
     retain_original_max_ballot_length: bool = True,
 ) -> CleanedProfile:
     """
-    Given a profile, remove the given candidate(s) from the ballots. Any ranking left empty
-    as a result is condensed. Removes candidates from score dictionary as well.
+    Given a profile, remove the given candidate(s) from the ballots. Does not condense the
+    resulting ballots. Removes candidates from score dictionary as well.
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
@@ -266,8 +263,8 @@ def remove_cand(
         candidates=new_candidates,
         max_ballot_length=cleaned_profile.max_ballot_length,
         parent_profile=cleaned_profile.parent_profile,
-        no_weight_alt_ballot_indices=cleaned_profile.no_weight_alt_ballot_indices,
-        no_ranking_and_no_scores_alt_ballot_indices=cleaned_profile.no_ranking_and_no_scores_alt_ballot_indices,
-        valid_but_alt_ballot_indices=cleaned_profile.valid_but_alt_ballot_indices,
-        unalt_ballot_indices=cleaned_profile.unalt_ballot_indices,
+        no_weight_altr_ballot_indices=cleaned_profile.no_weight_altr_ballot_indices,
+        empty_ranking_and_no_scores_altr_ballot_indices=cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices,
+        nonempty_altr_ballot_indices=cleaned_profile.nonempty_altr_ballot_indices,
+        unaltr_ballot_indices=cleaned_profile.unaltr_ballot_indices,
     )

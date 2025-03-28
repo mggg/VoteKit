@@ -17,10 +17,10 @@ def test_init():
     assert empty_profile.max_ballot_length == 0
 
     assert empty_profile.parent_profile == PreferenceProfile()
-    assert empty_profile.no_weight_alt_ballot_indices == []
-    assert empty_profile.no_ranking_and_no_scores_alt_ballot_indices == []
-    assert empty_profile.valid_but_alt_ballot_indices == []
-    assert empty_profile.unalt_ballot_indices == []
+    assert empty_profile.no_weight_altr_ballot_indices == []
+    assert empty_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
+    assert empty_profile.nonempty_altr_ballot_indices == []
+    assert empty_profile.unaltr_ballot_indices == []
 
 
 def test_parents():
@@ -34,9 +34,9 @@ def test_parents():
         ]
     )
 
-    clean_1 = CleanedProfile(parent_profile=profile, no_weight_alt_ballot_indices=[4])
+    clean_1 = CleanedProfile(parent_profile=profile, no_weight_altr_ballot_indices=[4])
     clean_2 = CleanedProfile(
-        parent_profile=clean_1, no_ranking_and_no_scores_alt_ballot_indices=[1]
+        parent_profile=clean_1, empty_ranking_and_no_scores_altr_ballot_indices=[1]
     )
 
     assert clean_2.parent_profile == clean_1
