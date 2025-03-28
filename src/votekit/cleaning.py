@@ -283,7 +283,9 @@ def condense_ballot_ranking(
         Ballot: Condensed ballot.
 
     """
-    condensed_ranking = [cand_set for cand_set in ballot.ranking if cand_set]
+    condensed_ranking = (
+        [cand_set for cand_set in ballot.ranking if cand_set] if ballot.ranking else []
+    )
 
     new_ballot = Ballot(
         id=ballot.id,
@@ -308,13 +310,13 @@ def _is_equiv_to_condensed(ballot: Ballot) -> bool:
     Returns:
         bool: True if the given ballot is equivalent to its condensed form.
     """
-
-    for i, cand_set in enumerate(ballot.ranking):
-        if not cand_set:
-            if all(not cs for cs in ballot.ranking[i:]):
-                return True
-            else:
-                return False
+    if ballot.ranking:
+        for i, cand_set in enumerate(ballot.ranking):
+            if not cand_set:
+                if all(not cs for cs in ballot.ranking[i:]):
+                    return True
+                else:
+                    return False
 
     return True
 

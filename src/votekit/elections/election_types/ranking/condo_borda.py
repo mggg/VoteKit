@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_cand
+from ....cleaning import remove_cand, condense_profile
 from ....utils import elect_cands_from_set_ranking, borda_scores
 from ....graphs import PairwiseComparisonGraph
 
@@ -60,7 +60,9 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = condense_profile(
+            remove_cand([c for s in elected for c in s], profile)
+        )
         print("max ballot length of new profile", new_profile.max_ballot_length)
         if store_states:
             self.election_states.append(

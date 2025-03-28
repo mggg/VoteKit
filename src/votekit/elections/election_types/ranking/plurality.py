@@ -2,7 +2,7 @@ from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....utils import first_place_votes, elect_cands_from_set_ranking
-from ....cleaning import remove_cand
+from ....cleaning import remove_cand, condense_profile
 from typing import Optional, Literal
 from functools import partial
 
@@ -73,7 +73,9 @@ class Plurality(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = condense_profile(
+            remove_cand([c for s in elected for c in s], profile)
+        )
         if store_states:
             if self.score_function:
                 scores = self.score_function(new_profile)

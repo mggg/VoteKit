@@ -3,7 +3,12 @@ from ...transfers import fractional_transfer
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....ballot import Ballot
-from ....cleaning import remove_cand, remove_cand_from_ballot
+from ....cleaning import (
+    remove_cand,
+    remove_cand_from_ballot,
+    condense_ballot_ranking,
+    condense_profile,
+)
 from ....utils import (
     first_place_votes,
     ballots_by_first_cand,
@@ -174,7 +179,9 @@ class STV(RankingElection):
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            remove_cand_from_ballot([c for s in elected for c in s], b)
+            condense_ballot_ranking(
+                remove_cand_from_ballot([c for s in elected for c in s], b)
+            )
             for b in new_ballots
             if b.ranking
         )
@@ -245,7 +252,9 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            remove_cand_from_ballot(elected_c, b) for b in new_ballots if b.ranking
+            condense_ballot_ranking(remove_cand_from_ballot(elected_c, b))
+            for b in new_ballots
+            if b.ranking
         )
 
         remaining_cands = set(profile.candidates).difference(
@@ -321,10 +330,12 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = remove_cand(
-                eliminated_cand,
-                profile,
-                retain_original_candidate_list=False,
+            new_profile = condense_profile(
+                remove_cand(
+                    eliminated_cand,
+                    profile,
+                    retain_original_candidate_list=False,
+                )
             )
             elected = (frozenset(),)
             eliminated = (frozenset([eliminated_cand]),)
@@ -405,7 +416,8 @@ class SequentialRCV(STV):
             m=m,
             transfer=(
                 lambda winner, fpv, ballots, threshold: tuple(
-                    remove_cand_from_ballot(winner, b) for b in ballots
+                    condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                    for b in ballots
                 )
             ),
             quota=quota,
