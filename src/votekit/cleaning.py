@@ -268,3 +268,117 @@ def remove_cand(
         nonempty_altr_ballot_indices=cleaned_profile.nonempty_altr_ballot_indices,
         unaltr_ballot_indices=cleaned_profile.unaltr_ballot_indices,
     )
+
+
+def condense_ballot_ranking(
+    ballot: Ballot,
+) -> Ballot:
+    """
+    Given a ballot, removes any empty ranking positions and moves up any lower ranked candidates.
+
+    Args:
+        ballot (Ballot]): Ballot to condense.
+
+    Returns:
+        Ballot: Condensed ballot.
+
+    """
+    condensed_ranking = [cand_set for cand_set in ballot.ranking if cand_set]
+
+    new_ballot = Ballot(
+        id=ballot.id,
+        weight=Fraction(ballot.weight),
+        ranking=tuple(condensed_ranking),
+        voter_set=ballot.voter_set,
+        scores=ballot.scores,
+    )
+
+    return new_ballot
+
+
+def _is_equiv_to_condensed(ballot: Ballot) -> bool:
+    """
+    Returns True if the given ballot is equivalent to its condensed form. It is equivalent
+    if the rankings are identical, or if the original ballot only has trailing empty frozensets
+    in its ranking.
+
+    Args:
+        ballot (Ballot): Ballot to check.
+
+    Returns:
+        bool: True if the given ballot is equivalent to its condensed form.
+    """
+
+    for i, cand_set in enumerate(ballot.ranking):
+        if not cand_set:
+            if all(not cs for cs in ballot.ranking[i:]):
+                return True
+            else:
+                return False
+
+    return True
+
+
+def condense_profile(
+    profile: PreferenceProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = True,
+    retain_original_max_ballot_length: bool = True,
+) -> CleanedProfile:
+    """
+    Given a profile, removes any empty frozensets from the ballot rankings and condenses the
+    resulting ranking. If a ranking only has trailing empty positions, the condensed ballot is
+    considered equivalent. For example, (A,B,{},{}) is mapped to (A,B) but considered unaltered
+    since the ranking did not change.
+
+    Args:
+        profile (PreferenceProfile): Profile to remove repeated candidates from.
+        remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
+            ranking or scores as a result of cleaning. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
+            weight as a result of cleaning. Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
+            from the original profile in the new profile. If False, uses only candidates who receive
+            votes. Defaults to True.
+        retain_original_max_ballot_length (bool, optional): Whether or not to use the
+            max_ballot_length from the original profile in the new profile. Defaults to True.
+
+    Returns:
+        CleanedProfile: A cleaned ``PreferenceProfile``.
+
+    """
+
+    condensed_profile = clean_profile(
+        profile,
+        condense_ballot_ranking,
+        remove_empty_ballots,
+        remove_zero_weight_ballots,
+        retain_original_candidate_list,
+        retain_original_max_ballot_length,
+    )
+
+    additional_unaltr_ballot_indices = [
+        i
+        for i in condensed_profile.nonempty_altr_ballot_indices
+        if _is_equiv_to_condensed(profile.ballots[i])
+    ]
+    new_unaltr_ballot_indices = (
+        condensed_profile.unaltr_ballot_indices + additional_unaltr_ballot_indices
+    )
+    new_nonempty_altr_ballot_indices = list(
+        set(condensed_profile.nonempty_altr_ballot_indices).difference(
+            additional_unaltr_ballot_indices
+        )
+    )
+
+    return CleanedProfile(
+        ballots=condensed_profile.ballots,
+        candidates=condensed_profile.candidates,
+        max_ballot_length=condensed_profile.max_ballot_length,
+        parent_profile=profile,
+        no_weight_altr_ballot_indices=condensed_profile.no_weight_altr_ballot_indices,
+        empty_ranking_and_no_scores_altr_ballot_indices=condensed_profile.empty_ranking_and_no_scores_altr_ballot_indices,
+        nonempty_altr_ballot_indices=new_nonempty_altr_ballot_indices,
+        unaltr_ballot_indices=new_unaltr_ballot_indices,
+    )
