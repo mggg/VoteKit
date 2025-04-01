@@ -11,33 +11,6 @@ ballots_rankings = [
     Ballot(weight=0),
 ]
 
-ballots_scores = [
-    Ballot(
-        weight=2,
-        scores={
-            "A": 1,
-            "B": 2,
-        },
-    ),
-    Ballot(scores={"D": 2, "E": 1}),
-    Ballot(),
-    Ballot(weight=0),
-]
-
-
-ballots_rankings_and_scores = [
-    Ballot(
-        ranking=({"A"}, {"B"}, {"C"}),
-        weight=2,
-        scores={
-            "A": 1,
-            "B": 2,
-        },
-    ),
-    Ballot(ranking=({"A", "B"}, {"D"}), scores={"D": 2, "E": 1}),
-    Ballot(),
-    Ballot(weight=0),
-]
 
 
 def test_pp_df_rankings():
@@ -76,5 +49,3 @@ def test_pp_df_rankings_args():
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
-
-#TODO scores and other

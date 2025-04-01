@@ -29,9 +29,6 @@ class PreferenceProfile:
             rankings. If not provided, will set itself to correct value given the ballot list.
         contains_scores (bool, optional): Whether or not the profile contains ballots with
             scores. If not provided, will set itself to correct value given the ballot list.
-        contains_rankings_and_scores (bool): Whether or not the profile contains ballots with
-            rankings and scores. If not provided, will set itself to correct value given the ballot
-            list.
 
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
@@ -47,8 +44,6 @@ class PreferenceProfile:
             rankings.
         contains_scores (bool): Whether or not the profile contains ballots with
             scores.
-        contains_rankings_and_scores (bool): Whether or not the profile contains ballots with
-            rankings and scores.
 
     """
 
@@ -61,7 +56,6 @@ class PreferenceProfile:
     total_ballot_wt: Fraction = Fraction(0)
     contains_rankings: Optional[bool] = None
     contains_scores: Optional[bool] = None
-    contains_rankings_and_scores: Optional[bool] = None
 
     @field_validator("candidates")
     @classmethod
@@ -97,7 +91,6 @@ class PreferenceProfile:
         candidates_cast = []
         contains_rankings_indicator = False
         contains_scores_indicator = False
-        contains_rankings_and_scores_indicator = False
 
         for i, b in enumerate(self.ballots):
             ballot_data["weight"][i] = b.weight
@@ -106,19 +99,6 @@ class PreferenceProfile:
                 ballot_data["id"][i] = b.id
             if b.voter_set:
                 ballot_data["voter_set"][i] = b.voter_set
-
-            if b.scores and b.ranking:
-                if self.contains_rankings_and_scores == False:
-                    raise ValueError(
-                        (
-                            f"Ballot {b} has ranking {b.ranking} and scores {b.scores} "
-                            "but contains_rankings_and_scores is "
-                            "set to False."
-                        )
-                    )
-                contains_rankings_and_scores_indicator = True
-                contains_scores_indicator = True
-                contains_rankings_indicator = True
 
             if b.scores:
                 if self.contains_scores == False:
@@ -177,11 +157,11 @@ class PreferenceProfile:
             "voter_set",
         ]
 
-        if self.candidates and (contains_scores_indicator or contains_rankings_and_scores_indicator):
+        if self.candidates and contains_scores_indicator:
             col_order = (
                 list(self.candidates) + temp_col_order
             )
-        elif contains_scores_indicator or contains_rankings_and_scores_indicator:
+        elif contains_scores_indicator:
             col_order = (sorted([c for c in df.columns if c not in temp_col_order])
                 + temp_col_order
             )
@@ -204,13 +184,6 @@ class PreferenceProfile:
 
         if self.contains_scores == None:
             object.__setattr__(self, "contains_scores", contains_scores_indicator)
-
-        if self.contains_rankings_and_scores == None:
-            object.__setattr__(
-                self,
-                "contains_rankings_and_scores",
-                contains_rankings_and_scores_indicator,
-            )
 
         return self
 
