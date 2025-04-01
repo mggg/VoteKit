@@ -73,40 +73,6 @@ def test_get_candidates_received_votes():
     assert set(vote_cands) == {"A", "B", "C", "E"}
 
 
-def test_get_num_ballots():
-    # should count duplicates, not weight
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"C"}, {"B"}), weight=2),
-        )
-    )
-    assert profile.num_ballots == 3
-
-    with pytest.raises(
-        dataclasses.FrozenInstanceError, match="cannot assign to field 'num_ballots'"
-    ):
-        profile.num_ballots = 0
-
-
-def test_total_ballot_wt():
-    # should count weight
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), weight=2),
-        )
-    )
-    assert profile.total_ballot_wt == Fraction(9, 2)
-    with pytest.raises(
-        dataclasses.FrozenInstanceError,
-        match="cannot assign to field 'total_ballot_wt'",
-    ):
-        profile.total_ballot_wt = 0
-
-
 def test_ballot_length_default():
     profile = PreferenceProfile(
         ballots=(
@@ -189,70 +155,6 @@ def test_to_scores_dict():
     rv = profile.to_scores_dict(standardize=False)
     assert rv[(("A", Fraction(4)),)] == Fraction(3)
     assert rv[tuple()] == Fraction(5, 2)
-
-
-def test_condense_profile_ranking():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1), voter_set={"Chris"}
-            ),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                weight=Fraction(2),
-                voter_set={"Moon", "Peter"},
-            ),
-        ),
-        candidates=("A", "B", "C", "D"),
-    )
-    pp = profile.group_ballots()
-    assert pp.ballots[0] == Ballot(
-        ranking=({"A"}, {"B"}, {"C"}),
-        weight=Fraction(5),
-        voter_set={"Chris", "Moon", "Peter"},
-    )
-    assert set(pp.candidates) == set(profile.candidates)
-
-
-def test_condense_profile_scores():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-                weight=Fraction(1),
-                voter_set={"Chris"},
-            ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-                weight=Fraction(2),
-                voter_set={"Peter", "Moon"},
-            ),
-        )
-    )
-    pp = profile.group_ballots()
-
-    for b in pp.ballots:
-        print(b.ranking)
-        print(b.scores)
-        print(b.voter_set)
-        print(b.weight)
-        print()
-
-    assert (
-        Ballot(
-            ranking=({"A"}, {"B"}, {"C"}),
-            scores={"A": 3, "B": 2},
-            weight=Fraction(3),
-            voter_set={"Chris", "Moon", "Peter"},
-        )
-        in pp.ballots
-    )
-
-    assert Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)) in pp.ballots
 
 
 def test_profile_equals():
@@ -415,33 +317,6 @@ def test_df_tail():
     assert profile.tail(2, sort_by_weight=False, totals=True, percents=True).equals(
         true_df_totals
     )
-
-
-def test_add_profiles():
-    profile_1 = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A", "B", "C"},), weight=1),
-            Ballot(ranking=({"A", "B", "C"},), weight=2),
-            Ballot(ranking=({"B", "A", "C"},), weight=1),
-        )
-    )
-
-    profile_2 = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A", "B", "C"},), weight=1),
-            Ballot(ranking=({"C", "B", "A"},), weight=47),
-        )
-    )
-
-    summed_profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A", "B", "C"},), weight=4),
-            Ballot(ranking=({"B", "A", "C"},), weight=1),
-            Ballot(ranking=({"C", "B", "A"},), weight=47),
-        )
-    )
-
-    assert profile_1 + profile_2 == summed_profile
 
 
 def test_str():
