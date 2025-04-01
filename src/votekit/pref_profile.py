@@ -1,5 +1,6 @@
 from __future__ import annotations
-import csv
+
+# import csv
 from fractions import Fraction
 import pandas as pd
 from pydantic import ConfigDict, field_validator, model_validator
@@ -9,6 +10,83 @@ from typing_extensions import Self
 from dataclasses import field
 import numpy as np
 from typing import Optional
+from functools import partial
+import warnings
+
+
+def _convert_ranking_cols_to_ranking(
+    row: pd.Series, ranking_cols: list[str]
+) -> Optional[tuple[frozenset, ...]]:
+    """
+    Convert the ranking cols to a ranking tuple.
+
+    """
+    ranking = []
+    for i, col in enumerate(ranking_cols):
+        if pd.isna(row[col]):
+            if not all(pd.isna(row[c]) for c in ranking_cols[i:]):
+                raise ValueError(
+                    f"Row {row} has NaN values between valid ranking positions. "
+                    "NaN values can only trail on a ranking."
+                )
+
+            break
+
+        ranking.append(row[col])
+
+    return tuple(ranking) if ranking else None
+
+
+def _convert_row_to_ballot(
+    row: pd.Series,
+    ranking_cols: list[str],
+    weight_col: str,
+    id_col: str,
+    voter_set_col: str,
+    candidates: list[str],
+) -> Ballot:
+    """
+    Convert a row of a properly formatted df to a Ballot.
+    """
+    ranking = _convert_ranking_cols_to_ranking(row, ranking_cols)
+    scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
+    id = row[id_col] if not pd.isna(row[id_col]) else None
+    voter_set = row[voter_set_col]
+    weight = row[weight_col]
+
+    return Ballot(
+        ranking=ranking,
+        scores=scores if scores else None,
+        weight=weight,
+        id=id,
+        voter_set=voter_set,
+    )
+
+
+def _df_to_ballot_tuple(
+    df: pd.DataFrame,
+    candidates: list[str],
+    ranking_cols: list[str] = [],
+    weight_col: str = "weight",
+    id_col: str = "id",
+    voter_set_col: str = "voter_set",
+) -> tuple[Ballot]:
+    """
+    Convert a df into a list of ballots.
+    """
+    return tuple(
+        df.apply(
+            partial(
+                _convert_row_to_ballot,
+                ranking_cols=ranking_cols,
+                weight_col=weight_col,
+                id_col=id_col,
+                candidates=candidates,
+                voter_set_col=voter_set_col,
+            ),
+            axis="columns",
+        )
+    )
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -74,7 +152,7 @@ class PreferenceProfile:
         ballot_data = {
             "weight": [np.nan] * num_ballots,
             "id": [np.nan] * num_ballots,
-            "voter_set": [np.nan] * num_ballots,
+            "voter_set": [set()] * num_ballots,
         }
 
         if self.candidates:
@@ -101,7 +179,7 @@ class PreferenceProfile:
                 ballot_data["voter_set"][i] = b.voter_set
 
             if b.scores:
-                if self.contains_scores == False:
+                if self.contains_scores is False:
                     raise ValueError(
                         (
                             f"Ballot {b} has scores {b.scores} but contains_scores is "
@@ -117,13 +195,14 @@ class PreferenceProfile:
                     if c not in ballot_data:
                         if self.candidates:
                             raise ValueError(
-                                f"Candidate {c} found in ballot {b} but not in candidate list {self.candidates}."
+                                f"Candidate {c} found in ballot {b} but not in "
+                                f"candidate list {self.candidates}."
                             )
                         ballot_data[c] = [np.nan] * num_ballots
                     ballot_data[c][i] = score
 
             if b.ranking:
-                if self.contains_rankings == False:
+                if self.contains_rankings is False:
                     raise ValueError(
                         (
                             f"Ballot {b} has ranking {b.ranking} but contains_rankings is"
@@ -137,14 +216,16 @@ class PreferenceProfile:
                         if self.candidates:
                             if c not in self.candidates:
                                 raise ValueError(
-                                    f"Candidate {c} found in ballot {b} but not in candidate list {self.candidates}."
-                                    )
+                                    f"Candidate {c} found in ballot {b} but not in "
+                                    f"candidate list {self.candidates}."
+                                )
                         if b.weight > 0 and c not in candidates_cast:
                             candidates_cast.append(c)
                     if f"ranking_{j+1}" not in ballot_data:
                         if self.max_ballot_length:
                             raise ValueError(
-                                f"Max ballot length {self.max_ballot_length} given but ballot {b} has length at least {j+1}."
+                                f"Max ballot length {self.max_ballot_length} given but "
+                                "ballot {b} has length at least {j+1}."
                             )
                         ballot_data[f"ranking_{j+1}"] = [np.nan] * num_ballots
 
@@ -158,11 +239,10 @@ class PreferenceProfile:
         ]
 
         if self.candidates and contains_scores_indicator:
-            col_order = (
-                list(self.candidates) + temp_col_order
-            )
+            col_order = list(self.candidates) + temp_col_order
         elif contains_scores_indicator:
-            col_order = (sorted([c for c in df.columns if c not in temp_col_order])
+            col_order = (
+                sorted([c for c in df.columns if c not in temp_col_order])
                 + temp_col_order
             )
         else:
@@ -179,17 +259,24 @@ class PreferenceProfile:
             max_ballot_length = len([c for c in df.columns if "ranking_" in c])
             object.__setattr__(self, "max_ballot_length", max_ballot_length)
 
-        if self.contains_rankings == None:
+        if self.contains_rankings is None:
             object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
+        elif self.contains_rankings and not contains_rankings_indicator:
+            warnings.warn(
+                "contains_rankings is True but we found no ballots with rankings."
+            )
 
-        if self.contains_scores == None:
+        if self.contains_scores is None:
             object.__setattr__(self, "contains_scores", contains_scores_indicator)
+        elif self.contains_scores and not contains_scores_indicator:
+            warnings.warn(
+                "contains_scores is True but we found no ballots with scores."
+            )
 
         return self
 
     @model_validator(mode="after")
     def find_num_ballots(self) -> Self:
-
         object.__setattr__(self, "num_ballots", len(self.df))
         return self
 
@@ -218,6 +305,39 @@ class PreferenceProfile:
                 "Unsupported operand type. Must be an instance of PreferenceProfile."
             )
 
+    def group_ballots(self) -> PreferenceProfile:
+        """
+        Groups ballots by rankings and scores and updates weights. Retains voter sets, but
+        loses ballot ids.
+
+        Returns:
+            PreferenceProfile: A PreferenceProfile object with grouped ballot list.
+        """
+        non_group_cols = ["weight", "id", "voter_set"]
+        ranking_cols = [c for c in self.df.columns if "ranking_" in c]
+        cand_cols = [
+            c for c in self.df.columns if c not in non_group_cols + ranking_cols
+        ]
+
+        group_df = self.df.groupby(cand_cols + ranking_cols, dropna=False)
+        new_df = group_df.aggregate(
+            {
+                "weight": "sum",
+                "voter_set": (lambda sets: set().union(*sets)),
+                "id": lambda x: x.iloc[0] if len(x) == 1 else np.nan,
+            }
+        ).reset_index()
+
+        new_ballots = _df_to_ballot_tuple(
+            new_df, candidates=self.candidates, ranking_cols=ranking_cols
+        )
+
+        return PreferenceProfile(
+            ballots=new_ballots,
+            candidates=self.candidates,
+            max_ballot_length=self.max_ballot_length,
+        )
+
     def __eq__(self, other):
         if not isinstance(other, PreferenceProfile):
             return False
@@ -233,8 +353,6 @@ class PreferenceProfile:
             return False
         if self.contains_scores != other.contains_scores:
             return False
-        if self.contains_rankings_and_scores != other.contains_rankings_and_scores:
-            return False
 
         pp_1 = self.group_ballots()
         pp_2 = other.group_ballots()
@@ -248,7 +366,7 @@ class PreferenceProfile:
 
     def __str__(self) -> str:
         if len(self.df) < 15:
-            return self.df.head(n=len(self.df), sort_by_weight=True).to_string(
+            return self.df.head(n=len(self.df)).to_string(
                 index=False, justify="justify"
             )
 
@@ -256,9 +374,7 @@ class PreferenceProfile:
             f"PreferenceProfile too long, only showing 15 out of {len(self.df) } rows."
         )
 
-        return self.df.head(n=15, sort_by_weight=True).to_string(
-            index=False, justify="justify"
-        )
+        return self.df.head(n=15).to_string(index=False, justify="justify")
 
     # set repr to print outputs
     __repr__ = __str__
@@ -466,50 +582,6 @@ class PreferenceProfile:
     #         return df.drop(columns="Percent")
 
     #     return df
-
-    # def group_ballots(self) -> PreferenceProfile:
-    #     """
-    #     Groups ballots by rankings and scores and updates weights. Retains voter sets, but
-    #     loses ballot ids.
-
-    #     Returns:
-    #         PreferenceProfile: A PreferenceProfile object with grouped ballot list.
-    #     """
-
-    #     seen_ballots = {}
-
-    #     for ballot in self.ballots:
-    #         weightless_ballot = Ballot(
-    #             ranking=ballot.ranking, scores=ballot.scores, weight=Fraction(0)
-    #         )
-
-    #         if weightless_ballot not in seen_ballots:
-    #             seen_ballots[weightless_ballot] = {
-    #                 "weight": ballot.weight,
-    #                 "voter_set": ballot.voter_set,
-    #             }
-
-    #         else:
-    #             seen_ballots[weightless_ballot]["weight"] += ballot.weight  # type: ignore[operator]
-    #             seen_ballots[weightless_ballot]["voter_set"].update(
-    #                 ballot.voter_set
-    #             )  # type: ignore[attr-defined]
-
-    #     new_ballots = [Ballot()] * len(seen_ballots)
-
-    #     for i, (ballot, ballot_dict) in enumerate(seen_ballots.items()):
-    #         new_ballots[i] = Ballot(
-    #             ranking=ballot.ranking,
-    #             scores=ballot.scores,
-    #             weight=ballot_dict["weight"],  # type: ignore[arg-type]
-    #             voter_set=ballot_dict["voter_set"],  # type: ignore[arg-type]
-    #         )
-
-    #     return PreferenceProfile(
-    #         ballots=tuple(new_ballots),
-    #         candidates=self.candidates,
-    #         max_ballot_length=self.max_ballot_length,
-    #     )
 
     # def _sum_row(self, df: pd.DataFrame) -> pd.DataFrame:
     #     """
