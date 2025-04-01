@@ -12,21 +12,29 @@ ballots_scores = [
             "B": 2,
         },
     ),
-    Ballot(scores={"D": 2, "E": 1}, id = "X29", voter_set={"Chris"}),
+    Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
     Ballot(),
     Ballot(weight=0),
 ]
 
 
-
-
 def test_pp_df_scoress():
     pp = PreferenceProfile(ballots=ballots_scores)
     data = {
-        "A": [Fraction(1), np.nan, np.nan, np.nan,],
-        "B": [Fraction(2), np.nan, np.nan, np.nan,],
+        "A": [
+            Fraction(1),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [ np.nan, Fraction(1), np.nan, np.nan],
+        "E": [np.nan, Fraction(1), np.nan, np.nan],
         "weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "id": [np.nan, "X29", np.nan, np.nan],
         "voter_set": [np.nan, {"Chris"}, np.nan, np.nan],
@@ -45,11 +53,26 @@ def test_pp_df_rankings_args():
         candidates=["A", "B", "C", "D", "E"],
     )
     data = {
-        "A": [Fraction(1), np.nan, np.nan, np.nan,],
-        "B": [Fraction(2), np.nan, np.nan, np.nan,],
-        "C": [np.nan, np.nan, np.nan, np.nan,],
+        "A": [
+            Fraction(1),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [ np.nan, Fraction(1), np.nan, np.nan],
+        "E": [np.nan, Fraction(1), np.nan, np.nan],
         "weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "id": [np.nan, "X29", np.nan, np.nan],
         "voter_set": [np.nan, {"Chris"}, np.nan, np.nan],

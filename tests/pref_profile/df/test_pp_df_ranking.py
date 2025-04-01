@@ -12,7 +12,6 @@ ballots_rankings = [
 ]
 
 
-
 def test_pp_df_rankings():
     pp = PreferenceProfile(ballots=ballots_rankings)
     data = {

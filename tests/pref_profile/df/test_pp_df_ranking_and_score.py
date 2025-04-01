@@ -13,7 +13,12 @@ ballots_rankings_and_scores = [
             "B": 2,
         },
     ),
-    Ballot(ranking=({"A", "B"}, {"D"}), scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+    Ballot(
+        ranking=({"A", "B"}, {"D"}),
+        scores={"D": 2, "E": 1},
+        id="X29",
+        voter_set={"Chris"},
+    ),
     Ballot(),
     Ballot(weight=0),
 ]
@@ -23,10 +28,20 @@ def test_pp_df_ranking_and_score():
     pp = PreferenceProfile(ballots=ballots_rankings_and_scores)
 
     data = {
-        "A": [Fraction(1), np.nan, np.nan, np.nan,],
-        "B": [Fraction(2), np.nan, np.nan, np.nan,],
+        "A": [
+            Fraction(1),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [ np.nan, Fraction(1), np.nan, np.nan],
+        "E": [np.nan, Fraction(1), np.nan, np.nan],
         "ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
         "ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
@@ -48,11 +63,26 @@ def test_pp_df_ranking_and_score_args():
         max_ballot_length=3,
     )
     data = {
-        "A": [Fraction(1), np.nan, np.nan, np.nan,],
-        "B": [Fraction(2), np.nan, np.nan, np.nan,],
-        "C": [np.nan, np.nan, np.nan, np.nan,],
+        "A": [
+            Fraction(1),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [ np.nan, Fraction(1), np.nan, np.nan],
+        "E": [np.nan, Fraction(1), np.nan, np.nan],
         "ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
         "ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
@@ -63,4 +93,3 @@ def test_pp_df_ranking_and_score_args():
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
-

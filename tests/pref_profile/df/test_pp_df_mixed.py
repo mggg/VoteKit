@@ -24,19 +24,46 @@ ballots_mixed = [
 ]
 
 
-
 def test_pp_df_mixed():
     pp = PreferenceProfile(ballots=ballots_mixed)
 
     data = {
-        "A": [Fraction(1), np.nan, Fraction(1), ],
-        "B": [Fraction(2), np.nan, Fraction(2),],
-        "ranking_1": [np.nan, frozenset({"A", "B"}), frozenset({"A"}), ],
-        "ranking_2": [np.nan, frozenset(), frozenset({"B"}),],
-        "ranking_3": [np.nan, frozenset({"D"}),frozenset({"C"})],
-        "weight": [Fraction(2), Fraction(1), Fraction(2),],
-        "id": [np.nan, "X29", np.nan, ],
-        "voter_set": [np.nan, {"Chris"}, np.nan, ],
+        "A": [
+            Fraction(1),
+            np.nan,
+            Fraction(1),
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            Fraction(2),
+        ],
+        "ranking_1": [
+            np.nan,
+            frozenset({"A", "B"}),
+            frozenset({"A"}),
+        ],
+        "ranking_2": [
+            np.nan,
+            frozenset(),
+            frozenset({"B"}),
+        ],
+        "ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "weight": [
+            Fraction(2),
+            Fraction(1),
+            Fraction(2),
+        ],
+        "id": [
+            np.nan,
+            "X29",
+            np.nan,
+        ],
+        "voter_set": [
+            np.nan,
+            {"Chris"},
+            np.nan,
+        ],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -52,19 +79,58 @@ def test_pp_df_mixed_args():
         max_ballot_length=3,
     )
     data = {
-        "A": [Fraction(1), np.nan, Fraction(1), ],
-        "B": [Fraction(2), np.nan, Fraction(2),],
-        "C": [np.nan, np.nan, np.nan,],
-        "D": [np.nan, np.nan, np.nan,],
-        "E": [np.nan, np.nan, np.nan,],
-        "ranking_1": [np.nan, frozenset({"A", "B"}), frozenset({"A"}), ],
-        "ranking_2": [np.nan, frozenset(), frozenset({"B"}),],
-        "ranking_3": [np.nan, frozenset({"D"}),frozenset({"C"})],
-        "weight": [Fraction(2), Fraction(1), Fraction(2),],
-        "id": [np.nan, "X29", np.nan, ],
-        "voter_set": [np.nan, {"Chris"}, np.nan, ],
+        "A": [
+            Fraction(1),
+            np.nan,
+            Fraction(1),
+        ],
+        "B": [
+            Fraction(2),
+            np.nan,
+            Fraction(2),
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "E": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "ranking_1": [
+            np.nan,
+            frozenset({"A", "B"}),
+            frozenset({"A"}),
+        ],
+        "ranking_2": [
+            np.nan,
+            frozenset(),
+            frozenset({"B"}),
+        ],
+        "ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "weight": [
+            Fraction(2),
+            Fraction(1),
+            Fraction(2),
+        ],
+        "id": [
+            np.nan,
+            "X29",
+            np.nan,
+        ],
+        "voter_set": [
+            np.nan,
+            {"Chris"},
+            np.nan,
+        ],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
-
