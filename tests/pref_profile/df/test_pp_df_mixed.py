@@ -38,31 +38,31 @@ def test_pp_df_mixed():
             np.nan,
             Fraction(2),
         ],
-        "ranking_1": [
+        "Ranking_1": [
             np.nan,
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
-        "ranking_2": [
+        "Ranking_2": [
             np.nan,
             frozenset(),
             frozenset({"B"}),
         ],
-        "ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "weight": [
+        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Weight": [
             Fraction(2),
             Fraction(1),
             Fraction(2),
         ],
-        "id": [
+        "ID": [
             np.nan,
             "X29",
             np.nan,
         ],
-        "voter_set": [
-            np.nan,
+        "Voter Set": [
+            set(),
             {"Chris"},
-            np.nan,
+            set(),
         ],
     }
     true_df = pd.DataFrame(data)
@@ -104,31 +104,31 @@ def test_pp_df_mixed_args():
             np.nan,
             np.nan,
         ],
-        "ranking_1": [
+        "Ranking_1": [
             np.nan,
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
-        "ranking_2": [
+        "Ranking_2": [
             np.nan,
             frozenset(),
             frozenset({"B"}),
         ],
-        "ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "weight": [
+        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Weight": [
             Fraction(2),
             Fraction(1),
             Fraction(2),
         ],
-        "id": [
+        "ID": [
             np.nan,
             "X29",
             np.nan,
         ],
-        "voter_set": [
-            np.nan,
+        "Voter Set": [
+            set(),
             {"Chris"},
-            np.nan,
+            set(),
         ],
     }
     true_df = pd.DataFrame(data)

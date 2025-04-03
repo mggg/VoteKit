@@ -15,12 +15,12 @@ ballots_rankings = [
 def test_pp_df_rankings():
     pp = PreferenceProfile(ballots=ballots_rankings)
     data = {
-        "ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
-        "ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
-        "weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
-        "id": [np.nan, "X29", np.nan, np.nan],
-        "voter_set": [np.nan, {"Chris"}, np.nan, np.nan],
+        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
+        "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
+        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "ID": [np.nan, "X29", np.nan, np.nan],
+        "Voter Set": [set(), {"Chris"}, set(), set()],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -37,13 +37,13 @@ def test_pp_df_rankings_args():
         max_ballot_length=4,
     )
     data = {
-        "ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
-        "ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
-        "ranking_4": [np.nan, np.nan, np.nan, np.nan],
-        "weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
-        "id": [np.nan, "X29", np.nan, np.nan],
-        "voter_set": [np.nan, {"Chris"}, np.nan, np.nan],
+        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
+        "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
+        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
+        "Ranking_4": [np.nan, np.nan, np.nan, np.nan],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "ID": [np.nan, "X29", np.nan, np.nan],
+        "Voter Set": [set(), {"Chris"}, set(), set()],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"

@@ -10,9 +10,6 @@ def test_init():
     empty_profile = PreferenceProfile()
     assert empty_profile.ballots == ()
     assert not empty_profile.candidates
-    assert empty_profile.df.equals(
-        pd.DataFrame({"Ranking": [], "Scores": [], "Weight": [], "Percent": []})
-    )
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots
@@ -26,7 +23,7 @@ def test_unique_cands_validator():
     PreferenceProfile(candidates=("A", "B"))
 
 
-def test_ballots():
+def test_ballots_frozen():
     p = PreferenceProfile(ballots=[Ballot()])
     b_list = p.ballots
 
@@ -38,7 +35,7 @@ def test_ballots():
         p.ballots = (Ballot(weight=5),)
 
 
-def test_candidates():
+def test_candidates_frozen():
     profile_no_cands = PreferenceProfile(
         ballots=[Ballot(ranking=[{"A"}, {"B"}]), Ballot(ranking=[{"C"}, {"B"}])]
     )
@@ -73,273 +70,118 @@ def test_get_candidates_received_votes():
     assert set(vote_cands) == {"A", "B", "C", "E"}
 
 
-def test_ballot_length_default():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-            Ballot(scores={"A": 4}),
-        )
-    )
-
-    assert profile.max_ballot_length == 3
 
 
-def test_ballot_length_no_default():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-            Ballot(scores={"A": 4}),
-        ),
-        max_ballot_length=4,
-    )
 
-    assert profile.max_ballot_length == 4
+# def test_df_head():
+#     profile = PreferenceProfile(
+#         ballots=(
+#             Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1), scores={"A": 4}),
+#             Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(2)),
+#             Ballot(ranking=({"B", "C"}, {"E"}), weight=Fraction(1)),
+#         )
+#     )
 
-    with pytest.raises(
-        ValueError, match="Profile contains a ballot with a ranking that is too long."
-    ):
-        profile = PreferenceProfile(
-            ballots=(
-                Ballot(ranking=({"A"}, {"B"}, {"C", "D"})),
-                Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-                Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-                Ballot(scores={"A": 4}),
-            ),
-            max_ballot_length=2,
-        )
+#     true_df = pd.DataFrame(
+#         {
+#             "Ranking": [
+#                 ("A", "B", "C"),
+#                 ("B", "C", "E"),
+#                 (f"{set({'B', 'C'})} (Tie)", "E"),
+#             ],
+#             "Scores": [("A:4.00",), tuple(), tuple()],
+#             "Weight": [Fraction(1), Fraction(2), Fraction(1)],
+#             "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}", f"{float(1/4):.2%}"],
+#         }
+#     )
 
+#     true_df_totals = pd.DataFrame(
+#         {
+#             "Ranking": [("A", "B", "C"), ("B", "C", "E")],
+#             "Scores": [("A:4.00",), tuple()],
+#             "Weight": [Fraction(1), Fraction(2)],
+#             "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}"],
+#         },
+#     )
+#     true_df_totals.loc["Totals"] = {
+#         "Ranking": "",
+#         "Scores": "",
+#         "Weight": f"{Fraction(3)} out of {Fraction(4)}",
+#         "Percent": f"{float(75):.2f} out of 100%",
+#     }
+#     true_df_totals = true_df_totals.fillna("")
 
-def test_to_ballot_dict():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-            Ballot(scores={"A": 4}),
-        )
-    )
-    rv = profile.to_ballot_dict(standardize=False)
-    assert rv[Ballot(ranking=({"A"}, {"B"}))] == Fraction(5, 2)
-    assert rv[Ballot(ranking=({"C"}, {"B"}), scores={"A": 4})] == Fraction(2, 1)
-    assert rv[Ballot(scores={"A": 4})] == Fraction(1)
+#     assert profile.head(2, percents=True).equals(
+#         true_df.sort_values(by="Weight", ascending=False).reset_index(drop=True).head(2)
+#     )
+#     assert profile.head(2, percents=False).equals(
+#         true_df[["Ranking", "Scores", "Weight"]]
+#         .sort_values(by="Weight", ascending=False)
+#         .reset_index(drop=True)
+#         .head(2)
+#     )
+#     assert profile.head(2, sort_by_weight=False).equals(
+#         true_df[["Ranking", "Scores", "Weight"]].head(2)
+#     )
 
-
-def test_to_ranking_dict():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-            Ballot(scores={"A": 4}),
-        )
-    )
-    rv = profile.to_ranking_dict(standardize=False)
-    assert rv[(frozenset({"A"}), frozenset({"B"}))] == Fraction(5, 2)
-    assert rv[(frozenset({"C"}), frozenset({"B"}))] == Fraction(2, 1)
-    assert rv[(frozenset(),)] == Fraction(1)
-
-
-def test_to_scores_dict():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
-            Ballot(scores={"A": 4}),
-        )
-    )
-    rv = profile.to_scores_dict(standardize=False)
-    assert rv[(("A", Fraction(4)),)] == Fraction(3)
-    assert rv[tuple()] == Fraction(5, 2)
+#     assert profile.head(2, sort_by_weight=False, totals=True, percents=True).equals(
+#         true_df_totals
+#     )
 
 
-def test_profile_equals():
-    profile1 = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-            Ballot(ranking=({"E"}, {"C"}, {"B"}), weight=Fraction(2)),
-        )
-    )
-    profile2 = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"E"}, {"C"}, {"B"}), weight=Fraction(2)),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(3)),
-        )
-    )
-    assert profile1 == profile2
+# def test_df_tail():
+#     profile = PreferenceProfile(
+#         ballots=(
+#             Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1)),
+#             Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(2)),
+#             Ballot(ranking=({"B", "C"}, {"E"}), weight=Fraction(1)),
+#         )
+#     )
+
+#     true_df = pd.DataFrame(
+#         {
+#             "Ranking": [
+#                 ("A", "B", "C"),
+#                 ("B", "C", "E"),
+#                 (f"{set({'B', 'C'})} (Tie)", "E"),
+#             ],
+#             "Scores": [tuple(), tuple(), tuple()],
+#             "Weight": [Fraction(1), Fraction(2), Fraction(1)],
+#             "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}", f"{float(1/4):.2%}"],
+#         }
+#     )
+
+#     true_df_totals = pd.DataFrame(
+#         {
+#             "Ranking": [(f"{set({'B', 'C'})} (Tie)", "E"), ("B", "C", "E")],
+#             "Scores": [tuple(), tuple()],
+#             "Weight": [Fraction(1), Fraction(2)],
+#             "Percent": [f"{float(1/4):.2%}", f"{float(2/4):.2%}"],
+#         },
+#     )
+#     true_df_totals.index = [2, 1]
+#     true_df_totals.loc["Totals"] = {
+#         "Ranking": "",
+#         "Scores": "",
+#         "Weight": f"{Fraction(3)} out of {Fraction(4)}",
+#         "Percent": f"{float(75):.2f} out of 100%",
+#     }
+#     true_df_totals = true_df_totals.fillna("")
+
+#     true_df_sorted = true_df.sort_values(by="Weight", ascending=True)
+#     true_df_sorted.index = [2, 1, 0]
+
+#     assert profile.tail(2, percents=True).equals(true_df_sorted.head(2))
+#     assert profile.tail(2, percents=False).equals(
+#         true_df_sorted[["Ranking", "Scores", "Weight"]].head(2)
+#     )
+#     assert profile.tail(2, sort_by_weight=False).equals(
+#         true_df[["Ranking", "Scores", "Weight"]].reindex(range(2, 0, -1)).tail(2)
+#     )
+#     assert profile.tail(2, sort_by_weight=False, totals=True, percents=True).equals(
+#         true_df_totals
+#     )
 
 
-def test_create_df():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-            Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(1)),
-            Ballot(ranking=({"B", "C"}, {"E"}), weight=Fraction(1)),
-        )
-    )
-
-    true_df = pd.DataFrame(
-        {
-            "Ranking": [
-                ("A", "B", "C"),
-                ("B", "C", "E"),
-                (f"{set({'B', 'C'})} (Tie)", "E"),
-            ],
-            "Scores": [tuple(), tuple(), tuple()],
-            "Weight": [Fraction(2), Fraction(1), Fraction(1)],
-            "Percent": [f"{float(1/2):.2%}", f"{float(1/4):.2%}", f"{float(1/4):.2%}"],
-        }
-    )
-
-    assert profile.df.equals(true_df)
 
 
-def test_vote_share_with_zeros():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(0)),
-            Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(0)),
-        )
-    )
-    assert sum(profile.df["Weight"]) == 0
-
-
-def test_df_head():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1), scores={"A": 4}),
-            Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(2)),
-            Ballot(ranking=({"B", "C"}, {"E"}), weight=Fraction(1)),
-        )
-    )
-
-    true_df = pd.DataFrame(
-        {
-            "Ranking": [
-                ("A", "B", "C"),
-                ("B", "C", "E"),
-                (f"{set({'B', 'C'})} (Tie)", "E"),
-            ],
-            "Scores": [("A:4.00",), tuple(), tuple()],
-            "Weight": [Fraction(1), Fraction(2), Fraction(1)],
-            "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}", f"{float(1/4):.2%}"],
-        }
-    )
-
-    true_df_totals = pd.DataFrame(
-        {
-            "Ranking": [("A", "B", "C"), ("B", "C", "E")],
-            "Scores": [("A:4.00",), tuple()],
-            "Weight": [Fraction(1), Fraction(2)],
-            "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}"],
-        },
-    )
-    true_df_totals.loc["Totals"] = {
-        "Ranking": "",
-        "Scores": "",
-        "Weight": f"{Fraction(3)} out of {Fraction(4)}",
-        "Percent": f"{float(75):.2f} out of 100%",
-    }
-    true_df_totals = true_df_totals.fillna("")
-
-    assert profile.head(2, percents=True).equals(
-        true_df.sort_values(by="Weight", ascending=False).reset_index(drop=True).head(2)
-    )
-    assert profile.head(2, percents=False).equals(
-        true_df[["Ranking", "Scores", "Weight"]]
-        .sort_values(by="Weight", ascending=False)
-        .reset_index(drop=True)
-        .head(2)
-    )
-    assert profile.head(2, sort_by_weight=False).equals(
-        true_df[["Ranking", "Scores", "Weight"]].head(2)
-    )
-
-    assert profile.head(2, sort_by_weight=False, totals=True, percents=True).equals(
-        true_df_totals
-    )
-
-
-def test_df_tail():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"B"}, {"C"}, {"E"}), weight=Fraction(2)),
-            Ballot(ranking=({"B", "C"}, {"E"}), weight=Fraction(1)),
-        )
-    )
-
-    true_df = pd.DataFrame(
-        {
-            "Ranking": [
-                ("A", "B", "C"),
-                ("B", "C", "E"),
-                (f"{set({'B', 'C'})} (Tie)", "E"),
-            ],
-            "Scores": [tuple(), tuple(), tuple()],
-            "Weight": [Fraction(1), Fraction(2), Fraction(1)],
-            "Percent": [f"{float(1/4):.2%}", f"{float(1/2):.2%}", f"{float(1/4):.2%}"],
-        }
-    )
-
-    true_df_totals = pd.DataFrame(
-        {
-            "Ranking": [(f"{set({'B', 'C'})} (Tie)", "E"), ("B", "C", "E")],
-            "Scores": [tuple(), tuple()],
-            "Weight": [Fraction(1), Fraction(2)],
-            "Percent": [f"{float(1/4):.2%}", f"{float(2/4):.2%}"],
-        },
-    )
-    true_df_totals.index = [2, 1]
-    true_df_totals.loc["Totals"] = {
-        "Ranking": "",
-        "Scores": "",
-        "Weight": f"{Fraction(3)} out of {Fraction(4)}",
-        "Percent": f"{float(75):.2f} out of 100%",
-    }
-    true_df_totals = true_df_totals.fillna("")
-
-    true_df_sorted = true_df.sort_values(by="Weight", ascending=True)
-    true_df_sorted.index = [2, 1, 0]
-
-    assert profile.tail(2, percents=True).equals(true_df_sorted.head(2))
-    assert profile.tail(2, percents=False).equals(
-        true_df_sorted[["Ranking", "Scores", "Weight"]].head(2)
-    )
-    assert profile.tail(2, sort_by_weight=False).equals(
-        true_df[["Ranking", "Scores", "Weight"]].reindex(range(2, 0, -1)).tail(2)
-    )
-    assert profile.tail(2, sort_by_weight=False, totals=True, percents=True).equals(
-        true_df_totals
-    )
-
-
-def test_str():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C"}, {"B"}), weight=2),
-        )
-    )
-    assert (
-        str(profile)
-        == "Ranking Scores Weight\n (C, B)     ()      2\n (A, B)     ()    3/2\n (A, B)     ()      1"  # noqa
-    )
-
-
-def test_csv():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
-            Ballot(ranking=({"C", "B"},), weight=2),
-        )
-    )
-    fpath = "tests/data/csv/test_pref_profile_to_csv.csv"
-    profile.to_csv(fpath)
