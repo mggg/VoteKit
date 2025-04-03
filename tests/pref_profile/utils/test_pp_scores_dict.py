@@ -20,7 +20,7 @@ def test_to_scores_dict():
     assert rv[(("A", Fraction(4)),)] == Fraction(6,11)
     assert rv[None] == Fraction(5, 11)
 
-def test_scores_dict_warn():
+def test_scores_dict_error():
     profile = PreferenceProfile(
         ballots=(
                         Ballot(ranking=({"A"}, {"B"})),

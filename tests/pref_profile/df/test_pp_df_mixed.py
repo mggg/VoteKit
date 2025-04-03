@@ -76,7 +76,7 @@ def test_pp_df_mixed_args():
         contains_rankings=True,
         contains_scores=True,
         candidates=["A", "B", "C", "D", "E"],
-        max_ballot_length=3,
+        max_ranking_length=3,
     )
     data = {
         "A": [

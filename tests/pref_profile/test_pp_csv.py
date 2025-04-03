@@ -9,7 +9,7 @@ def test_csv_bijection_rankings():
                                      Ballot(ranking = ({"A"}, {"B"},), id = "hi"),
                                      Ballot(ranking = ({"A"}, {"B"},), id = "X29"))*5,
 
-                                    max_ballot_length=3,
+                                    max_ranking_length=3,
                                     candidates=["A", "B", "C", "D", "E"])
 
     
@@ -42,7 +42,7 @@ def test_csv_bijection_mixed():
                                      Ballot(ranking = ({"A"}, {"B"},), scores = {"A": 2, "B": 4, "C": 1}, id = "hi"),
                                      Ballot(ranking = ({"A"}, {"B"},), scores = {"A": 5, "B": 4, "C": 1}, id = "X29"))*5,
 
-                                    max_ballot_length=3,
+                                    max_ranking_length=3,
                                     candidates=["A", "B", "C", "D", "E"])
     
     profile_mixed.to_csv(f"{filepath}/test_csv_pp_mixed.csv")

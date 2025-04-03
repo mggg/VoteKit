@@ -13,7 +13,7 @@ def test_add_profiles():
             Ballot(weight=0),
         ],
         candidates=["A", "B", "C", "D"],
-        max_ballot_length=3,
+        max_ranking_length=3,
     )
 
     profile_2 = PreferenceProfile(
@@ -30,7 +30,7 @@ def test_add_profiles():
             Ballot(weight=0),
         ],
         candidates=["A", "B", "D", "E", "F"],
-        max_ballot_length=0,
+        max_ranking_length=0,
     )
     summed_profile = profile_1 + profile_2
     true_summed_profile = PreferenceProfile(
@@ -53,11 +53,11 @@ def test_add_profiles():
             Ballot(weight=0),
         ),
         candidates=["A", "B", "C", "D", "E", "F"],
-        max_ballot_length=3,
+        max_ranking_length=3,
     )
 
     assert set(summed_profile.candidates) == set(["A", "B", "C", "D", "E", "F"])
-    assert summed_profile.max_ballot_length == 3
+    assert summed_profile.max_ranking_length == 3
     assert summed_profile.contains_rankings
     assert summed_profile.contains_scores
     assert true_summed_profile == summed_profile

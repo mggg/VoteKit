@@ -713,7 +713,7 @@ def test_ballot_lengths():
                 weight=2,
             ),
         ],
-        max_ballot_length=5,
+        max_ranking_length=5,
     )
 
     assert ballot_lengths(profile) == {1: 2, 2: 3 / 2, 3: 2, 4: 1, 5: 0}

@@ -9,7 +9,7 @@ def test_pkl_bijection_rankings():
                                      Ballot(ranking = ({"A"}, {"B"},), id = "hi"),
                                      Ballot(ranking = ({"A"}, {"B"},), id = "X29"))*5,
 
-                                    max_ballot_length=3,
+                                    max_ranking_length=3,
                                     candidates=["A", "B", "C", "D", "E"])
 
     
@@ -42,7 +42,7 @@ def test_pkl_bijection_mixed():
                                      Ballot(ranking = ({"A"}, {"B"},), scores = {"A": 2, "B": 4, "C": 1}, id = "hi"),
                                      Ballot(ranking = ({"A"}, {"B"},), scores = {"A": 5, "B": 4, "C": 1}, id = "X29"))*5,
 
-                                    max_ballot_length=3,
+                                    max_ranking_length=3,
                                     candidates=["A", "B", "C", "D", "E"])
     
     profile_mixed.to_pickle(f"{filepath}/test_pkl_pp_mixed.pkl")

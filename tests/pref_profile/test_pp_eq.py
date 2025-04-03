@@ -108,7 +108,7 @@ def test_profile_not_equals_ballot_length():
             Ballot(ranking=({"E"}, {"C"}, {"B"}), weight=Fraction(2)),
             Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(3)),
         ),
-        max_ballot_length=4,
+        max_ranking_length=4,
     )
 
     assert profile1 != profile2

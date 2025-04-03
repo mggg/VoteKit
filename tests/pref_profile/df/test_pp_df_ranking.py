@@ -34,7 +34,7 @@ def test_pp_df_rankings_args():
         contains_scores=False,
         contains_rankings_and_scores=False,
         candidates=["A", "B", "C", "D", "E"],
-        max_ballot_length=4,
+        max_ranking_length=4,
     )
     data = {
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],

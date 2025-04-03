@@ -13,7 +13,7 @@ def test_init():
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots
-    assert empty_profile.max_ballot_length == 0
+    assert empty_profile.max_ranking_length == 0
 
 
 def test_unique_cands_validator():

@@ -5,7 +5,7 @@ import ot  # type: ignore
 import networkx as nx  # type: ignore
 from typing import Union, Optional
 
-
+# TODO slateemd branch of PRVTP has refactored 
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
     Computes the earth mover distance between two profiles.
