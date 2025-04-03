@@ -392,24 +392,22 @@ class PreferenceProfile:
                 return False
         return True
     
-    # TODO rethink what info needs to be printed
+    
     def __str__(self) -> str:
-        cols = ["Weight", "ID", "Voter Set"]
-        if self.contains_rankings:
-            cols = [c for c in self.df.columns if "Ranking_" in c] + cols
-        if self.contains_scores:
-            cols = [c for c in self.df.columns if c in self.candidates] + cols
-        
-        n = len(self.df)
-        if n > 15:
-            print(
-                f"PreferenceProfile too long, only showing 15 out of {len(self.df)} rows."
-            )
-            n = 15
 
-        return self.df[cols].sort_values(by="Weight", ascending=False).head(n).to_string(
-            justify="justify", na_rep="",
-            )
+        repr_str = f"Profile contains rankings: {self.contains_rankings}\n"
+        if self.contains_rankings:
+            repr_str+=f"Maximum ranking length: {self.max_ranking_length}\n"
+
+        repr_str+=f"Profile contains scores: {self.contains_scores}\n"
+        
+        repr_str+=f"Candidates: {self.candidates}\n"
+        repr_str+=f"Candidates who received votes: {self.candidates_cast}\n"
+
+        repr_str+=f"Total number of Ballot objects: {self.num_ballots}\n"
+        repr_str+=f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
+
+        return repr_str
 
     __repr__ = __str__
 
