@@ -472,39 +472,73 @@ class PreferenceProfile:
     #             di[scores] += weight
     #     return di
 
-    # to and from csv, different type options for scoring, ranking, both
-    # encoding specification
-    # def to_csv(self, fpath: str):
-    #     """
-    #     Saves PreferenceProfile to CSV.
+    def to_csv(self, fpath: str):
+        """
+        Saves PreferenceProfile to CSV.
 
-    #     Args:
-    #         fpath (str): Path to the saved csv.
-    #     """
-    #     with open(fpath, "w", newline="") as csvfile:
-    #         fieldnames = ["weight", "ranking", "scores"]
-    #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    #         writer.writeheader()
-    #         for ballot in self.ballots:
-    #             if ballot.ranking:
-    #                 ranking = tuple([set(s) for s in ballot.ranking])
-    #             else:
-    #                 ranking = tuple()
+        Args:
+            fpath (str): Path to the saved csv.
+        """
+        with open(fpath, "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
 
-    #             if ballot.scores:
-    #                 scores = tuple(
-    #                     [(c, float(score)) for c, score in ballot.scores.items()]
-    #                 )
-    #             else:
-    #                 scores = tuple()
-    #             writer.writerow(
-    #                 {
-    #                     "weight": float(ballot.weight),
-    #                     "ranking": ranking,
-    #                     "scores": scores,
-    #                 }
-    #             )
+            rows = [["Candidates"], self.candidates]
+            writer.writerows(rows)
+        
 
+        cols = ["Weight", "ID", "Voter Set"]
+        if self.contains_rankings:
+            cols = [c for c in self.df.columns if "Ranking_" in c] + cols
+        if self.contains_scores:
+            cols = [c for c in self.df.columns if c in self.candidates] + cols
+
+        self.df[cols].to_csv(path_or_buf=fpath, mode='a', encoding="utf-8",)
+    
+    @classmethod
+    def from_csv(cls, fpath:str)-> PreferenceProfile:
+        """
+        Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+        """
+        with open(fpath, 'r') as file:
+            reader = csv.reader(file)
+            candidates =list(reader)[1]
+
+        df = pd.read_csv(fpath, skiprows=[0,1])
+        dtype = {c: 'float64' for c in candidates if c in df.columns}
+        dtype.update({"ID": 'str'})
+        df.astype(dtype)
+
+        ranking_cols = [c for c in df.columns if "Ranking_" in c]
+
+        def _str_to_fraction(s: str) -> Fraction:
+            if "/" in s:
+                numerator, denominator = [int(x) for x in s.split("/")]
+                return Fraction(numerator, denominator)
+
+            return Fraction(int(s))
+
+        if df.dtypes["Weight"] == "object":
+            df["Weight"] = df["Weight"].apply(_str_to_fraction)
+
+        def _str_to_set(s: str | float, frozen: bool )-> frozenset | float | set:
+            if pd.isna(s):
+                return np.nan
+            elif s == "frozenset()" or s=="set()":
+                return frozenset() if frozen else set()
+
+            strip_str = "frozenset({})" if frozen else "{}"
+            s = s.strip(strip_str)
+            contents = [c.strip("'") for c in s.split(", ")]
+
+            return frozenset(contents) if frozen else set(contents)
+        
+        for c in ranking_cols:
+            df[c] = df[c].apply(partial(_str_to_set, frozen = True))
+
+        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen = False))
+        
+        return cls(ballots = _df_to_ballot_tuple(df, candidates=candidates, ranking_cols=ranking_cols), candidates = candidates)
+    
     # def head(
     #     self,
     #     n: int,

@@ -1,0 +1,38 @@
+Candidates
+A,B,C,D,E
+Ballot Index,A,B,C,D,E,Ranking_1,Ranking_2,Ranking_3,Weight,ID,Voter Set
+0,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+1,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+2,2,4,,1,,,,,1,,set()
+3,2,4,,1,,,,,1,,set()
+4,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
+5,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
+6,5,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
+7,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+8,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+9,2,4,,1,,,,,1,,set()
+10,2,4,,1,,,,,1,,set()
+11,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
+12,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
+13,5,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
+14,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+15,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+16,2,4,,1,,,,,1,,set()
+17,2,4,,1,,,,,1,,set()
+18,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
+19,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
+20,5,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
+21,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+22,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+23,2,4,,1,,,,,1,,set()
+24,2,4,,1,,,,,1,,set()
+25,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
+26,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
+27,5,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
+28,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+29,,,,,,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+30,2,4,,1,,,,,1,,set()
+31,2,4,,1,,,,,1,,set()
+32,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
+33,2,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
+34,5,4,1,,,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
