@@ -89,7 +89,7 @@ class PreferenceProfile:
     def ballot_list_to_df(self) -> Self:
         num_ballots = len(self.ballots)
 
-        ballot_data = {
+        ballot_data: dict[str, list] = {
             "Weight": [np.nan] * num_ballots,
             "ID": [np.nan] * num_ballots,
             "Voter Set": [set()] * num_ballots,
@@ -274,6 +274,7 @@ class PreferenceProfile:
             c for c in self.df.columns if c not in non_group_cols + ranking_cols
         ]
 
+   
         group_df = self.df.groupby(cand_cols + ranking_cols, dropna=False)
         new_df = group_df.aggregate(
             {
@@ -372,7 +373,7 @@ class PreferenceProfile:
         """
         with open(fpath, "r") as file:
             reader = csv.reader(file)
-            candidates = list(reader)[1]
+            candidates = tuple(list(reader)[1])
 
         df = pd.read_csv(fpath, skiprows=[0, 1])
         dtype = {c: "float64" for c in candidates if c in df.columns}
@@ -389,7 +390,7 @@ class PreferenceProfile:
             return Fraction(int(s))
 
         if df.dtypes["Weight"] == "object":
-            df["Weight"] = df["Weight"].apply(_str_to_fraction)
+            df["Weight"] = df["Weight"].apply(_str_to_fraction)  # type: ignore
 
         def _str_to_set(s: str | float, frozen: bool) -> frozenset | float | set:
             if pd.isna(s):
@@ -398,15 +399,16 @@ class PreferenceProfile:
                 return frozenset() if frozen else set()
 
             strip_str = "frozenset({})" if frozen else "{}"
-            s = s.strip(strip_str)
-            contents = [c.strip("'") for c in s.split(", ")]
+            if isinstance(s, str):
+                s = s.strip(strip_str)
+                contents = [c.strip("'") for c in s.split(", ")]
 
             return frozenset(contents) if frozen else set(contents)
 
         for c in ranking_cols:
-            df[c] = df[c].apply(partial(_str_to_set, frozen=True))
+            df[c] = df[c].apply(partial(_str_to_set, frozen=True))  # type: ignore
 
-        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen=False))
+        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen=False))  # type: ignore
 
         return cls(
             ballots=_df_to_ballot_tuple(df, candidates=candidates),

@@ -1,5 +1,4 @@
 from fractions import Fraction
-import pandas as pd
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pytest
@@ -24,7 +23,7 @@ def test_ranking_length_warning():
         UserWarning,
         match=(
             "Profile does not contain rankings but "
-            f"max_ranking_length=3. Setting max_ranking_length"
+            "max_ranking_length=3. Setting max_ranking_length"
             " to 0."
         ),
     ):

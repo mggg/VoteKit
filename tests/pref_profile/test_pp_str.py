@@ -1,8 +1,6 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
-import pandas as pd
-import numpy as np
-from fractions import Fraction
+
 
 ballots_scores = [
     Ballot(

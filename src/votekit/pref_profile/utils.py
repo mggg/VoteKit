@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from .pref_profile import PreferenceProfile
 
@@ -11,20 +12,20 @@ from functools import partial
 
 
 def _convert_ranking_cols_to_ranking(
-    row: pd.Series, ranking_cols: list[str]
+    row: pd.Series
 ) -> Optional[tuple[frozenset, ...]]:
     """
     Convert the ranking cols to a ranking tuple in profile.df.
 
     Args:
         row (pd.Series): Row of a profile.df.
-        ranking_cols (list[str]): Columns corresponding to rankings, in order from top to bottom.
 
     Returns:
         Optional[tuple[frozenset, ...]]: Ranking of ballot.
 
     """
     ranking = []
+    ranking_cols = [c for c in row.index if "Ranking_" in c]
     for i, col in enumerate(ranking_cols):
         if pd.isna(row[col]):
             if not all(pd.isna(row[c]) for c in ranking_cols[i:]):
@@ -42,20 +43,19 @@ def _convert_ranking_cols_to_ranking(
 
 def convert_row_to_ballot(
     row: pd.Series,
-    candidates: list[str],
+    candidates: tuple[str, ...],
 ) -> Ballot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
 
     Args:
         row (pd.Series): Row of a profile.df.
-        candidates (list[str]): The name of the candidates.
+        candidates (tuple[str,...]): The name of the candidates.
 
     Returns:
         Ballot: Ballot corresponding to the row of the df.
     """
-    ranking_cols = [c for c in row.index if "Ranking_" in c]
-    ranking = _convert_ranking_cols_to_ranking(row, ranking_cols)
+    ranking = _convert_ranking_cols_to_ranking(row)
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
     id = row["ID"] if not pd.isna(row["ID"]) else None
     voter_set = row["Voter Set"]
@@ -72,18 +72,21 @@ def convert_row_to_ballot(
 
 def _df_to_ballot_tuple(
     df: pd.DataFrame,
-    candidates: list[str],
+    candidates: tuple[str, ...],
 ) -> tuple[Ballot]:
     """
     Convert a properly formatted profile.df into a list of ballots.
 
     Args:
         df (pd.DataFrame): A profile.df.
-        candidates (list[str]): The candidates.
+        candidates (tuple[str,...]): The candidates.
 
     Returns:
         tuple[Ballot]: The tuple of ballots.
     """
+    if df.empty:
+        return tuple()
+    
     return tuple(
         df.apply(
             partial(

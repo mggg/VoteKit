@@ -7,6 +7,7 @@ import networkx as nx  # type: ignore
 from functools import cache
 from typing import Optional
 from ..pref_profile import PreferenceProfile
+from ..pref_profile.utils import _convert_ranking_cols_to_ranking
 
 
 def pairwise_dict(
@@ -42,11 +43,14 @@ def pairwise_dict(
     }
 
     for _, row in profile.df.iterrows():
-        ranking = row["Ranking"]
+        ranking = _convert_ranking_cols_to_ranking(row)
+        print(ranking)
 
         mentioned_so_far = set()
-        for i in range(len(ranking)):
-            cand = ranking[i]
+        for i, cand_set in enumerate(ranking):
+            if len(cand_set)>1:
+                raise ValueError("Pairwise dict does not support profiles with ties in ballots.")
+            cand = next(iter(cand_set))
             if cand in mentioned_so_far:
                 continue
 

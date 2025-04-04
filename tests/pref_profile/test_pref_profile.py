@@ -1,5 +1,3 @@
-from fractions import Fraction
-import pandas as pd
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pytest
