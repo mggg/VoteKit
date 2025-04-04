@@ -1,7 +1,9 @@
 from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile.utils import profile_to_ranking_dict
 import pytest
+
 
 def test_to_ranking_dict():
     profile = PreferenceProfile(
@@ -12,24 +14,25 @@ def test_to_ranking_dict():
             Ballot(scores={"A": 4}),
         )
     )
-    rv = profile.to_ranking_dict(standardize=False)
+    rv = profile_to_ranking_dict(profile, standardize=False)
     assert rv[(frozenset({"A"}), frozenset({"B"}))] == Fraction(5, 2)
     assert rv[(frozenset({"C"}), frozenset({"B"}))] == Fraction(2, 1)
     assert rv[None] == Fraction(1)
 
-    rv = profile.to_ranking_dict(standardize=True)
+    rv = profile_to_ranking_dict(profile, standardize=True)
     assert rv[(frozenset({"A"}), frozenset({"B"}))] == Fraction(5, 11)
     assert rv[(frozenset({"C"}), frozenset({"B"}))] == Fraction(4, 11)
-    assert rv[None] == Fraction(2,11)
+    assert rv[None] == Fraction(2, 11)
+
 
 def test_ranking_dict_warn():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(scores={"A": 4}),
-        )
-    )
+    profile = PreferenceProfile(ballots=(Ballot(scores={"A": 4}),))
 
-    with pytest.warns(UserWarning, match=("You are trying to convert a profile that contains "
-                           "no rankings to a ranking_dict.")):
-        profile.to_ranking_dict()
-    
+    with pytest.raises(
+        ValueError,
+        match=(
+            "You are trying to convert a profile that contains "
+            "no rankings to a ranking_dict."
+        ),
+    ):
+        profile_to_ranking_dict(profile)

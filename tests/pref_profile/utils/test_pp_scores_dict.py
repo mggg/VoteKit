@@ -1,7 +1,9 @@
 from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile.utils import profile_to_scores_dict
 import pytest
+
 
 def test_to_scores_dict():
     profile = PreferenceProfile(
@@ -12,23 +14,23 @@ def test_to_scores_dict():
             Ballot(scores={"A": 4}),
         )
     )
-    rv = profile.to_scores_dict(standardize=False)
+    rv = profile_to_scores_dict(profile, standardize=False)
     assert rv[(("A", Fraction(4)),)] == Fraction(3)
     assert rv[None] == Fraction(5, 2)
 
-    rv = profile.to_scores_dict(standardize=True)
-    assert rv[(("A", Fraction(4)),)] == Fraction(6,11)
+    rv = profile_to_scores_dict(profile, standardize=True)
+    assert rv[(("A", Fraction(4)),)] == Fraction(6, 11)
     assert rv[None] == Fraction(5, 11)
 
+
 def test_scores_dict_error():
-    profile = PreferenceProfile(
-        ballots=(
-                        Ballot(ranking=({"A"}, {"B"})),
+    profile = PreferenceProfile(ballots=(Ballot(ranking=({"A"}, {"B"})),))
 
-        )
-    )
-
-    with pytest.warns(UserWarning, match=("You are trying to convert a profile that contains "
-                           "no scores to a scores_dict.")):
-        profile.to_scores_dict()
-    
+    with pytest.raises(
+        ValueError,
+        match=(
+            "You are trying to convert a profile that contains "
+            "no scores to a scores_dict."
+        ),
+    ):
+        profile_to_scores_dict(profile)

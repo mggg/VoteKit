@@ -3,7 +3,8 @@ import csv
 from fractions import Fraction
 import pandas as pd
 from pydantic import ConfigDict, field_validator, model_validator
-from .ballot import Ballot
+from ..ballot import Ballot
+from .utils import _df_to_ballot_tuple
 from pydantic.dataclasses import dataclass
 from typing_extensions import Self
 from dataclasses import field
@@ -12,80 +13,6 @@ from typing import Optional
 from functools import partial
 import warnings
 import pickle
-
-def _convert_ranking_cols_to_ranking(
-    row: pd.Series, ranking_cols: list[str]
-) -> Optional[tuple[frozenset, ...]]:
-    """
-    Convert the ranking cols to a ranking tuple.
-
-    """
-    ranking = []
-    for i, col in enumerate(ranking_cols):
-        if pd.isna(row[col]):
-            if not all(pd.isna(row[c]) for c in ranking_cols[i:]):
-                raise ValueError(
-                    f"Row {row} has NaN values between valid ranking positions. "
-                    "NaN values can only trail on a ranking."
-                )
-
-            break
-
-        ranking.append(row[col])
-
-    return tuple(ranking) if ranking else None
-
-
-def _convert_row_to_ballot(
-    row: pd.Series,
-    ranking_cols: list[str],
-    weight_col: str,
-    id_col: str,
-    voter_set_col: str,
-    candidates: list[str],
-) -> Ballot:
-    """
-    Convert a row of a properly formatted df to a Ballot.
-    """
-    ranking = _convert_ranking_cols_to_ranking(row, ranking_cols)
-    scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
-    id = row[id_col] if not pd.isna(row[id_col]) else None
-    voter_set = row[voter_set_col]
-    weight = row[weight_col]
-
-    return Ballot(
-        ranking=ranking,
-        scores=scores if scores else None,
-        weight=weight,
-        id=id,
-        voter_set=voter_set,
-    )
-
-
-def _df_to_ballot_tuple(
-    df: pd.DataFrame,
-    candidates: list[str],
-    ranking_cols: list[str] = [],
-    weight_col: str = "Weight",
-    id_col: str = "ID",
-    voter_set_col: str = "Voter Set",
-) -> tuple[Ballot]:
-    """
-    Convert a df into a list of ballots.
-    """
-    return tuple(
-        df.apply(
-            partial(
-                _convert_row_to_ballot,
-                ranking_cols=ranking_cols,
-                weight_col=weight_col,
-                id_col=id_col,
-                candidates=candidates,
-                voter_set_col=voter_set_col,
-            ),
-            axis="columns",
-        )
-    )
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -128,12 +55,12 @@ class PreferenceProfile:
         ValueError: contains_scores is set to False but a ballot contains a score.
         ValueError: contains_scores is set to True but no ballot contains a score.
         ValueError: max_ranking_length is set but a ballot ranking excedes the length.
-        ValueError: a candidate is found on a ballot that is not listed on a provided 
+        ValueError: a candidate is found on a ballot that is not listed on a provided
             candidate list.
         ValueError: candidates must be unique.
-     
+
     Warns:
-        UserWarning: max_ranking_length is set but contains_rankings is False. 
+        UserWarning: max_ranking_length is set but contains_rankings is False.
             Sets max_ranking_length to 0.
 
     """
@@ -147,8 +74,6 @@ class PreferenceProfile:
     total_ballot_wt: Fraction = Fraction(0)
     contains_rankings: Optional[bool] = None
     contains_scores: Optional[bool] = None
-
-
 
     @field_validator("candidates")
     @classmethod
@@ -270,7 +195,6 @@ class PreferenceProfile:
         if not self.candidates:
             object.__setattr__(self, "candidates", tuple(candidates_cast))
 
-
         if self.contains_rankings is None:
             object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
         elif self.contains_rankings and not contains_rankings_indicator:
@@ -289,18 +213,19 @@ class PreferenceProfile:
 
     @model_validator(mode="after")
     def find_max_ranking_length(self) -> Self:
-        if self.max_ranking_length >0 and not self.contains_rankings:
-            warnings.warn("Profile does not contain rankings but "
-                          f"max_ranking_length={self.max_ranking_length}. Setting max_ranking_length"
-                          " to 0.")
-            
+        if self.max_ranking_length > 0 and not self.contains_rankings:
+            warnings.warn(
+                "Profile does not contain rankings but "
+                f"max_ranking_length={self.max_ranking_length}. Setting max_ranking_length"
+                " to 0."
+            )
+
             object.__setattr__(self, "max_ranking_length", 0)
-            
 
         elif not self.max_ranking_length and self.contains_rankings:
             max_ranking_length = len([c for c in self.df.columns if "Ranking_" in c])
             object.__setattr__(self, "max_ranking_length", max_ranking_length)
-        
+
         return self
 
     @model_validator(mode="after")
@@ -320,7 +245,9 @@ class PreferenceProfile:
         """
         if isinstance(other, PreferenceProfile):
             ballots = self.ballots + other.ballots
-            max_ranking_length = max([self.max_ranking_length, other.max_ranking_length])
+            max_ranking_length = max(
+                [self.max_ranking_length, other.max_ranking_length]
+            )
             candidates = set(self.candidates).union(other.candidates)
             return PreferenceProfile(
                 ballots=ballots,
@@ -357,7 +284,8 @@ class PreferenceProfile:
         ).reset_index()
 
         new_ballots = _df_to_ballot_tuple(
-            new_df, candidates=self.candidates, ranking_cols=ranking_cols
+            new_df,
+            candidates=self.candidates,
         )
 
         return PreferenceProfile(
@@ -391,119 +319,24 @@ class PreferenceProfile:
             if b not in pp_1.ballots:
                 return False
         return True
-    
-    
+
     def __str__(self) -> str:
 
         repr_str = f"Profile contains rankings: {self.contains_rankings}\n"
         if self.contains_rankings:
-            repr_str+=f"Maximum ranking length: {self.max_ranking_length}\n"
+            repr_str += f"Maximum ranking length: {self.max_ranking_length}\n"
 
-        repr_str+=f"Profile contains scores: {self.contains_scores}\n"
-        
-        repr_str+=f"Candidates: {self.candidates}\n"
-        repr_str+=f"Candidates who received votes: {self.candidates_cast}\n"
+        repr_str += f"Profile contains scores: {self.contains_scores}\n"
 
-        repr_str+=f"Total number of Ballot objects: {self.num_ballots}\n"
-        repr_str+=f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
+        repr_str += f"Candidates: {self.candidates}\n"
+        repr_str += f"Candidates who received votes: {self.candidates_cast}\n"
+
+        repr_str += f"Total number of Ballot objects: {self.num_ballots}\n"
+        repr_str += f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
 
         return repr_str
 
     __repr__ = __str__
-
-    # def to_ballot_dict(self, standardize: bool = False) -> dict[Ballot, Fraction]:
-    #     """
-    #     Converts profile to dictionary with keys = ballots and
-    #     values = corresponding total weights.
-
-    #     Args:
-    #         standardize (bool, optional): If True, divides the weight of each ballot by the total
-    #             weight. Defaults to False.
-
-    #     Returns:
-    #         dict[Ballot, Fraction]:
-    #             A dictionary with ballots (keys) and corresponding total weights (values).
-    #     """
-    #     tot_weight = self.total_ballot_wt
-    #     di: dict = {}
-    #     for ballot in self.ballots:
-    #         weightless_ballot = Ballot(ranking=ballot.ranking, scores=ballot.scores, id =ballot.id, voter_set=ballot.voter_set)
-    #         weight = ballot.weight
-    #         if standardize:
-    #             weight/= tot_weight
-
-    #         if weightless_ballot not in di.keys():
-    #             di[weightless_ballot] = weight
-    #         else:
-    #             di[weightless_ballot] += weight
-    #     return di
-
-    # def to_ranking_dict(
-    #     self, standardize: bool = False
-    # ) -> dict[tuple[frozenset[str], ...], Fraction]:
-    #     """
-    #     Converts profile to dictionary with keys = rankings and
-    #     values = corresponding total weights.
-
-    #     Args:
-    #         standardize (bool, optional): If True, divides the weight of each ballot by the total
-    #             weight. Defaults to False.
-
-    #     Returns:
-    #         dict[tuple[frozenset[str],...], Fraction]:
-    #             A dictionary with rankings (keys) and corresponding total weights (values).
-    #     """
-
-    #     if not self.contains_rankings:
-    #         warnings.warn(("You are trying to convert a profile that contains no rankings to a "
-    #                        "ranking_dict."))
-    #     tot_weight = self.total_ballot_wt
-    #     di: dict = {}
-    #     for ballot in self.ballots:
-    #         ranking = ballot.ranking
-    #         weight = ballot.weight
-    #         if standardize:
-    #              weight/= tot_weight
-
-    #         if ranking not in di.keys():
-    #             di[ranking] = weight
-    #         else:
-    #             di[ranking] += weight
-    #     return di
-
-    # def to_scores_dict(
-    #     self, standardize: bool = False
-    # ) -> dict[tuple[str, Fraction], Fraction]:
-    #     """
-    #     Converts profile to dictionary with keys = scores and
-    #     values = corresponding total weights.
-
-    #     Args:
-    #         standardize (bool, optional): If True, divides the weight of each ballot by the total
-    #             weight. Defaults to False.
-
-    #     Returns:
-    #         dict[tuple[str, Fraction], Fraction]:
-    #             A dictionary with scores (keys) and corresponding total weights (values).
-    #     """
-    #     if not self.contains_scores:
-    #         warnings.warn(("You are trying to convert a profile that contains no scores to a "
-    #                        "scores_dict."))
-
-    #     tot_weight = self.total_ballot_wt
-    #     di: dict = {}
-    #     for ballot in self.ballots:
-    #         scores = tuple(ballot.scores.items()) if ballot.scores else None
-    #         weight = ballot.weight 
-    #         if standardize:
-    #             weight /= tot_weight
-
-    #         if scores not in di.keys():
-    #             di[scores] = weight
-    #         else:
-    #             di[scores] += weight
-    #     return di
-
 
     def to_csv(self, fpath: str):
         """
@@ -517,7 +350,6 @@ class PreferenceProfile:
 
             rows = [["Candidates"], self.candidates]
             writer.writerows(rows)
-        
 
         cols = ["Weight", "ID", "Voter Set"]
         if self.contains_rankings:
@@ -525,20 +357,26 @@ class PreferenceProfile:
         if self.contains_scores:
             cols = [c for c in self.df.columns if c in self.candidates] + cols
 
-        self.df[cols].to_csv(path_or_buf=fpath, mode='a', encoding="utf-8",)
-    
+        self.df[cols].to_csv(
+            path_or_buf=fpath,
+            mode="a",
+            encoding="utf-8",
+        )
+
+    # Peter, think we can rig this so that it "absorbs" the load_cvr function?
+    # this csv is very specially formatted to deal with data types, so maybe not?
     @classmethod
-    def from_csv(cls, fpath:str)-> PreferenceProfile:
+    def from_csv(cls, fpath: str) -> PreferenceProfile:
         """
         Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
         """
-        with open(fpath, 'r') as file:
+        with open(fpath, "r") as file:
             reader = csv.reader(file)
-            candidates =list(reader)[1]
+            candidates = list(reader)[1]
 
-        df = pd.read_csv(fpath, skiprows=[0,1])
-        dtype = {c: 'float64' for c in candidates if c in df.columns}
-        dtype.update({"ID": 'str'})
+        df = pd.read_csv(fpath, skiprows=[0, 1])
+        dtype = {c: "float64" for c in candidates if c in df.columns}
+        dtype.update({"ID": "str"})
         df.astype(dtype)
 
         ranking_cols = [c for c in df.columns if "Ranking_" in c]
@@ -553,10 +391,10 @@ class PreferenceProfile:
         if df.dtypes["Weight"] == "object":
             df["Weight"] = df["Weight"].apply(_str_to_fraction)
 
-        def _str_to_set(s: str | float, frozen: bool )-> frozenset | float | set:
+        def _str_to_set(s: str | float, frozen: bool) -> frozenset | float | set:
             if pd.isna(s):
                 return np.nan
-            elif s == "frozenset()" or s=="set()":
+            elif s == "frozenset()" or s == "set()":
                 return frozenset() if frozen else set()
 
             strip_str = "frozenset({})" if frozen else "{}"
@@ -564,15 +402,18 @@ class PreferenceProfile:
             contents = [c.strip("'") for c in s.split(", ")]
 
             return frozenset(contents) if frozen else set(contents)
-        
-        for c in ranking_cols:
-            df[c] = df[c].apply(partial(_str_to_set, frozen = True))
 
-        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen = False))
-        
-        return cls(ballots = _df_to_ballot_tuple(df, candidates=candidates, ranking_cols=ranking_cols), candidates = candidates)
-    
-    def to_pickle(self, fpath:str):
+        for c in ranking_cols:
+            df[c] = df[c].apply(partial(_str_to_set, frozen=True))
+
+        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen=False))
+
+        return cls(
+            ballots=_df_to_ballot_tuple(df, candidates=candidates),
+            candidates=candidates,
+        )
+
+    def to_pickle(self, fpath: str):
         """
         Saves profile to pickle file.
 
@@ -584,7 +425,7 @@ class PreferenceProfile:
             pickle.dump(self, f)
 
     @classmethod
-    def from_pickle(cls, fpath:str)-> PreferenceProfile:
+    def from_pickle(cls, fpath: str) -> PreferenceProfile:
         """
         Reads profile from pickle file.
 
@@ -596,102 +437,3 @@ class PreferenceProfile:
             data = pickle.load(f)
         assert isinstance(data, PreferenceProfile)
         return data
-        
-    # move these ideas to another module, about preferenceprofile summary stats
-    # move all print stuff 
-    # def head(
-    #     self,
-    #     n: int,
-    #     sort_by_weight: Optional[bool] = True,
-    #     percents: Optional[bool] = False,
-    #     totals: Optional[bool] = False,
-    # ) -> pd.DataFrame:
-    #     """
-    #     Displays top-n ballots in profile.
-
-    #     Args:
-    #         n (int): Number of ballots to view.
-    #         sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
-    #             Defaults to True.
-    #         percents (bool, optional): If True, show voter share for a given ballot.
-    #             Defaults to False.
-    #         totals (bool, optional): If True, show total values for Percent and Weight.
-    #             Defaults to False.
-
-    #     Returns:
-    #         pandas.DataFrame: A dataframe with top-n ballots.
-    #     """
-    #     if sort_by_weight:
-    #         df = (
-    #             self.df.sort_values(by="Weight", ascending=False)
-    #             .head(n)
-    #             .reset_index(drop=True)
-    #         )
-    #     else:
-    #         df = self.df.head(n).reset_index(drop=True)
-
-    #     if totals:
-    #         df = self._sum_row(df)
-
-    #     if not percents:
-    #         return df.drop(columns="Percent")
-
-    #     return df
-
-    # def tail(
-    #     self,
-    #     n: int,
-    #     sort_by_weight: Optional[bool] = True,
-    #     percents: Optional[bool] = False,
-    #     totals: Optional[bool] = False,
-    # ) -> pd.DataFrame:
-    #     """
-    #     Displays bottom-n ballots in profile.
-
-    #     Args:
-    #         n (int): Number of ballots to view.
-    #         sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
-    #             Defaults to True.
-    #         percents (bool, optional): If True, show voter share for a given ballot.
-    #             Defaults to False.
-    #         totals (bool, optional): If True, show total values for Percent and Weight.
-    #             Defaults to False.
-
-    #     Returns:
-    #         pandas.DataFrame: A data frame with bottom-n ballots.
-    #     """
-    #     if sort_by_weight:
-    #         df = self.df.sort_values(by="Weight", ascending=True)
-    #         df["New Index"] = [x for x in range(len(self.df) - 1, -1, -1)]
-    #         df = df.set_index("New Index").head(n)
-    #         df.index.name = None
-
-    #     else:
-    #         df = self.df.iloc[::-1].head(n)
-
-    #     if totals:
-    #         df = self._sum_row(df)
-
-    #     if not percents:
-    #         return df.drop(columns="Percent")
-
-    #     return df
-
-    # def _sum_row(self, df: pd.DataFrame) -> pd.DataFrame:
-    #     """
-    #     Computes sum total for weight and percent column
-    #     """
-
-    #     def format_as_float(percent_str):
-    #         return float(percent_str.split("%")[0])
-
-    #     sum_row = {
-    #         "Ranking": "",
-    #         "Scores": "",
-    #         "Weight": f'{df["Weight"].sum()} out of {self.total_ballot_wt}',
-    #         "Percent": f'{df["Percent"].apply(format_as_float).sum():.2f} out of 100%',
-    #     }
-
-    #     df.loc["Totals"] = sum_row  # type: ignore
-
-    #     return df.fillna("")
