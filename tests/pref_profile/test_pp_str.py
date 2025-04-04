@@ -43,11 +43,14 @@ ballots_mixed = [
     ),
 ]
 
+
 def test_print_profile_rankings():
-    print(PreferenceProfile(ballots = ballots_rankings))
+    print(PreferenceProfile(ballots=ballots_rankings))
+
 
 def test_print_profile_scores():
-    print(PreferenceProfile(ballots = ballots_scores))
+    print(PreferenceProfile(ballots=ballots_scores))
+
 
 def test_print_profile_mixed():
-    print(PreferenceProfile(ballots = ballots_mixed))
+    print(PreferenceProfile(ballots=ballots_mixed))

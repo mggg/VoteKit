@@ -70,9 +70,6 @@ def test_get_candidates_received_votes():
     assert set(vote_cands) == {"A", "B", "C", "E"}
 
 
-
-
-
 # def test_df_head():
 #     profile = PreferenceProfile(
 #         ballots=(
@@ -181,7 +178,3 @@ def test_get_candidates_received_votes():
 #     assert profile.tail(2, sort_by_weight=False, totals=True, percents=True).equals(
 #         true_df_totals
 #     )
-
-
-
-
