@@ -9,7 +9,7 @@ from pydantic.dataclasses import dataclass
 from typing_extensions import Self
 from dataclasses import field
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 from functools import partial
 import warnings
 import pickle
@@ -30,9 +30,13 @@ class PreferenceProfile:
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.
         contains_rankings (bool, optional): Whether or not the profile contains ballots with
-            rankings. If not provided, will set itself to correct value given the ballot list.
+            rankings. If no boolean is provided, then the appropriate boolean value will be
+            interpreted from the input preference profile (i.e. if some ballot in the profile has
+            a ranking, then this will be set  to `True`).
         contains_scores (bool, optional): Whether or not the profile contains ballots with
-            scores. If not provided, will set itself to correct value given the ballot list.
+            scores. If no boolean is provided, then the appropriate boolean value will be
+            interpreted from the input preference profile (i.e. if some ballot in the profile has
+            a ranking, then this will be set  to `True`).
 
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
@@ -85,8 +89,105 @@ class PreferenceProfile:
                 raise ValueError("All candidates must be unique.")
         return candidates
 
-    @model_validator(mode="after")
-    def ballot_list_to_df(self) -> Self:
+    def __update_ballot_scores_data(
+        self,
+        ballot_data: dict[str, list],
+        idx: int,
+        ballot: Ballot,
+        candidates_cast: list[str],
+        num_ballots: int,
+    ) -> None:
+        if self.contains_scores is False:
+            raise ValueError(
+                (
+                    f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
+                    "set to False."
+                )
+            )
+
+        for c, score in ballot.scores.items():
+            if ballot.weight > 0 and c not in candidates_cast:
+                candidates_cast.append(c)
+
+            if c not in ballot_data:
+                if self.candidates:
+                    raise ValueError(
+                        f"Candidate {c} found in ballot {ballot} but not in "
+                        f"candidate list {self.candidates}."
+                    )
+                ballot_data[c] = [np.nan] * num_ballots
+            ballot_data[c][idx] = score
+
+    def __update_ballot_rankings_data(
+        self,
+        ballot_data: dict[str, list],
+        idx: int,
+        ballot: Ballot,
+        candidates_cast: list[str],
+        num_ballots: int,
+    ) -> None:
+        if self.contains_rankings is False:
+            raise ValueError(
+                (
+                    f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
+                    " set to False."
+                )
+            )
+
+        for j, cand_set in enumerate(ballot.ranking):
+            for c in cand_set:
+                if self.candidates:
+                    if c not in self.candidates:
+                        raise ValueError(
+                            f"Candidate {c} found in ballot {ballot} but not in "
+                            f"candidate list {self.candidates}."
+                        )
+                if ballot.weight > 0 and c not in candidates_cast:
+                    candidates_cast.append(c)
+            if f"Ranking_{j+1}" not in ballot_data:
+                if self.max_ranking_length:
+                    raise ValueError(
+                        f"Max ballot length {self.max_ranking_length} given but "
+                        "ballot {b} has length at least {j+1}."
+                    )
+                ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
+
+            ballot_data[f"Ranking_{j+1}"][idx] = cand_set
+
+    def __update_ballot_data_attrs(
+        self,
+        ballot_data: dict[str, list],
+        idx: int,
+        ballot: Ballot,
+        candidates_cast: list[str],
+        num_ballots: int,
+    ) -> None:
+        ballot_data["Weight"][idx] = ballot.weight
+
+        if ballot.id:
+            ballot_data["ID"][idx] = ballot.id
+        if ballot.voter_set:
+            ballot_data["Voter Set"][idx] = ballot.voter_set
+
+        if ballot.scores:
+            self.__update_ballot_scores_data(
+                ballot_data=ballot_data,
+                idx=idx,
+                ballot=ballot,
+                candidates_cast=candidates_cast,
+                num_ballots=num_ballots,
+            )
+
+        if ballot.ranking:
+            self.__update_ballot_rankings_data(
+                ballot_data=ballot_data,
+                idx=idx,
+                ballot=ballot,
+                candidates_cast=candidates_cast,
+                num_ballots=num_ballots,
+            )
+
+    def __init_ballot_data(self) -> Tuple[int, dict[str, list]]:
         num_ballots = len(self.ballots)
 
         ballot_data: dict[str, list] = {
@@ -105,74 +206,15 @@ class PreferenceProfile:
                     for i in range(self.max_ranking_length)
                 }
             )
+        return num_ballots, ballot_data
 
-        candidates_cast = []
-        contains_rankings_indicator = False
-        contains_scores_indicator = False
-
-        for i, b in enumerate(self.ballots):
-            ballot_data["Weight"][i] = b.weight
-
-            if b.id:
-                ballot_data["ID"][i] = b.id
-            if b.voter_set:
-                ballot_data["Voter Set"][i] = b.voter_set
-
-            if b.scores:
-                if self.contains_scores is False:
-                    raise ValueError(
-                        (
-                            f"Ballot {b} has scores {b.scores} but contains_scores is "
-                            "set to False."
-                        )
-                    )
-                contains_scores_indicator = True
-
-                for c, score in b.scores.items():
-                    if b.weight > 0 and c not in candidates_cast:
-                        candidates_cast.append(c)
-
-                    if c not in ballot_data:
-                        if self.candidates:
-                            raise ValueError(
-                                f"Candidate {c} found in ballot {b} but not in "
-                                f"candidate list {self.candidates}."
-                            )
-                        ballot_data[c] = [np.nan] * num_ballots
-                    ballot_data[c][i] = score
-
-            if b.ranking:
-                if self.contains_rankings is False:
-                    raise ValueError(
-                        (
-                            f"Ballot {b} has ranking {b.ranking} but contains_rankings is"
-                            " set to False."
-                        )
-                    )
-                contains_rankings_indicator = True
-
-                for j, cand_set in enumerate(b.ranking):
-                    for c in cand_set:
-                        if self.candidates:
-                            if c not in self.candidates:
-                                raise ValueError(
-                                    f"Candidate {c} found in ballot {b} but not in "
-                                    f"candidate list {self.candidates}."
-                                )
-                        if b.weight > 0 and c not in candidates_cast:
-                            candidates_cast.append(c)
-                    if f"Ranking_{j+1}" not in ballot_data:
-                        if self.max_ranking_length:
-                            raise ValueError(
-                                f"Max ballot length {self.max_ranking_length} given but "
-                                "ballot {b} has length at least {j+1}."
-                            )
-                        ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
-
-                    ballot_data[f"Ranking_{j+1}"][i] = cand_set
-
+    def __init_formatted_df(
+        self,
+        ballot_data: dict[str, list],
+        contains_scores_indicator: bool,
+    ):
         df = pd.DataFrame(ballot_data)
-        temp_col_order = [c for c in df.columns if "Ranking" in c] + [
+        temp_col_order = [c for c in df.columns if "Ranking_" in c] + [
             "ID",
             "Voter Set",
             "Weight",
@@ -189,7 +231,15 @@ class PreferenceProfile:
             col_order = temp_col_order
         df = df[col_order]
         df.index.name = "Ballot Index"
+        return df
 
+    def __set_class_attrs_from_df(
+        self,
+        df: pd.DataFrame,
+        candidates_cast: list[str],
+        contains_rankings_indicator: bool,
+        contains_scores_indicator: bool,
+    ) -> Self:
         object.__setattr__(self, "df", df)
         object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
         if not self.candidates:
@@ -210,6 +260,46 @@ class PreferenceProfile:
             )
 
         return self
+
+    @model_validator(mode="after")
+    def ballot_list_to_df(self) -> Self:
+        # `ballot_data` sends {ID, Weight, Voter Set} keys to a list to be
+        # indexed in the same order as the output df containing information
+        # for each ballot. So ballot_data[<id>][<index>] is the id value for
+        # the ballot at index <index> in the df.
+        num_ballots, ballot_data = self.__init_ballot_data()
+
+        candidates_cast = []
+        contains_rankings_indicator = False
+        contains_scores_indicator = False
+
+        for i, b in enumerate(self.ballots):
+            contains_scores_indicator = contains_scores_indicator or (
+                b.scores is not None
+            )
+            contains_rankings_indicator = contains_rankings_indicator or (
+                b.ranking is not None
+            )
+
+            self.__update_ballot_data_attrs(
+                ballot_data=ballot_data,
+                idx=i,
+                b=b,
+                candidates_cast=candidates_cast,
+                num_ballots=num_ballots,
+            )
+
+        df = self.__init_formatted_df(
+            ballot_data=ballot_data,
+            contains_scores_indicator=contains_scores_indicator,
+        )
+
+        return self.__set_class_attrs_from_df(
+            df=df,
+            candidates_cast=candidates_cast,
+            contains_rankings_indicator=contains_rankings_indicator,
+            contains_scores_indicator=contains_scores_indicator,
+        )
 
     @model_validator(mode="after")
     def find_max_ranking_length(self) -> Self:
