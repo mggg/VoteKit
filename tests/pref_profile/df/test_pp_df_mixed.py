@@ -49,11 +49,6 @@ def test_pp_df_mixed():
             frozenset({"B"}),
         ],
         "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
-        ],
         "ID": [
             np.nan,
             "X29",
@@ -63,6 +58,11 @@ def test_pp_df_mixed():
             set(),
             {"Chris"},
             set(),
+        ],
+        "Weight": [
+            Fraction(2),
+            Fraction(1),
+            Fraction(2),
         ],
     }
     true_df = pd.DataFrame(data)
@@ -115,11 +115,6 @@ def test_pp_df_mixed_args():
             frozenset({"B"}),
         ],
         "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
-        ],
         "ID": [
             np.nan,
             "X29",
@@ -129,6 +124,11 @@ def test_pp_df_mixed_args():
             set(),
             {"Chris"},
             set(),
+        ],
+        "Weight": [
+            Fraction(2),
+            Fraction(1),
+            Fraction(2),
         ],
     }
     true_df = pd.DataFrame(data)

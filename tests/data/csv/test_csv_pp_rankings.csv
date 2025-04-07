@@ -1,28 +1,28 @@
 Candidates
 A,B,C,D,E
 Ballot Index,Ranking_1,Ranking_2,Ranking_3,Weight,ID,Voter Set
-0,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
-1,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+0,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+1,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
 2,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
 3,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
 4,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
-5,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
-6,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+5,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+6,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
 7,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
 8,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
 9,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
-10,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
-11,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+10,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+11,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
 12,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
 13,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
 14,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
-15,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
-16,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+15,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+16,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
 17,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
 18,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
 19,frozenset({'A'}),frozenset({'B'}),,1,X29,set()
-20,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
-21,"frozenset({'A', 'B'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
+20,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),3/2,u,"{'Peter', 'Chris'}"
+21,"frozenset({'B', 'A'})",frozenset(),frozenset({'C'}),1/2,v,{'Moon'}
 22,frozenset({'A'}),frozenset({'B'}),,1,yes,set()
 23,frozenset({'A'}),frozenset({'B'}),,1,hi,set()
 24,frozenset({'A'}),frozenset({'B'}),,1,X29,set()

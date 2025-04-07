@@ -18,9 +18,9 @@ def test_pp_df_rankings():
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
         "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -41,9 +41,9 @@ def test_pp_df_rankings_args():
         "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
         "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
         "Ranking_4": [np.nan, np.nan, np.nan, np.nan],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"

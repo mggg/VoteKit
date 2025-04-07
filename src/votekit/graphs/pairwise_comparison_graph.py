@@ -24,6 +24,11 @@ def pairwise_dict(
         dict[tuple[str, ...], list[Fraction]]: Pairwise comparison dictionary.
 
     """
+
+    if profile.contains_scores:
+        raise ValueError("Profile must only contain rankings, not scores.")
+    elif not profile.contains_rankings:
+        raise ValueError("Profile must contain rankings.")
     pairwise_dict = {
         tuple(sorted((c1, c2))): [Fraction(0), Fraction(0)]
         for c1, c2 in combinations(profile.candidates, 2)
@@ -44,25 +49,27 @@ def pairwise_dict(
 
     for _, row in profile.df.iterrows():
         ranking = _convert_ranking_cols_to_ranking(row)
-        print(ranking)
 
         mentioned_so_far = set()
-        for i, cand_set in enumerate(ranking):
-            if len(cand_set)>1:
-                raise ValueError("Pairwise dict does not support profiles with ties in ballots.")
-            cand = next(iter(cand_set))
-            if cand in mentioned_so_far:
-                continue
+        if ranking:
+            for i, cand_set in enumerate(ranking):
+                if len(cand_set) > 1:
+                    raise ValueError(
+                        "Pairwise dict does not support profiles with ties in ballots."
+                    )
+                cand = next(iter(cand_set))
+                if cand in mentioned_so_far:
+                    continue
 
-            mentioned_so_far.add(cand)
+                mentioned_so_far.add(cand)
 
-            remaining_candidates = candidate_set - mentioned_so_far
-            for c1, c2 in sets_mentioned_pairs_dict[cand]:
-                if c1 in remaining_candidates or c2 in remaining_candidates:
-                    if c1 == cand:
-                        pairwise_dict[(c1, c2)][0] += row["Weight"]
-                    else:
-                        pairwise_dict[(c1, c2)][1] += row["Weight"]
+                remaining_candidates = candidate_set - mentioned_so_far
+                for c1, c2 in sets_mentioned_pairs_dict[cand]:
+                    if c1 in remaining_candidates or c2 in remaining_candidates:
+                        if c1 == cand:
+                            pairwise_dict[(c1, c2)][0] += row["Weight"]
+                        else:
+                            pairwise_dict[(c1, c2)][1] += row["Weight"]
     return pairwise_dict
 
 

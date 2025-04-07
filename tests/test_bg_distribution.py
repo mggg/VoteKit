@@ -355,7 +355,6 @@ def test_NBT_3_bloc():
         candidates=candidates,
     )
 
-
     profile = bt.generate_profile(500)
 
     summ = 98 + 28 + 7 + 49 + 4 + 2
@@ -941,41 +940,41 @@ def test_name_Cumulative_distribution():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
 
-# def test_slate_BT_distribution():
-#     sbt = slate_BradleyTerry(
-#         slate_to_candidates={"A": ["X", "Y"], "B": ["Z"]},
-#         cohesion_parameters={"A": {"A": 0.8, "B": 0.2}, "B": {"A": 0.2, "B": 0.8}},
-#         bloc_voter_prop={"A": 1, "B": 0},
-#         pref_intervals_by_bloc={
-#             "A": {
-#                 "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
-#                 "B": PreferenceInterval({"Z": 1}),
-#             },
-#             "B": {
-#                 "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
-#                 "B": PreferenceInterval({"Z": 1}),
-#             },
-#         },
-#     )
+def test_slate_BT_distribution():
+    sbt = slate_BradleyTerry(
+        slate_to_candidates={"A": ["X", "Y"], "B": ["Z"]},
+        cohesion_parameters={"A": {"A": 0.8, "B": 0.2}, "B": {"A": 0.2, "B": 0.8}},
+        bloc_voter_prop={"A": 1, "B": 0},
+        pref_intervals_by_bloc={
+            "A": {
+                "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
+                "B": PreferenceInterval({"Z": 1}),
+            },
+            "B": {
+                "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
+                "B": PreferenceInterval({"Z": 1}),
+            },
+        },
+    )
 
-#     pp = sbt.generate_profile(number_of_ballots=100)
+    pp = sbt.generate_profile(number_of_ballots=100)
 
-#     ballot_prob_dict = {
-#         "XYZ": sbt.cohesion_parameters["A"]["A"] ** 2
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-#         "YXZ": sbt.cohesion_parameters["A"]["A"] ** 2
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
-#         "XZY": sbt.cohesion_parameters["A"]["A"]
-#         * sbt.cohesion_parameters["A"]["B"]
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-#         "YZX": sbt.cohesion_parameters["A"]["A"]
-#         * sbt.cohesion_parameters["A"]["B"]
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
-#         "ZXY": sbt.cohesion_parameters["A"]["B"] ** 2
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-#         "ZYX": sbt.cohesion_parameters["A"]["B"] ** 2
-#         * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-#     }
+    ballot_prob_dict = {
+        "XYZ": sbt.cohesion_parameters["A"]["A"] ** 2
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+        "YXZ": sbt.cohesion_parameters["A"]["A"] ** 2
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
+        "XZY": sbt.cohesion_parameters["A"]["A"]
+        * sbt.cohesion_parameters["A"]["B"]
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+        "YZX": sbt.cohesion_parameters["A"]["A"]
+        * sbt.cohesion_parameters["A"]["B"]
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
+        "ZXY": sbt.cohesion_parameters["A"]["B"] ** 2
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+        "ZYX": sbt.cohesion_parameters["A"]["B"] ** 2
+        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+    }
 
-#     # Test
-#     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)

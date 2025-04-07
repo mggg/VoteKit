@@ -35,9 +35,9 @@ def test_pp_df_scoress():
         ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -73,9 +73,9 @@ def test_pp_df_rankings_args():
         ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
+        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
