@@ -173,9 +173,9 @@ class PreferenceProfile:
 
         df = pd.DataFrame(ballot_data)
         temp_col_order = [c for c in df.columns if "Ranking" in c] + [
-            "Weight",
             "ID",
             "Voter Set",
+            "Weight",
         ]
 
         if self.candidates and contains_scores_indicator:
@@ -274,7 +274,6 @@ class PreferenceProfile:
             c for c in self.df.columns if c not in non_group_cols + ranking_cols
         ]
 
-   
         group_df = self.df.groupby(cand_cols + ranking_cols, dropna=False)
         new_df = group_df.aggregate(
             {

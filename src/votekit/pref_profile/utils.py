@@ -11,9 +11,7 @@ import pandas as pd
 from functools import partial
 
 
-def _convert_ranking_cols_to_ranking(
-    row: pd.Series
-) -> Optional[tuple[frozenset, ...]]:
+def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset, ...]]:
     """
     Convert the ranking cols to a ranking tuple in profile.df.
 
@@ -73,7 +71,7 @@ def convert_row_to_ballot(
 def _df_to_ballot_tuple(
     df: pd.DataFrame,
     candidates: tuple[str, ...],
-) -> tuple[Ballot]:
+) -> tuple[Ballot, ...]:
     """
     Convert a properly formatted profile.df into a list of ballots.
 
@@ -86,9 +84,9 @@ def _df_to_ballot_tuple(
     """
     if df.empty:
         return tuple()
-    
+
     return tuple(
-        df.apply(
+        df.apply(  # type: ignore[call-overload]
             partial(
                 convert_row_to_ballot,
                 candidates=candidates,
@@ -217,80 +215,102 @@ def profile_to_scores_dict(
             di[scores] += weight
     return di
 
-    # def head(
-    #     self,
-    #     n: int,
-    #     sort_by_weight: Optional[bool] = True,
-    #     percents: Optional[bool] = False,
-    #     totals: Optional[bool] = False,
-    # ) -> pd.DataFrame:
-    #     """
-    #     Displays top-n ballots in profile.
 
-    #     Args:
-    #         n (int): Number of ballots to view.
-    #         sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
-    #             Defaults to True.
-    #         percents (bool, optional): If True, show voter share for a given ballot.
-    #             Defaults to False.
-    #         totals (bool, optional): If True, show total values for Percent and Weight.
-    #             Defaults to False.
+def profile_df_head(
+    profile: PreferenceProfile,
+    n: int,
+    sort_by_weight: Optional[bool] = True,
+    percents: Optional[bool] = False,
+    totals: Optional[bool] = False,
+) -> pd.DataFrame:
+    """
+    Returns a pd.DataFrame with the top-n ballots in profile.
 
-    #     Returns:
-    #         pandas.DataFrame: A dataframe with top-n ballots.
-    #     """
-    #     if sort_by_weight:
-    #         df = (
-    #             self.df.sort_values(by="Weight", ascending=False)
-    #             .head(n)
-    #             .reset_index(drop=True)
-    #         )
-    #     else:
-    #         df = self.df.head(n).reset_index(drop=True)
+    Args:
+        n (int): Number of ballots to view.
+        sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
+            If sorting by weight, index resets. Defaults to True.
+        percents (bool, optional): If True, show voter share for a given ballot.
+            Defaults to False.
+        totals (bool, optional): If True, show total values for Percent and Weight.
+            Defaults to False.
 
-    #     if totals:
-    #         df = self._sum_row(df)
+    Returns:
+        pandas.DataFrame: A dataframe with top-n ballots.
 
-    #     if not percents:
-    #         return df.drop(columns="Percent")
+    Raises:
+        ValueError: Profile has 0 total ballot weight; cannot show percentages.
+    """
 
-    #     return df
+    if sort_by_weight:
+        df = profile.df.sort_values(by="Weight", ascending=False).head(n).copy()
 
-    # def tail(
-    #     self,
-    #     n: int,
-    #     sort_by_weight: Optional[bool] = True,
-    #     percents: Optional[bool] = False,
-    #     totals: Optional[bool] = False,
-    # ) -> pd.DataFrame:
-    #     """
-    #     Displays bottom-n ballots in profile.
+    else:
+        df = profile.df.head(n).copy()
 
-    #     Args:
-    #         n (int): Number of ballots to view.
-    #         sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
-    #             Defaults to True.
-    #         percents (bool, optional): If True, show voter share for a given ballot.
-    #             Defaults to False.
-    #         totals (bool, optional): If True, show total values for Percent and Weight.
-    #             Defaults to False.
+    df_col_num = len(df.columns)
+    if percents:
+        if profile.total_ballot_wt == 0:
+            raise ValueError(
+                "Profile has 0 total ballot weight; cannot show percentages."
+            )
+        df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
+            lambda x: f"{float(x):.1%}"
+        )
 
-    #     Returns:
-    #         pandas.DataFrame: A data frame with bottom-n ballots.
-    #     """
-    #     if sort_by_weight:
-    #         df = self.df.sort_values(by="Weight", ascending=True)
-    #         df["New Index"] = [x for x in range(len(self.df) - 1, -1, -1)]
-    #         df = df.set_index("New Index").head(n)
-    #         df.index.name = None
+    if totals:
+        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        if percents:
+            total_row += [f"{1:.1%}"]
+        df.loc["Total"] = total_row
 
-    #     else:
-    #         df = self.df.iloc[::-1].head(n)
+    return df
 
-    #     if totals:
-    #         df = self._sum_row(df)
 
-    #     if not percents:
-    #         return df.drop(columns="Percent")
+def profile_df_tail(
+    profile: PreferenceProfile,
+    n: int,
+    sort_by_weight: Optional[bool] = True,
+    percents: Optional[bool] = False,
+    totals: Optional[bool] = False,
+) -> pd.DataFrame:
+    """
+    Returns a pd.DataFrame with the bottom-n ballots in profile.
 
-    #     return df
+    Args:
+        n (int): Number of ballots to view.
+        sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
+            Defaults to True.
+        percents (bool, optional): If True, show voter share for a given ballot.
+            Defaults to False.
+        totals (bool, optional): If True, show total values for Percent and Weight.
+            Defaults to False.
+
+    Returns:
+        pandas.DataFrame: A data frame with bottom-n ballots.
+
+    Raises:
+        ValueError: Profile has 0 total ballot weight; cannot show percentages.
+    """
+    if sort_by_weight:
+        df = profile.df.sort_values(by="Weight", ascending=False).tail(n).copy()
+    else:
+        df = profile.df.tail(n).copy()
+
+    df_col_num = len(df.columns)
+    if percents:
+        if profile.total_ballot_wt == 0:
+            raise ValueError(
+                "Profile has 0 total ballot weight; cannot show percentages."
+            )
+        df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
+            lambda x: f"{float(x):.1%}"
+        )
+
+    if totals:
+        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        if percents:
+            total_row += [f"{1:.1%}"]
+        df.loc["Total"] = total_row
+
+    return df
