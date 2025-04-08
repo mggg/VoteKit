@@ -55,7 +55,6 @@ def convert_row_to_ballot(
     """
     ranking = _convert_ranking_cols_to_ranking(row)
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
-    id = row["ID"] if not pd.isna(row["ID"]) else None
     voter_set = row["Voter Set"]
     weight = row["Weight"]
 
@@ -63,7 +62,6 @@ def convert_row_to_ballot(
         ranking=ranking,
         scores=scores if scores else None,
         weight=weight,
-        id=id,
         voter_set=voter_set,
     )
 
@@ -118,7 +116,6 @@ def profile_to_ballot_dict(
         weightless_ballot = Ballot(
             ranking=ballot.ranking,
             scores=ballot.scores,
-            id=ballot.id,
             voter_set=ballot.voter_set,
         )
         weight = ballot.weight

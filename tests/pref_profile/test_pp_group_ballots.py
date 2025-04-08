@@ -39,7 +39,10 @@ def test_condense_profile_scores():
                 weight=Fraction(1),
                 voter_set={"Chris"},
             ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2), id="X29"),
+            Ballot(
+                ranking=({"A"}, {"B"}, {"C"}),
+                weight=Fraction(2),
+            ),
             Ballot(
                 ranking=({"A"}, {"B"}, {"C"}),
                 scores={"A": 3, "B": 2},
@@ -60,6 +63,9 @@ def test_condense_profile_scores():
         in pp.ballots
     )
     assert (
-        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2), id="X29")
+        Ballot(
+            ranking=({"A"}, {"B"}, {"C"}),
+            weight=Fraction(2),
+        )
         in pp.ballots
     )

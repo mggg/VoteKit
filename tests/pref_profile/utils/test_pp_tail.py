@@ -7,7 +7,7 @@ from fractions import Fraction
 
 def test_pp_df_tail_rankings():
     ballots_rankings = [
-        Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}),
+        Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
         Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
         Ballot(),
         Ballot(weight=0),
@@ -17,7 +17,6 @@ def test_pp_df_tail_rankings():
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
         "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "Percent": [
@@ -30,14 +29,14 @@ def test_pp_df_tail_rankings():
     true_df = pd.DataFrame(data)
     true_df.index = [1, 0, 2, 3]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 5 + [4, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 4 + [4, f"{1:.1%}"]
 
     assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)
 
 
 def test_pp_df_tail_scores():
     ballots_scores = [
-        Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+        Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
         Ballot(
             weight=2,
             scores={
@@ -64,7 +63,6 @@ def test_pp_df_tail_scores():
         ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "Percent": [
@@ -77,7 +75,7 @@ def test_pp_df_tail_scores():
     true_df = pd.DataFrame(data)
     true_df.index = [1, 0, 2, 3]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 6 + [4, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 5 + [4, f"{1:.1%}"]
 
     assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)
 
@@ -91,7 +89,7 @@ def test_pp_df_tail_mixed():
                 "B": 2,
             },
         ),
-        Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}),
+        Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
         Ballot(
             ranking=({"A"}, {"B"}, {"C"}),
             weight=2,
@@ -129,11 +127,6 @@ def test_pp_df_tail_mixed():
             frozenset({"C"}),
             frozenset({"D"}),
         ],
-        "ID": [
-            np.nan,
-            np.nan,
-            "X29",
-        ],
         "Voter Set": [
             set(),
             set(),
@@ -153,5 +146,5 @@ def test_pp_df_tail_mixed():
     true_df = pd.DataFrame(data)
     true_df.index = [0, 2, 1]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 7 + [5, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 6 + [5, f"{1:.1%}"]
     assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)

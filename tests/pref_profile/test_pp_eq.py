@@ -30,9 +30,7 @@ def test_profile_equals_mixed():
                     "B": 2,
                 },
             ),
-            Ballot(
-                ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}
-            ),
+            Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
             Ballot(
                 ranking=({"A"}, {"B"}, {"C"}),
                 weight=2,
@@ -60,9 +58,7 @@ def test_profile_equals_mixed():
                     "B": 2,
                 },
             ),
-            Ballot(
-                ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}
-            ),
+            Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
             Ballot(
                 ranking=({"A"}, {"B"}, {"C"}),
                 weight=2,

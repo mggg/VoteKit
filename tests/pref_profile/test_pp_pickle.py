@@ -9,13 +9,11 @@ def test_pkl_bijection_rankings():
         ballots=(
             Ballot(
                 ranking=({"A", "B"}, frozenset(), {"C"}),
-                id="u",
                 voter_set={"Chris", "Peter"},
                 weight=3 / 2,
             ),
             Ballot(
                 ranking=({"A", "B"}, frozenset(), {"C"}),
-                id="v",
                 voter_set={"Moon"},
                 weight=1 / 2,
             ),
@@ -24,21 +22,18 @@ def test_pkl_bijection_rankings():
                     {"A"},
                     {"B"},
                 ),
-                id="yes",
             ),
             Ballot(
                 ranking=(
                     {"A"},
                     {"B"},
                 ),
-                id="hi",
             ),
             Ballot(
                 ranking=(
                     {"A"},
                     {"B"},
                 ),
-                id="X29",
             ),
         )
         * 5,
@@ -58,9 +53,15 @@ def test_pkl_bijection_scores():
                 scores={"A": 2, "B": 4, "D": 1},
             ),
             Ballot(scores={"A": 2, "B": 4, "D": 1}),
-            Ballot(scores={"A": 2, "B": 4, "C": 1}, id="yes"),
-            Ballot(scores={"A": 2, "B": 4, "C": 1}, id="hi"),
-            Ballot(scores={"A": 5, "B": 4, "C": 1}, id="X29"),
+            Ballot(
+                scores={"A": 2, "B": 4, "C": 1},
+            ),
+            Ballot(
+                scores={"A": 2, "B": 4, "C": 1},
+            ),
+            Ballot(
+                scores={"A": 5, "B": 4, "C": 1},
+            ),
         )
         * 5,
         candidates=["A", "B", "C", "D", "E"],
@@ -76,13 +77,11 @@ def test_pkl_bijection_mixed():
         ballots=(
             Ballot(
                 ranking=({"A", "B"}, frozenset(), {"C"}),
-                id="u",
                 voter_set={"Chris", "Peter"},
                 weight=3 / 2,
             ),
             Ballot(
                 ranking=({"A", "B"}, frozenset(), {"C"}),
-                id="v",
                 voter_set={"Moon"},
                 weight=1 / 2,
             ),
@@ -94,7 +93,6 @@ def test_pkl_bijection_mixed():
                     {"B"},
                 ),
                 scores={"A": 2, "B": 4, "C": 1},
-                id="yes",
             ),
             Ballot(
                 ranking=(
@@ -102,7 +100,6 @@ def test_pkl_bijection_mixed():
                     {"B"},
                 ),
                 scores={"A": 2, "B": 4, "C": 1},
-                id="hi",
             ),
             Ballot(
                 ranking=(
@@ -110,7 +107,6 @@ def test_pkl_bijection_mixed():
                     {"B"},
                 ),
                 scores={"A": 5, "B": 4, "C": 1},
-                id="X29",
             ),
         )
         * 5,

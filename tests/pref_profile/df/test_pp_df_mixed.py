@@ -12,7 +12,7 @@ ballots_mixed = [
             "B": 2,
         },
     ),
-    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}),
+    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
     Ballot(
         ranking=({"A"}, {"B"}, {"C"}),
         weight=2,
@@ -49,11 +49,6 @@ def test_pp_df_mixed():
             frozenset({"B"}),
         ],
         "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "ID": [
-            np.nan,
-            "X29",
-            np.nan,
-        ],
         "Voter Set": [
             set(),
             {"Chris"},
@@ -115,11 +110,6 @@ def test_pp_df_mixed_args():
             frozenset({"B"}),
         ],
         "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
-        "ID": [
-            np.nan,
-            "X29",
-            np.nan,
-        ],
         "Voter Set": [
             set(),
             {"Chris"},

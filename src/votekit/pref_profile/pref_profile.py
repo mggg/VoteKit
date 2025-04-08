@@ -97,26 +97,27 @@ class PreferenceProfile:
         candidates_cast: list[str],
         num_ballots: int,
     ) -> None:
-        if self.contains_scores is False:
-            raise ValueError(
-                (
-                    f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
-                    "set to False."
-                )
-            )
-
-        for c, score in ballot.scores.items():
-            if ballot.weight > 0 and c not in candidates_cast:
-                candidates_cast.append(c)
-
-            if c not in ballot_data:
-                if self.candidates:
-                    raise ValueError(
-                        f"Candidate {c} found in ballot {ballot} but not in "
-                        f"candidate list {self.candidates}."
+        if ballot.scores:
+            if self.contains_scores is False:
+                raise ValueError(
+                    (
+                        f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
+                        "set to False."
                     )
-                ballot_data[c] = [np.nan] * num_ballots
-            ballot_data[c][idx] = score
+                )
+
+            for c, score in ballot.scores.items():
+                if ballot.weight > 0 and c not in candidates_cast:
+                    candidates_cast.append(c)
+
+                if c not in ballot_data:
+                    if self.candidates:
+                        raise ValueError(
+                            f"Candidate {c} found in ballot {ballot} but not in "
+                            f"candidate list {self.candidates}."
+                        )
+                    ballot_data[c] = [np.nan] * num_ballots
+                ballot_data[c][idx] = score
 
     def __update_ballot_rankings_data(
         self,
@@ -126,33 +127,35 @@ class PreferenceProfile:
         candidates_cast: list[str],
         num_ballots: int,
     ) -> None:
-        if self.contains_rankings is False:
-            raise ValueError(
-                (
-                    f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
-                    " set to False."
-                )
-            )
 
-        for j, cand_set in enumerate(ballot.ranking):
-            for c in cand_set:
-                if self.candidates:
-                    if c not in self.candidates:
-                        raise ValueError(
-                            f"Candidate {c} found in ballot {ballot} but not in "
-                            f"candidate list {self.candidates}."
-                        )
-                if ballot.weight > 0 and c not in candidates_cast:
-                    candidates_cast.append(c)
-            if f"Ranking_{j+1}" not in ballot_data:
-                if self.max_ranking_length:
-                    raise ValueError(
-                        f"Max ballot length {self.max_ranking_length} given but "
-                        "ballot {b} has length at least {j+1}."
+        if ballot.ranking:
+            if self.contains_rankings is False:
+                raise ValueError(
+                    (
+                        f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
+                        " set to False."
                     )
-                ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
+                )
 
-            ballot_data[f"Ranking_{j+1}"][idx] = cand_set
+            for j, cand_set in enumerate(ballot.ranking):
+                for c in cand_set:
+                    if self.candidates:
+                        if c not in self.candidates:
+                            raise ValueError(
+                                f"Candidate {c} found in ballot {ballot} but not in "
+                                f"candidate list {self.candidates}."
+                            )
+                    if ballot.weight > 0 and c not in candidates_cast:
+                        candidates_cast.append(c)
+                if f"Ranking_{j+1}" not in ballot_data:
+                    if self.max_ranking_length:
+                        raise ValueError(
+                            f"Max ballot length {self.max_ranking_length} given but "
+                            "ballot {b} has length at least {j+1}."
+                        )
+                    ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
+
+                ballot_data[f"Ranking_{j+1}"][idx] = cand_set
 
     def __update_ballot_data_attrs(
         self,
@@ -164,8 +167,6 @@ class PreferenceProfile:
     ) -> None:
         ballot_data["Weight"][idx] = ballot.weight
 
-        if ballot.id:
-            ballot_data["ID"][idx] = ballot.id
         if ballot.voter_set:
             ballot_data["Voter Set"][idx] = ballot.voter_set
 
@@ -192,7 +193,6 @@ class PreferenceProfile:
 
         ballot_data: dict[str, list] = {
             "Weight": [np.nan] * num_ballots,
-            "ID": [np.nan] * num_ballots,
             "Voter Set": [set()] * num_ballots,
         }
 
@@ -215,7 +215,6 @@ class PreferenceProfile:
     ):
         df = pd.DataFrame(ballot_data)
         temp_col_order = [c for c in df.columns if "Ranking_" in c] + [
-            "ID",
             "Voter Set",
             "Weight",
         ]
@@ -263,13 +262,13 @@ class PreferenceProfile:
 
     @model_validator(mode="after")
     def ballot_list_to_df(self) -> Self:
-        # `ballot_data` sends {ID, Weight, Voter Set} keys to a list to be
+        # `ballot_data` sends {Weight, Voter Set} keys to a list to be
         # indexed in the same order as the output df containing information
-        # for each ballot. So ballot_data[<id>][<index>] is the id value for
+        # for each ballot. So ballot_data[<weight>][<index>] is the weight value for
         # the ballot at index <index> in the df.
         num_ballots, ballot_data = self.__init_ballot_data()
 
-        candidates_cast = []
+        candidates_cast: list[str] = []
         contains_rankings_indicator = False
         contains_scores_indicator = False
 
@@ -284,7 +283,7 @@ class PreferenceProfile:
             self.__update_ballot_data_attrs(
                 ballot_data=ballot_data,
                 idx=i,
-                b=b,
+                ballot=b,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
             )
@@ -358,7 +357,7 @@ class PreferenceProfile:
         Returns:
             PreferenceProfile: A PreferenceProfile object with grouped ballot list.
         """
-        non_group_cols = ["Weight", "ID", "Voter Set"]
+        non_group_cols = ["Weight", "Voter Set"]
         ranking_cols = [c for c in self.df.columns if "Ranking_" in c]
         cand_cols = [
             c for c in self.df.columns if c not in non_group_cols + ranking_cols
@@ -369,7 +368,6 @@ class PreferenceProfile:
             {
                 "Weight": "sum",
                 "Voter Set": (lambda sets: set().union(*sets)),
-                "ID": lambda x: x.iloc[0] if len(x) == 1 else np.nan,
             }
         ).reset_index()
 
@@ -441,7 +439,7 @@ class PreferenceProfile:
             rows = [["Candidates"], self.candidates]
             writer.writerows(rows)
 
-        cols = ["Weight", "ID", "Voter Set"]
+        cols = ["Weight", "Voter Set"]
         if self.contains_rankings:
             cols = [c for c in self.df.columns if "Ranking_" in c] + cols
         if self.contains_scores:
@@ -466,7 +464,6 @@ class PreferenceProfile:
 
         df = pd.read_csv(fpath, skiprows=[0, 1])
         dtype = {c: "float64" for c in candidates if c in df.columns}
-        dtype.update({"ID": "str"})
         df.astype(dtype)
 
         ranking_cols = [c for c in df.columns if "Ranking_" in c]

@@ -139,14 +139,12 @@ def remove_cand(
                 weight=ballot.weight,
                 scores=new_scores,
                 voter_set=ballot.voter_set,
-                id=ballot.id,
             )
         elif len(new_ranking) > 0:
             scrubbed_ballots[i] = Ballot(
                 ranking=tuple(new_ranking),
                 weight=ballot.weight,
                 voter_set=ballot.voter_set,
-                id=ballot.id,
             )
 
         elif len(new_scores) > 0:
@@ -154,7 +152,6 @@ def remove_cand(
                 weight=ballot.weight,
                 scores=new_scores,
                 voter_set=ballot.voter_set,
-                id=ballot.id,
             )
 
         # else ballot exhausted
@@ -162,7 +159,6 @@ def remove_cand(
             scrubbed_ballots[i] = Ballot(
                 weight=Fraction(0),
                 voter_set=ballot.voter_set,
-                id=ballot.id,
             )
 
     # return matching input data type
@@ -250,7 +246,6 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
             )
 
             new_ballots[i] = Ballot(
-                id=ballot.id,
                 weight=ballot.weight,
                 voter_set=ballot.voter_set,
                 ranking=tuple([frozenset(s) for s in new_ranking]),
@@ -681,7 +676,6 @@ def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
                 new_ballots = [
                     Ballot(
                         weight=ballot.weight / math.factorial(len(s)),
-                        id=ballot.id,
                         voter_set=ballot.voter_set,
                         ranking=tuple(ballot.ranking[:i])
                         + tuple([frozenset({c}) for c in order])

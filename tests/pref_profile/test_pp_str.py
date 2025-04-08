@@ -10,14 +10,14 @@ ballots_scores = [
             "B": 2,
         },
     ),
-    Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+    Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
     Ballot(),
     Ballot(weight=0),
 ]
 
 ballots_rankings = [
     Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
-    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}),
+    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
     Ballot(),
     Ballot(weight=0),
 ]
@@ -30,7 +30,7 @@ ballots_mixed = [
             "B": 2,
         },
     ),
-    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}),
+    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
     Ballot(
         ranking=({"A"}, {"B"}, {"C"}),
         weight=2,

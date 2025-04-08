@@ -6,9 +6,7 @@ def test_add_profiles():
     profile_1 = PreferenceProfile(
         ballots=[
             Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
-            Ballot(
-                ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}
-            ),
+            Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
             Ballot(),
             Ballot(weight=0),
         ],
@@ -25,7 +23,7 @@ def test_add_profiles():
                     "B": 2,
                 },
             ),
-            Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+            Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
             Ballot(),
             Ballot(weight=0),
         ],
@@ -36,9 +34,7 @@ def test_add_profiles():
     true_summed_profile = PreferenceProfile(
         ballots=(
             Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
-            Ballot(
-                ranking=({"A", "B"}, frozenset(), {"D"}), id="X29", voter_set={"Chris"}
-            ),
+            Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
             Ballot(
                 weight=2,
                 scores={
@@ -46,7 +42,7 @@ def test_add_profiles():
                     "B": 2,
                 },
             ),
-            Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+            Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
             Ballot(),
             Ballot(weight=0),
             Ballot(),

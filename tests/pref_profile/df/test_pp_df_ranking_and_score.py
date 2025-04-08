@@ -16,7 +16,6 @@ ballots_rankings_and_scores = [
     Ballot(
         ranking=({"A", "B"}, {"D"}),
         scores={"D": 2, "E": 1},
-        id="X29",
         voter_set={"Chris"},
     ),
     Ballot(),
@@ -45,7 +44,6 @@ def test_pp_df_ranking_and_score():
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "Ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
         "Ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
@@ -86,7 +84,6 @@ def test_pp_df_ranking_and_score_args():
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
         "Ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
         "Ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }

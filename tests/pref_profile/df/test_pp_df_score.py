@@ -12,7 +12,7 @@ ballots_scores = [
             "B": 2,
         },
     ),
-    Ballot(scores={"D": 2, "E": 1}, id="X29", voter_set={"Chris"}),
+    Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
     Ballot(),
     Ballot(weight=0),
 ]
@@ -35,7 +35,6 @@ def test_pp_df_scoress():
         ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
@@ -73,7 +72,6 @@ def test_pp_df_rankings_args():
         ],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "ID": [np.nan, "X29", np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }

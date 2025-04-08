@@ -8,7 +8,6 @@ def test_ballot_init():
     assert not b.ranking
     assert b.weight == Fraction(1)
     assert not b.voter_set
-    assert not b.id
     assert not b.scores
 
 
@@ -34,25 +33,22 @@ def test_ballot_eq():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
     assert b != Ballot(
-        weight=3, voter_set={"Chris"}, id="91010", scores={"A": 1, "B": 1 / 2, "C": 0}
+        weight=3, voter_set={"Chris"}, scores={"A": 1, "B": 1 / 2, "C": 0}
     )
 
     assert b != Ballot(
         ranking=[{"A"}, {"B"}, {"C"}],
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
     assert b != Ballot(
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
@@ -60,13 +56,6 @@ def test_ballot_eq():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        scores={"A": 1, "B": 1 / 2, "C": 0},
-    )
-    assert b != Ballot(
-        ranking=[{"A"}, {"B"}, {"C"}],
-        weight=3,
-        voter_set={"Chris"},
-        id="91010",
     )
 
 
@@ -75,7 +64,6 @@ def test_ballot_str():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
