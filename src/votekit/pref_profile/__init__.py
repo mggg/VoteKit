@@ -1,4 +1,5 @@
 from .pref_profile import PreferenceProfile  # noqa
+from .profile_error import ProfileError  # noqa
 from .utils import (
     profile_to_ballot_dict,  # noqa
     profile_to_ranking_dict,  # noqa

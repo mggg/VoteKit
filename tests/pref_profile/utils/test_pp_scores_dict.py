@@ -1,6 +1,6 @@
 from fractions import Fraction
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.pref_profile.utils import profile_to_scores_dict
 import pytest
 
@@ -27,7 +27,7 @@ def test_scores_dict_error():
     profile = PreferenceProfile(ballots=(Ballot(ranking=({"A"}, {"B"})),))
 
     with pytest.raises(
-        ValueError,
+        ProfileError,
         match=(
             "You are trying to convert a profile that contains "
             "no scores to a scores_dict."

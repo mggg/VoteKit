@@ -1,6 +1,6 @@
 from fractions import Fraction
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.pref_profile.utils import profile_to_ranking_dict
 import pytest
 
@@ -29,7 +29,7 @@ def test_ranking_dict_warn():
     profile = PreferenceProfile(ballots=(Ballot(scores={"A": 4}),))
 
     with pytest.raises(
-        ValueError,
+        ProfileError,
         match=(
             "You are trying to convert a profile that contains "
             "no rankings to a ranking_dict."

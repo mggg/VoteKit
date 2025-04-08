@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 from functools import partial
 import warnings
 import pickle
+from .profile_error import ProfileError
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -54,14 +55,15 @@ class PreferenceProfile:
             scores.
 
     Raises:
-        ValueError: contains_rankings is set to False but a ballot contains a ranking.
-        ValueError: contains_rankings is set to True but no ballot contains a ranking.
-        ValueError: contains_scores is set to False but a ballot contains a score.
-        ValueError: contains_scores is set to True but no ballot contains a score.
-        ValueError: max_ranking_length is set but a ballot ranking excedes the length.
-        ValueError: a candidate is found on a ballot that is not listed on a provided
+        ProfileError: contains_rankings is set to False but a ballot contains a ranking.
+        ProfileError: contains_rankings is set to True but no ballot contains a ranking.
+        ProfileError: contains_scores is set to False but a ballot contains a score.
+        ProfileError: contains_scores is set to True but no ballot contains a score.
+        ProfileError: max_ranking_length is set but a ballot ranking excedes the length.
+        ProfileError: a candidate is found on a ballot that is not listed on a provided
             candidate list.
-        ValueError: candidates must be unique.
+        ProfileError: candidates must be unique.
+        ProfileError: candidates must not have names matching ranking columns.
 
     Warns:
         UserWarning: max_ranking_length is set but contains_rankings is False.
@@ -86,8 +88,22 @@ class PreferenceProfile:
     ) -> Optional[tuple[str, ...]]:
         if candidates:
             if not len(set(candidates)) == len(candidates):
-                raise ValueError("All candidates must be unique.")
+                raise ProfileError("All candidates must be unique.")
         return candidates
+
+    @model_validator(mode="after")
+    def cands_not_ranking_columns(
+        self,
+    ) -> Self:
+        for cand in self.candidates:
+            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
+                raise ProfileError(
+                    (
+                        f"Candidate {cand} must not share name with"
+                        " ranking columns: Ranking_i."
+                    )
+                )
+        return self
 
     def __update_ballot_scores_data(
         self,
@@ -99,7 +115,7 @@ class PreferenceProfile:
     ) -> None:
         if ballot.scores:
             if self.contains_scores is False:
-                raise ValueError(
+                raise ProfileError(
                     (
                         f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
                         "set to False."
@@ -112,7 +128,7 @@ class PreferenceProfile:
 
                 if c not in ballot_data:
                     if self.candidates:
-                        raise ValueError(
+                        raise ProfileError(
                             f"Candidate {c} found in ballot {ballot} but not in "
                             f"candidate list {self.candidates}."
                         )
@@ -130,7 +146,7 @@ class PreferenceProfile:
 
         if ballot.ranking:
             if self.contains_rankings is False:
-                raise ValueError(
+                raise ProfileError(
                     (
                         f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
                         " set to False."
@@ -141,7 +157,7 @@ class PreferenceProfile:
                 for c in cand_set:
                     if self.candidates:
                         if c not in self.candidates:
-                            raise ValueError(
+                            raise ProfileError(
                                 f"Candidate {c} found in ballot {ballot} but not in "
                                 f"candidate list {self.candidates}."
                             )
@@ -149,7 +165,7 @@ class PreferenceProfile:
                         candidates_cast.append(c)
                 if f"Ranking_{j+1}" not in ballot_data:
                     if self.max_ranking_length:
-                        raise ValueError(
+                        raise ProfileError(
                             f"Max ballot length {self.max_ranking_length} given but "
                             "ballot {b} has length at least {j+1}."
                         )
@@ -247,14 +263,14 @@ class PreferenceProfile:
         if self.contains_rankings is None:
             object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
         elif self.contains_rankings and not contains_rankings_indicator:
-            raise ValueError(
+            raise ProfileError(
                 "contains_rankings is True but we found no ballots with rankings."
             )
 
         if self.contains_scores is None:
             object.__setattr__(self, "contains_scores", contains_scores_indicator)
         elif self.contains_scores and not contains_scores_indicator:
-            raise ValueError(
+            raise ProfileError(
                 "contains_scores is True but we found no ballots with scores."
             )
 
@@ -451,8 +467,6 @@ class PreferenceProfile:
             encoding="utf-8",
         )
 
-    # Peter, think we can rig this so that it "absorbs" the load_cvr function?
-    # this csv is very specially formatted to deal with data types, so maybe not?
     @classmethod
     def from_csv(cls, fpath: str) -> PreferenceProfile:
         """
@@ -508,7 +522,6 @@ class PreferenceProfile:
         Args:
             fpath (str): File path to save profile to.
         """
-
         with open(fpath, "wb") as f:
             pickle.dump(self, f)
 

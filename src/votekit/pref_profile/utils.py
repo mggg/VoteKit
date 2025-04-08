@@ -9,6 +9,7 @@ from fractions import Fraction
 from typing import Optional
 import pandas as pd
 from functools import partial
+from .profile_error import ProfileError
 
 
 def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset, ...]]:
@@ -20,6 +21,9 @@ def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset
 
     Returns:
         Optional[tuple[frozenset, ...]]: Ranking of ballot.
+
+    Raises:
+        ValueError: NaN values can only trail on a ranking.
 
     """
     ranking = []
@@ -146,11 +150,11 @@ def profile_to_ranking_dict(
             A dictionary with rankings (keys) and corresponding total weights (values).
 
     Raises:
-        ValueError: Profile must contain rankings.
+        ProfileError: Profile must contain rankings.
     """
 
     if not profile.contains_rankings:
-        raise ValueError(
+        raise ProfileError(
             (
                 "You are trying to convert a profile that contains no rankings to a "
                 "ranking_dict."
@@ -188,10 +192,10 @@ def profile_to_scores_dict(
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:
-        ValueError: Profile must contain scores.
+        ProfileError: Profile must contain scores.
     """
     if not profile.contains_scores:
-        raise ValueError(
+        raise ProfileError(
             (
                 "You are trying to convert a profile that contains no scores to a "
                 "scores_dict."
@@ -236,7 +240,7 @@ def profile_df_head(
         pandas.DataFrame: A dataframe with top-n ballots.
 
     Raises:
-        ValueError: Profile has 0 total ballot weight; cannot show percentages.
+        ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
 
     if sort_by_weight:
@@ -248,7 +252,7 @@ def profile_df_head(
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
-            raise ValueError(
+            raise ZeroDivisionError(
                 "Profile has 0 total ballot weight; cannot show percentages."
             )
         df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
@@ -287,7 +291,7 @@ def profile_df_tail(
         pandas.DataFrame: A data frame with bottom-n ballots.
 
     Raises:
-        ValueError: Profile has 0 total ballot weight; cannot show percentages.
+        ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
     if sort_by_weight:
         df = profile.df.sort_values(by="Weight", ascending=False).tail(n).copy()
@@ -297,7 +301,7 @@ def profile_df_tail(
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
-            raise ValueError(
+            raise ZeroDivisionError(
                 "Profile has 0 total ballot weight; cannot show percentages."
             )
         df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
