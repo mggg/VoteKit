@@ -41,7 +41,9 @@ def test_csv_bijection_rankings():
         candidates=["A", "B", "C", "D", "E"],
     )
 
-    profile_rankings.to_csv(f"{filepath}/test_csv_pp_rankings.csv")
+    profile_rankings.to_csv(
+        f"{filepath}/test_csv_pp_rankings.csv", include_voter_set=True
+    )
     read_profile = PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_rankings.csv")
     assert profile_rankings == read_profile
 
@@ -67,7 +69,7 @@ def test_csv_bijection_scores():
         candidates=["A", "B", "C", "D", "E"],
     )
 
-    profile_scores.to_csv(f"{filepath}/test_csv_pp_scores.csv")
+    profile_scores.to_csv(f"{filepath}/test_csv_pp_scores.csv", include_voter_set=True)
     read_profile = PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_scores.csv")
     assert profile_scores == read_profile
 
@@ -109,11 +111,11 @@ def test_csv_bijection_mixed():
                 scores={"A": 5, "B": 4, "C": 1},
             ),
         )
-        * 5,
+        * 2,
         max_ranking_length=3,
         candidates=["A", "B", "C", "D", "E"],
     )
 
-    profile_mixed.to_csv(f"{filepath}/test_csv_pp_mixed.csv")
+    profile_mixed.to_csv(f"{filepath}/test_csv_pp_mixed.csv", include_voter_set=True)
     read_profile = PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_mixed.csv")
     assert profile_mixed == read_profile
