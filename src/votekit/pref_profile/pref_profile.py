@@ -10,7 +10,6 @@ from typing_extensions import Self
 from dataclasses import field
 import numpy as np
 from typing import Optional, Tuple
-from functools import partial
 import warnings
 import pickle
 from .profile_error import ProfileError
@@ -442,77 +441,332 @@ class PreferenceProfile:
 
     __repr__ = __str__
 
-    def to_csv(self, fpath: str):
+    def __csv_header(
+        self, candidate_mapping: dict[str, str], include_voter_set: bool
+    ) -> list[list]:
         """
-        Saves PreferenceProfile to CSV.
+        Construct the header rows for the PrefProfile a custom CSV format.
+
+        Args:
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+        """
+        header = [
+            ["VoteKit PreferenceProfile"],
+            ["Candidates"],
+            [f"({c}:{cand_label})" for c, cand_label in candidate_mapping.items()],
+        ]
+        header += [["Max Ranking Length"], [str(self.max_ranking_length)]]
+        header += [["Includes Voter Set"], [str(include_voter_set)]]
+        header += [["="] * 10]
+
+        return header
+
+    def __csv_score_list(self, ballot: Ballot) -> list:
+        """
+        Create the list of score data for a ballot in the profile.
+
+        Args:
+            ballot (Ballot): Ballot.
+
+        """
+        if ballot.scores:
+            return [float(ballot.scores.get(c, 0)) for c in self.candidates]
+
+        return [""] * len(self.candidates)
+
+    def __csv_ranking_list(
+        self, ballot: Ballot, candidate_mapping: dict[str, str]
+    ) -> list:
+        """
+        Create the list of ranking data for a ballot in the profile.
+
+        Args:
+            ballot (Ballot): Ballot.
+            candidate_mapping (dict[str, int]): Mapping candidate names to integers.
+
+        """
+        if ballot.ranking:
+            ranking_list = [
+                set([candidate_mapping[c] for c in cand_set]) if cand_set else "{}"
+                for cand_set in ballot.ranking
+            ]
+            if len(ranking_list) != self.max_ranking_length:
+                ranking_list += [""] * (self.max_ranking_length - len(ranking_list))
+
+            return ranking_list
+
+        return [""] * self.max_ranking_length
+
+    def __csv_ballot_row(
+        self, ballot: Ballot, include_voter_set: bool, candidate_mapping: dict[str, str]
+    ) -> list[list]:
+        """
+        Create the row for a ballot in the profile.
+
+        Args:
+            ballot (Ballot): Ballot.
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+            candidate_mapping (dict[str, int]): Mapping candidate names to integers.
+
+        """
+        row = []
+        if self.contains_scores:
+            row += self.__csv_score_list(ballot)
+        row += ["&"]
+
+        if self.contains_rankings:
+            row += self.__csv_ranking_list(ballot, candidate_mapping)
+        row += ["&"]
+
+        n, d = ballot.weight.as_integer_ratio()
+        row += [f"{n}/{d}"]
+
+        if include_voter_set:
+            row += ["&"] + [v for v in sorted(ballot.voter_set)]
+
+        return row
+
+    def __csv_data_column_names(
+        self, include_voter_set: bool, candidate_mapping: dict[str, str]
+    ) -> list:
+        """
+        Create the data column header.
+
+        Args:
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+        """
+        data_col_names = []
+        if self.contains_scores:
+            data_col_names += [
+                f"{cand_label}" for cand_label in candidate_mapping.values()
+            ]
+        data_col_names += ["&"]
+        if self.contains_rankings:
+            data_col_names += [f"Ranking_{i+1}" for i in range(self.max_ranking_length)]
+        data_col_names += ["&"]
+        data_col_names += ["Weight"]
+
+        if include_voter_set:
+            data_col_names += ["&"] + ["Voter Set"]
+
+        return data_col_names
+
+    def to_csv(self, fpath: str, include_voter_set: bool = False):
+        """
+        Saves PreferenceProfile to a custom CSV format.
 
         Args:
             fpath (str): Path to the saved csv.
+            include_voter_set (bool, optional): Whether or not to include the voter set of each
+                ballot. Defaults to False.
+        Raises:
+            ProfileError: Cannot write a profile with no ballots to a csv.
         """
-        with open(fpath, "w", newline="") as csvfile:
-            writer = csv.writer(csvfile)
 
-            rows = [["Candidates"], self.candidates]
+        if len(self.ballots) == 0:
+            raise ProfileError("Cannot write a profile with no ballots to a csv.")
+
+        prefix_idx = 1
+        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
+            prefix_idx += 1
+            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+
+        header = self.__csv_header(candidate_mapping, include_voter_set)
+        data_col_names = self.__csv_data_column_names(
+            include_voter_set, candidate_mapping
+        )
+        ballot_rows = [
+            self.__csv_ballot_row(b, include_voter_set, candidate_mapping)
+            for b in self.ballots
+        ]
+        rows = header + [data_col_names] + ballot_rows
+
+        with open(
+            fpath,
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as csvfile:
+            writer = csv.writer(csvfile)
             writer.writerows(rows)
 
-        cols = ["Weight", "Voter Set"]
-        if self.contains_rankings:
-            cols = [c for c in self.df.columns if "Ranking_" in c] + cols
-        if self.contains_scores:
-            cols = [c for c in self.df.columns if c in self.candidates] + cols
+    def __parse_profile_data_from_csv(
+        self,
+        csv_data: list[list[str]],
+    ) -> Tuple[dict[str, str], int, bool, bool, bool, list[int]]:
+        """
+        Parse the profile data from the csv.
 
-        self.df[cols].to_csv(
-            path_or_buf=fpath,
-            mode="a",
-            encoding="utf-8",
+        Args:
+            csv_data (list[list[str]]): Data from csv.
+
+        Returns:
+            Tuple[dict[str, str], int, bool, bool, bool, list[int]]:
+                inv_candidate_mapping, max_ranking_length, contains_rankings, contains_scores,
+                includes_voter_set, break_indices
+        """
+        candidate_row = [c_tuple.strip("()").split(":") for c_tuple in csv_data[2]]
+        inv_candidate_mapping = {prefix: cand for cand, prefix in candidate_row}
+
+        max_ranking_length = int(csv_data[4][0])
+        contains_rankings = max_ranking_length > 0
+
+        includes_voter_set = csv_data[6][0] == "True"
+
+        ballot_data_column_names = csv_data[8]
+        contains_scores = (
+            list(inv_candidate_mapping.values())[0] in ballot_data_column_names
         )
+        break_indices = [
+            i for i, col_name in enumerate(ballot_data_column_names) if col_name == "&"
+        ]
+
+        return (
+            inv_candidate_mapping,
+            max_ranking_length,
+            contains_rankings,
+            contains_scores,
+            includes_voter_set,
+            break_indices,
+        )
+
+    def __parse_ballot_from_csv(
+        self,
+        ballot_row: list[str],
+        contains_rankings: bool,
+        contains_scores: bool,
+        includes_voter_set: bool,
+        break_indices: list[int],
+        inv_candidate_mapping: dict[str, str],
+    ) -> Ballot:
+        """
+        Parse a ballot from a PreferenceProfile csv row.
+
+        Args:
+            ballot_row (list[str]): Row from the csv file containing ballot data.
+            contains_rankings (bool): Whether or not the csv contains rankings.
+            contains_scores (bool): Whether or not the csv contains scores.
+            includes_voter_set (bool): Whether or not the csv contains voter sets.
+            break_indices (list[int]): Where the columns of the csv change from one data type to
+                another.
+            inv_candidate_mapping (dict[str, str]): The iverted candidate mapping of prefix
+                to the cand.
+        """
+        candidates = list(inv_candidate_mapping.values())
+        ranking_start = break_indices[0] + 1
+        ranking_end = break_indices[1]
+
+        scores = None
+        formatted_ranking = None
+        voter_set = set()
+
+        num, denom = ballot_row[break_indices[1] + 1].split("/")
+        weight = Fraction(int(num), int(denom))
+
+        if contains_scores:
+            scores = {
+                c: Fraction(float(ballot_row[i]))
+                for i, c in enumerate(candidates)
+                if ballot_row[i]
+            }
+
+        if contains_rankings:
+            ranking = ballot_row[ranking_start:ranking_end]
+            temp_ranking = [
+                cand_set.strip("{}").split(", ")
+                for cand_set in ranking
+                if cand_set != ""
+            ]
+            formatted_ranking = tuple(
+                [
+                    (
+                        frozenset(inv_candidate_mapping[c.strip("'")] for c in cand_set)
+                        if cand_set != [""]
+                        else frozenset()
+                    )
+                    for cand_set in temp_ranking
+                ]
+            )
+
+        if includes_voter_set:
+            voter_set = set(ballot_row[break_indices[-1] + 1 :])
+
+        return Ballot(
+            ranking=formatted_ranking, scores=scores, voter_set=voter_set, weight=weight
+        )
+
+    def __validate_csv_format(self, csv_data: list[list[str]]):
+        """
+        Raises:
+            ValueError: If csv is improperly formatted for VoteKit.
+        """
+        if csv_data[0] != ["VoteKit PreferenceProfile"]:
+            raise ValueError(
+                (
+                    "csv file is improperly formatted. It is missing the correct header. This "
+                    "usually indicates that you are loading a csv that was not made with "
+                    "PreferenceProfile.to_csv()."
+                )
+            )
+        if csv_data[7] != ["="] * 10:
+            raise ValueError(
+                (
+                    "csv file is improperly formatted. It is missing the correct break line. This "
+                    "usually indicates that you are loading a csv that was not made with "
+                    "PreferenceProfile.to_csv()."
+                )
+            )
 
     @classmethod
     def from_csv(cls, fpath: str) -> PreferenceProfile:
         """
         Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+
+        Args:
+            fpath (str): Path to csv.
+
+        Raises:
+            ValueError: If csv is improperly formatted for VoteKit.
+
         """
         with open(fpath, "r") as file:
             reader = csv.reader(file)
-            candidates = tuple(list(reader)[1])
+            csv_data = list(reader)
 
-        df = pd.read_csv(fpath, skiprows=[0, 1])
-        dtype = {c: "float64" for c in candidates if c in df.columns}
-        df.astype(dtype)
+        cls.__validate_csv_format(PreferenceProfile(), csv_data)
 
-        ranking_cols = [c for c in df.columns if "Ranking_" in c]
+        (
+            inv_candidate_mapping,
+            max_ranking_length,
+            contains_rankings,
+            contains_scores,
+            includes_voter_set,
+            break_indices,
+        ) = cls.__parse_profile_data_from_csv(PreferenceProfile(), csv_data)
 
-        def _str_to_fraction(s: str) -> Fraction:
-            if "/" in s:
-                numerator, denominator = [int(x) for x in s.split("/")]
-                return Fraction(numerator, denominator)
-
-            return Fraction(int(s))
-
-        if df.dtypes["Weight"] == "object":
-            df["Weight"] = df["Weight"].apply(_str_to_fraction)  # type: ignore
-
-        def _str_to_set(s: str | float, frozen: bool) -> frozenset | float | set:
-            if pd.isna(s):
-                return np.nan
-            elif s == "frozenset()" or s == "set()":
-                return frozenset() if frozen else set()
-
-            strip_str = "frozenset({})" if frozen else "{}"
-            if isinstance(s, str):
-                s = s.strip(strip_str)
-                contents = [c.strip("'") for c in s.split(", ")]
-
-            return frozenset(contents) if frozen else set(contents)
-
-        for c in ranking_cols:
-            df[c] = df[c].apply(partial(_str_to_set, frozen=True))  # type: ignore
-
-        df["Voter Set"] = df["Voter Set"].apply(partial(_str_to_set, frozen=False))  # type: ignore
+        ballots = [
+            cls.__parse_ballot_from_csv(
+                PreferenceProfile(),
+                row,
+                contains_rankings,
+                contains_scores,
+                includes_voter_set,
+                break_indices,
+                inv_candidate_mapping,
+            )
+            for row in csv_data[9:]
+        ]
 
         return cls(
-            ballots=_df_to_ballot_tuple(df, candidates=candidates),
-            candidates=candidates,
+            ballots=tuple(ballots),
+            candidates=tuple(inv_candidate_mapping.values()),
+            max_ranking_length=max_ranking_length,
+            contains_rankings=contains_rankings,
+            contains_scores=contains_scores,
         )
 
     def to_pickle(self, fpath: str):
