@@ -66,18 +66,20 @@ def test_pp_df_tail_scores():
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "Percent": [
-            f"{.5:.1%}",
-            f"{.25:.1%}",
-            f"{.25:.1%}",
-            f"{0:.1%}",
+            f"{.5:.2%}",
+            f"{.25:.2%}",
+            f"{.25:.2%}",
+            f"{0:.2%}",
         ],
     }
     true_df = pd.DataFrame(data)
     true_df.index = [1, 0, 2, 3]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 5 + [4, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 5 + [4, f"{1:.2%}"]
 
-    assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)
+    assert profile_df_tail(pp, n=4, percents=True, totals=True, n_decimals=2).equals(
+        true_df
+    )
 
 
 def test_pp_df_tail_mixed():

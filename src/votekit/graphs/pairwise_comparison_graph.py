@@ -48,10 +48,12 @@ def pairwise_dict(
     }
 
     for _, row in profile.df.iterrows():
-        ranking = _convert_ranking_cols_to_ranking(row)
+        ranking = _convert_ranking_cols_to_ranking(
+            row, max_ranking_length=profile.max_ranking_length
+        )
 
         mentioned_so_far = set()
-        if ranking:
+        if ranking is not None:
             for i, cand_set in enumerate(ranking):
                 if len(cand_set) > 1:
                     raise ValueError(

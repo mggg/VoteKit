@@ -12,12 +12,15 @@ from functools import partial
 from .profile_error import ProfileError
 
 
-def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset, ...]]:
+def _convert_ranking_cols_to_ranking(
+    row: pd.Series, max_ranking_length: int
+) -> Optional[tuple[frozenset, ...]]:
     """
     Convert the ranking cols to a ranking tuple in profile.df.
 
     Args:
         row (pd.Series): Row of a profile.df.
+        max_ranking_length (int, optional): The maximum length of a ranking.
 
     Returns:
         Optional[tuple[frozenset, ...]]: Ranking of ballot.
@@ -27,10 +30,14 @@ def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset
 
     """
     ranking = []
-    ranking_cols = [c for c in row.index if "Ranking_" in c]
-    for i, col in enumerate(ranking_cols):
-        if pd.isna(row[col]):
-            if not all(pd.isna(row[c]) for c in ranking_cols[i:]):
+    ranking_cols_idxs = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
+
+    if any(idx not in row.index for idx in ranking_cols_idxs):
+        raise ValueError(f"Row has improper ranking columns: {row.index}.")
+
+    for i, col_idx in enumerate(ranking_cols_idxs):
+        if pd.isna(row[col_idx]):
+            if not all(pd.isna(row[idx]) for idx in ranking_cols_idxs[i:]):
                 raise ValueError(
                     f"Row {row} has NaN values between valid ranking positions. "
                     "NaN values can only trail on a ranking."
@@ -38,14 +45,13 @@ def _convert_ranking_cols_to_ranking(row: pd.Series) -> Optional[tuple[frozenset
 
             break
 
-        ranking.append(row[col])
+        ranking.append(row[col_idx])
 
     return tuple(ranking) if ranking else None
 
 
 def convert_row_to_ballot(
-    row: pd.Series,
-    candidates: tuple[str, ...],
+    row: pd.Series, candidates: tuple[str, ...], max_ranking_length: int = 0
 ) -> Ballot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
@@ -53,11 +59,15 @@ def convert_row_to_ballot(
     Args:
         row (pd.Series): Row of a profile.df.
         candidates (tuple[str,...]): The name of the candidates.
+        max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
+            is used for ballots with no ranking.
 
     Returns:
         Ballot: Ballot corresponding to the row of the df.
     """
-    ranking = _convert_ranking_cols_to_ranking(row)
+    ranking = None
+    if max_ranking_length > 0:
+        ranking = _convert_ranking_cols_to_ranking(row, max_ranking_length)
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
     voter_set = row["Voter Set"]
     weight = row["Weight"]
@@ -71,8 +81,7 @@ def convert_row_to_ballot(
 
 
 def _df_to_ballot_tuple(
-    df: pd.DataFrame,
-    candidates: tuple[str, ...],
+    df: pd.DataFrame, candidates: tuple[str, ...], max_ranking_length: int = 0
 ) -> tuple[Ballot, ...]:
     """
     Convert a properly formatted profile.df into a list of ballots.
@@ -80,6 +89,8 @@ def _df_to_ballot_tuple(
     Args:
         df (pd.DataFrame): A profile.df.
         candidates (tuple[str,...]): The candidates.
+        max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
+            is used for ballots with no ranking.
 
     Returns:
         tuple[Ballot]: The tuple of ballots.
@@ -92,6 +103,7 @@ def _df_to_ballot_tuple(
             partial(
                 convert_row_to_ballot,
                 candidates=candidates,
+                max_ranking_length=max_ranking_length,
             ),
             axis="columns",
         )
@@ -167,11 +179,8 @@ def profile_to_ranking_dict(
         weight = ballot.weight
         if standardize:
             weight /= tot_weight
+        di[ranking] = di.get(ranking, 0) + weight
 
-        if ranking not in di.keys():
-            di[ranking] = weight
-        else:
-            di[ranking] += weight
     return di
 
 
@@ -210,10 +219,7 @@ def profile_to_scores_dict(
         if standardize:
             weight /= tot_weight
 
-        if scores not in di.keys():
-            di[scores] = weight
-        else:
-            di[scores] += weight
+        di[scores] = di.get(scores, 0) + weight
     return di
 
 
@@ -223,6 +229,7 @@ def profile_df_head(
     sort_by_weight: Optional[bool] = True,
     percents: Optional[bool] = False,
     totals: Optional[bool] = False,
+    n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the top-n ballots in profile.
@@ -235,6 +242,7 @@ def profile_df_head(
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
             Defaults to False.
+        n_decimals (int, optional): Number of decimals to round to. Defaults to 1.
 
     Returns:
         pandas.DataFrame: A dataframe with top-n ballots.
@@ -255,15 +263,16 @@ def profile_df_head(
             raise ZeroDivisionError(
                 "Profile has 0 total ballot weight; cannot show percentages."
             )
-        df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
-            lambda x: f"{float(x):.1%}"
-        )
+        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
 
     if totals:
         total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
         if percents:
-            total_row += [f"{1:.1%}"]
+            total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
+
+    if percents:
+        df["Percent"] = df["Percent"].apply(lambda x: f"{float(x):.{n_decimals}%}")
 
     return df
 
@@ -274,6 +283,7 @@ def profile_df_tail(
     sort_by_weight: Optional[bool] = True,
     percents: Optional[bool] = False,
     totals: Optional[bool] = False,
+    n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the bottom-n ballots in profile.
@@ -286,6 +296,7 @@ def profile_df_tail(
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
             Defaults to False.
+        n_decimals (int, optional): Number of decimals to round to. Defaults to 1.
 
     Returns:
         pandas.DataFrame: A data frame with bottom-n ballots.
@@ -304,14 +315,15 @@ def profile_df_tail(
             raise ZeroDivisionError(
                 "Profile has 0 total ballot weight; cannot show percentages."
             )
-        df["Percent"] = (df["Weight"] / float(profile.total_ballot_wt)).apply(
-            lambda x: f"{float(x):.1%}"
-        )
+        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
 
     if totals:
         total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
         if percents:
-            total_row += [f"{1:.1%}"]
+            total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
+
+    if percents:
+        df["Percent"] = df["Percent"].apply(lambda x: f"{float(x):.{n_decimals}%}")
 
     return df

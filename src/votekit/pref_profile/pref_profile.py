@@ -389,6 +389,7 @@ class PreferenceProfile:
         new_ballots = _df_to_ballot_tuple(
             new_df,
             candidates=self.candidates,
+            max_ranking_length=self.max_ranking_length,
         )
 
         return PreferenceProfile(
