@@ -784,7 +784,10 @@ class PreferenceProfile:
                 ballot. Defaults to False.
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
+            ValueError: File path must be provided.
         """
+        if fpath == "":
+            raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
@@ -867,7 +870,12 @@ class PreferenceProfile:
 
         Args:
             fpath (str): File path to save profile to.
+
+        Raises:
+            ValueError: File path must be provided.
         """
+        if fpath == "":
+            raise ValueError("File path must be provided.")
         with open(fpath, "wb") as f:
             pickle.dump(self, f)
 

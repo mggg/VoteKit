@@ -1,5 +1,6 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
+import pytest
 
 filepath = "tests/data/csv"
 
@@ -119,3 +120,8 @@ def test_csv_bijection_mixed():
     profile_mixed.to_csv(f"{filepath}/test_csv_pp_mixed.csv", include_voter_set=True)
     read_profile = PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_mixed.csv")
     assert profile_mixed == read_profile
+
+
+def test_csv_error():
+    with pytest.raises(ValueError, match="File path must be provided."):
+        PreferenceProfile().to_csv("")

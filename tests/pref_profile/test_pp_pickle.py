@@ -1,5 +1,6 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
+import pytest
 
 filepath = "tests/data/pickle"
 
@@ -117,3 +118,8 @@ def test_pkl_bijection_mixed():
     profile_mixed.to_pickle(f"{filepath}/test_pkl_pp_mixed.pkl")
     read_profile = PreferenceProfile.from_pickle(f"{filepath}/test_pkl_pp_mixed.pkl")
     assert profile_mixed == read_profile
+
+
+def test_pkl_error():
+    with pytest.raises(ValueError, match="File path must be provided."):
+        PreferenceProfile().to_pickle("")
