@@ -214,6 +214,15 @@ class PreferenceProfile:
     def cands_must_be_unique(
         cls, candidates: Optional[tuple[str, ...]]
     ) -> Optional[tuple[str, ...]]:
+        """
+        Checks that candidate names are unique.
+
+        Args:
+            candidates (tuple[str], optional): Candidate names.
+
+        Returns:
+            Optional[tuple[str]]: Candidate names.
+        """
         if candidates:
             if not len(set(candidates)) == len(candidates):
                 raise ProfileError("All candidates must be unique.")
@@ -223,6 +232,11 @@ class PreferenceProfile:
     def cands_not_ranking_columns(
         self,
     ) -> Self:
+        """
+        Ensures that candidate names do not match ranking columns.
+        Also added protection for from_csv method.
+
+        """
         for cand in self.candidates:
             if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
                 raise ProfileError(
@@ -241,6 +255,16 @@ class PreferenceProfile:
         candidates_cast: list[str],
         num_ballots: int,
     ) -> None:
+        """
+        Update the score data from a ballot.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            idx (int): Index of ballot.
+            ballot (Ballot): Ballot.
+            candidates_cast (list[str]): List of candidates who have received votes.
+            num_ballots (int): Total number of ballots.
+        """
         if ballot.scores:
             if self.contains_scores is False:
                 raise ProfileError(
@@ -271,6 +295,16 @@ class PreferenceProfile:
         candidates_cast: list[str],
         num_ballots: int,
     ) -> None:
+        """
+        Update the ranking data from a ballot.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            idx (int): Index of ballot.
+            ballot (Ballot): Ballot.
+            candidates_cast (list[str]): List of candidates who have received votes.
+            num_ballots (int): Total number of ballots.
+        """
 
         if ballot.ranking:
             if self.contains_rankings is False:
@@ -309,6 +343,16 @@ class PreferenceProfile:
         candidates_cast: list[str],
         num_ballots: int,
     ) -> None:
+        """
+        Update all ballot data from a ballot.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            idx (int): Index of ballot.
+            ballot (Ballot): Ballot.
+            candidates_cast (list[str]): List of candidates who have received votes.
+            num_ballots (int): Total number of ballots.
+        """
         ballot_data["Weight"][idx] = ballot.weight
 
         if ballot.voter_set:
@@ -333,6 +377,13 @@ class PreferenceProfile:
             )
 
     def __init_ballot_data(self) -> Tuple[int, dict[str, list]]:
+        """
+        Create the ballot data objects.
+
+        Returns:
+            Tuple[int, dict[str, list]]: num_ballots, ballot_data
+
+        """
         num_ballots = len(self.ballots)
 
         ballot_data: dict[str, list] = {
@@ -356,7 +407,18 @@ class PreferenceProfile:
         self,
         ballot_data: dict[str, list],
         contains_scores_indicator: bool,
-    ):
+    ) -> pd.DataFrame:
+        """
+        Create a pandas dataframe from the ballot data.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            contains_scores_indicator (bool): Whether or not the profile contains ballots
+                with scores.
+
+        Returns:
+            pd.DataFrame: Dataframe of profile.
+        """
         df = pd.DataFrame(ballot_data)
         temp_col_order = [c for c in df.columns if "Ranking_" in c] + [
             "Voter Set",
@@ -383,6 +445,17 @@ class PreferenceProfile:
         contains_rankings_indicator: bool,
         contains_scores_indicator: bool,
     ) -> Self:
+        """
+        Set various class attributes from the pandas dataframe representation of the profile.
+
+        Args:
+            df (pd.DataFrame): The dataframe representation of the profile.
+            candidates_cast (list[str]): Candidates who received votes.
+            contains_rankings_indicator (bool): Whether or not the profile contains ballots
+                with rankings.
+            contains_scores_indicator (bool): Whether or not the profile contains ballots
+                with scores.
+        """
         object.__setattr__(self, "df", df)
         object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
         if not self.candidates:
@@ -406,6 +479,10 @@ class PreferenceProfile:
 
     @model_validator(mode="after")
     def ballot_list_to_df(self) -> Self:
+        """
+        Create the pandas dataframe representation of the profile.
+
+        """
         # `ballot_data` sends {Weight, Voter Set} keys to a list to be
         # indexed in the same order as the output df containing information
         # for each ballot. So ballot_data[<weight>][<index>] is the weight value for
@@ -446,6 +523,13 @@ class PreferenceProfile:
 
     @model_validator(mode="after")
     def find_max_ranking_length(self) -> Self:
+        """
+        Compute and set the maximum ranking length of the profile.
+
+        Warns:
+            UserWarning: If a max_ranking_length is provided but not rankings are in the
+                profile, we set the max_ranking_length to 0.
+        """
         if self.max_ranking_length > 0 and not self.contains_rankings:
             warnings.warn(
                 "Profile does not contain rankings but "
@@ -463,11 +547,17 @@ class PreferenceProfile:
 
     @model_validator(mode="after")
     def find_num_ballots(self) -> Self:
+        """
+        Compute and set the number of ballots.
+        """
         object.__setattr__(self, "num_ballots", len(self.df))
         return self
 
     @model_validator(mode="after")
     def find_total_ballot_wt(self) -> Self:
+        """
+        Compute and set the total ballot weight.
+        """
         object.__setattr__(self, "total_ballot_wt", self.df["Weight"].sum())
 
         return self
@@ -559,13 +649,13 @@ class PreferenceProfile:
         if self.contains_rankings:
             repr_str += f"Maximum ranking length: {self.max_ranking_length}\n"
 
-        repr_str += f"Profile contains scores: {self.contains_scores}\n"
-
-        repr_str += f"Candidates: {self.candidates}\n"
-        repr_str += f"Candidates who received votes: {self.candidates_cast}\n"
-
-        repr_str += f"Total number of Ballot objects: {self.num_ballots}\n"
-        repr_str += f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
+        repr_str += (
+            f"Profile contains scores: {self.contains_scores}\n"
+            f"Candidates: {self.candidates}\n"
+            f"Candidates who received votes: {self.candidates_cast}\n"
+            f"Total number of Ballot objects: {self.num_ballots}\n"
+            f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
+        )
 
         return repr_str
 
