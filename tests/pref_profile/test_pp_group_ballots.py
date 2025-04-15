@@ -28,6 +28,7 @@ def test_pp_group_ballots_ranking():
         ),
     )
     assert set(pp.candidates) == set(profile.candidates)
+    assert profile == pp
 
 
 def test_condense_profile_scores():
@@ -69,3 +70,5 @@ def test_condense_profile_scores():
         )
         in pp.ballots
     )
+
+    assert profile == pp
