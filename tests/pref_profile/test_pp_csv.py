@@ -8,37 +8,37 @@ def test_csv_bijection_rankings():
     profile_rankings = PreferenceProfile(
         ballots=(
             Ballot(
-                ranking=({"A", "B"}, frozenset(), {"C"}),
+                ranking=({"Aleine", "Alex"}, frozenset(), {"C"}),
                 voter_set={"Chris", "Peter"},
                 weight=3 / 2,
             ),
             Ballot(
-                ranking=({"A", "B"}, frozenset(), {"C"}),
+                ranking=({"Aleine", "Alex"}, frozenset(), {"C"}),
                 voter_set={"Moon"},
                 weight=1 / 2,
             ),
             Ballot(
                 ranking=(
-                    {"A"},
-                    {"B"},
+                    {"Aleine"},
+                    {"Alex"},
                 ),
             ),
             Ballot(
                 ranking=(
-                    {"A"},
-                    {"B"},
+                    {"Aleine"},
+                    {"Alex"},
                 ),
             ),
             Ballot(
                 ranking=(
-                    {"A"},
-                    {"B"},
+                    {"Aleine"},
+                    {"Alex"},
                 ),
             ),
         )
         * 5,
         max_ranking_length=3,
-        candidates=["A", "B", "C", "D", "E"],
+        candidates=["Aleine", "Alex", "C", "D", "E"],
     )
 
     profile_rankings.to_csv(
