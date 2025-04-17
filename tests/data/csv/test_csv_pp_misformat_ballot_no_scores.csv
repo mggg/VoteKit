@@ -14,7 +14,7 @@ True
 &,{'Alei'},{'Alex'},,&,1/1,&
 &,"{'Alei', 'Alex'}",{},{'C'},&,3/2,&,Chris,Peter
 &,"{'Alei', 'Alex'}",{},{'C'},&,1/2,&,Moon
-&,{'Alei'},{'Alex'},,&,1/1,&
+Chris,&,{'Alei'},{'Alex'},,&,1/1,&
 &,{'Alei'},{'Alex'},,&,1/1,&
 &,{'Alei'},{'Alex'},,&,1/1,&
 &,"{'Alei', 'Alex'}",{},{'C'},&,3/2,&,Chris,Peter

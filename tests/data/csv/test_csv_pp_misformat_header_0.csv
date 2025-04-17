@@ -1,12 +1,12 @@
-VoteKit PreferenceProfile
+PrefProfile
 Candidates
-(Alex:Ale),(Allen:All),(C:C),(D:D),(E:E)
+(A:A),(B:B),(C:C),(D:D),(E:E)
 Max Ranking Length
 0
 Includes Voter Set
 True
 =,=,=,=,=,=,=,=,=,=
-Ale,All,C,D,E,&,&,Weight,&,Voter Set
+A,B,C,D,E,&,&,Weight,&,Voter Set
 2.0,4.0,0.0,1.0,0.0,&,&,1/1,&
 2.0,4.0,0.0,1.0,0.0,&,&,1/1,&
 2.0,4.0,1.0,0.0,0.0,&,&,1/1,&

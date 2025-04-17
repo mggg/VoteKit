@@ -4,7 +4,7 @@ Candidates
 Max Ranking Length
 3
 Includes Voter Set
-True
+False
 =,=,=,=,=,=,=,=,=,=
 A,B,C,D,E,&,Ranking_1,Ranking_2,Ranking_3,&,Weight,&,Voter Set
 ,,,,,&,"{'B', 'A'}",{},{'C'},&,3/2,&,Chris,Peter

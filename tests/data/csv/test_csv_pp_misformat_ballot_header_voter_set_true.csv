@@ -6,7 +6,7 @@ Max Ranking Length
 Includes Voter Set
 True
 =,=,=,=,=,=,=,=,=,=
-A,B,C,D,E,&,Ranking_1,Ranking_2,Ranking_3,&,Weight,&,Voter Set
+A,B,C,D,E,&,Ranking_1,Ranking_2,Ranking_3,&,Weight,&,
 ,,,,,&,"{'B', 'A'}",{},{'C'},&,3/2,&,Chris,Peter
 ,,,,,&,"{'B', 'A'}",{},{'C'},&,1/2,&,Moon
 2.0,4.0,0.0,1.0,0.0,&,,,,&,1/1,&

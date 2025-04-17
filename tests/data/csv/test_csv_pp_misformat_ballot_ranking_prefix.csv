@@ -9,7 +9,7 @@ True
 &,Ranking_1,Ranking_2,Ranking_3,&,Weight,&,Voter Set
 &,"{'Alei', 'Alex'}",{},{'C'},&,3/2,&,Chris,Peter
 &,"{'Alei', 'Alex'}",{},{'C'},&,1/2,&,Moon
-&,{'Alei'},{'Alex'},,&,1/1,&
+&,{'Alei'},{'Ale'},,&,1/1,&
 &,{'Alei'},{'Alex'},,&,1/1,&
 &,{'Alei'},{'Alex'},,&,1/1,&
 &,"{'Alei', 'Alex'}",{},{'C'},&,3/2,&,Chris,Peter
