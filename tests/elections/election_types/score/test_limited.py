@@ -15,7 +15,7 @@ profile_no_tied_limited = PreferenceProfile(
 # 3,2,1,0
 
 
-profile_no_tied_limited_round_1 = PreferenceProfile()
+profile_no_tied_limited_round_1 = PreferenceProfile(candidates=["D"])
 
 profile_tied_limited = PreferenceProfile(
     ballots=[
@@ -58,8 +58,6 @@ def test_ties():
 
 def test_state_list():
     e = Limited(profile_no_tied_limited, m=3, k=2)
-    print(e.election_states[1])
-    print(states[1])
     assert e.election_states == states
 
 

@@ -16,7 +16,6 @@ class Ballot:
         weight (Fraction, optional): Weight assigned to a given ballot. Defaults to 1.
             Can be input as int, float, or Fraction but will be converted to Fraction.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        id (str, optional): Ballot ID. Defaults to None.
         scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
             Values can be input as int, float, or Fraction but will be converted to Fraction.
             Only retains non-zero scores.
@@ -26,14 +25,12 @@ class Ballot:
             frozenset of candidates ranked in position i.
         weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        id (str, optional): Ballot ID. Defaults to None.
         scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
     """
 
     ranking: Optional[tuple[frozenset, ...]] = None
     weight: Fraction = Fraction(1, 1)
     voter_set: set[str] = field(default_factory=set)
-    id: Optional[str] = None
     scores: Optional[dict[str, Fraction]] = None
 
     @field_validator("weight", mode="before")
@@ -69,11 +66,6 @@ class Ballot:
         # Check type
         if not isinstance(other, Ballot):
             return False
-
-        # Check id
-        if self.id is not None:
-            if self.id != other.id:
-                return False
 
         # Check ranking
         if self.ranking != other.ranking:

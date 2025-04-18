@@ -103,7 +103,6 @@ class PluralityVeto(RankingElection):
                     b.ranking,
                     weight=Fraction(1, 1),
                     voter_set=b.voter_set,
-                    id=b.id,
                 )
                 bidx += 1
 

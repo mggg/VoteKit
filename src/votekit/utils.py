@@ -110,7 +110,6 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
             )
 
             new_ballots[i] = Ballot(
-                id=ballot.id,
                 weight=ballot.weight,
                 voter_set=ballot.voter_set,
                 ranking=tuple([frozenset(s) for s in new_ranking]),
@@ -162,7 +161,7 @@ def score_profile_from_rankings(
     Args:
         profile (PreferenceProfile): Profile to score.
         score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
-            non-increasing and non-negative. Vector should be as long as ``max_ballot_length`` in
+            non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
             the profile. If it is shorter, we add 0s.
         to_float (bool, optional): If True, compute scores as floats instead of Fractions.
             Defaults to False.
@@ -179,7 +178,7 @@ def score_profile_from_rankings(
     """
     validate_score_vector(score_vector)
 
-    max_length = profile.max_ballot_length
+    max_length = profile.max_ranking_length
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
@@ -241,7 +240,7 @@ def first_place_votes(
     """
     # equiv to score vector of (1,0,0,...)
     return score_profile_from_rankings(
-        profile, [1] + [0] * (profile.max_ballot_length - 1), to_float, tie_convention
+        profile, [1] + [0] * (profile.max_ranking_length - 1), to_float, tie_convention
     )
 
 
@@ -303,7 +302,7 @@ def borda_scores(
             Dictionary mapping candidates to Borda scores.
     """
     if not borda_max:
-        borda_max = profile.max_ballot_length
+        borda_max = profile.max_ranking_length
 
     score_vector = list(range(borda_max, 0, -1))
 
@@ -542,7 +541,6 @@ def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
                 new_ballots = [
                     Ballot(
                         weight=ballot.weight / math.factorial(len(s)),
-                        id=ballot.id,
                         voter_set=ballot.voter_set,
                         ranking=tuple(ballot.ranking[:i])
                         + tuple([frozenset({c}) for c in order])
@@ -611,7 +609,7 @@ def ballot_lengths(
 ) -> Union[dict[int, float], dict[int, Fraction]]:
     """
     Compute the frequency of ballot lengths in the profile.
-    Includes all lengths from 1 to ``max_ballot_length`` as keys.
+    Includes all lengths from 1 to ``max_ranking_length`` as keys.
     Ballots must have rankings.
 
     Args:
@@ -626,7 +624,7 @@ def ballot_lengths(
         TypeError: All ballots must have rankings.
     """
 
-    ballot_lengths = {i: Fraction(0) for i in range(1, profile.max_ballot_length + 1)}
+    ballot_lengths = {i: Fraction(0) for i in range(1, profile.max_ranking_length + 1)}
 
     for ballot in profile.ballots:
         if not ballot.ranking:

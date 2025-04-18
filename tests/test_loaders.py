@@ -28,9 +28,7 @@ def test_empty_csv():
 
 def test_undervote():
     prof = load_csv(CSV_DIR / "undervote.csv", id_col=0)
-    a = Ballot(
-        id=None, ranking=[{"c"}, {None}, {None}], weight=Fraction(1), voter_set={"a"}
-    )
+    a = Ballot(ranking=[{"c"}, {None}, {None}], weight=Fraction(1), voter_set={"a"})
     correct_prof = PreferenceProfile(ballots=[a])
     assert correct_prof.ballots == prof.ballots
     # assert correct_prof.ballots[0].ranking == prof.ballots[0].ranking

@@ -45,7 +45,6 @@ def fractional_transfer(
                 ranking=new_ranking,
                 weight=transfered_weight,
                 voter_set=ballot.voter_set,
-                id=ballot.id,
             )
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
@@ -100,7 +99,6 @@ def random_transfer(
             if ballot.ranking[0] == frozenset({winner}):
                 new_ballots = [
                     Ballot(
-                        id=ballot.id,
                         ranking=new_ranking,
                         weight=Fraction(1),
                         voter_set=ballot.voter_set,
@@ -113,7 +111,6 @@ def random_transfer(
 
             else:
                 updated_ballots[i] = Ballot(
-                    id=ballot.id,
                     ranking=new_ranking,
                     weight=ballot.weight,
                     voter_set=ballot.voter_set,
