@@ -8,3 +8,4 @@ from .utils import (
     profile_df_head,  # noqa
     profile_df_tail,  # noqa
 )
+from .cleaned_pref_profile import CleanedProfile  # noqa

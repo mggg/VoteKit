@@ -1,8 +1,7 @@
 from fractions import Fraction
 from functools import partial
 from typing import Callable, Union
-
-from .pref_profile import PreferenceProfile, CleanedProfile
+from .pref_profile import PreferenceProfile, CleanedProfile, convert_row_to_ballot
 from .ballot import Ballot
 
 
@@ -35,36 +34,41 @@ def clean_profile(
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
     """
-    new_ballots = [Ballot()] * len(profile.ballots)
+    new_ballots_and_idxs = [(Ballot(), -1)] * len(profile.ballots)
 
-    no_weight_altr_ballot_indices = []
-    empty_ranking_and_no_scores_altr_ballot_indices = []
-    nonempty_altr_ballot_indices = []
-    unaltr_ballot_indices = []
+    no_weight_altr_ballot_indices = set()
+    empty_ranking_and_no_scores_altr_ballot_indices = set()
+    nonempty_altr_ballot_indices = set()
+    unaltr_ballot_indices = set()
 
-    for i, b in enumerate(profile.ballots):
+    for i, b_row in enumerate(profile.df.iterrows()):
+        b = convert_row_to_ballot(b_row)
         new_b = clean_ballot_func(b)
 
         if new_b == b:
-            unaltr_ballot_indices.append(i)
+            unaltr_ballot_indices.add(i)
 
         else:
             if (new_b.ranking or new_b.scores) and new_b.weight > 0:
-                nonempty_altr_ballot_indices.append(i)
+                nonempty_altr_ballot_indices.add(i)
 
             if new_b.weight == 0:
-                no_weight_altr_ballot_indices.append(i)
+                no_weight_altr_ballot_indices.add(i)
 
             if not (new_b.ranking or new_b.scores):
-                empty_ranking_and_no_scores_altr_ballot_indices.append(i)
+                empty_ranking_and_no_scores_altr_ballot_indices.add(i)
 
-        new_ballots[i] = new_b
+        new_ballots_and_idxs[i] = (new_b, i)
 
     if remove_empty_ballots:
-        new_ballots = [b for b in new_ballots if b.ranking or b.scores]
+        new_ballots_and_idxs = [
+            (b, i) for b, i in new_ballots_and_idxs if b.ranking or b.scores
+        ]
 
     if remove_zero_weight_ballots:
-        new_ballots = [b for b in new_ballots if b.weight > 0]
+        new_ballots_and_idxs = [(b, i) for b, i in new_ballots_and_idxs if b.weight > 0]
+
+    new_ballots, new_idxs = zip(*new_ballots_and_idxs)
 
     return CleanedProfile(
         ballots=tuple(new_ballots),
@@ -77,6 +81,7 @@ def clean_profile(
         nonempty_altr_ballot_indices=nonempty_altr_ballot_indices,
         unaltr_ballot_indices=unaltr_ballot_indices,
         parent_profile=profile,
+        df_index_column=new_idxs,
     )
 
 
@@ -263,6 +268,7 @@ def remove_cand(
         candidates=new_candidates,
         max_ballot_length=cleaned_profile.max_ballot_length,
         parent_profile=cleaned_profile.parent_profile,
+        df_index_column=cleaned_profile.df_index_column,
         no_weight_altr_ballot_indices=cleaned_profile.no_weight_altr_ballot_indices,
         empty_ranking_and_no_scores_altr_ballot_indices=cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices,
         nonempty_altr_ballot_indices=cleaned_profile.nonempty_altr_ballot_indices,
@@ -366,10 +372,10 @@ def condense_profile(
         if _is_equiv_to_condensed(profile.ballots[i])
     ]
     new_unaltr_ballot_indices = (
-        condensed_profile.unaltr_ballot_indices + additional_unaltr_ballot_indices
+        condensed_profile.unaltr_ballot_indices | additional_unaltr_ballot_indices
     )
-    new_nonempty_altr_ballot_indices = list(
-        set(condensed_profile.nonempty_altr_ballot_indices).difference(
+    new_nonempty_altr_ballot_indices = (
+        condensed_profile.nonempty_altr_ballot_indices.difference(
             additional_unaltr_ballot_indices
         )
     )
@@ -379,6 +385,7 @@ def condense_profile(
         candidates=condensed_profile.candidates,
         max_ballot_length=condensed_profile.max_ballot_length,
         parent_profile=profile,
+        df_index_column=condensed_profile.df_index_column,
         no_weight_altr_ballot_indices=condensed_profile.no_weight_altr_ballot_indices,
         empty_ranking_and_no_scores_altr_ballot_indices=condensed_profile.empty_ranking_and_no_scores_altr_ballot_indices,
         nonempty_altr_ballot_indices=new_nonempty_altr_ballot_indices,
