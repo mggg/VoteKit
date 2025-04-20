@@ -540,6 +540,7 @@ def _validate_csv_ballot_rows(csv_data: list[list[str]]):
 
     contains_scores = any(c in csv_data[8] for c in candidate_prefixes)
 
+    # TODO add try/except and show first 10 row errors
     for i, ballot_row in enumerate(csv_data[9:]):
         _validate_csv_ballot_score(ballot_row, i + 9, candidates, contains_scores)
         _validate_csv_ballot_ranking(
