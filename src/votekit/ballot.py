@@ -8,7 +8,8 @@ from dataclasses import field
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
 class Ballot:
     """
-    Ballot class, contains ranking and assigned weight.
+    Ballot class, contains ranking and assigned weight. Note that we trim trailing or
+    leading whitespace from candidate names.
 
     Args:
         ranking (tuple[frozenset, ...], optional): Tuple of candidate ranking. Entry i of the tuple
@@ -33,6 +34,16 @@ class Ballot:
     voter_set: set[str] = field(default_factory=set)
     scores: Optional[dict[str, Fraction]] = None
 
+    @field_validator("ranking", mode="before")
+    @classmethod
+    def strip_whitespace_ranking_candidates(
+        cls, ranking: Optional[tuple[frozenset, ...]]
+    ) -> Optional[tuple[frozenset, ...]]:
+        if not ranking:
+            return None
+
+        return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
+
     @field_validator("weight", mode="before")
     @classmethod
     def convert_weight_to_fraction(cls, weight: Union[float, Fraction]) -> Fraction:
@@ -42,7 +53,7 @@ class Ballot:
 
     @field_validator("scores", mode="before")
     @classmethod
-    def convert_scores_to_fraction(
+    def convert_scores_to_fraction_strip_whitespace(
         cls, scores: Optional[dict[str, Union[float, Fraction]]]
     ) -> Optional[dict[str, Fraction]]:
         if scores:
@@ -57,7 +68,9 @@ class Ballot:
                 raise TypeError("Score values must be numeric.")
 
             return {
-                c: Fraction(s).limit_denominator() for c, s in scores.items() if s != 0
+                c.strip(): Fraction(s).limit_denominator()
+                for c, s in scores.items()
+                if s != 0
             }
         else:
             return None
