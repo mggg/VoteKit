@@ -412,3 +412,13 @@ def test_csv_voter_set_whitespace():
     assert PreferenceProfile.from_csv(
         f"{filepath}/test_csv_pp_voter_set_whitespace.csv"
     ) == PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_mixed.csv")
+
+
+def test_csv_nine_errors():
+    with pytest.raises(ValueError, match="There are errors on 9 lines"):
+        PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_misformat_9_errors.csv")
+
+
+def test_csv_11_errors():
+    with pytest.raises(ValueError, match="There are errors on at least ten lines"):
+        PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_misformat_11_errors.csv")
