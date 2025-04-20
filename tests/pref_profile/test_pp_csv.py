@@ -406,3 +406,9 @@ def test_csv_misformatted_voter_set_error():
         PreferenceProfile.from_csv(
             f"{filepath}/test_csv_pp_misformat_ballot_no_voter_set.csv"
         )
+
+
+def test_csv_voter_set_whitespace():
+    assert PreferenceProfile.from_csv(
+        f"{filepath}/test_csv_pp_voter_set_whitespace.csv"
+    ) == PreferenceProfile.from_csv(f"{filepath}/test_csv_pp_mixed.csv")

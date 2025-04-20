@@ -112,7 +112,7 @@ def _parse_ballot_from_csv(
         )
 
     if includes_voter_set:
-        voter_set = set(ballot_row[break_indices[-1] + 1 :])
+        voter_set = set(v.strip() for v in ballot_row[break_indices[-1] + 1 :])
 
     return Ballot(
         ranking=formatted_ranking, scores=scores, voter_set=voter_set, weight=weight
@@ -631,11 +631,11 @@ class PreferenceProfile:
 
     @field_validator("candidates")
     @classmethod
-    def cands_must_be_unique(
+    def cands_must_be_unique_strip_whitespace(
         cls, candidates: Optional[tuple[str, ...]]
     ) -> Optional[tuple[str, ...]]:
         """
-        Checks that candidate names are unique.
+        Checks that candidate names are unique and strips trailing and leading whitespace.
 
         Args:
             candidates (tuple[str], optional): Candidate names.
@@ -643,10 +643,13 @@ class PreferenceProfile:
         Returns:
             Optional[tuple[str]]: Candidate names.
         """
-        if candidates:
-            if not len(set(candidates)) == len(candidates):
-                raise ProfileError("All candidates must be unique.")
-        return candidates
+        if not candidates:
+            return None
+
+        if not len(set(candidates)) == len(candidates):
+            raise ProfileError("All candidates must be unique.")
+
+        return tuple([c.strip() for c in candidates])
 
     @model_validator(mode="after")
     def cands_not_ranking_columns(

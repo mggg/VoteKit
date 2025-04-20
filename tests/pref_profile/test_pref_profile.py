@@ -21,6 +21,12 @@ def test_unique_cands_validator():
     PreferenceProfile(candidates=("A", "B"))
 
 
+def test_strip_whitespace():
+    pp = PreferenceProfile(candidates=("A ", " B", " C "))
+
+    assert pp.candidates == ("A", "B", "C")
+
+
 def test_ballots_frozen():
     p = PreferenceProfile(ballots=[Ballot()])
     b_list = p.ballots
