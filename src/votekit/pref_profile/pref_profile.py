@@ -354,26 +354,30 @@ def _validate_csv_ballot_score(
             )
         )
 
-    elif contains_scores:
-        if len(ballot_row[:break_idx]) != len(candidates):
+    elif not contains_scores and break_idx == 0:
+        return
+
+    if len(ballot_row[:break_idx]) != len(candidates):
+        raise ValueError(
+            (
+                f"csv file is improperly formatted. Ballot in row {row_index} is missing "
+                f"some scores: {ballot_row[:break_idx]} ." + boiler_plate
+            )
+        )
+
+    for score in ballot_row[:break_idx]:
+        if not score:
+            continue
+
+        try:
+            float(score)
+        except ValueError:
             raise ValueError(
                 (
-                    f"csv file is improperly formatted. Ballot in row {row_index} is missing "
-                    f"some scores: {ballot_row[:break_idx]} ." + boiler_plate
+                    f"csv file is improperly formatted. Ballot in row {row_index} has "
+                    f"non-float score value: {score}. " + boiler_plate
                 )
             )
-
-        for score in ballot_row[:break_idx]:
-            if score:
-                try:
-                    float(score)
-                except ValueError:
-                    raise ValueError(
-                        (
-                            f"csv file is improperly formatted. Ballot in row {row_index} has "
-                            f"non-float score value: {score}. " + boiler_plate
-                        )
-                    )
 
 
 def _validate_csv_ballot_ranking(
@@ -409,28 +413,33 @@ def _validate_csv_ballot_ranking(
                 + boiler_plate
             )
         )
-    elif max_ranking_length > 0:
-        for ranking_set in ballot_row[break_idxs[0] + 1 : break_idxs[1]]:
-            if ranking_set:
-                if ranking_set[0] != "{" or ranking_set[-1] != "}":
-                    raise ValueError(
-                        (
-                            f"csv file is improperly formatted. Ballot in row {row_index} has "
-                            f"improperly formatted ranking set: {ranking_set}. "
-                            + boiler_plate
-                        )
-                    )
+    elif max_ranking_length == 0:
+        return
 
-            if ranking_set not in ["", "{}"]:
-                cand_set = ranking_set.strip("{}").split(", ")
-                for c in cand_set:
-                    if c.strip("'") not in candidate_prefixes:
-                        raise ValueError(
-                            (
-                                f"csv file is improperly formatted. Ballot in row {row_index} has "
-                                f"undefined candidate prefix: {c}. " + boiler_plate
-                            )
-                        )
+    for ranking_set in ballot_row[break_idxs[0] + 1 : break_idxs[1]]:
+        if not ranking_set:
+            continue
+
+        if ranking_set[0] != "{" or ranking_set[-1] != "}":
+            raise ValueError(
+                (
+                    f"csv file is improperly formatted. Ballot in row {row_index} has "
+                    f"improperly formatted ranking set: {ranking_set}. " + boiler_plate
+                )
+            )
+
+        if ranking_set in ["", "{}"]:
+            continue
+
+        cand_set = ranking_set.strip("{}").split(", ")
+        for c in cand_set:
+            if c.strip("'") not in candidate_prefixes:
+                raise ValueError(
+                    (
+                        f"csv file is improperly formatted. Ballot in row {row_index} has "
+                        f"undefined candidate prefix: {c}. " + boiler_plate
+                    )
+                )
 
 
 def _validate_csv_ballot_weight(
@@ -460,31 +469,31 @@ def _validate_csv_ballot_weight(
                 " entry that is too long or short. " + boiler_plate
             )
         )
+
+    if "/" not in ballot_row[break_idxs[1] + 1]:
+        raise ValueError(
+            (
+                f"csv file is improperly formatted. Ballot in row {row_index} has a "
+                f"weight entry that is not a fraction: {ballot_row[break_idxs[1] + 1]} "
+                + boiler_plate
+            )
+        )
+
     else:
-        if "/" not in ballot_row[break_idxs[1] + 1]:
+        num, denom = ballot_row[break_idxs[1] + 1].split("/")
+
+        try:
+            int(num)
+            int(denom)
+
+        except ValueError:
             raise ValueError(
                 (
                     f"csv file is improperly formatted. Ballot in row {row_index} has a "
-                    f"weight entry that is not a fraction: {ballot_row[break_idxs[1] + 1]} "
+                    f"weight entry with non-integer numerator or denominator: {num}/{denom}. "
                     + boiler_plate
                 )
             )
-
-        else:
-            num, denom = ballot_row[break_idxs[1] + 1].split("/")
-
-            try:
-                int(num)
-                int(denom)
-
-            except ValueError:
-                raise ValueError(
-                    (
-                        f"csv file is improperly formatted. Ballot in row {row_index} has a "
-                        f"weight entry with non-integer numerator or denominator: {num}/{denom}. "
-                        + boiler_plate
-                    )
-                )
 
 
 def _validate_csv_ballot_voter_set(
@@ -713,27 +722,29 @@ class PreferenceProfile:
             candidates_cast (list[str]): List of candidates who have received votes.
             num_ballots (int): Total number of ballots.
         """
-        if ballot.scores:
-            if self.contains_scores is False:
-                raise ProfileError(
-                    (
-                        f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
-                        "set to False."
-                    )
+        if not ballot.scores:
+            return
+
+        if self.contains_scores is False:
+            raise ProfileError(
+                (
+                    f"Ballot {ballot} has scores {ballot.scores} but contains_scores is "
+                    "set to False."
                 )
+            )
 
-            for c, score in ballot.scores.items():
-                if ballot.weight > 0 and c not in candidates_cast:
-                    candidates_cast.append(c)
+        for c, score in ballot.scores.items():
+            if ballot.weight > 0 and c not in candidates_cast:
+                candidates_cast.append(c)
 
-                if c not in ballot_data:
-                    if self.candidates:
-                        raise ProfileError(
-                            f"Candidate {c} found in ballot {ballot} but not in "
-                            f"candidate list {self.candidates}."
-                        )
-                    ballot_data[c] = [np.nan] * num_ballots
-                ballot_data[c][idx] = score
+            if c not in ballot_data:
+                if self.candidates:
+                    raise ProfileError(
+                        f"Candidate {c} found in ballot {ballot} but not in "
+                        f"candidate list {self.candidates}."
+                    )
+                ballot_data[c] = [np.nan] * num_ballots
+            ballot_data[c][idx] = score
 
     def __update_ballot_rankings_data(
         self,
@@ -754,34 +765,35 @@ class PreferenceProfile:
             num_ballots (int): Total number of ballots.
         """
 
-        if ballot.ranking:
-            if self.contains_rankings is False:
-                raise ProfileError(
-                    (
-                        f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
-                        " set to False."
-                    )
+        if not ballot.ranking:
+            return
+        if self.contains_rankings is False:
+            raise ProfileError(
+                (
+                    f"Ballot {ballot} has ranking {ballot.ranking} but contains_rankings is"
+                    " set to False."
                 )
+            )
 
-            for j, cand_set in enumerate(ballot.ranking):
-                for c in cand_set:
-                    if self.candidates:
-                        if c not in self.candidates:
-                            raise ProfileError(
-                                f"Candidate {c} found in ballot {ballot} but not in "
-                                f"candidate list {self.candidates}."
-                            )
-                    if ballot.weight > 0 and c not in candidates_cast:
-                        candidates_cast.append(c)
-                if f"Ranking_{j+1}" not in ballot_data:
-                    if self.max_ranking_length:
+        for j, cand_set in enumerate(ballot.ranking):
+            for c in cand_set:
+                if self.candidates:
+                    if c not in self.candidates:
                         raise ProfileError(
-                            f"Max ballot length {self.max_ranking_length} given but "
-                            "ballot {b} has length at least {j+1}."
+                            f"Candidate {c} found in ballot {ballot} but not in "
+                            f"candidate list {self.candidates}."
                         )
-                    ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
+                if ballot.weight > 0 and c not in candidates_cast:
+                    candidates_cast.append(c)
+            if f"Ranking_{j+1}" not in ballot_data:
+                if self.max_ranking_length:
+                    raise ProfileError(
+                        f"Max ballot length {self.max_ranking_length} given but "
+                        "ballot {b} has length at least {j+1}."
+                    )
+                ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
 
-                ballot_data[f"Ranking_{j+1}"][idx] = cand_set
+            ballot_data[f"Ranking_{j+1}"][idx] = cand_set
 
     def __update_ballot_data_attrs(
         self,
@@ -1026,10 +1038,9 @@ class PreferenceProfile:
                 candidates=candidates,
             )
 
-        else:
-            raise TypeError(
-                "Unsupported operand type. Must be an instance of PreferenceProfile."
-            )
+        raise TypeError(
+            "Unsupported operand type. Must be an instance of PreferenceProfile."
+        )
 
     def group_ballots(self) -> PreferenceProfile:
         """
