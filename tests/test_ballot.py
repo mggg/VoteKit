@@ -11,6 +11,16 @@ def test_ballot_init():
     assert not b.scores
 
 
+def test_ballot_strip_whitespace():
+    b = Ballot(
+        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "})),
+        scores={" Chris": 2, "Peter ": 1, " Moon ": 3},
+    )
+
+    assert b.ranking == (frozenset({"Chris", "Peter"}), frozenset({"Moon"}))
+    assert b.scores == {"Chris": 2, "Peter": 1, "Moon": 3}
+
+
 def test_ballot_post_init():
     assert isinstance(Ballot(weight=3).weight, Fraction)
     assert isinstance(Ballot(weight=3.2).weight, Fraction)
