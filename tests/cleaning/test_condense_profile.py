@@ -25,7 +25,7 @@ def test_condense_profile():
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == [2]
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0]
-    assert cleaned_profile.unaltr_ballot_indices == [1]
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == {2}
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0}
+    assert cleaned_profile.unaltr_ballot_indices == {1}

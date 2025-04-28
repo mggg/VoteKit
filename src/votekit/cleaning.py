@@ -11,11 +11,11 @@ def clean_profile(
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
+    retain_original_max_ranking_length: bool = True,
 ) -> CleanedProfile:
     """
     Allows user-defined cleaning rules for PreferenceProfile. Input function
-    that applies modification to a single ballot. Retains all candidates from the original profile.
+    that applies modification to a single ballot.
 
     Args:
         profile (PreferenceProfile): A PreferenceProfile to clean.
@@ -28,8 +28,8 @@ def clean_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
-        retain_original_max_ballot_length (bool, optional): Whether or not to use the
-            max_ballot_length from the original profile in the new profile. Defaults to True.
+        retain_original_max_ranking_length (bool, optional): Whether or not to use the
+            max_ranking_length from the original profile in the new profile. Defaults to True.
 
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
@@ -37,29 +37,41 @@ def clean_profile(
     new_ballots_and_idxs = [(Ballot(), -1)] * len(profile.ballots)
 
     no_weight_altr_ballot_indices = set()
-    empty_ranking_and_no_scores_altr_ballot_indices = set()
-    nonempty_altr_ballot_indices = set()
+    no_ranking_and_no_scores_altr_ballot_indices = set()
+    valid_but_altr_ballot_indices = set()
     unaltr_ballot_indices = set()
 
-    for i, b_row in enumerate(profile.df.iterrows()):
-        b = convert_row_to_ballot(b_row)
+    for integer_idx, (i, b_row) in enumerate(profile.df.iterrows()):
+        b = convert_row_to_ballot(
+            b_row,
+            candidates=profile.candidates,
+            max_ranking_length=profile.max_ranking_length,
+        )
+        print("old ballot\n", b, "\n")
         new_b = clean_ballot_func(b)
+        print("new ballot\n", new_b, "\n")
 
         if new_b == b:
+            print("unalt")
             unaltr_ballot_indices.add(i)
 
         else:
             if (new_b.ranking or new_b.scores) and new_b.weight > 0:
-                nonempty_altr_ballot_indices.add(i)
+                print("Valid but alt")
+                valid_but_altr_ballot_indices.add(i)
 
             if new_b.weight == 0:
+                print("no weight altr")
                 no_weight_altr_ballot_indices.add(i)
 
             if not (new_b.ranking or new_b.scores):
-                empty_ranking_and_no_scores_altr_ballot_indices.add(i)
+                print("no ranking/scores altr")
+                # TODO okay so im removing a candidate from a bullet vote
+                # this results in an empty ranking slot, so it doesn't get caught here
+                no_ranking_and_no_scores_altr_ballot_indices.add(i)
 
-        new_ballots_and_idxs[i] = (new_b, i)
-
+        new_ballots_and_idxs[integer_idx] = (new_b, i)
+        print()
     if remove_empty_ballots:
         new_ballots_and_idxs = [
             (b, i) for b, i in new_ballots_and_idxs if b.ranking or b.scores
@@ -69,16 +81,21 @@ def clean_profile(
         new_ballots_and_idxs = [(b, i) for b, i in new_ballots_and_idxs if b.weight > 0]
 
     new_ballots, new_idxs = zip(*new_ballots_and_idxs)
+    # print("new ballots\n", new_ballots)
+    # print("new idxs\n", new_idxs)
+    # print()
+
+    print(no_ranking_and_no_scores_altr_ballot_indices)
 
     return CleanedProfile(
         ballots=tuple(new_ballots),
         candidates=(profile.candidates if retain_original_candidate_list else tuple()),
-        max_ballot_length=(
-            profile.max_ballot_length if retain_original_max_ballot_length else 0
+        max_ranking_length=(
+            profile.max_ranking_length if retain_original_max_ranking_length else 0
         ),
         no_weight_altr_ballot_indices=no_weight_altr_ballot_indices,
-        empty_ranking_and_no_scores_altr_ballot_indices=empty_ranking_and_no_scores_altr_ballot_indices,
-        nonempty_altr_ballot_indices=nonempty_altr_ballot_indices,
+        no_ranking_and_no_scores_altr_ballot_indices=no_ranking_and_no_scores_altr_ballot_indices,
+        valid_but_altr_ballot_indices=valid_but_altr_ballot_indices,
         unaltr_ballot_indices=unaltr_ballot_indices,
         parent_profile=profile,
         df_index_column=new_idxs,
@@ -122,7 +139,6 @@ def remove_repeated_candidates_from_ballot(
         dedup_ranking.append(frozenset(new_position))
 
     new_ballot = Ballot(
-        id=ballot.id,
         weight=Fraction(ballot.weight),
         ranking=tuple(dedup_ranking),
         voter_set=ballot.voter_set,
@@ -136,7 +152,7 @@ def remove_repeated_candidates(
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
+    retain_original_max_ranking_length: bool = True,
 ) -> CleanedProfile:
     """
     Given a profile, if a candidate appears multiple times on a ballot, keep the first instance and
@@ -152,8 +168,8 @@ def remove_repeated_candidates(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
-        retain_original_max_ballot_length (bool, optional): Whether or not to use the
-            max_ballot_length from the original profile in the new profile. Defaults to True.
+        retain_original_max_ranking_length (bool, optional): Whether or not to use the
+            max_ranking_length from the original profile in the new profile. Defaults to True.
 
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
@@ -169,7 +185,7 @@ def remove_repeated_candidates(
         remove_empty_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list,
-        retain_original_max_ballot_length,
+        retain_original_max_ranking_length,
     )
 
 
@@ -209,7 +225,6 @@ def remove_cand_from_ballot(
         ranking=tuple(new_ranking) if len(new_ranking) else None,
         weight=ballot.weight,
         scores=new_scores if len(new_scores) else None,
-        id=ballot.id,
         voter_set=ballot.voter_set,
     )
 
@@ -222,7 +237,7 @@ def remove_cand(
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
-    retain_original_max_ballot_length: bool = True,
+    retain_original_max_ranking_length: bool = True,
 ) -> CleanedProfile:
     """
     Given a profile, remove the given candidate(s) from the ballots. Does not condense the
@@ -239,12 +254,14 @@ def remove_cand(
             from the orginal profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
-        retain_original_max_ballot_length (bool, optional): Whether or not to use the
-            max_ballot_length from the original profile in the new profile. Defaults to True.
+        retain_original_max_ranking_length (bool, optional): Whether or not to use the
+            max_ranking_length from the original profile in the new profile. Defaults to True.
 
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
     """
+    print("removing a candidate\n")
+    print(removed, "\n")
     if isinstance(removed, str):
         removed = [removed]
 
@@ -254,8 +271,11 @@ def remove_cand(
         remove_empty_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list=True,
-        retain_original_max_ballot_length=retain_original_max_ballot_length,
+        retain_original_max_ranking_length=retain_original_max_ranking_length,
     )
+
+    print("removed candidate profile intermediate\n")
+    print(cleaned_profile.df.to_string())
 
     new_candidates = (
         profile.candidates
@@ -266,12 +286,12 @@ def remove_cand(
     return CleanedProfile(
         ballots=cleaned_profile.ballots,
         candidates=new_candidates,
-        max_ballot_length=cleaned_profile.max_ballot_length,
+        max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_weight_altr_ballot_indices=cleaned_profile.no_weight_altr_ballot_indices,
-        empty_ranking_and_no_scores_altr_ballot_indices=cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices,
-        nonempty_altr_ballot_indices=cleaned_profile.nonempty_altr_ballot_indices,
+        no_ranking_and_no_scores_altr_ballot_indices=cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices,
+        valid_but_altr_ballot_indices=cleaned_profile.valid_but_altr_ballot_indices,
         unaltr_ballot_indices=cleaned_profile.unaltr_ballot_indices,
     )
 
@@ -294,7 +314,6 @@ def condense_ballot_ranking(
     )
 
     new_ballot = Ballot(
-        id=ballot.id,
         weight=Fraction(ballot.weight),
         ranking=tuple(condensed_ranking),
         voter_set=ballot.voter_set,
@@ -332,7 +351,7 @@ def condense_profile(
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-    retain_original_max_ballot_length: bool = True,
+    retain_original_max_ranking_length: bool = True,
 ) -> CleanedProfile:
     """
     Given a profile, removes any empty frozensets from the ballot rankings and condenses the
@@ -349,33 +368,39 @@ def condense_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
-        retain_original_max_ballot_length (bool, optional): Whether or not to use the
-            max_ballot_length from the original profile in the new profile. Defaults to True.
+        retain_original_max_ranking_length (bool, optional): Whether or not to use the
+            max_ranking_length from the original profile in the new profile. Defaults to True.
 
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
 
     """
-
+    print("--------\n condensing profile\n")
+    print("parent profile\n", profile.df.to_string())
     condensed_profile = clean_profile(
         profile,
         condense_ballot_ranking,
         remove_empty_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list,
-        retain_original_max_ballot_length,
+        retain_original_max_ranking_length,
     )
 
-    additional_unaltr_ballot_indices = [
-        i
-        for i in condensed_profile.nonempty_altr_ballot_indices
-        if _is_equiv_to_condensed(profile.ballots[i])
-    ]
+    print("first step condensed profile\n", condensed_profile.df.to_string())
+    # print("first step index", condensed_profile.df_index_column)
+
+    additional_unaltr_ballot_indices = set(
+        [
+            i
+            for i in condensed_profile.valid_but_altr_ballot_indices
+            if _is_equiv_to_condensed(profile.ballots[i])
+        ]
+    )
     new_unaltr_ballot_indices = (
         condensed_profile.unaltr_ballot_indices | additional_unaltr_ballot_indices
     )
     new_nonempty_altr_ballot_indices = (
-        condensed_profile.nonempty_altr_ballot_indices.difference(
+        condensed_profile.valid_but_altr_ballot_indices.difference(
             additional_unaltr_ballot_indices
         )
     )
@@ -383,11 +408,11 @@ def condense_profile(
     return CleanedProfile(
         ballots=condensed_profile.ballots,
         candidates=condensed_profile.candidates,
-        max_ballot_length=condensed_profile.max_ballot_length,
+        max_ranking_length=condensed_profile.max_ranking_length,
         parent_profile=profile,
         df_index_column=condensed_profile.df_index_column,
         no_weight_altr_ballot_indices=condensed_profile.no_weight_altr_ballot_indices,
-        empty_ranking_and_no_scores_altr_ballot_indices=condensed_profile.empty_ranking_and_no_scores_altr_ballot_indices,
-        nonempty_altr_ballot_indices=new_nonempty_altr_ballot_indices,
+        no_ranking_and_no_scores_altr_ballot_indices=condensed_profile.no_ranking_and_no_scores_altr_ballot_indices,
+        valid_but_altr_ballot_indices=new_nonempty_altr_ballot_indices,
         unaltr_ballot_indices=new_unaltr_ballot_indices,
     )

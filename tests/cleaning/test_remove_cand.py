@@ -31,10 +31,10 @@ def test_remove_cand():
         Ballot(ranking=[{"C"}, {"B"}, frozenset()], weight=3),
     )
     assert cleaned_profile != profile_no_ties
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1, 2]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.unaltr_ballot_indices == set()
 
 
 def test_remove_mult_cands():
@@ -43,16 +43,18 @@ def test_remove_mult_cands():
     assert isinstance(cleaned_profile, CleanedProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
 
-    assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=[frozenset(), frozenset()], weight=1),
-        Ballot(ranking=[frozenset(), frozenset(), {"C"}], weight=1 / 2),
-        Ballot(ranking=[{"C"}, frozenset(), frozenset()], weight=3),
+    assert set(cleaned_profile.group_ballots().ballots) == set(
+        [
+            Ballot(ranking=[frozenset(), frozenset()], weight=1),
+            Ballot(ranking=[frozenset(), frozenset(), {"C"}], weight=1 / 2),
+            Ballot(ranking=[{"C"}, frozenset(), frozenset()], weight=3),
+        ]
     )
     assert cleaned_profile != profile_no_ties
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1, 2]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.unaltr_ballot_indices == set()
 
 
 def test_remove_cand_with_ties():
@@ -61,16 +63,18 @@ def test_remove_cand_with_ties():
     assert isinstance(cleaned_profile, CleanedProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
 
-    assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=[frozenset()], weight=1),
-        Ballot(ranking=[{"C"}], weight=1 / 2),
-        Ballot(ranking=[frozenset(), {"C"}, frozenset()], weight=3),
+    assert set(cleaned_profile.group_ballots().ballots) == set(
+        [
+            Ballot(ranking=[frozenset()], weight=1),
+            Ballot(ranking=[{"C"}], weight=1 / 2),
+            Ballot(ranking=[frozenset(), {"C"}, frozenset()], weight=3),
+        ]
     )
     assert cleaned_profile != profile_with_ties
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1, 2]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.unaltr_ballot_indices == set()
 
 
 def test_remove_cands_scores():
@@ -119,7 +123,7 @@ def test_remove_cands_scores():
         ),
     )
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1, 2, 3, 4]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2, 3, 4}
+    assert cleaned_profile.unaltr_ballot_indices == set()

@@ -19,10 +19,10 @@ def test_remove_repeated_candidates():
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1}
+    assert cleaned_profile.unaltr_ballot_indices == set()
 
 
 def test_remove_repeated_candidates_ties():
@@ -46,10 +46,10 @@ def test_remove_repeated_candidates_ties():
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_altr_ballot_indices == []
-    assert cleaned_profile.empty_ranking_and_no_scores_altr_ballot_indices == []
-    assert cleaned_profile.nonempty_altr_ballot_indices == [0, 1]
-    assert cleaned_profile.unaltr_ballot_indices == []
+    assert cleaned_profile.no_weight_altr_ballot_indices == set()
+    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
+    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1}
+    assert cleaned_profile.unaltr_ballot_indices == set()
 
 
 def test_remove_repeated_cands_errors():

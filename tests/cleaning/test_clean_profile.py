@@ -30,10 +30,10 @@ def test_clean_profile_with_defaults():
     )
     assert adj_profile != profile
 
-    assert adj_profile.no_weight_altr_ballot_indices == []
-    assert adj_profile.empty_ranking_and_no_scores_altr_ballot_indices == [3]
-    assert adj_profile.nonempty_altr_ballot_indices == [0, 1, 2]
-    assert adj_profile.unaltr_ballot_indices == [4]
+    assert adj_profile.no_weight_altr_ballot_indices == set()
+    assert adj_profile.no_ranking_and_no_scores_altr_ballot_indices == {3}
+    assert adj_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert adj_profile.unaltr_ballot_indices == {4}
 
 
 def test_clean_profile_change_defaults():
@@ -45,7 +45,7 @@ def test_clean_profile_change_defaults():
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,
         retain_original_candidate_list=True,
-        retain_original_max_ballot_length=False,
+        retain_original_max_ranking_length=False,
     )
 
     assert isinstance(adj_profile, CleanedProfile)
@@ -60,9 +60,9 @@ def test_clean_profile_change_defaults():
         )
     )
     assert adj_profile.candidates == profile.candidates
-    assert adj_profile.max_ballot_length == 2
+    assert adj_profile.max_ranking_length == 2
 
-    assert adj_profile.no_weight_altr_ballot_indices == []
-    assert adj_profile.empty_ranking_and_no_scores_altr_ballot_indices == [3]
-    assert adj_profile.nonempty_altr_ballot_indices == [0, 1, 2]
-    assert adj_profile.unaltr_ballot_indices == [4]
+    assert adj_profile.no_weight_altr_ballot_indices == set()
+    assert adj_profile.no_ranking_and_no_scores_altr_ballot_indices == {3}
+    assert adj_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert adj_profile.unaltr_ballot_indices == {4}

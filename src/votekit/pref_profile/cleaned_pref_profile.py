@@ -93,6 +93,11 @@ class CleanedProfile(PreferenceProfile):
                 )
             )
 
+        # print("parent df", self.parent_profile.df.to_string(), "\n")
+        # print("cleaned df", self.df.to_string(), "\n")
+        # print("internal valid but altr", self.valid_but_altr_ballot_indices)
+        # print("internal parent df index", self.parent_profile.df.index)
+        # print()
         if not self.valid_but_altr_ballot_indices.issubset(
             self.parent_profile.df.index
         ):
@@ -136,11 +141,12 @@ class CleanedProfile(PreferenceProfile):
 
         df_copy = self.df.copy()
         df_copy.index = self.df_index_column
+        df_copy.index.name = "Ballot Index"
         object.__setattr__(self, "df", df_copy)
 
         return self
 
-    def group_ballots(self):
+    def group_ballots(self) -> PreferenceProfile:
         warnings.warn(
             (
                 "Grouping the ballots of a CleanedProfile will return a PreferenceProfile"
