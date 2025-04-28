@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .pref_profile import PreferenceProfile
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, model_validator, SkipValidation
 from pydantic.dataclasses import dataclass
 from dataclasses import field
 import warnings
@@ -48,7 +48,9 @@ class CleanedProfile(PreferenceProfile):
         num_ballots (int): Length of ballot list.
     """
 
-    parent_profile: PreferenceProfile | CleanedProfile = PreferenceProfile()
+    parent_profile: SkipValidation[PreferenceProfile | CleanedProfile] = (
+        PreferenceProfile()
+    )
     df_index_column: list[int] = field(default_factory=list)
     no_weight_altr_ballot_indices: set[int] = field(default_factory=set)
     no_ranking_and_no_scores_altr_ballot_indices: set[int] = field(default_factory=set)
@@ -65,7 +67,6 @@ class CleanedProfile(PreferenceProfile):
             ValueError: union of indices is not equal to the parent df index.
 
         """
-
         index_sets = [
             self.no_weight_altr_ballot_indices,
             self.no_ranking_and_no_scores_altr_ballot_indices,
@@ -93,11 +94,6 @@ class CleanedProfile(PreferenceProfile):
                 )
             )
 
-        # print("parent df", self.parent_profile.df.to_string(), "\n")
-        # print("cleaned df", self.df.to_string(), "\n")
-        # print("internal valid but altr", self.valid_but_altr_ballot_indices)
-        # print("internal parent df index", self.parent_profile.df.index)
-        # print()
         if not self.valid_but_altr_ballot_indices.issubset(
             self.parent_profile.df.index
         ):
@@ -158,3 +154,6 @@ class CleanedProfile(PreferenceProfile):
     def __str__(self) -> str:
 
         return "Profile has been cleaned\n" + super().__str__()
+
+    def __eq__(self, other):
+        return super().__eq__(other)

@@ -47,31 +47,24 @@ def clean_profile(
             candidates=profile.candidates,
             max_ranking_length=profile.max_ranking_length,
         )
-        print("old ballot\n", b, "\n")
         new_b = clean_ballot_func(b)
-        print("new ballot\n", new_b, "\n")
 
         if new_b == b:
-            print("unalt")
             unaltr_ballot_indices.add(i)
 
         else:
             if (new_b.ranking or new_b.scores) and new_b.weight > 0:
-                print("Valid but alt")
+                # TODO change name here, valid is misleading for a bullet vote
+                # #that gets a cand removed
                 valid_but_altr_ballot_indices.add(i)
 
             if new_b.weight == 0:
-                print("no weight altr")
                 no_weight_altr_ballot_indices.add(i)
 
             if not (new_b.ranking or new_b.scores):
-                print("no ranking/scores altr")
-                # TODO okay so im removing a candidate from a bullet vote
-                # this results in an empty ranking slot, so it doesn't get caught here
                 no_ranking_and_no_scores_altr_ballot_indices.add(i)
 
         new_ballots_and_idxs[integer_idx] = (new_b, i)
-        print()
     if remove_empty_ballots:
         new_ballots_and_idxs = [
             (b, i) for b, i in new_ballots_and_idxs if b.ranking or b.scores
@@ -81,11 +74,6 @@ def clean_profile(
         new_ballots_and_idxs = [(b, i) for b, i in new_ballots_and_idxs if b.weight > 0]
 
     new_ballots, new_idxs = zip(*new_ballots_and_idxs)
-    # print("new ballots\n", new_ballots)
-    # print("new idxs\n", new_idxs)
-    # print()
-
-    print(no_ranking_and_no_scores_altr_ballot_indices)
 
     return CleanedProfile(
         ballots=tuple(new_ballots),
@@ -260,8 +248,6 @@ def remove_cand(
     Returns:
         CleanedProfile: A cleaned ``PreferenceProfile``.
     """
-    print("removing a candidate\n")
-    print(removed, "\n")
     if isinstance(removed, str):
         removed = [removed]
 
@@ -273,9 +259,6 @@ def remove_cand(
         retain_original_candidate_list=True,
         retain_original_max_ranking_length=retain_original_max_ranking_length,
     )
-
-    print("removed candidate profile intermediate\n")
-    print(cleaned_profile.df.to_string())
 
     new_candidates = (
         profile.candidates
@@ -375,8 +358,6 @@ def condense_profile(
         CleanedProfile: A cleaned ``PreferenceProfile``.
 
     """
-    print("--------\n condensing profile\n")
-    print("parent profile\n", profile.df.to_string())
     condensed_profile = clean_profile(
         profile,
         condense_ballot_ranking,
@@ -386,14 +367,17 @@ def condense_profile(
         retain_original_max_ranking_length,
     )
 
-    print("first step condensed profile\n", condensed_profile.df.to_string())
-    # print("first step index", condensed_profile.df_index_column)
-
     additional_unaltr_ballot_indices = set(
         [
             i
             for i in condensed_profile.valid_but_altr_ballot_indices
-            if _is_equiv_to_condensed(profile.ballots[i])
+            if _is_equiv_to_condensed(
+                convert_row_to_ballot(
+                    profile.df.loc[i],
+                    candidates=profile.candidates,
+                    max_ranking_length=profile.max_ranking_length,
+                )
+            )
         ]
     )
     new_unaltr_ballot_indices = (

@@ -163,3 +163,14 @@ def test_group_ballots_warning():
 
 def test_cleaned_profile_str():
     assert "Profile has been cleaned" in str(clean_1)
+
+
+def test_cleaned_profile_eq():
+    clean = CleanedProfile(
+        ballots=[b for b in profile.ballots if b.weight > 0],
+        parent_profile=profile,
+        no_weight_altr_ballot_indices={4},
+        unaltr_ballot_indices={0, 1, 2, 3},
+        df_index_column=[0, 1, 2, 3],
+    )
+    assert clean_1 == clean

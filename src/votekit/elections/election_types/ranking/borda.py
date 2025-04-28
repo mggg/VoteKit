@@ -91,13 +91,9 @@ class Borda(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        print("about to remove cand")
-        print(profile.df.to_string())
-        intermediate_profile = remove_cand([c for s in elected for c in s], profile)
-        print("borda post remove cand profile\n", intermediate_profile)
-
-        new_profile = condense_profile(intermediate_profile)
-        print("borda post condense profile\n", new_profile)
+        new_profile = condense_profile(
+            remove_cand([c for s in elected for c in s], profile)
+        )
 
         if store_states:
             if self.score_function:  # mypy
