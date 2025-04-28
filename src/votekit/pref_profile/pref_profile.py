@@ -694,6 +694,9 @@ class PreferenceProfile:
         Also added protection for from_csv method.
 
         """
+        if not self.candidates:
+            return self
+
         for cand in self.candidates:
             if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
                 raise ProfileError(

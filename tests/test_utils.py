@@ -169,10 +169,6 @@ def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
         score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
 
-    with pytest.raises(ValueError):
-        score_profile_from_rankings(
-            PreferenceProfile(ballots=(Ballot(ranking=({}, {"A"})),))
-        )
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]

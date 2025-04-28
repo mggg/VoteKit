@@ -30,12 +30,13 @@ def test_load_clean_completion():
     )
 
     # apply rules to get new PP
-    cleaned_pp = clean.remove_cand("Paul", pp)
+    cleaned_pp = clean.condense_profile(clean.remove_cand("Paul", pp))
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")
 
     # run election using a configured RCV step object
+    print("in borda\n")
     election_borda = elections.Borda(cleaned_pp, 1, score_vector=None)
     assert isinstance(election_borda, Election)
 

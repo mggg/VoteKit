@@ -1,5 +1,5 @@
 from fractions import Fraction
-from typing import Union, Sequence, Optional, TypeVar, Literal
+from typing import Union, Sequence, Optional, Literal
 from itertools import permutations
 import math
 import random
@@ -76,9 +76,6 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
             cand_dict[first_cand[0]].append(b)
 
     return cand_dict
-
-
-COB = TypeVar("COB", PreferenceProfile, tuple[Ballot, ...], Ballot)
 
 
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
