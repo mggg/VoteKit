@@ -17,7 +17,7 @@ class CleanedProfile(PreferenceProfile):
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
         candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
-        max_ballot_length (int, optional): The length of the longest allowable ballot, i.e., how
+        max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.
         parent_profile (PreferenceProfile | CleanedProfile): The profile that was altered.
@@ -39,7 +39,7 @@ class CleanedProfile(PreferenceProfile):
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
         candidates (tuple[str]): Tuple of candidate strings.
-        max_ballot_length (int): The length of the longest allowable ballot, i.e., how
+        max_ranking_length (int): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election.
         df (pandas.DataFrame): Data frame view of the ballots.
         candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive

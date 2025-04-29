@@ -9,7 +9,8 @@ profile_tied_set = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_tied_set_round_1 = PreferenceProfile(
@@ -27,7 +28,8 @@ profile_tied_set_round_1 = PreferenceProfile(
                 {"B"},
             )
         ),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
@@ -36,7 +38,8 @@ profile_no_tied_set = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_tied_borda = PreferenceProfile(
@@ -47,7 +50,8 @@ profile_tied_borda = PreferenceProfile(
         Ballot(ranking=({"B"}, {"C"}, {"A"})),
         Ballot(ranking=({"C"}, {"A"}, {"B"})),
         Ballot(ranking=({"C"}, {"B"}, {"A"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
@@ -101,7 +105,7 @@ def test_state_list():
 def test_get_profile():
     e = CondoBorda(profile_tied_set)
     assert e.get_profile(0) == profile_tied_set
-    assert e.get_profile(1) == profile_tied_set_round_1
+    assert e.get_profile(1).group_ballots() == profile_tied_set_round_1
 
 
 def test_get_step():

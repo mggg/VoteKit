@@ -63,7 +63,6 @@ class CondoBorda(RankingElection):
         new_profile = condense_profile(
             remove_cand([c for s in elected for c in s], profile)
         )
-        print("max ballot length of new profile", new_profile.max_ballot_length)
         if store_states:
             self.election_states.append(
                 ElectionState(

@@ -9,11 +9,13 @@ profile_no_tied_fpv = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_no_tied_fpv_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)]
+    ballots=[Ballot(ranking=({"C"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_fpv = PreferenceProfile(
@@ -22,7 +24,8 @@ profile_with_tied_fpv = PreferenceProfile(
         Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}, {"E"}], weight=3),
         Ballot(ranking=[{"C"}, {"B"}, {"A"}, {"D"}, {"E"}], weight=2),
         Ballot(ranking=[{"D"}, {"B"}, {"C"}, {"A"}, {"E"}], weight=2),
-    ]
+    ],
+    max_ranking_length=5,
 )
 
 states = [

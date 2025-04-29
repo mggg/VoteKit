@@ -191,7 +191,9 @@ class STV(RankingElection):
         )
 
         new_profile = PreferenceProfile(
-            ballots=cleaned_ballots, candidates=tuple(remaining_cands)
+            ballots=cleaned_ballots,
+            candidates=tuple(remaining_cands),
+            max_ranking_length=profile.max_ranking_length,
         )
         return (tuple(elected), new_profile)
 
@@ -261,7 +263,9 @@ class STV(RankingElection):
             [c for s in elected for c in s]
         )
         new_profile = PreferenceProfile(
-            ballots=cleaned_ballots, candidates=tuple(remaining_cands)
+            ballots=cleaned_ballots,
+            candidates=tuple(remaining_cands),
+            max_ranking_length=profile.max_ranking_length,
         )
         return elected, tiebreaks, new_profile
 

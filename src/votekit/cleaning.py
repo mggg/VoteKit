@@ -73,7 +73,9 @@ def clean_profile(
     if remove_zero_weight_ballots:
         new_ballots_and_idxs = [(b, i) for b, i in new_ballots_and_idxs if b.weight > 0]
 
-    new_ballots, new_idxs = zip(*new_ballots_and_idxs)
+    new_ballots, new_idxs = (
+        zip(*new_ballots_and_idxs) if new_ballots_and_idxs else ([], [])
+    )
 
     return CleanedProfile(
         ballots=tuple(new_ballots),

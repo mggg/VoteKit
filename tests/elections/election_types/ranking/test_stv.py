@@ -13,7 +13,8 @@ simult_same_as_one_by_one_profile = PreferenceProfile(
         Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
         Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
         Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_list = [
@@ -26,7 +27,8 @@ profile_list = [
             Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -37,7 +39,8 @@ profile_list = [
             Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -48,7 +51,8 @@ profile_list = [
             Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -57,25 +61,29 @@ profile_list = [
             Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
             Ballot(ranking=({"Orange"},), weight=4),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
             Ballot(ranking=({"Orange"},), weight=4),
             Ballot(ranking=({"Burger"},), weight=7),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
             Ballot(ranking=({"Orange"},), weight=4),
-        ]
+        ],
+        max_ranking_length=3,
     ),
 ]
 

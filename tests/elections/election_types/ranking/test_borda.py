@@ -9,13 +9,15 @@ profile_no_tied_borda = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 # 8, 6, 4
 # 3, 2, 1
 
 profile_no_tied_borda_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)]
+    ballots=[Ballot(ranking=({"C"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_borda = PreferenceProfile(
@@ -24,7 +26,8 @@ profile_with_tied_borda = PreferenceProfile(
         Ballot(ranking=[{"A"}, {"C"}, {"B"}, {"D"}]),
         Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}]),
         Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}]),
-    ]
+    ],
+    max_ranking_length=4,
 )
 
 

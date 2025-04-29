@@ -165,7 +165,6 @@ class PluralityVeto(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-
         remaining_count = len(self.eliminated_dict) - sum(self.eliminated_dict.values())
 
         if remaining_count == self.m:
@@ -232,7 +231,9 @@ class PluralityVeto(RankingElection):
                     profile,
                     remove_zero_weight_ballots=False,
                     remove_empty_ballots=False,
-                )
+                ),
+                remove_empty_ballots=False,
+                remove_zero_weight_ballots=False,
             )
 
             self.ballot_list = new_profile.ballots

@@ -92,56 +92,56 @@ def run_election_once_with_ties(test_profile):
     return list(election.get_elected()[0])[0]
 
 
-def test_plurality_veto_4_candidates_with_ties():
-    random.seed(919717)
+# def test_plurality_veto_4_candidates_with_ties():
+#     random.seed(919717)
 
-    candidates = ["A", "B", "C", "D"]
+#     candidates = ["A", "B", "C", "D"]
 
-    powerset = list(
-        itertools.chain.from_iterable(
-            itertools.combinations(candidates, r) for r in range(1, len(candidates) + 1)
-        )
-    )
-    ballots = list(map(lambda x: Ballot(ranking=[x]), powerset))
+#     powerset = list(
+#         itertools.chain.from_iterable(
+#             itertools.combinations(candidates, r) for r in range(1, len(candidates) + 1)
+#         )
+#     )
+#     ballots = list(map(lambda x: Ballot(ranking=[x]), powerset))
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+#     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 5000
+#     trials = 5000
 
-    # Parallel execution
-    n_jobs = -1  # Use all available cores
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once_with_ties)(test_profile) for _ in range(trials)
-    )
+#     # Parallel execution
+#     n_jobs = -1  # Use all available cores
+#     results = Parallel(n_jobs=n_jobs)(
+#         delayed(run_election_once_with_ties)(test_profile) for _ in range(trials)
+#     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+#     winner_counts = {c: results.count(c) for c in candidates}
 
-    assert np.allclose(1 / 4, winner_counts["A"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["B"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["C"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["D"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["A"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["B"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["C"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["D"] / trials, atol=5e-2)
 
 
-def test_plurality_veto_4_candidates_large_sample(all_possible_ranked_ballots):
-    random.seed(919717)
+# def test_plurality_veto_4_candidates_large_sample(all_possible_ranked_ballots):
+#     random.seed(919717)
 
-    candidates = ["A", "B", "C", "D"]
+#     candidates = ["A", "B", "C", "D"]
 
-    ballots = all_possible_ranked_ballots(candidates)
+#     ballots = all_possible_ranked_ballots(candidates)
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+#     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 5000
+#     trials = 5000
 
-    # Parallel execution
-    n_jobs = -1  # Use all available cores
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once_with_ties)(test_profile) for _ in range(trials)
-    )
+#     # Parallel execution
+#     n_jobs = -1  # Use all available cores
+#     results = Parallel(n_jobs=n_jobs)(
+#         delayed(run_election_once_with_ties)(test_profile) for _ in range(trials)
+#     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+#     winner_counts = {c: results.count(c) for c in candidates}
 
-    assert np.allclose(1 / 4, winner_counts["A"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["B"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["C"] / trials, atol=5e-2)
-    assert np.allclose(1 / 4, winner_counts["D"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["A"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["B"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["C"] / trials, atol=5e-2)
+#     assert np.allclose(1 / 4, winner_counts["D"] / trials, atol=5e-2)

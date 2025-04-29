@@ -150,7 +150,7 @@ def score_profile_from_rankings(
     """
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
-    non-negative. Vector should be as long as ``max_ballot_length`` in the profile.
+    non-negative. Vector should be as long as ``max_ranking_length`` in the profile.
     If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
     in the dictionary.
 

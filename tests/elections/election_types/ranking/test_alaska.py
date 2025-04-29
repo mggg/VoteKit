@@ -7,7 +7,8 @@ test_profile = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"}, {"D"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"}, {"D"}), weight=2),
         Ballot(ranking=({"C"}, {"A"}, {"B"}, {"D"}), weight=2),
-    )
+    ),
+    max_ranking_length=4,
 )
 
 
@@ -17,7 +18,8 @@ test_profile_ties = PreferenceProfile(
         Ballot(ranking=({"B"}, {"A"}, {"C"}, {"D"}, {"E"})),
         Ballot(ranking=({"C"}, {"B"}, {"A"}, {"D"}, {"E"})),
         Ballot(ranking=({"D"}, {"A"}, {"B"}, {"C"}, {"E"})),
-    )
+    ),
+    max_ranking_length=5,
 )
 
 profiles = [
@@ -27,9 +29,13 @@ profiles = [
             Ballot(ranking=({"A"}, {"B"}, {"C"})),
             Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
             Ballot(ranking=({"C"}, {"A"}, {"B"}), weight=2),
-        )
+        ),
+        max_ranking_length=4,
     ),
-    PreferenceProfile(ballots=(Ballot(ranking=({"A"},)),)),
+    PreferenceProfile(
+        ballots=(Ballot(ranking=({"A"},)),),
+        max_ranking_length=4,
+    ),
 ]
 
 states = [
@@ -67,14 +73,18 @@ def test_ties():
 
 def test_state_list():
     e = Alaska(test_profile, m_1=3, m_2=2)
-    print(e.election_states[2])
-    print(states[2])
     assert e.election_states == states
 
 
 def test_get_profile():
     e = Alaska(test_profile, m_1=3, m_2=2)
-    assert [e.get_profile(i) for i in range(len(e.election_states))] == profiles
+    for i in range(len(e.election_states)):
+        if i == 2:
+            print(e.get_profile(2).df.to_string())
+            print(profiles[2].df.to_string())
+        assert e.get_profile(i) == profiles[i]
+        print(i)
+    # assert [e.get_profile(i) for i in range(len(e.election_states))] == profiles
 
 
 def test_get_step():
