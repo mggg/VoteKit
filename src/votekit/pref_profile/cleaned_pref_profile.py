@@ -5,6 +5,7 @@ from pydantic.dataclasses import dataclass
 from dataclasses import field
 import warnings
 from typing_extensions import Self
+import pandas as pd
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -136,7 +137,7 @@ class CleanedProfile(PreferenceProfile):
             )
 
         df_copy = self.df.copy()
-        df_copy.index = self.df_index_column
+        df_copy.index = pd.Index(self.df_index_column)
         df_copy.index.name = "Ballot Index"
         object.__setattr__(self, "df", df_copy)
 

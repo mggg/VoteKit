@@ -42,6 +42,7 @@ def clean_profile(
     unaltr_ballot_indices = set()
 
     for integer_idx, (i, b_row) in enumerate(profile.df.iterrows()):
+        assert isinstance(i, int)
         b = convert_row_to_ballot(
             b_row,
             candidates=profile.candidates,
@@ -88,7 +89,7 @@ def clean_profile(
         valid_but_altr_ballot_indices=valid_but_altr_ballot_indices,
         unaltr_ballot_indices=unaltr_ballot_indices,
         parent_profile=profile,
-        df_index_column=new_idxs,
+        df_index_column=list(new_idxs),
     )
 
 
