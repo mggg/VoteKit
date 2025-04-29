@@ -311,7 +311,7 @@ def _is_equiv_to_condensed(ballot: Ballot) -> bool:
     """
     Returns True if the given ballot is equivalent to its condensed form. It is equivalent
     if the rankings are identical, or if the original ballot only has trailing empty frozensets
-    in its ranking.
+    in its ranking after some listed candidate.
 
     Args:
         ballot (Ballot): Ballot to check.
@@ -319,13 +319,20 @@ def _is_equiv_to_condensed(ballot: Ballot) -> bool:
     Returns:
         bool: True if the given ballot is equivalent to its condensed form.
     """
-    if ballot.ranking:
-        for i, cand_set in enumerate(ballot.ranking):
-            if not cand_set:
-                if all(not cs for cs in ballot.ranking[i:]):
-                    return True
-                else:
-                    return False
+    if not ballot.ranking:
+        return True
+
+    if all(not cs for cs in ballot.ranking):
+        return False
+
+    for i, cand_set in enumerate(ballot.ranking):
+        if cand_set:
+            continue
+
+        if all(not cs for cs in ballot.ranking[i:]):
+            return True
+
+        return False
 
     return True
 

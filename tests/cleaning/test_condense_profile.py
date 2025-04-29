@@ -46,3 +46,21 @@ def test_condense_profile_idempotent():
     double_cleaned = condense_profile(cleaned_profile)
 
     assert cleaned_profile == double_cleaned
+
+
+def test_condense_profile_equivalence():
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(
+                ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2
+            ),
+            Ballot(ranking=({"C"}, frozenset(), frozenset())),
+            Ballot(ranking=(frozenset(),)),
+        ]
+    )
+
+    cleaned = condense_profile(profile)
+
+    assert cleaned.nonempty_but_altr_ballot_indices == {0}
+    assert cleaned.no_ranking_and_no_scores_altr_ballot_indices == {2}
+    assert cleaned.unaltr_ballot_indices == {1}
