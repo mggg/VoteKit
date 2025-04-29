@@ -156,5 +156,7 @@ class CleanedProfile(PreferenceProfile):
 
         return "Profile has been cleaned\n" + super().__str__()
 
+    __repr__ = __str__
+
     def __eq__(self, other):
         return super().__eq__(other)
