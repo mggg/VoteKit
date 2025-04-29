@@ -27,15 +27,15 @@ class CleanedProfile(PreferenceProfile):
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
         no_weight_altr_ballot_indices (list[int], optional): List of indices of ballots that have
             0 weight as a result of cleaning. Indices are with respect
-            to ``parent_profile.ballots``.
+            to ``parent_profile.df``.
         no_ranking_and_no_scores_altr_ballot_indices (list[int], optional): List of indices of
             ballots that have no ranking and no scores as a result of cleaning. Indices are with
-            respect to ``parent_profile.ballots``.
-        valid_but_altr_ballot_indices (list[int], optional):  List of indices of ballots that have
-            been altered but still have weight and (ranking or score) as a result of cleaning.
-            Indices are with respect to ``parent_profile.ballots``.
+            respect to ``parent_profile.df``.
+        nonempty_but_altr_ballot_indices (list[int], optional):  List of indices of ballots that
+            have been altered but still have weight and (ranking or score) as a result of cleaning.
+            Indices are with respect to ``parent_profile.df``.
         unaltr_ballot_indices (list[int], optional):  List of indices of ballots that have
-            been unaltered by cleaning. Indices are with respect to ``parent_profile.ballots``.
+            been unaltered by cleaning. Indices are with respect to ``parent_profile.df``.
 
     Parameters:
         ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
@@ -55,7 +55,7 @@ class CleanedProfile(PreferenceProfile):
     df_index_column: list[int] = field(default_factory=list)
     no_weight_altr_ballot_indices: set[int] = field(default_factory=set)
     no_ranking_and_no_scores_altr_ballot_indices: set[int] = field(default_factory=set)
-    valid_but_altr_ballot_indices: set[int] = field(default_factory=set)
+    nonempty_but_altr_ballot_indices: set[int] = field(default_factory=set)
     unaltr_ballot_indices: set[int] = field(default_factory=set)
 
     @model_validator(mode="after")
@@ -71,7 +71,7 @@ class CleanedProfile(PreferenceProfile):
         index_sets = [
             self.no_weight_altr_ballot_indices,
             self.no_ranking_and_no_scores_altr_ballot_indices,
-            self.valid_but_altr_ballot_indices,
+            self.nonempty_but_altr_ballot_indices,
             self.unaltr_ballot_indices,
         ]
 
@@ -95,12 +95,12 @@ class CleanedProfile(PreferenceProfile):
                 )
             )
 
-        if not self.valid_but_altr_ballot_indices.issubset(
+        if not self.nonempty_but_altr_ballot_indices.issubset(
             self.parent_profile.df.index
         ):
             raise ValueError(
                 (
-                    "valid_but_altr_ballot_indices is not a subset of "
+                    "nonempty_but_altr_ballot_indices is not a subset of "
                     "the parent profile df index column."
                 )
             )

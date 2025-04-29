@@ -10,13 +10,6 @@ from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from votekit.pref_interval import PreferenceInterval
 
-# TODO:
-# need to do one with visualizations,
-# need to test other elections,
-# need to test cleaning methods,
-# need to add cleaning methods (ballot truncation for ex)
-# need to test ballot generation models
-
 
 def test_load_clean_completion():
     """simple example of what a "full" use would look like"""

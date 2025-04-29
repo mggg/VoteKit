@@ -33,7 +33,7 @@ def test_remove_cand():
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_weight_altr_ballot_indices == set()
     assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.nonempty_but_altr_ballot_indices == {0, 1, 2}
     assert cleaned_profile.unaltr_ballot_indices == set()
 
 
@@ -53,7 +53,7 @@ def test_remove_mult_cands():
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_weight_altr_ballot_indices == set()
     assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.nonempty_but_altr_ballot_indices == {0, 1, 2}
     assert cleaned_profile.unaltr_ballot_indices == set()
 
 
@@ -73,7 +73,7 @@ def test_remove_cand_with_ties():
     assert cleaned_profile != profile_with_ties
     assert cleaned_profile.no_weight_altr_ballot_indices == set()
     assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert cleaned_profile.nonempty_but_altr_ballot_indices == {0, 1, 2}
     assert cleaned_profile.unaltr_ballot_indices == set()
 
 
@@ -125,5 +125,5 @@ def test_remove_cands_scores():
     assert cleaned_profile != profile
     assert cleaned_profile.no_weight_altr_ballot_indices == set()
     assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert cleaned_profile.valid_but_altr_ballot_indices == {0, 1, 2, 3, 4}
+    assert cleaned_profile.nonempty_but_altr_ballot_indices == {0, 1, 2, 3, 4}
     assert cleaned_profile.unaltr_ballot_indices == set()

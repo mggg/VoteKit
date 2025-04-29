@@ -54,7 +54,7 @@ def test_init():
     assert empty_profile.df_index_column == []
     assert empty_profile.no_weight_altr_ballot_indices == set()
     assert empty_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert empty_profile.valid_but_altr_ballot_indices == set()
+    assert empty_profile.nonempty_but_altr_ballot_indices == set()
     assert empty_profile.unaltr_ballot_indices == set()
 
 
@@ -108,7 +108,7 @@ def test_valid_but_alt_subset_error():
     with pytest.raises(
         ValueError,
         match=(
-            "valid_but_altr_ballot_indices is not a subset of "
+            "nonempty_but_altr_ballot_indices is not a subset of "
             "the parent profile df index column."
         ),
     ):
@@ -116,7 +116,7 @@ def test_valid_but_alt_subset_error():
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
             no_weight_altr_ballot_indices={4},
-            valid_but_altr_ballot_indices={5},
+            nonempty_but_altr_ballot_indices={5},
             unaltr_ballot_indices={0, 1, 2, 3},
             df_index_column=[0, 1, 2, 3],
         )

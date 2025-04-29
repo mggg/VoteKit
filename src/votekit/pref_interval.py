@@ -64,8 +64,6 @@ class PreferenceInterval:
         zero_cands (frozenset): A frozenset of candidates with zero support.
     """
 
-    # TODO frozendict, frozenclass
-
     def __init__(self, interval: dict):
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())

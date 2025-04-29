@@ -32,7 +32,7 @@ def test_clean_profile_with_defaults():
 
     assert adj_profile.no_weight_altr_ballot_indices == set()
     assert adj_profile.no_ranking_and_no_scores_altr_ballot_indices == {3}
-    assert adj_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert adj_profile.nonempty_but_altr_ballot_indices == {0, 1, 2}
     assert adj_profile.unaltr_ballot_indices == {4}
 
 
@@ -64,5 +64,5 @@ def test_clean_profile_change_defaults():
 
     assert adj_profile.no_weight_altr_ballot_indices == set()
     assert adj_profile.no_ranking_and_no_scores_altr_ballot_indices == {3}
-    assert adj_profile.valid_but_altr_ballot_indices == {0, 1, 2}
+    assert adj_profile.nonempty_but_altr_ballot_indices == {0, 1, 2}
     assert adj_profile.unaltr_ballot_indices == {4}

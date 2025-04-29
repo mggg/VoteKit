@@ -38,7 +38,7 @@ def clean_profile(
 
     no_weight_altr_ballot_indices = set()
     no_ranking_and_no_scores_altr_ballot_indices = set()
-    valid_but_altr_ballot_indices = set()
+    nonempty_but_altr_ballot_indices = set()
     unaltr_ballot_indices = set()
 
     for integer_idx, (i, b_row) in enumerate(profile.df.iterrows()):
@@ -55,9 +55,7 @@ def clean_profile(
 
         else:
             if (new_b.ranking or new_b.scores) and new_b.weight > 0:
-                # TODO change name here, valid is misleading for a bullet vote
-                # #that gets a cand removed
-                valid_but_altr_ballot_indices.add(i)
+                nonempty_but_altr_ballot_indices.add(i)
 
             if new_b.weight == 0:
                 no_weight_altr_ballot_indices.add(i)
@@ -86,7 +84,7 @@ def clean_profile(
         ),
         no_weight_altr_ballot_indices=no_weight_altr_ballot_indices,
         no_ranking_and_no_scores_altr_ballot_indices=no_ranking_and_no_scores_altr_ballot_indices,
-        valid_but_altr_ballot_indices=valid_but_altr_ballot_indices,
+        nonempty_but_altr_ballot_indices=nonempty_but_altr_ballot_indices,
         unaltr_ballot_indices=unaltr_ballot_indices,
         parent_profile=profile,
         df_index_column=list(new_idxs),
@@ -277,7 +275,7 @@ def remove_cand(
         df_index_column=cleaned_profile.df_index_column,
         no_weight_altr_ballot_indices=cleaned_profile.no_weight_altr_ballot_indices,
         no_ranking_and_no_scores_altr_ballot_indices=cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices,
-        valid_but_altr_ballot_indices=cleaned_profile.valid_but_altr_ballot_indices,
+        nonempty_but_altr_ballot_indices=cleaned_profile.nonempty_but_altr_ballot_indices,
         unaltr_ballot_indices=cleaned_profile.unaltr_ballot_indices,
     )
 
@@ -373,7 +371,7 @@ def condense_profile(
     additional_unaltr_ballot_indices = set(
         [
             i
-            for i in condensed_profile.valid_but_altr_ballot_indices
+            for i in condensed_profile.nonempty_but_altr_ballot_indices
             if _is_equiv_to_condensed(
                 convert_row_to_ballot(
                     profile.df.loc[i],
@@ -387,7 +385,7 @@ def condense_profile(
         condensed_profile.unaltr_ballot_indices | additional_unaltr_ballot_indices
     )
     new_nonempty_altr_ballot_indices = (
-        condensed_profile.valid_but_altr_ballot_indices.difference(
+        condensed_profile.nonempty_but_altr_ballot_indices.difference(
             additional_unaltr_ballot_indices
         )
     )
@@ -400,6 +398,6 @@ def condense_profile(
         df_index_column=condensed_profile.df_index_column,
         no_weight_altr_ballot_indices=condensed_profile.no_weight_altr_ballot_indices,
         no_ranking_and_no_scores_altr_ballot_indices=condensed_profile.no_ranking_and_no_scores_altr_ballot_indices,
-        valid_but_altr_ballot_indices=new_nonempty_altr_ballot_indices,
+        nonempty_but_altr_ballot_indices=new_nonempty_altr_ballot_indices,
         unaltr_ballot_indices=new_unaltr_ballot_indices,
     )
