@@ -8,7 +8,8 @@ from dataclasses import field
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
 class Ballot:
     """
-    Ballot class, contains ranking and assigned weight.
+    Ballot class, contains ranking and assigned weight. Note that we trim trailing or
+    leading whitespace from candidate names.
 
     Args:
         ranking (tuple[frozenset, ...], optional): Tuple of candidate ranking. Entry i of the tuple
@@ -16,7 +17,6 @@ class Ballot:
         weight (Fraction, optional): Weight assigned to a given ballot. Defaults to 1.
             Can be input as int, float, or Fraction but will be converted to Fraction.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        id (str, optional): Ballot ID. Defaults to None.
         scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
             Values can be input as int, float, or Fraction but will be converted to Fraction.
             Only retains non-zero scores.
@@ -26,15 +26,23 @@ class Ballot:
             frozenset of candidates ranked in position i.
         weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        id (str, optional): Ballot ID. Defaults to None.
         scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
     """
 
     ranking: Optional[tuple[frozenset, ...]] = None
     weight: Fraction = Fraction(1, 1)
     voter_set: set[str] = field(default_factory=set)
-    id: Optional[str] = None
     scores: Optional[dict[str, Fraction]] = None
+
+    @field_validator("ranking", mode="before")
+    @classmethod
+    def strip_whitespace_ranking_candidates(
+        cls, ranking: Optional[tuple[frozenset, ...]]
+    ) -> Optional[tuple[frozenset, ...]]:
+        if not ranking:
+            return None
+
+        return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
 
     @field_validator("weight", mode="before")
     @classmethod
@@ -45,7 +53,7 @@ class Ballot:
 
     @field_validator("scores", mode="before")
     @classmethod
-    def convert_scores_to_fraction(
+    def convert_scores_to_fraction_strip_whitespace(
         cls, scores: Optional[dict[str, Union[float, Fraction]]]
     ) -> Optional[dict[str, Fraction]]:
         if scores:
@@ -60,7 +68,9 @@ class Ballot:
                 raise TypeError("Score values must be numeric.")
 
             return {
-                c: Fraction(s).limit_denominator() for c, s in scores.items() if s != 0
+                c.strip(): Fraction(s).limit_denominator()
+                for c, s in scores.items()
+                if s != 0
             }
         else:
             return None
@@ -69,11 +79,6 @@ class Ballot:
         # Check type
         if not isinstance(other, Ballot):
             return False
-
-        # Check id
-        if self.id is not None:
-            if self.id != other.id:
-                return False
 
         # Check ranking
         if self.ranking != other.ranking:

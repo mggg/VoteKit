@@ -53,3 +53,17 @@ def test_restrict_pairwise_cand_error():
         ),
     ):
         restrict_pairwise_dict_to_subset(["A", "E"], pwd)
+
+
+def test_pairwise_contains_rankings_errors():
+    with pytest.raises(
+        ValueError, match="Profile must only contain rankings, not scores."
+    ):
+        pairwise_dict(
+            PreferenceProfile(
+                ballots=(Ballot(scores={"Chris": 4}),), contains_scores=True
+            )
+        )
+
+    with pytest.raises(ValueError, match="Profile must contain rankings."):
+        pairwise_dict(PreferenceProfile())

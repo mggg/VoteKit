@@ -16,8 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - moved `remove_cand` from `utils` to `cleaning`, and removed the older function `remove_noncands`.
 - renamed `PreferenceProfile.condense_ballots()` to `PreferenceProfile.group_ballots()`.
 
-
-
 ## Fixed
 - `PreferenceProfile.group_ballots()` now also groups the `voter_set` attribute of ballots.
 

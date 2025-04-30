@@ -81,7 +81,7 @@ def test_remove_cand_dif_types():
     )
 
     assert remove_cand("A", profile_no_ties) == no_a_true
-    assert profile_no_ties != no_a_true  # check that remove cand does not alter profile
+    assert profile_no_ties != no_a_true
     assert remove_cand("A", profile_no_ties.ballots) == no_a_true.ballots
     assert remove_cand("A", Ballot(ranking=[{"A"}, {"B"}])) == Ballot(ranking=[{"B"}])
 
@@ -713,7 +713,7 @@ def test_ballot_lengths():
                 weight=2,
             ),
         ],
-        max_ballot_length=5,
+        max_ranking_length=5,
     )
 
     assert ballot_lengths(profile) == {1: 2, 2: 3 / 2, 3: 2, 4: 1, 5: 0}
