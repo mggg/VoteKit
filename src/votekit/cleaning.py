@@ -301,7 +301,7 @@ def condense_ballot_ranking(
 
     new_ballot = Ballot(
         weight=Fraction(ballot.weight),
-        ranking=tuple(condensed_ranking),
+        ranking=tuple(condensed_ranking) if condensed_ranking != [] else None,
         voter_set=ballot.voter_set,
         scores=ballot.scores,
     )
