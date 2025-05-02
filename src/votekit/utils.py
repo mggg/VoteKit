@@ -65,7 +65,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
     cand_dict: dict[str, list[Ballot]] = {c: [] for c in profile.candidates}
 
     for b in profile.ballots:
-        if not b.ranking:
+        if b.ranking is None:
             raise TypeError("Ballots must have rankings.")
         else:
             # find first place candidate, ensure there is only one
@@ -94,7 +94,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     candidates = set(profile.candidates)
 
     for i, ballot in enumerate(profile.ballots):
-        if not ballot.ranking:
+        if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
         else:
             b_cands = [c for s in ballot.ranking for c in s]
@@ -182,7 +182,7 @@ def score_profile_from_rankings(
     scores = {c: Fraction(0) for c in profile.candidates_cast}
     for ballot in profile.ballots:
         current_ind = 0
-        if not ballot.ranking:
+        if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
         else:
             for s in ballot.ranking:
@@ -260,7 +260,7 @@ def mentions(
     mentions = {c: Fraction(0) for c in profile.candidates}
 
     for ballot in profile.ballots:
-        if not ballot.ranking:
+        if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
         else:
             for s in ballot.ranking:
@@ -298,7 +298,7 @@ def borda_scores(
         Union[dict[str, Fraction], dict[str, float]]:
             Dictionary mapping candidates to Borda scores.
     """
-    if not borda_max:
+    if borda_max is None:
         borda_max = profile.max_ranking_length
 
     score_vector = list(range(borda_max, 0, -1))
@@ -352,7 +352,7 @@ def tiebreak_set(
         }
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
-    elif not profile:
+    elif profile is None:
         raise ValueError("Method of tiebreak requires profile.")
     else:
         raise ValueError("Invalid tiebreak code was provided")
@@ -491,7 +491,7 @@ def elect_cands_from_set_ranking(
         elected.append(ranking[i])
         num_elected += len(ranking[i])
         if num_elected > m:
-            if not tiebreak:
+            if tiebreak is None:
                 raise ValueError(
                     "Cannot elect correct number of candidates without breaking ties."
                 )
@@ -527,7 +527,7 @@ def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
         list[Ballot]: All possible permutations of the tie(s).
 
     """
-    if not ballot.ranking:
+    if ballot.ranking is None:
         raise TypeError("Ballot must have ranking.")
     if all(len(s) == 1 for s in ballot.ranking):
         return [ballot]
@@ -590,7 +590,7 @@ def score_profile_from_ballot_scores(
     """
     scores = {c: Fraction(0) for c in profile.candidates}
     for ballot in profile.ballots:
-        if not ballot.scores:
+        if ballot.scores is None:
             raise TypeError(f"Ballot {ballot} has no scores.")
         else:
             for c, score in ballot.scores.items():
@@ -624,7 +624,7 @@ def ballot_lengths(
     ballot_lengths = {i: Fraction(0) for i in range(1, profile.max_ranking_length + 1)}
 
     for ballot in profile.ballots:
-        if not ballot.ranking:
+        if ballot.ranking is None:
             raise TypeError("All ballots must have rankings.")
 
         length = len(ballot.ranking)

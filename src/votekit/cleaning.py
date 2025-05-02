@@ -110,7 +110,7 @@ def remove_repeated_candidates_from_ballot(
         TypeError: Ballot must have rankings.
     """
 
-    if not ballot.ranking:
+    if ballot.ranking is None:
         raise TypeError(f"Ballot must have rankings: {ballot}")
     elif ballot.scores:
         raise TypeError(f"Ballot must only have rankings, not scores: {ballot}")
@@ -196,7 +196,7 @@ def remove_cand_from_ballot(
         removed = [removed]
 
     new_ranking = []
-    if ballot.ranking:
+    if ballot.ranking is not None:
         for s in ballot.ranking:
             new_s = []
             for c in s:
@@ -205,15 +205,15 @@ def remove_cand_from_ballot(
             new_ranking.append(frozenset(new_s))
 
     new_scores = {}
-    if ballot.scores:
+    if ballot.scores is not None:
         new_scores = {
             c: score for c, score in ballot.scores.items() if c not in removed
         }
 
     new_ballot = Ballot(
-        ranking=tuple(new_ranking) if len(new_ranking) else None,
+        ranking=tuple(new_ranking) if len(new_ranking) > 0 else None,
         weight=ballot.weight,
-        scores=new_scores if len(new_scores) else None,
+        scores=new_scores if len(new_scores) > 0 else None,
         voter_set=ballot.voter_set,
     )
 
@@ -294,7 +294,9 @@ def condense_ballot_ranking(
 
     """
     condensed_ranking = (
-        [cand_set for cand_set in ballot.ranking if cand_set] if ballot.ranking else []
+        [cand_set for cand_set in ballot.ranking if cand_set != frozenset()]
+        if ballot.ranking is not None
+        else []
     )
 
     new_ballot = Ballot(
@@ -319,17 +321,17 @@ def _is_equiv_to_condensed(ballot: Ballot) -> bool:
     Returns:
         bool: True if the given ballot is equivalent to its condensed form.
     """
-    if not ballot.ranking:
+    if ballot.ranking is None:
         return True
 
-    if all(not cs for cs in ballot.ranking):
+    if all(cs == frozenset() for cs in ballot.ranking):
         return False
 
     for i, cand_set in enumerate(ballot.ranking):
-        if cand_set:
+        if cand_set != frozenset():
             continue
 
-        if all(not cs for cs in ballot.ranking[i:]):
+        if all(cs == frozenset() for cs in ballot.ranking[i:]):
             return True
 
         return False

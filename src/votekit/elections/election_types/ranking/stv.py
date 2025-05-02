@@ -91,7 +91,7 @@ class STV(RankingElection):
         """
 
         for ballot in profile.ballots:
-            if not ballot.ranking:
+            if ballot.ranking is None:
                 raise TypeError("Ballots must have rankings.")
             if len(ballot.ranking) == 0:
                 raise TypeError("All ballots must have rankings.")

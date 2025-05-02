@@ -19,7 +19,7 @@ def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
     Returns:
       float: Distance r(j)-r(i) in ranking.
     """
-    if not ballot.ranking:
+    if ballot.ranking is None:
         raise TypeError("Ballot must have a ranking.")
 
     positions = {i: -1, j: -1}

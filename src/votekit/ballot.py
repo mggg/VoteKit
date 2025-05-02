@@ -39,7 +39,7 @@ class Ballot:
     def strip_whitespace_ranking_candidates(
         cls, ranking: Optional[tuple[frozenset[str], ...]]
     ) -> Optional[tuple[frozenset[str], ...]]:
-        if not ranking:
+        if ranking is None:
             return None
 
         return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])

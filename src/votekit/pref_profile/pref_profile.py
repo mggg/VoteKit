@@ -366,7 +366,7 @@ def _validate_csv_ballot_score(
         )
 
     for score in ballot_row[:break_idx]:
-        if not score:
+        if score == "":
             continue
 
         try:
@@ -417,7 +417,7 @@ def _validate_csv_ballot_ranking(
         return
 
     for ranking_set in ballot_row[break_idxs[0] + 1 : break_idxs[1]]:
-        if not ranking_set:
+        if ranking_set == "":
             continue
 
         if ranking_set[0] != "{" or ranking_set[-1] != "}":
@@ -666,8 +666,8 @@ class PreferenceProfile:
     @field_validator("candidates")
     @classmethod
     def cands_must_be_unique_strip_whitespace(
-        cls, candidates: Optional[tuple[str, ...]]
-    ) -> Optional[tuple[str, ...]]:
+        cls, candidates: tuple[str, ...]
+    ) -> tuple[str, ...]:
         """
         Checks that candidate names are unique and strips trailing and leading whitespace.
 
@@ -677,8 +677,8 @@ class PreferenceProfile:
         Returns:
             Optional[tuple[str]]: Candidate names.
         """
-        if not candidates:
-            return None
+        if candidates == tuple():
+            return tuple()
 
         if not len(set(candidates)) == len(candidates):
             raise ProfileError("All candidates must be unique.")
@@ -694,7 +694,7 @@ class PreferenceProfile:
         Also added protection for from_csv method.
 
         """
-        if not self.candidates:
+        if self.candidates == tuple():
             return self
 
         for cand in self.candidates:
@@ -725,7 +725,7 @@ class PreferenceProfile:
             candidates_cast (list[str]): List of candidates who have received votes.
             num_ballots (int): Total number of ballots.
         """
-        if not ballot.scores:
+        if ballot.scores is None:
             return
 
         if self.contains_scores is False:
@@ -768,7 +768,7 @@ class PreferenceProfile:
             num_ballots (int): Total number of ballots.
         """
 
-        if not ballot.ranking:
+        if ballot.ranking is None:
             return
         if self.contains_rankings is False:
             raise ProfileError(
@@ -780,7 +780,7 @@ class PreferenceProfile:
 
         for j, cand_set in enumerate(ballot.ranking):
             for c in cand_set:
-                if self.candidates:
+                if self.candidates != tuple():
                     if c not in self.candidates:
                         raise ProfileError(
                             f"Candidate {c} found in ballot {ballot} but not in "
@@ -789,7 +789,7 @@ class PreferenceProfile:
                 if ballot.weight > 0 and c not in candidates_cast:
                     candidates_cast.append(c)
             if f"Ranking_{j+1}" not in ballot_data:
-                if self.max_ranking_length:
+                if self.max_ranking_length > 0:
                     raise ProfileError(
                         f"Max ballot length {self.max_ranking_length} given but "
                         "ballot {b} has length at least {j+1}."
@@ -818,10 +818,10 @@ class PreferenceProfile:
         """
         ballot_data["Weight"][idx] = ballot.weight
 
-        if ballot.voter_set:
+        if ballot.voter_set != set():
             ballot_data["Voter Set"][idx] = ballot.voter_set
 
-        if ballot.scores:
+        if ballot.scores is not None:
             self.__update_ballot_scores_data(
                 ballot_data=ballot_data,
                 idx=idx,
@@ -830,7 +830,7 @@ class PreferenceProfile:
                 num_ballots=num_ballots,
             )
 
-        if ballot.ranking:
+        if ballot.ranking is not None:
             self.__update_ballot_rankings_data(
                 ballot_data=ballot_data,
                 idx=idx,
@@ -854,10 +854,10 @@ class PreferenceProfile:
             "Voter Set": [set()] * num_ballots,
         }
 
-        if self.candidates:
+        if self.candidates != tuple():
             ballot_data.update({c: [np.nan] * num_ballots for c in self.candidates})
 
-        if self.max_ranking_length:
+        if self.max_ranking_length > 0:
             ballot_data.update(
                 {
                     f"Ranking_{i+1}": [np.nan] * num_ballots
@@ -888,7 +888,7 @@ class PreferenceProfile:
             "Weight",
         ]
 
-        if self.candidates and contains_scores_indicator:
+        if self.candidates != tuple() and contains_scores_indicator:
             col_order = list(self.candidates) + temp_col_order
         elif contains_scores_indicator:
             col_order = (
@@ -921,7 +921,7 @@ class PreferenceProfile:
         """
         object.__setattr__(self, "df", df)
         object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
-        if not self.candidates:
+        if self.candidates == tuple():
             object.__setattr__(self, "candidates", tuple(candidates_cast))
 
         if self.contains_rankings is None:
@@ -993,7 +993,7 @@ class PreferenceProfile:
             UserWarning: If a max_ranking_length is provided but not rankings are in the
                 profile, we set the max_ranking_length to 0.
         """
-        if self.max_ranking_length > 0 and not self.contains_rankings:
+        if self.max_ranking_length > 0 and self.contains_rankings is False:
             warnings.warn(
                 "Profile does not contain rankings but "
                 f"max_ranking_length={self.max_ranking_length}. Setting max_ranking_length"
@@ -1002,7 +1002,7 @@ class PreferenceProfile:
 
             object.__setattr__(self, "max_ranking_length", 0)
 
-        elif not self.max_ranking_length and self.contains_rankings:
+        elif self.max_ranking_length == 0 and self.contains_rankings is True:
             max_ranking_length = len([c for c in self.df.columns if "Ranking_" in c])
             object.__setattr__(self, "max_ranking_length", max_ranking_length)
 
@@ -1152,7 +1152,7 @@ class PreferenceProfile:
             ballot (Ballot): Ballot.
 
         """
-        if ballot.scores:
+        if ballot.scores is not None:
             return [float(ballot.scores.get(c, 0)) for c in self.candidates]
 
         return [""] * len(self.candidates)
@@ -1168,9 +1168,13 @@ class PreferenceProfile:
             candidate_mapping (dict[str, int]): Mapping candidate names to integers.
 
         """
-        if ballot.ranking:
+        if ballot.ranking is not None:
             ranking_list = [
-                set([candidate_mapping[c] for c in cand_set]) if cand_set else "{}"
+                (
+                    set([candidate_mapping[c] for c in cand_set])
+                    if cand_set != frozenset()
+                    else "{}"
+                )
                 for cand_set in ballot.ranking
             ]
             if len(ranking_list) != self.max_ranking_length:

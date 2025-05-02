@@ -72,7 +72,7 @@ class GeneralRating(Election):
             raise ValueError("Not enough candidates received votes to be elected.")
 
         for b in profile.ballots:
-            if not b.scores:
+            if b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
             elif any(score > self.L for score in b.scores.values()):
                 raise TypeError(

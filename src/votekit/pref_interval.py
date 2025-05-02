@@ -113,7 +113,7 @@ class PreferenceInterval:
         Should only be run once.
         """
 
-        if not self.zero_cands and not self.non_zero_cands:
+        if self.zero_cands == frozenset() and self.non_zero_cands == frozenset():
             self.zero_cands = frozenset([c for c, s in self.interval.items() if s == 0])
             self.interval = types.MappingProxyType(
                 {c: s for c, s in self.interval.items() if s > 0}

@@ -49,7 +49,7 @@ class Borda(RankingElection):
             raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.tiebreak = tiebreak
-        if not score_vector:
+        if score_vector is None:
             score_vector = list(range(profile.max_ranking_length, 0, -1))
 
         validate_score_vector(score_vector)

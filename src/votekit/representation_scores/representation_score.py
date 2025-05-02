@@ -45,7 +45,7 @@ def r_representation_score(
 
     satisfied_voters = Fraction(0)
     for ballot in profile.ballots:
-        if not ballot.ranking:
+        if ballot.ranking is None:
             raise ValueError("All ballots must have ranking.")
         for s in ballot.ranking[:r]:
             cand_found = False
@@ -89,7 +89,7 @@ def winner_sets_r_representation_scores(
         ValueError: r must be at least 1.
         ValueError: ballots must have ranking.
     """
-    if not candidate_list:
+    if candidate_list is None:
         candidate_list = list(profile.candidates_cast)
 
     if m < 1:

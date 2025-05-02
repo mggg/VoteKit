@@ -133,7 +133,7 @@ class PluralityVeto(RankingElection):
         ballot has integer weight.
         """
         for ballot in profile.ballots:
-            if not ballot.ranking or len(ballot.ranking) == 0:
+            if ballot.ranking is None:
                 raise TypeError("Ballots must have rankings.")
             elif int(ballot.weight) != ballot.weight:
                 raise TypeError(f"Ballot {ballot} has non-integer weight.")
