@@ -4,10 +4,9 @@ from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....ballot import Ballot
 from ....cleaning import (
-    remove_cand,
+    remove_and_condense,
     remove_cand_from_ballot,
     condense_ballot_ranking,
-    condense_profile,
 )
 from ....utils import (
     first_place_votes,
@@ -334,13 +333,12 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = condense_profile(
-                remove_cand(
-                    eliminated_cand,
-                    profile,
-                    retain_original_candidate_list=False,
-                )
+            new_profile = remove_and_condense(
+                eliminated_cand,
+                profile,
+                retain_original_candidate_list=False,
             )
+
             elected = (frozenset(),)
             eliminated = (frozenset([eliminated_cand]),)
 
