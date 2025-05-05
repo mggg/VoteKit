@@ -25,10 +25,10 @@ def test_condense_profile():
     )
 
     assert cleaned_profile != profile
-    assert cleaned_profile.no_weight_altr_ballot_indices == set()
-    assert cleaned_profile.no_ranking_and_no_scores_altr_ballot_indices == {2}
-    assert cleaned_profile.nonempty_but_altr_ballot_indices == {0}
-    assert cleaned_profile.unaltr_ballot_indices == {1}
+    assert cleaned_profile.no_wt_altr_idxs == set()
+    assert cleaned_profile.no_rank_no_score_altr_idxs == {2}
+    assert cleaned_profile.nonempty_altr_idxs == {0}
+    assert cleaned_profile.unaltr_idxs == {1}
 
 
 def test_condense_profile_idempotent():
@@ -61,6 +61,6 @@ def test_condense_profile_equivalence():
 
     cleaned = condense_profile(profile)
 
-    assert cleaned.nonempty_but_altr_ballot_indices == {0}
-    assert cleaned.no_ranking_and_no_scores_altr_ballot_indices == {2}
-    assert cleaned.unaltr_ballot_indices == {1}
+    assert cleaned.nonempty_altr_idxs == {0}
+    assert cleaned.no_rank_no_score_altr_idxs == {2}
+    assert cleaned.unaltr_idxs == {1}

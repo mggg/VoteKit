@@ -16,16 +16,16 @@ profile = PreferenceProfile(
 clean_1 = CleanedProfile(
     ballots=[b for b in profile.ballots if b.weight > 0],
     parent_profile=profile,
-    no_weight_altr_ballot_indices={4},
-    unaltr_ballot_indices={0, 1, 2, 3},
+    no_wt_altr_idxs={4},
+    unaltr_idxs={0, 1, 2, 3},
     df_index_column=[0, 1, 2, 3],
 )
 
 clean_2 = CleanedProfile(
     ballots=[b for b in clean_1.ballots if b.ranking or b.scores],
     parent_profile=clean_1,
-    no_ranking_and_no_scores_altr_ballot_indices={1},
-    unaltr_ballot_indices={0, 2, 3},
+    no_rank_no_score_altr_idxs={1},
+    unaltr_idxs={0, 2, 3},
     df_index_column=[0, 2, 3],
 )
 
@@ -52,10 +52,10 @@ def test_init():
 
     assert empty_profile.parent_profile == PreferenceProfile()
     assert empty_profile.df_index_column == []
-    assert empty_profile.no_weight_altr_ballot_indices == set()
-    assert empty_profile.no_ranking_and_no_scores_altr_ballot_indices == set()
-    assert empty_profile.nonempty_but_altr_ballot_indices == set()
-    assert empty_profile.unaltr_ballot_indices == set()
+    assert empty_profile.no_wt_altr_idxs == set()
+    assert empty_profile.no_rank_no_score_altr_idxs == set()
+    assert empty_profile.nonempty_altr_idxs == set()
+    assert empty_profile.unaltr_idxs == set()
 
 
 def test_parents():
@@ -69,19 +69,18 @@ def test_reindexing_df():
     assert list(clean_2.df.index) == [0, 2, 3]
 
 
-def test_no_weight_altr_ballot_indices_subset_error():
+def test_no_wt_altr_idxs_subset_error():
     with pytest.raises(
         ValueError,
         match=(
-            "no_weight_altr_ballot_indices is not a subset of "
-            "the parent profile df index column."
+            "no_wt_altr_idxs is not a subset of " "the parent profile df index column."
         ),
     ):
         CleanedProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
-            no_weight_altr_ballot_indices={5},
-            unaltr_ballot_indices={0, 1, 2, 3},
+            no_wt_altr_idxs={5},
+            unaltr_idxs={0, 1, 2, 3},
             df_index_column=[0, 1, 2, 3],
         )
 
@@ -90,16 +89,16 @@ def test_no_ranking_and_no_scores_altr_subset_error():
     with pytest.raises(
         ValueError,
         match=(
-            "no_ranking_and_no_scores_altr_ballot_indices is not a subset of "
+            "no_rank_no_score_altr_idxs is not a subset of "
             "the parent profile df index column."
         ),
     ):
         CleanedProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
-            no_weight_altr_ballot_indices={4},
-            no_ranking_and_no_scores_altr_ballot_indices={5},
-            unaltr_ballot_indices={0, 1, 2, 3},
+            no_wt_altr_idxs={4},
+            no_rank_no_score_altr_idxs={5},
+            unaltr_idxs={0, 1, 2, 3},
             df_index_column=[0, 1, 2, 3],
         )
 
@@ -108,16 +107,16 @@ def test_valid_but_alt_subset_error():
     with pytest.raises(
         ValueError,
         match=(
-            "nonempty_but_altr_ballot_indices is not a subset of "
+            "nonempty_altr_idxs is not a subset of "
             "the parent profile df index column."
         ),
     ):
         CleanedProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
-            no_weight_altr_ballot_indices={4},
-            nonempty_but_altr_ballot_indices={5},
-            unaltr_ballot_indices={0, 1, 2, 3},
+            no_wt_altr_idxs={4},
+            nonempty_altr_idxs={5},
+            unaltr_idxs={0, 1, 2, 3},
             df_index_column=[0, 1, 2, 3],
         )
 
@@ -125,16 +124,13 @@ def test_valid_but_alt_subset_error():
 def test_unaltr_subset_error():
     with pytest.raises(
         ValueError,
-        match=(
-            "unaltr_ballot_indices is not a subset of "
-            "the parent profile df index column."
-        ),
+        match=("unaltr_idxs is not a subset of " "the parent profile df index column."),
     ):
         CleanedProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
-            no_weight_altr_ballot_indices={4},
-            unaltr_ballot_indices={0, 1, 2, 3, 5},
+            no_wt_altr_idxs={4},
+            unaltr_idxs={0, 1, 2, 3, 5},
             df_index_column=[0, 1, 2, 3],
         )
 
@@ -147,8 +143,8 @@ def test_index_set_union_error():
         CleanedProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
             parent_profile=profile,
-            no_weight_altr_ballot_indices={4},
-            unaltr_ballot_indices={0, 1, 2},
+            no_wt_altr_idxs={4},
+            unaltr_idxs={0, 1, 2},
             df_index_column=[0, 1, 2, 3],
         )
 
@@ -169,8 +165,8 @@ def test_cleaned_profile_eq():
     clean = CleanedProfile(
         ballots=[b for b in profile.ballots if b.weight > 0],
         parent_profile=profile,
-        no_weight_altr_ballot_indices={4},
-        unaltr_ballot_indices={0, 1, 2, 3},
+        no_wt_altr_idxs={4},
+        unaltr_idxs={0, 1, 2, 3},
         df_index_column=[0, 1, 2, 3],
     )
     assert clean_1 == clean

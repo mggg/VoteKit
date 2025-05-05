@@ -34,7 +34,7 @@ def test_random_dictator_simple():
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
     winner_counts = {c: 0 for c in candidates}
-    trials = 500
+    trials = 600
 
     # Parallel execution
     n_jobs = -1  # Use all available cores

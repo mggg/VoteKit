@@ -12,7 +12,10 @@ import pandas as pd
 class CleanedProfile(PreferenceProfile):
     """
     CleanedProfile class, which is used to keep track of how ballots are altered from the original
-    profile.
+    profile. In addition to a custom __str__ method, this class implements a collection of sets
+    that track the indices of the ballot dataframe, and how they are changed by different cleaning
+    rules. It also retains the parent profile of the CleanedProfile, allowing for full recovery
+    of the cleaning steps.
 
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
@@ -25,38 +28,29 @@ class CleanedProfile(PreferenceProfile):
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
-        no_weight_altr_ballot_indices (list[int], optional): List of indices of ballots that have
+        no_wt_altr_idxs (set[int], optional): Set of indices of ballots that have
             0 weight as a result of cleaning. Indices are with respect
             to ``parent_profile.df``.
-        no_ranking_and_no_scores_altr_ballot_indices (list[int], optional): List of indices of
+        no_rank_no_score_altr_idxs (set[int], optional): Set of indices of
             ballots that have no ranking and no scores as a result of cleaning. Indices are with
             respect to ``parent_profile.df``.
-        nonempty_but_altr_ballot_indices (list[int], optional):  List of indices of ballots that
+        nonempty_altr_idxs (set[int], optional):  Set of indices of ballots that
             have been altered but still have weight and (ranking or score) as a result of cleaning.
             Indices are with respect to ``parent_profile.df``.
-        unaltr_ballot_indices (list[int], optional):  List of indices of ballots that have
+        unaltr_idxs (set[int], optional):  Set of indices of ballots that have
             been unaltered by cleaning. Indices are with respect to ``parent_profile.df``.
 
-    Parameters:
-        ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
-        candidates (tuple[str]): Tuple of candidate strings.
-        max_ranking_length (int): The length of the longest allowable ballot, i.e., how
-            many candidates are allowed to be ranked in an election.
-        df (pandas.DataFrame): Data frame view of the ballots.
-        candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive
-            weight, either in the ranking or in the score dictionary.
-        total_ballot_wt (Fraction): Sum of ballot weights.
-        num_ballots (int): Length of ballot list.
+
     """
 
     parent_profile: SkipValidation[PreferenceProfile | CleanedProfile] = (
         PreferenceProfile()
     )
     df_index_column: list[int] = field(default_factory=list)
-    no_weight_altr_ballot_indices: set[int] = field(default_factory=set)
-    no_ranking_and_no_scores_altr_ballot_indices: set[int] = field(default_factory=set)
-    nonempty_but_altr_ballot_indices: set[int] = field(default_factory=set)
-    unaltr_ballot_indices: set[int] = field(default_factory=set)
+    no_wt_altr_idxs: set[int] = field(default_factory=set)
+    no_rank_no_score_altr_idxs: set[int] = field(default_factory=set)
+    nonempty_altr_idxs: set[int] = field(default_factory=set)
+    unaltr_idxs: set[int] = field(default_factory=set)
 
     @model_validator(mode="after")
     def indices_must_match_parent_df(self) -> Self:
@@ -69,55 +63,67 @@ class CleanedProfile(PreferenceProfile):
 
         """
         index_sets = [
-            self.no_weight_altr_ballot_indices,
-            self.no_ranking_and_no_scores_altr_ballot_indices,
-            self.nonempty_but_altr_ballot_indices,
-            self.unaltr_ballot_indices,
+            self.no_wt_altr_idxs,
+            self.no_rank_no_score_altr_idxs,
+            self.nonempty_altr_idxs,
+            self.unaltr_idxs,
         ]
 
-        if not self.no_weight_altr_ballot_indices.issubset(
-            self.parent_profile.df.index
-        ):
+        if not self.no_wt_altr_idxs.issubset(self.parent_profile.df.index):
+            set_minus = self.no_wt_altr_idxs.difference(self.parent_profile.df.index)
             raise ValueError(
                 (
-                    "no_weight_altr_ballot_indices is not a subset of the"
-                    " parent profile df index column."
+                    "no_wt_altr_idxs is not a subset of the"
+                    " parent profile df index column. Here are the indices found in no_wt_altr_idxs"
+                    f" but not the parent profile df index column: {set_minus}"
                 )
             )
 
-        if not self.no_ranking_and_no_scores_altr_ballot_indices.issubset(
-            self.parent_profile.df.index
-        ):
+        if not self.no_rank_no_score_altr_idxs.issubset(self.parent_profile.df.index):
+            set_minus = self.no_rank_no_score_altr_idxs.difference(
+                self.parent_profile.df.index
+            )
             raise ValueError(
                 (
-                    "no_ranking_and_no_scores_altr_ballot_indices is not a subset of "
-                    "the parent profile df index column."
+                    "no_rank_no_score_altr_idxs is not a subset of the"
+                    " parent profile df index column. Here are the indices found in"
+                    " no_rank_no_score_altr_idxs but not the parent profile df index column: "
+                    f"{set_minus}"
                 )
             )
 
-        if not self.nonempty_but_altr_ballot_indices.issubset(
-            self.parent_profile.df.index
-        ):
+        if not self.nonempty_altr_idxs.issubset(self.parent_profile.df.index):
+            set_minus = self.nonempty_altr_idxs.difference(self.parent_profile.df.index)
             raise ValueError(
                 (
-                    "nonempty_but_altr_ballot_indices is not a subset of "
-                    "the parent profile df index column."
+                    "nonempty_altr_idxs is not a subset of the"
+                    " parent profile df index column. Here are the indices found in"
+                    " nonempty_altr_idxs but not the parent profile df index column: "
+                    f"{set_minus}"
                 )
             )
 
-        if not self.unaltr_ballot_indices.issubset(self.parent_profile.df.index):
+        if not self.unaltr_idxs.issubset(self.parent_profile.df.index):
+            set_minus = self.unaltr_idxs.difference(self.parent_profile.df.index)
             raise ValueError(
                 (
-                    "unaltr_ballot_indices is not a subset of "
-                    "the parent profile df index column."
+                    "unaltr_idxs is not a subset of the"
+                    " parent profile df index column. Here are the indices found in"
+                    " unaltr_idxs but not the parent profile df index column: "
+                    f"{set_minus}"
                 )
             )
 
         if set().union(*index_sets) != set(self.parent_profile.df.index):
+            sym_dif = (
+                set()
+                .union(*index_sets)
+                .symmetric_difference(self.parent_profile.df.index)
+            )
             raise ValueError(
                 (
                     "Union of ballot indices must equal the parent profile df index "
-                    "column."
+                    f"column. Here are the indices in one but not the other: {sym_dif}"
                 )
             )
         return self
