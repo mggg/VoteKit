@@ -81,7 +81,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Add any candidates from `profile.candidates` that are not listed on a ballot
-    as tied in last place. Automatically condenses profile.
+    as tied in last place.
 
     Args:
         profile (PreferenceProfile): Input profile.
@@ -112,9 +112,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
                 ranking=tuple([frozenset(s) for s in new_ranking]),
             )
 
-    return PreferenceProfile(
-        ballots=tuple(new_ballots), candidates=tuple(candidates)
-    ).group_ballots()
+    return PreferenceProfile(ballots=tuple(new_ballots), candidates=tuple(candidates))
 
 
 def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
@@ -555,7 +553,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Takes in a PeferenceProfile with potential ties in ballots. Replaces
     ballots with ties with fractionally weighted ballots corresponding to
-    all permutations of the tied ranking. Automatically condenses the ballots.
+    all permutations of the tied ranking.
 
     Args:
         profile (PreferenceProfile): Input profile with potentially tied rankings.
@@ -567,7 +565,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     new_ballots = tuple(
         [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
     )
-    return PreferenceProfile(ballots=new_ballots).group_ballots()
+    return PreferenceProfile(ballots=new_ballots)
 
 
 def score_profile_from_ballot_scores(
