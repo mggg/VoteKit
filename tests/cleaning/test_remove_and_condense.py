@@ -1,6 +1,6 @@
 from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_and_condense
+from votekit.cleaning import remove_and_condense, remove_cand, condense_profile
 from fractions import Fraction
 
 profile_no_ties = PreferenceProfile(
@@ -35,6 +35,13 @@ def test_remove_and_condense():
     assert cleaned_profile.no_rank_no_score_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
     assert cleaned_profile.unaltr_idxs == set()
+
+
+def test_remove_then_condense_equivalence():
+    cleaned_profile_1 = remove_and_condense("A", profile_no_ties)
+    cleaned_profile_2 = condense_profile(remove_cand("A", profile_no_ties))
+
+    assert cleaned_profile_1 == cleaned_profile_2
 
 
 def test_remove_mult_cands():
