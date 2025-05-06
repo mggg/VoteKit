@@ -87,7 +87,7 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     fpv_sq_dict = {c: v**2 / tot_fpv_sq for c, v in fpv.items()}
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
-    trials = 2500
+    trials = 3000
 
     # Parallel execution
     n_jobs = -1  # Use all available cores

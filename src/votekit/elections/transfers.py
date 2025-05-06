@@ -49,13 +49,9 @@ def fractional_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    return (
-        PreferenceProfile(
-            ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
-        )
-        .group_ballots()
-        .ballots
-    )
+    return PreferenceProfile(
+        ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
+    ).ballots
 
 
 def random_transfer(
@@ -123,10 +119,6 @@ def random_transfer(
     )
     updated_ballots += surplus_ballots
 
-    return (
-        PreferenceProfile(
-            ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
-        )
-        .group_ballots()
-        .ballots
-    )
+    return PreferenceProfile(
+        ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
+    ).ballots
