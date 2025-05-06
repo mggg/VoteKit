@@ -86,7 +86,7 @@ def _set_default_bar_plot_args(
     else:
         bar_width *= 1 / len(data)
 
-    if not category_ordering:
+    if category_ordering is None:
         category_ordering = list(next(iter(data.values())).keys())
 
     FONT_SIZE = len(category_ordering) + 10.0

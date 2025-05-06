@@ -280,12 +280,12 @@ class PairwiseComparisonGraph(nx.DiGraph):
             Axes: Matplotlib axes of pairwise comparison graph.
         """
         G = self.pairwise_graph
-        if not candidate_list:
+        if candidate_list is None:
             candidate_list = list(G.nodes)
 
         ranking_labels = {c: i for i, c in enumerate(candidate_list)}
 
-        if not ax:
+        if ax is None:
             fig, ax = plt.subplots(figsize=(10, 10))
 
         pos = nx.circular_layout(G)

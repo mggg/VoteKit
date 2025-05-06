@@ -1,9 +1,9 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
+from ....cleaning import remove_and_condense
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
 )
 import random
@@ -34,11 +34,8 @@ class RandomDictator(RankingElection):
     ):
         if m <= 0:
             raise ValueError("m must be positive.")
-        elif m > len(profile.candidates):
-            raise ValueError(
-                "m must be less than or equal to the number of candidates."
-            )
-
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         super().__init__(
             profile,
@@ -77,7 +74,7 @@ class RandomDictator(RankingElection):
         winning_cand = random.choices(candidates, weights=weights, k=1)[0]
         elected = (frozenset({winning_cand}),)
 
-        new_profile = remove_cand(winning_cand, profile)
+        new_profile = remove_and_condense(winning_cand, profile)
 
         if store_states:
             if self.score_function:

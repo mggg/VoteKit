@@ -1,7 +1,8 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import first_place_votes, elect_cands_from_set_ranking, remove_cand
+from ....utils import first_place_votes, elect_cands_from_set_ranking
+from ....cleaning import remove_and_condense
 from typing import Optional, Literal
 from functools import partial
 
@@ -29,6 +30,8 @@ class Plurality(RankingElection):
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
+        if len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.tiebreak = tiebreak
         super().__init__(
@@ -70,7 +73,8 @@ class Plurality(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_and_condense([c for s in elected for c in s], profile)
+
         if store_states:
             if self.score_function:
                 scores = self.score_function(new_profile)

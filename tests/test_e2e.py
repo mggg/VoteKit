@@ -10,13 +10,6 @@ from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from votekit.pref_interval import PreferenceInterval
 
-# TODO:
-# need to do one with visualizations,
-# need to test other elections,
-# need to test cleaning methods,
-# need to add cleaning methods (ballot truncation for ex)
-# need to test ballot generation models
-
 
 def test_load_clean_completion():
     """simple example of what a "full" use would look like"""
@@ -30,12 +23,13 @@ def test_load_clean_completion():
     )
 
     # apply rules to get new PP
-    cleaned_pp = clean.remove_noncands(pp, ["Paul"])
+    cleaned_pp = clean.condense_profile(clean.remove_cand("Paul", pp))
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")
 
     # run election using a configured RCV step object
+    print("in borda\n")
     election_borda = elections.Borda(cleaned_pp, 1, score_vector=None)
     assert isinstance(election_borda, Election)
 

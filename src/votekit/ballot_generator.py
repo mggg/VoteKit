@@ -1646,7 +1646,7 @@ class slate_PlackettLuce(BallotGenerator):
                     )
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [frozenset({-1})] * len(bt)
+                ranking = [frozenset({"-1"})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
@@ -1930,7 +1930,7 @@ class slate_BradleyTerry(BallotGenerator):
 
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [frozenset({-1})] * len(bt)
+                ranking = [frozenset({"-1"})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})

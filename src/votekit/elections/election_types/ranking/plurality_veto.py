@@ -4,10 +4,10 @@ from ....ballot import Ballot
 from ...election_state import ElectionState
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
     tiebreak_set,
 )
+from ....cleaning import remove_and_condense
 from fractions import Fraction
 import numpy as np
 from typing import Optional, Literal
@@ -78,10 +78,8 @@ class PluralityVeto(RankingElection):
 
         if m <= 0:
             raise ValueError("m must be positive.")
-        elif m > len(profile.candidates):
-            raise ValueError(
-                "m must be less than or equal to the number of candidates."
-            )
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
 
         self.m = m
         self.tiebreak = tiebreak
@@ -135,7 +133,7 @@ class PluralityVeto(RankingElection):
         ballot has integer weight.
         """
         for ballot in profile.ballots:
-            if not ballot.ranking or len(ballot.ranking) == 0:
+            if ballot.ranking is None:
                 raise TypeError("Ballots must have rankings.")
             elif int(ballot.weight) != ballot.weight:
                 raise TypeError(f"Ballot {ballot} has non-integer weight.")
@@ -167,7 +165,6 @@ class PluralityVeto(RankingElection):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-
         remaining_count = len(self.eliminated_dict) - sum(self.eliminated_dict.values())
 
         if remaining_count == self.m:
@@ -228,11 +225,11 @@ class PluralityVeto(RankingElection):
             for c in eliminated_cands:
                 self.eliminated_dict[c] = True
 
-            new_profile = remove_cand(
+            new_profile = remove_and_condense(
                 eliminated_cands,
                 profile,
-                condense=False,
-                leave_zero_weight_ballots=True,
+                remove_zero_weight_ballots=False,
+                remove_empty_ballots=False,
             )
 
             self.ballot_list = new_profile.ballots

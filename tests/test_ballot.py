@@ -13,11 +13,15 @@ def test_ballot_init():
 
 def test_ballot_strip_whitespace():
     b = Ballot(
-        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "})),
+        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "}), frozenset()),
         scores={" Chris": 2, "Peter ": 1, " Moon ": 3},
     )
 
-    assert b.ranking == (frozenset({"Chris", "Peter"}), frozenset({"Moon"}))
+    assert b.ranking == (
+        frozenset({"Chris", "Peter"}),
+        frozenset({"Moon"}),
+        frozenset(),
+    )
     assert b.scores == {"Chris": 2, "Peter": 1, "Moon": 3}
 
 

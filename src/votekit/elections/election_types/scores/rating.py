@@ -4,8 +4,8 @@ from ...election_state import ElectionState
 from ....utils import (
     score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
-    remove_cand,
 )
+from ....cleaning import remove_and_condense
 from typing import Optional, Union
 from fractions import Fraction
 
@@ -55,15 +55,24 @@ class GeneralRating(Election):
     def _validate_profile(self, profile: PreferenceProfile):
         """
         Ensures that every ballot has a score dictionary and each voter has not gone over their
-        score limit per candidate and total budgrt. Raises a TypeError if no score dictionary,
+        score limit per candidate and total budget. Raises a TypeError if no score dictionary,
         and a value error for budget/score limit violation.
 
         Args:
             profile (PreferenceProfile): Profile to validate.
+
+        Raises:
+            TypeError: no score dictionary in a ballot.
+            TypeError: Ballot must have non-negative scores.
+            ValueError: Ballot violates score limit per candidate.
+            ValueError: Ballot violates score budget.
+            ValueError: Not enough candidates received votes to be elected.
         """
+        if len(profile.candidates_cast) < self.m:
+            raise ValueError("Not enough candidates received votes to be elected.")
 
         for b in profile.ballots:
-            if not b.scores:
+            if b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
             elif any(score > self.L for score in b.scores.values()):
                 raise TypeError(
@@ -105,7 +114,7 @@ class GeneralRating(Election):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_and_condense([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:
