@@ -164,7 +164,7 @@ def profile_borda_plot(
         borda_scores(profile, **borda_kwds) if borda_kwds else borda_scores(profile)
     )
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
         )
@@ -260,7 +260,7 @@ def profile_mentions_plot(
         mentions(profile, **mentions_kwds) if mentions_kwds else mentions(profile)
     )
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
         )
@@ -358,7 +358,7 @@ def profile_fpv_plot(
         else first_place_votes(profile)
     )
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
         )
@@ -453,7 +453,7 @@ def profile_ballot_lengths_plot(
         else ballot_lengths(profile)
     )
 
-    if not lengths_ordering:
+    if lengths_ordering is None:
         lengths_ordering = sorted(
             score_dict.keys(), reverse=False, key=lambda x: x  # type: ignore[arg-type]
         )

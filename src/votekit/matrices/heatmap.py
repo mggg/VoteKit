@@ -268,7 +268,7 @@ def matrix_heatmap(
         matplotlib.axes.Axes: The matplotlib axis containing the heatmap.
     """
 
-    if not ax:
+    if ax is None:
         fig, ax = plt.subplots()
 
     _validate_heatmap_inputs(

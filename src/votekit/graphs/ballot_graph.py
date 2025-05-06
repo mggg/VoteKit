@@ -60,7 +60,7 @@ class BallotGraph(Graph):
             self.num_voters = source.total_ballot_wt
             self.num_cands = len(source.candidates)
             self.allow_partial = True
-            if not self.graph:
+            if self.graph is None:
                 self.graph = self.build_graph(len(source.candidates))
             self.graph = self.from_profile(source, fix_short=fix_short)
 
@@ -71,7 +71,7 @@ class BallotGraph(Graph):
             total_ballots = [n for n in self.graph.nodes() if len(n) == self.num_cands]
             self.graph = self.graph.subgraph(total_ballots)
 
-        if not self.node_weights:
+        if self.node_weights is None:
             self.node_weights = {ballot: 0 for ballot in self.graph.nodes}
 
     def _relabel(self, gr: nx.Graph, new_label: int, num_cands: int) -> nx.Graph:
@@ -159,10 +159,10 @@ class BallotGraph(Graph):
                 Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
                 ballots cast in ``PreferenceProfile``.
         """
-        if not self.profile:
+        if self.profile is None:
             self.profile = profile
 
-        if not self.num_voters:
+        if self.num_voters is None:
             self.num_voters = profile.total_ballot_wt
 
         self.candidates = profile.candidates
@@ -172,7 +172,7 @@ class BallotGraph(Graph):
 
         for ballot in ballots:
             ballot_node = []
-            if not ballot.ranking:
+            if ballot.ranking is None:
                 raise TypeError("Ballots must have rankings.")
             for position in ballot.ranking:
                 if len(position) > 1:
@@ -314,7 +314,7 @@ class BallotGraph(Graph):
         ballots = [n for n in self.graph.nodes if to_display(self.graph, n)]
 
         if labels:
-            if not self.candidates:
+            if self.candidates is None:
                 raise ValueError("no candidate names assigned")
             node_labels = self.label_cands(self.candidates, to_display)
 

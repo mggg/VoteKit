@@ -12,8 +12,8 @@ class Ballot:
     leading whitespace from candidate names.
 
     Args:
-        ranking (tuple[frozenset, ...], optional): Tuple of candidate ranking. Entry i of the tuple
-            is a frozenset of candidates ranked in position i. Defaults to None.
+        ranking (tuple[frozenset[str], ...], optional): Tuple of candidate ranking. Entry i of the
+            tuple is a frozenset of candidates ranked in position i. Defaults to None.
         weight (Fraction, optional): Weight assigned to a given ballot. Defaults to 1.
             Can be input as int, float, or Fraction but will be converted to Fraction.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
@@ -22,14 +22,14 @@ class Ballot:
             Only retains non-zero scores.
 
     Attributes:
-        ranking (tuple[frozenset, ...]): Tuple of candidate ranking. Entry i of the tuple is a
+        ranking (tuple[frozenset[str], ...]): Tuple of candidate ranking. Entry i of the tuple is a
             frozenset of candidates ranked in position i.
         weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
         scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
     """
 
-    ranking: Optional[tuple[frozenset, ...]] = None
+    ranking: Optional[tuple[frozenset[str], ...]] = None
     weight: Fraction = Fraction(1, 1)
     voter_set: set[str] = field(default_factory=set)
     scores: Optional[dict[str, Fraction]] = None
@@ -37,9 +37,9 @@ class Ballot:
     @field_validator("ranking", mode="before")
     @classmethod
     def strip_whitespace_ranking_candidates(
-        cls, ranking: Optional[tuple[frozenset, ...]]
-    ) -> Optional[tuple[frozenset, ...]]:
-        if not ranking:
+        cls, ranking: Optional[tuple[frozenset[str], ...]]
+    ) -> Optional[tuple[frozenset[str], ...]]:
+        if ranking is None:
             return None
 
         return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
@@ -93,9 +93,8 @@ class Ballot:
             return False
 
         # Check scores
-        if self.scores is not None:
-            if self.scores != other.scores:
-                return False
+        if self.scores != other.scores:
+            return False
         return True
 
     def __hash__(self):

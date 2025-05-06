@@ -9,16 +9,19 @@ profile_no_tied_pl_no_tied_top_two = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
 profile_no_tied_pl_no_tied_top_two_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"A"}, {"B"}), weight=2), Ballot(ranking=({"B"}, {"A"}))]
+    ballots=[Ballot(ranking=({"A"}, {"B"}), weight=2), Ballot(ranking=({"B"}, {"A"}))],
+    max_ranking_length=3,
 )
 
 profile_no_tied_pl_no_tied_top_two_round_2 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"B"},), weight=3)]
+    ballots=[Ballot(ranking=({"B"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_pl = PreferenceProfile(
@@ -26,14 +29,16 @@ profile_with_tied_pl = PreferenceProfile(
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
         Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_with_tied_top_two = PreferenceProfile(
     ballots=[
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 

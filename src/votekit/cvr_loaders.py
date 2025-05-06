@@ -75,7 +75,7 @@ def load_csv(
 
     for group, group_df in grouped:
         ranking = tuple(
-            [frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group]
+            [frozenset() if pd.isnull(c) else frozenset({c}) for c in group]
         )
 
         voter_set = set()

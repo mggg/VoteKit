@@ -49,7 +49,7 @@ class RankingElection(Election):
             profile (PreferenceProfile): Profile of ballots.
         """
         for ballot in profile.ballots:
-            if not ballot.ranking:
+            if ballot.ranking is None:
                 raise TypeError(f"Ballot {ballot} has no ranking.")
 
     @abstractmethod

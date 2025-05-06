@@ -37,7 +37,7 @@ class Graph(ABC):
         """Returns dict of k ball neighborhoods of
         given radius with their centers and weights
         """
-        if not self.node_weights or sum(self.node_weights.values()) == 0:
+        if self.node_weights == {} or sum(self.node_weights.values()) == 0:
             raise TypeError("no weights assigned to graph")
 
         cast_ballots = {x for x in self.node_weights.keys() if self.node_weights[x] > 0}

@@ -208,14 +208,14 @@ def multi_profile_borda_plot(
     stat_function = partial(borda_scores, **borda_kwds) if borda_kwds else borda_scores
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             next(iter(data_dict.values())).keys(),
             reverse=True,
             key=lambda x: next(iter(data_dict.values()))[x],
         )
 
-    if relabel_candidates_with_int and not candidate_legend:
+    if relabel_candidates_with_int and candidate_legend is None:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
     try:
@@ -321,7 +321,7 @@ def multi_profile_mentions_plot(
     stat_function = partial(mentions, **mentions_kwds) if mentions_kwds else mentions
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             next(iter(data_dict.values())).keys(),
             reverse=True,
@@ -436,7 +436,7 @@ def multi_profile_fpv_plot(
     )
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
-    if not candidate_ordering:
+    if candidate_ordering is None:
         candidate_ordering = sorted(
             next(iter(data_dict.values())).keys(),
             reverse=True,
@@ -550,7 +550,7 @@ def multi_profile_ballot_lengths_plot(
     )
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
-    if not lengths_ordering:
+    if lengths_ordering is None:
         lengths_ordering = sorted(
             next(iter(data_dict.values())).keys(),
             reverse=False,

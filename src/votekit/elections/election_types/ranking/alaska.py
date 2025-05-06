@@ -1,7 +1,8 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import first_place_votes, remove_cand
+from ....cleaning import remove_and_condense
+from ....utils import first_place_votes
 from ..ranking import Plurality, STV
 from ...transfers import fractional_transfer
 from ....ballot import Ballot
@@ -140,11 +141,14 @@ class Alaska(RankingElection):
         """
         if prev_state.round_number == 0:
             plurality = Plurality(profile, self.m_1, self.tiebreak)
-
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile = remove_cand([c for s in eliminated for c in s], profile)
+            new_profile: PreferenceProfile = remove_and_condense(
+                [c for s in eliminated for c in s],
+                profile,
+            )
+
             if self.score_function:
                 scores = self.score_function(new_profile)
 

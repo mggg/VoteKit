@@ -28,7 +28,9 @@ def test_empty_csv():
 
 def test_undervote():
     prof = load_csv(CSV_DIR / "undervote.csv", id_col=0)
-    a = Ballot(ranking=[{"c"}, {None}, {None}], weight=Fraction(1), voter_set={"a"})
+    a = Ballot(
+        ranking=[{"c"}, frozenset(), frozenset()], weight=Fraction(1), voter_set={"a"}
+    )
     correct_prof = PreferenceProfile(ballots=[a])
     assert correct_prof.ballots == prof.ballots
     # assert correct_prof.ballots[0].ranking == prof.ballots[0].ranking
@@ -66,12 +68,14 @@ def test_single_row():
 def test_multiple_undervotes():
     prof = load_csv(CSV_DIR / "mult_undervote.csv", id_col=0)
     abc = Ballot(
-        ranking=[{"c"}, {None}, {None}],
+        ranking=[{"c"}, frozenset(), frozenset()],
         weight=Fraction(3),
         voter_set={"abe", "ben", "carl"},
     )
     dave = Ballot(
-        ranking=[{None}, {"a"}, {None}], weight=Fraction(1), voter_set={"dave"}
+        ranking=[frozenset(), {"a"}, frozenset()],
+        weight=Fraction(1),
+        voter_set={"dave"},
     )
     correct_prof = PreferenceProfile(ballots=[abc, dave])
     assert is_equal(correct_prof.ballots, prof.ballots)
@@ -79,9 +83,11 @@ def test_multiple_undervotes():
 
 def test_different_undervotes():
     prof = load_csv(CSV_DIR / "diff_undervote.csv", id_col=0)
-    a = Ballot(ranking=[{"c"}, {None}, {"b"}], weight=Fraction(1), voter_set={"a"})
-    b = Ballot(ranking=[{None}, {"d"}, {None}], weight=Fraction(1), voter_set={"b"})
-    c = Ballot(ranking=[{"e"}, {None}, {"e"}], weight=Fraction(1), voter_set={"c"})
+    a = Ballot(ranking=[{"c"}, frozenset(), {"b"}], weight=Fraction(1), voter_set={"a"})
+    b = Ballot(
+        ranking=[frozenset(), {"d"}, frozenset()], weight=Fraction(1), voter_set={"b"}
+    )
+    c = Ballot(ranking=[{"e"}, frozenset(), {"e"}], weight=Fraction(1), voter_set={"c"})
     correct_prof = PreferenceProfile(ballots=[a, b, c])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
@@ -104,7 +110,9 @@ def test_combo():
         voter_set={"abe", "ben", "carrie"},
     )
     de = Ballot(
-        ranking=[{"c"}, {None}, {None}], weight=Fraction(2), voter_set={"don", "ed"}
+        ranking=[{"c"}, frozenset(), frozenset()],
+        weight=Fraction(2),
+        voter_set={"don", "ed"},
     )
     correct_prof = PreferenceProfile(ballots=[abc, de])
     assert is_equal(correct_prof.ballots, prof.ballots)

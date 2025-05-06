@@ -7,7 +7,8 @@ profile_no_tied_dominating_sets = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
@@ -26,7 +27,8 @@ profile_no_tied_dominating_sets_round_1 = PreferenceProfile(
                 {"B"},
             )
         ),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_multiwinner_dominating_sets = PreferenceProfile(
@@ -34,7 +36,8 @@ profile_multiwinner_dominating_sets = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
