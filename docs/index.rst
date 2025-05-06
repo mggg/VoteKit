@@ -38,6 +38,7 @@ repository, where :doc:`bug reports and feature requests <./package_info/issues>
    user/tutorial/3_viz
    user/tutorial/4_election_systems
    user/tutorial/5_score_based
+   user/tutorial/7_portland_case_study
 
 .. toctree::
     :caption: Social Choice Reference
