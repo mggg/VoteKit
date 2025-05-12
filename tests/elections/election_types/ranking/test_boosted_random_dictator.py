@@ -33,7 +33,7 @@ def test_boosted_random_dictator_simple():
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
     winner_counts = {c: 0 for c in candidates}
-    trials = 2500
+    trials = 3000
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
@@ -136,7 +136,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 3000
+    trials = 3500
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -180,7 +180,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
 
     ballots = all_possible_ranked_ballots(candidates)
 
-    trials = 2500
+    trials = 3000
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:

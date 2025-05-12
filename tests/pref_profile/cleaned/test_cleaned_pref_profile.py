@@ -37,14 +37,7 @@ def test_init():
 
     assert empty_profile.ballots == ()
     assert not empty_profile.candidates
-    assert empty_profile.df.equals(
-        pd.DataFrame(
-            {
-                "Voter Set": [],
-                "Weight": [],
-            }
-        )
-    )
+    assert empty_profile.df.equals(pd.DataFrame())
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots

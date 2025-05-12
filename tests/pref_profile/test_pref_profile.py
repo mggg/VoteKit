@@ -6,7 +6,7 @@ import dataclasses
 
 def test_init():
     empty_profile = PreferenceProfile()
-    assert empty_profile.ballots == ()
+    assert empty_profile.ballots == tuple()
     assert not empty_profile.candidates
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
