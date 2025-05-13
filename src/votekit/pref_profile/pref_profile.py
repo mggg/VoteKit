@@ -1064,17 +1064,17 @@ class PreferenceProfile:
                 for c in self.candidates:
                     if c not in self.df.columns:
                         raise ValueError(
-                            f"Candidate column {c} not in dataframe: {self.df.columns}"
+                            f"Candidate column '{c}' not in dataframe: {self.df.columns}"
                         )
         if self.contains_rankings:
             if any(
-                f"Ranking_{i}" not in self.df.columns
+                f"Ranking_{i+1}" not in self.df.columns
                 for i in range(self.max_ranking_length)
             ):
                 for i in range(self.max_ranking_length):
-                    if f"Ranking_{i}" not in self.df.columns:
+                    if f"Ranking_{i+1}" not in self.df.columns:
                         raise ValueError(
-                            f"Ranking column {i} not in dataframe: {self.df.columns}"
+                            f"Ranking column 'Ranking_{i+1}' not in dataframe: {self.df.columns}"
                         )
 
     def __set_candidates_cast(self):
@@ -1092,8 +1092,8 @@ class PreferenceProfile:
                 c
                 for c in self.candidates
                 if any(
-                    pos_df[f"Ranking_{i}"]
-                    .apply(lambda s: False if np.isnan(s) else c in s)
+                    pos_df[f"Ranking_{i+1}"]
+                    .apply(lambda s: (c in s) if isinstance(s, frozenset) else False)
                     .sum()
                     > 0
                     for i in range(self.max_ranking_length)
@@ -1146,18 +1146,6 @@ class PreferenceProfile:
         """
         if not self.df.equals(pd.DataFrame()):
             object.__setattr__(self, "total_ballot_wt", self.df["Weight"].sum())
-
-    # @cached_property
-    # def ballots(self) -> tuple[Ballot, ...]:
-    #     """
-    #     Compute the ballot tuple as a cached property.
-    #     """
-    #     computed_ballots = [Ballot()] * len(self.df)
-    #     for i, (_, b_row) in enumerate(self.df.iterrows()):
-    #         computed_ballots[i] = convert_row_to_ballot(
-    #             b_row, self.candidates, self.max_ranking_length
-    #         )
-    #     return tuple(computed_ballots)
 
     def __add__(self, other):
         """
