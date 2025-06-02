@@ -70,8 +70,7 @@ class STV(RankingElection):
         self.m = m
         self.transfer = transfer
         self.quota = quota
-        # Set to 0 initially so that first call to `get_threshold` returns the
-        # proper threshold.
+
         self.threshold = 0
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
