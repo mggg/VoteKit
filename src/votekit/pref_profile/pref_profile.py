@@ -673,40 +673,26 @@ class PreferenceProfile:
             )
 
         elif df.equals(pd.DataFrame()):
-            self._init_from_ballots(ballots)
+            (
+                self.df,
+                self.contains_rankings,
+                self.contains_scores,
+                self.candidates_cast,
+            ) = self._init_from_ballots(ballots)
+
+            if self.candidates == tuple():
+                self.candidates = self.candidates_cast
 
         else:
-            self.df = df
-            self._init_from_df()
+            self.df, self.candidates_cast = self._init_from_df(df)
 
         self._find_max_ranking_length()
         self._find_total_ballot_wt()
         self._find_num_ballots()
+
         self._validate_candidates()
 
         self._is_frozen = True
-
-    def _validate_candidates(self) -> None:
-        """
-        Ensure that the candidate names are not equal to the ranking column names, that they are
-        unique, and strips whitespace from candidates.
-
-        Raises:
-            ProfileError: Candidate names must not be the same as "Ranking_i".
-            ProfileError: Candidate names must be unique.
-        """
-        for cand in self.candidates:
-            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
-                raise ProfileError(
-                    (
-                        f"Candidate {cand} must not share name with"
-                        " ranking columns: Ranking_i."
-                    )
-                )
-        if not len(set(self.candidates)) == len(self.candidates):
-            raise ProfileError("All candidates must be unique.")
-
-        self.candidates = tuple([c.strip() for c in self.candidates])
 
     def __update_ballot_scores_data(
         self,
@@ -907,56 +893,18 @@ class PreferenceProfile:
         df.index.name = "Ballot Index"
         return df
 
-    def __set_class_attrs_from_constructed_df(
-        self,
-        df: pd.DataFrame,
-        candidates_cast: list[str],
-        contains_rankings_indicator: bool,
-        contains_scores_indicator: bool,
-    ) -> None:
-        """
-        Set various class attributes from the pandas dataframe representation of the profile.
-
-        Args:
-            df (pd.DataFrame): The dataframe representation of the profile.
-            candidates_cast (list[str]): Candidates who received votes.
-            contains_rankings_indicator (bool): Whether or not the profile contains ballots
-                with rankings.
-            contains_scores_indicator (bool): Whether or not the profile contains ballots
-                with scores.
-        """
-        # object.__setattr__(self, "df", df)
-        # object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
-
-        self.df = df
-        self.candidates_cast = tuple(candidates_cast)
-
-        if self.candidates == tuple():
-            # object.__setattr__(self, "candidates", tuple(candidates_cast))
-            self.candidates = tuple(candidates_cast)
-
-        if self.contains_rankings is None:
-            # object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
-            self.contains_rankings = contains_rankings_indicator
-        elif self.contains_rankings and not contains_rankings_indicator:
-            raise ProfileError(
-                "contains_rankings is True but we found no ballots with rankings."
-            )
-
-        if self.contains_scores is None:
-            # object.__setattr__(self, "contains_scores", contains_scores_indicator)
-            self.contains_scores = contains_scores_indicator
-        elif self.contains_scores and not contains_scores_indicator:
-            raise ProfileError(
-                "contains_scores is True but we found no ballots with scores."
-            )
-
-    def _init_from_ballots(self, ballots: tuple[Ballot, ...]):
+    def _init_from_ballots(
+        self, ballots: tuple[Ballot, ...]
+    ) -> tuple[pd.DataFrame, bool, bool, tuple[str, ...]]:
         """
         Create the pandas dataframe representation of the profile.
 
         Args:
             ballots (tuple[Ballot,...]): Tuple of ballots.
+
+        Returns:
+            tuple[pd.DataFrame, bool, bool]: df, contains_rankings_indicator,
+                contains_scores_indicator
 
         """
         # `ballot_data` sends {Weight, Voter Set} keys to a list to be
@@ -990,11 +938,21 @@ class PreferenceProfile:
             contains_scores_indicator=contains_scores_indicator,
         )
 
-        self.__set_class_attrs_from_constructed_df(
-            df=df,
-            candidates_cast=candidates_cast,
-            contains_rankings_indicator=contains_rankings_indicator,
-            contains_scores_indicator=contains_scores_indicator,
+        if self.contains_rankings is True and contains_rankings_indicator is False:
+            raise ProfileError(
+                "contains_rankings is True but we found no ballots with rankings."
+            )
+
+        if self.contains_scores is True and contains_scores_indicator is False:
+            raise ProfileError(
+                "contains_scores is True but we found no ballots with scores."
+            )
+
+        return (
+            df,
+            contains_rankings_indicator,
+            contains_scores_indicator,
+            tuple(candidates_cast),
         )
 
     def __validate_init_df_params(self) -> None:
@@ -1025,9 +983,12 @@ class PreferenceProfile:
         if self.candidates == tuple():
             raise ValueError(boiler_plate + "candidates must be provided.")
 
-    def __validate_init_df(self) -> None:
+    def __validate_init_df(self, df: pd.DataFrame) -> None:
         """
         Validate that the df passed to the init method is of valid type.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
             ValueError: Candidate column is missing.
@@ -1037,37 +998,44 @@ class PreferenceProfile:
             ValueError: Index column is misformatted.
 
         """
-        if "Weight" not in self.df.columns:
-            raise ValueError(f"Weight column not in dataframe: {self.df.columns}")
-        if "Voter Set" not in self.df.columns:
-            raise ValueError(f"Voter Set column not in dataframe: {self.df.columns}")
-        if self.df.index.name != "Ballot Index":
-            raise ValueError(f"Index not named 'Ballot Index': {self.df.index.name}")
+        if "Weight" not in df.columns:
+            raise ValueError(f"Weight column not in dataframe: {df.columns}")
+        if "Voter Set" not in df.columns:
+            raise ValueError(f"Voter Set column not in dataframe: {df.columns}")
+        if df.index.name != "Ballot Index":
+            raise ValueError(f"Index not named 'Ballot Index': {df.index.name}")
         if self.contains_scores:
-            if any(c not in self.df.columns for c in self.candidates):
+            if any(c not in df.columns for c in self.candidates):
                 for c in self.candidates:
-                    if c not in self.df.columns:
+                    if c not in df.columns:
                         raise ValueError(
-                            f"Candidate column '{c}' not in dataframe: {self.df.columns}"
+                            f"Candidate column '{c}' not in dataframe: {df.columns}"
                         )
         if self.contains_rankings:
             if any(
-                f"Ranking_{i+1}" not in self.df.columns
+                f"Ranking_{i+1}" not in df.columns
                 for i in range(self.max_ranking_length)
             ):
                 for i in range(self.max_ranking_length):
-                    if f"Ranking_{i+1}" not in self.df.columns:
+                    if f"Ranking_{i+1}" not in df.columns:
                         raise ValueError(
-                            f"Ranking column 'Ranking_{i+1}' not in dataframe: {self.df.columns}"
+                            f"Ranking column 'Ranking_{i+1}' not in dataframe: {df.columns}"
                         )
 
-    def __set_candidates_cast(self) -> None:
+    def __find_candidates_cast_from_init_df(self, df: pd.DataFrame) -> tuple[str, ...]:
         """
-        Compute which candidates received votes from the df and set the candidates_cast attr.
-        """
-        pos_df = self.df[self.df["Weight"] > 0]
+        Compute which candidates received votes from the df and set the candidates_cast and
+        candidates attr.
 
-        candidates_cast = []
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Returns:
+            tuple[str]: Candidates cast.
+        """
+        pos_df = df[df["Weight"] > 0]
+
+        candidates_cast: list[str] = []
         if self.contains_scores:
             candidates_cast += [c for c in self.candidates if pos_df[c].sum() > 0]
 
@@ -1084,19 +1052,24 @@ class PreferenceProfile:
                 )
             ]
 
-        # object.__setattr__(self, "candidates_cast", tuple(set(candidates_cast)))
-        self.candidates_cast = tuple(set(candidates_cast))
+        return tuple(set(candidates_cast))
 
-    def _init_from_df(self):
+    def _init_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
-        Set various class attributes from the pandas dataframe representation of the profile,
-        provided in init method.
+        Validate the dataframe and determine the candidates cast.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Returns
+            tuple[pd.DataFrame, tuple[str]]: df, candidates_cast
         """
 
         self.__validate_init_df_params()
-        self.__validate_init_df()
+        self.__validate_init_df(df)
+        candidates_cast = self.__find_candidates_cast_from_init_df(df)
 
-        self.__set_candidates_cast()
+        return df, candidates_cast
 
     def _find_max_ranking_length(self):
         """
@@ -1131,6 +1104,36 @@ class PreferenceProfile:
         """
         if not self.df.equals(pd.DataFrame()):
             self.total_ballot_wt = self.df["Weight"].sum()
+
+    def _validate_candidates(self) -> None:
+        """
+        Ensure that the candidate names are not equal to the ranking column names, that they are
+        unique, and strips whitespace from candidates.
+
+        Raises:
+            ProfileError: Candidate names must not be the same as "Ranking_i".
+            ProfileError: Candidate names must be unique.
+        """
+        for cand in self.candidates:
+            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
+                raise ProfileError(
+                    (
+                        f"Candidate {cand} must not share name with"
+                        " ranking columns: Ranking_i."
+                    )
+                )
+        if not len(set(self.candidates)) == len(self.candidates):
+            raise ProfileError("All candidates must be unique.")
+
+        if not set(self.candidates_cast).issubset(self.candidates):
+            raise ValueError(
+                "Candidates cast are not a subset of candidates list. The following "
+                " candidates are in candidates_cast but not candidates: "
+                f"{set(self.candidates_cast)-set(self.candidates)}."
+            )
+
+        self.candidates = tuple([c.strip() for c in self.candidates])
+        self.candidates_cast = tuple([c.strip() for c in self.candidates_cast])
 
     @cached_property
     def ballots(self: PreferenceProfile) -> tuple[Ballot, ...]:
