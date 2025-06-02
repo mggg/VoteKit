@@ -2,6 +2,7 @@ from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 import pandas as pd
 import pytest
+import numpy as np
 
 profile = PreferenceProfile(
     ballots=[
@@ -35,9 +36,12 @@ def test_init():
         parent_profile=PreferenceProfile(), df_index_column=[]
     )
 
+    true_df = pd.DataFrame(columns=["Voter Set", "Weight"], index=[], dtype=np.float64)
+    true_df.index.name = "Ballot Index"
+
     assert empty_profile.ballots == ()
     assert not empty_profile.candidates
-    assert empty_profile.df.equals(pd.DataFrame())
+    assert empty_profile.df.equals(true_df)
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots

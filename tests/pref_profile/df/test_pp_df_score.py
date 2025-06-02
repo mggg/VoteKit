@@ -48,7 +48,6 @@ def test_pp_df_rankings_args():
         ballots=ballots_scores,
         contains_rankings=False,
         contains_scores=True,
-        contains_rankings_and_scores=False,
         candidates=["A", "B", "C", "D", "E"],
     )
     data = {

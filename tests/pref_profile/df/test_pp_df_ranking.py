@@ -31,7 +31,6 @@ def test_pp_df_rankings_args():
         ballots=ballots_rankings,
         contains_rankings=True,
         contains_scores=False,
-        contains_rankings_and_scores=False,
         candidates=["A", "B", "C", "D", "E"],
         max_ranking_length=4,
     )
