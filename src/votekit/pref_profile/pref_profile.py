@@ -2,16 +2,14 @@ from __future__ import annotations
 import csv
 from fractions import Fraction
 import pandas as pd
-from pydantic import ConfigDict, field_validator
 from ..ballot import Ballot
 from .utils import _df_to_ballot_tuple, convert_row_to_ballot
-from pydantic.dataclasses import dataclass
-from dataclasses import field, InitVar
 import numpy as np
-from typing import Optional, Tuple, TypeVar, Callable, Any
+from typing import Optional, Tuple
 import warnings
 import pickle
 from .profile_error import ProfileError
+from functools import cached_property
 
 
 def _parse_profile_data_from_csv(
@@ -597,10 +595,6 @@ def _validate_csv_format(csv_data: list[list[str]]):
     _validate_csv_ballot_rows(csv_data)
 
 
-@dataclass(
-    frozen=True,
-    config=ConfigDict(arbitrary_types_allowed=True),
-)
 class PreferenceProfile:
     """
     PreferenceProfile class, contains ballots and candidates for a given election.
@@ -656,72 +650,51 @@ class PreferenceProfile:
 
     """
 
-    ballots: InitVar[tuple[Ballot, ...]] = tuple()
-    candidates: tuple[str, ...] = field(default_factory=tuple)
-    max_ranking_length: int = 0
-    df: pd.DataFrame = field(default_factory=pd.DataFrame)
-    candidates_cast: tuple[str, ...] = field(default_factory=tuple)
-    num_ballots: int = 0
-    total_ballot_wt: Fraction = Fraction(0)
-    contains_rankings: Optional[bool] = None
-    contains_scores: Optional[bool] = None
+    _is_frozen = False
 
-    def __post_init__(self, ballots: tuple[Ballot, ...]):
-        """
-        Use the post init to handle the creation of a ballot df.
+    def __init__(
+        self,
+        *,
+        ballots: tuple[Ballot, ...] = tuple(),
+        candidates: tuple[str, ...] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        contains_rankings: Optional[bool] = None,
+        contains_scores: Optional[bool] = None,
+    ):
+        self.candidates = candidates
+        self.max_ranking_length = max_ranking_length
+        self.contains_rankings = contains_rankings
+        self.contains_scores = contains_scores
 
-        Args:
-            ballots (tuple[Ballot,...]): Tuple of ballots.
-        """
-        self._cands_not_ranking_columns()
-        if not self.df.equals(pd.DataFrame()) and ballots != tuple():
+        if not df.equals(pd.DataFrame()) and ballots != tuple():
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
             )
 
-        elif self.df.equals(pd.DataFrame()) and ballots != tuple():
-            self._ballot_list_to_df(ballots)
+        elif df.equals(pd.DataFrame()):
+            self._init_from_ballots(ballots)
 
-        elif not self.df.equals(pd.DataFrame()) and ballots == tuple():
-            self._set_class_attrs_from_init_df()
+        else:
+            self.df = df
+            self._init_from_df()
 
         self._find_max_ranking_length()
         self._find_total_ballot_wt()
         self._find_num_ballots()
+        self._validate_candidates()
 
-    @field_validator("candidates")
-    @classmethod
-    def cands_must_be_unique_strip_whitespace(
-        cls, candidates: tuple[str, ...]
-    ) -> tuple[str, ...]:
+        self._is_frozen = True
+
+    def _validate_candidates(self) -> None:
         """
-        Checks that candidate names are unique and strips trailing and leading whitespace.
+        Ensure that the candidate names are not equal to the ranking column names, that they are
+        unique, and strips whitespace from candidates.
 
-        Args:
-            candidates (tuple[str], optional): Candidate names.
-
-        Returns:
-            Optional[tuple[str]]: Candidate names.
+        Raises:
+            ProfileError: Candidate names must not be the same as "Ranking_i".
+            ProfileError: Candidate names must be unique.
         """
-        if candidates == tuple():
-            return tuple()
-
-        if not len(set(candidates)) == len(candidates):
-            raise ProfileError("All candidates must be unique.")
-
-        return tuple([c.strip() for c in candidates])
-
-    def _cands_not_ranking_columns(
-        self,
-    ):
-        """
-        Ensures that candidate names do not match ranking columns.
-        Also added protection for from_csv method.
-
-        """
-        if self.candidates == tuple():
-            return
-
         for cand in self.candidates:
             if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
                 raise ProfileError(
@@ -730,6 +703,10 @@ class PreferenceProfile:
                         " ranking columns: Ranking_i."
                     )
                 )
+        if not len(set(self.candidates)) == len(self.candidates):
+            raise ProfileError("All candidates must be unique.")
+
+        self.candidates = tuple([c.strip() for c in self.candidates])
 
     def __update_ballot_scores_data(
         self,
@@ -936,7 +913,7 @@ class PreferenceProfile:
         candidates_cast: list[str],
         contains_rankings_indicator: bool,
         contains_scores_indicator: bool,
-    ):
+    ) -> None:
         """
         Set various class attributes from the pandas dataframe representation of the profile.
 
@@ -948,26 +925,33 @@ class PreferenceProfile:
             contains_scores_indicator (bool): Whether or not the profile contains ballots
                 with scores.
         """
-        object.__setattr__(self, "df", df)
-        object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
+        # object.__setattr__(self, "df", df)
+        # object.__setattr__(self, "candidates_cast", tuple(candidates_cast))
+
+        self.df = df
+        self.candidates_cast = tuple(candidates_cast)
+
         if self.candidates == tuple():
-            object.__setattr__(self, "candidates", tuple(candidates_cast))
+            # object.__setattr__(self, "candidates", tuple(candidates_cast))
+            self.candidates = tuple(candidates_cast)
 
         if self.contains_rankings is None:
-            object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
+            # object.__setattr__(self, "contains_rankings", contains_rankings_indicator)
+            self.contains_rankings = contains_rankings_indicator
         elif self.contains_rankings and not contains_rankings_indicator:
             raise ProfileError(
                 "contains_rankings is True but we found no ballots with rankings."
             )
 
         if self.contains_scores is None:
-            object.__setattr__(self, "contains_scores", contains_scores_indicator)
+            # object.__setattr__(self, "contains_scores", contains_scores_indicator)
+            self.contains_scores = contains_scores_indicator
         elif self.contains_scores and not contains_scores_indicator:
             raise ProfileError(
                 "contains_scores is True but we found no ballots with scores."
             )
 
-    def _ballot_list_to_df(self, ballots: tuple[Ballot, ...]):
+    def _init_from_ballots(self, ballots: tuple[Ballot, ...]):
         """
         Create the pandas dataframe representation of the profile.
 
@@ -1013,7 +997,7 @@ class PreferenceProfile:
             contains_scores_indicator=contains_scores_indicator,
         )
 
-    def __validate_init_df_params(self):
+    def __validate_init_df_params(self) -> None:
         """
         Validate that the correct params were passed to the init method when constructing
         from a dataframe.
@@ -1041,7 +1025,7 @@ class PreferenceProfile:
         if self.candidates == tuple():
             raise ValueError(boiler_plate + "candidates must be provided.")
 
-    def __validate_init_df(self):
+    def __validate_init_df(self) -> None:
         """
         Validate that the df passed to the init method is of valid type.
 
@@ -1077,7 +1061,7 @@ class PreferenceProfile:
                             f"Ranking column 'Ranking_{i+1}' not in dataframe: {self.df.columns}"
                         )
 
-    def __set_candidates_cast(self):
+    def __set_candidates_cast(self) -> None:
         """
         Compute which candidates received votes from the df and set the candidates_cast attr.
         """
@@ -1100,9 +1084,10 @@ class PreferenceProfile:
                 )
             ]
 
-        object.__setattr__(self, "candidates_cast", tuple(set(candidates_cast)))
+        # object.__setattr__(self, "candidates_cast", tuple(set(candidates_cast)))
+        self.candidates_cast = tuple(set(candidates_cast))
 
-    def _set_class_attrs_from_init_df(self):
+    def _init_from_df(self):
         """
         Set various class attributes from the pandas dataframe representation of the profile,
         provided in init method.
@@ -1128,24 +1113,50 @@ class PreferenceProfile:
                 " to 0."
             )
 
-            object.__setattr__(self, "max_ranking_length", 0)
+            self.max_ranking_length = 0
 
         elif self.max_ranking_length == 0 and self.contains_rankings is True:
             max_ranking_length = len([c for c in self.df.columns if "Ranking_" in c])
-            object.__setattr__(self, "max_ranking_length", max_ranking_length)
+            self.max_ranking_length = max_ranking_length
 
     def _find_num_ballots(self):
         """
         Compute and set the number of ballots.
         """
-        object.__setattr__(self, "num_ballots", len(self.df))
+        self.num_ballots = len(self.df)
 
     def _find_total_ballot_wt(self):
         """
         Compute and set the total ballot weight.
         """
         if not self.df.equals(pd.DataFrame()):
-            object.__setattr__(self, "total_ballot_wt", self.df["Weight"].sum())
+            self.total_ballot_wt = self.df["Weight"].sum()
+
+    @cached_property
+    def ballots(self: PreferenceProfile) -> tuple[Ballot, ...]:
+        """
+        Compute the ballot tuple as a cached property.
+        """
+        computed_ballots = [Ballot()] * len(self.df)
+        for i, (_, b_row) in enumerate(self.df.iterrows()):
+            computed_ballots[i] = convert_row_to_ballot(
+                b_row, self.candidates, self.max_ranking_length
+            )
+        return tuple(computed_ballots)
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_is_frozen", False) and name != "_is_frozen":
+            raise AttributeError(
+                f"Cannot modify frozen instance: tried to set '{name}'"
+            )
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name):
+        if getattr(self, "_is_frozen", False):
+            raise AttributeError(
+                f"Cannot delete attribute '{name}' from frozen instance"
+            )
+        super().__delattr__(name)
 
     def __add__(self, other):
         """
@@ -1495,36 +1506,3 @@ class PreferenceProfile:
             data = pickle.load(f)
         assert isinstance(data, PreferenceProfile)
         return data
-
-
-def _compute_ballots(self: PreferenceProfile) -> tuple[Ballot, ...]:
-    """
-    Compute the ballot tuple as a cached property.
-    """
-    computed_ballots = [Ballot()] * len(self.df)
-    for i, (_, b_row) in enumerate(self.df.iterrows()):
-        computed_ballots[i] = convert_row_to_ballot(
-            b_row, self.candidates, self.max_ranking_length
-        )
-    return tuple(computed_ballots)
-
-
-T = TypeVar("T")
-
-
-class frozen_cached_property:
-    def __init__(self, fn: Callable[..., T]):
-        self.fn = fn
-        self.cache_name = f"_{fn.__name__}_cache"
-
-    def __get__(self, obj: Any, owner=None) -> T:
-        if obj is None:
-            return self
-        if hasattr(obj, self.cache_name):
-            return getattr(obj, self.cache_name)
-        val = self.fn(obj)
-        object.__setattr__(obj, self.cache_name, val)
-        return val
-
-
-PreferenceProfile.ballots = frozen_cached_property(_compute_ballots)
