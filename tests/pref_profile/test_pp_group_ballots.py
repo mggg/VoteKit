@@ -31,7 +31,7 @@ def test_pp_group_ballots_ranking():
     assert profile == pp
 
 
-def test_condense_profile_scores():
+def test_group_ballot_scores():
     profile = PreferenceProfile(
         ballots=(
             Ballot(

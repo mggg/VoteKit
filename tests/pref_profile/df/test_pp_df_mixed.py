@@ -38,6 +38,16 @@ def test_pp_df_mixed():
             np.nan,
             Fraction(2),
         ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "Ranking_1": [
             np.nan,
             frozenset({"A", "B"}),
@@ -62,6 +72,9 @@ def test_pp_df_mixed():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
+    print(pp.df.to_string())
+    print()
+    print(true_df.to_string())
     assert pp.df.equals(true_df)
 
 

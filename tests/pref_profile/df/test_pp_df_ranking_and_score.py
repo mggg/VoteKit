@@ -39,6 +39,7 @@ def test_pp_df_ranking_and_score():
             np.nan,
             np.nan,
         ],
+        "C": [np.nan, np.nan, np.nan, np.nan],
         "D": [np.nan, Fraction(2), np.nan, np.nan],
         "E": [np.nan, Fraction(1), np.nan, np.nan],
         "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],

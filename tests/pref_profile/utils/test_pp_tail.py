@@ -114,6 +114,16 @@ def test_pp_df_tail_mixed():
             Fraction(2),
             np.nan,
         ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
         "Ranking_1": [
             np.nan,
             frozenset({"A"}),
@@ -148,5 +158,5 @@ def test_pp_df_tail_mixed():
     true_df = pd.DataFrame(data)
     true_df.index = [0, 2, 1]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 6 + [5, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 8 + [5, f"{1:.1%}"]
     assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)
