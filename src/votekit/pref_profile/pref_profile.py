@@ -3,7 +3,7 @@ import csv
 from fractions import Fraction
 import pandas as pd
 from ..ballot import Ballot
-from .utils import _df_to_ballot_tuple, convert_row_to_ballot
+from .utils import convert_row_to_ballot
 import numpy as np
 from typing import Optional, Tuple
 import warnings
@@ -862,6 +862,7 @@ class PreferenceProfile:
         self,
         ballot_data: dict[str, list],
         contains_scores_indicator: bool,
+        candidates_cast: list[str],
     ) -> pd.DataFrame:
         """
         Create a pandas dataframe from the ballot data.
@@ -870,6 +871,7 @@ class PreferenceProfile:
             ballot_data (dict[str, list]): Dictionary storing ballot data.
             contains_scores_indicator (bool): Whether or not the profile contains ballots
                 with scores.
+            candidates_cast (list[str]): List of candidates who received votes.
 
         Returns:
             pd.DataFrame: Dataframe of profile.
@@ -883,6 +885,9 @@ class PreferenceProfile:
         if self.candidates != tuple() and contains_scores_indicator:
             col_order = list(self.candidates) + temp_col_order
         elif contains_scores_indicator:
+            for c in candidates_cast:
+                if c not in df.columns:
+                    df[c] = [np.nan] * len(df)
             col_order = (
                 sorted([c for c in df.columns if c not in temp_col_order])
                 + temp_col_order
@@ -936,6 +941,7 @@ class PreferenceProfile:
         df = self.__init_formatted_df(
             ballot_data=ballot_data,
             contains_scores_indicator=contains_scores_indicator,
+            candidates_cast=candidates_cast,
         )
 
         if self.contains_rankings is True and contains_rankings_indicator is False:
@@ -1165,7 +1171,6 @@ class PreferenceProfile:
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        # TODO should be able to redo this with new init method
         if isinstance(other, PreferenceProfile):
             ballots = self.ballots + other.ballots
             max_ranking_length = max(
@@ -1190,7 +1195,16 @@ class PreferenceProfile:
         Returns:
             PreferenceProfile: A PreferenceProfile object with grouped ballot list.
         """
-        if self.df.equals(pd.DataFrame()):
+        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
+        empty_df.index.name = "Ballot Index"
+
+        # if self.df.equals(empty_df):
+        #     return PreferenceProfile(
+        #         candidates=self.candidates,
+        #         max_ranking_length=self.max_ranking_length,
+        #     )
+
+        if len(self.df) == 0:
             return PreferenceProfile(
                 candidates=self.candidates,
                 max_ranking_length=self.max_ranking_length,
@@ -1210,18 +1224,14 @@ class PreferenceProfile:
             }
         ).reset_index()
 
-        # TODO should be able to redo this with new init method
-
-        new_ballots = _df_to_ballot_tuple(
-            new_df,
-            candidates=self.candidates,
-            max_ranking_length=self.max_ranking_length,
-        )
+        new_df.index.name = "Ballot Index"
 
         return PreferenceProfile(
-            ballots=new_ballots,
+            df=new_df,
             candidates=self.candidates,
             max_ranking_length=self.max_ranking_length,
+            contains_rankings=self.contains_rankings,
+            contains_scores=self.contains_scores,
         )
 
     def __eq__(self, other):
