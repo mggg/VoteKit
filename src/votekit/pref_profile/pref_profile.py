@@ -650,7 +650,7 @@ class PreferenceProfile:
 
     """
 
-    _is_frozen = False
+    _is_frozen: bool = False
 
     def __init__(
         self,
@@ -686,9 +686,9 @@ class PreferenceProfile:
         else:
             self.df, self.candidates_cast = self._init_from_df(df)
 
-        self._find_max_ranking_length()
-        self._find_total_ballot_wt()
-        self._find_num_ballots()
+        self.max_ranking_length = self._find_max_ranking_length()
+        self.total_ballot_wt = self._find_total_ballot_wt()
+        self.num_ballots = self._find_num_ballots()
 
         self._validate_candidates()
 
@@ -885,9 +885,10 @@ class PreferenceProfile:
         if self.candidates != tuple() and contains_scores_indicator:
             col_order = list(self.candidates) + temp_col_order
         elif contains_scores_indicator:
-            for c in candidates_cast:
-                if c not in df.columns:
-                    df[c] = [np.nan] * len(df)
+            remaining_cands = set(candidates_cast) - set(df.columns)
+            empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
+            df[list(remaining_cands)] = empty_df_cols
+
             col_order = (
                 sorted([c for c in df.columns if c not in temp_col_order])
                 + temp_col_order
@@ -1077,9 +1078,12 @@ class PreferenceProfile:
 
         return df, candidates_cast
 
-    def _find_max_ranking_length(self):
+    def _find_max_ranking_length(self) -> int:
         """
         Compute and set the maximum ranking length of the profile.
+
+        Returns:
+            int: Max ranking length.
 
         Warns:
             UserWarning: If a max_ranking_length is provided but not rankings are in the
@@ -1092,24 +1096,33 @@ class PreferenceProfile:
                 " to 0."
             )
 
-            self.max_ranking_length = 0
+            return 0
 
         elif self.max_ranking_length == 0 and self.contains_rankings is True:
-            max_ranking_length = len([c for c in self.df.columns if "Ranking_" in c])
-            self.max_ranking_length = max_ranking_length
+            return len([c for c in self.df.columns if "Ranking_" in c])
 
-    def _find_num_ballots(self):
+        return self.max_ranking_length
+
+    def _find_num_ballots(self) -> int:
         """
         Compute and set the number of ballots.
-        """
-        self.num_ballots = len(self.df)
 
-    def _find_total_ballot_wt(self):
+        Returns:
+            int: num ballots
+        """
+        return len(self.df)
+
+    def _find_total_ballot_wt(self) -> Fraction:
         """
         Compute and set the total ballot weight.
+
+        Returns:
+            Fraction: total ballot weight.
         """
+        total_weight = Fraction(0)
         if not self.df.equals(pd.DataFrame()):
-            self.total_ballot_wt = self.df["Weight"].sum()
+            total_weight = self.df["Weight"].sum()
+        return total_weight
 
     def _validate_candidates(self) -> None:
         """
@@ -1154,7 +1167,7 @@ class PreferenceProfile:
         return tuple(computed_ballots)
 
     def __setattr__(self, name, value):
-        if getattr(self, "_is_frozen", False) and name != "_is_frozen":
+        if getattr(self, "_is_frozen", False):
             raise AttributeError(
                 f"Cannot modify frozen instance: tried to set '{name}'"
             )
@@ -1197,12 +1210,6 @@ class PreferenceProfile:
         """
         empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
         empty_df.index.name = "Ballot Index"
-
-        # if self.df.equals(empty_df):
-        #     return PreferenceProfile(
-        #         candidates=self.candidates,
-        #         max_ranking_length=self.max_ranking_length,
-        #     )
 
         if len(self.df) == 0:
             return PreferenceProfile(
