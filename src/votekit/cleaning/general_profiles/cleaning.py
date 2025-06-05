@@ -1,8 +1,8 @@
 from fractions import Fraction
 from functools import partial
 from typing import Callable, Union
-from .pref_profile import PreferenceProfile, CleanedProfile, convert_row_to_ballot
-from .ballot import Ballot
+from ...pref_profile import PreferenceProfile, CleanedProfile, convert_row_to_ballot
+from ...ballot import Ballot
 
 
 def clean_profile(
@@ -15,7 +15,8 @@ def clean_profile(
 ) -> CleanedProfile:
     """
     Allows user-defined cleaning rules for PreferenceProfile. Input function
-    that applies modification to a single ballot.
+    that applies modification to a single ballot. This function is slower than
+    ``clean_ranked_profile`` but allows for users to clean scored ballot as well.
 
     Args:
         profile (PreferenceProfile): A PreferenceProfile to clean.
