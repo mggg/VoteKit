@@ -111,8 +111,8 @@ def clean_ranked_profile(
 
     return CleanedProfile(
         df=cleaned_df,
-        contains_rankings=profile.contains_rankings,
-        contains_scores=profile.contains_scores,
+        contains_rankings=profile.contains_rankings if len(cleaned_df) > 0 else False,
+        contains_scores=False,
         candidates=(profile.candidates if retain_original_candidate_list else tuple()),
         max_ranking_length=profile.max_ranking_length,
         no_wt_altr_idxs=no_wt_altr_idxs,
@@ -281,6 +281,7 @@ def remove_cand_ranked_profile(
         df=cleaned_profile.df,
         candidates=new_candidates,
         contains_rankings=cleaned_profile.contains_rankings,
+        contains_scores=False,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
@@ -397,6 +398,7 @@ def condense_ranked_profile(
     return CleanedProfile(
         df=condensed_profile.df,
         contains_rankings=condensed_profile.contains_rankings,
+        contains_scores=False,
         candidates=condensed_profile.candidates,
         max_ranking_length=condensed_profile.max_ranking_length,
         parent_profile=profile,
@@ -519,6 +521,7 @@ def remove_and_condense_ranked_profile(
         df=cleaned_profile.df,
         candidates=new_candidates,
         contains_rankings=cleaned_profile.contains_rankings,
+        contains_scores=False,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,

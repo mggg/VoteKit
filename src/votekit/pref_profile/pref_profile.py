@@ -962,10 +962,13 @@ class PreferenceProfile:
             tuple(candidates_cast),
         )
 
-    def __validate_init_df_params(self) -> None:
+    def __validate_init_df_params(self, df: pd.DataFrame) -> None:
         """
         Validate that the correct params were passed to the init method when constructing
         from a dataframe.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
             ValueError: One of contains_rankings and contains_scores must be True.
@@ -975,6 +978,9 @@ class PreferenceProfile:
         boiler_plate = (
             "When providing a dataframe and no ballot list to the init method, "
         )
+        if len(df) == 0:
+            return
+
         if self.contains_rankings is None and self.contains_scores is None:
             raise ValueError(
                 boiler_plate
@@ -1072,9 +1078,16 @@ class PreferenceProfile:
             tuple[pd.DataFrame, tuple[str]]: df, candidates_cast
         """
 
-        self.__validate_init_df_params()
+        self.__validate_init_df_params(df)
         self.__validate_init_df(df)
         candidates_cast = self.__find_candidates_cast_from_init_df(df)
+
+        if len(df) == 0:
+            self.contains_rankings, self.contains_scores, self.max_ranking_length = (
+                False,
+                False,
+                0,
+            )
 
         return df, candidates_cast
 
