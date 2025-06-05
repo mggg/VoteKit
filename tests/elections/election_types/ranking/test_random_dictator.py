@@ -113,7 +113,7 @@ def test_random_dictator_4_candidates_with_ties():
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 500
+    trials = 750
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
