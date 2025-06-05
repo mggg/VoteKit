@@ -9,47 +9,57 @@ import pandas as pd
 import numpy as np
 
 
-def _compute_altered_indices(
-    cleaned_df: pd.DataFrame,
+def _iterate_and_clean_rows(
     profile: PreferenceProfile,
-) -> tuple[set[int], set[int], set[int], set[int]]:
+    clean_ranking_func: Callable[[tuple], tuple],
+) -> tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]:
     """
-    Compute which ballots were altered by the cleaning rule.
+    Clean the rows of the df according to the cleaning rule.
 
     Args:
-        cleaned_df (pd.DataFrame): The cleaned df of ballots.
         profile (PreferenceProfile): The original profile of ballots.
+        clean_ranking_func (Callable[[tuple], tuple]): Function that
+            takes the ranking portion of a row of the profile df and returns an altered ranking.
 
     Returns:
-        tuple[set[int], set[int], set[int], set[int]]: unaltr_idxs, nonempty_altr_idxs,
-            no_wt_altr_idxs, no_rank_no_score_altr_idxs
+        tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]: cleaned_df, unaltr_idxs,
+            nonempty_altr_idxs, no_wt_altr_idxs, no_rank_no_score_altr_idxs
     """
+    cleaned_df = profile.df.copy()
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    new_ranking_cols: list[tuple] = [
+        tuple(None for _ in range(profile.max_ranking_length))
+    ] * len(cleaned_df)
 
     no_wt_altr_idxs: set[int] = set()
     no_rank_no_score_altr_idxs: set[int] = set()
     nonempty_altr_idxs: set[int] = set()
     unaltr_idxs: set[int] = set()
 
-    mask = ~(cleaned_df.eq(profile.df) | (cleaned_df.isna() & profile.df.isna()))
-    disagree_rows = mask.any(axis=1)
+    for i, row in enumerate(cleaned_df[ranking_cols].itertuples(index=True)):
+        row_idx, row = row[0], row[1:]
+        clean_row = clean_ranking_func(row)
+        new_ranking_cols[i] = clean_row
 
-    for i, row in disagree_rows.items():
-        assert isinstance(i, int)
-        if row is False:
-            unaltr_idxs.add(i)
+        if clean_row == row:
+            unaltr_idxs.add(row_idx)
             continue
 
-        ballot = cleaned_df.loc[i]
-        if ballot["Weight"] == 0:
-            no_wt_altr_idxs.add(i)
-
-        if ballot.drop(["Weight", "Voter Set"]).isna().all():
-            no_rank_no_score_altr_idxs.add(i)
+        if all(isinstance(x, float) and np.isnan(x) for x in clean_row):
+            no_rank_no_score_altr_idxs.add(row_idx)
 
         else:
-            nonempty_altr_idxs.add(i)
+            nonempty_altr_idxs.add(row_idx)
 
-    return unaltr_idxs, nonempty_altr_idxs, no_wt_altr_idxs, no_rank_no_score_altr_idxs
+    cleaned_df[ranking_cols] = pd.DataFrame(new_ranking_cols, index=cleaned_df.index)
+
+    return (
+        cleaned_df,
+        unaltr_idxs,
+        nonempty_altr_idxs,
+        no_wt_altr_idxs,
+        no_rank_no_score_altr_idxs,
+    )
 
 
 def clean_ranked_profile(
@@ -87,19 +97,13 @@ def clean_ranked_profile(
     if profile.contains_scores is True:
         raise ProfileError("Profile must only contain ranked ballots.")
 
-    cleaned_df = profile.df.copy()
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    new_ranking_cols: list[tuple] = [
-        tuple(None for _ in range(profile.max_ranking_length))
-    ] * len(cleaned_df)
-
-    for idx, row in enumerate(cleaned_df[ranking_cols].itertuples(index=False)):
-        new_ranking_cols[idx] = clean_ranking_func(row)
-
-    cleaned_df[ranking_cols] = pd.DataFrame(new_ranking_cols, index=cleaned_df.index)
-    unaltr_idxs, nonempty_altr_idxs, no_wt_altr_idxs, no_rank_no_score_altr_idxs = (
-        _compute_altered_indices(cleaned_df, profile)
-    )
+    (
+        cleaned_df,
+        unaltr_idxs,
+        nonempty_altr_idxs,
+        no_wt_altr_idxs,
+        no_rank_no_score_altr_idxs,
+    ) = _iterate_and_clean_rows(profile, clean_ranking_func)
 
     if remove_empty_ballots:
         cleaned_df = cleaned_df[
@@ -426,7 +430,11 @@ def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) ->
     """
 
     if any(
-        c_remove == cand for c_remove in removed for c_set in ranking for cand in c_set
+        c_remove == cand
+        for c_remove in removed
+        for c_set in ranking
+        if isinstance(c_set, frozenset)
+        for cand in c_set
     ):
         return False
 
