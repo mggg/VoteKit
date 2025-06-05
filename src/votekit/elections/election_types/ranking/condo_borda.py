@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from ....utils import elect_cands_from_set_ranking, borda_scores
 from ....graphs import PairwiseComparisonGraph
 
@@ -60,7 +60,9 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_and_condense([c for s in elected for c in s], profile)
+        new_profile = remove_and_condense_ranked_profile(
+            [c for s in elected for c in s], profile
+        )
 
         if store_states:
             self.election_states.append(

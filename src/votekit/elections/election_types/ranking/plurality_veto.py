@@ -7,7 +7,7 @@ from ....utils import (
     score_dict_to_ranking,
     tiebreak_set,
 )
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from fractions import Fraction
 import numpy as np
 from typing import Optional, Literal
@@ -225,7 +225,7 @@ class PluralityVeto(RankingElection):
             for c in eliminated_cands:
                 self.eliminated_dict[c] = True
 
-            new_profile = remove_and_condense(
+            new_profile = remove_and_condense_ranked_profile(
                 eliminated_cands,
                 profile,
                 remove_zero_weight_ballots=False,

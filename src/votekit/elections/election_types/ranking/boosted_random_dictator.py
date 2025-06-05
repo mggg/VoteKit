@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from ....utils import (
     first_place_votes,
     score_dict_to_ranking,
@@ -97,7 +97,7 @@ class BoostedRandomDictator(RankingElection):
             weights = list(fpv.values())
             winning_candidate = random.choices(candidates, weights=weights, k=1)[0]
 
-        new_profile = remove_and_condense(
+        new_profile = remove_and_condense_ranked_profile(
             winning_candidate,
             profile,
         )
