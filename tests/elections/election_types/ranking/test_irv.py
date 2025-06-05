@@ -196,8 +196,6 @@ def test_quotas():
 
 def test_profiles():
     e = IRV(test_profile)
-    print(e.get_profile(1))
-    print(profile_list[1])
     assert [e.get_profile(i) for i in range(len(e.election_states))] == profile_list
 
 
