@@ -1270,8 +1270,10 @@ class PreferenceProfile:
         if self.contains_scores != other.contains_scores:
             return False
 
-        pp_1 = self.group_ballots()
-        pp_2 = other.group_ballots()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            pp_1 = self.group_ballots()
+            pp_2 = other.group_ballots()
         for b in pp_1.ballots:
             if b not in pp_2.ballots:
                 return False
