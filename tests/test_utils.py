@@ -1,6 +1,6 @@
 from fractions import Fraction
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.utils import (
     ballots_by_first_cand,
     add_missing_cands,
@@ -169,7 +169,7 @@ def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
         score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
         )
@@ -205,7 +205,7 @@ def test_first_place_votes_to_float():
 
 
 def test_fpv_errors():
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         first_place_votes(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
@@ -325,7 +325,7 @@ def test_borda_mismatched_length():
 
 
 def test_borda_errors():
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
