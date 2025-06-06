@@ -9,21 +9,19 @@ from ....cleaning import (
     condense_ballot_ranking,
 )
 from ....utils import (
-    first_place_votes,
+    _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
     tiebreak_set,
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from typing import Optional, Callable, Union, Literal
+from typing import Optional, Callable, Union
 from fractions import Fraction
-from functools import partial
 
 
 class STV(RankingElection):
     """
-    STV elections. Currently implements simultaneous election. All ballots must have no
-    ties.
+    STV elections. All ballots must have no ties.
 
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.
@@ -41,10 +39,6 @@ class STV(RankingElection):
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
-        fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
-            for tied first place votes. Defaults to "average", where if n candidates are tied for
-            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
-            Only used by ``score_function`` parameter.
 
     """  # noqa
 
@@ -59,7 +53,6 @@ class STV(RankingElection):
         quota: str = "droop",
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
-        fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         self._stv_validate_profile(profile)
 
@@ -77,9 +70,7 @@ class STV(RankingElection):
         self.tiebreak = tiebreak
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=_first_place_votes_from_df_no_ties,
             sort_high_low=True,
         )
 

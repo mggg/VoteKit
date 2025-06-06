@@ -1,10 +1,11 @@
 from fractions import Fraction
-from typing import Union, Sequence, Optional, Literal
+from typing import Union, Sequence, Optional, Literal, cast
 from itertools import permutations
 import math
 import random
 from .ballot import Ballot
-from .pref_profile import PreferenceProfile
+from .pref_profile import PreferenceProfile, ProfileError
+import pandas as pd
 
 COLOR_LIST = [
     "#0099cd",
@@ -139,6 +140,72 @@ def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
                 raise ValueError("Score vector must be non-increasing.")
 
 
+def _score_dict_from_rankings_df_no_ties(
+    profile: PreferenceProfile,
+    score_vector: Sequence[Union[float, Fraction]],
+    to_float: bool = False,
+) -> Union[dict[str, Fraction], dict[str, float]]:
+    """
+    Score the candidates based on a score vector. For example, the vector (1,0,...) would
+    return the first place votes for each candidate. Vectors should be non-increasing and
+    non-negative. Vector should be as long as ``max_ranking_length`` in the profile.
+    If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
+    in the dictionary.
+
+    Intended to be much faster than score_profile_from_rankings. Does not handle ties in ballots.
+
+
+    Args:
+        profile (PreferenceProfile): Profile to score.
+        score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
+            non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
+            the profile. If it is shorter, we add 0s.
+        to_float (bool, optional): If True, compute scores as floats instead of Fractions.
+            Defaults to False.
+
+    Returns:
+        Union[dict[str, Fraction], dict[str, float]]:
+            Dictionary mapping candidates to scores.
+
+    Raises:
+        ProfileError: Profile must only contain ranked ballots.
+        ProfileError: Profile contains ties.
+    """
+    validate_score_vector(score_vector)
+
+    if profile.contains_scores is True:
+        raise ProfileError("Profile must only contain ranked ballots.")
+
+    if len(score_vector) < profile.max_ranking_length:
+        score_vector = list(score_vector) + [0] * (
+            profile.max_ranking_length - len(score_vector)
+        )
+
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+
+    if (
+        profile.df[ranking_cols]
+        .map(lambda x: isinstance(x, frozenset) and len(x) > 1)  # type: ignore[operator]
+        .any()
+        .any()
+    ):
+        raise ProfileError("Profile contains ties.")
+
+    counts = [
+        profile.df.groupby(ranking_col)["Weight"].sum() for ranking_col in ranking_cols
+    ]
+    scores = pd.DataFrame(
+        [count * cast(float, score_vector[i]) for i, count in enumerate(counts)]
+    )
+
+    score_dict = {c: scores[frozenset({c})].sum() for c in profile.candidates_cast}
+
+    if to_float:
+        score_dict = {c: float(s) for c, s in score_dict.items()}
+
+    return score_dict
+
+
 def score_profile_from_rankings(
     profile: PreferenceProfile,
     score_vector: Sequence[Union[float, Fraction]],
@@ -173,6 +240,8 @@ def score_profile_from_rankings(
     """
     validate_score_vector(score_vector)
 
+    if profile.contains_scores is True:
+        raise ProfileError("Profile must only contain ranked ballots.")
     max_length = profile.max_ranking_length
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
@@ -211,6 +280,29 @@ def score_profile_from_rankings(
     if to_float:
         return {c: float(v) for c, v in scores.items()}
     return scores
+
+
+def _first_place_votes_from_df_no_ties(
+    profile: PreferenceProfile,
+    to_float: bool = False,
+) -> Union[dict[str, Fraction], dict[str, float]]:
+    """
+    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
+    Intended to be much faster than first_place_votes, but does not handle ties in ballots.
+
+    Args:
+        profile (PreferenceProfile): The profile to compute first place votes for.
+        to_float (bool): If True, compute first place votes as floats instead of Fractions.
+            Defaults to False.
+
+    Returns:
+        Union[dict[str, Fraction],dict[str, float]]:
+            Dictionary mapping candidates to number of first place votes.
+    """
+    # equiv to score vector of (1,0,0,...)
+    return _score_dict_from_rankings_df_no_ties(
+        profile, [1] + [0] * (profile.max_ranking_length - 1), to_float
+    )
 
 
 def first_place_votes(
