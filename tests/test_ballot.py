@@ -13,16 +13,35 @@ def test_ballot_init():
 
 def test_ballot_strip_whitespace():
     b = Ballot(
-        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "}), frozenset()),
+        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "})),
         scores={" Chris": 2, "Peter ": 1, " Moon ": 3},
     )
 
     assert b.ranking == (
         frozenset({"Chris", "Peter"}),
         frozenset({"Moon"}),
-        frozenset(),
     )
     assert b.scores == {"Chris": 2, "Peter": 1, "Moon": 3}
+
+
+def test_ballot_strip_trailing_frozensets():
+    b = Ballot(
+        ranking=(
+            frozenset({"Chris", "Peter"}),
+            frozenset(),
+            frozenset({"Moon"}),
+            frozenset(),
+        ),
+    )
+
+    assert b.ranking == (
+        frozenset({"Chris", "Peter"}),
+        frozenset(),
+        frozenset({"Moon"}),
+    )
+
+    b = Ballot(ranking=(frozenset(), frozenset()))
+    assert b.ranking is None
 
 
 def test_ballot_post_init():
