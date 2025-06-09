@@ -12,3 +12,4 @@ extra_data/
 docs/_build
 .dev
 vote2
+.envrc
