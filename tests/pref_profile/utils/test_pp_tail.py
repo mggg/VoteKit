@@ -14,9 +14,14 @@ def test_pp_df_tail_rankings():
     ]
     pp = PreferenceProfile(ballots=ballots_rankings)
     data = {
-        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
-        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset(),
+            frozenset(),
+        ],
+        "Ranking_2": [frozenset({"B"}), frozenset(), frozenset(), frozenset()],
+        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), frozenset(), frozenset()],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "Percent": [
@@ -125,17 +130,17 @@ def test_pp_df_tail_mixed():
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset(),
             frozenset({"A"}),
             frozenset({"A", "B"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset(),
             frozenset({"B"}),
             frozenset(),
         ],
         "Ranking_3": [
-            np.nan,
+            frozenset(),
             frozenset({"C"}),
             frozenset({"D"}),
         ],

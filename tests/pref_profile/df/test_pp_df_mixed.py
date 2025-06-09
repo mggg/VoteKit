@@ -49,16 +49,16 @@ def test_pp_df_mixed():
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset(),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset(),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset(), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},
@@ -72,9 +72,6 @@ def test_pp_df_mixed():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    print(pp.df.to_string())
-    print()
-    print(true_df.to_string())
     assert pp.df.equals(true_df)
 
 
@@ -113,16 +110,16 @@ def test_pp_df_mixed_args():
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset(),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset(),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset(), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},

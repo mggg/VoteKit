@@ -35,17 +35,7 @@ def _convert_ranking_cols_to_ranking(
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
-    for i, col_idx in enumerate(ranking_cols_idxs):
-        if pd.isna(row[col_idx]):
-            if not all(pd.isna(row[idx]) for idx in ranking_cols_idxs[i:]):
-                raise ValueError(
-                    f"Row {row} has NaN values between valid ranking positions. "
-                    "NaN values can only trail on a ranking."
-                )
-
-            break
-
-        ranking.append(row[col_idx])
+    ranking = [row[col_idx] for col_idx in ranking_cols_idxs]
 
     return tuple(ranking) if ranking else None
 

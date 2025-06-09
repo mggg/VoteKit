@@ -781,7 +781,7 @@ class PreferenceProfile:
                         f"Max ballot length {self.max_ranking_length} given but "
                         "ballot {b} has length at least {j+1}."
                     )
-                ballot_data[f"Ranking_{j+1}"] = [np.nan] * num_ballots
+                ballot_data[f"Ranking_{j+1}"] = [frozenset()] * num_ballots
 
             ballot_data[f"Ranking_{j+1}"][idx] = cand_set
 
@@ -852,7 +852,7 @@ class PreferenceProfile:
         if self.max_ranking_length > 0:
             ballot_data.update(
                 {
-                    f"Ranking_{i+1}": [np.nan] * num_ballots
+                    f"Ranking_{i+1}": [frozenset()] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )
@@ -1048,24 +1048,19 @@ class PreferenceProfile:
         """
         pos_df = df[df["Weight"] > 0]
 
-        candidates_cast: list[str] = []
+        candidates_cast: set[str] = set()
         if self.contains_scores:
-            candidates_cast += [c for c in self.candidates if pos_df[c].sum() > 0]
+            candidates_cast = candidates_cast.union(
+                {c for c in self.candidates if pos_df[c].sum() > 0}
+            )
 
         if self.contains_rankings:
-            candidates_cast += [
-                c
-                for c in self.candidates
-                if any(
-                    pos_df[f"Ranking_{i+1}"]
-                    .apply(lambda s: (c in s) if isinstance(s, frozenset) else False)
-                    .sum()
-                    > 0
-                    for i in range(self.max_ranking_length)
-                )
-            ]
+            ranking_cols = [c for c in df.columns if "Ranking_" in c]
+            candidates_cast = candidates_cast.union(
+                *pos_df[ranking_cols].to_numpy().flatten()
+            )
 
-        return tuple(set(candidates_cast))
+        return tuple(candidates_cast)
 
     def _init_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
@@ -1077,7 +1072,6 @@ class PreferenceProfile:
         Returns
             tuple[pd.DataFrame, tuple[str]]: df, candidates_cast
         """
-
         self.__validate_init_df_params(df)
         self.__validate_init_df(df)
         candidates_cast = self.__find_candidates_cast_from_init_df(df)

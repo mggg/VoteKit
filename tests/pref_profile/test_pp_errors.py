@@ -33,14 +33,15 @@ def test_pp_excede_ranking_length():
         match="Max ballot length 1 given but ",
     ):
         PreferenceProfile(
-            ballots=(Ballot(ranking=(frozenset(), frozenset())),), max_ranking_length=1
+            ballots=(Ballot(ranking=(frozenset({"A"}), frozenset({"B"}))),),
+            max_ranking_length=1,
         )
 
 
 def test_pp_contains_ranking():
     with pytest.raises(ProfileError, match="but contains_rankings is set to False."):
         PreferenceProfile(
-            ballots=(Ballot(ranking=(frozenset(),)),), contains_rankings=False
+            ballots=(Ballot(ranking=(frozenset({"A"}),)),), contains_rankings=False
         )
 
     with pytest.raises(
