@@ -280,8 +280,17 @@ class PairwiseComparisonGraph(nx.DiGraph):
             Axes: Matplotlib axes of pairwise comparison graph.
         """
         G = self.pairwise_graph
+
+        known_candidate_list = list(G.nodes)
         if candidate_list is None:
-            candidate_list = list(G.nodes)
+            candidate_list = known_candidate_list
+
+        assert set(candidate_list).issubset(set(G.nodes)), (
+            f"Invalid candidates found: {set(candidate_list) - set(G.nodes)} does not appear as "
+            f"a subset of known candidates {set(G.nodes)}"
+        )
+
+        G = G.subgraph(candidate_list).copy()
 
         ranking_labels = {c: i for i, c in enumerate(candidate_list)}
 
