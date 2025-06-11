@@ -45,7 +45,7 @@ def _iterate_and_clean_rows(
             unaltr_idxs.add(row_idx)
             continue
 
-        if all(isinstance(x, float) and np.isnan(x) for x in clean_row):
+        if all(x == frozenset({"~"}) for x in clean_row):
             no_rank_no_score_altr_idxs.add(row_idx)
 
         else:
@@ -106,9 +106,13 @@ def clean_ranked_profile(
     ) = _iterate_and_clean_rows(profile, clean_ranking_func)
 
     if remove_empty_ballots:
-        cleaned_df = cleaned_df[
-            ~cleaned_df.drop(["Weight", "Voter Set"], axis=1).isna().all(axis=1)
+        ranking_cols = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
+
+        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+
+        cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:
         cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
@@ -217,19 +221,11 @@ def remove_cand_from_ranking_row(
     if isinstance(removed, str):
         removed = [removed]
 
-    new_ranking: list[float | frozenset] = []
-    for s in ranking_tup:
-        new_s = []
-        if not isinstance(s, frozenset):
-            new_ranking.append(np.nan)
-            continue
+    new_ranking = tuple(
+        frozenset(c for c in cand_set if c not in removed) for cand_set in ranking_tup
+    )
 
-        for c in s:
-            if c not in removed:
-                new_s.append(c)
-        new_ranking.append(frozenset(new_s))
-
-    return tuple(new_ranking)
+    return new_ranking
 
 
 def remove_cand_ranked_profile(
@@ -315,7 +311,9 @@ def condense_ranking_row(
     ]
 
     if len(condensed_ranking) < max_ranking_length:
-        condensed_ranking += [np.nan] * (max_ranking_length - len(condensed_ranking))
+        condensed_ranking += [frozenset("~")] * (
+            max_ranking_length - len(condensed_ranking)
+        )
 
     return tuple(condensed_ranking)
 
@@ -339,7 +337,7 @@ def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
         if cand_set != frozenset():
             continue
 
-        if all(cs in [frozenset(), np.nan] for cs in ranking[i:]):
+        if all(cs in [frozenset(), frozenset("~")] for cs in ranking[i:]):
             return True
 
         return False
