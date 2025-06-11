@@ -74,19 +74,6 @@ class Ballot:
 
         return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
 
-    @field_validator("ranking", mode="before")
-    @classmethod
-    def strip_trailing_empty_frozensets(
-        cls, ranking: Optional[tuple[frozenset[str], ...]]
-    ) -> Optional[tuple[frozenset[str], ...]]:
-        if ranking is None:
-            return None
-
-        while len(ranking) > 0 and ranking[-1] == frozenset():
-            ranking = ranking[:-1]
-
-        return ranking if len(ranking) > 0 else None
-
     @field_validator("weight", mode="before")
     @classmethod
     def convert_weight_to_fraction(cls, weight: Union[float, Fraction]) -> Fraction:
