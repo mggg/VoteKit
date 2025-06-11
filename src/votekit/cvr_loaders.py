@@ -3,7 +3,6 @@ import os
 import csv
 import pandas as pd
 from pandas.errors import EmptyDataError, DataError
-import pathlib
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
