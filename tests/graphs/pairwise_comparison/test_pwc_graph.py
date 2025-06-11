@@ -119,5 +119,8 @@ def test_draw_pwcg():
 
 def test_draw_pwcg_non_candidate_error():
     pwcg = PairwiseComparisonGraph(TEST_PROFILE)
-    with pytest.raises(KeyError, match="'Chris'"):
+    with pytest.raises(
+        AssertionError,
+        match="Invalid candidates found:",
+    ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])
