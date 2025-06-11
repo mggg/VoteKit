@@ -1,11 +1,12 @@
 from fractions import Fraction
-from typing import Union, Sequence, Optional, Literal, cast
+from typing import Union, Sequence, Optional, Literal
 from itertools import permutations
 import math
 import random
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile, ProfileError
 import pandas as pd
+import numpy as np
 
 COLOR_LIST = [
     "#0099cd",
@@ -142,68 +143,80 @@ def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
 
 def _score_dict_from_rankings_df_no_ties(
     profile: PreferenceProfile,
-    score_vector: Sequence[Union[float, Fraction]],
+    score_vector: Sequence[Union[int, Fraction]],
     to_float: bool = False,
-) -> Union[dict[str, Fraction], dict[str, float]]:
-    """
-    Score the candidates based on a score vector. For example, the vector (1,0,...) would
-    return the first place votes for each candidate. Vectors should be non-increasing and
-    non-negative. Vector should be as long as ``max_ranking_length`` in the profile.
-    If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
-    in the dictionary.
+) -> dict[str, Fraction]:
 
-    Intended to be much faster than score_profile_from_rankings. Does not handle ties in ballots.
+    score_vector = [Fraction(s) for s in score_vector]
 
-
-    Args:
-        profile (PreferenceProfile): Profile to score.
-        score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
-            non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
-            the profile. If it is shorter, we add 0s.
-        to_float (bool, optional): If True, compute scores as floats instead of Fractions.
-            Defaults to False.
-
-    Returns:
-        Union[dict[str, Fraction], dict[str, float]]:
-            Dictionary mapping candidates to scores.
-
-    Raises:
-        ProfileError: Profile must only contain ranked ballots.
-        ProfileError: Profile contains ties.
-    """
     validate_score_vector(score_vector)
-
-    if profile.contains_scores is True:
+    if profile.contains_scores:
         raise ProfileError("Profile must only contain ranked ballots.")
 
-    if len(score_vector) < profile.max_ranking_length:
-        score_vector = list(score_vector) + [0] * (
-            profile.max_ranking_length - len(score_vector)
-        )
+    max_len = profile.max_ranking_length
+    if len(score_vector) < max_len:
+        score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
 
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    df = profile.df
+    raw_weights = df["Weight"].tolist()
 
-    if (
-        profile.df[ranking_cols]
-        .map(lambda x: isinstance(x, frozenset) and len(x) > 1)  # type: ignore[operator]
-        .any()
-        .any()
-    ):
-        raise ProfileError("Profile contains ties.")
-
-    counts = [
-        profile.df.groupby(ranking_col)["Weight"].sum() for ranking_col in ranking_cols
-    ]
-    scores = pd.DataFrame(
-        [count * cast(float, score_vector[i]) for i, count in enumerate(counts)]
+    # Now we have to do a bunch of manipulation so that the weights and scores we want to
+    # work with are all integers. We'll do some slick vectorization stuff to get this all to work.
+    weight_nums = np.fromiter(
+        (f.numerator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
+    )
+    weight_dens = np.fromiter(
+        (f.denominator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
     )
 
-    score_dict = {c: scores[frozenset({c})].sum() for c in profile.candidates_cast}
+    score_nums = np.fromiter(
+        (f.numerator for f in score_vector), dtype=np.int64, count=len(score_vector)
+    )
+    score_dens = np.fromiter(
+        (f.denominator for f in score_vector), dtype=np.int64, count=len(score_vector)
+    )
 
-    if to_float:
-        score_dict = {c: float(s) for c, s in score_dict.items()}
+    # Find the common denominator for all weights and scores using numpy's lcm.reduce
+    common_den = np.lcm.reduce([*weight_dens, *score_dens])
 
-    return score_dict
+    weight_factors = common_den // weight_dens
+    score_factors = common_den // score_dens
+
+    # Now we have numpy arrays to work with
+    weights_scaled = weight_nums * weight_factors
+    scores_scaled = score_nums * score_factors
+
+    cand_frznst = [frozenset({c}) for c in profile.candidates_cast]
+    all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
+    idx_of_empty = all_frznst.index(frozenset())
+    n_buckets = len(all_frznst)
+
+    arr = df[[f"Ranking_{i}" for i in range(1, max_len + 1)]].to_numpy(object)
+    flat_arr = arr.ravel()
+
+    # Slick way of converting frozensets to integer codes:
+    codes_flat = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(np.int64)
+
+    if (codes_flat == -1).any():
+        codes_flat = np.where(codes_flat == -1, idx_of_empty, codes_flat)
+
+    weights_flat = np.repeat(weights_scaled, max_len) * np.tile(
+        scores_scaled, len(weights_scaled)
+    )
+    bucket_sums_scaled = np.bincount(
+        codes_flat, weights=weights_flat, minlength=n_buckets
+    )
+
+    result = {}
+    denom = common_den * common_den
+    for idx, fs in enumerate(cand_frznst):
+        name = next(iter(fs))
+        if to_float:
+            result[name] = float(bucket_sums_scaled[idx]) / denom
+        else:
+            result[name] = Fraction(int(bucket_sums_scaled[idx]), int(denom))
+
+    return result
 
 
 def score_profile_from_rankings(
