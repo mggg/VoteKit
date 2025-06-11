@@ -781,7 +781,7 @@ class PreferenceProfile:
                         f"Max ballot length {self.max_ranking_length} given but "
                         "ballot {b} has length at least {j+1}."
                     )
-                ballot_data[f"Ranking_{j+1}"] = [frozenset()] * num_ballots
+                ballot_data[f"Ranking_{j+1}"] = [frozenset("~")] * num_ballots
 
             ballot_data[f"Ranking_{j+1}"][idx] = cand_set
 
@@ -852,7 +852,7 @@ class PreferenceProfile:
         if self.max_ranking_length > 0:
             ballot_data.update(
                 {
-                    f"Ranking_{i+1}": [frozenset()] * num_ballots
+                    f"Ranking_{i+1}": [frozenset("~")] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )
@@ -1060,7 +1060,7 @@ class PreferenceProfile:
                 *pos_df[ranking_cols].to_numpy().flatten()
             )
 
-        return tuple(candidates_cast)
+        return tuple(candidates_cast - {"~"})
 
     def _init_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """

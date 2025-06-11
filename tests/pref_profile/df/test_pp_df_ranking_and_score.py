@@ -45,11 +45,16 @@ def test_pp_df_ranking_and_score():
         "Ranking_1": [
             frozenset({"A"}),
             frozenset({"A", "B"}),
-            frozenset(),
-            frozenset(),
+            frozenset("~"),
+            frozenset("~"),
         ],
-        "Ranking_2": [frozenset({"B"}), frozenset({"D"}), frozenset(), frozenset()],
-        "Ranking_3": [frozenset({"C"}), frozenset(), frozenset(), frozenset()],
+        "Ranking_2": [
+            frozenset({"B"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_3": [frozenset({"C"}), frozenset("~"), frozenset("~"), frozenset("~")],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
@@ -90,11 +95,16 @@ def test_pp_df_ranking_and_score_args():
         "Ranking_1": [
             frozenset({"A"}),
             frozenset({"A", "B"}),
-            frozenset(),
-            frozenset(),
+            frozenset("~"),
+            frozenset("~"),
         ],
-        "Ranking_2": [frozenset({"B"}), frozenset({"D"}), frozenset(), frozenset()],
-        "Ranking_3": [frozenset({"C"}), frozenset(), frozenset(), frozenset()],
+        "Ranking_2": [
+            frozenset({"B"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_3": [frozenset({"C"}), frozenset("~"), frozenset("~"), frozenset("~")],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
     }
