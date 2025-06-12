@@ -29,25 +29,26 @@ def _convert_ranking_cols_to_ranking(
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking = []
     ranking_cols_idxs = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
-    for i, col_idx in enumerate(ranking_cols_idxs):
-        if pd.isna(row[col_idx]):
-            if not all(pd.isna(row[idx]) for idx in ranking_cols_idxs[i:]):
-                raise ValueError(
-                    f"Row {row} has NaN values between valid ranking positions. "
-                    "NaN values can only trail on a ranking."
-                )
+    if any(
+        row[col_idx] == frozenset({"~"})
+        and not all(row[idx] == frozenset({"~"}) for idx in ranking_cols_idxs[i:])
+        for i, col_idx in enumerate(ranking_cols_idxs)
+    ):
+        raise ValueError(
+            f"Row {row} has '~' between valid ranking positions. "
+            "'~' values can only trail on a ranking."
+        )
 
-            break
+    ranking = [
+        row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")
+    ]
 
-        ranking.append(row[col_idx])
-
-    return tuple(ranking) if ranking else None
+    return tuple(ranking) if len(ranking) > 0 else None
 
 
 def convert_row_to_ballot(
@@ -129,6 +130,7 @@ def profile_to_ballot_dict(
     tot_weight = profile.total_ballot_wt
     di: dict = {}
     for ballot in profile.ballots:
+        print(ballot)
         weightless_ballot = Ballot(
             ranking=ballot.ranking,
             scores=ballot.scores,
@@ -142,6 +144,7 @@ def profile_to_ballot_dict(
             di[weightless_ballot] = weight
         else:
             di[weightless_ballot] += weight
+        print()
     return di
 
 

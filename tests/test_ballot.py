@@ -85,3 +85,17 @@ def test_ballot_str():
         str(b)
         == "Ranking\n1.) A, \n2.) B, \n3.) C, \nScores\nA: 1.00\nB: 0.50\nWeight: 3"
     )
+
+
+def test_ballot_tilde_errors():
+    with pytest.raises(
+        ValueError,
+        match="'~' is a reserved character and cannot be used for candidate names.",
+    ):
+        Ballot(ranking=({"~"},))
+
+    with pytest.raises(
+        ValueError,
+        match="'~' is a reserved character and cannot be used for candidate names.",
+    ):
+        Ballot(scores={"~": 1})

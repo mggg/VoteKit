@@ -38,17 +38,27 @@ def test_pp_df_mixed():
             np.nan,
             Fraction(2),
         ],
-        "Ranking_1": [
+        "C": [
             np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "Ranking_1": [
+            frozenset("~"),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset("~"), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},
@@ -100,16 +110,16 @@ def test_pp_df_mixed_args():
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset("~"),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset("~"), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},

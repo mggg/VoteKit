@@ -14,6 +14,7 @@ def test_to_ranking_dict():
             Ballot(scores={"A": 4}),
         )
     )
+
     rv = profile_to_ranking_dict(profile, standardize=False)
     assert rv[(frozenset({"A"}), frozenset({"B"}))] == Fraction(5, 2)
     assert rv[(frozenset({"C"}), frozenset({"B"}))] == Fraction(2, 1)

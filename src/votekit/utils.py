@@ -4,7 +4,9 @@ from itertools import permutations
 import math
 import random
 from .ballot import Ballot
-from .pref_profile import PreferenceProfile
+from .pref_profile import PreferenceProfile, ProfileError
+import pandas as pd
+import numpy as np
 
 COLOR_LIST = [
     "#0099cd",
@@ -81,7 +83,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Add any candidates from `profile.candidates` that are not listed on a ballot
-    as tied in last place. Automatically condenses profile.
+    as tied in last place.
 
     Args:
         profile (PreferenceProfile): Input profile.
@@ -112,9 +114,7 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
                 ranking=tuple([frozenset(s) for s in new_ranking]),
             )
 
-    return PreferenceProfile(
-        ballots=tuple(new_ballots), candidates=tuple(candidates)
-    ).group_ballots()
+    return PreferenceProfile(ballots=tuple(new_ballots), candidates=tuple(candidates))
 
 
 def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
@@ -139,6 +139,84 @@ def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
             # if the current score is bigger than prev
             if score > score_vector[i - 1]:
                 raise ValueError("Score vector must be non-increasing.")
+
+
+def _score_dict_from_rankings_df_no_ties(
+    profile: PreferenceProfile,
+    score_vector: Sequence[Union[int, Fraction]],
+    to_float: bool = False,
+) -> dict[str, Fraction]:
+
+    score_vector = [Fraction(s) for s in score_vector]
+
+    validate_score_vector(score_vector)
+    if profile.contains_scores:
+        raise ProfileError("Profile must only contain ranked ballots.")
+
+    max_len = profile.max_ranking_length
+    if len(score_vector) < max_len:
+        score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
+
+    df = profile.df
+    raw_weights = df["Weight"].tolist()
+
+    # Now we have to do a bunch of manipulation so that the weights and scores we want to
+    # work with are all integers. We'll do some slick vectorization stuff to get this all to work.
+    weight_nums = np.fromiter(
+        (f.numerator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
+    )
+    weight_dens = np.fromiter(
+        (f.denominator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
+    )
+
+    score_nums = np.fromiter(
+        (f.numerator for f in score_vector), dtype=np.int64, count=len(score_vector)
+    )
+    score_dens = np.fromiter(
+        (f.denominator for f in score_vector), dtype=np.int64, count=len(score_vector)
+    )
+
+    # Find the common denominator for all weights and scores using numpy's lcm.reduce
+    common_den = np.lcm.reduce([*weight_dens, *score_dens])
+
+    weight_factors = common_den // weight_dens
+    score_factors = common_den // score_dens
+
+    # Now we have numpy arrays to work with
+    weights_scaled = weight_nums * weight_factors
+    scores_scaled = score_nums * score_factors
+
+    cand_frznst = [frozenset({c}) for c in profile.candidates_cast]
+    all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
+    idx_of_empty = all_frznst.index(frozenset())
+    n_buckets = len(all_frznst)
+
+    arr = df[[f"Ranking_{i}" for i in range(1, max_len + 1)]].to_numpy(object)
+    flat_arr = arr.ravel()
+
+    # Slick way of converting frozensets to integer codes:
+    codes_flat = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(np.int64)
+
+    if (codes_flat == -1).any():
+        codes_flat = np.where(codes_flat == -1, idx_of_empty, codes_flat)
+
+    weights_flat = np.repeat(weights_scaled, max_len) * np.tile(
+        scores_scaled, len(weights_scaled)
+    )
+    bucket_sums_scaled = np.bincount(
+        codes_flat, weights=weights_flat, minlength=n_buckets
+    )
+
+    result = {}
+    denom = common_den * common_den
+    for idx, fs in enumerate(cand_frznst):
+        name = next(iter(fs))
+        if to_float:
+            result[name] = float(bucket_sums_scaled[idx]) / denom
+        else:
+            result[name] = Fraction(int(bucket_sums_scaled[idx]), int(denom))
+
+    return result
 
 
 def score_profile_from_rankings(
@@ -175,6 +253,8 @@ def score_profile_from_rankings(
     """
     validate_score_vector(score_vector)
 
+    if profile.contains_scores is True:
+        raise ProfileError("Profile must only contain ranked ballots.")
     max_length = profile.max_ranking_length
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
@@ -213,6 +293,29 @@ def score_profile_from_rankings(
     if to_float:
         return {c: float(v) for c, v in scores.items()}
     return scores
+
+
+def _first_place_votes_from_df_no_ties(
+    profile: PreferenceProfile,
+    to_float: bool = False,
+) -> Union[dict[str, Fraction], dict[str, float]]:
+    """
+    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
+    Intended to be much faster than first_place_votes, but does not handle ties in ballots.
+
+    Args:
+        profile (PreferenceProfile): The profile to compute first place votes for.
+        to_float (bool): If True, compute first place votes as floats instead of Fractions.
+            Defaults to False.
+
+    Returns:
+        Union[dict[str, Fraction],dict[str, float]]:
+            Dictionary mapping candidates to number of first place votes.
+    """
+    # equiv to score vector of (1,0,0,...)
+    return _score_dict_from_rankings_df_no_ties(
+        profile, [1] + [0] * (profile.max_ranking_length - 1), to_float
+    )
 
 
 def first_place_votes(
@@ -555,7 +658,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     """
     Takes in a PeferenceProfile with potential ties in ballots. Replaces
     ballots with ties with fractionally weighted ballots corresponding to
-    all permutations of the tied ranking. Automatically condenses the ballots.
+    all permutations of the tied ranking.
 
     Args:
         profile (PreferenceProfile): Input profile with potentially tied rankings.
@@ -567,7 +670,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
     new_ballots = tuple(
         [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
     )
-    return PreferenceProfile(ballots=new_ballots).group_ballots()
+    return PreferenceProfile(ballots=new_ballots)
 
 
 def score_profile_from_ballot_scores(

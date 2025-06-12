@@ -36,6 +36,36 @@ class Ballot:
 
     @field_validator("ranking", mode="before")
     @classmethod
+    def validate_ranking_candidates(
+        cls, ranking: Optional[tuple[frozenset[str], ...]]
+    ) -> Optional[tuple[frozenset[str], ...]]:
+        if ranking is not None:
+            if any(c == "~" for cand_set in ranking for c in cand_set):
+                raise ValueError(
+                    f"Candidate '~' found in ballot ranking {ranking}."
+                    " '~' is a reserved character and cannot be used for"
+                    " candidate names."
+                )
+
+        return ranking
+
+    @field_validator("scores", mode="before")
+    @classmethod
+    def validate_scores_candidates(
+        cls, scores: Optional[dict[str, Fraction]]
+    ) -> Optional[dict[str, Fraction]]:
+        if scores is not None:
+            if "~" in scores:
+                raise ValueError(
+                    f"Candidate '~' found in ballot scores {list(scores.keys())}."
+                    " '~' is a reserved character and cannot be used for"
+                    " candidate names."
+                )
+
+        return scores
+
+    @field_validator("ranking", mode="before")
+    @classmethod
     def strip_whitespace_ranking_candidates(
         cls, ranking: Optional[tuple[frozenset[str], ...]]
     ) -> Optional[tuple[frozenset[str], ...]]:

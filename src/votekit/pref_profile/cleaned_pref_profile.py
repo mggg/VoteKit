@@ -1,14 +1,9 @@
 from __future__ import annotations
 from .pref_profile import PreferenceProfile
-from pydantic import ConfigDict, model_validator, SkipValidation
-from pydantic.dataclasses import dataclass
-from dataclasses import field
 import warnings
-from typing_extensions import Self
 import pandas as pd
 
 
-@dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
 class CleanedProfile(PreferenceProfile):
     """
     CleanedProfile class, which is used to keep track of how ballots are altered from the original
@@ -43,17 +38,29 @@ class CleanedProfile(PreferenceProfile):
 
     """
 
-    parent_profile: SkipValidation[PreferenceProfile | CleanedProfile] = (
-        PreferenceProfile()
-    )
-    df_index_column: list[int] = field(default_factory=list)
-    no_wt_altr_idxs: set[int] = field(default_factory=set)
-    no_rank_no_score_altr_idxs: set[int] = field(default_factory=set)
-    nonempty_altr_idxs: set[int] = field(default_factory=set)
-    unaltr_idxs: set[int] = field(default_factory=set)
+    def __init__(
+        self,
+        parent_profile: PreferenceProfile | CleanedProfile = (PreferenceProfile()),
+        df_index_column: list[int] = [],
+        no_wt_altr_idxs: set[int] = set(),
+        no_rank_no_score_altr_idxs: set[int] = set(),
+        nonempty_altr_idxs: set[int] = set(),
+        unaltr_idxs: set[int] = set(),
+        **kwargs,
+    ):
 
-    @model_validator(mode="after")
-    def indices_must_match_parent_df(self) -> Self:
+        self.parent_profile = parent_profile
+        self.df_index_column = df_index_column
+        self.no_wt_altr_idxs = no_wt_altr_idxs
+        self.no_rank_no_score_altr_idxs = no_rank_no_score_altr_idxs
+        self.nonempty_altr_idxs = nonempty_altr_idxs
+        self.unaltr_idxs = unaltr_idxs
+
+        self._indices_must_match_parent_df()
+        super().__init__(**kwargs)
+        self._reindex_ballot_df()
+
+    def _indices_must_match_parent_df(self) -> None:
         """
         Validate the index sets.
 
@@ -126,10 +133,8 @@ class CleanedProfile(PreferenceProfile):
                     f"column. Here are the indices in one but not the other: {sym_dif}"
                 )
             )
-        return self
 
-    @model_validator(mode="after")
-    def reindex_ballot_df(self) -> Self:
+    def _reindex_ballot_df(self) -> None:
         """
         Reindex the df to keep track of which ballots are which.
 
@@ -146,8 +151,6 @@ class CleanedProfile(PreferenceProfile):
         df_copy.index = pd.Index(self.df_index_column)
         df_copy.index.name = "Ballot Index"
         object.__setattr__(self, "df", df_copy)
-
-        return self
 
     def group_ballots(self) -> PreferenceProfile:
         warnings.warn(

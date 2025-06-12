@@ -26,7 +26,8 @@ def test_fractional_transfer():
     assert set(new_ballots) == set(
         (
             Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(2)),
+            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
+            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
         )
     )
 
@@ -47,7 +48,8 @@ def test_random_transfer():
 
     assert set(new_ballots) == set(
         (
-            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(2)),
+            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
+            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
             Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
         )
     )

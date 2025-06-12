@@ -3,7 +3,6 @@ import os
 import csv
 import pandas as pd
 from pandas.errors import EmptyDataError, DataError
-import pathlib
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
@@ -11,7 +10,7 @@ from .ballot import Ballot
 
 
 def load_csv(
-    fpath: str,
+    path_or_url: str,
     rank_cols: list[int] = [],
     *,
     weight_col: Optional[int] = None,
@@ -42,12 +41,8 @@ def load_csv(
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the election.
     """
-    if not os.path.isfile(fpath):
-        raise FileNotFoundError(f"File with path {fpath} cannot be found")
-
-    cvr_path = pathlib.Path(fpath)
     df = pd.read_csv(
-        cvr_path,
+        path_or_url,
         on_bad_lines="error",
         encoding="utf8",
         index_col=False,

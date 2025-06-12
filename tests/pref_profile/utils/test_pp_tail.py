@@ -14,9 +14,19 @@ def test_pp_df_tail_rankings():
     ]
     pp = PreferenceProfile(ballots=ballots_rankings)
     data = {
-        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
-        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [frozenset({"B"}), frozenset(), frozenset("~"), frozenset("~")],
+        "Ranking_3": [
+            frozenset({"C"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
         "Percent": [
@@ -114,18 +124,28 @@ def test_pp_df_tail_mixed():
             Fraction(2),
             np.nan,
         ],
-        "Ranking_1": [
+        "C": [
             np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "Ranking_1": [
+            frozenset("~"),
             frozenset({"A"}),
             frozenset({"A", "B"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset({"B"}),
             frozenset(),
         ],
         "Ranking_3": [
-            np.nan,
+            frozenset("~"),
             frozenset({"C"}),
             frozenset({"D"}),
         ],
@@ -148,5 +168,5 @@ def test_pp_df_tail_mixed():
     true_df = pd.DataFrame(data)
     true_df.index = [0, 2, 1]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 6 + [5, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 8 + [5, f"{1:.1%}"]
     assert profile_df_tail(pp, n=4, percents=True, totals=True).equals(true_df)

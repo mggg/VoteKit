@@ -80,7 +80,7 @@ def test_random_dictator_4_candidates_without_ties():
     tot_fpv = sum(fpv.values())
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
-    trials = 500
+    trials = 750
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
@@ -113,7 +113,7 @@ def test_random_dictator_4_candidates_with_ties():
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 500
+    trials = 750
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
