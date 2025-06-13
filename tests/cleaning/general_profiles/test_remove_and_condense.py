@@ -1,7 +1,6 @@
 from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_and_condense, remove_cand, condense_profile
-from fractions import Fraction
 
 profile_no_ties = PreferenceProfile(
     ballots=[
@@ -95,11 +94,11 @@ def test_remove_and_condense_scores():
                 ranking=({"A"}, {"B"}, {"C"}),
                 scores={"A": 3, "B": 2},
             ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
+            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
             Ballot(
                 ranking=({"A"}, {"B"}, {"C"}),
                 scores={"A": 3, "B": 2},
-                weight=Fraction(2),
+                weight=2,
             ),
         ),
         candidates=("A", "B", "C"),
@@ -120,11 +119,11 @@ def test_remove_and_condense_scores():
             ranking=({"B"}, {"C"}),
             scores={"B": 2},
         ),
-        Ballot(ranking=({"B"}, {"C"}), weight=Fraction(2)),
+        Ballot(ranking=({"B"}, {"C"}), weight=2),
         Ballot(
             ranking=({"B"}, {"C"}),
             scores={"B": 2},
-            weight=Fraction(2),
+            weight=2,
         ),
     )
     assert cleaned_profile != profile

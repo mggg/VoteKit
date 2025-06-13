@@ -1,7 +1,6 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pandas as pd
-from fractions import Fraction
 
 ballots_rankings = [
     Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
@@ -28,7 +27,7 @@ def test_pp_df_rankings():
             frozenset("~"),
         ],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -59,7 +58,7 @@ def test_pp_df_rankings_args():
         ],
         "Ranking_4": [frozenset("~"), frozenset("~"), frozenset("~"), frozenset("~")],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"

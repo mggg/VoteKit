@@ -1,4 +1,3 @@
-from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.utils import (
@@ -102,52 +101,6 @@ def test_validate_score_vector():
 
 def test_score_profile_from_rankings_low():
     true_scores = {
-        "A": Fraction(25),
-        "B": Fraction(17),
-        "C": Fraction(17),
-        "D": Fraction(6),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_high():
-    true_scores = {
-        "A": Fraction(27.5),
-        "B": Fraction(19.5),
-        "C": Fraction(18.5),
-        "D": Fraction(7.5),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
-    )
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_avg():
-    true_scores = {
-        "A": Fraction(26.25),
-        "B": Fraction(18.25),
-        "C": Fraction(17.75),
-        "D": Fraction(6.75),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
-    )
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_to_float():
-    true_scores = {
         "A": 25,
         "B": 17,
         "C": 17,
@@ -155,8 +108,38 @@ def test_score_profile_from_rankings_to_float():
         "E": 1,
     }
 
+    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], float)
+
+
+def test_score_profile_from_rankings_high():
+    true_scores = {
+        "A": 27.5,
+        "B": 19.5,
+        "C": 18.5,
+        "D": 7.5,
+        "E": 1,
+    }
+
     comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], to_float=True
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
+    )
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], float)
+
+
+def test_score_profile_from_rankings_avg():
+    true_scores = {
+        "A": 26.25,
+        "B": 18.25,
+        "C": 17.75,
+        "D": 6.75,
+        "E": 1,
+    }
+
+    comp_scores = score_profile_from_rankings(
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
     )
     assert comp_scores == true_scores
     assert isinstance(comp_scores["A"], float)
@@ -190,15 +173,7 @@ def test_score_profile_from_rankings_errors():
 
 def test_first_place_votes():
     votes = first_place_votes(profile_no_ties)
-    true_votes = {"A": Fraction(3, 2), "B": Fraction(0), "C": Fraction(3)}
-
-    assert votes == true_votes
-    assert isinstance(votes["A"], Fraction)
-
-
-def test_first_place_votes_to_float():
-    votes = first_place_votes(profile_no_ties, to_float=True)
-    true_votes = {"A": 1.5, "B": 0, "C": 3}
+    true_votes = {"A": 3 / 2, "B": 0, "C": 3}
 
     assert votes == true_votes
     assert isinstance(votes["A"], float)
@@ -210,15 +185,8 @@ def test_fpv_errors():
 
 
 def test_mentions():
-    correct = {"A": Fraction(9, 2), "B": Fraction(9, 2), "C": Fraction(7, 2)}
-    test = mentions(profile_no_ties)
-    assert correct == test
-    assert isinstance(test["A"], Fraction)
-
-
-def test_mentions_to_float():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = mentions(profile_no_ties, to_float=True)
+    test = mentions(profile_no_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
@@ -229,36 +197,28 @@ def test_mentions_errors():
 
 
 def test_borda_no_ties():
-    true_borda = {"A": Fraction(15, 2), "B": Fraction(9), "C": Fraction(19, 2)}
+    true_borda = {"A": 15 / 2, "B": 9, "C": 19 / 2}
 
     borda = borda_scores(profile_no_ties)
 
-    assert borda == true_borda
-    assert isinstance(borda["A"], Fraction)
-
-
-def test_borda_no_ties_to_float():
-    true_borda = {"A": 15 / 2, "B": 9, "C": 19 / 2}
-
-    borda = borda_scores(profile_no_ties, to_float=True)
     assert borda == true_borda
     assert isinstance(borda["A"], float)
 
 
 def test_borda_with_ties():
-    true_borda = {"A": Fraction(25, 2), "B": Fraction(13, 2), "C": Fraction(7)}
+    true_borda = {"A": 25 / 2, "B": 13 / 2, "C": 7}
 
     borda = borda_scores(profile_with_ties, tie_convention="average")
 
     assert borda == true_borda
-    assert isinstance(borda["A"], Fraction)
+    assert isinstance(borda["A"], float)
 
 
 def test_borda_short_ballot():
     true_borda = {
-        "A": Fraction(2),
-        "B": Fraction(2),
-        "C": Fraction(2),
+        "A": 2,
+        "B": 2,
+        "C": 2,
     }
 
     borda = borda_scores(
@@ -271,9 +231,9 @@ def test_borda_short_ballot():
     assert borda == true_borda
 
     true_borda = {
-        "A": Fraction(1),
-        "B": Fraction(0),
-        "C": Fraction(1),
+        "A": 1,
+        "B": 0,
+        "C": 1,
     }
 
     borda = borda_scores(
@@ -289,9 +249,9 @@ def test_borda_short_ballot():
 
 def test_borda_mismatched_length():
     true_borda = {
-        "A": Fraction(50),
-        "B": Fraction(98),
-        "C": Fraction(50),
+        "A": 50,
+        "B": 98,
+        "C": 50,
     }
 
     borda = borda_scores(
@@ -305,9 +265,9 @@ def test_borda_mismatched_length():
     assert borda == true_borda
 
     true_borda = {
-        "A": Fraction(1),
-        "B": Fraction(0),
-        "C": Fraction(1),
+        "A": 1,
+        "B": 0,
+        "C": 1,
     }
 
     borda = borda_scores(
@@ -542,13 +502,13 @@ def test_score_profile_from_ballot_scores():
                 ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
             ),
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             ),
         ]
     )
     scores = score_profile_from_ballot_scores(profile)
-    assert scores == {"A": Fraction(7), "C": Fraction(8)}
-    assert isinstance(scores["A"], Fraction)
+    assert scores == {"A": 7, "C": 8}
+    assert isinstance(scores["A"], float)
 
 
 def test_score_profile_from_ballot_scores_float():
@@ -558,11 +518,11 @@ def test_score_profile_from_ballot_scores_float():
                 ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
             ),
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             ),
         ]
     )
-    scores = score_profile_from_ballot_scores(profile, to_float=True)
+    scores = score_profile_from_ballot_scores(profile)
     assert scores == {"A": 7.0, "C": 8.0}
     assert isinstance(scores["A"], float)
 
@@ -601,7 +561,7 @@ def test_ballot_lengths_ranking_error():
     profile = PreferenceProfile(
         ballots=[
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             )
         ]
     )

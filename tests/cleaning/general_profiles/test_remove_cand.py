@@ -1,7 +1,6 @@
 from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_cand
-from fractions import Fraction
 
 profile_no_ties = PreferenceProfile(
     ballots=[
@@ -90,11 +89,11 @@ def test_remove_cands_scores():
                 ranking=({"A"}, {"B"}, {"C"}),
                 scores={"A": 3, "B": 2},
             ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
+            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
             Ballot(
                 ranking=({"A"}, {"B"}, {"C"}),
                 scores={"A": 3, "B": 2},
-                weight=Fraction(2),
+                weight=2,
             ),
         ),
         candidates=("A", "B", "C"),
@@ -115,11 +114,11 @@ def test_remove_cands_scores():
             ranking=(frozenset(), {"B"}, {"C"}),
             scores={"B": 2},
         ),
-        Ballot(ranking=(frozenset(), {"B"}, {"C"}), weight=Fraction(2)),
+        Ballot(ranking=(frozenset(), {"B"}, {"C"}), weight=2),
         Ballot(
             ranking=(frozenset(), {"B"}, {"C"}),
             scores={"B": 2},
-            weight=Fraction(2),
+            weight=2,
         ),
     )
     assert cleaned_profile != profile

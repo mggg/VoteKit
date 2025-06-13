@@ -5,8 +5,7 @@ import pandas as pd
 from .utils import (
     score_dict_to_ranking,
 )
-from typing import Callable, Optional, Union
-from fractions import Fraction
+from typing import Callable, Optional
 
 
 class Election(ABC):
@@ -15,7 +14,7 @@ class Election(ABC):
 
     Args:
         profile (PreferenceProfile): The initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
@@ -27,7 +26,7 @@ class Election(ABC):
         election_states (list[ElectionState]): A list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
         length (int): The number of rounds of the election.
@@ -37,7 +36,7 @@ class Election(ABC):
         self,
         profile: PreferenceProfile,
         score_function: Optional[
-            Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]]
+            Callable[[PreferenceProfile], dict[str, float]]
         ] = None,
         sort_high_low: bool = True,
     ):

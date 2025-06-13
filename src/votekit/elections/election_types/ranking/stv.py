@@ -16,7 +16,6 @@ from ....utils import (
     score_dict_to_ranking,
 )
 from typing import Optional, Callable, Union
-from fractions import Fraction
 
 
 class STV(RankingElection):
@@ -26,7 +25,7 @@ class STV(RankingElection):
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
-        transfer (Callable[[str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
         Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -47,7 +46,7 @@ class STV(RankingElection):
         profile: PreferenceProfile,
         m: int = 1,
         transfer: Callable[
-            [str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int],
+            [str, float, Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot, ...],
         ] = fractional_transfer,
         quota: str = "droop",
@@ -78,21 +77,31 @@ class STV(RankingElection):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        ranking_rows = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
+        try:
+            np_arr = profile.df[ranking_rows].to_numpy()
+            weight_col = profile.df["Weight"]
+        except KeyError:
+            raise TypeError("Ballots must have rankings.")
 
-        for ballot in profile.ballots:
-            if ballot.ranking is None:
+        tilde = frozenset({"~"})
+        for idx, row in enumerate(np_arr):
+            if any(len(s) > 1 for s in row):
+                raise TypeError(
+                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
+                    "contains a tied ranking."
+                )
+            if (row == tilde).all():
                 raise TypeError("Ballots must have rankings.")
-            if len(ballot.ranking) == 0:
-                raise TypeError("All ballots must have rankings.")
-            elif any(len(s) > 1 for s in ballot.ranking):
-                raise TypeError(f"Ballot {ballot} contains a tied ranking.")
 
-    def get_threshold(self, total_ballot_wt: Fraction) -> int:
+    def get_threshold(self, total_ballot_wt: float) -> int:
         """
         Calculates threshold required for election.
 
         Args:
-            total_ballot_wt (Fraction): Total weight of ballots to compute threshold.
+            total_ballot_wt (float): Total weight of ballots to compute threshold.
         Returns:
             int: Value of the threshold.
         """

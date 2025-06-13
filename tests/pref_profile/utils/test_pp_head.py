@@ -2,7 +2,6 @@ from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile, profile_df_head
 import pandas as pd
 import numpy as np
-from fractions import Fraction
 
 
 def test_pp_df_head_rankings():
@@ -28,7 +27,7 @@ def test_pp_df_head_rankings():
             frozenset("~"),
         ],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
             f"{.5:.1%}",
             f"{.25:.1%}",
@@ -60,21 +59,21 @@ def test_pp_df_head_scores():
     pp = PreferenceProfile(ballots=ballots_scores)
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
             np.nan,
             np.nan,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
             np.nan,
             np.nan,
         ],
-        "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [np.nan, Fraction(1), np.nan, np.nan],
+        "D": [np.nan, 2, np.nan, np.nan],
+        "E": [np.nan, 1, np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
             f"{.5:.2%}",
             f"{.25:.2%}",
@@ -115,13 +114,13 @@ def test_pp_df_head_mixed():
 
     data = {
         "A": [
-            Fraction(1),
-            Fraction(1),
+            1,
+            1,
             np.nan,
         ],
         "B": [
-            Fraction(2),
-            Fraction(2),
+            2,
+            2,
             np.nan,
         ],
         "C": [
@@ -155,9 +154,9 @@ def test_pp_df_head_mixed():
             {"Chris"},
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(2),
-            Fraction(1),
+            2.0,
+            2.0,
+            1.0,
         ],
         "Percent": [
             f"{.4:.1%}",

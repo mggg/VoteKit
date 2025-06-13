@@ -1,11 +1,10 @@
 from votekit.pref_profile import PreferenceProfile, CleanedProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_repeat_cands_ranked_profile
-from fractions import Fraction
 
 
 def test_remove_repeated_candidates():
-    ballot = Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=Fraction(1))
+    ballot = Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)
     ballot_tuple = (ballot, ballot)
     profile = PreferenceProfile(ballots=ballot_tuple)
     cleaned_profile = remove_repeat_cands_ranked_profile(profile)
@@ -14,7 +13,7 @@ def test_remove_repeated_candidates():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=Fraction(2)),
+        Ballot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=2),
     )
 
     assert cleaned_profile != profile
@@ -41,7 +40,7 @@ def test_remove_repeated_candidates_ties():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=Fraction(2)),
+        Ballot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=2),
     )
 
     assert cleaned_profile != profile

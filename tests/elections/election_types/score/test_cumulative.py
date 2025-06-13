@@ -2,7 +2,6 @@ from votekit.elections import Cumulative, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_cumulative = PreferenceProfile(
     ballots=[
@@ -32,13 +31,13 @@ profile_tied_cumulative = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(4), "B": Fraction(3), "C": Fraction(1)},
+        scores={"A": 4, "B": 3, "C": 1},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(1)},
+        scores={"C": 1},
     ),
 ]
 

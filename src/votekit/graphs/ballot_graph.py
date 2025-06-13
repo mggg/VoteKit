@@ -27,7 +27,7 @@ class BallotGraph(Graph):
         profile (PreferenceProfile): Profile used to create graph, None if not provided.
         candidates (tuple[str]): Tuple of candidates, None if not provided.
         num_cands (int): Number of candidates.
-        num_voters (Fraction): Sum of weights of profile if provided.
+        num_voters (float): Sum of weights of profile if provided.
         allow_partial (bool, optional): If True, builds graph using all possible ballots,
             If False, only uses total linear ordered ballots.
         graph (networkx.Graph): underlying ``networkx`` graph.
@@ -106,7 +106,7 @@ class BallotGraph(Graph):
         Gc = nx.Graph()
         # base cases
         if n == 1:
-            Gc.add_nodes_from([(1)], weight=0, cast=False)
+            Gc.add_nodes_from([1], weight=0, cast=False)
 
         elif n == 2:
             Gc.add_nodes_from([(1, 2), (2, 1)], weight=0, cast=False)

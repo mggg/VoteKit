@@ -7,8 +7,7 @@ from ....utils import (
     validate_score_vector,
     score_profile_from_rankings,
 )
-from typing import Optional, Union, Sequence, Literal
-from fractions import Fraction
+from typing import Optional, Sequence, Literal
 from functools import partial
 
 
@@ -23,7 +22,7 @@ class Borda(RankingElection):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        score_vector (Sequence[Union[float, Fraction]], optional): Score vector. Should be
+        score_vector (Sequence[float], optional): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as the number of candidates.
             If it is shorter, we add 0s. Defaults to None, which is the conventional Borda vector.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and
@@ -41,7 +40,7 @@ class Borda(RankingElection):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        score_vector: Optional[Sequence[Union[float, Fraction]]] = None,
+        score_vector: Optional[Sequence[float]] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
     ):
@@ -57,7 +56,6 @@ class Borda(RankingElection):
         score_function = partial(
             score_profile_from_rankings,
             score_vector=score_vector,
-            to_float=False,
             tie_convention=scoring_tie_convention,
         )
         super().__init__(profile, score_function=score_function, sort_high_low=True)

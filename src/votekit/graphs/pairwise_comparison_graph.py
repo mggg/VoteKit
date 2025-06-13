@@ -1,4 +1,3 @@
-from fractions import Fraction
 from itertools import combinations
 import matplotlib.pyplot as plt  # type: ignore
 from matplotlib.axes import Axes
@@ -12,7 +11,7 @@ from ..pref_profile.utils import _convert_ranking_cols_to_ranking
 
 def pairwise_dict(
     profile: PreferenceProfile,
-) -> dict[tuple[str, ...], list[Fraction]]:
+) -> dict[tuple[str, ...], list[float]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
@@ -21,7 +20,7 @@ def pairwise_dict(
         profile (PreferenceProfile): Profile to compute dict on.
 
     Returns:
-        dict[tuple[str, ...], list[Fraction]]: Pairwise comparison dictionary.
+        dict[tuple[str, ...], list[float]]: Pairwise comparison dictionary.
 
     """
 
@@ -30,7 +29,7 @@ def pairwise_dict(
     elif not profile.contains_rankings:
         raise ValueError("Profile must contain rankings.")
     pairwise_dict = {
-        tuple(sorted((c1, c2))): [Fraction(0), Fraction(0)]
+        tuple(sorted((c1, c2))): [0.0, 0.0]
         for c1, c2 in combinations(profile.candidates, 2)
     }
 
@@ -77,8 +76,8 @@ def pairwise_dict(
 
 def restrict_pairwise_dict_to_subset(
     cand_subset: list[str] | tuple[str] | set[str],
-    pairwise_dict: dict[tuple[str, ...], list[Fraction]],
-) -> dict[tuple[str, ...], list[Fraction]]:
+    pairwise_dict: dict[tuple[str, ...], list[float]],
+) -> dict[tuple[str, ...], list[float]]:
     """
     Restricts the full pairwise dictionary to a subset of candidates. The pairwise dictionary is a
     dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
@@ -89,7 +88,7 @@ def restrict_pairwise_dict_to_subset(
         pairwise_dict (dict[tuple[str, ...], tuple[int,int]]): Full pairwise comparison dictionary.
 
     Returns:
-        dict[tuple[str, ...], list[Fraction]]: Pairwise dict restricted to the provided
+        dict[tuple[str, ...], list[float]]: Pairwise dict restricted to the provided
             candidates.
 
     Raises:
@@ -130,7 +129,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
     Attributes:
         profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
         candidates (list): List of candidates.
-        pairwise_dict (dict[tuple[str, str], list[Fraction]]): Dictionary constructed from
+        pairwise_dict (dict[tuple[str, str], list[float]]): Dictionary constructed from
             ``pairwise_dict``. The pairwise dictionary is a
             dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
             where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.

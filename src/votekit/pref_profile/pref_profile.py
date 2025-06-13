@@ -1,6 +1,5 @@
 from __future__ import annotations
 import csv
-from fractions import Fraction
 import pandas as pd
 from ..ballot import Ballot
 from .utils import convert_row_to_ballot
@@ -10,6 +9,7 @@ import warnings
 import pickle
 from .profile_error import ProfileError
 from functools import cached_property
+import ast
 
 
 def _parse_profile_data_from_csv(
@@ -82,14 +82,20 @@ def _parse_ballot_from_csv(
     formatted_ranking = None
     voter_set = set()
 
-    num, denom = ballot_row[break_indices[1] + 1].split("/")
-    weight = Fraction(int(num), int(denom))
+    try:
+        num, denom = ballot_row[break_indices[1] + 1].split("/")
+        num = ast.literal_eval(num)
+        denom = ast.literal_eval(denom)
+    except Exception:
+        raise RuntimeError(
+            f"Invalid weight format in ballot row: {ballot_row[break_indices[1] + 1]}"
+        )
+
+    weight = float(num) / float(denom)
 
     if contains_scores:
         scores = {
-            c: Fraction(float(ballot_row[i]))
-            for i, c in enumerate(candidates)
-            if ballot_row[i]
+            c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]
         }
 
     if contains_rankings:
@@ -625,7 +631,7 @@ class PreferenceProfile:
         df (pandas.DataFrame): Data frame view of the ballots.
         candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive
             weight, either in the ranking or in the score dictionary.
-        total_ballot_wt (Fraction): Sum of ballot weights.
+        total_ballot_wt (float): Sum of ballot weights.
         num_ballots (int): Length of ballot list.
         contains_rankings (bool): Whether or not the profile contains ballots with
             rankings.
@@ -1046,21 +1052,24 @@ class PreferenceProfile:
         Returns:
             tuple[str]: Candidates cast.
         """
-        pos_df = df[df["Weight"] > 0]
+
+        mask = df["Weight"] > 0
 
         candidates_cast: set[str] = set()
+
         if self.contains_scores:
-            candidates_cast = candidates_cast.union(
-                {c for c in self.candidates if pos_df[c].sum() > 0}
-            )
+            positive = df.loc[mask, list(self.candidates)].gt(0).any()
+            # .any() applies along the columns, so we get a boolean series where the
+            # value is True the candidate has any positive score the column
+            candidates_cast |= set(positive[positive].index)
 
         if self.contains_rankings:
-            ranking_cols = [c for c in df.columns if "Ranking_" in c]
-            candidates_cast = candidates_cast.union(
-                *pos_df[ranking_cols].to_numpy().flatten()
-            )
+            ranking_cols = [c for c in df.columns if c.startswith("Ranking_")]
+            sets = df.loc[mask, ranking_cols].to_numpy().ravel()
+            candidates_cast |= set().union(*sets)
 
-        return tuple(candidates_cast - {"~"})
+        candidates_cast.discard("~")
+        return tuple(candidates_cast)
 
     def _init_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
@@ -1119,16 +1128,18 @@ class PreferenceProfile:
         """
         return len(self.df)
 
-    def _find_total_ballot_wt(self) -> Fraction:
+    def _find_total_ballot_wt(self) -> float:
         """
         Compute and set the total ballot weight.
 
         Returns:
-            Fraction: total ballot weight.
+            float: total ballot weight.
         """
-        total_weight = Fraction(0)
-        if not self.df.equals(pd.DataFrame()):
+        total_weight = 0
+        try:
             total_weight = self.df["Weight"].sum()
+        except KeyError:
+            pass
         return total_weight
 
     def _validate_candidates(self) -> None:

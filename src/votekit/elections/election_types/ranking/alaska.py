@@ -7,7 +7,6 @@ from ..ranking import Plurality, STV
 from ...transfers import fractional_transfer
 from ....ballot import Ballot
 from typing import Optional, Callable, Union, Literal
-from fractions import Fraction
 from functools import partial
 
 
@@ -22,7 +21,7 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -47,7 +46,7 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int],
+            [str, float, Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot, ...],
         ] = fractional_transfer,
         quota: str = "droop",

@@ -6,8 +6,7 @@ from ....utils import (
     elect_cands_from_set_ranking,
 )
 from ....cleaning import remove_and_condense
-from typing import Optional, Union
-from fractions import Fraction
+from typing import Optional
 
 
 class GeneralRating(Election):
@@ -19,8 +18,8 @@ class GeneralRating(Election):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        L (Union[float, Fraction], optional): Rating per candidate limit. Defaults to 1.
-        k (Union[float, Fraction], optional): Budget per ballot limit. Defaults to None, in which
+        L (float, optional): Rating per candidate limit. Defaults to 1.
+        k (float, optional): Budget per ballot limit. Defaults to None, in which
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
@@ -31,8 +30,8 @@ class GeneralRating(Election):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        L: Union[float, Fraction] = 1,
-        k: Optional[Union[float, Fraction]] = None,
+        L: float = 1,
+        k: Optional[float] = None,
         tiebreak: Optional[str] = None,
     ):
         if m <= 0:
@@ -149,7 +148,7 @@ class Rating(GeneralRating):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        L (Union[float, Fraction], optional): Rating per candidate limit. Defaults to 1.
+        L (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
 
@@ -159,7 +158,7 @@ class Rating(GeneralRating):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        L: Union[float, Fraction] = 1,
+        L: float = 1,
         tiebreak: Optional[str] = None,
     ):
         super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
@@ -173,7 +172,7 @@ class Limited(GeneralRating):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        k (Union[float, Fraction], optional): Total budget per voter. Defaults to 1.
+        k (float, optional): Total budget per voter. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
     """
@@ -182,7 +181,7 @@ class Limited(GeneralRating):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        k: Union[float, Fraction] = 1,
+        k: float = 1,
         tiebreak: Optional[str] = None,
     ):
         if k > m:

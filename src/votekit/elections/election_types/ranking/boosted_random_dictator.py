@@ -7,8 +7,7 @@ from ....utils import (
     score_dict_to_ranking,
 )
 import random
-from typing import Literal, Union
-from fractions import Fraction
+from typing import Literal
 from functools import partial
 
 
@@ -85,7 +84,7 @@ class BoostedRandomDictator(RankingElection):
         elif u <= 1 / (len(remaining_cands) - 1):
             fpv = prev_state.scores
             candidates = list(fpv.keys())
-            weights: list[Union[Fraction, float]] = list(fpv.values())
+            weights: list[float] = list(fpv.values())
             sq_weights = [float(x) ** 2 for x in weights]
             sq_wt_total = sum(sq_weights)
             sq_weights = [x / sq_wt_total for x in sq_weights]

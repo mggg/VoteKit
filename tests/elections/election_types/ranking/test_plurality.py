@@ -2,7 +2,6 @@ from votekit.elections import Plurality, ElectionState, SNTV
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_fpv = PreferenceProfile(
     ballots=[
@@ -31,13 +30,13 @@ profile_with_tied_fpv = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(2), "B": Fraction(1), "C": Fraction(0)},
+        scores={"A": 2, "B": 1, "C": 0},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(3)},
+        scores={"C": 3},
     ),
 ]
 

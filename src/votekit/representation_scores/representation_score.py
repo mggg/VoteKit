@@ -1,7 +1,6 @@
 from ..pref_profile import PreferenceProfile
 from itertools import combinations
 from typing import Optional
-from fractions import Fraction
 import warnings
 
 
@@ -43,7 +42,7 @@ def r_representation_score(
             UserWarning,
         )
 
-    satisfied_voters = Fraction(0)
+    satisfied_voters = 0.0
     for ballot in profile.ballots:
         if ballot.ranking is None:
             raise ValueError("All ballots must have ranking.")

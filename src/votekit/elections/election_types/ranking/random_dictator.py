@@ -7,8 +7,7 @@ from ....utils import (
     score_dict_to_ranking,
 )
 import random
-from typing import Literal, Union
-from fractions import Fraction
+from typing import Literal
 from functools import partial
 
 
@@ -70,7 +69,7 @@ class RandomDictator(RankingElection):
         """
         fpv = prev_state.scores
         candidates = list(fpv.keys())
-        weights: list[Union[Fraction, float]] = list(fpv.values())
+        weights: list[float] = list(fpv.values())
         winning_cand = random.choices(candidates, weights=weights, k=1)[0]
         elected = (frozenset({winning_cand}),)
 

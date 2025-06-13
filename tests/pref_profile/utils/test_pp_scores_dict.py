@@ -1,4 +1,3 @@
-from fractions import Fraction
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.pref_profile.utils import profile_to_scores_dict
@@ -9,18 +8,18 @@ def test_to_scores_dict():
     profile = PreferenceProfile(
         ballots=(
             Ballot(ranking=({"A"}, {"B"})),
-            Ballot(ranking=({"A"}, {"B"}), weight=Fraction(3, 2)),
+            Ballot(ranking=({"A"}, {"B"}), weight=3 / 2),
             Ballot(ranking=({"C"}, {"B"}), scores={"A": 4}, weight=2),
             Ballot(scores={"A": 4}),
         )
     )
     rv = profile_to_scores_dict(profile, standardize=False)
-    assert rv[(("A", Fraction(4)),)] == Fraction(3)
-    assert rv[None] == Fraction(5, 2)
+    assert rv[(("A", 4),)] == 3
+    assert rv[None] == 5 / 2
 
     rv = profile_to_scores_dict(profile, standardize=True)
-    assert rv[(("A", Fraction(4)),)] == Fraction(6, 11)
-    assert rv[None] == Fraction(5, 11)
+    assert rv[(("A", 4),)] == 6 / 11
+    assert rv[None] == 5 / 11
 
 
 def test_scores_dict_error():
