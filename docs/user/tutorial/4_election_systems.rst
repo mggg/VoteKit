@@ -15,7 +15,7 @@ STV
 ---
 
 To start, let’s return to the Minneapolis 2013 mayoral race. We first
-saw this in :ref:`previous notebooks<user/tutorial/2_real_and_simulated_profiles:Real-World Data>`.
+saw this in `previous notebooks <2_real_and_simulated_profiles.html>`__.
 As a reminder, this election had 35 named candidates running for one
 seat, and used an IRV election system (which is mathematically
 equivalent to a single-winner STV election) to choose the winner. Voters
@@ -28,15 +28,13 @@ all of the same cleaning we did before.
 
     from votekit.cvr_loaders import load_csv
     from votekit.elections import STV
-    from votekit.cleaning import remove_noncands
+    from votekit.cleaning import remove_and_condense
     
     minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
-    minneapolis_profile = remove_noncands(minneapolis_profile, 
-                                          ["undervote", "overvote", "UWI"])
+    minneapolis_profile = remove_and_condense(["undervote", "overvote", "UWI"], minneapolis_profile)
     
     # m = 1 means 1 seat
-    minn_election = STV(profile = minneapolis_profile, 
-                        m = 1)
+    minn_election = STV(profile=minneapolis_profile, m=1)
     print(minn_election)
 
 
@@ -78,6 +76,12 @@ all of the same cleaning we did before.
     BOB "AGAIN" CARNEY JR         Eliminated      3
     CYD GORMAN                    Eliminated      2
     JOHN CHARLES WILSON           Eliminated      1
+
+
+.. parsed-literal::
+
+    /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/src/votekit/pref_profile/pref_profile.py:1109: UserWarning: Profile does not contain rankings but max_ranking_length=3. Setting max_ranking_length to 0.
+      warnings.warn(
 
 
 First, what is this showing? Generally, the winners are listed in the
@@ -134,40 +138,43 @@ candidates running for :math:`m=3` seats with the following profile.
     
     candidates = ["A", "B", "C", "D", "E", "F", "G"]
     
-    ballots = [Ballot(ranking = [{"A"}, {"B"}], weight = 3),
-               Ballot(ranking = [{"B"}, {"C"}, {"D"}], weight = 8),
-               Ballot(ranking = [{"C"}, {"A"}, {"B"}], weight = 1),
-               Ballot(ranking = [{"D"}, {"E"}], weight = 3),
-               Ballot(ranking = [{"E"}, {"D"}, {"F"}], weight = 1),
-               Ballot(ranking = [{"F"}, {"G"}], weight = 4),
-               Ballot(ranking = [{"G"}, {"E"}, {"F"}], weight = 3)]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}], weight=3),
+        Ballot(ranking=[{"B"}, {"C"}, {"D"}], weight=8),
+        Ballot(ranking=[{"C"}, {"A"}, {"B"}], weight=1),
+        Ballot(ranking=[{"D"}, {"E"}], weight=3),
+        Ballot(ranking=[{"E"}, {"D"}, {"F"}], weight=1),
+        Ballot(ranking=[{"F"}, {"G"}], weight=4),
+        Ballot(ranking=[{"G"}, {"E"}, {"F"}], weight=3),
+    ]
     
-    profile = PreferenceProfile(ballots= ballots)
+    profile = PreferenceProfile(ballots=ballots)
     
-    print(profile)
+    print(profile.df)
     print("Sum of ballot weights:", profile.total_ballot_wt)
     print("Number of candidates:", len(profile.candidates))
-    
-    election = STV(profile = profile, m = 3)
+    print()
+    election = STV(profile=profile, m=3)
     
     print("Threshold:", election.threshold)
     print("Number of rounds", len(election))
     print(election)
 
 
-
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (B, C, D)     ()      8
-       (F, G)     ()      4
-       (A, B)     ()      3
-       (D, E)     ()      3
-    (G, E, F)     ()      3
-    (C, A, B)     ()      1
-    (E, D, F)     ()      1
-    Sum of ballot weights: 23
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (~)        {}     3.0
+    1                  (B)       (C)       (D)        {}     8.0
+    2                  (C)       (A)       (B)        {}     1.0
+    3                  (D)       (E)       (~)        {}     3.0
+    4                  (E)       (D)       (F)        {}     1.0
+    5                  (F)       (G)       (~)        {}     4.0
+    6                  (G)       (E)       (F)        {}     3.0
+    Sum of ballot weights: 23.0
     Number of candidates: 7
+    
     Initial tiebreak was unsuccessful, performing random tiebreak
     Threshold: 6
     Number of rounds 6
@@ -203,13 +210,7 @@ follows.
 
 .. parsed-literal::
 
-    {'D': Fraction(3, 1),
-     'A': Fraction(3, 1),
-     'F': Fraction(4, 1),
-     'C': Fraction(1, 1),
-     'E': Fraction(1, 1),
-     'B': Fraction(8, 1),
-     'G': Fraction(3, 1)}
+    {'A': 3.0, 'B': 8.0, 'C': 1.0, 'D': 3.0, 'E': 1.0, 'F': 4.0, 'G': 3.0}
 
 
 
@@ -230,7 +231,7 @@ can see who wins in the first round is by looking at the next
     
     eliminated (frozenset(),)
     
-    remaining (frozenset({'F'}), frozenset({'A', 'D', 'C', 'G'}), frozenset({'E'}))
+    remaining (frozenset({'F'}), frozenset({'C', 'G', 'A', 'D'}), frozenset({'E'}))
 
 
 :math:`B` passed the threshold by 2 votes with a total of 8, so the
@@ -241,21 +242,106 @@ returns the ``PreferenceProfile`` after a particular round.
 
 .. code:: ipython3
 
-    election.get_profile(1)
+    election.get_profile(1).df
 
 
 
 
-.. parsed-literal::
+.. raw:: html
 
-      Ranking Scores Weight
-       (F, G)     ()      4
-       (D, E)     ()      3
-         (A,)     ()      3
-    (G, E, F)     ()      3
-       (C, D)     ()      2
-    (E, D, F)     ()      1
-       (C, A)     ()      1
+    <div>
+    <style scoped>
+        .dataframe tbody tr th:only-of-type {
+            vertical-align: middle;
+        }
+    
+        .dataframe tbody tr th {
+            vertical-align: top;
+        }
+    
+        .dataframe thead th {
+            text-align: right;
+        }
+    </style>
+    <table border="1" class="dataframe">
+      <thead>
+        <tr style="text-align: right;">
+          <th></th>
+          <th>Ranking_1</th>
+          <th>Ranking_2</th>
+          <th>Ranking_3</th>
+          <th>Voter Set</th>
+          <th>Weight</th>
+        </tr>
+        <tr>
+          <th>Ballot Index</th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>0</th>
+          <td>(C)</td>
+          <td>(D)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>2.0</td>
+        </tr>
+        <tr>
+          <th>1</th>
+          <td>(G)</td>
+          <td>(E)</td>
+          <td>(F)</td>
+          <td>{}</td>
+          <td>3.0</td>
+        </tr>
+        <tr>
+          <th>2</th>
+          <td>(C)</td>
+          <td>(A)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>1.0</td>
+        </tr>
+        <tr>
+          <th>3</th>
+          <td>(A)</td>
+          <td>(~)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>3.0</td>
+        </tr>
+        <tr>
+          <th>4</th>
+          <td>(F)</td>
+          <td>(G)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>4.0</td>
+        </tr>
+        <tr>
+          <th>5</th>
+          <td>(D)</td>
+          <td>(E)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>3.0</td>
+        </tr>
+        <tr>
+          <th>6</th>
+          <td>(E)</td>
+          <td>(D)</td>
+          <td>(F)</td>
+          <td>{}</td>
+          <td>1.0</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
 
 
 
@@ -269,35 +355,35 @@ and state of a given round.
 
 .. code:: ipython3
 
-    print("fpv after round 1:",election.election_states[1].scores)
+    print("fpv after round 1:", election.election_states[1].scores)
     print("go to the next step\n")
     
     profile, state = election.get_step(2)
     print("elected", state.elected)
     print("\neliminated", state.eliminated)
     print("\nremaining", state.remaining)
-    print(profile)
-
+    print(profile.df)
 
 
 .. parsed-literal::
 
-    fpv after round 1: {'D': Fraction(3, 1), 'A': Fraction(3, 1), 'F': Fraction(4, 1), 'C': Fraction(3, 1), 'E': Fraction(1, 1), 'G': Fraction(3, 1)}
+    fpv after round 1: {'C': 3.0, 'D': 3.0, 'G': 3.0, 'E': 1.0, 'F': 4.0, 'A': 3.0}
     go to the next step
     
     elected (frozenset(),)
     
     eliminated (frozenset({'E'}),)
     
-    remaining (frozenset({'D', 'F'}), frozenset({'A', 'C', 'G'}))
-    Ranking Scores Weight
-     (F, G)     ()      4
-       (D,)     ()      3
-       (A,)     ()      3
-     (G, F)     ()      3
-     (C, D)     ()      2
-     (D, F)     ()      1
-     (C, A)     ()      1
+    remaining (frozenset({'F', 'D'}), frozenset({'C', 'G', 'A'}))
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (C)       (D)       (~)        {}     2.0
+    1                  (G)       (F)       (~)        {}     3.0
+    2                  (C)       (A)       (~)        {}     1.0
+    3                  (A)       (~)       (~)        {}     3.0
+    4                  (F)       (G)       (~)        {}     4.0
+    5                  (D)       (~)       (~)        {}     3.0
+    6                  (D)       (F)       (~)        {}     1.0
 
 
 :math:`E` has been removed from all of the ballots. Again, no one
@@ -306,7 +392,7 @@ will be eliminated.
 
 .. code:: ipython3
 
-    print("fpv after round 2:",election.election_states[2].scores)
+    print("fpv after round 2:", election.election_states[2].scores)
     print("go to the next step\n")
     
     
@@ -315,29 +401,32 @@ will be eliminated.
     print("\nremaining", election.election_states[3].remaining)
     print("\ntiebreak resolution", election.election_states[3].tiebreaks)
     print()
-    print(election.get_profile(3))
+    print(election.get_profile(3).df)
 
 
 .. parsed-literal::
 
-    fpv after round 2: {'D': Fraction(4, 1), 'A': Fraction(3, 1), 'F': Fraction(4, 1), 'C': Fraction(3, 1), 'G': Fraction(3, 1)}
+    fpv after round 2: {'C': 3.0, 'G': 3.0, 'A': 3.0, 'F': 4.0, 'D': 4.0}
     go to the next step
     
     elected (frozenset(),)
     
     eliminated (frozenset({'C'}),)
     
-    remaining (frozenset({'D'}), frozenset({'A', 'F'}), frozenset({'G'}))
+    remaining (frozenset({'D'}), frozenset({'F', 'A'}), frozenset({'G'}))
     
-    tiebreak resolution {frozenset({'A', 'C', 'G'}): (frozenset({'A'}), frozenset({'G'}), frozenset({'C'}))}
+    tiebreak resolution {frozenset({'C', 'G', 'A'}): (frozenset({'A'}), frozenset({'G'}), frozenset({'C'}))}
     
     Initial tiebreak was unsuccessful, performing random tiebreak
-    Ranking Scores Weight
-       (D,)     ()      5
-       (A,)     ()      4
-     (F, G)     ()      4
-     (G, F)     ()      3
-     (D, F)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (D)       (~)       (~)        {}     2.0
+    1                  (G)       (F)       (~)        {}     3.0
+    2                  (A)       (~)       (~)        {}     1.0
+    3                  (A)       (~)       (~)        {}     3.0
+    4                  (F)       (G)       (~)        {}     4.0
+    5                  (D)       (~)       (~)        {}     3.0
+    6                  (D)       (F)       (~)        {}     1.0
 
 
 Note that here, several candidates were tied for the fewest first-place
@@ -370,43 +459,47 @@ low-tech physical way to do the transfers.)
 .. code:: ipython3
 
     from votekit.elections import random_transfer
+    
     candidates = ["A", "B", "C", "D", "E", "F", "G"]
     
-    ballots = [Ballot(ranking = [{"A"}, {"B"}], weight = 3),
-               Ballot(ranking = [{"B"}, {"C"}, {"D"}], weight = 8),
-               Ballot(ranking = [{"B"}, {"D"}, {"C"}], weight = 8),
-               Ballot(ranking = [{"C"}, {"A"}, {"B"}], weight = 1),
-               Ballot(ranking = [{"D"}, {"E"}], weight = 1),
-               Ballot(ranking = [{"E"}, {"D"}, {"F"}], weight = 1),
-               Ballot(ranking = [{"F"}, {"G"}], weight = 4),
-               Ballot(ranking = [{"G"}, {"E"}, {"F"}], weight = 1)]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}], weight=3),
+        Ballot(ranking=[{"B"}, {"C"}, {"D"}], weight=8),
+        Ballot(ranking=[{"B"}, {"D"}, {"C"}], weight=8),
+        Ballot(ranking=[{"C"}, {"A"}, {"B"}], weight=1),
+        Ballot(ranking=[{"D"}, {"E"}], weight=1),
+        Ballot(ranking=[{"E"}, {"D"}, {"F"}], weight=1),
+        Ballot(ranking=[{"F"}, {"G"}], weight=4),
+        Ballot(ranking=[{"G"}, {"E"}, {"F"}], weight=1),
+    ]
     
-    profile = PreferenceProfile(ballots= ballots)
+    profile = PreferenceProfile(ballots=ballots)
     
-    print(profile)
+    print(profile.df)
     print("Sum of ballot weights:", profile.total_ballot_wt)
     print("Number of candidates:", len(profile.candidates))
+    print()
     
-    election = STV(profile = profile, transfer = random_transfer, m = 2)
+    election = STV(profile=profile, transfer=random_transfer, m=2)
     
     print(election)
-    
-
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (B, C, D)     ()      8
-    (B, D, C)     ()      8
-       (F, G)     ()      4
-       (A, B)     ()      3
-    (C, A, B)     ()      1
-       (D, E)     ()      1
-    (E, D, F)     ()      1
-    (G, E, F)     ()      1
-    Sum of ballot weights: 27
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (~)        {}     3.0
+    1                  (B)       (C)       (D)        {}     8.0
+    2                  (B)       (D)       (C)        {}     8.0
+    3                  (C)       (A)       (B)        {}     1.0
+    4                  (D)       (E)       (~)        {}     1.0
+    5                  (E)       (D)       (F)        {}     1.0
+    6                  (F)       (G)       (~)        {}     4.0
+    7                  (G)       (E)       (F)        {}     1.0
+    Sum of ballot weights: 27.0
     Number of candidates: 7
+    
     Initial tiebreak was unsuccessful, performing random tiebreak
            Status  Round
     B     Elected      1
@@ -446,49 +539,43 @@ using the ``score_vector`` parameter.
 
     from votekit.elections import Borda
     import votekit.ballot_generator as bg
-    candidates  = ["A", "B", "C", "D", "E", "F"]
+    
+    candidates = ["A", "B", "C", "D", "E", "F"]
     
     # recall IAC generates an "all bets are off" profile
-    iac = bg.ImpartialAnonymousCulture(candidates = candidates)
-    profile = iac.generate_profile(number_of_ballots= 1000)
+    iac = bg.ImpartialAnonymousCulture(candidates=candidates)
+    profile = iac.generate_profile(number_of_ballots=1000)
     
-    election = Borda(profile, m = 3)
+    election = Borda(profile, m=3)
 
 .. code:: ipython3
 
-    print(election.get_profile(0))
+    print(election.get_profile(0).df.head(10).to_string())
     print()
     
     print(election)
-    
-
 
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 430 rows.
-               Ranking Scores Weight
-    (D, F, C, B, E, A)     ()     12
-    (F, E, B, A, C, D)     ()     10
-    (B, A, C, D, F, E)     ()     10
-    (F, E, A, B, D, C)     ()     10
-    (D, E, B, A, F, C)     ()      9
-    (E, A, C, F, B, D)     ()      9
-    (E, F, B, D, A, C)     ()      9
-    (C, E, F, D, A, B)     ()      9
-    (A, E, D, B, F, C)     ()      9
-    (A, B, D, F, C, E)     ()      8
-    (D, C, E, F, A, B)     ()      8
-    (F, C, A, B, D, E)     ()      8
-    (E, C, A, B, F, D)     ()      7
-    (A, C, E, D, B, F)     ()      7
-    (F, C, E, A, D, B)     ()      7
+                 Ranking_1 Ranking_2 Ranking_3 Ranking_4 Ranking_5 Ranking_6 Voter Set  Weight
+    Ballot Index                                                                              
+    0                  (D)       (A)       (F)       (B)       (C)       (E)        {}     1.0
+    1                  (A)       (E)       (F)       (B)       (D)       (C)        {}     5.0
+    2                  (E)       (C)       (A)       (D)       (B)       (F)        {}     2.0
+    3                  (E)       (C)       (A)       (B)       (F)       (D)        {}     4.0
+    4                  (C)       (D)       (B)       (F)       (A)       (E)        {}     2.0
+    5                  (C)       (A)       (B)       (E)       (F)       (D)        {}     6.0
+    6                  (D)       (F)       (A)       (E)       (B)       (C)        {}     4.0
+    7                  (B)       (A)       (E)       (C)       (D)       (F)        {}     2.0
+    8                  (E)       (A)       (F)       (C)       (D)       (B)        {}     2.0
+    9                  (F)       (D)       (B)       (E)       (A)       (C)        {}     5.0
     
           Status  Round
+    D    Elected      1
     E    Elected      1
-    C    Elected      1
     F    Elected      1
-    D  Remaining      1
+    C  Remaining      1
     A  Remaining      1
     B  Remaining      1
 
@@ -513,17 +600,17 @@ the election is equivalent. Let’s see what the election stores.
 
 .. parsed-literal::
 
-    Winners: (frozenset({'E'}), frozenset({'C'}), frozenset({'F'}))
+    Winners: (frozenset({'F'}), frozenset({'A'}), frozenset({'C'}))
     Eliminated: ()
-    Ranking: (frozenset({'E'}), frozenset({'C'}), frozenset({'F'}), frozenset({'D'}), frozenset({'A'}), frozenset({'B'}))
+    Ranking: (frozenset({'F'}), frozenset({'A'}), frozenset({'C'}), frozenset({'B'}), frozenset({'D'}), frozenset({'E'}))
     Outcome of round 1:
            Status  Round
-    E    Elected      1
-    C    Elected      1
     F    Elected      1
-    D  Remaining      1
-    A  Remaining      1
+    A    Elected      1
+    C    Elected      1
     B  Remaining      1
+    D  Remaining      1
+    E  Remaining      1
 
 
 **Try it yourself**
@@ -536,16 +623,18 @@ the election is equivalent. Let’s see what the election stores.
 
 .. code:: ipython3
 
-    ballots = [Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3),
-               Ballot(ranking = [{"A"}, {"C"}, {"B"}], weight = 2),
-               Ballot(ranking = [{"B"}, {"C"}, {"A"}], weight = 2),
-               Ballot(ranking = [{"C"}, {"B"}, {"A"}], weight = 4)]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=2),
+        Ballot(ranking=[{"B"}, {"C"}, {"A"}], weight=2),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=4),
+    ]
     
-    profile = PreferenceProfile(ballots=ballots, candidates = ["A", "B", "C"])
+    profile = PreferenceProfile(ballots=ballots, candidates=["A", "B", "C"])
     
     # borda election
-    score_vector = [3,2,1]
-    election = Borda(profile, m = 1, score_vector = score_vector)
+    score_vector = [3, 2, 1]
+    election = Borda(profile, m=1, score_vector=score_vector)
     print(election)
 
 
@@ -564,27 +653,25 @@ an STV election where there are many rounds.
 .. code:: ipython3
 
     minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
-    minneapolis_profile = remove_noncands(minneapolis_profile, 
-                                          ["undervote", "overvote", "UWI"])
+    minneapolis_profile = remove_and_condense(["undervote", "overvote", "UWI"], minneapolis_profile)
     
-    minn_election = STV(profile = minneapolis_profile, 
-                        m = 1)
+    minn_election = STV(profile=minneapolis_profile, m=1)
     
-    for i in range(1,6):
-      print(f"Round {i}\n")
-      # the winners up to the current round
-      print("Winners:", minn_election.get_elected(i))
+    for i in range(1, 6):
+        print(f"Round {i}\n")
+        # the winners up to the current round
+        print("Winners:", minn_election.get_elected(i))
     
-      # the eliminated candidates up to the current round
-      print("Eliminated:", minn_election.get_eliminated(i))
+        # the eliminated candidates up to the current round
+        print("Eliminated:", minn_election.get_eliminated(i))
     
-      # the remaining candidates, sorted by first-place votes
-      print("Remaining:", minn_election.get_remaining(i))
+        # the remaining candidates, sorted by first-place votes
+        print("Remaining:", minn_election.get_remaining(i))
     
-      # the same information as a df
-      print(minn_election.get_status_df(i))
+        # the same information as a df
+        print(minn_election.get_status_df(i))
     
-      print()
+        print()
 
 
 .. parsed-literal::
@@ -593,7 +680,7 @@ an STV election where there are many rounds.
     
     Winners: ()
     Eliminated: (frozenset({'JOHN CHARLES WILSON'}),)
-    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'NEAL BAXTER', 'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.', 'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON', 'NEAL BAXTER'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.', 'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}))
                                       Status  Round
     BETSY HODGES                   Remaining      1
     MARK ANDREW                    Remaining      1
@@ -618,8 +705,8 @@ an STV election where there are many rounds.
     CHRISTOPHER ROBIN ZIMMERMAN    Remaining      1
     JEFFREY ALAN WAGNER            Remaining      1
     TROY BENJEGERDES               Remaining      1
-    NEAL BAXTER                    Remaining      1
     GREGG A. IVERSON               Remaining      1
+    NEAL BAXTER                    Remaining      1
     JOSHUA REA                     Remaining      1
     MERRILL ANDERSON               Remaining      1
     BILL KAHN                      Remaining      1
@@ -677,7 +764,7 @@ an STV election where there are many rounds.
     
     Winners: ()
     Eliminated: (frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
-    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'NEAL BAXTER'}), frozenset({'MERRILL ANDERSON', 'JOSHUA REA'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}), frozenset({'RAHN V. WORKCUFF'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'JAMES EVERETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'NEAL BAXTER'}), frozenset({'JOSHUA REA', 'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}), frozenset({'RAHN V. WORKCUFF'}))
                                       Status  Round
     BETSY HODGES                   Remaining      3
     MARK ANDREW                    Remaining      3
@@ -704,8 +791,8 @@ an STV election where there are many rounds.
     TROY BENJEGERDES               Remaining      3
     GREGG A. IVERSON               Remaining      3
     NEAL BAXTER                    Remaining      3
-    MERRILL ANDERSON               Remaining      3
     JOSHUA REA                     Remaining      3
+    MERRILL ANDERSON               Remaining      3
     BILL KAHN                      Remaining      3
     JOHN LESLIE HARTWIG            Remaining      3
     EDMUND BERNARD BRUYERE         Remaining      3
@@ -719,7 +806,7 @@ an STV election where there are many rounds.
     
     Winners: ()
     Eliminated: (frozenset({'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
-    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"', 'JAMES EVERETT'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'JAMES EVERETT', 'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}))
                                       Status  Round
     BETSY HODGES                   Remaining      4
     MARK ANDREW                    Remaining      4
@@ -732,8 +819,8 @@ an STV election where there are many rounds.
     MARK V ANDERSON                Remaining      4
     DOUG MANN                      Remaining      4
     OLE SAVIOR                     Remaining      4
-    ABDUL M RAHAMAN "THE ROCK"     Remaining      4
     JAMES EVERETT                  Remaining      4
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      4
     ALICIA K. BENNETT              Remaining      4
     CAPTAIN JACK SPARROW           Remaining      4
     TONY LANE                      Remaining      4
@@ -801,6 +888,12 @@ an STV election where there are many rounds.
     
 
 
+.. parsed-literal::
+
+    /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/src/votekit/pref_profile/pref_profile.py:1109: UserWarning: Profile does not contain rankings but max_ranking_length=3. Setting max_ranking_length to 0.
+      warnings.warn(
+
+
 Conclusion
 ----------
 
@@ -826,8 +919,9 @@ works, and how to know when it’s over.
 .. code:: ipython3
 
     from votekit.elections import RankingElection, ElectionState
-    from votekit.utils import remove_cand
+    from votekit.cleaning import remove_cand
     import random
+    
     
     class RandomWinners(RankingElection):
         """
@@ -838,7 +932,7 @@ works, and how to know when it’s over.
             m (int, optional): Number of seats to elect.
         """
     
-        def __init__(self, profile: PreferenceProfile, m: int=1):
+        def __init__(self, profile: PreferenceProfile, m: int = 1):
             # the super method says call the RankingElection class
             self.m = m
             super().__init__(profile)
@@ -857,7 +951,7 @@ works, and how to know when it’s over.
                 return True
     
             return False
-        
+    
         def _run_step(
             self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
         ) -> PreferenceProfile:
@@ -876,25 +970,27 @@ works, and how to know when it’s over.
             """
     
             elected_cand = random.choice(profile.candidates)
-            new_profile = remove_cand(elected_cand, profile) 
+            new_profile = remove_cand(elected_cand, profile)
     
             # we only store the states the first time an election is run,
             # but this is all handled by the other methods of the class
             if store_states:
-                self.election_states.append(ElectionState(round_number = prev_state.round_number +1,
-                                                          remaining = (frozenset(new_profile.candidates),),
-                                                          elected = (frozenset(elected_cand),),))
-                
-            return new_profile
+                self.election_states.append(
+                    ElectionState(
+                        round_number=prev_state.round_number + 1,
+                        remaining=(frozenset(new_profile.candidates),),
+                        elected=(frozenset(elected_cand),),
+                    )
+                )
     
-
+            return new_profile
 
 .. code:: ipython3
 
-    candidates  = ["A", "B", "C", "D", "E", "F"]
-    profile = bg.ImpartialCulture(candidates = candidates).generate_profile(1000)
+    candidates = ["A", "B", "C", "D", "E", "F"]
+    profile = bg.ImpartialCulture(candidates=candidates).generate_profile(1000)
     
-    election = RandomWinners(profile= profile, m  = 3)
+    election = RandomWinners(profile=profile, m=3)
 
 .. code:: ipython3
 
@@ -904,10 +1000,10 @@ works, and how to know when it’s over.
 .. parsed-literal::
 
           Status  Round
-    D    Elected      1
-    E    Elected      2
-    F    Elected      3
-    A  Remaining      3
+    E    Elected      1
+    D    Elected      2
+    A    Elected      3
+    F  Remaining      3
     C  Remaining      3
     B  Remaining      3
 
@@ -948,7 +1044,7 @@ works, and how to know when it’s over.
             m (int, optional): Number of seats to elect.
         """
     
-        def __init__(self, profile: PreferenceProfile, m: int=1):
+        def __init__(self, profile: PreferenceProfile, m: int = 1):
             # the super method says call the RankingElection class
             self.m = m
             super().__init__(profile)
@@ -967,7 +1063,7 @@ works, and how to know when it’s over.
                 return True
     
             return False
-        
+    
         def _run_step(
             self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
         ) -> PreferenceProfile:
@@ -986,5 +1082,3 @@ works, and how to know when it’s over.
             """
     
             pass
-    
-

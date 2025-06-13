@@ -2,7 +2,6 @@ from votekit.elections import BlocPlurality, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_bloc_plurality = PreferenceProfile(
     ballots=[
@@ -37,13 +36,13 @@ states = [
             frozenset({"C"}),
             frozenset({"D"}),
         ),
-        scores={"A": Fraction(5), "B": Fraction(3), "C": Fraction(2), "D": Fraction(0)},
+        scores={"A": 5, "B": 3, "C": 2, "D": 0},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}), frozenset({"D"})),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(2), "D": Fraction(0)},
+        scores={"C": 2, "D": 0},
     ),
 ]
 
@@ -134,7 +133,7 @@ def test_errors():
         BlocPlurality(profile_no_tied_bloc_plurality, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         BlocPlurality(profile_no_tied_bloc_plurality, m=5)
 
@@ -155,5 +154,5 @@ def test_validate_profile():
         BlocPlurality(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
-        BlocPlurality(profile, m=2)
+        profile = PreferenceProfile(ballots=[Ballot(ranking=({"A"},))])
+        BlocPlurality(profile, m=1)

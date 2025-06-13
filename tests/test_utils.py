@@ -1,9 +1,7 @@
-from fractions import Fraction
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.utils import (
     ballots_by_first_cand,
-    remove_cand,
     add_missing_cands,
     validate_score_vector,
     score_profile_from_rankings,
@@ -70,119 +68,6 @@ def test_ballots_by_first_cand_error():
         ballots_by_first_cand(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
-def test_remove_cand_dif_types():
-    no_a_true = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"B"}], weight=1),
-            Ballot(ranking=[{"B"}, {"C"}], weight=1 / 2),
-            Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ],
-        candidates=("B", "C"),
-    )
-
-    assert remove_cand("A", profile_no_ties) == no_a_true
-    assert profile_no_ties != no_a_true  # check that remove cand does not alter profile
-    assert remove_cand("A", profile_no_ties.ballots) == no_a_true.ballots
-    assert remove_cand("A", Ballot(ranking=[{"A"}, {"B"}])) == Ballot(ranking=[{"B"}])
-
-
-def test_remove_cand_no_ties():
-    no_a = remove_cand("A", profile_no_ties)
-    no_a_true = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"B"}], weight=1),
-            Ballot(ranking=[{"B"}, {"C"}], weight=1 / 2),
-            Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ],
-        candidates=("B", "C"),
-    )
-
-    no_a_b = remove_cand(["A", "B"], profile_no_ties)
-    no_a_b_true = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"C"}], weight=7 / 2),
-        ],
-        candidates=("C",),
-    )
-
-    assert no_a == no_a_true
-    assert no_a_b == no_a_b_true
-
-
-def test_remove_cand_with_ties():
-    no_a = remove_cand("A", profile_with_ties)
-    no_a_true = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"B"}], weight=1),
-            Ballot(ranking=[{"B", "C"}], weight=1 / 2),
-            Ballot(ranking=[{"C"}, {"B"}], weight=3),
-        ],
-        candidates=("B", "C"),
-    )
-
-    no_a_b = remove_cand(["A", "B"], profile_no_ties)
-    no_a_b_true = PreferenceProfile(
-        ballots=[
-            Ballot(ranking=[{"C"}], weight=7 / 2),
-        ],
-        candidates=("C",),
-    )
-    assert no_a == no_a_true
-    assert no_a_b == no_a_b_true
-
-
-def test_remove_cands_scores():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-            ),
-            Ballot(
-                scores={"A": 3, "B": 2},
-            ),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-            ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-                weight=Fraction(2),
-            ),
-        ),
-        candidates=("A", "B", "C"),
-    )
-
-    no_a_true = PreferenceProfile(
-        ballots=(
-            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(3)),
-            Ballot(
-                scores={"B": 2},
-            ),
-            Ballot(
-                ranking=({"B"}, {"C"}),
-                scores={"B": 2},
-                weight=Fraction(3),
-            ),
-        ),
-        candidates=("B", "C"),
-    )
-
-    no_a_b_true = PreferenceProfile(
-        ballots=(
-            Ballot(
-                ranking=({"C"},),
-                weight=Fraction(6),
-            ),
-        ),
-        candidates=("C",),
-    )
-
-    assert remove_cand("A", profile) == no_a_true
-    assert remove_cand(["A", "B"], profile) == no_a_b_true
-
-
 def test_add_missing_cands():
     true_add = PreferenceProfile(
         ballots=[
@@ -216,52 +101,6 @@ def test_validate_score_vector():
 
 def test_score_profile_from_rankings_low():
     true_scores = {
-        "A": Fraction(25),
-        "B": Fraction(17),
-        "C": Fraction(17),
-        "D": Fraction(6),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_high():
-    true_scores = {
-        "A": Fraction(27.5),
-        "B": Fraction(19.5),
-        "C": Fraction(18.5),
-        "D": Fraction(7.5),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
-    )
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_avg():
-    true_scores = {
-        "A": Fraction(26.25),
-        "B": Fraction(18.25),
-        "C": Fraction(17.75),
-        "D": Fraction(6.75),
-        "E": Fraction(1),
-    }
-
-    comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
-    )
-    assert comp_scores == true_scores
-    assert isinstance(comp_scores["A"], Fraction)
-
-
-def test_score_profile_from_rankings_to_float():
-    true_scores = {
         "A": 25,
         "B": 17,
         "C": 17,
@@ -269,8 +108,38 @@ def test_score_profile_from_rankings_to_float():
         "E": 1,
     }
 
+    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], float)
+
+
+def test_score_profile_from_rankings_high():
+    true_scores = {
+        "A": 27.5,
+        "B": 19.5,
+        "C": 18.5,
+        "D": 7.5,
+        "E": 1,
+    }
+
     comp_scores = score_profile_from_rankings(
-        profile_with_missing, [5, 4, 3, 2, 1], to_float=True
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
+    )
+    assert comp_scores == true_scores
+    assert isinstance(comp_scores["A"], float)
+
+
+def test_score_profile_from_rankings_avg():
+    true_scores = {
+        "A": 26.25,
+        "B": 18.25,
+        "C": 17.75,
+        "D": 6.75,
+        "E": 1,
+    }
+
+    comp_scores = score_profile_from_rankings(
+        profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
     )
     assert comp_scores == true_scores
     assert isinstance(comp_scores["A"], float)
@@ -283,11 +152,7 @@ def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
         score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
 
-    with pytest.raises(ValueError):
-        score_profile_from_rankings(
-            PreferenceProfile(ballots=(Ballot(ranking=({}, {"A"})),))
-        )
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
         )
@@ -308,35 +173,20 @@ def test_score_profile_from_rankings_errors():
 
 def test_first_place_votes():
     votes = first_place_votes(profile_no_ties)
-    true_votes = {"A": Fraction(3, 2), "B": Fraction(0), "C": Fraction(3)}
-
-    assert votes == true_votes
-    assert isinstance(votes["A"], Fraction)
-
-
-def test_first_place_votes_to_float():
-    votes = first_place_votes(profile_no_ties, to_float=True)
-    true_votes = {"A": 1.5, "B": 0, "C": 3}
+    true_votes = {"A": 3 / 2, "B": 0, "C": 3}
 
     assert votes == true_votes
     assert isinstance(votes["A"], float)
 
 
 def test_fpv_errors():
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         first_place_votes(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
 def test_mentions():
-    correct = {"A": Fraction(9, 2), "B": Fraction(9, 2), "C": Fraction(7, 2)}
-    test = mentions(profile_no_ties)
-    assert correct == test
-    assert isinstance(test["A"], Fraction)
-
-
-def test_mentions_to_float():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = mentions(profile_no_ties, to_float=True)
+    test = mentions(profile_no_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
@@ -347,37 +197,28 @@ def test_mentions_errors():
 
 
 def test_borda_no_ties():
-    true_borda = {"A": Fraction(15, 2), "B": Fraction(9), "C": Fraction(19, 2)}
+    true_borda = {"A": 15 / 2, "B": 9, "C": 19 / 2}
 
     borda = borda_scores(profile_no_ties)
 
-    assert borda == true_borda
-    assert isinstance(borda["A"], Fraction)
-
-
-def test_borda_no_ties_to_float():
-    true_borda = {"A": 15 / 2, "B": 9, "C": 19 / 2}
-
-    borda = borda_scores(profile_no_ties, to_float=True)
     assert borda == true_borda
     assert isinstance(borda["A"], float)
 
 
 def test_borda_with_ties():
-    true_borda = {"A": Fraction(25, 2), "B": Fraction(13, 2), "C": Fraction(7)}
+    true_borda = {"A": 25 / 2, "B": 13 / 2, "C": 7}
 
     borda = borda_scores(profile_with_ties, tie_convention="average")
 
     assert borda == true_borda
-    assert isinstance(borda["A"], Fraction)
+    assert isinstance(borda["A"], float)
 
 
 def test_borda_short_ballot():
     true_borda = {
-        "A": Fraction(2),
-        "B": Fraction(2),
-        "C": Fraction(2),
-        "D": Fraction(0),
+        "A": 2,
+        "B": 2,
+        "C": 2,
     }
 
     borda = borda_scores(
@@ -390,10 +231,9 @@ def test_borda_short_ballot():
     assert borda == true_borda
 
     true_borda = {
-        "A": Fraction(1),
-        "B": Fraction(0),
-        "C": Fraction(1),
-        "D": Fraction(0),
+        "A": 1,
+        "B": 0,
+        "C": 1,
     }
 
     borda = borda_scores(
@@ -409,10 +249,9 @@ def test_borda_short_ballot():
 
 def test_borda_mismatched_length():
     true_borda = {
-        "A": Fraction(50),
-        "B": Fraction(98),
-        "C": Fraction(50),
-        "D": Fraction(0),
+        "A": 50,
+        "B": 98,
+        "C": 50,
     }
 
     borda = borda_scores(
@@ -426,10 +265,9 @@ def test_borda_mismatched_length():
     assert borda == true_borda
 
     true_borda = {
-        "A": Fraction(1),
-        "B": Fraction(0),
-        "C": Fraction(1),
-        "D": Fraction(0),
+        "A": 1,
+        "B": 0,
+        "C": 1,
     }
 
     borda = borda_scores(
@@ -447,7 +285,7 @@ def test_borda_mismatched_length():
 
 
 def test_borda_errors():
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
         borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
@@ -664,13 +502,13 @@ def test_score_profile_from_ballot_scores():
                 ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
             ),
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             ),
         ]
     )
     scores = score_profile_from_ballot_scores(profile)
-    assert scores == {"A": Fraction(7), "C": Fraction(8)}
-    assert isinstance(scores["A"], Fraction)
+    assert scores == {"A": 7, "C": 8}
+    assert isinstance(scores["A"], float)
 
 
 def test_score_profile_from_ballot_scores_float():
@@ -680,11 +518,11 @@ def test_score_profile_from_ballot_scores_float():
                 ranking=(frozenset({"A"}),), scores={"A": 2, "B": 0, "C": 4}, weight=2
             ),
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             ),
         ]
     )
-    scores = score_profile_from_ballot_scores(profile, to_float=True)
+    scores = score_profile_from_ballot_scores(profile)
     assert scores == {"A": 7.0, "C": 8.0}
     assert isinstance(scores["A"], float)
 
@@ -713,7 +551,7 @@ def test_ballot_lengths():
                 weight=2,
             ),
         ],
-        max_ballot_length=5,
+        max_ranking_length=5,
     )
 
     assert ballot_lengths(profile) == {1: 2, 2: 3 / 2, 3: 2, 4: 1, 5: 0}
@@ -723,7 +561,7 @@ def test_ballot_lengths_ranking_error():
     profile = PreferenceProfile(
         ballots=[
             Ballot(
-                scores={"A": Fraction(3)},
+                scores={"A": 3},
             )
         ]
     )

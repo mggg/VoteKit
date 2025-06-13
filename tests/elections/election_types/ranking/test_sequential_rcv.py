@@ -197,16 +197,6 @@ def test_get_ranking():
     )
 
 
-def test_exhaust_ballots():
-    profile = PreferenceProfile(
-        ballots=(Ballot(ranking=(frozenset({"A"}),)),), candidates=("A", "B", "C")
-    )
-
-    # not enough ballots to have two candidates cross threshold
-    e = SequentialRCV(profile, m=2)
-    assert len([c for s in e.get_elected() for c in s]) == 2
-
-
 def test_fpv_tie():
     profile = PreferenceProfile(
         ballots=(
@@ -234,20 +224,20 @@ def test_simul_v_1by1_():
     e_1by1 = SequentialRCV(profile, m=2, simultaneous=False, tiebreak="random")
 
     assert e_simul.election_states != e_1by1.election_states
-    assert e_simul.get_remaining(1) == (frozenset({"C"}),)
-    assert len(e_1by1.get_remaining(1)) == 2
+    assert e_simul.get_remaining(1) == (frozenset(),)
+    assert len(e_1by1.get_remaining(1)) == 1
 
 
 def test_errors():
     with pytest.raises(
         ValueError,
-        match="m must be non-negative and less than or equal to the number of candidates.",
+        match="m must be positive.",
     ):
         SequentialRCV(simult_same_as_one_by_one_profile, m=0)
 
     with pytest.raises(
         ValueError,
-        match="m must be non-negative and less than or equal to the number of candidates.",
+        match="Not enough candidates received votes to be elected.",
     ):
         SequentialRCV(simult_same_as_one_by_one_profile, m=8)
 
@@ -267,7 +257,9 @@ def test_errors():
         SequentialRCV(profile, m=2, simultaneous=False)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        SequentialRCV(PreferenceProfile(candidates=["A"]), m=1, quota="Drip")
+        SequentialRCV(
+            PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip"
+        )
 
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

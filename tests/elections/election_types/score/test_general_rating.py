@@ -27,15 +27,15 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
+        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3, "B": 2})])
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
+        profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3, "B": 2, "C": 2})])
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
+        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 2, "B": 2})])
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):

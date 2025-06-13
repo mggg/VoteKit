@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from functools import reduce
 import itertools as it
-from fractions import Fraction
 import math
 import numpy as np
 from pathlib import Path
@@ -294,7 +293,7 @@ class BallotGenerator:
 
         for ranking, count in ranking_counts.items():
             rank = tuple([frozenset([cand]) for cand in ranking])
-            b = Ballot(ranking=rank, weight=Fraction(count))
+            b = Ballot(ranking=rank, weight=count)
             ballot_list.append(b)
 
         return PreferenceProfile(ballots=tuple(ballot_list), candidates=candidates)
@@ -389,7 +388,7 @@ class BallotSimplex(BallotGenerator):
         perm_rankings = [list(value) for value in perm_set]
 
         if self.alpha is not None:
-            draw_probabilities = list(
+            draw_probabilities: list[float] = list(
                 np.random.default_rng().dirichlet([self.alpha] * len(perm_rankings))
             )
 
@@ -568,11 +567,11 @@ class short_name_PlackettLuce(BallotGenerator):
                     )
                     ranking.append(frozenset(tied_candidates))
 
-                ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=1)
 
             # create PP for this bloc
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -818,10 +817,10 @@ class name_BradleyTerry(BallotGenerator):
                 if zero_cands:
                     ranking.append(frozenset(zero_cands))
 
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -897,7 +896,7 @@ class name_BradleyTerry(BallotGenerator):
             raise ValueError("Some element of ballots list is not a ballot.")
 
         pp = PreferenceProfile(ballots=ballots)
-        pp = pp.condense_ballots()
+        pp = pp.group_ballots()
         return pp
 
     def generate_profile_MCMC(
@@ -1093,11 +1092,11 @@ class AlternatingCrossover(BallotGenerator):
                         frozenset({c}) for c in opposing_cands
                     ]
 
-                ballot = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot = Ballot(ranking=tuple(ranking), weight=1)
                 ballot_pool.append(ballot)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1147,7 +1146,9 @@ class OneDimSpatial(BallotGenerator):
             distance_dict = {
                 c: abs(v - vp) for c, v, in candidate_position_dict.items()
             }
-            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            candidate_order = sorted(
+                distance_dict, key=lambda x: float(distance_dict.__getitem__(x))
+            )
             ballot_pool.append(candidate_order)
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
@@ -1399,10 +1400,10 @@ class CambridgeSampler(BallotGenerator):
                             full_ballot.append(ordered_opp_slate.pop(0))
 
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
-                ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot_pool[i] = Ballot(ranking=ranking, weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1522,14 +1523,14 @@ class name_Cumulative(BallotGenerator):
                     )
                 )
 
-                scores = {c: Fraction(0) for c in list_ranking}
+                scores = {c: 0.0 for c in list_ranking}
                 for c in list_ranking:
-                    scores[c] += Fraction(1)
+                    scores[c] += 1
 
-                ballot_pool.append(Ballot(scores=scores, weight=Fraction(1, 1)))
+                ballot_pool.append(Ballot(scores=scores, weight=1))
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1646,7 +1647,7 @@ class slate_PlackettLuce(BallotGenerator):
                     )
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [frozenset({-1})] * len(bt)
+                ranking = [frozenset({"-1"})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
@@ -1654,10 +1655,10 @@ class slate_PlackettLuce(BallotGenerator):
 
                 if len(zero_cands) > 0:
                     ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pref_profile_by_bloc[bloc] = pp
 
         # combine the profiles
@@ -1930,7 +1931,7 @@ class slate_BradleyTerry(BallotGenerator):
 
                     cand_ordering_by_bloc[b] = list(cand_ordering)
 
-                ranking = [frozenset({-1})] * len(bt)
+                ranking = [frozenset({"-1"})] * len(bt)
                 for i, b in enumerate(bt):
                     # append the current first candidate, then remove them from the ordering
                     ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
@@ -1938,10 +1939,10 @@ class slate_BradleyTerry(BallotGenerator):
 
                 if len(zero_cands) > 0:
                     ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.condense_ballots()
+            pp = pp.group_ballots()
             pref_profile_by_bloc[bloc] = pp
 
         # combine the profiles

@@ -13,7 +13,8 @@ test_profile = PreferenceProfile(
         Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
         Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
         Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_list = [
@@ -26,7 +27,8 @@ profile_list = [
             Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -36,7 +38,8 @@ profile_list = [
             Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -46,7 +49,8 @@ profile_list = [
             Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
             Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -55,7 +59,8 @@ profile_list = [
             Ballot(ranking=({"Cake"},), weight=3),
             Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"},), weight=7),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
@@ -64,20 +69,23 @@ profile_list = [
             Ballot(ranking=({"Cake"},), weight=3),
             Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
             Ballot(ranking=({"Burger"},), weight=7),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
             Ballot(ranking=({"Pear"},), weight=11.5),
             Ballot(ranking=({"Burger"},), weight=8),
-        ]
+        ],
+        max_ranking_length=3,
     ),
     PreferenceProfile(
         ballots=[
             Ballot(ranking=({"Pear"},), weight=11.5),
-        ]
+        ],
+        max_ranking_length=3,
     ),
-    PreferenceProfile(),
+    PreferenceProfile(max_ranking_length=3),
 ]
 
 states = [
@@ -188,8 +196,6 @@ def test_quotas():
 
 def test_profiles():
     e = IRV(test_profile)
-    print(e.get_profile(1))
-    print(profile_list[1])
     assert [e.get_profile(i) for i in range(len(e.election_states))] == profile_list
 
 

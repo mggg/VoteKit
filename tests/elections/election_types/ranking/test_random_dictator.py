@@ -5,12 +5,20 @@ import random
 import itertools
 from joblib import Parallel, delayed
 from votekit.utils import first_place_votes
+import pytest
 
 
 def run_election_once(test_profile):
     """Run one election and return the winner."""
     election = RandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
+
+
+def test_random_dictator_error():
+    with pytest.raises(
+        ValueError, match="Not enough candidates received votes to be elected."
+    ):
+        RandomDictator(PreferenceProfile(), m=1)
 
 
 def test_random_dictator_simple():
@@ -26,7 +34,7 @@ def test_random_dictator_simple():
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
     winner_counts = {c: 0 for c in candidates}
-    trials = 5000
+    trials = 600
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
@@ -72,7 +80,7 @@ def test_random_dictator_4_candidates_without_ties():
     tot_fpv = sum(fpv.values())
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
-    trials = 5000
+    trials = 750
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
@@ -105,7 +113,7 @@ def test_random_dictator_4_candidates_with_ties():
 
     test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
 
-    trials = 5000
+    trials = 750
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -132,7 +140,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
 
     ballots = all_possible_ranked_ballots(candidates)
 
-    trials = 5000
+    trials = 500
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:

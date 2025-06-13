@@ -2,14 +2,14 @@ from votekit.elections import CondoBorda, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_tied_set = PreferenceProfile(
     ballots=[
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_tied_set_round_1 = PreferenceProfile(
@@ -27,7 +27,8 @@ profile_tied_set_round_1 = PreferenceProfile(
                 {"B"},
             )
         ),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
@@ -36,7 +37,8 @@ profile_no_tied_set = PreferenceProfile(
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_tied_borda = PreferenceProfile(
@@ -47,20 +49,21 @@ profile_tied_borda = PreferenceProfile(
         Ballot(ranking=({"B"}, {"C"}, {"A"})),
         Ballot(ranking=({"C"}, {"A"}, {"B"})),
         Ballot(ranking=({"C"}, {"B"}, {"A"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(10), "B": Fraction(9), "C": Fraction(5)},
+        scores={"A": 10, "B": 9, "C": 5},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"B"}), frozenset({"C"})),
         elected=(frozenset({"A"}),),
-        scores={"B": Fraction(7), "C": Fraction(5)},
+        scores={"B": 11, "C": 9},
         tiebreaks={frozenset({"A", "B"}): (frozenset({"A"}), frozenset({"B"}))},
     ),
 ]
@@ -101,12 +104,13 @@ def test_state_list():
 def test_get_profile():
     e = CondoBorda(profile_tied_set)
     assert e.get_profile(0) == profile_tied_set
-    assert e.get_profile(1) == profile_tied_set_round_1
+    assert e.get_profile(1).group_ballots() == profile_tied_set_round_1
 
 
 def test_get_step():
     e = CondoBorda(profile_tied_set)
-    assert e.get_step(1) == (profile_tied_set_round_1, states[1])
+    profile, state = e.get_step(1)
+    assert profile.group_ballots(), state == (profile_tied_set_round_1, states[1])
 
 
 def test_get_elected():
@@ -157,7 +161,7 @@ def test_errors():
         CondoBorda(profile_tied_set, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         CondoBorda(profile_tied_set, m=4)
 

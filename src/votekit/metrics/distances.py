@@ -1,4 +1,4 @@
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, profile_to_ranking_dict
 from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
 import ot  # type: ignore
@@ -6,6 +6,7 @@ import networkx as nx  # type: ignore
 from typing import Union, Optional
 
 
+# TODO slateemd branch of PRVTP has refactored
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
     """
     Computes the earth mover distance between two profiles.
@@ -98,7 +99,7 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     cast_ballots: list = []
     profile_dicts: list[dict] = []
     for pp in profiles:
-        election_dict = pp.to_ranking_dict(standardize=True)
+        election_dict = profile_to_ranking_dict(pp, standardize=True)
         profile_dicts.append(election_dict)
         for key in election_dict.keys():
             if key not in cast_ballots:
@@ -127,7 +128,7 @@ def em_array(pp: PreferenceProfile) -> list:
     """
     ballot_graph = BallotGraph(source=pp)
     node_cand_map = ballot_graph.label_cands(sorted(pp.candidates))
-    pp_dict = pp.to_ranking_dict(True)
+    pp_dict = profile_to_ranking_dict(pp, True)
 
     # invert node_cand_map to map to pp_dict
     # split is used to remove the custom labeling from the ballotgraph

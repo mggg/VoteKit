@@ -2,7 +2,6 @@ from votekit.elections import Limited, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_limited = PreferenceProfile(
     ballots=[
@@ -15,7 +14,7 @@ profile_no_tied_limited = PreferenceProfile(
 # 3,2,1,0
 
 
-profile_no_tied_limited_round_1 = PreferenceProfile()
+profile_no_tied_limited_round_1 = PreferenceProfile(candidates=["D"])
 
 profile_tied_limited = PreferenceProfile(
     ballots=[
@@ -35,13 +34,13 @@ states = [
             frozenset({"C"}),
             frozenset({"D"}),
         ),
-        scores={"A": Fraction(3), "B": Fraction(2), "C": Fraction(1), "D": Fraction(0)},
+        scores={"A": 3, "B": 2, "C": 1, "D": 0},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"D"}),),
         elected=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"D": Fraction(0)},
+        scores={"D": 0},
     ),
 ]
 
@@ -58,8 +57,6 @@ def test_ties():
 
 def test_state_list():
     e = Limited(profile_no_tied_limited, m=3, k=2)
-    print(e.election_states[1])
-    print(states[1])
     assert e.election_states == states
 
 
@@ -134,7 +131,7 @@ def test_errors():
         Limited(profile_no_tied_limited, m=0, k=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Limited(profile_no_tied_limited, m=5, k=2)
 
@@ -150,7 +147,7 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
+        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3, "B": 2})])
         Limited(profile, m=2, k=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
@@ -162,5 +159,5 @@ def test_validate_profile():
         Limited(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
+        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 1, "B": 1})])
         Limited(profile, m=2)

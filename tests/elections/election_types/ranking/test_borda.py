@@ -2,20 +2,21 @@ from votekit.elections import Borda, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_borda = PreferenceProfile(
     ballots=[
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 # 8, 6, 4
 # 3, 2, 1
 
 profile_no_tied_borda_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)]
+    ballots=[Ballot(ranking=({"C"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_borda = PreferenceProfile(
@@ -24,20 +25,21 @@ profile_with_tied_borda = PreferenceProfile(
         Ballot(ranking=[{"A"}, {"C"}, {"B"}, {"D"}]),
         Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}]),
         Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}]),
-    ]
+    ],
+    max_ranking_length=4,
 )
 
 
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(8), "B": Fraction(6), "C": Fraction(4)},
+        scores={"A": 8, "B": 6, "C": 4},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(9)},
+        scores={"C": 9},
     ),
 ]
 
@@ -51,9 +53,9 @@ def test_alt_score_vector():
     e = Borda(profile_no_tied_borda, m=2, score_vector=(1, 1, 0))
     assert e.get_ranking() == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.election_states[0].scores == {
-        "A": Fraction(3),
-        "B": Fraction(2),
-        "C": Fraction(1),
+        "A": 3,
+        "B": 2,
+        "C": 1,
     }
 
 
@@ -139,7 +141,7 @@ def test_errors():
         Borda(profile_no_tied_borda, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Borda(profile_no_tied_borda, m=4)
 

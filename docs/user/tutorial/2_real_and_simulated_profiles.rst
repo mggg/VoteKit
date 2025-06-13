@@ -27,7 +27,7 @@ First we load the appropriate modules.
 
     from votekit.cvr_loaders import load_csv
     from votekit.elections import IRV
-    from votekit.cleaning import remove_noncands
+    from votekit.cleaning import remove_and_condense
 
 Next we’ll use the ``load_csv`` function to load the data. The data
 should be a csv file, where each row is a ballot, and there is a column
@@ -44,18 +44,19 @@ object.
 .. code:: ipython3
 
     minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
-    print(minneapolis_profile.head(6))
+    print(minneapolis_profile)
 
 
 .. parsed-literal::
 
-                                               Ranking Scores Weight
-    0              (MARK ANDREW, undervote, undervote)     ()   3864
-    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)     ()   3309
-    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)     ()   3031
-    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)     ()   2502
-    4             (BETSY HODGES, undervote, undervote)     ()   2212
-    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)     ()   1831
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'undervote', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'UWI', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'overvote', 'CHRISTOPHER CLARK')
+    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'undervote', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'UWI', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'overvote', 'CHRISTOPHER CLARK')
+    Total number of Ballot objects: 7084
+    Total weight of Ballot objects: 80101.0
+    
 
 
 Note that the ``load_csv`` function automatically condenses the profile.
@@ -66,7 +67,9 @@ previous notebook.
 .. code:: ipython3
 
     print("The list of candidates is")
-    print(minneapolis_profile.candidates)
+    
+    for candidate in sorted(minneapolis_profile.candidates):
+        print(f"\t{candidate}")
     
     print(f"There are {len(minneapolis_profile.candidates)} candidates.")
 
@@ -74,7 +77,44 @@ previous notebook.
 .. parsed-literal::
 
     The list of candidates is
-    ('JAMES "JIMMY" L. STROUD, JR.', 'BOB FINE', 'EDMUND BERNARD BRUYERE', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'CHRISTOPHER CLARK', 'ABDUL M RAHAMAN "THE ROCK"', 'JACKIE CHERRYHOMES', 'DON SAMUELS', 'JOSHUA REA', 'MIKE GOULD', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JAMES EVERETT', 'JAYMIE KELLY', 'MARK V ANDERSON', 'undervote', 'DOUG MANN', 'JOHN CHARLES WILSON', 'CAPTAIN JACK SPARROW', 'UWI', 'BILL KAHN', 'TONY LANE', 'MERRILL ANDERSON', 'BOB "AGAIN" CARNEY JR', 'JOHN LESLIE HARTWIG', 'BETSY HODGES', 'DAN COHEN', 'TROY BENJEGERDES', 'STEPHANIE WOODRUFF', 'MARK ANDREW', 'overvote', 'NEAL BAXTER', 'GREGG A. IVERSON', 'OLE SAVIOR', 'KURTIS W. HANNA', 'JEFFREY ALAN WAGNER', 'CAM WINTON')
+    	ABDUL M RAHAMAN "THE ROCK"
+    	ALICIA K. BENNETT
+    	BETSY HODGES
+    	BILL KAHN
+    	BOB "AGAIN" CARNEY JR
+    	BOB FINE
+    	CAM WINTON
+    	CAPTAIN JACK SPARROW
+    	CHRISTOPHER CLARK
+    	CHRISTOPHER ROBIN ZIMMERMAN
+    	CYD GORMAN
+    	DAN COHEN
+    	DON SAMUELS
+    	DOUG MANN
+    	EDMUND BERNARD BRUYERE
+    	GREGG A. IVERSON
+    	JACKIE CHERRYHOMES
+    	JAMES "JIMMY" L. STROUD, JR.
+    	JAMES EVERETT
+    	JAYMIE KELLY
+    	JEFFREY ALAN WAGNER
+    	JOHN CHARLES WILSON
+    	JOHN LESLIE HARTWIG
+    	JOSHUA REA
+    	KURTIS W. HANNA
+    	MARK ANDREW
+    	MARK V ANDERSON
+    	MERRILL ANDERSON
+    	MIKE GOULD
+    	NEAL BAXTER
+    	OLE SAVIOR
+    	RAHN V. WORKCUFF
+    	STEPHANIE WOODRUFF
+    	TONY LANE
+    	TROY BENJEGERDES
+    	UWI
+    	overvote
+    	undervote
     There are 38 candidates.
 
 
@@ -93,37 +133,39 @@ This reminds us that it is really important to think carefully about how
 we want to handle cleaning ballots, as some storage methods are
 efficient but lossy. For now, let’s assume that we want to further
 condense the ballots, discarding ‘undervote’, ‘overvote’, and ‘UWI’ as
-candidates. The function ``remove_noncands`` will do this for us once we
-specify which (non)candidates to remove. If a ballot was “A B
+candidates. The function ``remove_and_condense`` will do this for us
+once we specify which (non)candidates to remove. If a ballot was “A B
 undervote”, it will become “A B”. If a ballot was “A UWI B” it will now
 be “A B” as well. Many other cleaning options are reasonable.
 
 .. code:: ipython3
 
-    print("There were",len(minneapolis_profile.candidates),"candidates\n")
+    print("There were", len(minneapolis_profile.candidates), "candidates\n")
     
-    clean_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
+    clean_profile = remove_and_condense(["undervote", "overvote", "UWI"], minneapolis_profile)
     print(clean_profile.candidates)
     
-    print("\nThere are now",len(clean_profile.candidates),"candidates")
+    print("\nThere are now", len(clean_profile.candidates), "candidates")
     
-    print(clean_profile.head(6, percents=True))
+    print(clean_profile)
 
 
 .. parsed-literal::
 
     There were 38 candidates
     
-    ('BILL KAHN', 'TONY LANE', 'BOB FINE', 'MERRILL ANDERSON', 'BOB "AGAIN" CARNEY JR', 'JAMES "JIMMY" L. STROUD, JR.', 'JOHN LESLIE HARTWIG', 'EDMUND BERNARD BRUYERE', 'BETSY HODGES', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'CHRISTOPHER CLARK', 'ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'TROY BENJEGERDES', 'JACKIE CHERRYHOMES', 'JOSHUA REA', 'DON SAMUELS', 'MIKE GOULD', 'STEPHANIE WOODRUFF', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JOHN CHARLES WILSON', 'NEAL BAXTER', 'GREGG A. IVERSON', 'OLE SAVIOR', 'JAMES EVERETT', 'KURTIS W. HANNA', 'JAYMIE KELLY', 'MARK V ANDERSON', 'JEFFREY ALAN WAGNER', 'DOUG MANN', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
+    ('JACKIE CHERRYHOMES', 'TROY BENJEGERDES', 'EDMUND BERNARD BRUYERE', 'DON SAMUELS', 'CAM WINTON', 'DOUG MANN', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DAN COHEN', 'JOSHUA REA', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'ALICIA K. BENNETT', 'BETSY HODGES', 'CAPTAIN JACK SPARROW', 'JOHN LESLIE HARTWIG', 'JAYMIE KELLY', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'BILL KAHN', 'KURTIS W. HANNA', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JEFFREY ALAN WAGNER', 'GREGG A. IVERSON', 'MARK V ANDERSON', 'MIKE GOULD', 'ABDUL M RAHAMAN "THE ROCK"', 'CHRISTOPHER CLARK', 'OLE SAVIOR', 'JAMES EVERETT', 'MARK ANDREW', 'BOB FINE')
     
     There are now 35 candidates
-                                               Ranking Scores Weight Percent
-    0                                   (MARK ANDREW,)     ()   3864   4.87%
-    1         (BETSY HODGES, MARK ANDREW, DON SAMUELS)     ()   3309   4.17%
-    2         (BETSY HODGES, DON SAMUELS, MARK ANDREW)     ()   3031   3.82%
-    3         (MARK ANDREW, BETSY HODGES, DON SAMUELS)     ()   2502   3.15%
-    4                                  (BETSY HODGES,)     ()   2212   2.79%
-    5  (BETSY HODGES, DON SAMUELS, JACKIE CHERRYHOMES)     ()   1831   2.31%
+    Profile has been cleaned
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('JACKIE CHERRYHOMES', 'TROY BENJEGERDES', 'EDMUND BERNARD BRUYERE', 'DON SAMUELS', 'CAM WINTON', 'DOUG MANN', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DAN COHEN', 'JOSHUA REA', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'ALICIA K. BENNETT', 'BETSY HODGES', 'CAPTAIN JACK SPARROW', 'JOHN LESLIE HARTWIG', 'JAYMIE KELLY', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'BILL KAHN', 'KURTIS W. HANNA', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JEFFREY ALAN WAGNER', 'GREGG A. IVERSON', 'MARK V ANDERSON', 'MIKE GOULD', 'ABDUL M RAHAMAN "THE ROCK"', 'CHRISTOPHER CLARK', 'OLE SAVIOR', 'JAMES EVERETT', 'MARK ANDREW', 'BOB FINE')
+    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'CHRISTOPHER CLARK')
+    Total number of Ballot objects: 7073
+    Total weight of Ballot objects: 79378.0
+    
 
 
 Things look a bit cleaner; all three of the non-candidate strings have
@@ -139,7 +181,7 @@ are equivalent to STV for one seat). Let’s check it out.
 .. code:: ipython3
 
     # an IRV election for one seat
-    minn_election = IRV(profile = clean_profile)
+    minn_election = IRV(profile=clean_profile)
     print(minn_election)
 
 
@@ -183,6 +225,12 @@ are equivalent to STV for one seat). Let’s check it out.
     JOHN CHARLES WILSON           Eliminated      1
 
 
+.. parsed-literal::
+
+    /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/src/votekit/pref_profile/pref_profile.py:1109: UserWarning: Profile does not contain rankings but max_ranking_length=3. Setting max_ranking_length to 0.
+      warnings.warn(
+
+
 If you’re so moved, take a moment to `go
 verify <https://en.wikipedia.org/wiki/2013_Minneapolis_mayoral_election>`__
 that we got the same order of elimination and the same winning candidate
@@ -215,77 +263,80 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
     import votekit.ballot_generator as bg
     from votekit import PreferenceInterval
     
-    slate_to_candidates= {"Alpha": ["A", "B"],
-                          "Xenon": ["X", "Y"]}
+    slate_to_candidates = {"Alpha": ["A", "B"], "Xenon": ["X", "Y"]}
     
     # note that we include candidates with 0 support, and that our preference intervals
     # will automatically rescale to sum to 1
     
-    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B":.15}),
-                                        "Xenon": PreferenceInterval({"X":0, "Y": .05})},
+    pref_intervals_by_bloc = {
+        "Alpha": {
+            "Alpha": PreferenceInterval({"A": 0.8, "B": 0.15}),
+            "Xenon": PreferenceInterval({"X": 0, "Y": 0.05}),
+        },
+        "Xenon": {
+            "Alpha": PreferenceInterval({"A": 0.05, "B": 0.05}),
+            "Xenon": PreferenceInterval({"X": 0.45, "Y": 0.45}),
+        },
+    }
     
-                             "Xenon": {"Alpha": PreferenceInterval({"A": .05, "B":.05}),
-                                       "Xenon": PreferenceInterval({"X":.45, "Y": .45})}}
     
-    
-    bloc_voter_prop = {"Alpha": .8, "Xenon": .2}
+    bloc_voter_prop = {"Alpha": 0.8, "Xenon": 0.2}
     
     # assume that each bloc is 90% cohesive
-    cohesion_parameters = {"Alpha": {"Alpha": .9, "Xenon": .1},
-                           "Xenon": {"Xenon": .9, "Alpha": .1}}
+    cohesion_parameters = {
+        "Alpha": {"Alpha": 0.9, "Xenon": 0.1},
+        "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
+    }
     
-    bt = bg.slate_BradleyTerry(pref_intervals_by_bloc = pref_intervals_by_bloc,
-                         bloc_voter_prop = bloc_voter_prop,
-                         slate_to_candidates = slate_to_candidates,
-                         cohesion_parameters=cohesion_parameters)
+    bt = bg.slate_BradleyTerry(
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_parameters=cohesion_parameters,
+    )
     
-    profile = bt.generate_profile(number_of_ballots = 100)
-    print(profile)
+    profile = bt.generate_profile(number_of_ballots=100)
+    print(profile.df)
 
 
 .. parsed-literal::
 
-         Ranking Scores Weight
-    (A, B, Y, X)     ()     60
-    (A, Y, B, X)     ()     10
-    (B, A, Y, X)     ()     10
-    (Y, X, A, B)     ()      5
-    (Y, X, B, A)     ()      5
-    (X, Y, A, B)     ()      4
-    (X, Y, B, A)     ()      4
-    (X, B, Y, A)     ()      1
-    (X, A, Y, B)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
+    Ballot Index                                                          
+    0                  (A)       (B)       (Y)       (X)        {}    69.0
+    1                  (A)       (Y)       (B)       (X)        {}     4.0
+    2                  (B)       (A)       (Y)       (X)        {}     7.0
+    3                  (Y)       (X)       (A)       (B)        {}     7.0
+    4                  (Y)       (X)       (B)       (A)        {}     4.0
+    5                  (X)       (Y)       (A)       (B)        {}     5.0
+    6                  (X)       (Y)       (B)       (A)        {}     4.0
 
 
-.. admonition:: A note on s-BT 
-    :class: note 
-
-        The probability distribution
-        that s-BT samples from is too cumbersome to compute for more than 12
-        candidates. We have implemented a Markov chain Monte Carlo (MCMC)
-        sampling method to account for this. Simply set
-        ``deterministic = False`` in the ``generate_profile`` method to use the
-        MCMC code. The sample size should be increased to ensure mixing of the
-        chain.
+.. admonition:: A note on s-BT :class: note The probability distribution
+that s-BT samples from is too cumbersome to compute for more than 12
+candidates. We have implemented a Markov chain Monte Carlo (MCMC)
+sampling method to account for this. Simply set
+``deterministic = False`` in the ``generate_profile`` method to use the
+MCMC code. The sample size should be increased to ensure mixing of the
+chain.
 
 .. code:: ipython3
 
-    mcmc_profile = bt.generate_profile(number_of_ballots = 10000, deterministic=False)
-    print(profile)
+    mcmc_profile = bt.generate_profile(number_of_ballots=10000, deterministic=False)
+    print(profile.df)
 
 
 .. parsed-literal::
 
-         Ranking Scores Weight
-    (A, B, Y, X)     ()     60
-    (A, Y, B, X)     ()     10
-    (B, A, Y, X)     ()     10
-    (Y, X, A, B)     ()      5
-    (Y, X, B, A)     ()      5
-    (X, Y, A, B)     ()      4
-    (X, Y, B, A)     ()      4
-    (X, B, Y, A)     ()      1
-    (X, A, Y, B)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
+    Ballot Index                                                          
+    0                  (A)       (B)       (Y)       (X)        {}    69.0
+    1                  (A)       (Y)       (B)       (X)        {}     4.0
+    2                  (B)       (A)       (Y)       (X)        {}     7.0
+    3                  (Y)       (X)       (A)       (B)        {}     7.0
+    4                  (Y)       (X)       (B)       (A)        {}     4.0
+    5                  (X)       (Y)       (A)       (B)        {}     5.0
+    6                  (X)       (Y)       (B)       (A)        {}     4.0
 
 
 Generating Preference Intervals from Hyperparameters
@@ -326,7 +377,6 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
-   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -355,7 +405,6 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -363,24 +412,27 @@ these change with randomness.
 
 .. code:: ipython3
 
-    strong_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], 
-                                                             alpha=.1)
+    strong_pref_interval = PreferenceInterval.from_dirichlet(
+        candidates=["A", "B", "C"], alpha=0.1
+    )
     print("Strong preference for one candidate", strong_pref_interval)
     
-    abo_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], 
-                                                          alpha=1)
+    abo_pref_interval = PreferenceInterval.from_dirichlet(
+        candidates=["A", "B", "C"], alpha=1
+    )
     print("All bets are off preference", abo_pref_interval)
     
-    unif_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], 
-                                                           alpha=10)
+    unif_pref_interval = PreferenceInterval.from_dirichlet(
+        candidates=["A", "B", "C"], alpha=10
+    )
     print("Uniform preference for all candidates", unif_pref_interval)
 
 
 .. parsed-literal::
 
-    Strong preference for one candidate {'A': 0.0036, 'B': 0.942, 'C': 0.0544}
-    All bets are off preference {'A': 0.3234, 'B': 0.0994, 'C': 0.5772}
-    Uniform preference for all candidates {'A': 0.3159, 'B': 0.3591, 'C': 0.325}
+    Strong preference for one candidate {'A': 0.9997, 'B': 0.0003, 'C': 0.0}
+    All bets are off preference {'A': 0.4123, 'B': 0.008, 'C': 0.5797}
+    Uniform preference for all candidates {'A': 0.3021, 'B': 0.3939, 'C': 0.3039}
 
 
 Let’s initialize the s-PL model from the Dirichlet distribution, using
@@ -391,25 +443,24 @@ the opposing candidates.
 
 .. code:: ipython3
 
-    bloc_voter_prop = {"X": .8, "Y": .2}
+    bloc_voter_prop = {"X": 0.8, "Y": 0.2}
     
     # the values of .9 indicate that these blocs are highly polarized;
     # they prefer their own candidates much more than the opposing slate
-    cohesion_parameters = {"X": {"X":.9, "Y":.1},
-                            "Y": {"Y":.9, "X":.1}}
+    cohesion_parameters = {"X": {"X": 0.9, "Y": 0.1}, "Y": {"Y": 0.9, "X": 0.1}}
     
-    alphas = {"X": {"X":2, "Y":1},
-                        "Y": {"X":1, "Y":.5}}
+    alphas = {"X": {"X": 2, "Y": 1}, "Y": {"X": 1, "Y": 0.5}}
     
-    slate_to_candidates = {"X": ["X1", "X2"],
-                            "Y": ["Y1", "Y2"]}
+    slate_to_candidates = {"X": ["X1", "X2"], "Y": ["Y1", "Y2"]}
     
-    # the from_params method allows us to sample from 
+    # the from_params method allows us to sample from
     # the Dirichlet distribution for our intervals
-    pl = bg.slate_PlackettLuce.from_params(slate_to_candidates=slate_to_candidates,
-              bloc_voter_prop=bloc_voter_prop,
-              cohesion_parameters=cohesion_parameters,
-              alphas=alphas)
+    pl = bg.slate_PlackettLuce.from_params(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters=cohesion_parameters,
+        alphas=alphas,
+    )
     
     print("Preference interval for X bloc and X candidates")
     print(pl.pref_intervals_by_bloc["X"]["X"])
@@ -418,30 +469,34 @@ the opposing candidates.
     print(pl.pref_intervals_by_bloc["X"]["Y"])
     
     print()
-    profile_dict, agg_profile = pl.generate_profile(number_of_ballots = 100, by_bloc = True)
-    print(profile_dict["X"])
+    profile_dict, agg_profile = pl.generate_profile(number_of_ballots=100, by_bloc=True)
+    print(profile_dict["X"].df)
 
 
 .. parsed-literal::
 
     Preference interval for X bloc and X candidates
-    {'X1': 0.4825, 'X2': 0.5175}
+    {'X1': 0.4421, 'X2': 0.5579}
     
     Preference interval for X bloc and Y candidates
-    {'Y1': 0.2228, 'Y2': 0.7772}
+    {'Y1': 0.4563, 'Y2': 0.5437}
     
-             Ranking Scores Weight
-    (X2, X1, Y2, Y1)     ()     29
-    (X1, X2, Y2, Y1)     ()     25
-    (X2, X1, Y1, Y2)     ()      9
-    (X1, X2, Y1, Y2)     ()      4
-    (X2, Y2, X1, Y1)     ()      3
-    (Y2, X2, X1, Y1)     ()      2
-    (Y1, X2, X1, Y2)     ()      2
-    (X2, Y2, Y1, X1)     ()      2
-    (X1, Y2, X2, Y1)     ()      2
-    (Y2, X1, X2, Y1)     ()      1
-    (Y1, X1, X2, Y2)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
+    Ballot Index                                                          
+    0                 (X2)      (X1)      (Y2)      (Y1)    20.0        {}
+    1                 (X2)      (X1)      (Y1)      (Y2)    14.0        {}
+    2                 (X2)      (Y2)      (X1)      (Y1)     1.0        {}
+    3                 (X2)      (Y1)      (X1)      (Y2)     2.0        {}
+    4                 (X1)      (X2)      (Y2)      (Y1)    22.0        {}
+    5                 (X1)      (X2)      (Y1)      (Y2)    10.0        {}
+    6                 (X1)      (Y2)      (X2)      (Y1)     2.0        {}
+    7                 (X1)      (Y1)      (Y2)      (X2)     1.0        {}
+    8                 (X1)      (Y1)      (X2)      (Y2)     2.0        {}
+    9                 (Y1)      (X2)      (X1)      (Y2)     1.0        {}
+    10                (Y2)      (X1)      (Y1)      (X2)     1.0        {}
+    11                (Y2)      (X1)      (X2)      (Y1)     1.0        {}
+    12                (Y2)      (X2)      (X1)      (Y1)     2.0        {}
+    13                (Y2)      (Y1)      (X2)      (X1)     1.0        {}
 
 
 Let’s confirm that the intervals and ballots look reasonable. We have
@@ -479,48 +534,42 @@ data.
 
 .. code:: ipython3
 
-    bloc_voter_prop = {"W": .8, "C": .2}
+    bloc_voter_prop = {"W": 0.8, "C": 0.2}
     
     # the values of .9 indicate that these blocs are highly polarized;
     # they prefer their own candidates much more than the opposing slate
-    cohesion_parameters = {"W": {"W":.9, "C":.1},
-                            "C": {"C":.9, "W":.1}}
+    cohesion_parameters = {"W": {"W": 0.9, "C": 0.1}, "C": {"C": 0.9, "W": 0.1}}
     
-    alphas = {"W": {"W":2, "C":1},
-              "C": {"W":1, "C":.5}}
+    alphas = {"W": {"W": 2, "C": 1}, "C": {"W": 1, "C": 0.5}}
     
-    slate_to_candidates = {"W": ["W1", "W2", "W3"],
-                            "C": ["C1", "C2"]}
+    slate_to_candidates = {"W": ["W1", "W2", "W3"], "C": ["C1", "C2"]}
     
-    cs = bg.CambridgeSampler.from_params(slate_to_candidates=slate_to_candidates,
-              bloc_voter_prop=bloc_voter_prop,
-              cohesion_parameters=cohesion_parameters,
-              alphas=alphas)
+    cs = bg.CambridgeSampler.from_params(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters=cohesion_parameters,
+        alphas=alphas,
+    )
     
     
-    profile = cs.generate_profile(number_of_ballots= 1000)
-    print(profile)
+    profile = cs.generate_profile(number_of_ballots=1000)
+    print(profile.df.head(10).to_string())
 
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 268 rows.
-                 Ranking Scores Weight
-                   (W2,)     ()     36
-            (W2, W1, W3)     ()     26
-            (W1, W2, W3)     ()     21
-    (W2, W1, W3, C1, C2)     ()     21
-                   (W1,)     ()     17
-                (C1, C2)     ()     17
-                   (C1,)     ()     16
-    (W2, C1, W1, W3, C2)     ()     16
-    (W1, C1, C2, W2, W3)     ()     14
-                   (W3,)     ()     14
-                (W1, W2)     ()     14
-    (W1, W2, W3, C1, C2)     ()     13
-                (W2, W1)     ()     13
-    (C1, C2, W1, W2, W3)     ()     13
-            (W2, W3, W1)     ()     12
+                 Ranking_1 Ranking_2 Ranking_3 Ranking_4 Ranking_5 Voter Set  Weight
+    Ballot Index                                                                    
+    0                 (W2)      (C2)      (W3)      (W1)      (C1)        {}     3.0
+    1                 (W2)      (C2)      (W3)      (W1)       (~)        {}     4.0
+    2                 (W2)      (C2)      (W3)       (~)       (~)        {}     4.0
+    3                 (W2)      (C2)      (W3)      (C1)      (W1)        {}     2.0
+    4                 (W2)      (C2)      (C1)      (W1)       (~)        {}     8.0
+    5                 (W2)      (C2)      (C1)      (W1)      (W3)        {}    12.0
+    6                 (W2)      (C2)      (C1)       (~)       (~)        {}     3.0
+    7                 (W2)      (C2)      (C1)      (W3)       (~)        {}     2.0
+    8                 (W2)      (C2)      (C1)      (W3)      (W1)        {}     3.0
+    9                 (W2)      (C2)       (~)       (~)       (~)        {}     7.0
 
 
 Note: the ballot type (as in, Ws and Cs) is strictly drawn from the
@@ -535,5 +584,7 @@ Conclusion
 There are many other models of ballot generation in VoteKit, both for
 ranked choice ballots and score based ballots (think cumulative or
 approval voting). See the `ballot
-generator <../../package_info/api.html#module-votekit.ballot_generator>`__ section of
-the VoteKit documentation for more.
+generator <../../package_info/api.html#module-votekit.ballot_generator>`__
+section of the VoteKit documentation for more.
+
+

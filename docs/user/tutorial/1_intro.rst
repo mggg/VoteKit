@@ -27,9 +27,11 @@ import the necessary modules.
 .. code:: ipython3
 
     from votekit.ballot import Ballot
-    from fractions import Fraction
     
-    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = Fraction(3,2))
+    ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3 / 2)
+    print(ballot)
+    
+    ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=32)
     print(ballot)
 
 
@@ -39,37 +41,12 @@ import the necessary modules.
     1.) A, 
     2.) B, 
     3.) C, 
-    Weight: 3/2
-
-
-Here, we have created one ballot. The ballot stored the ranking
-:math:`A>B>C`. The weight attribute indicates “how many” of this ballot
-were cast. It defaults to 1, but we have put in 3/2. A fractional weight
-will be useful in single transferable vote (STV) elections! While the
-ballot stores the weight as a ``Fraction`` type, you can actually input
-the weight as an integer or float and it will convert it for you.
-
-.. code:: ipython3
-
-    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
-    print(ballot)
-    
-    ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 32)
-    print(ballot)
-
-
-.. parsed-literal::
-
+    Weight: 1.5
     Ranking
     1.) A, 
     2.) B, 
     3.) C, 
-    Weight: 3/2
-    Ranking
-    1.) A, 
-    2.) B, 
-    3.) C, 
-    Weight: 32
+    Weight: 32.0
 
 
 **Try it yourself**
@@ -79,20 +56,16 @@ the weight as an integer or float and it will convert it for you.
    and one with your own weight idea.
 
 Let’s dig a bit more into how the ranking is stored. It is a list of
-sets, where the first set in the tuple indicates which candidates were
+sets, where the first set in the list indicates which candidates were
 ranked first, the second set is who was ranked second, etc. In the first
 example, we stored a **full linear ranking**. There was only one
-candidate listed in each position, and every candidate was listed. To be
-pedantic, it is actually a tuple of frozensets, but much like converting
-an integer weight to a ``Fraction`` type, the ballot also converts lists
-of sets to the correct datatype. What is key to know is that you cannot
-alter a ballot once created; it is frozen.
+candidate listed in each position, and every candidate was listed.
 
 .. code:: ipython3
 
     # the following code should raise an error
     try:
-        ballot = Ballot(ranking = [{"A"}, {"B"}, {"C"}], weight = 3/2)
+        ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3 / 2)
         ballot.ranking = [{"C"}, {"B"}, {"A"}]
     
     except Exception as e:
@@ -115,8 +88,8 @@ error, called an **overvote**.
 
 Voters also leave some candidates out. In an extreme case, when a voter
 only lists one candidate, we call this a **bullet vote**. These are
-fairly common in ranked elections. A position with no candidates listed
-is sometimes called an **undervote**.
+fairly common in ranked elections, and a position with no candidates
+listed is sometimes called an **undervote**.
 
 We might prefer for localities running ranked choice elections to be
 smart about the voter intent to communicate a tied preference – and we
@@ -124,7 +97,7 @@ can do that in VoteKit. But we’ll get to running elections later.
 
 .. code:: ipython3
 
-    ballot = Ballot(ranking = [{"A", "D"}, {"B", "B", "B"}, {"C", "E", "F"}])
+    ballot = Ballot(ranking=[{"A", "D"}, {"B", "B", "B"}, {"C", "E", "F", "B"}])
     print("A ballot with overvotes:", ballot)
 
 
@@ -133,8 +106,8 @@ can do that in VoteKit. But we’ll get to running elections later.
     A ballot with overvotes: Ranking
     1.) D, A, (tie)
     2.) B, 
-    3.) F, C, E, (tie)
-    Weight: 1
+    3.) E, B, C, F, (tie)
+    Weight: 1.0
 
 
 The ballot above says that candidates :math:`D` and :math:`A` were
@@ -142,7 +115,7 @@ ranked first, :math:`B` second, and :math:`E,C,F` all in third.
 
 .. code:: ipython3
 
-    ballot = Ballot(ranking = [{"B"}])
+    ballot = Ballot(ranking=[{"B"}])
     print("A bullet vote:")
     print(ballot)
 
@@ -152,7 +125,7 @@ ranked first, :math:`B` second, and :math:`E,C,F` all in third.
     A bullet vote:
     Ranking
     1.) B, 
-    Weight: 1
+    Weight: 1.0
 
 
 The ballot above is a bullet vote; only candidate :math:`B` is listed in
@@ -187,7 +160,7 @@ different and 2) to give users more flexibility in the ``Ballot`` class.
 
 .. code:: ipython3
 
-    ballot = Ballot(scores = {"A":4, "B": 3, "C":4})
+    ballot = Ballot(scores={"A": 4, "B": 3, "C": 4})
     print(ballot)
     print("ranking:", ballot.ranking)
 
@@ -198,7 +171,7 @@ different and 2) to give users more flexibility in the ``Ballot`` class.
     A: 4.00
     B: 3.00
     C: 4.00
-    Weight: 1
+    Weight: 1.0
     ranking: None
 
 
@@ -209,7 +182,7 @@ have to agree with the scoring.
 
 .. code:: ipython3
 
-    ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores = {"A":4, "B": 3, "C":4})
+    ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores={"A": 4, "B": 3, "C": 4})
     print(ballot)
 
 
@@ -223,7 +196,7 @@ have to agree with the scoring.
     A: 4.00
     B: 3.00
     C: 4.00
-    Weight: 1
+    Weight: 1.0
 
 
 For the remainder of this tutorial, we will use ranked ballots.
@@ -236,7 +209,9 @@ the ``PreferenceProfile`` object. It stores all of the ballots, allows
 us to visualize them, and comes with some handy features.
 
 First we display the simple profile, which just repeats the weights as
-they were inputted.
+they were inputted. Underlying the ``PreferenceProfile`` object is a
+pandas ``DataFrame``, which is what you should use to display the whole
+collection of ballots in a compact format.
 
 .. code:: ipython3
 
@@ -244,30 +219,44 @@ they were inputted.
     
     candidates = ["A", "B", "C"]
     
-    # let's assume that the ballots come from voters, 
+    # let's assume that the ballots come from voters,
     # so they all have integer weight for now
-    ballots = [Ballot(ranking = [{"A"}, {"B"}, {"C"}],weight=3),
-               Ballot(ranking = [{"B"}, {"A"}, {"C"}]),
-               Ballot(ranking = [{"C"}, {"B"}, {"A"}]),
-               Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"B"}, {"A"}, {"C"}])]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+    ]
     
     # we give the profile a list of ballots and a list of candidates
-    profile = PreferenceProfile(ballots = ballots, candidates = candidates)
+    profile = PreferenceProfile(ballots=ballots, candidates=candidates)
     
     print(profile)
+    print()
+    print(profile.df.to_string())
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (A, B, C)     ()      3
-    (B, A, C)     ()      1
-    (C, B, A)     ()      1
-    (A, B, C)     ()      1
-    (A, B, C)     ()      1
-    (B, A, C)     ()      1
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('A', 'B', 'C')
+    Candidates who received votes: ('A', 'B', 'C')
+    Total number of Ballot objects: 6
+    Total weight of Ballot objects: 8.0
+    
+    
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (C)        {}     3.0
+    1                  (B)       (A)       (C)        {}     1.0
+    2                  (C)       (B)       (A)        {}     1.0
+    3                  (A)       (B)       (C)        {}     1.0
+    4                  (A)       (B)       (C)        {}     1.0
+    5                  (B)       (A)       (C)        {}     1.0
 
 
 The ``PreferenceProfile`` class takes a list of ``Ballot`` objects and a
@@ -280,168 +269,365 @@ when we move on to ballot generation, the list of candidates will be
 important, so it is good practice to specify them.
 
 Notice that printing the profile did not automatically combine like
-ballots into a single line. But there’s an easy way to get the condensed
+ballots into a single line. But there’s an easy way to get the grouped
 profile, as follows.
 
 .. code:: ipython3
 
-    condensed_profile  = profile.condense_ballots()
-    print(condensed_profile)
+    grouped_profile = profile.group_ballots()
+    print(grouped_profile)
+    print()
+    print(grouped_profile.df.to_string())
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (A, B, C)     ()      5
-    (B, A, C)     ()      2
-    (C, B, A)     ()      1
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('A', 'B', 'C')
+    Candidates who received votes: ('B', 'C', 'A')
+    Total number of Ballot objects: 3
+    Total weight of Ballot objects: 8.0
+    
+    
+                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
+    Ballot Index                                                
+    0                  (A)       (B)       (C)     5.0        {}
+    1                  (B)       (A)       (C)     2.0        {}
+    2                  (C)       (B)       (A)     1.0        {}
 
 
 In these examples, the profiles are very short, so we can print the
-entire profile. If there were more ballots (either uncondensed or
-different rankings), we’d see the message “PreferenceProfile too long,
-only showing 15 out of XX rows.”
+entire profile dataframe. If the profile was very long, we would want to
+view just the head of the dataframe. If you are savvy with the pandas
+library, ``profile.df`` returns a pandas ``DataFrame`` that you can use
+and manipulate. If you aren’t, you can use the VoteKit functions
+``profile_df_head`` and ``profile_df_tail`` to return the top and bottom
+ballots by weight.
 
 .. code:: ipython3
 
-    ballots = [Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"B"}, {"A"}, {"C"}]),
-               Ballot(ranking = [{"C"}, {"B"}, {"A"}]),
-               Ballot(ranking = [{"A"}]),
-               Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"B"}, {"A"}])]
+    from votekit.pref_profile import profile_df_head
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        Ballot(ranking=[{"A"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}]),
+    ]
     
-    profile = PreferenceProfile(ballots = ballots*6,
-                                candidates = candidates)
+    profile = PreferenceProfile(ballots=ballots * 6, candidates=candidates)
     
     print(profile)
+    print()
+    print(profile_df_head(profile, 10))
 
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 36 rows.
-      Ranking Scores Weight
-    (A, B, C)     ()      1
-    (B, A, C)     ()      1
-    (C, B, A)     ()      1
-         (A,)     ()      1
-    (A, B, C)     ()      1
-       (B, A)     ()      1
-    (A, B, C)     ()      1
-    (B, A, C)     ()      1
-    (C, B, A)     ()      1
-         (A,)     ()      1
-    (A, B, C)     ()      1
-       (B, A)     ()      1
-    (A, B, C)     ()      1
-    (B, A, C)     ()      1
-    (C, B, A)     ()      1
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('A', 'B', 'C')
+    Candidates who received votes: ('A', 'B', 'C')
+    Total number of Ballot objects: 36
+    Total weight of Ballot objects: 36.0
+    
+    
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (C)        {}     1.0
+    1                  (B)       (A)       (C)        {}     1.0
+    20                 (C)       (B)       (A)        {}     1.0
+    21                 (A)       (~)       (~)        {}     1.0
+    22                 (A)       (B)       (C)        {}     1.0
+    23                 (B)       (A)       (~)        {}     1.0
+    24                 (A)       (B)       (C)        {}     1.0
+    25                 (B)       (A)       (C)        {}     1.0
+    26                 (C)       (B)       (A)        {}     1.0
+    27                 (A)       (~)       (~)        {}     1.0
 
 
-To see more of the ballots, we can use the ``head`` and ``tail`` methods
-in the ``PreferenceProfile`` class. These display a user-specified
-number of ballots. By default, it lists them in the order inputted. We
-can ask ``head`` and ``tail`` to display them in order by weight by
-using the ``sort_by_weight`` parameter and setting it to ``True``.
+The ``~`` symbols indicate that the end of a ranking, i.e. the voter
+stopped ranking candidates. It is a reserved character for the
+underlying dataframe, so you can never make a candidate name just a
+``~``.
+
+If we wanted to indicate that a voter *skipped* a position, we would do
+so with an empty set in the ballot, which would look like this.
+
+.. code:: ipython3
+
+    ballot_1 = Ballot(ranking=({"A"}, set(), {"C"})) # a skipped position
+    ballot_2 = Ballot(ranking=({"A"}, {"D"})) # a ballot that left off one possible ranking
+    
+    profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length= 3)
+    
+    print(profile.df)
+
+
+.. parsed-literal::
+
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)        ()       (C)        {}     1.0
+    1                  (A)       (D)       (~)        {}     1.0
+
+
+``profile_df_head`` and ``tail`` come with some helpful parameters.
+
+**Try it yourself**
+~~~~~~~~~~~~~~~~~~~
+
+   Play with the parameters in the function below to see what they do.
+
+.. code:: ipython3
+
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        Ballot(ranking=[{"A"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}]),
+    ]
+    
+    profile = PreferenceProfile(ballots=ballots * 6, candidates=candidates)
+    profile_df_head(profile, 10, sort_by_weight=False, percents=True, totals=True, n_decimals=3)
+
+
+
+
+.. raw:: html
+
+    <div>
+    <style scoped>
+        .dataframe tbody tr th:only-of-type {
+            vertical-align: middle;
+        }
+    
+        .dataframe tbody tr th {
+            vertical-align: top;
+        }
+    
+        .dataframe thead th {
+            text-align: right;
+        }
+    </style>
+    <table border="1" class="dataframe">
+      <thead>
+        <tr style="text-align: right;">
+          <th></th>
+          <th>Ranking_1</th>
+          <th>Ranking_2</th>
+          <th>Ranking_3</th>
+          <th>Voter Set</th>
+          <th>Weight</th>
+          <th>Percent</th>
+        </tr>
+        <tr>
+          <th>Ballot Index</th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>0</th>
+          <td>(A)</td>
+          <td>(B)</td>
+          <td>(C)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>1</th>
+          <td>(B)</td>
+          <td>(A)</td>
+          <td>(C)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>2</th>
+          <td>(C)</td>
+          <td>(B)</td>
+          <td>(A)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>3</th>
+          <td>(A)</td>
+          <td>(~)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>4</th>
+          <td>(A)</td>
+          <td>(B)</td>
+          <td>(C)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>5</th>
+          <td>(B)</td>
+          <td>(A)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>6</th>
+          <td>(A)</td>
+          <td>(B)</td>
+          <td>(C)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>7</th>
+          <td>(B)</td>
+          <td>(A)</td>
+          <td>(C)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>8</th>
+          <td>(C)</td>
+          <td>(B)</td>
+          <td>(A)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>9</th>
+          <td>(A)</td>
+          <td>(~)</td>
+          <td>(~)</td>
+          <td>{}</td>
+          <td>1.0</td>
+          <td>2.778%</td>
+        </tr>
+        <tr>
+          <th>Total</th>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>10.0</td>
+          <td>27.778%</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+
+
+You can also do most of these with the pandas ``DataFrame`` methods.
 
 .. code:: ipython3
 
     # this will print the top 8 in order of input
-    print(profile.head(8))
+    print(profile.df.head(8))
     print()
-    
+     
     # and the bottom 8
-    print(profile.tail(8))
+    print(profile.df.tail(8))
     print()
     
-    # and the entry indexed 10, which includes the percent of the profile 
+    # and the entry indexed 10, which includes the percent of the profile
     # this ballot accounts for
     print(profile.df.iloc[10])
     print()
     
     # condense and sort by by weight
-    condensed_profile = profile.condense_ballots()
-    print(condensed_profile.head(8,sort_by_weight=True))
-
+    condensed_profile = profile.group_ballots()
+    print(condensed_profile.df.head(8).sort_values(by="Weight", ascending=False))
 
 
 .. parsed-literal::
 
-         Ranking Scores Weight
-    0  (A, B, C)     ()      1
-    1  (B, A, C)     ()      1
-    2  (C, B, A)     ()      1
-    3       (A,)     ()      1
-    4  (A, B, C)     ()      1
-    5     (B, A)     ()      1
-    6  (A, B, C)     ()      1
-    7  (B, A, C)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (C)        {}     1.0
+    1                  (B)       (A)       (C)        {}     1.0
+    2                  (C)       (B)       (A)        {}     1.0
+    3                  (A)       (~)       (~)        {}     1.0
+    4                  (A)       (B)       (C)        {}     1.0
+    5                  (B)       (A)       (~)        {}     1.0
+    6                  (A)       (B)       (C)        {}     1.0
+    7                  (B)       (A)       (C)        {}     1.0
     
-          Ranking Scores Weight
-    35  (A, B, C)     ()      1
-    34  (C, B, A)     ()      1
-    33       (A,)     ()      1
-    32  (A, B, C)     ()      1
-    31     (B, A)     ()      1
-    30  (A, B, C)     ()      1
-    29  (B, A, C)     ()      1
-    28  (B, A, C)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    28                 (A)       (B)       (C)        {}     1.0
+    29                 (B)       (A)       (~)        {}     1.0
+    30                 (A)       (B)       (C)        {}     1.0
+    31                 (B)       (A)       (C)        {}     1.0
+    32                 (C)       (B)       (A)        {}     1.0
+    33                 (A)       (~)       (~)        {}     1.0
+    34                 (A)       (B)       (C)        {}     1.0
+    35                 (B)       (A)       (~)        {}     1.0
     
-    Ranking    (A, B, C)
-    Scores            ()
-    Weight             1
-    Percent        2.78%
+    Ranking_1    (A)
+    Ranking_2    (B)
+    Ranking_3    (C)
+    Voter Set     {}
+    Weight       1.0
     Name: 10, dtype: object
     
-         Ranking Scores Weight
-    0  (A, B, C)     ()     12
-    1  (B, A, C)     ()      6
-    2  (C, B, A)     ()      6
-    3       (A,)     ()      6
-    4     (B, A)     ()      6
+                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
+    Ballot Index                                                
+    0                  (A)       (B)       (C)    12.0        {}
+    1                  (A)       (~)       (~)     6.0        {}
+    2                  (B)       (A)       (C)     6.0        {}
+    3                  (B)       (A)       (~)     6.0        {}
+    4                  (C)       (B)       (A)     6.0        {}
 
 
 A few other useful attributes/methods are listed here. Use
 ``profile.ATTR`` for each one.
 
--  ``candidates`` returns the list of candidates input to the profile.
+- ``candidates`` returns the list of candidates input to the profile.
 
--  ``candidates_cast`` returns the list of candidates who received
-   votes.
+- ``candidates_cast`` returns the list of candidates who received votes.
 
--  ``ballots`` returns the list of ballots (useful if you want to
-   extract the ballots to write custom code, say).
+- ``ballots`` returns the list of ballots (useful if you want to extract
+  the ballots to write custom code, say).
 
--  ``num_ballots`` returns the number of ballots, which is the length of
-   ``ballots``.
+- ``num_ballots`` returns the number of ballots, which is the length of
+  ``ballots``.
 
--  ``total_ballot_wt`` returns the sum of the ballot weights.
+- ``total_ballot_wt`` returns the sum of the ballot weights.
 
--  ``to_ballot_dict(standardize = False)`` returns the profile as
-   dictionary whose keys are the ballots and whose values are the
-   weights (condensed). Comes with an optional ``standardize`` argument
-   which divides the weights by the total weight.
-
--  ``to_ranking_dict(standardize = False)`` returns the profile as
-   dictionary whose keys are the rankings and whose values are the
-   weights (condensed). Comes with an optional ``standardize`` argument
-   which divides the weights by the total weight.
-
--  ``to_scores_dict(standardize = False)`` returns the profile as
-   dictionary whose keys are the scores and whose values are the weights
-   (condensed). Comes with an optional ``standardize`` argument which
-   divides the weights by the total weight.
-
--  ``to_csv(fpath = "name_of_file.csv")`` saves the profile as a csv
-   (useful if you want to replicate runs of an experiment).
+- ``to_pickle(fpath = "name_of_file.pkl")`` saves the profile as a pkl
+  (useful if you want to replicate runs of an experiment).
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
 
    Try using all of the above attributes/methods, with or without
-   condensing the ballots. Try switching the ``standardize`` parameter
-   in ``to_dict`` from False to True, and change the ``fpath`` parameter
-   in ``to_csv`` to a file name that makes sense.
+   grouping the ballots.
 
 Preference Intervals
 --------------------
@@ -467,7 +653,7 @@ For example,
    {"A": 0.7, "B": 0.2, "C": 0.1}
 
 is a dictionary that represents an ordered preference interval where A
-is preferred to B by a ratio of 7/2, etc.
+is preferred to B by a ratio of 7:2, etc.
 
 Later, the ballot generator models will pull from these preferences to
 create a ballot for each voter.
@@ -488,6 +674,7 @@ candidate will appear at the bottom of the ballot.
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
 
+   
 
 One of the generative models is called the **slate-Plackett-Luce
 model**, or s-PL. In s-PL, voters fill in their ballot from the top
@@ -505,38 +692,40 @@ but bear with us.
     import votekit.ballot_generator as bg
     from votekit import PreferenceInterval
     
-    # the sPL model assumes there are blocs of voters, 
+    # the sPL model assumes there are blocs of voters,
     # but we can just say that there is only one bloc
     bloc_voter_prop = {"all_voters": 1}
-    slate_to_candidates= {"all_voters": ["A", "B", "C"]}
+    slate_to_candidates = {"all_voters": ["A", "B", "C"]}
     
     # the preference interval (80,15,5)
-    pref_intervals_by_bloc = {"all_voters":  
-                              {"all_voters": PreferenceInterval({"A": .80,  "B": .15,  "C": .05})}
-                              }
+    pref_intervals_by_bloc = {
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
+    }
     
-    # the sPL model needs an estimate of cohesion between blocs, 
+    # the sPL model needs an estimate of cohesion between blocs,
     # but there is only one bloc here
     cohesion_parameters = {"all_voters": {"all_voters": 1}}
     
-    pl = bg.slate_PlackettLuce(pref_intervals_by_bloc = pref_intervals_by_bloc,
-                         bloc_voter_prop = bloc_voter_prop,
-                         slate_to_candidates = slate_to_candidates,
-                         cohesion_parameters=cohesion_parameters)
+    pl = bg.slate_PlackettLuce(
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_parameters=cohesion_parameters,
+    )
     
-    profile = pl.generate_profile(number_of_ballots = 100)
-    print(profile)
+    profile = pl.generate_profile(number_of_ballots=100)
+    print(profile.df)
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (A, B, C)     ()     60
-    (B, A, C)     ()     17
-    (A, C, B)     ()     13
-    (C, A, B)     ()      7
-    (B, C, A)     ()      2
-    (C, B, A)     ()      1
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (A)       (B)       (C)        {}    67.0
+    1                  (A)       (C)       (B)        {}    21.0
+    2                  (B)       (C)       (A)        {}     2.0
+    3                  (B)       (A)       (C)        {}     9.0
+    4                  (C)       (B)       (A)        {}     1.0
 
 
 Re-run the above block several times to see that the elections will come
@@ -567,91 +756,124 @@ others might have a tendency to “cross over” to the other slate
 sometimes in constructing their ballot.
 
 The precise meaning of these vary by model, but broadly speaking,
-**cohesion parameters** measure the strength with which voters stick to
-their bloc.
+**cohesion parameters** measure the strength with which voters within a
+particular bloc stick to their slate.
 
 .. code:: ipython3
 
-    slate_to_candidates= {"Alpha": ["A", "B"],
-                          "Xenon": ["X", "Y"]}
+    slate_to_candidates = {"Alpha": ["A", "B"], "Xenon": ["X", "Y"]}
     
-    # note that we include candidates with 0 support, 
+    # note that we include candidates with 0 support,
     # and that our preference intervals will automatically rescale to sum to 1
     
-    pref_intervals_by_bloc = {"Alpha": {"Alpha": PreferenceInterval({"A": .8, "B": .2}),
-                                        "Xenon": PreferenceInterval({"X": 0, "Y": 1})},
+    pref_intervals_by_bloc = {
+        "Alpha": {
+            "Alpha": PreferenceInterval({"A": 0.8, "B": 0.2}),
+            "Xenon": PreferenceInterval({"X": 0, "Y": 1}),
+        },
+        "Xenon": {
+            "Alpha": PreferenceInterval({"A": 0.5, "B": 0.5}),
+            "Xenon": PreferenceInterval({"X": 0.5, "Y": 0.5}),
+        },
+    }
     
-                             "Xenon": {"Alpha": PreferenceInterval({"A": .5, "B": .5}),
-                                       "Xenon": PreferenceInterval({"X": .5, "Y": .5})}}
     
-    
-    bloc_voter_prop = {"Alpha": .8, "Xenon": .2}
+    bloc_voter_prop = {"Alpha": 0.8, "Xenon": 0.2}
     
     # assume that each bloc is 90% cohesive
     # we'll discuss exactly what that means later
-    cohesion_parameters = {"Alpha": {"Alpha": .9, "Xenon": .1},
-                           "Xenon": {"Xenon": .9, "Alpha": .1}}
+    cohesion_parameters = {
+        "Alpha": {"Alpha": 0.9, "Xenon": 0.1},
+        "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
+    }
     
-    pl = bg.slate_PlackettLuce(pref_intervals_by_bloc = pref_intervals_by_bloc,
-                         bloc_voter_prop = bloc_voter_prop,
-                         slate_to_candidates = slate_to_candidates,
-                         cohesion_parameters=cohesion_parameters)
+    pl = bg.slate_PlackettLuce(
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_parameters=cohesion_parameters,
+    )
     
     # the by_bloc parameter allows us to see which ballots came from which blocs of voters
-    profile_dict, agg_profile = pl.generate_profile(number_of_ballots = 10000, by_bloc=True)
-    print("The ballots from Alpha voters\n", profile_dict["Alpha"])
+    profile_dict, agg_profile = pl.generate_profile(number_of_ballots=10000, by_bloc=True)
+    print("The ballots from Alpha voters\n", profile_dict["Alpha"].df)
     
-    print("The ballots from Xenon voters\n", profile_dict["Xenon"])
+    print("The ballots from Xenon voters\n", profile_dict["Xenon"].df)
     
-    print("Aggregated ballots\n", agg_profile)
+    print("Aggregated ballots\n", agg_profile.df)
 
 
 .. parsed-literal::
 
     The ballots from Alpha voters
-          Ranking Scores Weight
-    (A, B, Y, X)     ()   5238
-    (B, A, Y, X)     ()   1265
-    (Y, A, B, X)     ()    657
-    (A, Y, B, X)     ()    557
-    (Y, B, A, X)     ()    154
-    (B, Y, A, X)     ()    129
+                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
+    Ballot Index                                                          
+    0                  (A)       (B)       (Y)       (X)  5171.0        {}
+    1                  (A)       (Y)       (B)       (X)   562.0        {}
+    2                  (B)       (Y)       (A)       (X)   142.0        {}
+    3                  (B)       (A)       (Y)       (X)  1298.0        {}
+    4                  (Y)       (B)       (A)       (X)   159.0        {}
+    5                  (Y)       (A)       (B)       (X)   668.0        {}
     The ballots from Xenon voters
-     PreferenceProfile too long, only showing 15 out of 24 rows.
-         Ranking Scores Weight
-    (X, Y, B, A)     ()    420
-    (Y, X, B, A)     ()    404
-    (X, Y, A, B)     ()    393
-    (Y, X, A, B)     ()    369
-    (Y, B, X, A)     ()     55
-    (A, X, Y, B)     ()     55
-    (Y, A, X, B)     ()     48
-    (X, A, Y, B)     ()     48
-    (B, X, Y, A)     ()     39
-    (X, B, Y, A)     ()     37
-    (A, Y, X, B)     ()     36
-    (B, Y, X, A)     ()     34
-    (Y, A, B, X)     ()     10
-    (A, B, Y, X)     ()      9
-    (B, Y, A, X)     ()      9
+                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
+    Ballot Index                                                          
+    0                  (Y)       (X)       (A)       (B)   427.0        {}
+    1                  (Y)       (X)       (B)       (A)   416.0        {}
+    2                  (Y)       (A)       (B)       (X)     4.0        {}
+    3                  (Y)       (A)       (X)       (B)    39.0        {}
+    4                  (Y)       (B)       (A)       (X)     6.0        {}
+    5                  (Y)       (B)       (X)       (A)    37.0        {}
+    6                  (X)       (Y)       (A)       (B)   369.0        {}
+    7                  (X)       (Y)       (B)       (A)   406.0        {}
+    8                  (X)       (A)       (B)       (Y)     3.0        {}
+    9                  (X)       (A)       (Y)       (B)    57.0        {}
+    10                 (X)       (B)       (A)       (Y)     2.0        {}
+    11                 (X)       (B)       (Y)       (A)    45.0        {}
+    12                 (B)       (X)       (A)       (Y)     8.0        {}
+    13                 (B)       (X)       (Y)       (A)    39.0        {}
+    14                 (B)       (Y)       (A)       (X)     3.0        {}
+    15                 (B)       (Y)       (X)       (A)    35.0        {}
+    16                 (B)       (A)       (Y)       (X)     3.0        {}
+    17                 (B)       (A)       (X)       (Y)     5.0        {}
+    18                 (A)       (X)       (B)       (Y)     6.0        {}
+    19                 (A)       (X)       (Y)       (B)    39.0        {}
+    20                 (A)       (Y)       (B)       (X)     8.0        {}
+    21                 (A)       (Y)       (X)       (B)    32.0        {}
+    22                 (A)       (B)       (Y)       (X)     8.0        {}
+    23                 (A)       (B)       (X)       (Y)     3.0        {}
     Aggregated ballots
-     PreferenceProfile too long, only showing 15 out of 30 rows.
-         Ranking Scores Weight
-    (A, B, Y, X)     ()   5238
-    (B, A, Y, X)     ()   1265
-    (Y, A, B, X)     ()    657
-    (A, Y, B, X)     ()    557
-    (X, Y, B, A)     ()    420
-    (Y, X, B, A)     ()    404
-    (X, Y, A, B)     ()    393
-    (Y, X, A, B)     ()    369
-    (Y, B, A, X)     ()    154
-    (B, Y, A, X)     ()    129
-    (Y, B, X, A)     ()     55
-    (A, X, Y, B)     ()     55
-    (Y, A, X, B)     ()     48
-    (X, A, Y, B)     ()     48
-    (B, X, Y, A)     ()     39
+                  Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
+    Ballot Index                                                          
+    0                  (A)       (B)       (Y)       (X)        {}  5171.0
+    1                  (A)       (Y)       (B)       (X)        {}   562.0
+    2                  (B)       (Y)       (A)       (X)        {}   142.0
+    3                  (B)       (A)       (Y)       (X)        {}  1298.0
+    4                  (Y)       (B)       (A)       (X)        {}   159.0
+    5                  (Y)       (A)       (B)       (X)        {}   668.0
+    6                  (Y)       (X)       (A)       (B)        {}   427.0
+    7                  (Y)       (X)       (B)       (A)        {}   416.0
+    8                  (Y)       (A)       (B)       (X)        {}     4.0
+    9                  (Y)       (A)       (X)       (B)        {}    39.0
+    10                 (Y)       (B)       (A)       (X)        {}     6.0
+    11                 (Y)       (B)       (X)       (A)        {}    37.0
+    12                 (X)       (Y)       (A)       (B)        {}   369.0
+    13                 (X)       (Y)       (B)       (A)        {}   406.0
+    14                 (X)       (A)       (B)       (Y)        {}     3.0
+    15                 (X)       (A)       (Y)       (B)        {}    57.0
+    16                 (X)       (B)       (A)       (Y)        {}     2.0
+    17                 (X)       (B)       (Y)       (A)        {}    45.0
+    18                 (B)       (X)       (A)       (Y)        {}     8.0
+    19                 (B)       (X)       (Y)       (A)        {}    39.0
+    20                 (B)       (Y)       (A)       (X)        {}     3.0
+    21                 (B)       (Y)       (X)       (A)        {}    35.0
+    22                 (B)       (A)       (Y)       (X)        {}     3.0
+    23                 (B)       (A)       (X)       (Y)        {}     5.0
+    24                 (A)       (X)       (B)       (Y)        {}     6.0
+    25                 (A)       (X)       (Y)       (B)        {}    39.0
+    26                 (A)       (Y)       (B)       (X)        {}     8.0
+    27                 (A)       (Y)       (X)       (B)        {}    32.0
+    28                 (A)       (B)       (Y)       (X)        {}     8.0
+    29                 (A)       (B)       (X)       (Y)        {}     3.0
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
@@ -676,33 +898,34 @@ it should.
 
     from votekit.elections import Plurality
     
-    ballots = [Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"B"}, {"A"}, {"C"}]),
-               Ballot(ranking = [{"C"}, {"B"}, {"A"}]),
-               Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"A"}, {"B"}, {"C"}]),
-               Ballot(ranking = [{"B"}, {"A"}, {"C"}])]
+    ballots = [
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
+        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
+    ]
     
-    profile = PreferenceProfile(ballots = ballots*6,
-                                candidates = candidates)
+    profile = PreferenceProfile(ballots=ballots * 6, candidates=candidates)
     
-    profile = profile.condense_ballots()
+    profile = profile.group_ballots()
     
-    print(profile)
+    print(profile.df)
     
     # m is the number of seats to elect
-    election = Plurality(profile = profile,
-                         m = 1)
+    election = Plurality(profile=profile, m=1)
     
     print(election)
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (A, B, C)     ()     18
-    (B, A, C)     ()     12
-    (C, B, A)     ()      6
+                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
+    Ballot Index                                                
+    0                  (A)       (B)       (C)    18.0        {}
+    1                  (B)       (A)       (C)    12.0        {}
+    2                  (C)       (B)       (A)     6.0        {}
           Status  Round
     A    Elected      1
     B  Remaining      1
@@ -738,10 +961,10 @@ Extra Prompts
 If you have finished this section and are looking to extend your
 understanding, try the following prompts:
 
--  Write your own profile with four candidates named Trump, Rubio, Cruz,
-   and Kasich, a preference interval of your choice, and with the bloc
-   name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
-   how they should be given your preference interval?
--  Create a preference profile where candidates :math:`B,C` should be
-   elected under a 2-seat plurality election. Run the election and
-   confirm!
+- Write your own profile with four candidates named Trump, Rubio, Cruz,
+  and Kasich, a preference interval of your choice, and with the bloc
+  name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
+  how they should be given your preference interval?
+- Create a preference profile where candidates :math:`B,C` should be
+  elected under a 2-seat plurality election. Run the election and
+  confirm!

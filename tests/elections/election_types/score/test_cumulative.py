@@ -2,7 +2,6 @@ from votekit.elections import Cumulative, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_cumulative = PreferenceProfile(
     ballots=[
@@ -32,13 +31,13 @@ profile_tied_cumulative = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(4), "B": Fraction(3), "C": Fraction(1)},
+        scores={"A": 4, "B": 3, "C": 1},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(1)},
+        scores={"C": 1},
     ),
 ]
 
@@ -114,7 +113,7 @@ def test_errors():
         Cumulative(profile_no_tied_cumulative, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Cumulative(profile_no_tied_cumulative, m=4)
 
@@ -127,7 +126,7 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
+        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3, "B": 4})])
         Cumulative(profile, m=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
@@ -139,5 +138,5 @@ def test_validate_profile():
         Cumulative(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
+        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 1, "B": 1})])
         Cumulative(profile, m=2)

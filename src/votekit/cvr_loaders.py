@@ -1,9 +1,7 @@
-from fractions import Fraction
 import os
 import csv
 import pandas as pd
 from pandas.errors import EmptyDataError, DataError
-import pathlib
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
@@ -11,7 +9,7 @@ from .ballot import Ballot
 
 
 def load_csv(
-    fpath: str,
+    path_or_url: str,
     rank_cols: list[int] = [],
     *,
     weight_col: Optional[int] = None,
@@ -42,12 +40,8 @@ def load_csv(
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the election.
     """
-    if not os.path.isfile(fpath):
-        raise FileNotFoundError(f"File with path {fpath} cannot be found")
-
-    cvr_path = pathlib.Path(fpath)
     df = pd.read_csv(
-        cvr_path,
+        path_or_url,
         on_bad_lines="error",
         encoding="utf8",
         index_col=False,
@@ -75,16 +69,16 @@ def load_csv(
 
     for group, group_df in grouped:
         ranking = tuple(
-            [frozenset({None}) if pd.isnull(c) else frozenset({c}) for c in group]
+            [frozenset() if pd.isnull(c) else frozenset({c}) for c in group]
         )
 
-        voter_set = None
+        voter_set = set()
         if id_col is not None:
             voter_set = set(group_df.iloc[:, id_col])
         weight = len(group_df)
         if weight_col is not None:
             weight = sum(group_df.iloc[:, weight_col])
-        b = Ballot(ranking=ranking, weight=Fraction(weight), voter_set=voter_set)
+        b = Ballot(ranking=ranking, weight=weight, voter_set=voter_set)
         ballots.append(b)
 
     return PreferenceProfile(ballots=tuple(ballots))
@@ -172,7 +166,7 @@ def load_scottish(
     ballots = [Ballot()] * len(data[1 : len(data) - (cand_num + 1)])
 
     for i, line in enumerate(data[1 : len(data) - (cand_num + 1)]):
-        ballot_weight = Fraction(line[0])
+        ballot_weight = line[0]
         cand_ordering = line[1:]
         ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
 
@@ -180,5 +174,5 @@ def load_scottish(
 
     profile = PreferenceProfile(
         ballots=tuple(ballots), candidates=tuple(cand_list)
-    ).condense_ballots()
+    ).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

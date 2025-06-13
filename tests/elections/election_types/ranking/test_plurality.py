@@ -2,18 +2,19 @@ from votekit.elections import Plurality, ElectionState, SNTV
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_fpv = PreferenceProfile(
     ballots=[
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_no_tied_fpv_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)]
+    ballots=[Ballot(ranking=({"C"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_fpv = PreferenceProfile(
@@ -22,19 +23,20 @@ profile_with_tied_fpv = PreferenceProfile(
         Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}, {"E"}], weight=3),
         Ballot(ranking=[{"C"}, {"B"}, {"A"}, {"D"}, {"E"}], weight=2),
         Ballot(ranking=[{"D"}, {"B"}, {"C"}, {"A"}, {"E"}], weight=2),
-    ]
+    ],
+    max_ranking_length=5,
 )
 
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(2), "B": Fraction(1), "C": Fraction(0)},
+        scores={"A": 2, "B": 1, "C": 0},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(3)},
+        scores={"C": 3},
     ),
 ]
 
@@ -130,7 +132,7 @@ def test_errors():
         Plurality(profile_no_tied_fpv, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Plurality(profile_no_tied_fpv, m=4)
 

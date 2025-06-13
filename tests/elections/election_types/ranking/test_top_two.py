@@ -2,23 +2,25 @@ from votekit.elections import TopTwo, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_pl_no_tied_top_two = PreferenceProfile(
     ballots=[
         Ballot(ranking=({"A"}, {"B"}, {"C"})),
         Ballot(ranking=({"A"}, {"C"}, {"B"})),
         Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
 profile_no_tied_pl_no_tied_top_two_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"A"}, {"B"}), weight=2), Ballot(ranking=({"B"}, {"A"}))]
+    ballots=[Ballot(ranking=({"A"}, {"B"}), weight=2), Ballot(ranking=({"B"}, {"A"}))],
+    max_ranking_length=3,
 )
 
 profile_no_tied_pl_no_tied_top_two_round_2 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"B"},), weight=3)]
+    ballots=[Ballot(ranking=({"B"},), weight=3)],
+    max_ranking_length=3,
 )
 
 profile_with_tied_pl = PreferenceProfile(
@@ -26,33 +28,35 @@ profile_with_tied_pl = PreferenceProfile(
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
         Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 profile_with_tied_top_two = PreferenceProfile(
     ballots=[
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
-    ]
+    ],
+    max_ranking_length=3,
 )
 
 
 no_tied_pl_no_tied_top_two_states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(2), "B": Fraction(1), "C": Fraction(0)},
+        scores={"A": 2, "B": 1, "C": 0},
     ),
     ElectionState(
         round_number=1,
         eliminated=(frozenset({"C"}),),
         remaining=(frozenset({"A"}), frozenset({"B"})),
-        scores={"A": Fraction(2), "B": Fraction(1)},
+        scores={"A": 2, "B": 1},
     ),
     ElectionState(
         round_number=2,
         remaining=(frozenset({"B"}),),
         elected=(frozenset({"A"}),),
-        scores={"B": Fraction(3)},
+        scores={"B": 3},
     ),
 ]
 

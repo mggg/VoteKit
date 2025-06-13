@@ -1,30 +1,40 @@
 from votekit import Ballot
-from fractions import Fraction
 import pytest
 
 
 def test_ballot_init():
     b = Ballot()
     assert not b.ranking
-    assert b.weight == Fraction(1)
+    assert b.weight == 1
     assert not b.voter_set
-    assert not b.id
     assert not b.scores
 
 
-def test_ballot_post_init():
-    assert isinstance(Ballot(weight=3).weight, Fraction)
-    assert isinstance(Ballot(weight=3.2).weight, Fraction)
-    assert Ballot(scores={"A": 1, "B": 0}).scores == {"A": Fraction(1)}
-    assert Ballot(scores={"A": 1, "B": -1}).scores == {
-        "A": Fraction(1),
-        "B": Fraction(-1),
-    }
-    assert isinstance(Ballot(scores={"A": 2, "B": Fraction(2)}).scores["A"], Fraction)
-    assert isinstance(Ballot(scores={"A": 2.0, "B": Fraction(2)}).scores["A"], Fraction)
+def test_ballot_strip_whitespace():
+    b = Ballot(
+        ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "}), frozenset()),
+        scores={" Chris": 2, "Peter ": 1, " Moon ": 3},
+    )
 
-    with pytest.raises(ValueError, match="Invalid literal for Fraction"):
-        Ballot(weight="a")
+    assert b.ranking == (
+        frozenset({"Chris", "Peter"}),
+        frozenset({"Moon"}),
+        frozenset(),
+    )
+    assert b.scores == {"Chris": 2, "Peter": 1, "Moon": 3}
+
+
+def test_ballot_post_init():
+    assert isinstance(Ballot(weight=3).weight, float)
+    assert isinstance(Ballot(weight=3.2).weight, float)
+    assert Ballot(scores={"A": 1, "B": 0}).scores == {"A": float(1)}
+    assert Ballot(scores={"A": 1, "B": -1}).scores == {
+        "A": 1,
+        "B": -1,
+    }
+    assert isinstance(Ballot(scores={"A": 2, "B": 2}).scores["A"], float)
+    assert isinstance(Ballot(scores={"A": 2.0, "B": 2}).scores["A"], float)
+
     with pytest.raises(TypeError, match="Score values must be numeric."):
         Ballot(scores={"A": "a"})
 
@@ -34,25 +44,22 @@ def test_ballot_eq():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
     assert b != Ballot(
-        weight=3, voter_set={"Chris"}, id="91010", scores={"A": 1, "B": 1 / 2, "C": 0}
+        weight=3, voter_set={"Chris"}, scores={"A": 1, "B": 1 / 2, "C": 0}
     )
 
     assert b != Ballot(
         ranking=[{"A"}, {"B"}, {"C"}],
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
     assert b != Ballot(
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
@@ -60,13 +67,6 @@ def test_ballot_eq():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        scores={"A": 1, "B": 1 / 2, "C": 0},
-    )
-    assert b != Ballot(
-        ranking=[{"A"}, {"B"}, {"C"}],
-        weight=3,
-        voter_set={"Chris"},
-        id="91010",
     )
 
 
@@ -75,11 +75,24 @@ def test_ballot_str():
         ranking=[{"A"}, {"B"}, {"C"}],
         weight=3,
         voter_set={"Chris"},
-        id="91010",
         scores={"A": 1, "B": 1 / 2, "C": 0},
     )
 
     assert (
         str(b)
-        == "Ranking\n1.) A, \n2.) B, \n3.) C, \nScores\nA: 1.00\nB: 0.50\nWeight: 3"
+        == "Ranking\n1.) A, \n2.) B, \n3.) C, \nScores\nA: 1.00\nB: 0.50\nWeight: 3.0"
     )
+
+
+def test_ballot_tilde_errors():
+    with pytest.raises(
+        ValueError,
+        match="'~' is a reserved character and cannot be used for candidate names.",
+    ):
+        Ballot(ranking=({"~"},))
+
+    with pytest.raises(
+        ValueError,
+        match="'~' is a reserved character and cannot be used for candidate names.",
+    ):
+        Ballot(scores={"~": 1})

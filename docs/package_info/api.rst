@@ -20,6 +20,13 @@ Preference Profiles
 .. autoclass:: votekit.pref_profile.PreferenceProfile
     :members:
 
+.. autoclass:: votekit.pref_profile.CleanedProfile
+    :members:
+
+.. automodule:: votekit.pref_profile.utils
+    :members:
+    :show-inheritance:
+
 Preference Intervals
 --------------------
 
@@ -30,6 +37,12 @@ Ballot Generators
 --------------------
 
 .. automodule:: votekit.ballot_generator
+    :members:
+    :show-inheritance:
+
+Cleaning
+---------
+.. automodule:: votekit.cleaning.general_profiles.cleaning
     :members:
     :show-inheritance:
 
@@ -110,8 +123,9 @@ Graphs and Viz.
 .. autoclass:: votekit.graphs.ballot_graph.BallotGraph
     :members:
 
-.. autoclass:: votekit.graphs.pairwise_comparison_graph.PairwiseComparisonGraph
+.. automodule:: votekit.graphs.pairwise_comparison_graph
     :members:
+    :show-inheritance:
 
 .. automodule:: votekit.plots.mds   
     :members:

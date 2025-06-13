@@ -1,36 +1,36 @@
 [project]
 name = "votekit"
-version = "3.1.0"
+version = "3.2.0"
 description = "A Swiss army knife for computational social choice research."
 authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.11, <3.14"
 dependencies = [
-    "scipy (>=1.11.1, <2.0)",
-    "mypy (==1.15)",
-    "pydantic (>=2.8.2, <3.0)",
-    "pandas-stubs (>=2.0.2.230605, <2.1)",
-    "pot (==0.9.4)",
-    "networkx (>=3.1, <4.0)",
+    "scipy (>=1.15.3, <2.0)",
+    "mypy (==1.16)",
+    "pydantic (>=2.11.5, <3.0)",
+    "pot (==0.9.5)",
+    "networkx (>=3.5, <4.0)",
     "jinja2 (>=3.1.2, <4.0)",
-    "matplotlib (>=3.7.2, <4.0)",
+    "matplotlib (>=3.10.3, <4.0)",
     "pandas (>2.2)",
     "apportionment (>=1.0, <2.0)",
-    "scikit-learn (>=1.3.2, <2.0)",
-    "numpy (>=1.26.0, <2.0)",
+    "scikit-learn (>=1.7.0, <2.0)",
+    "numpy (>=2.2.6, <3.0)",
     "seaborn (>=0.13.2,<0.14.0)",
-    "types-seaborn (>=0.13.2.20250111,<0.14.0.0)",
+    "types-seaborn (>=0.13.2.20250516,<0.14.0.0)",
+    "mypy-extensions (>=1.1.0)",
 ]
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.0.275"
-black = "^24.8.0"
-pytest = "^7.4.0"
-pytest-cov = "^4.1.0"
-pre-commit = "^3.3.3"
-ipython = "^8.17.2"
-sphinx = "^7.4.7"
+ruff = "^0.11.13"
+black = "^25.1.0"
+pytest = "^8.4.0"
+pytest-cov = "^6.2.1"
+pre-commit = "^4.2.0"
+ipython = "^9.2.0"
+sphinx = "^8.2.3"
 sphinx-copybutton = "^0.5.2"
 recommonmark = "^0.7.1"
 sphinx-rtd-theme = "^3.0.2"

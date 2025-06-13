@@ -1,5 +1,4 @@
 from pathlib import Path
-from fractions import Fraction
 
 from votekit.cvr_loaders import load_scottish
 import votekit.cleaning as clean
@@ -9,13 +8,6 @@ import votekit.elections.election_types as elections
 from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from votekit.pref_interval import PreferenceInterval
-
-# TODO:
-# need to do one with visualizations,
-# need to test other elections,
-# need to test cleaning methods,
-# need to add cleaning methods (ballot truncation for ex)
-# need to test ballot generation models
 
 
 def test_load_clean_completion():
@@ -30,12 +22,13 @@ def test_load_clean_completion():
     )
 
     # apply rules to get new PP
-    cleaned_pp = clean.remove_noncands(pp, ["Paul"])
+    cleaned_pp = clean.condense_profile(clean.remove_cand("Paul", pp))
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")
 
     # run election using a configured RCV step object
+    print("in borda\n")
     election_borda = elections.Borda(cleaned_pp, 1, score_vector=None)
     assert isinstance(election_borda, Election)
 
@@ -83,7 +76,7 @@ def make_ballot(ranking, weight):
     for cand in ranking:
         ballot_rank.append({cand})
 
-    return Ballot(ranking=ballot_rank, weight=Fraction(weight))
+    return Ballot(ranking=ballot_rank, weight=weight)
 
 
 def test_generate_election_diff_res():

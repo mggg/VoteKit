@@ -2,7 +2,6 @@ from votekit.elections import Approval, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_approval = PreferenceProfile(
     ballots=[
@@ -38,13 +37,13 @@ profile_tied_approval = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A", "B"}), frozenset({"C", "D"})),
-        scores={"A": Fraction(3), "B": Fraction(3), "C": Fraction(1), "D": Fraction(1)},
+        scores={"A": 3, "B": 3, "C": 1, "D": 1},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C", "D"}),),
         elected=(frozenset({"A", "B"}),),
-        scores={"C": Fraction(1), "D": Fraction(1)},
+        scores={"C": 1, "D": 1},
     ),
 ]
 
@@ -128,7 +127,7 @@ def test_errors():
         Approval(profile_no_tied_approval, m=0)
 
     with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
+        ValueError, match="Not enough candidates received votes to be elected."
     ):
         Approval(profile_no_tied_approval, m=5)
 
@@ -146,8 +145,8 @@ def test_validate_profile():
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
         profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
-        Approval(profile, m=2)
+        Approval(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot()])
-        Approval(profile, m=2)
+        profile = PreferenceProfile(ballots=[Ballot(ranking=({"A"},))])
+        Approval(profile, m=1)

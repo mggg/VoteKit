@@ -2,7 +2,6 @@ from ...ballot import Ballot
 from ...pref_profile import PreferenceProfile
 from .._utils import _convert_dict_to_matrix
 import numpy as np
-from fractions import Fraction
 from typing import Union
 
 
@@ -47,7 +46,7 @@ def comention_above(i: str, j: str, ballot: Ballot) -> bool:
       bool: True if both i and j appear in ballot and i >= j.
     """
 
-    if not ballot.ranking:
+    if ballot.ranking is None:
         raise TypeError(f"Ballot must have a ranking: {ballot}")
     i_index, j_index = (-1, -1)
 
@@ -80,7 +79,7 @@ def comentions_matrix(
     Returns:
       np.ndarray: Numpy array of comentions.
     """
-    comentions_matrix = {c: {c: Fraction(0) for c in candidates} for c in candidates}
+    comentions_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
 
     for i in candidates:
         for j in candidates:

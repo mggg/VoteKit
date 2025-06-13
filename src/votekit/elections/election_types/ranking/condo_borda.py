@@ -1,7 +1,8 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import elect_cands_from_set_ranking, remove_cand, borda_scores
+from ....cleaning import remove_and_condense_ranked_profile
+from ....utils import elect_cands_from_set_ranking, borda_scores
 from ....graphs import PairwiseComparisonGraph
 
 
@@ -17,6 +18,8 @@ class CondoBorda(RankingElection):
     """
 
     def __init__(self, profile: PreferenceProfile, m: int = 1):
+        if len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         super().__init__(profile, score_function=borda_scores)
 
@@ -45,7 +48,7 @@ class CondoBorda(RankingElection):
             PreferenceProfile: The profile of ballots after the round is completed.
         """
         pwc_graph = PairwiseComparisonGraph(profile)
-        dominating_tiers = pwc_graph.dominating_tiers()
+        dominating_tiers = pwc_graph.get_dominating_tiers()
 
         dt_ranking = tuple([frozenset(s) for s in dominating_tiers])
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
@@ -57,7 +60,9 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_and_condense_ranked_profile(
+            [c for s in elected for c in s], profile
+        )
 
         if store_states:
             self.election_states.append(

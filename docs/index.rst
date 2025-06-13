@@ -20,6 +20,8 @@ Welcome to VoteKit's documentation!
 .. image:: https://badge.fury.io/py/votekit.svg
     :target: https://pypi.org/project/votekit/
     :alt: PyPI Package
+.. image:: https://joss.theoj.org/papers/10.21105/joss.07477/status.svg
+   :target: https://doi.org/10.21105/joss.07477
 
 The project is in active development in the `mggg/VoteKit <https://github.com/mggg/VoteKit>`_ GitHub
 repository, where :doc:`bug reports and feature requests <./package_info/issues>`, as well as 
@@ -38,6 +40,7 @@ repository, where :doc:`bug reports and feature requests <./package_info/issues>
    user/tutorial/3_viz
    user/tutorial/4_election_systems
    user/tutorial/5_score_based
+   user/tutorial/7_portland_case_study
 
 .. toctree::
     :caption: Social Choice Reference

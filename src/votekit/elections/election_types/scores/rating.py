@@ -4,10 +4,9 @@ from ...election_state import ElectionState
 from ....utils import (
     score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
-    remove_cand,
 )
-from typing import Optional, Union
-from fractions import Fraction
+from ....cleaning import remove_and_condense
+from typing import Optional
 
 
 class GeneralRating(Election):
@@ -19,8 +18,8 @@ class GeneralRating(Election):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        L (Union[float, Fraction], optional): Rating per candidate limit. Defaults to 1.
-        k (Union[float, Fraction], optional): Budget per ballot limit. Defaults to None, in which
+        L (float, optional): Rating per candidate limit. Defaults to 1.
+        k (float, optional): Budget per ballot limit. Defaults to None, in which
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
@@ -31,8 +30,8 @@ class GeneralRating(Election):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        L: Union[float, Fraction] = 1,
-        k: Optional[Union[float, Fraction]] = None,
+        L: float = 1,
+        k: Optional[float] = None,
         tiebreak: Optional[str] = None,
     ):
         if m <= 0:
@@ -55,15 +54,24 @@ class GeneralRating(Election):
     def _validate_profile(self, profile: PreferenceProfile):
         """
         Ensures that every ballot has a score dictionary and each voter has not gone over their
-        score limit per candidate and total budgrt. Raises a TypeError if no score dictionary,
+        score limit per candidate and total budget. Raises a TypeError if no score dictionary,
         and a value error for budget/score limit violation.
 
         Args:
             profile (PreferenceProfile): Profile to validate.
+
+        Raises:
+            TypeError: no score dictionary in a ballot.
+            TypeError: Ballot must have non-negative scores.
+            ValueError: Ballot violates score limit per candidate.
+            ValueError: Ballot violates score budget.
+            ValueError: Not enough candidates received votes to be elected.
         """
+        if len(profile.candidates_cast) < self.m:
+            raise ValueError("Not enough candidates received votes to be elected.")
 
         for b in profile.ballots:
-            if not b.scores:
+            if b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
             elif any(score > self.L for score in b.scores.values()):
                 raise TypeError(
@@ -105,7 +113,7 @@ class GeneralRating(Election):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand([c for s in elected for c in s], profile)
+        new_profile = remove_and_condense([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:
@@ -140,7 +148,7 @@ class Rating(GeneralRating):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        L (Union[float, Fraction], optional): Rating per candidate limit. Defaults to 1.
+        L (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
 
@@ -150,7 +158,7 @@ class Rating(GeneralRating):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        L: Union[float, Fraction] = 1,
+        L: float = 1,
         tiebreak: Optional[str] = None,
     ):
         super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
@@ -164,7 +172,7 @@ class Limited(GeneralRating):
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        k (Union[float, Fraction], optional): Total budget per voter. Defaults to 1.
+        k (float, optional): Total budget per voter. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
     """
@@ -173,7 +181,7 @@ class Limited(GeneralRating):
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        k: Union[float, Fraction] = 1,
+        k: float = 1,
         tiebreak: Optional[str] = None,
     ):
         if k > m:

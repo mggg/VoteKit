@@ -3,28 +3,29 @@ from ...transfers import fractional_transfer
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....ballot import Ballot
+from ....cleaning import (
+    remove_and_condense_ranked_profile,
+    remove_cand_from_ballot,
+    condense_ballot_ranking,
+)
 from ....utils import (
-    remove_cand,
-    first_place_votes,
+    _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
     tiebreak_set,
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from typing import Optional, Callable, Union, Literal
-from fractions import Fraction
-from functools import partial
+from typing import Optional, Callable, Union
 
 
 class STV(RankingElection):
     """
-    STV elections. Currently implements simultaneous election. All ballots must have no
-    ties.
+    STV elections. All ballots must have no ties.
 
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
-        transfer (Callable[[str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
         Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -37,10 +38,6 @@ class STV(RankingElection):
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
-        fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
-            for tied first place votes. Defaults to "average", where if n candidates are tied for
-            first, each receives 1/n points. "high" would award them each one point, and "low" 0.
-            Only used by ``score_function`` parameter.
 
     """  # noqa
 
@@ -49,35 +46,30 @@ class STV(RankingElection):
         profile: PreferenceProfile,
         m: int = 1,
         transfer: Callable[
-            [str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int],
+            [str, float, Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot, ...],
         ] = fractional_transfer,
         quota: str = "droop",
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
-        fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         self._stv_validate_profile(profile)
 
-        if m <= 0 or m > len(profile.candidates):
-            raise ValueError(
-                "m must be non-negative and less than or equal to the number of candidates."
-            )
-
+        if m <= 0:
+            raise ValueError("m must be positive.")
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         self.transfer = transfer
         self.quota = quota
-        # Set to 0 initially so that first call to `get_threshold` returns the
-        # proper threshold.
+
         self.threshold = 0
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=_first_place_votes_from_df_no_ties,
             sort_high_low=True,
         )
 
@@ -85,21 +77,31 @@ class STV(RankingElection):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        ranking_rows = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
+        try:
+            np_arr = profile.df[ranking_rows].to_numpy()
+            weight_col = profile.df["Weight"]
+        except KeyError:
+            raise TypeError("Ballots must have rankings.")
 
-        for ballot in profile.ballots:
-            if not ballot.ranking:
+        tilde = frozenset({"~"})
+        for idx, row in enumerate(np_arr):
+            if any(len(s) > 1 for s in row):
+                raise TypeError(
+                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
+                    "contains a tied ranking."
+                )
+            if (row == tilde).all():
                 raise TypeError("Ballots must have rankings.")
-            if len(ballot.ranking) == 0:
-                raise TypeError("All ballots must have rankings.")
-            elif any(len(s) > 1 for s in ballot.ranking):
-                raise TypeError(f"Ballot {ballot} contains a tied ranking.")
 
-    def get_threshold(self, total_ballot_wt: Fraction) -> int:
+    def get_threshold(self, total_ballot_wt: float) -> int:
         """
         Calculates threshold required for election.
 
         Args:
-            total_ballot_wt (Fraction): Total weight of ballots to compute threshold.
+            total_ballot_wt (float): Total weight of ballots to compute threshold.
         Returns:
             int: Value of the threshold.
         """
@@ -174,16 +176,22 @@ class STV(RankingElection):
             )
             ballot_index += len(transfer_ballots)
 
-        cleaned_ballots = remove_cand(
-            [c for s in elected for c in s],
-            tuple([b for b in new_ballots if b.ranking]),
+        cleaned_ballots = tuple(
+            condense_ballot_ranking(
+                remove_cand_from_ballot([c for s in elected for c in s], b)
+            )
+            for b in new_ballots
+            if b.ranking
         )
 
         remaining_cands = set(profile.candidates).difference(
             [c for s in elected for c in s]
         )
+
         new_profile = PreferenceProfile(
-            ballots=cleaned_ballots, candidates=tuple(remaining_cands)
+            ballots=cleaned_ballots,
+            candidates=tuple(remaining_cands),
+            max_ranking_length=profile.max_ranking_length,
         )
         return (tuple(elected), new_profile)
 
@@ -243,15 +251,19 @@ class STV(RankingElection):
                 )
                 ballot_index += len(transfer_ballots)
 
-        cleaned_ballots = remove_cand(
-            elected_c, tuple([b for b in new_ballots if b.ranking])
+        cleaned_ballots = tuple(
+            condense_ballot_ranking(remove_cand_from_ballot(elected_c, b))
+            for b in new_ballots
+            if b.ranking
         )
 
         remaining_cands = set(profile.candidates).difference(
             [c for s in elected for c in s]
         )
         new_profile = PreferenceProfile(
-            ballots=cleaned_ballots, candidates=tuple(remaining_cands)
+            ballots=cleaned_ballots,
+            candidates=tuple(remaining_cands),
+            max_ranking_length=profile.max_ranking_length,
         )
         return elected, tiebreaks, new_profile
 
@@ -293,12 +305,12 @@ class STV(RankingElection):
                 elected, tiebreaks, new_profile = self._single_elect_step(
                     profile, prev_state
                 )
-
-            # no on eliminated in elect round
+            # no one eliminated in elect round
             eliminated: tuple[frozenset[str], ...] = (frozenset(),)
 
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
+
         elif len(profile.candidates) == self.m - len(
             [c for s in self.get_elected() for c in s]
         ):
@@ -320,7 +332,12 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = remove_cand(eliminated_cand, profile)
+            new_profile = remove_and_condense_ranked_profile(
+                eliminated_cand,
+                profile,
+                retain_original_candidate_list=False,
+            )
+
             elected = (frozenset(),)
             eliminated = (frozenset([eliminated_cand]),)
 
@@ -399,8 +416,9 @@ class SequentialRCV(STV):
             profile,
             m=m,
             transfer=(
-                lambda winner, fpv, ballots, threshold: remove_cand(
-                    winner, tuple(ballots)
+                lambda winner, fpv, ballots, threshold: tuple(
+                    condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                    for b in ballots
                 )
             ),
             quota=quota,

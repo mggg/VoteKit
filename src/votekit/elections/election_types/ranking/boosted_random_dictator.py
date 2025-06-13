@@ -1,14 +1,13 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
+from ....cleaning import remove_and_condense_ranked_profile
 from ....utils import (
     first_place_votes,
-    remove_cand,
     score_dict_to_ranking,
 )
 import random
-from typing import Literal, Union
-from fractions import Fraction
+from typing import Literal
 from functools import partial
 
 
@@ -40,12 +39,10 @@ class BoostedRandomDictator(RankingElection):
     ):
         if m <= 0:
             raise ValueError("m must be positive.")
-        elif m > len(profile.candidates):
-            raise ValueError(
-                "m must be less than or equal to the number of candidates."
-            )
-
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
+
         super().__init__(
             profile,
             score_function=partial(
@@ -87,7 +84,7 @@ class BoostedRandomDictator(RankingElection):
         elif u <= 1 / (len(remaining_cands) - 1):
             fpv = prev_state.scores
             candidates = list(fpv.keys())
-            weights: list[Union[Fraction, float]] = list(fpv.values())
+            weights: list[float] = list(fpv.values())
             sq_weights = [float(x) ** 2 for x in weights]
             sq_wt_total = sum(sq_weights)
             sq_weights = [x / sq_wt_total for x in sq_weights]
@@ -99,7 +96,10 @@ class BoostedRandomDictator(RankingElection):
             weights = list(fpv.values())
             winning_candidate = random.choices(candidates, weights=weights, k=1)[0]
 
-        new_profile = remove_cand(winning_candidate, profile)
+        new_profile = remove_and_condense_ranked_profile(
+            winning_candidate,
+            profile,
+        )
 
         if store_states:
             elected = (frozenset({winning_candidate}),)
