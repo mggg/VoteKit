@@ -388,7 +388,7 @@ class BallotSimplex(BallotGenerator):
         perm_rankings = [list(value) for value in perm_set]
 
         if self.alpha is not None:
-            draw_probabilities = list(
+            draw_probabilities: list[float] = list(
                 np.random.default_rng().dirichlet([self.alpha] * len(perm_rankings))
             )
 
@@ -1146,7 +1146,9 @@ class OneDimSpatial(BallotGenerator):
             distance_dict = {
                 c: abs(v - vp) for c, v, in candidate_position_dict.items()
             }
-            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
+            candidate_order = sorted(
+                distance_dict, key=lambda x: float(distance_dict.__getitem__(x))
+            )
             ballot_pool.append(candidate_order)
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
