@@ -6,7 +6,7 @@ from ....utils import (
     elect_cands_from_set_ranking,
 )
 from ....cleaning import remove_and_condense
-from typing import Optional, Union
+from typing import Optional
 
 
 class GeneralRating(Election):

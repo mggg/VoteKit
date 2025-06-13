@@ -1521,7 +1521,7 @@ class name_Cumulative(BallotGenerator):
                     )
                 )
 
-                scores = {c: 0 for c in list_ranking}
+                scores = {c: 0.0 for c in list_ranking}
                 for c in list_ranking:
                     scores[c] += 1
 

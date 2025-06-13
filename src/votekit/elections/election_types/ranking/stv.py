@@ -90,7 +90,8 @@ class STV(RankingElection):
         for idx, row in enumerate(np_arr):
             if any(len(s) > 1 for s in row):
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} contains a tied ranking."
+                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
+                    "contains a tied ranking."
                 )
             if (row == tilde).all():
                 raise TypeError("Ballots must have rankings.")

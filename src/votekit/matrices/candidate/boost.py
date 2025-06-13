@@ -21,9 +21,9 @@ def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, 
       tuple[float, float]: P(mention i | mention j), P(mention i)
     """
 
-    i_mentions = 0
-    j_mentions = 0
-    both_mentions = 0
+    i_mentions = 0.0
+    j_mentions = 0.0
+    both_mentions = 0.0
 
     for ballot in pref_profile.ballots:
         if comention(i, ballot):

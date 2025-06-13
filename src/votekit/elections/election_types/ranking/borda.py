@@ -7,7 +7,7 @@ from ....utils import (
     validate_score_vector,
     score_profile_from_rankings,
 )
-from typing import Optional, Union, Sequence, Literal
+from typing import Optional, Sequence, Literal
 from functools import partial
 
 

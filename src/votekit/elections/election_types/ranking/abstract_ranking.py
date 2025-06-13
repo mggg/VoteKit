@@ -1,9 +1,8 @@
 from votekit import PreferenceProfile
-from typing import Union, Optional, Callable
+from typing import Optional, Callable
 from ....models import Election
 from ...election_state import ElectionState
 from abc import abstractmethod
-import numpy as np
 
 
 class RankingElection(Election):

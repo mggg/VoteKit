@@ -29,7 +29,7 @@ def pairwise_dict(
     elif not profile.contains_rankings:
         raise ValueError("Profile must contain rankings.")
     pairwise_dict = {
-        tuple(sorted((c1, c2))): [0, 0]
+        tuple(sorted((c1, c2))): [0.0, 0.0]
         for c1, c2 in combinations(profile.candidates, 2)
     }
 

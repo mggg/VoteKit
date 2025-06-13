@@ -178,7 +178,7 @@ def _score_dict_from_rankings_df_no_ties(
 
     # Pull out weights and score_vector as NumPy arrays:
     weights = df["Weight"].to_numpy(dtype=float)
-    score_vector = np.array(score_vector, dtype=float).reshape(1, -1)
+    score_arr = np.array(score_vector, dtype=float).reshape(1, -1)
 
     rank_cols = [f"Ranking_{i}" for i in range(1, max_len + 1)]
     arr = df[rank_cols].to_numpy(dtype=object)
@@ -191,7 +191,7 @@ def _score_dict_from_rankings_df_no_ties(
     if (codes_flat == -1).any():
         codes_flat = np.where(codes_flat == -1, idx_of_empty, codes_flat)
 
-    weight_matrix = weights[:, None] * score_vector
+    weight_matrix = weights[:, None] * score_arr
 
     weights_flat = weight_matrix.ravel()
     bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
@@ -236,7 +236,7 @@ def score_profile_from_rankings(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: 0 for c in profile.candidates_cast}
+    scores = {c: 0.0 for c in profile.candidates_cast}
 
     try:
         ranking_cols = [f"Ranking_{i}" for i in range(1, max_length + 1)]
@@ -341,7 +341,7 @@ def mentions(
         dict[str, float]:
             Dictionary mapping candidates to mention totals (values).
     """
-    mentions = {c: 0 for c in profile.candidates}
+    mentions = {c: 0.0 for c in profile.candidates}
 
     for ballot in profile.ballots:
         if ballot.ranking is None:
@@ -662,7 +662,7 @@ def score_profile_from_ballot_scores(
         dict[str, float]:
             Dictionary mapping candidates to scores.
     """
-    scores = {c: 0 for c in profile.candidates}
+    scores = {c: 0.0 for c in profile.candidates}
     for ballot in profile.ballots:
         if ballot.scores is None:
             raise TypeError(f"Ballot {ballot} has no scores.")
@@ -689,7 +689,7 @@ def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
         TypeError: All ballots must have rankings.
     """
 
-    ballot_lengths = {i: 0 for i in range(1, profile.max_ranking_length + 1)}
+    ballot_lengths = {i: 0.0 for i in range(1, profile.max_ranking_length + 1)}
 
     for ballot in profile.ballots:
         if ballot.ranking is None:

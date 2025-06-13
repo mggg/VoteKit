@@ -42,7 +42,7 @@ def r_representation_score(
             UserWarning,
         )
 
-    satisfied_voters = 0
+    satisfied_voters = 0.0
     for ballot in profile.ballots:
         if ballot.ranking is None:
             raise ValueError("All ballots must have ranking.")

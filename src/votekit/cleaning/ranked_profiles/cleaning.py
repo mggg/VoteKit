@@ -46,7 +46,7 @@ def _iterate_and_clean_rows(
         idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)
     }
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_no_score_altr_idxs
-    no_wt_altr_idxs = set()
+    no_wt_altr_idxs: set[int] = set()
 
     return (
         cleaned_df,
@@ -105,7 +105,11 @@ def clean_ranked_profile(
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
 
-        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        mask = (
+            cleaned_df[ranking_cols]
+            .map(lambda x: x == frozenset({"~"}))  # type: ignore[operator]
+            .all(axis=1)
+        )
 
         cleaned_df = cleaned_df[~mask]
 

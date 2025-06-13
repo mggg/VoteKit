@@ -7,7 +7,7 @@ from ....utils import (
     score_dict_to_ranking,
 )
 import random
-from typing import Literal, Union
+from typing import Literal
 from functools import partial
 
 
