@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - removed `Ballot.id` attribute.
 - rewrote many cleaning functions and utilities to use the underlying dataframe of `PreferenceProfile` for speed improvements.
 - removed the use of `Fraction` and use floats instead for speed improvement.
+- altered the various plotting functions for profiles, now in the `plots.profiles` module.
 
 ## Fixed
 - `PreferenceProfile.group_ballots()` now also groups the `voter_set` attribute of ballots.
