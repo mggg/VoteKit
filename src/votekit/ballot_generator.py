@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from functools import reduce
 import itertools as it
-from fractions import Fraction
 import math
 import numpy as np
 from pathlib import Path
@@ -294,7 +293,7 @@ class BallotGenerator:
 
         for ranking, count in ranking_counts.items():
             rank = tuple([frozenset([cand]) for cand in ranking])
-            b = Ballot(ranking=rank, weight=Fraction(count))
+            b = Ballot(ranking=rank, weight=count)
             ballot_list.append(b)
 
         return PreferenceProfile(ballots=tuple(ballot_list), candidates=candidates)
@@ -568,7 +567,7 @@ class short_name_PlackettLuce(BallotGenerator):
                     )
                     ranking.append(frozenset(tied_candidates))
 
-                ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[i] = Ballot(ranking=tuple(ranking), weight=1)
 
             # create PP for this bloc
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
@@ -818,7 +817,7 @@ class name_BradleyTerry(BallotGenerator):
                 if zero_cands:
                     ranking.append(frozenset(zero_cands))
 
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
@@ -1093,7 +1092,7 @@ class AlternatingCrossover(BallotGenerator):
                         frozenset({c}) for c in opposing_cands
                     ]
 
-                ballot = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot = Ballot(ranking=tuple(ranking), weight=1)
                 ballot_pool.append(ballot)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
@@ -1399,7 +1398,7 @@ class CambridgeSampler(BallotGenerator):
                             full_ballot.append(ordered_opp_slate.pop(0))
 
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
-                ballot_pool[i] = Ballot(ranking=ranking, weight=Fraction(1, 1))
+                ballot_pool[i] = Ballot(ranking=ranking, weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
@@ -1522,11 +1521,11 @@ class name_Cumulative(BallotGenerator):
                     )
                 )
 
-                scores = {c: Fraction(0) for c in list_ranking}
+                scores = {c: 0 for c in list_ranking}
                 for c in list_ranking:
-                    scores[c] += Fraction(1)
+                    scores[c] += 1
 
-                ballot_pool.append(Ballot(scores=scores, weight=Fraction(1, 1)))
+                ballot_pool.append(Ballot(scores=scores, weight=1))
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
@@ -1654,7 +1653,7 @@ class slate_PlackettLuce(BallotGenerator):
 
                 if len(zero_cands) > 0:
                     ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
@@ -1938,7 +1937,7 @@ class slate_BradleyTerry(BallotGenerator):
 
                 if len(zero_cands) > 0:
                     ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=Fraction(1, 1))
+                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
             pp = PreferenceProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()

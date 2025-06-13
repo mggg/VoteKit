@@ -2,7 +2,6 @@ from votekit.elections import Borda, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_borda = PreferenceProfile(
     ballots=[
@@ -34,13 +33,13 @@ profile_with_tied_borda = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(8), "B": Fraction(6), "C": Fraction(4)},
+        scores={"A": 8, "B": 6, "C": 4},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C"}),),
         elected=(frozenset({"A"}), frozenset({"B"})),
-        scores={"C": Fraction(9)},
+        scores={"C": 9},
     ),
 ]
 
@@ -54,9 +53,9 @@ def test_alt_score_vector():
     e = Borda(profile_no_tied_borda, m=2, score_vector=(1, 1, 0))
     assert e.get_ranking() == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.election_states[0].scores == {
-        "A": Fraction(3),
-        "B": Fraction(2),
-        "C": Fraction(1),
+        "A": 3,
+        "B": 2,
+        "C": 1,
     }
 
 

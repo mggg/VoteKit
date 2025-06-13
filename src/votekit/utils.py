@@ -1,4 +1,3 @@
-from fractions import Fraction
 from typing import Union, Sequence, Optional, Literal
 from itertools import permutations
 import math
@@ -117,12 +116,12 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
     return PreferenceProfile(ballots=tuple(new_ballots), candidates=tuple(candidates))
 
 
-def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
+def validate_score_vector(score_vector: Sequence[float]):
     """
     Validator function for score vectors. Vectors should be non-increasing and non-negative.
 
     Args:
-        score_vector (Sequence[Union[float, Fraction]]): Score vector.
+        score_vector (Sequence[float]): Score vector.
 
     Raises:
         ValueError: If any score is negative.
@@ -143,13 +142,11 @@ def validate_score_vector(score_vector: Sequence[Union[float, Fraction]]):
 
 def _score_dict_from_rankings_df_no_ties(
     profile: PreferenceProfile,
-    score_vector: Sequence[Union[int, Fraction]],
-    to_float: bool = False,
-) -> dict[str, Fraction]:
-
-    score_vector = [Fraction(s) for s in score_vector]
+    score_vector: Sequence[float],
+) -> dict[str, float]:
 
     validate_score_vector(score_vector)
+
     if profile.contains_scores:
         raise ProfileError("Profile must only contain ranked ballots.")
 
@@ -158,73 +155,40 @@ def _score_dict_from_rankings_df_no_ties(
         score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
 
     df = profile.df
-    raw_weights = df["Weight"].tolist()
-
-    # Now we have to do a bunch of manipulation so that the weights and scores we want to
-    # work with are all integers. We'll do some slick vectorization stuff to get this all to work.
-    weight_nums = np.fromiter(
-        (f.numerator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
-    )
-    weight_dens = np.fromiter(
-        (f.denominator for f in raw_weights), dtype=np.int64, count=len(raw_weights)
-    )
-
-    score_nums = np.fromiter(
-        (f.numerator for f in score_vector), dtype=np.int64, count=len(score_vector)
-    )
-    score_dens = np.fromiter(
-        (f.denominator for f in score_vector), dtype=np.int64, count=len(score_vector)
-    )
-
-    # Find the common denominator for all weights and scores using numpy's lcm.reduce
-    common_den = np.lcm.reduce([*weight_dens, *score_dens])
-
-    weight_factors = common_den // weight_dens
-    score_factors = common_den // score_dens
-
-    # Now we have numpy arrays to work with
-    weights_scaled = weight_nums * weight_factors
-    scores_scaled = score_nums * score_factors
 
     cand_frznst = [frozenset({c}) for c in profile.candidates_cast]
     all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
-    idx_of_empty = all_frznst.index(frozenset())
     n_buckets = len(all_frznst)
+    idx_of_empty = all_frznst.index(frozenset())
 
-    arr = df[[f"Ranking_{i}" for i in range(1, max_len + 1)]].to_numpy(object)
+    # Pull out weights and score_vector as NumPy arrays:
+    weights = df["Weight"].to_numpy(dtype=float)
+    score_vector = np.array(score_vector, dtype=float).reshape(1, -1)
+
+    rank_cols = [f"Ranking_{i}" for i in range(1, max_len + 1)]
+    arr = df[rank_cols].to_numpy(dtype=object)
     flat_arr = arr.ravel()
 
     # Slick way of converting frozensets to integer codes:
     codes_flat = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(np.int64)
 
+    # Take care of error codes (-1)
     if (codes_flat == -1).any():
         codes_flat = np.where(codes_flat == -1, idx_of_empty, codes_flat)
 
-    weights_flat = np.repeat(weights_scaled, max_len) * np.tile(
-        scores_scaled, len(weights_scaled)
-    )
-    bucket_sums_scaled = np.bincount(
-        codes_flat, weights=weights_flat, minlength=n_buckets
-    )
+    weight_matrix = weights[:, None] * score_vector
 
-    result = {}
-    denom = common_den * common_den
-    for idx, fs in enumerate(cand_frznst):
-        name = next(iter(fs))
-        if to_float:
-            result[name] = float(bucket_sums_scaled[idx]) / denom
-        else:
-            result[name] = Fraction(int(bucket_sums_scaled[idx]), int(denom))
+    weights_flat = weight_matrix.ravel()
+    bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
 
-    return result
+    return {next(iter(k)): bucket_sums[idx] for idx, k in enumerate(cand_frznst)}
 
 
 def score_profile_from_rankings(
     profile: PreferenceProfile,
-    score_vector: Sequence[Union[float, Fraction]],
-    to_float: bool = False,
+    score_vector: Sequence[float],
     tie_convention: Literal["high", "average", "low"] = "low",
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     """
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
@@ -235,11 +199,9 @@ def score_profile_from_rankings(
 
     Args:
         profile (PreferenceProfile): Profile to score.
-        score_vector (Sequence[Union[float, Fraction]]): Score vector. Should be
+        score_vector (Sequence[float]): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
             the profile. If it is shorter, we add 0s.
-        to_float (bool, optional): If True, compute scores as floats instead of Fractions.
-            Defaults to False.
         tie_convention (Literal["high", "average", "low"], optional): How to award points for
             tied rankings. Defaults to "low", where any candidates tied receive the lowest possible
             points for their position, eg three people tied for 3rd would each receive the points
@@ -248,7 +210,7 @@ def score_profile_from_rankings(
             receive the points for 4th place.
 
     Returns:
-        Union[dict[str, Fraction], dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to scores.
     """
     validate_score_vector(score_vector)
@@ -259,7 +221,7 @@ def score_profile_from_rankings(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: Fraction(0) for c in profile.candidates_cast}
+    scores = {c: 0 for c in profile.candidates_cast}
     for ballot in profile.ballots:
         current_ind = 0
         if ballot.ranking is None:
@@ -287,80 +249,69 @@ def score_profile_from_rankings(
                         )
                     )
                 for c in s:
-                    scores[c] += Fraction(allocation) * ballot.weight
+                    scores[c] += allocation * ballot.weight
                 current_ind += position_size
 
-    if to_float:
-        return {c: float(v) for c, v in scores.items()}
     return scores
 
 
 def _first_place_votes_from_df_no_ties(
     profile: PreferenceProfile,
-    to_float: bool = False,
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     """
     Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
     Intended to be much faster than first_place_votes, but does not handle ties in ballots.
 
     Args:
         profile (PreferenceProfile): The profile to compute first place votes for.
-        to_float (bool): If True, compute first place votes as floats instead of Fractions.
-            Defaults to False.
 
     Returns:
-        Union[dict[str, Fraction],dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
     return _score_dict_from_rankings_df_no_ties(
-        profile, [1] + [0] * (profile.max_ranking_length - 1), to_float
+        profile, [1] + [0] * (profile.max_ranking_length - 1)
     )
 
 
 def first_place_votes(
     profile: PreferenceProfile,
-    to_float: bool = False,
     tie_convention: Literal["high", "average", "low"] = "average",
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     """
     Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): The profile to compute first place votes for.
-        to_float (bool): If True, compute first place votes as floats instead of Fractions.
-            Defaults to False.
         tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
 
     Returns:
-        Union[dict[str, Fraction],dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
     return score_profile_from_rankings(
-        profile, [1] + [0] * (profile.max_ranking_length - 1), to_float, tie_convention
+        profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
     )
 
 
 def mentions(
     profile: PreferenceProfile,
-    to_float: bool = False,
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     """
     Calculates total mentions for all candidates in a ``PreferenceProfile``.
 
     Args:
         profile (PreferenceProfile): PreferenceProfile of ballots.
-        to_float (bool): If True, compute mention as floats instead of Fractions.
-            Defaults to False.
 
     Returns:
-        Union[dict[str, Fraction], dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to mention totals (values).
     """
-    mentions = {c: Fraction(0) for c in profile.candidates}
+    mentions = {c: 0 for c in profile.candidates}
 
     for ballot in profile.ballots:
         if ballot.ranking is None:
@@ -369,17 +320,14 @@ def mentions(
             for s in ballot.ranking:
                 for cand in s:
                     mentions[cand] += ballot.weight
-    if to_float:
-        return {c: float(v) for c, v in mentions.items()}
     return mentions
 
 
 def borda_scores(
     profile: PreferenceProfile,
     borda_max: Optional[int] = None,
-    to_float: bool = False,
     tie_convention: Literal["high", "average", "low"] = "low",
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     r"""
     Calculates Borda scores for candidates_cast in a ``PreferenceProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
@@ -388,8 +336,6 @@ def borda_scores(
         profile (PreferenceProfile): ``PreferenceProfile`` of ballots.
         borda_max (int, optional): The maximum value of the Borda vector. Defaults to
             the length of the longest allowable ballot in the profile.
-        to_float (bool): If True, compute Borda as floats instead of Fractions.
-            Defaults to False.
         tie_convention (Literal["high", "average", "low"], optional): How to award points for
             tied rankings. Defaults to "low", where any candidates tied receive the lowest possible
             points for their position, eg three people tied for 3rd would each receive the points
@@ -398,7 +344,7 @@ def borda_scores(
             receive the points for 4th place.
 
     Returns:
-        Union[dict[str, Fraction], dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to Borda scores.
     """
     if borda_max is None:
@@ -406,7 +352,7 @@ def borda_scores(
 
     score_vector = list(range(borda_max, 0, -1))
 
-    return score_profile_from_rankings(profile, score_vector, to_float, tie_convention)
+    return score_profile_from_rankings(profile, score_vector, tie_convention)
 
 
 def tiebreak_set(
@@ -451,7 +397,7 @@ def tiebreak_set(
                 profile, tie_convention=scoring_tie_convention
             )
         tiebreak_scores = {
-            c: Fraction(score) for c, score in tiebreak_scores.items() if c in r_set
+            c: score for c, score in tiebreak_scores.items() if c in r_set
         }
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
@@ -511,13 +457,13 @@ def tiebroken_ranking(
 
 
 def score_dict_to_ranking(
-    score_dict: Union[dict[str, Fraction], dict[str, float]], sort_high_low: bool = True
+    score_dict: dict[str, float], sort_high_low: bool = True
 ) -> tuple[frozenset[str], ...]:
     """
     Sorts candidates into a tuple of frozensets ranking based on a scoring dictionary.
 
     Args:
-        score_dict (Union[dict[str, Fraction],dict[str, float]]): Dictionary between candidates
+        score_dict (dict[str, float]): Dictionary between candidates
             and their score.
         sort_high_low (bool, optional): How to sort candidates based on scores. True sorts
             from high to low. Defaults to True.
@@ -527,9 +473,7 @@ def score_dict_to_ranking(
         tuple[frozenset[str],...]: Candidate rankings in a list-of-sets form.
     """
 
-    score_to_cand: dict[Union[float, Fraction], list[str]] = {
-        s: [] for s in score_dict.values()
-    }
+    score_to_cand: dict[float, list[str]] = {s: [] for s in score_dict.values()}
     for c, score in score_dict.items():
         score_to_cand[score].append(c)
 
@@ -675,8 +619,7 @@ def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
 
 def score_profile_from_ballot_scores(
     profile: PreferenceProfile,
-    to_float: bool = False,
-) -> Union[dict[str, Fraction], dict[str, float]]:
+) -> dict[str, float]:
     """
     Score the candidates based on the ``scores`` parameter of the ballots.
     All ballots must have a ``scores`` parameter; note that a ``scores`` dictionary
@@ -684,14 +627,12 @@ def score_profile_from_ballot_scores(
 
     Args:
         profile (PreferenceProfile): Profile to score.
-        to_float (bool, optional): If True, compute scores as floats instead of Fractions.
-            Defaults to False.
 
     Returns:
-        Union[dict[str, Fraction], dict[str, float]]:
+        dict[str, float]:
             Dictionary mapping candidates to scores.
     """
-    scores = {c: Fraction(0) for c in profile.candidates}
+    scores = {c: 0 for c in profile.candidates}
     for ballot in profile.ballots:
         if ballot.scores is None:
             raise TypeError(f"Ballot {ballot} has no scores.")
@@ -699,14 +640,10 @@ def score_profile_from_ballot_scores(
             for c, score in ballot.scores.items():
                 scores[c] += score * ballot.weight
 
-    if to_float:
-        return {c: float(v) for c, v in scores.items()}
     return scores
 
 
-def ballot_lengths(
-    profile: PreferenceProfile, to_float: bool = False
-) -> Union[dict[int, float], dict[int, Fraction]]:
+def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
     """
     Compute the frequency of ballot lengths in the profile.
     Includes all lengths from 1 to ``max_ranking_length`` as keys.
@@ -714,17 +651,15 @@ def ballot_lengths(
 
     Args:
         profile (PreferenceProfile): Profile to compute ballot lengths.
-        to_float (bool): If True, compute mention as floats instead of Fractions.
-            Defaults to False.
 
     Returns:
-        Union[dict[int, float], dict[int, Fraction]]: Dictionary of ballot length frequency.
+        dict[int, float]: Dictionary of ballot length frequency.
 
     Raises:
         TypeError: All ballots must have rankings.
     """
 
-    ballot_lengths = {i: Fraction(0) for i in range(1, profile.max_ranking_length + 1)}
+    ballot_lengths = {i: 0 for i in range(1, profile.max_ranking_length + 1)}
 
     for ballot in profile.ballots:
         if ballot.ranking is None:
@@ -732,8 +667,5 @@ def ballot_lengths(
 
         length = len(ballot.ranking)
         ballot_lengths[length] += ballot.weight
-
-    if to_float:
-        return {length: float(f) for length, f in ballot_lengths.items()}
 
     return ballot_lengths

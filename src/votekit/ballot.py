@@ -1,7 +1,6 @@
-from fractions import Fraction
 from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict, field_validator
-from typing import Optional, Union
+from typing import Optional
 from dataclasses import field
 
 
@@ -14,25 +13,32 @@ class Ballot:
     Args:
         ranking (tuple[frozenset[str], ...], optional): Tuple of candidate ranking. Entry i of the
             tuple is a frozenset of candidates ranked in position i. Defaults to None.
-        weight (Fraction, optional): Weight assigned to a given ballot. Defaults to 1.
-            Can be input as int, float, or Fraction but will be converted to Fraction.
+        weight (float, optional): Weight assigned to a given ballot. Defaults to 1.
+            Can be input as int or float.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
-            Values can be input as int, float, or Fraction but will be converted to Fraction.
+        scores (dict[str, float], optional): Scores for individual candidates. Defaults to None.
+            Values can be input as int or float.
             Only retains non-zero scores.
 
     Attributes:
         ranking (tuple[frozenset[str], ...]): Tuple of candidate ranking. Entry i of the tuple is a
             frozenset of candidates ranked in position i.
-        weight (Fraction): Weight assigned to a given ballot. Defaults to 1.
+        weight (float): Weight assigned to a given ballot. Defaults to 1.
         voter_set (set[str], optional): Set of voters who cast the ballot. Defaults to None.
-        scores (dict[str, Fraction], optional): Scores for individual candidates. Defaults to None.
+        scores (dict[str, float], optional): Scores for individual candidates. Defaults to None.
     """
 
     ranking: Optional[tuple[frozenset[str], ...]] = None
-    weight: Fraction = Fraction(1, 1)
+    weight: float = 1.0
     voter_set: set[str] = field(default_factory=set)
-    scores: Optional[dict[str, Fraction]] = None
+    scores: Optional[dict[str, float]] = None
+
+    def __post_init__(self):
+        if self.weight < 0:
+            raise ValueError("Ballot weight must cannot be negative.")
+
+        # Silently promote weight to float
+        object.__setattr__(self, "weight", float(self.weight))
 
     @field_validator("ranking", mode="before")
     @classmethod
@@ -52,8 +58,8 @@ class Ballot:
     @field_validator("scores", mode="before")
     @classmethod
     def validate_scores_candidates(
-        cls, scores: Optional[dict[str, Fraction]]
-    ) -> Optional[dict[str, Fraction]]:
+        cls, scores: Optional[dict[str, float]]
+    ) -> Optional[dict[str, float]]:
         if scores is not None:
             if "~" in scores:
                 raise ValueError(
@@ -74,34 +80,19 @@ class Ballot:
 
         return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
 
-    @field_validator("weight", mode="before")
-    @classmethod
-    def convert_weight_to_fraction(cls, weight: Union[float, Fraction]) -> Fraction:
-        if not isinstance(weight, Fraction):
-            weight = Fraction(weight).limit_denominator()
-        return weight
-
     @field_validator("scores", mode="before")
     @classmethod
     def convert_scores_to_fraction_strip_whitespace(
-        cls, scores: Optional[dict[str, Union[float, Fraction]]]
-    ) -> Optional[dict[str, Fraction]]:
+        cls, scores: Optional[dict[str, float]]
+    ) -> Optional[dict[str, float]]:
         if scores:
             if any(
-                not (
-                    isinstance(s, float)
-                    or isinstance(s, Fraction)
-                    or isinstance(s, int)
-                )
+                not (isinstance(s, float) or isinstance(s, int))
                 for s in scores.values()
             ):
                 raise TypeError("Score values must be numeric.")
 
-            return {
-                c.strip(): Fraction(s).limit_denominator()
-                for c, s in scores.items()
-                if s != 0
-            }
+            return {c.strip(): s for c, s in scores.items() if s != 0}
         else:
             return None
 

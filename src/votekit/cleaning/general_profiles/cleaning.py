@@ -1,4 +1,3 @@
-from fractions import Fraction
 from functools import partial
 from typing import Callable, Union
 from ...pref_profile import PreferenceProfile, CleanedProfile, convert_row_to_ballot
@@ -129,7 +128,7 @@ def remove_repeated_candidates_from_ballot(
         dedup_ranking.append(frozenset(new_position))
 
     new_ballot = Ballot(
-        weight=Fraction(ballot.weight),
+        weight=ballot.weight,
         ranking=tuple(dedup_ranking),
         voter_set=ballot.voter_set,
     )
@@ -306,7 +305,7 @@ def condense_ballot_ranking(
     )
 
     new_ballot = Ballot(
-        weight=Fraction(ballot.weight),
+        weight=ballot.weight,
         ranking=tuple(condensed_ranking) if condensed_ranking != [] else None,
         voter_set=ballot.voter_set,
         scores=ballot.scores,

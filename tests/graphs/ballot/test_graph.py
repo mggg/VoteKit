@@ -1,4 +1,3 @@
-from fractions import Fraction
 import networkx as nx
 import pytest
 
@@ -9,9 +8,9 @@ from votekit.pref_profile import PreferenceProfile
 
 three_cand = PreferenceProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=Fraction(4)),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(3)),
-        Ballot(ranking=[{"C"}, {"B"}], weight=Fraction(2)),
+        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=4),
+        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+        Ballot(ranking=[{"C"}, {"B"}], weight=2),
     ]
 )
 

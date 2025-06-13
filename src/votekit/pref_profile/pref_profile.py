@@ -1,6 +1,5 @@
 from __future__ import annotations
 import csv
-from fractions import Fraction
 import pandas as pd
 from ..ballot import Ballot
 from .utils import convert_row_to_ballot
@@ -10,6 +9,7 @@ import warnings
 import pickle
 from .profile_error import ProfileError
 from functools import cached_property
+import ast
 
 
 def _parse_profile_data_from_csv(
@@ -82,14 +82,20 @@ def _parse_ballot_from_csv(
     formatted_ranking = None
     voter_set = set()
 
-    num, denom = ballot_row[break_indices[1] + 1].split("/")
-    weight = Fraction(int(num), int(denom))
+    try:
+        num, denom = ballot_row[break_indices[1] + 1].split("/")
+        num = ast.literal_eval(num)
+        denom = ast.literal_eval(denom)
+    except Exception:
+        raise RuntimeError(
+            f"Invalid weight format in ballot row: {ballot_row[break_indices[1] + 1]}"
+        )
+
+    weight = float(num) / float(denom)
 
     if contains_scores:
         scores = {
-            c: Fraction(float(ballot_row[i]))
-            for i, c in enumerate(candidates)
-            if ballot_row[i]
+            c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]
         }
 
     if contains_rankings:
@@ -625,7 +631,7 @@ class PreferenceProfile:
         df (pandas.DataFrame): Data frame view of the ballots.
         candidates_cast (tuple[str]): Tuple of candidates who appear on any ballot with positive
             weight, either in the ranking or in the score dictionary.
-        total_ballot_wt (Fraction): Sum of ballot weights.
+        total_ballot_wt (float): Sum of ballot weights.
         num_ballots (int): Length of ballot list.
         contains_rankings (bool): Whether or not the profile contains ballots with
             rankings.
@@ -1119,14 +1125,14 @@ class PreferenceProfile:
         """
         return len(self.df)
 
-    def _find_total_ballot_wt(self) -> Fraction:
+    def _find_total_ballot_wt(self) -> float:
         """
         Compute and set the total ballot weight.
 
         Returns:
-            Fraction: total ballot weight.
+            float: total ballot weight.
         """
-        total_weight = Fraction(0)
+        total_weight = 0
         if not self.df.equals(pd.DataFrame()):
             total_weight = self.df["Weight"].sum()
         return total_weight

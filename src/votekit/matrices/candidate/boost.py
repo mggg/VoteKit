@@ -3,7 +3,6 @@ from .comentions import comention
 import numpy as np
 from typing import Tuple
 from .._utils import _convert_dict_to_matrix
-from fractions import Fraction
 
 
 def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, float]:
@@ -22,9 +21,9 @@ def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, 
       tuple[float, float]: P(mention i | mention j), P(mention i)
     """
 
-    i_mentions = Fraction(0)
-    j_mentions = Fraction(0)
-    both_mentions = Fraction(0)
+    i_mentions = 0
+    j_mentions = 0
+    both_mentions = 0
 
     for ballot in pref_profile.ballots:
         if comention(i, ballot):

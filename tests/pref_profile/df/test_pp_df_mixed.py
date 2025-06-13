@@ -2,7 +2,6 @@ from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pandas as pd
 import numpy as np
-from fractions import Fraction
 
 ballots_mixed = [
     Ballot(
@@ -29,14 +28,14 @@ def test_pp_df_mixed():
 
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
-            Fraction(1),
+            1,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
-            Fraction(2),
+            2,
         ],
         "C": [
             np.nan,
@@ -65,9 +64,9 @@ def test_pp_df_mixed():
             set(),
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
+            2.0,
+            1.0,
+            2.0,
         ],
     }
     true_df = pd.DataFrame(data)
@@ -85,14 +84,14 @@ def test_pp_df_mixed_args():
     )
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
-            Fraction(1),
+            1,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
-            Fraction(2),
+            2,
         ],
         "C": [
             np.nan,
@@ -126,9 +125,9 @@ def test_pp_df_mixed_args():
             set(),
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
+            2.0,
+            1.0,
+            2.0,
         ],
     }
     true_df = pd.DataFrame(data)

@@ -5,7 +5,6 @@ if TYPE_CHECKING:
     from .pref_profile import PreferenceProfile
 
 from ..ballot import Ballot
-from fractions import Fraction
 from typing import Optional
 import pandas as pd
 from functools import partial
@@ -113,7 +112,7 @@ def _df_to_ballot_tuple(
 
 def profile_to_ballot_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[Ballot, Fraction]:
+) -> dict[Ballot, float]:
     """
     Converts profile to dictionary with keys = ballots and
     values = corresponding total weights.
@@ -124,7 +123,7 @@ def profile_to_ballot_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[Ballot, Fraction]:
+        dict[Ballot, float]:
             A dictionary with ballots (keys) and corresponding total weights (values).
     """
     tot_weight = profile.total_ballot_wt
@@ -150,7 +149,7 @@ def profile_to_ballot_dict(
 
 def profile_to_ranking_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[tuple[frozenset[str], ...], Fraction]:
+) -> dict[tuple[frozenset[str], ...], float]:
     """
     Converts profile to dictionary with keys = rankings and
     values = corresponding total weights.
@@ -161,7 +160,7 @@ def profile_to_ranking_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[frozenset[str],...], Fraction]:
+        dict[tuple[frozenset[str],...], float]:
             A dictionary with rankings (keys) and corresponding total weights (values).
 
     Raises:
@@ -189,7 +188,7 @@ def profile_to_ranking_dict(
 
 def profile_to_scores_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[tuple[str, Fraction], Fraction]:
+) -> dict[tuple[str, float], float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
@@ -200,7 +199,7 @@ def profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[str, Fraction], Fraction]:
+        dict[tuple[str, float], float]:
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:

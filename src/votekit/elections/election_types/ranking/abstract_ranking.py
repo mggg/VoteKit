@@ -1,6 +1,5 @@
 from votekit import PreferenceProfile
 from typing import Union, Optional, Callable
-from fractions import Fraction
 from ....models import Election
 from ...election_state import ElectionState
 from abc import abstractmethod
@@ -12,7 +11,7 @@ class RankingElection(Election):
 
     Args:
         profile (PreferenceProfile): The initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
@@ -24,7 +23,7 @@ class RankingElection(Election):
         election_states (list[ElectionState]): a list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]], optional):
+        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
         length (int): the number of rounds of the election.
@@ -34,7 +33,7 @@ class RankingElection(Election):
         self,
         profile: PreferenceProfile,
         score_function: Optional[
-            Callable[[PreferenceProfile], Union[dict[str, Fraction], dict[str, float]]]
+            Callable[[PreferenceProfile], dict[str, float]]
         ] = None,
         sort_high_low: bool = True,
     ):

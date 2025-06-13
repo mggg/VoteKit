@@ -2,7 +2,6 @@ from votekit.elections import Approval, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_approval = PreferenceProfile(
     ballots=[
@@ -38,13 +37,13 @@ profile_tied_approval = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A", "B"}), frozenset({"C", "D"})),
-        scores={"A": Fraction(3), "B": Fraction(3), "C": Fraction(1), "D": Fraction(1)},
+        scores={"A": 3, "B": 3, "C": 1, "D": 1},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"C", "D"}),),
         elected=(frozenset({"A", "B"}),),
-        scores={"C": Fraction(1), "D": Fraction(1)},
+        scores={"C": 1, "D": 1},
     ),
 ]
 

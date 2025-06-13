@@ -1,6 +1,5 @@
 from votekit.elections import fractional_transfer, random_transfer
 from votekit import Ballot
-from fractions import Fraction
 import pytest
 
 ranking_error_ballot_list = [
@@ -10,7 +9,7 @@ ranking_error_ballot_list = [
 ]
 
 integer_error_ballot_list = [
-    Ballot(weight=Fraction(3, 2)),
+    Ballot(weight=3 / 2),
     Ballot(ranking=({"A"}, {"C"}, {"B"}), weight=2.3),
     Ballot(ranking=({"C"}, {"B"}, {"A"}), weight=1),
 ]
@@ -18,16 +17,16 @@ integer_error_ballot_list = [
 
 def test_fractional_transfer():
     fractional_ballot_list = [
-        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(2)),
-        Ballot(ranking=({"A"}, {"C"}, {"B"}), weight=Fraction(2)),
-        Ballot(ranking=({"C"}, {"B"}, {"A"}), weight=Fraction(1)),
+        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+        Ballot(ranking=({"A"}, {"C"}, {"B"}), weight=2),
+        Ballot(ranking=({"C"}, {"B"}, {"A"}), weight=1),
     ]
     new_ballots = fractional_transfer("A", 4, fractional_ballot_list, 2)
     assert set(new_ballots) == set(
         (
-            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
-            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
+            Ballot(ranking=({"B"}, {"C"}), weight=1),
+            Ballot(ranking=({"C"}, {"B"}), weight=1),
+            Ballot(ranking=({"C"}, {"B"}), weight=1),
         )
     )
 
@@ -39,8 +38,8 @@ def test_fractional_transfer_error():
 
 def test_random_transfer():
     random_ballot_list = [
-        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=Fraction(4)),
-        Ballot(ranking=({"C"}, {"B"}, {"A"}), weight=Fraction(1)),
+        Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=4),
+        Ballot(ranking=({"C"}, {"B"}, {"A"}), weight=1),
     ]
 
     new_ballots = random_transfer("A", 4, random_ballot_list, 2)
@@ -48,9 +47,9 @@ def test_random_transfer():
 
     assert set(new_ballots) == set(
         (
-            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"B"}, {"C"}), weight=Fraction(1)),
-            Ballot(ranking=({"C"}, {"B"}), weight=Fraction(1)),
+            Ballot(ranking=({"B"}, {"C"}), weight=1),
+            Ballot(ranking=({"B"}, {"C"}), weight=1),
+            Ballot(ranking=({"C"}, {"B"}), weight=1),
         )
     )
 
