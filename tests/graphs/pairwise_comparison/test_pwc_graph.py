@@ -1,4 +1,3 @@
-from fractions import Fraction
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
 
@@ -22,17 +21,17 @@ portland_profile = remove_and_condense(
 
 
 ballot_list = [
-    Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=Fraction(10, 1)),
-    Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=Fraction(10, 1)),
-    Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=Fraction(10, 1)),
-    Ballot(ranking=[{"A"}], weight=Fraction(24, 1)),
+    Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=10),
+    Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=10),
+    Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=10),
+    Ballot(ranking=[{"A"}], weight=24),
 ]
 TEST_PROFILE = PreferenceProfile(ballots=ballot_list)
 
 simple_ballot_list = [
-    Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=Fraction(10, 1)),
-    Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=Fraction(10, 1)),
-    Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=Fraction(10, 1)),
+    Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=10),
+    Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=10),
+    Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=10),
 ]
 SIMPLE_TEST_PROFILE = PreferenceProfile(ballots=simple_ballot_list)
 
@@ -119,5 +118,8 @@ def test_draw_pwcg():
 
 def test_draw_pwcg_non_candidate_error():
     pwcg = PairwiseComparisonGraph(TEST_PROFILE)
-    with pytest.raises(KeyError, match="'Chris'"):
+    with pytest.raises(
+        AssertionError,
+        match="Invalid candidates found:",
+    ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])

@@ -2,7 +2,6 @@ from votekit.elections import TopTwo, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_pl_no_tied_top_two = PreferenceProfile(
     ballots=[
@@ -45,19 +44,19 @@ profile_with_tied_top_two = PreferenceProfile(
 no_tied_pl_no_tied_top_two_states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(2), "B": Fraction(1), "C": Fraction(0)},
+        scores={"A": 2, "B": 1, "C": 0},
     ),
     ElectionState(
         round_number=1,
         eliminated=(frozenset({"C"}),),
         remaining=(frozenset({"A"}), frozenset({"B"})),
-        scores={"A": Fraction(2), "B": Fraction(1)},
+        scores={"A": 2, "B": 1},
     ),
     ElectionState(
         round_number=2,
         remaining=(frozenset({"B"}),),
         elected=(frozenset({"A"}),),
-        scores={"B": Fraction(3)},
+        scores={"B": 3},
     ),
 ]
 

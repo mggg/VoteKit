@@ -1,4 +1,3 @@
-from fractions import Fraction
 import random
 import math
 from ..ballot import Ballot
@@ -8,7 +7,7 @@ from ..pref_profile import PreferenceProfile
 
 def fractional_transfer(
     winner: str,
-    fpv: Union[Fraction, float],
+    fpv: float,
     ballots: Union[tuple[Ballot], list[Ballot]],
     threshold: int,
 ) -> tuple[Ballot, ...]:
@@ -17,7 +16,7 @@ def fractional_transfer(
 
     Args:
         winner (str): Candidate to transfer votes from.
-        fpv (Union[Fraction, float]): Number of first place votes for winning candidate.
+        fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[Ballot], list[Ballot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
@@ -32,7 +31,7 @@ def fractional_transfer(
         if ballot.ranking:
             # if winner is first place, transfer ballot with fractional weight
             if ballot.ranking[0] == {winner}:
-                transfered_weight = ballot.weight * Fraction(transfer_value)
+                transfered_weight = ballot.weight * transfer_value
             else:
                 transfered_weight = ballot.weight
             # remove winner from ballot
@@ -49,18 +48,14 @@ def fractional_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    return (
-        PreferenceProfile(
-            ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
-        )
-        .group_ballots()
-        .ballots
-    )
+    return PreferenceProfile(
+        ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
+    ).ballots
 
 
 def random_transfer(
     winner: str,
-    fpv: Union[Fraction, float],
+    fpv: float,
     ballots: Union[tuple[Ballot], list[Ballot]],
     threshold: int,
 ) -> tuple[Ballot, ...]:
@@ -70,7 +65,7 @@ def random_transfer(
 
     Args:
         winner (str): Candidate to transfer votes from.
-        fpv (Union[Fraction, float]): Number of first place votes for winning candidate.
+        fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[Ballot], list[Ballot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
@@ -100,7 +95,7 @@ def random_transfer(
                 new_ballots = [
                     Ballot(
                         ranking=new_ranking,
-                        weight=Fraction(1),
+                        weight=1,
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)
@@ -123,10 +118,6 @@ def random_transfer(
     )
     updated_ballots += surplus_ballots
 
-    return (
-        PreferenceProfile(
-            ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
-        )
-        .group_ballots()
-        .ballots
-    )
+    return PreferenceProfile(
+        ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
+    ).ballots

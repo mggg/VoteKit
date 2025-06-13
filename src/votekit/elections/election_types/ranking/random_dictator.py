@@ -1,14 +1,13 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from ....utils import (
     first_place_votes,
     score_dict_to_ranking,
 )
 import random
-from typing import Literal, Union
-from fractions import Fraction
+from typing import Literal
 from functools import partial
 
 
@@ -70,11 +69,11 @@ class RandomDictator(RankingElection):
         """
         fpv = prev_state.scores
         candidates = list(fpv.keys())
-        weights: list[Union[Fraction, float]] = list(fpv.values())
+        weights: list[float] = list(fpv.values())
         winning_cand = random.choices(candidates, weights=weights, k=1)[0]
         elected = (frozenset({winning_cand}),)
 
-        new_profile = remove_and_condense(winning_cand, profile)
+        new_profile = remove_and_condense_ranked_profile(winning_cand, profile)
 
         if store_states:
             if self.score_function:

@@ -1,5 +1,4 @@
 from pathlib import Path
-from fractions import Fraction
 
 from votekit.cvr_loaders import load_scottish
 import votekit.cleaning as clean
@@ -77,7 +76,7 @@ def make_ballot(ranking, weight):
     for cand in ranking:
         ballot_rank.append({cand})
 
-    return Ballot(ranking=ballot_rank, weight=Fraction(weight))
+    return Ballot(ranking=ballot_rank, weight=weight)
 
 
 def test_generate_election_diff_res():

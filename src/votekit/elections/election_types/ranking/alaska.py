@@ -1,13 +1,12 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from ....utils import first_place_votes
 from ..ranking import Plurality, STV
 from ...transfers import fractional_transfer
 from ....ballot import Ballot
 from typing import Optional, Callable, Union, Literal
-from fractions import Fraction
 from functools import partial
 
 
@@ -22,7 +21,7 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -47,7 +46,7 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [str, Union[Fraction, float], Union[tuple[Ballot], list[Ballot]], int],
+            [str, float, Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot, ...],
         ] = fractional_transfer,
         quota: str = "droop",
@@ -144,7 +143,7 @@ class Alaska(RankingElection):
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile: PreferenceProfile = remove_and_condense(
+            new_profile: PreferenceProfile = remove_and_condense_ranked_profile(
                 [c for s in eliminated for c in s],
                 profile,
             )

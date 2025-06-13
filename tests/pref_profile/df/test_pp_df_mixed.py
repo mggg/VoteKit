@@ -2,7 +2,6 @@ from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pandas as pd
 import numpy as np
-from fractions import Fraction
 
 ballots_mixed = [
     Ballot(
@@ -29,35 +28,45 @@ def test_pp_df_mixed():
 
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
-            Fraction(1),
+            1,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
-            Fraction(2),
+            2,
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
+            np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset("~"),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset("~"), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},
             set(),
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
+            2.0,
+            1.0,
+            2.0,
         ],
     }
     true_df = pd.DataFrame(data)
@@ -75,14 +84,14 @@ def test_pp_df_mixed_args():
     )
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
-            Fraction(1),
+            1,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
-            Fraction(2),
+            2,
         ],
         "C": [
             np.nan,
@@ -100,25 +109,25 @@ def test_pp_df_mixed_args():
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset("~"),
             frozenset({"A", "B"}),
             frozenset({"A"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset(),
             frozenset({"B"}),
         ],
-        "Ranking_3": [np.nan, frozenset({"D"}), frozenset({"C"})],
+        "Ranking_3": [frozenset("~"), frozenset({"D"}), frozenset({"C"})],
         "Voter Set": [
             set(),
             {"Chris"},
             set(),
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(1),
-            Fraction(2),
+            2.0,
+            1.0,
+            2.0,
         ],
     }
     true_df = pd.DataFrame(data)

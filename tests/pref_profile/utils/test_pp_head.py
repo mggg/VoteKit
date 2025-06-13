@@ -2,7 +2,6 @@ from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile, profile_df_head
 import pandas as pd
 import numpy as np
-from fractions import Fraction
 
 
 def test_pp_df_head_rankings():
@@ -14,11 +13,21 @@ def test_pp_df_head_rankings():
     ]
     pp = PreferenceProfile(ballots=ballots_rankings)
     data = {
-        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "Ranking_2": [frozenset({"B"}), frozenset(), np.nan, np.nan],
-        "Ranking_3": [frozenset({"C"}), frozenset({"D"}), np.nan, np.nan],
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [frozenset({"B"}), frozenset(), frozenset("~"), frozenset("~")],
+        "Ranking_3": [
+            frozenset({"C"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
             f"{.5:.1%}",
             f"{.25:.1%}",
@@ -50,21 +59,21 @@ def test_pp_df_head_scores():
     pp = PreferenceProfile(ballots=ballots_scores)
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
             np.nan,
             np.nan,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
             np.nan,
             np.nan,
         ],
-        "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [np.nan, Fraction(1), np.nan, np.nan],
+        "D": [np.nan, 2, np.nan, np.nan],
+        "E": [np.nan, 1, np.nan, np.nan],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
             f"{.5:.2%}",
             f"{.25:.2%}",
@@ -105,27 +114,37 @@ def test_pp_df_head_mixed():
 
     data = {
         "A": [
-            Fraction(1),
-            Fraction(1),
+            1,
+            1,
             np.nan,
         ],
         "B": [
-            Fraction(2),
-            Fraction(2),
+            2,
+            2,
+            np.nan,
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "D": [
+            np.nan,
+            np.nan,
             np.nan,
         ],
         "Ranking_1": [
-            np.nan,
+            frozenset("~"),
             frozenset({"A"}),
             frozenset({"A", "B"}),
         ],
         "Ranking_2": [
-            np.nan,
+            frozenset("~"),
             frozenset({"B"}),
             frozenset(),
         ],
         "Ranking_3": [
-            np.nan,
+            frozenset("~"),
             frozenset({"C"}),
             frozenset({"D"}),
         ],
@@ -135,9 +154,9 @@ def test_pp_df_head_mixed():
             {"Chris"},
         ],
         "Weight": [
-            Fraction(2),
-            Fraction(2),
-            Fraction(1),
+            2.0,
+            2.0,
+            1.0,
         ],
         "Percent": [
             f"{.4:.1%}",
@@ -148,5 +167,5 @@ def test_pp_df_head_mixed():
     true_df = pd.DataFrame(data)
     true_df.index = [0, 2, 1]
     true_df.index.name = "Ballot Index"
-    true_df.loc["Total"] = [""] * 6 + [5, f"{1:.1%}"]
+    true_df.loc["Total"] = [""] * 8 + [5, f"{1:.1%}"]
     assert profile_df_head(pp, n=4, percents=True, totals=True).equals(true_df)

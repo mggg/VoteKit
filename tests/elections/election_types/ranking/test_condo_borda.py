@@ -2,7 +2,6 @@ from votekit.elections import CondoBorda, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_tied_set = PreferenceProfile(
     ballots=[
@@ -58,13 +57,13 @@ profile_tied_borda = PreferenceProfile(
 states = [
     ElectionState(
         remaining=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"A": Fraction(10), "B": Fraction(9), "C": Fraction(5)},
+        scores={"A": 10, "B": 9, "C": 5},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"B"}), frozenset({"C"})),
         elected=(frozenset({"A"}),),
-        scores={"B": Fraction(11), "C": Fraction(9)},
+        scores={"B": 11, "C": 9},
         tiebreaks={frozenset({"A", "B"}): (frozenset({"A"}), frozenset({"B"}))},
     ),
 ]

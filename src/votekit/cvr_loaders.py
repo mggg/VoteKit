@@ -1,9 +1,7 @@
-from fractions import Fraction
 import os
 import csv
 import pandas as pd
 from pandas.errors import EmptyDataError, DataError
-import pathlib
 from typing import Optional
 
 from .pref_profile import PreferenceProfile
@@ -80,7 +78,7 @@ def load_csv(
         weight = len(group_df)
         if weight_col is not None:
             weight = sum(group_df.iloc[:, weight_col])
-        b = Ballot(ranking=ranking, weight=Fraction(weight), voter_set=voter_set)
+        b = Ballot(ranking=ranking, weight=weight, voter_set=voter_set)
         ballots.append(b)
 
     return PreferenceProfile(ballots=tuple(ballots))
@@ -168,7 +166,7 @@ def load_scottish(
     ballots = [Ballot()] * len(data[1 : len(data) - (cand_num + 1)])
 
     for i, line in enumerate(data[1 : len(data) - (cand_num + 1)]):
-        ballot_weight = Fraction(line[0])
+        ballot_weight = line[0]
         cand_ordering = line[1:]
         ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
 

@@ -1,12 +1,11 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pytest
-import dataclasses
 
 
 def test_init():
     empty_profile = PreferenceProfile()
-    assert empty_profile.ballots == ()
+    assert empty_profile.ballots == tuple()
     assert not empty_profile.candidates
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
@@ -34,7 +33,7 @@ def test_ballots_frozen():
     assert b_list == (Ballot(),)
 
     with pytest.raises(
-        dataclasses.FrozenInstanceError, match="cannot assign to field 'ballots'"
+        AttributeError, match="Cannot modify frozen instance: tried to set 'ballots'"
     ):
         p.ballots = (Ballot(weight=5),)
 
@@ -47,13 +46,13 @@ def test_candidates_frozen():
     assert set(profile_no_cands.candidates_cast) == set(["A", "B", "C"])
 
     with pytest.raises(
-        dataclasses.FrozenInstanceError, match="cannot assign to field 'candidates'"
+        AttributeError, match="Cannot modify frozen instance: tried to set 'candidates'"
     ):
         profile_no_cands.candidates = tuple()
 
     with pytest.raises(
-        dataclasses.FrozenInstanceError,
-        match="cannot assign to field 'candidates_cast'",
+        AttributeError,
+        match="Cannot modify frozen instance: tried to set 'candidates_cast'",
     ):
         profile_no_cands.candidates_cast = tuple()
 

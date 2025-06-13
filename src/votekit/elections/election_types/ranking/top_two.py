@@ -2,7 +2,7 @@ from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....utils import first_place_votes
-from ....cleaning import remove_and_condense
+from ....cleaning import remove_and_condense_ranked_profile
 from ..ranking import Plurality
 from typing import Optional, Literal
 from functools import partial
@@ -69,7 +69,7 @@ class TopTwo(RankingElection):
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile: PreferenceProfile = remove_and_condense(
+            new_profile: PreferenceProfile = remove_and_condense_ranked_profile(
                 [c for s in eliminated for c in s], profile
             )
 

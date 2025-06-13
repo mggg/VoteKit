@@ -7,8 +7,7 @@ from ....utils import (
     score_dict_to_ranking,
     tiebreak_set,
 )
-from ....cleaning import remove_and_condense
-from fractions import Fraction
+from ....cleaning import remove_and_condense_ranked_profile
 import numpy as np
 from typing import Optional, Literal
 from functools import partial
@@ -101,7 +100,7 @@ class PluralityVeto(RankingElection):
             for _ in range(int(b.weight)):
                 new_ballots[bidx] = Ballot(
                     b.ranking,
-                    weight=Fraction(1, 1),
+                    weight=1,
                     voter_set=b.voter_set,
                 )
                 bidx += 1
@@ -209,7 +208,7 @@ class PluralityVeto(RankingElection):
                             tiebroken_ranking = (ballot.ranking[last_place],)
 
                     least_preferred = list(tiebroken_ranking[-1])[0]
-                    new_scores[least_preferred] -= Fraction(1)
+                    new_scores[least_preferred] -= 1
 
                     if new_scores[least_preferred] <= 0:
                         eliminated_cands.append(least_preferred)
@@ -225,7 +224,7 @@ class PluralityVeto(RankingElection):
             for c in eliminated_cands:
                 self.eliminated_dict[c] = True
 
-            new_profile = remove_and_condense(
+            new_profile = remove_and_condense_ranked_profile(
                 eliminated_cands,
                 profile,
                 remove_zero_weight_ballots=False,

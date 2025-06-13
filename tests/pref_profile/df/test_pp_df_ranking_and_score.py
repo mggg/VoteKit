@@ -2,7 +2,6 @@ from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
 import pandas as pd
 import numpy as np
-from fractions import Fraction
 
 ballots_rankings_and_scores = [
     Ballot(
@@ -28,24 +27,35 @@ def test_pp_df_ranking_and_score():
 
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
             np.nan,
             np.nan,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
             np.nan,
             np.nan,
         ],
-        "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "Ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
-        "Ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
+        "C": [np.nan, np.nan, np.nan, np.nan],
+        "D": [np.nan, 2, np.nan, np.nan],
+        "E": [np.nan, 1, np.nan, np.nan],
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [
+            frozenset({"B"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_3": [frozenset({"C"}), frozenset("~"), frozenset("~"), frozenset("~")],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
@@ -62,13 +72,13 @@ def test_pp_df_ranking_and_score_args():
     )
     data = {
         "A": [
-            Fraction(1),
+            1,
             np.nan,
             np.nan,
             np.nan,
         ],
         "B": [
-            Fraction(2),
+            2,
             np.nan,
             np.nan,
             np.nan,
@@ -79,13 +89,23 @@ def test_pp_df_ranking_and_score_args():
             np.nan,
             np.nan,
         ],
-        "D": [np.nan, Fraction(2), np.nan, np.nan],
-        "E": [np.nan, Fraction(1), np.nan, np.nan],
-        "Ranking_1": [frozenset({"A"}), frozenset({"A", "B"}), np.nan, np.nan],
-        "Ranking_2": [frozenset({"B"}), frozenset({"D"}), np.nan, np.nan],
-        "Ranking_3": [frozenset({"C"}), np.nan, np.nan, np.nan],
+        "D": [np.nan, 2, np.nan, np.nan],
+        "E": [np.nan, 1, np.nan, np.nan],
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [
+            frozenset({"B"}),
+            frozenset({"D"}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_3": [frozenset({"C"}), frozenset("~"), frozenset("~"), frozenset("~")],
         "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [Fraction(2), Fraction(1), Fraction(1), Fraction(0)],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"

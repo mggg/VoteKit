@@ -2,7 +2,6 @@ from votekit.elections import Limited, ElectionState
 from votekit import PreferenceProfile, Ballot
 import pytest
 import pandas as pd
-from fractions import Fraction
 
 profile_no_tied_limited = PreferenceProfile(
     ballots=[
@@ -35,13 +34,13 @@ states = [
             frozenset({"C"}),
             frozenset({"D"}),
         ),
-        scores={"A": Fraction(3), "B": Fraction(2), "C": Fraction(1), "D": Fraction(0)},
+        scores={"A": 3, "B": 2, "C": 1, "D": 0},
     ),
     ElectionState(
         round_number=1,
         remaining=(frozenset({"D"}),),
         elected=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
-        scores={"D": Fraction(0)},
+        scores={"D": 0},
     ),
 ]
 

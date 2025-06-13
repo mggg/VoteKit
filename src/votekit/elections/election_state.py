@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from dataclasses import field
-from fractions import Fraction
-from typing import Union
 
 
 @dataclass
@@ -22,7 +20,7 @@ class ElectionState:
         tiebreaks (dict[frozenset[str], tuple[frozenset[str],...]], optional): Stores
             tiebreak resolutions. Keys are frozensets of tied candidates and values are resolutions
             of tiebreak. Defaults to empty dictionary.
-        scores(Union[dict[str, Fraction], dict[str, float], optional): Stores score information.
+        scores(dict[str, float], optional): Stores score information.
             Keys are candidates, values are scores. Only remaining candidates should be stored.
 
     """
@@ -34,4 +32,4 @@ class ElectionState:
     tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = field(
         default_factory=dict
     )
-    scores: Union[dict[str, Fraction], dict[str, float]] = field(default_factory=dict)
+    scores: dict[str, float] = field(default_factory=dict)

@@ -5,7 +5,6 @@ if TYPE_CHECKING:
     from .pref_profile import PreferenceProfile
 
 from ..ballot import Ballot
-from fractions import Fraction
 from typing import Optional
 import pandas as pd
 from functools import partial
@@ -29,25 +28,26 @@ def _convert_ranking_cols_to_ranking(
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking = []
     ranking_cols_idxs = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
-    for i, col_idx in enumerate(ranking_cols_idxs):
-        if pd.isna(row[col_idx]):
-            if not all(pd.isna(row[idx]) for idx in ranking_cols_idxs[i:]):
-                raise ValueError(
-                    f"Row {row} has NaN values between valid ranking positions. "
-                    "NaN values can only trail on a ranking."
-                )
+    if any(
+        row[col_idx] == frozenset({"~"})
+        and not all(row[idx] == frozenset({"~"}) for idx in ranking_cols_idxs[i:])
+        for i, col_idx in enumerate(ranking_cols_idxs)
+    ):
+        raise ValueError(
+            f"Row {row} has '~' between valid ranking positions. "
+            "'~' values can only trail on a ranking."
+        )
 
-            break
+    ranking = [
+        row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")
+    ]
 
-        ranking.append(row[col_idx])
-
-    return tuple(ranking) if ranking else None
+    return tuple(ranking) if len(ranking) > 0 else None
 
 
 def convert_row_to_ballot(
@@ -112,7 +112,7 @@ def _df_to_ballot_tuple(
 
 def profile_to_ballot_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[Ballot, Fraction]:
+) -> dict[Ballot, float]:
     """
     Converts profile to dictionary with keys = ballots and
     values = corresponding total weights.
@@ -123,12 +123,13 @@ def profile_to_ballot_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[Ballot, Fraction]:
+        dict[Ballot, float]:
             A dictionary with ballots (keys) and corresponding total weights (values).
     """
     tot_weight = profile.total_ballot_wt
     di: dict = {}
     for ballot in profile.ballots:
+        print(ballot)
         weightless_ballot = Ballot(
             ranking=ballot.ranking,
             scores=ballot.scores,
@@ -142,12 +143,13 @@ def profile_to_ballot_dict(
             di[weightless_ballot] = weight
         else:
             di[weightless_ballot] += weight
+        print()
     return di
 
 
 def profile_to_ranking_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[tuple[frozenset[str], ...], Fraction]:
+) -> dict[tuple[frozenset[str], ...], float]:
     """
     Converts profile to dictionary with keys = rankings and
     values = corresponding total weights.
@@ -158,7 +160,7 @@ def profile_to_ranking_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[frozenset[str],...], Fraction]:
+        dict[tuple[frozenset[str],...], float]:
             A dictionary with rankings (keys) and corresponding total weights (values).
 
     Raises:
@@ -186,7 +188,7 @@ def profile_to_ranking_dict(
 
 def profile_to_scores_dict(
     profile: PreferenceProfile, standardize: bool = False
-) -> dict[tuple[str, Fraction], Fraction]:
+) -> dict[tuple[str, float], float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
@@ -197,7 +199,7 @@ def profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[str, Fraction], Fraction]:
+        dict[tuple[str, float], float]:
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:

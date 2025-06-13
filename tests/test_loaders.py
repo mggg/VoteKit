@@ -1,4 +1,3 @@
-from fractions import Fraction
 from pandas.errors import EmptyDataError, DataError
 from pathlib import Path
 import pytest
@@ -28,9 +27,7 @@ def test_empty_csv():
 
 def test_undervote():
     prof = load_csv(CSV_DIR / "undervote.csv", id_col=0)
-    a = Ballot(
-        ranking=[{"c"}, frozenset(), frozenset()], weight=Fraction(1), voter_set={"a"}
-    )
+    a = Ballot(ranking=[{"c"}, frozenset(), frozenset()], weight=1, voter_set={"a"})
     correct_prof = PreferenceProfile(ballots=[a])
     assert correct_prof.ballots == prof.ballots
     # assert correct_prof.ballots[0].ranking == prof.ballots[0].ranking
@@ -49,18 +46,16 @@ def test_invalid_path():
 def test_duplicates_candidates():
     prof = load_csv(CSV_DIR / "dup_cands.csv", id_col=0)
     # assert len(prof.ballots) == 3
-    abe = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=Fraction(1), voter_set={"abe"})
-    don = Ballot(ranking=[{"a"}, {"c"}, {"c"}], weight=Fraction(1), voter_set={"don"})
-    carrie = Ballot(
-        ranking=[{"c"}, {"c"}, {"c"}], weight=Fraction(1), voter_set={"carrie"}
-    )
+    abe = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=1, voter_set={"abe"})
+    don = Ballot(ranking=[{"a"}, {"c"}, {"c"}], weight=1, voter_set={"don"})
+    carrie = Ballot(ranking=[{"c"}, {"c"}, {"c"}], weight=1, voter_set={"carrie"})
     correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
     assert is_equal(prof.ballots, correct_prof.ballots)
 
 
 def test_single_row():
     prof = load_csv(CSV_DIR / "single_row.csv", id_col=0)
-    a = Ballot(ranking=[{"b"}, {"c"}, {"d"}], weight=Fraction(1), voter_set={"a"})
+    a = Ballot(ranking=[{"b"}, {"c"}, {"d"}], weight=1, voter_set={"a"})
     correct_prof = PreferenceProfile(ballots=[a])
     assert is_equal(prof.ballots, correct_prof.ballots)
 
@@ -69,12 +64,12 @@ def test_multiple_undervotes():
     prof = load_csv(CSV_DIR / "mult_undervote.csv", id_col=0)
     abc = Ballot(
         ranking=[{"c"}, frozenset(), frozenset()],
-        weight=Fraction(3),
+        weight=3,
         voter_set={"abe", "ben", "carl"},
     )
     dave = Ballot(
         ranking=[frozenset(), {"a"}, frozenset()],
-        weight=Fraction(1),
+        weight=1,
         voter_set={"dave"},
     )
     correct_prof = PreferenceProfile(ballots=[abc, dave])
@@ -83,21 +78,17 @@ def test_multiple_undervotes():
 
 def test_different_undervotes():
     prof = load_csv(CSV_DIR / "diff_undervote.csv", id_col=0)
-    a = Ballot(ranking=[{"c"}, frozenset(), {"b"}], weight=Fraction(1), voter_set={"a"})
-    b = Ballot(
-        ranking=[frozenset(), {"d"}, frozenset()], weight=Fraction(1), voter_set={"b"}
-    )
-    c = Ballot(ranking=[{"e"}, frozenset(), {"e"}], weight=Fraction(1), voter_set={"c"})
+    a = Ballot(ranking=[{"c"}, frozenset(), {"b"}], weight=1, voter_set={"a"})
+    b = Ballot(ranking=[frozenset(), {"d"}, frozenset()], weight=1, voter_set={"b"})
+    c = Ballot(ranking=[{"e"}, frozenset(), {"e"}], weight=1, voter_set={"c"})
     correct_prof = PreferenceProfile(ballots=[a, b, c])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
 
 def test_duplicate_ballots():
     prof = load_csv(CSV_DIR / "dup_ballots.csv", id_col=0)
-    a = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=Fraction(1), voter_set={"abe"})
-    dc = Ballot(
-        ranking=[{"c"}, {"c"}, {"c"}], weight=Fraction(2), voter_set={"don", "carrie"}
-    )
+    a = Ballot(ranking=[{"b"}, {"c"}, {"c"}], weight=1, voter_set={"abe"})
+    dc = Ballot(ranking=[{"c"}, {"c"}, {"c"}], weight=2, voter_set={"don", "carrie"})
     correct_prof = PreferenceProfile(ballots=[a, dc])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
@@ -106,12 +97,12 @@ def test_combo():
     prof = load_csv(CSV_DIR / "combo.csv", id_col=0)
     abc = Ballot(
         ranking=[{"b"}, {"c"}, {"c"}],
-        weight=Fraction(3),
+        weight=3,
         voter_set={"abe", "ben", "carrie"},
     )
     de = Ballot(
         ranking=[{"c"}, frozenset(), frozenset()],
-        weight=Fraction(2),
+        weight=2,
         voter_set={"don", "ed"},
     )
     correct_prof = PreferenceProfile(ballots=[abc, de])
@@ -120,32 +111,26 @@ def test_combo():
 
 def test_diff_candidates():
     prof = load_csv(CSV_DIR / "diff_cands.csv", id_col=0)
-    abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voter_set={"abe"}, weight=Fraction(1))
-    don = Ballot(ranking=[{"d"}, {"e"}, {"f"}], weight=Fraction(1), voter_set={"don"})
-    carrie = Ballot(
-        ranking=[{"g"}, {"h"}, {"i"}], weight=Fraction(1), voter_set={"carrie"}
-    )
+    abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voter_set={"abe"}, weight=1)
+    don = Ballot(ranking=[{"d"}, {"e"}, {"f"}], weight=1, voter_set={"don"})
+    carrie = Ballot(ranking=[{"g"}, {"h"}, {"i"}], weight=1, voter_set={"carrie"})
     correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
 
 def test_same_candidates():
     prof = load_csv(CSV_DIR / "same_cands.csv", id_col=0)
-    abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voter_set={"abe"}, weight=Fraction(1))
-    don = Ballot(ranking=[{"c"}, {"b"}, {"a"}], weight=Fraction(1), voter_set={"don"})
-    carrie = Ballot(
-        ranking=[{"a"}, {"c"}, {"b"}], weight=Fraction(1), voter_set={"carrie"}
-    )
+    abe = Ballot(ranking=[{"a"}, {"b"}, {"c"}], voter_set={"abe"}, weight=1)
+    don = Ballot(ranking=[{"c"}, {"b"}, {"a"}], weight=1, voter_set={"don"})
+    carrie = Ballot(ranking=[{"a"}, {"c"}, {"b"}], weight=1, voter_set={"carrie"})
     correct_prof = PreferenceProfile(ballots=[abe, don, carrie])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
 
 def test_special_char():
     prof = load_csv(CSV_DIR / "special_char.csv", id_col=0)
-    a1 = Ballot(
-        ranking=[{"b@#"}, {"@#$"}, {"c"}], weight=Fraction(2), voter_set={"a@#", "1@#"}
-    )
-    d = Ballot(ranking=[{"!23"}, {"c"}, {"c"}], weight=Fraction(1), voter_set={"d#$"})
+    a1 = Ballot(ranking=[{"b@#"}, {"@#$"}, {"c"}], weight=2, voter_set={"a@#", "1@#"})
+    d = Ballot(ranking=[{"!23"}, {"c"}, {"c"}], weight=1, voter_set={"d#$"})
     correct_prof = PreferenceProfile(ballots=[a1, d])
     assert is_equal(correct_prof.ballots, prof.ballots)
 
