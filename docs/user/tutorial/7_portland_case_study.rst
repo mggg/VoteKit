@@ -54,12 +54,14 @@ Cleaning the data and analyzing voter errors
 
 First, we will read in the csv of the cast vote record, scrub the
 non-district 1 voters, and create new columns that match the format
-needed by VoteKit. The csv is too large to be stored in GitHub, so `here
-is a
-link. <https://multco.us/info/turnout-and-statistics-november-2024-general-election>`__
-You will want the “Councilor District 1 Cast Vote Record Data”.
-Alternatively, we can use a package called ``gdown`` to download the
-data from the Google Drive folder that Portland stored it in.
+needed by VoteKit. `Here is a
+link <https://multco.us/info/turnout-and-statistics-november-2024-general-election>`__
+to the csv. You will want the “Councilor District 1 Cast Vote Record
+Data”. Alternatively, we can use a package called ``gdown`` to download
+the data from the Google Drive folder that Portland stored it in. Or you
+can download it from our
+`GitHub <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_raw_from_city.csv>`__,
+where it is called ``"Portland_D1_raw_from_city.csv"``.
 
 After that, we will use VoteKit to perform the rest of the cleaning.
 
@@ -80,7 +82,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
     Downloading...
     From: https://drive.google.com/uc?id=1ly3IcjeQTpet-zvxd49DM_OmY_i4uftB
     To: /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/notebooks/Portland_D1_raw_from_city.csv
-    100%|██████████| 104M/104M [00:15<00:00, 6.58MB/s] 
+    100%|██████████| 104M/104M [00:03<00:00, 27.6MB/s] 
 
 
 
@@ -524,7 +526,7 @@ our cleaning using VoteKit’s built in cleaning tools.
     Candidates: ('Candace Avalos', 'Cayle Tern', 'Jamie Dunphy', 'Loretta Smith', 'Steph Routh', 'Doug Clove', 'Michael (Mike) Sands', 'David Linn', 'Timur Ender', 'Deian Salazar', 'Peggy Sue Owens', 'Joe Allen', 'Joe Furi', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Uncertified Write In', 'Write-in-121', 'Write-in-122', 'Write-in-120', 'overvote')
     Candidates who received votes: ('Candace Avalos', 'Cayle Tern', 'Jamie Dunphy', 'Loretta Smith', 'Steph Routh', 'Doug Clove', 'Michael (Mike) Sands', 'David Linn', 'Timur Ender', 'Deian Salazar', 'Peggy Sue Owens', 'Joe Allen', 'Joe Furi', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Uncertified Write In', 'Write-in-121', 'Write-in-122', 'Write-in-120', 'overvote')
     Total number of Ballot objects: 19933
-    Total weight of Ballot objects: 43669
+    Total weight of Ballot objects: 43669.0
 
 
 
@@ -551,8 +553,8 @@ place, as well as how many occurred anywhere on the ballot.
 
 .. parsed-literal::
 
-    There were 906 overvotes in first place, or 2.1% of the ballots.
-    There were 1474 ballots with overvotes in any place, or 3.4% of the ballots.
+    There were 906.0 overvotes in first place, or 2.1% of the ballots.
+    There were 1474.0 ballots with overvotes in any place, or 3.4% of the ballots.
 
 
 In the rules of Portland’s election, which you can find `here <>`__, any
@@ -588,8 +590,8 @@ the percentage of ballots that are spoiled.
 
 .. parsed-literal::
 
-    712 ballots, or 1.6% of all ballots, were spoiled by overvotes or skips in D1.
-    86 ballots, or 0.2% of all ballots, were scrubbed by write ins in D1.
+    712.0 ballots, or 1.6% of all ballots, were spoiled by overvotes or skips in D1.
+    86.0 ballots, or 0.2% of all ballots, were scrubbed by write ins in D1.
 
 
 We also have to handle one more item of cleaning. It is entirely
@@ -641,7 +643,7 @@ which ballots were altered along the way.
 
 .. parsed-literal::
 
-    2507 ballots, or 5.74% of all ballots, were adjusted before tabulation in D1.
+    2507.0 ballots, or 5.74% of all ballots, were adjusted before tabulation in D1.
 
 
 Finally, the profile is cleaned and we can save it for analysis. We save
@@ -655,7 +657,7 @@ it as a pickle file, which is a way of storing Python variables.
 
 .. parsed-literal::
 
-    After cleaning, there are now 42,871 ballots.
+    After cleaning, there are now 42,871.0 ballots.
 
 
 Analysis
@@ -722,23 +724,23 @@ other stats we can double check, are given
     
     Candidates in decreasing order of first place votes.
     
-    Candace Avalos 8297
-    Loretta Smith 5586
-    Jamie Dunphy 5064
-    Noah Ernst 4052
-    Terrence Hayes 3975
-    Steph Routh 3894
-    Timur Ender 3550
-    Doug Clove 1698
-    Peggy Sue Owens 1266
-    David Linn 1111
-    Joe Allen 978
-    Michael (Mike) Sands 952
-    Deian Salazar 720
-    Cayle Tern 711
-    Thomas Shervey 385
-    Joe Furi 355
-    Uncertified Write In 277
+    Candace Avalos 8297.0
+    Loretta Smith 5586.0
+    Jamie Dunphy 5064.0
+    Noah Ernst 4052.0
+    Terrence Hayes 3975.0
+    Steph Routh 3894.0
+    Timur Ender 3550.0
+    Doug Clove 1698.0
+    Peggy Sue Owens 1266.0
+    David Linn 1111.0
+    Joe Allen 978.0
+    Michael (Mike) Sands 952.0
+    Deian Salazar 720.0
+    Cayle Tern 711.0
+    Thomas Shervey 385.0
+    Joe Furi 355.0
+    Uncertified Write In 277.0
 
 
 Take a moment to verify these against the `official
@@ -1045,7 +1047,8 @@ the number of times that i and j were mentioned on the same ballot
     ax  = matrix_heatmap(cmm_asym, row_labels=last_names_viable, 
                             column_labels=last_names_viable,
                             row_label_rotation = 0,
-                            column_label_rotation = 90)
+                            column_label_rotation = 90, 
+                            n_decimals_to_display=0)
     
     plt.title("Asymmetric Comentions") 
     plt.show()
@@ -1061,7 +1064,8 @@ the number of times that i and j were mentioned on the same ballot
     ax  = matrix_heatmap(cmm_sym, row_labels=last_names_viable, 
                             column_labels=last_names_viable,
                             row_label_rotation = 0,
-                            column_label_rotation = 90) 
+                            column_label_rotation = 90,
+                            n_decimals_to_display=0) 
     
     plt.title("Symmetric Comentions")
     plt.show()
@@ -1215,7 +1219,7 @@ was made?
 
 .. parsed-literal::
 
-    The active rate is 77.0%.
+    The active rate is 0.0%.
 
 
 STV exhaustion rate: How many ballots ranked fewer than six candidates,
@@ -1367,28 +1371,28 @@ We can also see who the most representative winner set would have been.
 .. parsed-literal::
 
     1-representation winner sets, top 5 most representative
-    {'Candace Avalos', 'Jamie Dunphy', 'Loretta Smith'} 44.2%
-    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 41.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 41.7%
-    {'Candace Avalos', 'Steph Routh', 'Loretta Smith'} 41.5%
-    {'Candace Avalos', 'Timur Ender', 'Loretta Smith'} 40.7%
+    {'Loretta Smith', 'Jamie Dunphy', 'Candace Avalos'} 44.2%
+    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 41.8%
+    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 41.7%
+    {'Loretta Smith', 'Steph Routh', 'Candace Avalos'} 41.5%
+    {'Loretta Smith', 'Timur Ender', 'Candace Avalos'} 40.7%
     
     --------------------
     
     3-representation winner sets, top 5 most representative
-    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 74.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 72.9%
-    {'Noah Ernst', 'Candace Avalos', 'Steph Routh'} 71.4%
-    {'Terrence Hayes', 'Candace Avalos', 'Noah Ernst'} 71.3%
-    {'Terrence Hayes', 'Candace Avalos', 'Steph Routh'} 71.1%
+    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 74.8%
+    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 72.9%
+    {'Noah Ernst', 'Steph Routh', 'Candace Avalos'} 71.4%
+    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 71.3%
+    {'Terrence Hayes', 'Steph Routh', 'Candace Avalos'} 71.1%
     
     --------------------
     
     6-representation winner sets, top 5 most representative
-    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 82.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 81.0%
-    {'Candace Avalos', 'Doug Clove', 'Loretta Smith'} 80.3%
-    {'Terrence Hayes', 'Candace Avalos', 'Noah Ernst'} 80.3%
+    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 82.8%
+    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 81.0%
+    {'Doug Clove', 'Loretta Smith', 'Candace Avalos'} 80.3%
+    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 80.3%
     {'Noah Ernst', 'Steph Routh', 'Loretta Smith'} 79.9%
     
     --------------------

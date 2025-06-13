@@ -34,62 +34,67 @@ case.
     ic = bg.ImpartialCulture(candidates=candidates)
     iac = bg.ImpartialAnonymousCulture(candidates=candidates)
     
-    profile1 = ic.generate_profile(number_of_ballots = 1000)
+    profile1 = ic.generate_profile(number_of_ballots=1000)
     profile2 = iac.generate_profile(number_of_ballots=1000)
     
-    print('IC profile:')
-    print(profile1)
+    print("IC profile:")
+    print(profile1.df)
     print()
-    print('IAC profile:')
-    print(profile2)
+    print("IAC profile:")
+    print(profile2.df)
 
 
 .. parsed-literal::
 
     IC profile:
-      Ranking Scores Weight
-    (C, B, A)     ()    194
-    (A, B, C)     ()    169
-    (A, C, B)     ()    166
-    (C, A, B)     ()    160
-    (B, A, C)     ()    157
-    (B, C, A)     ()    154
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (C)       (A)       (B)        {}   175.0
+    1                  (B)       (C)       (A)        {}   180.0
+    2                  (A)       (C)       (B)        {}   186.0
+    3                  (A)       (B)       (C)        {}   149.0
+    4                  (C)       (B)       (A)        {}   168.0
+    5                  (B)       (A)       (C)        {}   142.0
     
     IAC profile:
-      Ranking Scores Weight
-    (C, B, A)     ()    593
-    (A, B, C)     ()    235
-    (B, C, A)     ()     90
-    (A, C, B)     ()     49
-    (B, A, C)     ()     30
-    (C, A, B)     ()      3
+                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+    Ballot Index                                                
+    0                  (B)       (C)       (A)        {}   224.0
+    1                  (C)       (A)       (B)        {}   287.0
+    2                  (A)       (B)       (C)        {}   336.0
+    3                  (B)       (A)       (C)        {}   122.0
+    4                  (C)       (B)       (A)        {}    17.0
+    5                  (A)       (C)       (B)        {}    14.0
 
 
 Now we’ll plot some summary statistics for the generated profiles.
 
--  ``first place votes`` will measure how many first place votes each
-   candidate received.
+- ``first place votes`` will measure how many first place votes each
+  candidate received.
 
--  ``borda`` reports the **Borda score** of each candidate. If there are
-   :math:`n` candidates on a ballot, the first place candidate gets
-   :math:`n` points, the second :math:`n-1`, and so on.
+- ``borda`` reports the **Borda score** of each candidate. If there are
+  :math:`n` candidates on a ballot, the first place candidate gets
+  :math:`n` points, the second :math:`n-1`, and so on.
 
--  ``mentions`` simply counts the number of times candidates were listed
-   at all. Note that if we use generative methods that produce complete
-   rankings, everyone will necessarily have the same number of mentions!
+- ``mentions`` simply counts the number of times candidates were listed
+  at all. Note that if we use generative methods that produce complete
+  rankings, everyone will necessarily have the same number of mentions!
 
--  ``ballot lengths`` is the distribution of ballot lengths in the
-   profile. Again, if we use generative methods that produce complete
-   rankings, every ballot will be the same length.
+- ``ballot lengths`` is the distribution of ballot lengths in the
+  profile. Again, if we use generative methods that produce complete
+  rankings, every ballot will be the same length.
 
 We can plot first place votes for one profile or for multiple profiles
 as follows.
 
 .. code:: ipython3
 
-    fig1 = profile_fpv_plot(profile1, title = "First Place Votes in Profile 1")
-    fig2 = multi_profile_fpv_plot({"Profile 1":profile1, "Profile 2":profile2}, title= "First Place Votes", show_profile_legend=True)
-
+    fig1 = profile_fpv_plot(profile1, title="First Place Votes in Profile 1")
+    fig2 = multi_profile_fpv_plot(
+        {"Profile 1": profile1, "Profile 2": profile2},
+        title="First Place Votes",
+        show_profile_legend=True,
+    )
 
 
 
@@ -106,10 +111,12 @@ We can override this with the parameter ``candidate_ordering``.
 
 .. code:: ipython3
 
-    fig2 = multi_profile_fpv_plot({"Profile 1":profile1, "Profile 2":profile2}, 
-                                  title= "First Place Votes", 
-                                  show_profile_legend=True,
-                                  candidate_ordering=['A', 'B', 'C'])
+    fig2 = multi_profile_fpv_plot(
+        {"Profile 1": profile1, "Profile 2": profile2},
+        title="First Place Votes",
+        show_profile_legend=True,
+        candidate_ordering=["A", "B", "C"],
+    )
 
 
 
@@ -128,7 +135,12 @@ Remember! Some generated profiles only have complete ballots.
 
 .. code:: ipython3
 
-    from votekit.plots import multi_profile_borda_plot, multi_profile_ballot_lengths_plot, profile_borda_plot, profile_ballot_lengths_plot
+    from votekit.plots import (
+        multi_profile_borda_plot,
+        multi_profile_ballot_lengths_plot,
+        profile_borda_plot,
+        profile_ballot_lengths_plot,
+    )
     
     # TODO add your code here
 
@@ -146,25 +158,24 @@ times :math:`B` is preferred to :math:`A`.
 
     from votekit.graphs import PairwiseComparisonGraph
     
-    bloc_voter_prop = {"W": .8, "C": .2}
+    bloc_voter_prop = {"W": 0.8, "C": 0.2}
     
     # the values of .9 indicate that these blocs are highly polarized;
     # they prefer their own candidates much more than the opposing slate
-    cohesion_parameters = {"W": {"W":.9, "C":.1},
-                           "C": {"C":.9, "W":.1}}
+    cohesion_parameters = {"W": {"W": 0.9, "C": 0.1}, "C": {"C": 0.9, "W": 0.1}}
     
-    dirichlet_alphas = {"W": {"W":2, "C":1},
-                        "C": {"W":1, "C":.5}}
+    dirichlet_alphas = {"W": {"W": 2, "C": 1}, "C": {"W": 1, "C": 0.5}}
     
-    slate_to_candidates = {"W": ["W1", "W2"],
-                            "C": ["C1", "C2"]}
+    slate_to_candidates = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     
-    cs = bg.CambridgeSampler.from_params(slate_to_candidates=slate_to_candidates,
-              bloc_voter_prop=bloc_voter_prop,
-              cohesion_parameters=cohesion_parameters,
-              alphas=dirichlet_alphas)
+    cs = bg.CambridgeSampler.from_params(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters=cohesion_parameters,
+        alphas=dirichlet_alphas,
+    )
     
-    profile = cs.generate_profile(number_of_ballots= 1000)
+    profile = cs.generate_profile(number_of_ballots=1000)
     print(profile)
     
     pwc_graph = PairwiseComparisonGraph(profile)
@@ -173,27 +184,26 @@ times :math:`B` is preferred to :math:`A`.
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 87 rows.
-             Ranking Scores Weight
-    (W1, W2, C2, C1)     ()    107
-    (W2, W1, C2, C1)     ()     84
-        (W1, W2, C2)     ()     62
-            (W1, W2)     ()     53
-            (W2, W1)     ()     52
-    (W1, C2, W2, C1)     ()     45
-        (W2, W1, C2)     ()     44
-    (W2, C2, W1, C1)     ()     40
-               (W1,)     ()     36
-    (W2, C2, C1, W1)     ()     32
-    (W1, C2, C1, W2)     ()     29
-        (W1, C2, W2)     ()     27
-               (W2,)     ()     23
-        (W2, C2, W1)     ()     23
-               (C2,)     ()     20
+    Profile contains rankings: True
+    Maximum ranking length: 4
+    Profile contains scores: False
+    Candidates: ('C1', 'C2', 'W1', 'W2')
+    Candidates who received votes: ('W2', 'C2', 'C1', 'W1')
+    Total number of Ballot objects: 90
+    Total weight of Ballot objects: 1000.0
+    
 
 
 
-.. image:: 3_viz_files/3_viz_11_1.png
+
+.. parsed-literal::
+
+    <Axes: >
+
+
+
+
+.. image:: 3_viz_files/3_viz_11_2.png
 
 
 Again, due to randomization, do not expect your graph labels to exactly
@@ -207,20 +217,22 @@ that beats every lower-tier candidate in a head-to-head comparison.
 .. code:: ipython3
 
     # dominating tiers
-    print('tiers:',pwc_graph.dominating_tiers())
+    print("tiers:", pwc_graph.get_dominating_tiers())
     
     # condorcet winner
     if pwc_graph.has_condorcet_winner() == True:
-      print("The Condorcet candidate is:",pwc_graph.get_condorcet_winner())
+        print("The Condorcet candidate is:", pwc_graph.get_condorcet_winner())
     else:
-      print("There is no Condorcet candidate.  The top tier is:",
-            pwc_graph.dominating_tiers()[0])
+        print(
+            "There is no Condorcet candidate.  The top tier is:",
+            pwc_graph.get_dominating_tiers()[0],
+        )
 
 
 .. parsed-literal::
 
-    tiers: [{'W1'}, {'W2'}, {'C2'}, {'C1'}]
-    The Condorcet candidate is: W1
+    tiers: [{'W2'}, {'W1'}, {'C2'}, {'C1'}]
+    The Condorcet candidate is: W2
 
 
 MDS Plots
@@ -249,31 +261,43 @@ First we will initialize our generators.
     
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
     
-    prefs1 = {"all_voters": {"all_voters": PreferenceInterval({"A": .8, "B":.15, "C":.05})}}
-    prefs2 = {"all_voters": {"all_voters": PreferenceInterval({"A": .1, "B":.5, "C":.4})}}  
+    prefs1 = {
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.8, "B": 0.15, "C": 0.05})}
+    }
+    prefs2 = {
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.1, "B": 0.5, "C": 0.4})}
+    }
     
     bloc_voter_prop = {"all_voters": 1}
     cohesion_parameters = {"all_voters": {"all_voters": 1}}
     
-    pl1 = bg.name_PlackettLuce(slate_to_candidates = slate_to_candidates,
-                          bloc_voter_prop = bloc_voter_prop,
-                         pref_intervals_by_bloc = prefs1,
-                         cohesion_parameters=cohesion_parameters)
+    pl1 = bg.name_PlackettLuce(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        pref_intervals_by_bloc=prefs1,
+        cohesion_parameters=cohesion_parameters,
+    )
     
-    pl2 = bg.name_PlackettLuce(slate_to_candidates = slate_to_candidates,
-                          bloc_voter_prop = bloc_voter_prop,
-                         pref_intervals_by_bloc = prefs2,
-                         cohesion_parameters=cohesion_parameters)
+    pl2 = bg.name_PlackettLuce(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        pref_intervals_by_bloc=prefs2,
+        cohesion_parameters=cohesion_parameters,
+    )
     
-    bt1 = bg.name_BradleyTerry(slate_to_candidates = slate_to_candidates,
-                          bloc_voter_prop = bloc_voter_prop,
-                         pref_intervals_by_bloc = prefs1,
-                         cohesion_parameters=cohesion_parameters)
+    bt1 = bg.name_BradleyTerry(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        pref_intervals_by_bloc=prefs1,
+        cohesion_parameters=cohesion_parameters,
+    )
     
-    bt2 = bg.name_BradleyTerry(slate_to_candidates = slate_to_candidates,
-                          bloc_voter_prop = bloc_voter_prop,
-                         pref_intervals_by_bloc = prefs2,
-                         cohesion_parameters=cohesion_parameters)
+    bt2 = bg.name_BradleyTerry(
+        slate_to_candidates=slate_to_candidates,
+        bloc_voter_prop=bloc_voter_prop,
+        pref_intervals_by_bloc=prefs2,
+        cohesion_parameters=cohesion_parameters,
+    )
 
 We have uncoupled the computation and plotting features since the
 computation is often time intensive, and this allows users to fiddle
@@ -282,32 +306,33 @@ with the plot without recomputing the coordinates.
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
+    
     # the data is a dictionary whose keys correspond to data labels
     # and whose values are lists of PreferenceProfiles
-    coord_dict = compute_MDS(data = 
-                             {'pl1': [pl1.generate_profile(number_of_ballots) 
-                                             for i in range(10)],
-                            'pl2': [pl2.generate_profile(number_of_ballots) 
-                                    for i in range(10)],
-                            'bt1': [bt1.generate_profile(number_of_ballots) 
-                                    for i in range(10)],
-                            'bt2': [bt2.generate_profile(number_of_ballots) 
-                                    for i in range(10)],
-                              }, 
-                distance = earth_mover_dist)
-    
-    
+    coord_dict = compute_MDS(
+        data={
+            "pl1": [pl1.generate_profile(number_of_ballots) for i in range(10)],
+            "pl2": [pl2.generate_profile(number_of_ballots) for i in range(10)],
+            "bt1": [bt1.generate_profile(number_of_ballots) for i in range(10)],
+            "bt2": [bt2.generate_profile(number_of_ballots) for i in range(10)],
+        },
+        distance=earth_mover_dist,
+    )
     
     
     # we pass the computed coordinates, as well as a nested dictionary of plot parameters
     # that will be passed to matplotlib scatter
-    ax = plot_MDS(coord_dict=coord_dict, 
-                    plot_kwarg_dict={"pl1":{"c": "red", "s": 50, "marker": "x"},
-                                     "pl2":{"c": "red", "s": 50, "marker": "o"},
-                                     "bt1":{"c": "blue", "s": 50, "marker": "x"},
-                                     "bt2":{"c": "blue", "s": 50, "marker": "o"}},
-                    legend = True, title = True)
-
+    ax = plot_MDS(
+        coord_dict=coord_dict,
+        plot_kwarg_dict={
+            "pl1": {"c": "red", "s": 50, "marker": "x"},
+            "pl2": {"c": "red", "s": 50, "marker": "o"},
+            "bt1": {"c": "blue", "s": 50, "marker": "x"},
+            "bt2": {"c": "blue", "s": 50, "marker": "o"},
+        },
+        legend=True,
+        title=True,
+    )
 
 
 
@@ -355,13 +380,14 @@ allow incomplete ballots, so when set to ``False`` it only shows the
 .. code:: ipython3
 
     from votekit.graphs import BallotGraph
+    
     candidates = ["A", "B", "C"]
     
     ballot_graph = BallotGraph(candidates, allow_partial=False)
-    ballot_graph.draw(labels= True)
+    ballot_graph.draw(labels=True)
     
     ballot_graph = BallotGraph(candidates, allow_partial=True)
-    ballot_graph.draw(labels= True)
+    ballot_graph.draw(labels=True)
 
 
 
@@ -390,11 +416,11 @@ converts candidate names to these integers.
 
 .. code:: ipython3
 
-    print('candidate dictionary:',ballot_graph._number_cands(cands = tuple(candidates)))
+    print("candidate dictionary:", ballot_graph._number_cands(cands=tuple(candidates)))
     print()
     
-    for node, data in ballot_graph.graph.nodes(data = True):
-        print("node",node)
+    for node, data in ballot_graph.graph.nodes(data=True):
+        print("node", node)
         print(data)
         print()
 
@@ -441,29 +467,30 @@ Now let’s generate a ballot graph from election data.
 
 .. code:: ipython3
 
-    candidates  = ["A", "B", "C"]
+    candidates = ["A", "B", "C"]
     
-    iac = bg.ImpartialAnonymousCulture(candidates = candidates)
+    iac = bg.ImpartialAnonymousCulture(candidates=candidates)
     
-    profile = iac.generate_profile(number_of_ballots= 1000)
+    profile = iac.generate_profile(number_of_ballots=1000)
     print(profile)
     
     ballot_graph = BallotGraph(profile)
-    ballot_graph.draw(labels= True,show_cast=False)
+    ballot_graph.draw(labels=True, show_cast=False)
     
-    for node, data in ballot_graph.graph.nodes(data = True):
-        print(node,data)
+    for node, data in ballot_graph.graph.nodes(data=True):
+        print(node, data)
 
 
 .. parsed-literal::
 
-      Ranking Scores Weight
-    (B, C, A)     ()    284
-    (C, B, A)     ()    229
-    (A, C, B)     ()    215
-    (C, A, B)     ()    135
-    (B, A, C)     ()    111
-    (A, B, C)     ()     26
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('A', 'B', 'C')
+    Candidates who received votes: ('C', 'B', 'A')
+    Total number of Ballot objects: 6
+    Total weight of Ballot objects: 1000.0
+    
 
 
 
@@ -473,14 +500,14 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': Fraction(26, 1), 'cast': True}
-    (1, 3, 2) {'weight': Fraction(215, 1), 'cast': True}
+    (1, 2, 3) {'weight': 404.0, 'cast': True}
+    (1, 3, 2) {'weight': 18.0, 'cast': True}
     (2,) {'weight': 0, 'cast': False}
-    (2, 3, 1) {'weight': Fraction(284, 1), 'cast': True}
-    (2, 1, 3) {'weight': Fraction(111, 1), 'cast': True}
+    (2, 3, 1) {'weight': 44.0, 'cast': True}
+    (2, 1, 3) {'weight': 277.0, 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': Fraction(135, 1), 'cast': True}
-    (3, 2, 1) {'weight': Fraction(229, 1), 'cast': True}
+    (3, 1, 2) {'weight': 194.0, 'cast': True}
+    (3, 2, 1) {'weight': 63.0, 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -513,7 +540,7 @@ the crowded graph.
     
     # the neighborhoods parameter takes a list of tuples (node, radius)
     # and displays the corresponding neighborhoods
-    ballot_graph.draw(neighborhoods=[((3,2,1,4), 1)])
+    ballot_graph.draw(neighborhoods=[((3, 2, 1, 4), 1)])
 
 
 
@@ -558,38 +585,31 @@ and place it in your working directory (the same folder as your code).
     # the first element is the profile itself, the second is the number of seats in the election
     # the third is a list of candidates, the fourth a dictionary mapping candidates to parties,
     # and the fourth the ward name
-    scottish_profile, seats, cand_list, cand_to_party, ward = load_scottish("eilean_siar_2012_ward3.csv")
+    scottish_profile, seats, cand_list, cand_to_party, ward = load_scottish(
+        "eilean_siar_2012_ward3.csv"
+    )
     
     
     # we don't want to alter any ballots so we'll turn off "fix_short"
-    ballot_graph = BallotGraph(scottish_profile, fix_short = False)
+    ballot_graph = BallotGraph(scottish_profile, fix_short=False)
     
     print(scottish_profile)
     
     
     # only show us the ballots cast
-    ballot_graph.draw(show_cast = False,labels = False, scale=3)
+    ballot_graph.draw(show_cast=False, labels=False, scale=3)
 
 
 .. parsed-literal::
 
-    PreferenceProfile too long, only showing 15 out of 57 rows.
-                                                                          Ranking Scores Weight
-                                                           (Catherine Macdonald,)     ()    155
-                (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson)     ()     74
-                                      (Catherine Macdonald, Philip Robert Mclean)     ()     63
-                                                (Catherine Macdonald, D J Macrae)     ()     52
-                                     (Philip Robert Mclean, David Cameron Wilson)     ()     48
-                                      (Philip Robert Mclean, Catherine Macdonald)     ()     36
-                (Philip Robert Mclean, David Cameron Wilson, Catherine Macdonald)     ()     31
-                          (Catherine Macdonald, D J Macrae, Philip Robert Mclean)     ()     29
-                          (Catherine Macdonald, Philip Robert Mclean, D J Macrae)     ()     27
-                                                          (Philip Robert Mclean,)     ()     24
-    (Catherine Macdonald, Philip Robert Mclean, David Cameron Wilson, D J Macrae)     ()     22
-                                                (D J Macrae, Catherine Macdonald)     ()     18
-    (Catherine Macdonald, D J Macrae, Philip Robert Mclean, David Cameron Wilson)     ()     17
-                (Philip Robert Mclean, Catherine Macdonald, David Cameron Wilson)     ()     17
-                          (Catherine Macdonald, D J Macrae, David Cameron Wilson)     ()     15
+    Profile contains rankings: True
+    Maximum ranking length: 4
+    Profile contains scores: False
+    Candidates: ('Catherine Macdonald', 'D J Macrae', 'Philip Robert Mclean', 'David Cameron Wilson')
+    Candidates who received votes: ('Catherine Macdonald', 'Philip Robert Mclean', 'D J Macrae', 'David Cameron Wilson')
+    Total number of Ballot objects: 57
+    Total weight of Ballot objects: 802.0
+    
     The candidates are labeled as follows.
     1 Catherine Macdonald
     2 D J Macrae
@@ -616,6 +636,7 @@ you want to display the node.
             return True
         return False
     
+    
     print("Displaying missing ballots:")
     ballot_graph.draw(labels=False, to_display=show_zero)
 
@@ -637,31 +658,31 @@ you want to display the node.
 Further Prompts
 ---------------
 
--  Generate profiles on three candidates in a manner that is reasonably
-   likely to result in a **Condorcet cycle**, in which there is no
-   Condorcet winner because the arrows go around in, well, a cycle.
--  Make MDS plots that include ``ImpartialCulture`` and
-   ``CambridgeSampler`` simulations in addition to PL and BT.
--  We have also implemented ``lp_dist`` as an alternative to
-   ``earth_mover_dist``. The :math:`L_p` distance is parameterized by
-   :math:`p\in (0, \infty]`. It defaults to :math:`p=1`. If we want
-   another value for :math:`p` we will need to use the ``partial``
-   function from the ``functools`` module. (If you want
-   :math:`p=\infty`, type ``p_value="inf"``.)
+- Generate profiles on three candidates in a manner that is reasonably
+  likely to result in a **Condorcet cycle**, in which there is no
+  Condorcet winner because the arrows go around in, well, a cycle.
+- Make MDS plots that include ``ImpartialCulture`` and
+  ``CambridgeSampler`` simulations in addition to PL and BT.
+- We have also implemented ``lp_dist`` as an alternative to
+  ``earth_mover_dist``. The :math:`L_p` distance is parameterized by
+  :math:`p\in (0, \infty]`. It defaults to :math:`p=1`. If we want
+  another value for :math:`p` we will need to use the ``partial``
+  function from the ``functools`` module. (If you want :math:`p=\infty`,
+  type ``p_value="inf"``.)
 
 .. code:: ipython3
 
     from functools import partial
     
-    # this code is what you would give to the distance parameter 
+    # this code is what you would give to the distance parameter
     # if you wanted something other than p=1
     distance = partial(lp_dist, p_value=47)
 
--  Generate a ballot graph from a ``PreferenceProfile`` so we can see
-   how these attributes change. Create a profile with 3 candidates using
-   the ``ImpartialCulture`` model. To create the ballot graph from a
-   profile, simply pass it in as ``BallotGraph(profile)``. Print your
-   profile, display the ballot graph, and print out the data of each
-   node. Confirm that these all match!
--  Write a custom display function for a ballot graph to display ballots
-   that have more than 30 votes.
+- Generate a ballot graph from a ``PreferenceProfile`` so we can see how
+  these attributes change. Create a profile with 3 candidates using the
+  ``ImpartialCulture`` model. To create the ballot graph from a profile,
+  simply pass it in as ``BallotGraph(profile)``. Print your profile,
+  display the ballot graph, and print out the data of each node. Confirm
+  that these all match!
+- Write a custom display function for a ballot graph to display ballots
+  that have more than 30 votes.
