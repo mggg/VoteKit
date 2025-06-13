@@ -391,7 +391,7 @@ def condense_profile(
             for i in condensed_profile.nonempty_altr_idxs
             if _is_equiv_to_condensed(
                 convert_row_to_ballot(
-                    profile.df.loc[i],
+                    profile.df.loc[i],  # type: ignore[arg-type]
                     candidates=profile.candidates,
                     max_ranking_length=profile.max_ranking_length,
                 )
@@ -522,7 +522,7 @@ def remove_and_condense(
             if _is_equiv_for_remove_and_condense(
                 removed,
                 convert_row_to_ballot(
-                    profile.df.loc[i],
+                    profile.df.loc[i],  # type: ignore[arg-type]
                     candidates=profile.candidates,
                     max_ranking_length=profile.max_ranking_length,
                 ),

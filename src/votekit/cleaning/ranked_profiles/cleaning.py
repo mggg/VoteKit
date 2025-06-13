@@ -391,7 +391,7 @@ def condense_ranked_profile(
         [
             i
             for i in condensed_profile.nonempty_altr_idxs
-            if _is_equiv_to_condensed(ranking_df.loc[i])
+            if _is_equiv_to_condensed(ranking_df.loc[i])  # type: ignore[arg-type]
         ]
     )
 
@@ -516,7 +516,7 @@ def remove_and_condense_ranked_profile(
             for i in cleaned_profile.nonempty_altr_idxs
             if _is_equiv_for_remove_and_condense(
                 removed,
-                ranking_df.loc[i],
+                ranking_df.loc[i],  # type: ignore[arg-type]
             )
         ]
     )
