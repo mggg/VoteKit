@@ -1,4 +1,4 @@
-from typing import Union, Sequence, Optional, Literal
+from typing import Sequence, Optional, Literal
 from itertools import permutations
 import math
 import random
@@ -80,7 +80,9 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 
         if len(first) > 1:
             raise ValueError(
-                f"Ballot {Ballot(ranking=row, weight=w)} has a tie for first."
+                f"Ballot "
+                f"{Ballot(ranking=tuple(c_set for c_set in row if c_set != tilde), weight=w)} "
+                "has a tie for first."
             )
 
         cand = next(iter(first))
@@ -261,7 +263,8 @@ def score_profile_from_rankings(
             position_size = len(s)
             if position_size == 0:
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=ranking.tolist(), weight=wt)} has an empty ranking position."
+                    f"Ballot {Ballot(ranking=ranking.tolist(), weight=wt)} has an empty ranking "
+                    "position."
                 )
             if s == tilde:
                 continue
