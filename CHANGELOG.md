@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.2.0] - 2025-06-13
 ## Added
-
+- created a `PreferenceProfile.df` attribute that is a pandas `DataFrame` representation of the profile. The df is in bijection with the profile, and using the df allows for great speed improvements throughout the codebase.
+- a new tutorial notebook replicating the Portland, OR election case study.
+- added a `to_pickle` and `from_pickle` method to `PreferenceProfile`.
 
 ## Changed 
 - separated the computation of the pairwise comparison dictionary from the pairwise comparison graph.
@@ -15,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - renamed `cleaning.deduplicate_profile` to `cleaning.remove_repeated_candidates`.
 - moved `remove_cand` from `utils` to `cleaning`, and removed the older function `remove_noncands`.
 - renamed `PreferenceProfile.condense_ballots()` to `PreferenceProfile.group_ballots()`.
+- removed `Ballot.id` attribute.
+- rewrote many cleaning functions and utilities to use the underlying dataframe of `PreferenceProfile` for speed improvements.
+- removed the use of `Fraction` and use floats instead for speed improvement.
 
 ## Fixed
 - `PreferenceProfile.group_ballots()` now also groups the `voter_set` attribute of ballots.
