@@ -27,31 +27,26 @@ def _iterate_and_clean_rows(
     """
     cleaned_df = profile.df.copy()
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    new_ranking_cols: list[tuple] = [
-        tuple(None for _ in range(profile.max_ranking_length))
-    ] * len(cleaned_df)
 
-    no_wt_altr_idxs: set[int] = set()
-    no_rank_no_score_altr_idxs: set[int] = set()
-    nonempty_altr_idxs: set[int] = set()
-    unaltr_idxs: set[int] = set()
+    orig_rows = [
+        tuple(vals)
+        for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
+    ]
+    cleaned_rows = [clean_ranking_func(row) for row in orig_rows]
 
-    for i, row in enumerate(cleaned_df[ranking_cols].itertuples(index=True)):
-        row_idx, row = row[0], row[1:]
-        clean_row = clean_ranking_func(row)
-        new_ranking_cols[i] = clean_row
+    cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
-        if clean_row == row:
-            unaltr_idxs.add(row_idx)
-            continue
+    tilde = frozenset({"~"})
+    idxs = cleaned_df.index
 
-        if all(x == frozenset({"~"}) for x in clean_row):
-            no_rank_no_score_altr_idxs.add(row_idx)
-
-        else:
-            nonempty_altr_idxs.add(row_idx)
-
-    cleaned_df[ranking_cols] = pd.DataFrame(new_ranking_cols, index=cleaned_df.index)
+    unaltr_idxs = {
+        idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c
+    }
+    no_rank_no_score_altr_idxs = {
+        idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)
+    }
+    nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_no_score_altr_idxs
+    no_wt_altr_idxs = set()
 
     return (
         cleaned_df,
@@ -206,8 +201,8 @@ def remove_repeat_cands_ranked_profile(
 
 def remove_cand_from_ranking_row(
     removed: Union[str, list],
-    ranking_tup: tuple,
-) -> tuple:
+    ranking_tup: tuple[frozenset, ...],
+) -> tuple[frozenset, ...]:
     """
     Removes specified candidate(s) from ranking. Does not condense the resulting ranking.
 
@@ -221,11 +216,15 @@ def remove_cand_from_ranking_row(
     if isinstance(removed, str):
         removed = [removed]
 
-    new_ranking = tuple(
-        frozenset(c for c in cand_set if c not in removed) for cand_set in ranking_tup
-    )
+    removed_set = set(removed)
 
-    return new_ranking
+    out = []
+    for s in ranking_tup:
+        if s.isdisjoint(removed_set):
+            out.append(s)
+        else:
+            out.append(frozenset(s - removed_set))
+    return tuple(out)
 
 
 def remove_cand_ranked_profile(

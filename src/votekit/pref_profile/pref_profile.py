@@ -1052,21 +1052,22 @@ class PreferenceProfile:
         Returns:
             tuple[str]: Candidates cast.
         """
-        pos_df = df[df["Weight"] > 0]
+
+        mask = df["Weight"] > 0
 
         candidates_cast: set[str] = set()
+
         if self.contains_scores:
-            candidates_cast = candidates_cast.union(
-                {c for c in self.candidates if pos_df[c].sum() > 0}
-            )
+            positive = df.loc[mask, self.candidates].gt(0).any()
+            candidates_cast |= set(positive[positive].index)
 
         if self.contains_rankings:
-            ranking_cols = [c for c in df.columns if "Ranking_" in c]
-            candidates_cast = candidates_cast.union(
-                *pos_df[ranking_cols].to_numpy().flatten()
-            )
+            ranking_cols = [c for c in df.columns if c.startswith("Ranking_")]
+            sets = df.loc[mask, ranking_cols].to_numpy().ravel()
+            candidates_cast |= set().union(*sets)
 
-        return tuple(candidates_cast - {"~"})
+        candidates_cast.discard("~")
+        return tuple(candidates_cast)
 
     def _init_from_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
@@ -1133,8 +1134,10 @@ class PreferenceProfile:
             float: total ballot weight.
         """
         total_weight = 0
-        if not self.df.equals(pd.DataFrame()):
+        try:
             total_weight = self.df["Weight"].sum()
+        except KeyError:
+            pass
         return total_weight
 
     def _validate_candidates(self) -> None:

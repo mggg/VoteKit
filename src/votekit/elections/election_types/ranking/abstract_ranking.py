@@ -3,6 +3,7 @@ from typing import Union, Optional, Callable
 from ....models import Election
 from ...election_state import ElectionState
 from abc import abstractmethod
+import numpy as np
 
 
 class RankingElection(Election):
@@ -47,9 +48,20 @@ class RankingElection(Election):
         Args:
             profile (PreferenceProfile): Profile of ballots.
         """
-        for ballot in profile.ballots:
-            if ballot.ranking is None:
-                raise TypeError(f"Ballot {ballot} has no ranking.")
+        ranking_cols = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
+        try:
+            np_arr = profile.df[ranking_cols].to_numpy()
+            tilde = frozenset("~")
+            for row in np_arr:
+                if (row == tilde).all():
+                    # TODO: Put a better error message here
+                    raise RuntimeError
+        except (KeyError, RuntimeError):
+            for ballot in profile.ballots:
+                if ballot.ranking is None:
+                    raise TypeError(f"Ballot {ballot} has no ranking.")
 
     @abstractmethod
     def _run_step(

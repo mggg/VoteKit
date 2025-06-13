@@ -63,18 +63,29 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
             A dictionary whose keys are candidates and values are lists of ballots that
             have that candidate first.
     """
+    if not profile.contains_rankings:
+        raise TypeError("Ballots must have rankings.")
+
+    df = profile.df
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+
+    rank_arr = df[ranking_cols].to_numpy()
+    weights = df["Weight"].to_numpy()
+
     cand_dict: dict[str, list[Ballot]] = {c: [] for c in profile.candidates}
+    tilde = frozenset({"~"})
 
-    for b in profile.ballots:
-        if b.ranking is None:
-            raise TypeError("Ballots must have rankings.")
-        else:
-            # find first place candidate, ensure there is only one
-            first_cand = list(b.ranking[0])
-            if len(first_cand) > 1:
-                raise ValueError(f"Ballot {b} has a tie for first.")
+    for row, w in zip(rank_arr, weights):
+        first = row[0]
 
-            cand_dict[first_cand[0]].append(b)
+        if len(first) > 1:
+            raise ValueError(f"Ballot {row!r} has a tie for first.")
+
+        cand = next(iter(first))
+
+        clean_ranking = tuple(s for s in row if s != tilde)
+
+        cand_dict[cand].append(Ballot(ranking=clean_ranking, weight=w))
 
     return cand_dict
 
@@ -222,35 +233,49 @@ def score_profile_from_rankings(
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
     scores = {c: 0 for c in profile.candidates_cast}
-    for ballot in profile.ballots:
-        current_ind = 0
-        if ballot.ranking is None:
-            raise TypeError("Ballots must have rankings.")
-        else:
-            for s in ballot.ranking:
-                position_size = len(s)
-                if len(s) == 0:
-                    raise TypeError(f"Ballot {ballot} has an empty ranking position.")
-                local_score_vector = score_vector[
-                    current_ind : current_ind + position_size
-                ]
 
-                if tie_convention == "high":
-                    allocation = max(local_score_vector)
-                elif tie_convention == "low":
-                    allocation = min(local_score_vector)
-                elif tie_convention == "average":
-                    allocation = sum(local_score_vector) / position_size
-                else:
-                    raise ValueError(
-                        (
-                            "tie_convention must be one of 'high', 'low', 'average', "
-                            f"not {tie_convention}"
-                        )
-                    )
-                for c in s:
-                    scores[c] += allocation * ballot.weight
-                current_ind += position_size
+    try:
+        ranking_cols = [f"Ranking_{i}" for i in range(1, max_length + 1)]
+        ranking_mat = profile.df[ranking_cols].to_numpy()
+    except KeyError as e:
+        raise TypeError("Ballots must have rankings.") from e
+
+    weights = profile.df["Weight"].to_numpy(dtype=float)
+
+    if tie_convention not in ["high", "average", "low"]:
+        raise ValueError(
+            (
+                "tie_convention must be one of 'high', 'low', 'average', "
+                f"not {tie_convention}"
+            )
+        )
+
+    tilde = frozenset({"~"})
+    for idx in range(len(ranking_mat)):
+        current_ind = 0
+        ranking = ranking_mat[idx]
+        wt = weights[idx]
+        for s in ranking:
+            position_size = len(s)
+            if position_size == 0:
+                raise TypeError(
+                    f"Ballot {Ballot(ranking=ranking.tolist(), weight=wt)} has an empty ranking position."
+                )
+            if s == tilde:
+                continue
+
+            local_score_vector = score_vector[current_ind : current_ind + position_size]
+
+            if tie_convention == "high":
+                allocation = max(local_score_vector)
+            elif tie_convention == "low":
+                allocation = min(local_score_vector)
+            else:
+                allocation = sum(local_score_vector) / position_size
+
+            for c in s:
+                scores[c] += allocation * wt
+            current_ind += position_size
 
     return scores
 

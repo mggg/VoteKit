@@ -77,14 +77,23 @@ class STV(RankingElection):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        ranking_rows = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
+        try:
+            np_arr = profile.df[ranking_rows].to_numpy()
+            weight_col = profile.df["Weight"]
+        except KeyError:
+            raise TypeError("Ballots must have rankings.")
 
-        for ballot in profile.ballots:
-            if ballot.ranking is None:
+        tilde = frozenset({"~"})
+        for idx, row in enumerate(np_arr):
+            if any(len(s) > 1 for s in row):
+                raise TypeError(
+                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} contains a tied ranking."
+                )
+            if (row == tilde).all():
                 raise TypeError("Ballots must have rankings.")
-            if len(ballot.ranking) == 0:
-                raise TypeError("All ballots must have rankings.")
-            elif any(len(s) > 1 for s in ballot.ranking):
-                raise TypeError(f"Ballot {ballot} contains a tied ranking.")
 
     def get_threshold(self, total_ballot_wt: float) -> int:
         """
