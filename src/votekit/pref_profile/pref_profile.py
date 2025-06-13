@@ -1059,6 +1059,8 @@ class PreferenceProfile:
 
         if self.contains_scores:
             positive = df.loc[mask, self.candidates].gt(0).any()
+            # .any() applies along the columns, so we get a boolean series where the
+            # value is True the candidate has any positive score the column
             candidates_cast |= set(positive[positive].index)
 
         if self.contains_rankings:
