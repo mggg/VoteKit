@@ -650,10 +650,6 @@ class PreferenceProfile:
         ProfileError: candidates must be unique.
         ProfileError: candidates must not have names matching ranking columns.
 
-    Warns:
-        UserWarning: max_ranking_length is set but contains_rankings is False.
-            Sets max_ranking_length to 0.
-
     """
 
     _is_frozen: bool = False
@@ -1101,20 +1097,8 @@ class PreferenceProfile:
         Returns:
             int: Max ranking length.
 
-        Warns:
-            UserWarning: If a max_ranking_length is provided but not rankings are in the
-                profile, we set the max_ranking_length to 0.
         """
-        if self.max_ranking_length > 0 and self.contains_rankings is False:
-            warnings.warn(
-                "Profile does not contain rankings but "
-                f"max_ranking_length={self.max_ranking_length}. Setting max_ranking_length"
-                " to 0."
-            )
-
-            return 0
-
-        elif self.max_ranking_length == 0 and self.contains_rankings is True:
+        if self.max_ranking_length == 0 and self.contains_rankings is True:
             return len([c for c in self.df.columns if "Ranking_" in c])
 
         return self.max_ranking_length

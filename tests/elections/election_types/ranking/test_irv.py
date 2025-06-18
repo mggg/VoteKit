@@ -85,7 +85,7 @@ profile_list = [
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(max_ranking_length=3),
+    PreferenceProfile(),
 ]
 
 states = [

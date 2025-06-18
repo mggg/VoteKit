@@ -47,7 +47,15 @@ profile_with_missing = PreferenceProfile(
 
 
 def test_ballots_by_first_cand():
-    cand_dict = ballots_by_first_cand(profile_no_ties)
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"A"}, {"B"}], weight=1),
+            Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
+            Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+            Ballot(scores={"C": 1}),
+        ]
+    )
+    cand_dict = ballots_by_first_cand(profile)
     partition = {
         "A": [
             Ballot(ranking=[{"A"}, {"B"}], weight=1),

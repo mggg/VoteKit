@@ -1,6 +1,5 @@
 from votekit.ballot import Ballot
 from votekit.pref_profile import PreferenceProfile
-import pytest
 
 
 def test_ranking_length_default():
@@ -14,29 +13,6 @@ def test_ranking_length_default():
     )
 
     assert profile.max_ranking_length == 3
-
-
-def test_ranking_length_warning():
-
-    with pytest.warns(
-        UserWarning,
-        match=(
-            "Profile does not contain rankings but "
-            "max_ranking_length=3. Setting max_ranking_length"
-            " to 0."
-        ),
-    ):
-        profile_scores = PreferenceProfile(
-            ballots=(
-                Ballot(
-                    scores={"A": 2, "B": 4, "D": 1},
-                ),
-            ),
-            candidates=["A", "B", "C", "D", "E"],
-            max_ranking_length=3,
-        )
-
-    assert profile_scores.max_ranking_length == 0
 
 
 def test_ranking_length_no_default():
