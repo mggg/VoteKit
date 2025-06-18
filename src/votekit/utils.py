@@ -87,6 +87,9 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 
         cand = next(iter(first))
 
+        if cand == "~":
+            continue
+
         clean_ranking = tuple(s for s in row if s != tilde)
 
         cand_dict[cand].append(Ballot(ranking=clean_ranking, weight=w))
