@@ -132,7 +132,7 @@ def _add_text_to_heatmap(
 
             # Normalize the cell value between 0 and 1, then get the RGBA color
             norm_val = quadmesh.norm(val)
-            r, g, b, _ = quadmesh.cmap(norm_val)
+            r, g, b, _ = quadmesh.cmap(norm_val)  # type: ignore[misc]
 
             # Simple brightness measure: average of R, G, B
             brightness = (r + g + b) / 3
