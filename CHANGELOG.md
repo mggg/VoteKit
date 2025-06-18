@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2025-06-17
+## Added
+
+## Changed 
+- removed the `PreferenceProfile` warning raised when `max_ranking_length>0` but no rankings provided.
+We have decided an empty profile can still have positive max ranking length.
+
+## Fixed
+- fixed an error raised by an empty ranking of `~` symbols being passed to `utils.ballots_by_first_cand` .
+
 ## [3.2.0] - 2025-06-13
 ## Added
 - created a `PreferenceProfile.df` attribute that is a pandas `DataFrame` representation of the profile. The df is in bijection with the profile, and using the df allows for great speed improvements throughout the codebase.
