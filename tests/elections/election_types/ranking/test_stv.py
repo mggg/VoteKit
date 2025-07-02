@@ -344,3 +344,16 @@ def test_errors():
 
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         STV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+
+
+def test_stv_cands_cast():
+    profile = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"A"},), weight=4),
+            Ballot(ranking=({"B"},), weight=2),
+            Ballot(ranking=({"C"},), weight=5),
+        ),
+        candidates=["A", "B", "C", "D", "E"],
+    )
+
+    assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
