@@ -184,7 +184,7 @@ class STV(RankingElection):
             if b.ranking
         )
 
-        remaining_cands = set(profile.candidates).difference(
+        remaining_cands = set(profile.candidates_cast).difference(
             [c for s in elected for c in s]
         )
 
@@ -257,7 +257,7 @@ class STV(RankingElection):
             if b.ranking
         )
 
-        remaining_cands = set(profile.candidates).difference(
+        remaining_cands = set(profile.candidates_cast).difference(
             [c for s in elected for c in s]
         )
         new_profile = PreferenceProfile(
@@ -311,7 +311,7 @@ class STV(RankingElection):
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
 
-        elif len(profile.candidates) == self.m - len(
+        elif len(profile.candidates_cast) == self.m - len(
             [c for s in self.get_elected() for c in s]
         ):
             elected = prev_state.remaining
