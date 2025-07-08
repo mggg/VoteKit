@@ -430,6 +430,39 @@ class ImpartialCulture(BallotSimplex):
     def __init__(self, **data):
         super().__init__(alpha=float("inf"), **data)
 
+    
+
+    def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
+        '''
+            Generates a preference profile in such a way that does not
+            hold then entire n! possible ballots in memory.
+
+            See BallotSimplex.generate_profile for signature
+        '''
+
+        num_cands = len(self.candidates)
+        perm_set = it.permutations(self.candidates, num_cands)
+        indices_chosen = np.random.choice(a=math.factorial(num_cands), size=number_of_ballots, replace=False)
+        sorted_indices = np.sort(indices_chosen)
+        
+        ballots = np.zeros((number_of_ballots, num_cands), dtype=type(self.candidates[0])) 
+        # NOTE: assuming each ballot is complete here
+        # NOTE: assuming that self.candidates is populated and each
+            # candidate has the same datatype
+
+        # lazily evaluate the permutation generator and grab each of
+        # the desired indices
+        next_avail_index = 0
+        for i in range(sorted_indices[-1]+1): # we only need to grab max(indices) elements from it.permutations
+            if i == sorted_indices[next_avail_index]:
+                ballots[next_avail_index] = np.array(next(perm_set))
+                next_avail_index += 1 # is there another way of doing this which does not rely on me correctly incrementing this counter?
+            else:
+                next(perm_set)
+        np.random.shuffle(ballots) # is it worth reorganizing ballots into the original sampled order?
+
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
