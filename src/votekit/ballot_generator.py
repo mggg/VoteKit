@@ -14,6 +14,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.metrics import euclidean_dist
+from .graphs import BallotGraph
 
 
 def sample_cohesion_ballot_types(
@@ -443,6 +444,51 @@ class ImpartialCulture(BallotSimplex):
         ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
+
+    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+
+        '''
+        BURN_IN_TIME = 100
+        # NOTE: nodes in the ballot graph implementation are tuples
+            # (1,2,..n) where n is the number of given candidates
+        ballot_graph = BallotGraph(self.candidates, allow_partial=False)
+        next_node = list(range(1, len(self.candidates)+1)) 
+        random.shuffle(next_node)
+        next_node = tuple(next_node)
+
+        # burn in walk TODO: is this needed?
+        for i in range(BURN_IN_TIME): # NOTE: do we know what the mixing time should be for this markov chain?
+            neighs = list(ballot_graph.graph.neighbors(next_node))
+            next_node = random.choice(neighs)
+        
+        # perform simple random walk and record the steps
+        ballots = []
+        cands_as_nparray = np.array(self.candidates) # we use np array simply because it allows us to index via a list
+        for _ in range(number_of_ballots):
+            neighs = list(ballot_graph.graph.neighbors(next_node))
+            next_node = random.choice(neighs)
+            node_as_cands_idx = [i-1 for i in next_node]
+            ballots.append(cands_as_nparray[node_as_cands_idx]) 
+        
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+
+    def generate_profile_MCMC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            Simple random walk on the neighbour-swap ballot graph. The
+                BallotGraph class generates and saves all nodes n!
+                nodes. And so here we perform a simple random walk
+                where we only compute and save the immediate
+                neighbours.
+        '''
+
+        # initialize current ballot at some starting node
+        # for each i in {num of ballots}
+        # compute all n-1 swaps for current ballot
+        # uniformally choose one of the n-1 swaps to step to next
+        # record the destination of next step
+        pass
 
     def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
         '''
