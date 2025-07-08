@@ -431,6 +431,10 @@ class ImpartialCulture(BallotSimplex):
         super().__init__(alpha=float("inf"), **data)
 
     
+    def generate_profile_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        rng = np.random.default_rng()
+        ballots = [rng.permutation(self.candidates) for i in range(number_of_ballots)]
+        return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
         '''
