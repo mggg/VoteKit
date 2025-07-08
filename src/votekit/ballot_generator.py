@@ -474,6 +474,7 @@ class ImpartialCulture(BallotSimplex):
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
 
+    # TODO: NOT DONE
     def generate_profile_MCMC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
         '''
             Simple random walk on the neighbour-swap ballot graph. The
@@ -483,12 +484,49 @@ class ImpartialCulture(BallotSimplex):
                 neighbours.
         '''
 
+        def compute_neighs(node):
+            '''
+            Helper function to compute the adjacent-only swaps
+                and thus giving all the ballot-graph neighbours of
+                `node' 
+            returns: list of lists, each element being an
+                adjacent-only swap of node
+            '''
+            # TODO: I think there's a bug in this method
+            # this jank-ass formula works for every i except i=0, and
+            # so i will handle that case seperately
+            partial_neighs = [node[:i] + node[i+1:i-1:-1] + node[i+2:] for i in range(len(node)-1)]
+            partial_neighs.append(node[1::-1] + node[2:])
+            return partial_neighs
+
+
+        # TODO: NOTE This should be tested, I wrote this in a pure
+        # haze
+
         # initialize current ballot at some starting node
         # for each i in {num of ballots}
         # compute all n-1 swaps for current ballot
         # uniformally choose one of the n-1 swaps to step to next
         # record the destination of next step
-        pass
+        num_cands = len(self.candidates)
+        ballot_ind = np.zeros((number_of_ballots, num_cands))
+        # initialize starting node
+        next_node = list(range(num_cands))
+        random.shuffle(next_node)
+        for i in range(number_of_ballots):
+            print("debug")
+            print("current_node", next_node)
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+            print("next_node", next_node)
+            ballot_ind[i] = np.array(next_node)
+
+        cands_as_nparray = np.array(self.candidates)
+        ballots = [cands_as_nparray[i] for i in ballot_ind]
+        return None 
+        #return self.ballot_pool_to_profile(ballots, self.candidates) 
+
+
 
     def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
         '''
