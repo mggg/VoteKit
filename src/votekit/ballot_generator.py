@@ -431,10 +431,18 @@ class ImpartialCulture(BallotSimplex):
         super().__init__(alpha=float("inf"), **data)
 
     
-    def generate_profile_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+    def generate_profile_IC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            Generate a preference profile for IC in a space and time
+            efficient way.
+
+            See BallotSimplex.generate_profile for method signature
+                description
+        '''
         rng = np.random.default_rng()
-        ballots = [rng.permutation(self.candidates) for i in range(number_of_ballots)]
+        ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
+
 
     def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
         '''
@@ -466,6 +474,7 @@ class ImpartialCulture(BallotSimplex):
         np.random.shuffle(ballots) # is it worth reorganizing ballots into the original sampled order?
 
         return self.ballot_pool_to_profile(ballots, self.candidates)
+
 
 
 class ImpartialAnonymousCulture(BallotSimplex):
