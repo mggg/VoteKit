@@ -493,9 +493,9 @@ class ImpartialCulture(BallotSimplex):
             '''
             # this jank-ass formula works for every i except i=0, and
             # so i will handle that case seperately
-            partial_neighs = [node[:i] + node[i+1:i-1:-1] + node[i+2:] for i in range(1, len(node)-1)]
-            partial_neighs.append(node[1::-1] + node[2:])
-            return partial_neighs
+            neighs = [node[:i] + node[i+1:i-1:-1] + node[i+2:] for i in range(1, len(node)-1)]
+            neighs.append(node[1::-1] + node[2:])
+            return neighs
 
 
         # initialize current ballot at some starting node
