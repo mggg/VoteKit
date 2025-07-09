@@ -447,7 +447,10 @@ class ImpartialCulture(BallotSimplex):
 
     def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
         '''
-
+            MCMC which performs a simple random walk along the built
+            in votekit ballot graph class.
+            Has overhead issues, because said class stores all n!
+            permutations as the nodes in a networkx instance.
         '''
         BURN_IN_TIME = 100
         # NOTE: nodes in the ballot graph implementation are tuples
@@ -457,14 +460,15 @@ class ImpartialCulture(BallotSimplex):
         random.shuffle(next_node)
         next_node = tuple(next_node)
 
-        # burn in walk TODO: is this needed?
+        # burn in walk TODO: is this needed? If so make this an
+        # argument
         for i in range(BURN_IN_TIME): # NOTE: do we know what the mixing time should be for this markov chain?
             neighs = list(ballot_graph.graph.neighbors(next_node))
             next_node = random.choice(neighs)
         
         # perform simple random walk and record the steps
         ballots = []
-        cands_as_nparray = np.array(self.candidates) # we use np array simply because it allows us to index via a list
+        cands_as_nparray = np.array(self.candidates)
         for _ in range(number_of_ballots):
             neighs = list(ballot_graph.graph.neighbors(next_node))
             next_node = random.choice(neighs)
