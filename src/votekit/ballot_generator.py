@@ -1001,7 +1001,7 @@ class name_BradleyTerry(BallotGenerator):
 
         # precompute all the swap indices
         swap_indices = [
-            tuple(random.sample(range(num_candidates), 2))
+            tuple(sorted(random.sample(range(num_candidates), 2)))
                 for _ in range(num_ballots+BURN_IN_TIME)
         ]
 
@@ -1031,8 +1031,8 @@ class name_BradleyTerry(BallotGenerator):
             j1, j2 = swap_indices[i]
             j1_rank = j1 + 1
             j2_rank = j2 + 1
-            if j2_rank <= j1_rank or :
-                raise Exception("invalid ranks found")
+            if j2_rank <= j1_rank:
+                raise Exception("MCMC on Shortcut: invalid ranks found")
 
             acceptance_prob = min(
                 1,
@@ -1151,7 +1151,7 @@ class name_BradleyTerry(BallotGenerator):
         return pp
 
     def generate_profile_MCMC(
-        self, number_of_ballots: int, verbose=False, by_bloc: bool = False
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
@@ -1192,13 +1192,22 @@ class name_BradleyTerry(BallotGenerator):
             seed_ballot = Ballot(
                 ranking=tuple([frozenset({c}) for c in non_zero_cands])
             )
-            pp = self._BT_mcmc(
-                num_ballots,
-                pref_interval_dict,
-                seed_ballot,
-                zero_cands=zero_cands,
-                verbose=verbose,
-            )
+            if on_shortcut_graph:
+                pp = self._BT_mcmc_shortcut(
+                    num_ballots,
+                    pref_interval_dict,
+                    seed_ballot,
+                    zero_cands=zero_cands,
+                    verbose=verbose
+                )
+            else:
+                pp = self._BT_mcmc(
+                    num_ballots,
+                    pref_interval_dict,
+                    seed_ballot,
+                    zero_cands=zero_cands,
+                    verbose=verbose,
+                )
 
             pp_by_bloc[bloc] = pp
 
