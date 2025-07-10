@@ -965,6 +965,16 @@ class name_BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+    
+    def _BT_mcmc_helper(
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False,
+        swap_indices, acceptance
+    ):
+        """
+            Helper function which runs BT MCMC on 
+        """
+        pass
+
 
     def _BT_mcmc_shortcut(
         self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
