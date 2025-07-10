@@ -507,11 +507,18 @@ class ImpartialCulture(BallotSimplex):
         # compute all n-1 swaps for current ballot
         # uniformally choose one of the n-1 swaps to step to next
         # record the destination of next step
+        BURN_IN_TIME = 5000 # TODO: change this to a parameter 
         num_cands = len(self.candidates)
         ballot_ind = np.zeros((number_of_ballots, num_cands), dtype=np.int8)
         # initialize starting node
         next_node = list(range(num_cands))
         random.shuffle(next_node)
+        # burn in loop
+        for i in range(BURN_IN_TIME):
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+
+        # writing loop
         for i in range(number_of_ballots):
             neighs = compute_neighs(next_node)
             next_node = random.choice(neighs)
@@ -959,6 +966,106 @@ class name_BradleyTerry(BallotGenerator):
         else:
             return pp
 
+    def _BT_mcmc_shortcut(
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
+    ):
+        """
+            Sample from BT using MCMC on the shortcut ballot graph
+
+
+            num_ballots (int): the number of ballots to sample
+            pref_interval (dict): the preference interval to determine BT distribution
+            sub_sample_length (int): how many attempts at swaps to make before saving ballot
+            seed_ballot: Ballot, the seed ballot for the Markov chain
+        """
+        # NOTE: Most of this has been copied from `_BT_Mcmc`
+        # TODO: Abstract the overlapping steps into another helper
+        # function, and just pass the indices / transition probability
+        # function
+
+        # check that seed ballot has no ties
+        for s in seed_ballot.ranking:
+            if len(s) > 1:
+                raise ValueError("Seed ballot contains ties")
+
+        ballots = [-1] * num_ballots
+        accept = 0
+        current_ranking = list(seed_ballot.ranking)
+        num_candidates = len(current_ranking)
+
+        # presample swap indices
+        BURN_IN_TIME = 0 #int(10e5)
+
+        if verbose:
+            print(f"Burn in time: {BURN_IN_TIME}")
+
+        # precompute all the swap indices
+        swap_indices = [
+            tuple(random.sample(range(num_candidates), 2))
+                for _ in range(num_ballots+BURN_IN_TIME)
+        ]
+
+        '''
+        for i in range(BURN_IN_TIME):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
+            
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+            '''
+
+        # generate MCMC sample
+        for i in range(num_ballots):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            j1_rank = j1 + 1
+            j2_rank = j2 + 1
+            if j2_rank <= j1_rank or :
+                raise Exception("invalid ranks found")
+
+            acceptance_prob = min(
+                1,
+                (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
+                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+
+            if len(zero_cands) > 0:
+                ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
+            else:
+                ballots[i] = Ballot(ranking=current_ranking)
+
+        if verbose:
+            print(
+                f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+BURN_IN_TIME):.2}"
+            )
+
+        if -1 in ballots:
+            raise ValueError("Some element of ballots list is not a ballot.")
+
+        pp = PreferenceProfile(ballots=ballots)
+        pp = pp.group_ballots()
+        return pp
+
+
     def _BT_mcmc(
         self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
     ):
@@ -983,10 +1090,30 @@ class name_BradleyTerry(BallotGenerator):
         num_candidates = len(current_ranking)
 
         # presample swap indices
+        BURN_IN_TIME = 0 #int(10e5)
+        if verbose:
+            print(f"Burn in time: {BURN_IN_TIME}")
         swap_indices = [
             (j1, j1 + 1)
-            for j1 in random.choices(range(num_candidates - 1), k=num_ballots)
+            for j1 in random.choices(range(num_candidates - 1), k=num_ballots+BURN_IN_TIME)
         ]
+
+        for i in range(BURN_IN_TIME):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
 
         # generate MCMC sample
         for i in range(num_ballots):
@@ -1013,7 +1140,7 @@ class name_BradleyTerry(BallotGenerator):
 
         if verbose:
             print(
-                f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
+                f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+BURN_IN_TIME):.2}"
             )
 
         if -1 in ballots:
@@ -1051,6 +1178,7 @@ class name_BradleyTerry(BallotGenerator):
                 apportion.compute("huntington", bloc_props, number_of_ballots),
             )
         )
+        print(f"{ballots_per_block=}")
 
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
