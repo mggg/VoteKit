@@ -1068,7 +1068,7 @@ class name_BradleyTerry(BallotGenerator):
 
 
     def _BT_mcmc(
-        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
     ):
         """
         Sample from BT distribution for a given preference interval using MCMC.
@@ -1091,7 +1091,7 @@ class name_BradleyTerry(BallotGenerator):
         num_candidates = len(current_ranking)
 
         # presample swap indices
-        BURN_IN_TIME = 0 #int(10e5)
+        BURN_IN_TIME = BURN_IN_TIME #int(10e5)
         if verbose:
             print(f"Burn in time: {BURN_IN_TIME}")
         swap_indices = [
@@ -1152,7 +1152,7 @@ class name_BradleyTerry(BallotGenerator):
         return pp
 
     def generate_profile_MCMC(
-        self, number_of_ballots: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False, BURN_IN_TIME = 0
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
@@ -1207,6 +1207,7 @@ class name_BradleyTerry(BallotGenerator):
                     seed_ballot,
                     zero_cands=zero_cands,
                     verbose=verbose,
+                    BURN_IN_TIME=BURN_IN_TIME
                 )
 
             pp_by_bloc[bloc] = pp
