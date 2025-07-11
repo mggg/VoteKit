@@ -966,15 +966,6 @@ class name_BradleyTerry(BallotGenerator):
         else:
             return pp
     
-    def _BT_mcmc_helper(
-        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False,
-        swap_indices, acceptance
-    ):
-        """
-            Helper function which runs BT MCMC on 
-        """
-        pass
-
 
     def _BT_mcmc_shortcut(
         self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
@@ -1188,7 +1179,6 @@ class name_BradleyTerry(BallotGenerator):
                 apportion.compute("huntington", bloc_props, number_of_ballots),
             )
         )
-        print(f"{ballots_per_block=}")
 
         pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
 
