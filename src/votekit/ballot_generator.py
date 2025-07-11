@@ -968,7 +968,7 @@ class name_BradleyTerry(BallotGenerator):
     
 
     def _BT_mcmc_shortcut(
-        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
     ):
         """
             Sample from BT using MCMC on the shortcut ballot graph
@@ -994,9 +994,7 @@ class name_BradleyTerry(BallotGenerator):
         current_ranking = list(seed_ballot.ranking)
         num_candidates = len(current_ranking)
 
-        # presample swap indices
-        BURN_IN_TIME = 0 #int(10e5)
-
+        BURN_IN_TIME = BURN_IN_TIME
         if verbose:
             print(f"Burn in time: {BURN_IN_TIME}")
 
@@ -1006,16 +1004,19 @@ class name_BradleyTerry(BallotGenerator):
                 for _ in range(num_ballots+BURN_IN_TIME)
         ]
 
-        '''
         for i in range(BURN_IN_TIME):
             # choose adjacent pair to propose a swap
             j1, j2 = swap_indices[i]
+            j1_rank = j1 + 1
+            j2_rank = j2 + 1
+            if j2_rank <= j1_rank:
+                raise Exception("MCMC on Shortcut: invalid ranks found")
+
             acceptance_prob = min(
                 1,
-                pref_interval[next(iter(current_ranking[j2]))]
-                / pref_interval[next(iter(current_ranking[j1]))],
+                (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
+                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
             )
-            
 
             # if you accept, make the swap
             if random.random() < acceptance_prob:
@@ -1024,7 +1025,6 @@ class name_BradleyTerry(BallotGenerator):
                     current_ranking[j1],
                 )
                 accept += 1
-            '''
 
         # generate MCMC sample
         for i in range(num_ballots):
