@@ -1198,7 +1198,8 @@ class name_BradleyTerry(BallotGenerator):
                     pref_interval_dict,
                     seed_ballot,
                     zero_cands=zero_cands,
-                    verbose=verbose
+                    verbose=verbose,
+                    BURN_IN_TIME=BURN_IN_TIME
                 )
             else:
                 pp = self._BT_mcmc(
