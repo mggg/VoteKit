@@ -1147,8 +1147,6 @@ class name_BradleyTerry(BallotGenerator):
         if -1 in ballots:
             raise ValueError("Some element of ballots list is not a ballot.")
 
-        print(len(ballots))
-
         pp = PreferenceProfile(ballots=ballots)
         pp = pp.group_ballots()
         return pp
