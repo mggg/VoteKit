@@ -14,6 +14,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.metrics import euclidean_dist
+from .graphs import BallotGraph
 
 
 def sample_cohesion_ballot_types(
@@ -430,6 +431,136 @@ class ImpartialCulture(BallotSimplex):
     def __init__(self, **data):
         super().__init__(alpha=float("inf"), **data)
 
+    
+    def generate_profile_IC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            Generate a preference profile for IC in a space and time
+            efficient way.
+
+            See BallotSimplex.generate_profile for method signature
+                description
+        '''
+        rng = np.random.default_rng()
+        ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+
+    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            MCMC which performs a simple random walk along the built
+            in votekit ballot graph class.
+            Has overhead issues, because said class stores all n!
+            permutations as the nodes in a networkx instance.
+        '''
+        BURN_IN_TIME = 100
+        # NOTE: nodes in the ballot graph implementation are tuples
+            # (1,2,..n) where n is the number of given candidates
+        ballot_graph = BallotGraph(self.candidates, allow_partial=False)
+        next_node = list(range(1, len(self.candidates)+1)) 
+        random.shuffle(next_node)
+        next_node = tuple(next_node)
+
+        # burn in walk TODO: is this needed? If so make this an
+        # argument
+        for i in range(BURN_IN_TIME): # NOTE: do we know what the mixing time should be for this markov chain?
+            neighs = list(ballot_graph.graph.neighbors(next_node))
+            next_node = random.choice(neighs)
+        
+        # perform simple random walk and record the steps
+        ballots = []
+        cands_as_nparray = np.array(self.candidates)
+        for _ in range(number_of_ballots):
+            neighs = list(ballot_graph.graph.neighbors(next_node))
+            next_node = random.choice(neighs)
+            node_as_cands_idx = [i-1 for i in next_node]
+            ballots.append(cands_as_nparray[node_as_cands_idx]) 
+        
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+
+    def generate_profile_MCMC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            Simple random walk on the neighbour-swap ballot graph. The
+                BallotGraph class generates and saves all nodes n!
+                nodes. And so here we perform a simple random walk
+                where we only compute and save the immediate
+                neighbours.
+        '''
+
+        def compute_neighs(node):
+            '''
+            Helper function to compute the adjacent-only swaps
+                and thus giving all the ballot-graph neighbours of
+                `node' 
+            returns: list of lists, each element being an
+                adjacent-only swap of node
+            '''
+            # this jank-ass formula works for every i except i=0, and
+            # so i will handle that case seperately
+            neighs = [node[:i] + node[i+1:i-1:-1] + node[i+2:] for i in range(1, len(node)-1)]
+            neighs.append(node[1::-1] + node[2:])
+            return neighs
+
+
+        # initialize current ballot at some starting node
+        # for each i in {num of ballots}
+        # compute all n-1 swaps for current ballot
+        # uniformally choose one of the n-1 swaps to step to next
+        # record the destination of next step
+        BURN_IN_TIME = 5000 # TODO: change this to a parameter 
+        num_cands = len(self.candidates)
+        ballot_ind = np.zeros((number_of_ballots, num_cands), dtype=np.int8)
+        # initialize starting node
+        next_node = list(range(num_cands))
+        random.shuffle(next_node)
+        # burn in loop
+        for i in range(BURN_IN_TIME):
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+
+        # writing loop
+        for i in range(number_of_ballots):
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+            ballot_ind[i] = np.array(next_node)
+
+        cands_as_nparray = np.array(self.candidates)
+        ballots = [cands_as_nparray[i] for i in ballot_ind]
+        return self.ballot_pool_to_profile(ballots, self.candidates) 
+
+
+    def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
+        '''
+            Generates a preference profile in such a way that does not
+            hold then entire n! possible ballots in memory.
+
+            See BallotSimplex.generate_profile for signature
+        '''
+
+        num_cands = len(self.candidates)
+        perm_set = it.permutations(self.candidates, num_cands)
+        indices_chosen = np.random.choice(a=math.factorial(num_cands), size=number_of_ballots, replace=False)
+        sorted_indices = np.sort(indices_chosen)
+        
+        ballots = np.zeros((number_of_ballots, num_cands), dtype=type(self.candidates[0])) 
+        # NOTE: assuming each ballot is complete here
+        # NOTE: assuming that self.candidates is populated and each
+            # candidate has the same datatype
+
+        # lazily evaluate the permutation generator and grab each of
+        # the desired indices
+        next_avail_index = 0
+        for i in range(sorted_indices[-1]+1): # we only need to grab max(indices) elements from it.permutations
+            if i == sorted_indices[next_avail_index]:
+                ballots[next_avail_index] = np.array(next(perm_set))
+                next_avail_index += 1 # is there another way of doing this which does not rely on me correctly incrementing this counter?
+            else:
+                next(perm_set)
+        np.random.shuffle(ballots) # is it worth reorganizing ballots into the original sampled order?
+
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
@@ -834,9 +965,110 @@ class name_BradleyTerry(BallotGenerator):
         # else return the combined profiles
         else:
             return pp
+    
+
+    def _BT_mcmc_shortcut(
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
+    ):
+        """
+            Sample from BT using MCMC on the shortcut ballot graph
+
+
+            num_ballots (int): the number of ballots to sample
+            pref_interval (dict): the preference interval to determine BT distribution
+            sub_sample_length (int): how many attempts at swaps to make before saving ballot
+            seed_ballot: Ballot, the seed ballot for the Markov chain
+        """
+        # NOTE: Most of this has been copied from `_BT_Mcmc`
+        # TODO: Abstract the overlapping steps into another helper
+        # function, and just pass the indices / transition probability
+        # function
+
+        # check that seed ballot has no ties
+        for s in seed_ballot.ranking:
+            if len(s) > 1:
+                raise ValueError("Seed ballot contains ties")
+
+        ballots = [-1] * num_ballots
+        accept = 0
+        current_ranking = list(seed_ballot.ranking)
+        num_candidates = len(current_ranking)
+
+        BURN_IN_TIME = BURN_IN_TIME
+        if verbose:
+            print(f"Burn in time: {BURN_IN_TIME}")
+
+        # precompute all the swap indices
+        swap_indices = [
+            tuple(sorted(random.sample(range(num_candidates), 2)))
+                for _ in range(num_ballots+BURN_IN_TIME)
+        ]
+
+        for i in range(BURN_IN_TIME):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            j1_rank = j1 + 1
+            j2_rank = j2 + 1
+            if j2_rank <= j1_rank:
+                raise Exception("MCMC on Shortcut: invalid ranks found")
+
+            acceptance_prob = min(
+                1,
+                (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
+                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+
+        # generate MCMC sample
+        for i in range(num_ballots):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            j1_rank = j1 + 1
+            j2_rank = j2 + 1
+            if j2_rank <= j1_rank:
+                raise Exception("MCMC on Shortcut: invalid ranks found")
+
+            acceptance_prob = min(
+                1,
+                (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
+                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+
+            if len(zero_cands) > 0:
+                ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
+            else:
+                ballots[i] = Ballot(ranking=current_ranking)
+
+        if verbose:
+            print(
+                f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+BURN_IN_TIME):.2}"
+            )
+
+        if -1 in ballots:
+            raise ValueError("Some element of ballots list is not a ballot.")
+
+        pp = PreferenceProfile(ballots=ballots)
+        pp = pp.group_ballots()
+        return pp
+
 
     def _BT_mcmc(
-        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
     ):
         """
         Sample from BT distribution for a given preference interval using MCMC.
@@ -859,10 +1091,30 @@ class name_BradleyTerry(BallotGenerator):
         num_candidates = len(current_ranking)
 
         # presample swap indices
+        BURN_IN_TIME = BURN_IN_TIME #int(10e5)
+        if verbose:
+            print(f"Burn in time: {BURN_IN_TIME}")
         swap_indices = [
             (j1, j1 + 1)
-            for j1 in random.choices(range(num_candidates - 1), k=num_ballots)
+            for j1 in random.choices(range(num_candidates - 1), k=num_ballots+BURN_IN_TIME)
         ]
+
+        for i in range(BURN_IN_TIME):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
 
         # generate MCMC sample
         for i in range(num_ballots):
@@ -889,18 +1141,20 @@ class name_BradleyTerry(BallotGenerator):
 
         if verbose:
             print(
-                f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
+                f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+BURN_IN_TIME):.2}"
             )
 
         if -1 in ballots:
             raise ValueError("Some element of ballots list is not a ballot.")
+
+        print(len(ballots))
 
         pp = PreferenceProfile(ballots=ballots)
         pp = pp.group_ballots()
         return pp
 
     def generate_profile_MCMC(
-        self, number_of_ballots: int, verbose=False, by_bloc: bool = False
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False, BURN_IN_TIME = 0
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
@@ -940,13 +1194,24 @@ class name_BradleyTerry(BallotGenerator):
             seed_ballot = Ballot(
                 ranking=tuple([frozenset({c}) for c in non_zero_cands])
             )
-            pp = self._BT_mcmc(
-                num_ballots,
-                pref_interval_dict,
-                seed_ballot,
-                zero_cands=zero_cands,
-                verbose=verbose,
-            )
+            if on_shortcut_graph:
+                pp = self._BT_mcmc_shortcut(
+                    num_ballots,
+                    pref_interval_dict,
+                    seed_ballot,
+                    zero_cands=zero_cands,
+                    verbose=verbose,
+                    BURN_IN_TIME=BURN_IN_TIME
+                )
+            else:
+                pp = self._BT_mcmc(
+                    num_ballots,
+                    pref_interval_dict,
+                    seed_ballot,
+                    zero_cands=zero_cands,
+                    verbose=verbose,
+                    BURN_IN_TIME=BURN_IN_TIME
+                )
 
             pp_by_bloc[bloc] = pp
 
