@@ -1015,7 +1015,7 @@ class name_BradleyTerry(BallotGenerator):
             acceptance_prob = min(
                 1,
                 (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
-                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
+                / ( pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank) )
             )
 
             # if you accept, make the swap
