@@ -994,6 +994,9 @@ class name_BradleyTerry(BallotGenerator):
         current_ranking = list(seed_ballot.ranking)
         num_candidates = len(current_ranking)
 
+        if verbose:
+            print("MCMC on shortcut")
+
         BURN_IN_TIME = BURN_IN_TIME
         if verbose:
             print(f"Burn in time: {BURN_IN_TIME}")
@@ -1015,7 +1018,7 @@ class name_BradleyTerry(BallotGenerator):
             acceptance_prob = min(
                 1,
                 (pref_interval[next(iter(current_ranking[j2]))]**(j2_rank - j1_rank))
-                / pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank)
+                / ( pref_interval[next(iter(current_ranking[j1]))]**(j2_rank - j1_rank) )
             )
 
             # if you accept, make the swap
@@ -1089,6 +1092,9 @@ class name_BradleyTerry(BallotGenerator):
         accept = 0
         current_ranking = list(seed_ballot.ranking)
         num_candidates = len(current_ranking)
+
+        if verbose:
+            print("MCMC on non-shortcut graph")
 
         # presample swap indices
         BURN_IN_TIME = BURN_IN_TIME #int(10e5)
