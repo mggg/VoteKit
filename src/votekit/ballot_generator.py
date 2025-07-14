@@ -944,6 +944,8 @@ class name_BradleyTerry(BallotGenerator):
         if verbose:
             print(f"Burn in time: {BURN_IN_TIME}")
 
+        # TODO write some unit tests for this particular logic and the
+        # index swaps
         # precompute all the swap indices
         swap_indices = [
             tuple(sorted(random.sample(range(num_candidates), 2)))
