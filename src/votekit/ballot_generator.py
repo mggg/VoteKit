@@ -584,7 +584,7 @@ class short_name_PlackettLuce(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class name_PlackettLuce(short_name_PlackettLuce):
@@ -833,7 +833,7 @@ class name_BradleyTerry(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
     def _BT_mcmc(
         self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False
@@ -960,7 +960,7 @@ class name_BradleyTerry(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class AlternatingCrossover(BallotGenerator):
@@ -1109,7 +1109,7 @@ class AlternatingCrossover(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class OneDimSpatial(BallotGenerator):
@@ -1416,7 +1416,7 @@ class CambridgeSampler(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class name_Cumulative(BallotGenerator):
@@ -1543,7 +1543,7 @@ class name_Cumulative(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class slate_PlackettLuce(BallotGenerator):
@@ -1671,7 +1671,7 @@ class slate_PlackettLuce(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class slate_BradleyTerry(BallotGenerator):
@@ -1955,7 +1955,7 @@ class slate_BradleyTerry(BallotGenerator):
 
         # else return the combined profiles
         else:
-            return pp
+            return pp.group_ballots()
 
 
 class Spatial(BallotGenerator):
