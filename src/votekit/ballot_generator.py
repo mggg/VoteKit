@@ -432,7 +432,7 @@ class ImpartialCulture(BallotSimplex):
         super().__init__(alpha=float("inf"), **data)
 
     
-    def generate_profile_IC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+    def generate_profile_optimized(self, number_of_ballots: int, by_bloc: bool = False) -> PreferenceProfile | Dict:
         '''
             Generate a preference profile for IC in a space and time
             efficient way.
@@ -440,52 +440,28 @@ class ImpartialCulture(BallotSimplex):
             See BallotSimplex.generate_profile for method signature
                 description
         '''
+
+        # TODO: Extend this class to also return by_bloc
+
         rng = np.random.default_rng()
         ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
 
-    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
-        '''
-            MCMC which performs a simple random walk along the built
-            in votekit ballot graph class.
-            Has overhead issues, because said class stores all n!
-            permutations as the nodes in a networkx instance.
-        '''
-        BURN_IN_TIME = 100
-        # NOTE: nodes in the ballot graph implementation are tuples
-            # (1,2,..n) where n is the number of given candidates
-        ballot_graph = BallotGraph(self.candidates, allow_partial=False)
-        next_node = list(range(1, len(self.candidates)+1)) 
-        random.shuffle(next_node)
-        next_node = tuple(next_node)
-
-        # burn in walk TODO: is this needed? If so make this an
-        # argument
-        for i in range(BURN_IN_TIME): # NOTE: do we know what the mixing time should be for this markov chain?
-            neighs = list(ballot_graph.graph.neighbors(next_node))
-            next_node = random.choice(neighs)
-        
-        # perform simple random walk and record the steps
-        ballots = []
-        cands_as_nparray = np.array(self.candidates)
-        for _ in range(number_of_ballots):
-            neighs = list(ballot_graph.graph.neighbors(next_node))
-            next_node = random.choice(neighs)
-            node_as_cands_idx = [i-1 for i in next_node]
-            ballots.append(cands_as_nparray[node_as_cands_idx]) 
-        
-        return self.ballot_pool_to_profile(ballots, self.candidates)
-
-
-    def generate_profile_MCMC_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
         '''
             Simple random walk on the neighbour-swap ballot graph. The
                 BallotGraph class generates and saves all nodes n!
                 nodes. And so here we perform a simple random walk
                 where we only compute and save the immediate
                 neighbours.
+            
+            See BallotSimplex.generate_profile for method signature
         '''
+        # NOTE: I avoid using the Votekit `BallotGraph` class, because
+        # that appears to generate a networkx graph with all n! nodes.
+
+        # TODO: Extend this class to also return by_bloc 
 
         def compute_neighs(node):
             '''
@@ -507,12 +483,12 @@ class ImpartialCulture(BallotSimplex):
         # compute all n-1 swaps for current ballot
         # uniformally choose one of the n-1 swaps to step to next
         # record the destination of next step
-        BURN_IN_TIME = 5000 # TODO: change this to a parameter 
         num_cands = len(self.candidates)
         ballot_ind = np.zeros((number_of_ballots, num_cands), dtype=np.int8)
         # initialize starting node
         next_node = list(range(num_cands))
         random.shuffle(next_node)
+
         # burn in loop
         for i in range(BURN_IN_TIME):
             neighs = compute_neighs(next_node)
@@ -527,39 +503,6 @@ class ImpartialCulture(BallotSimplex):
         cands_as_nparray = np.array(self.candidates)
         ballots = [cands_as_nparray[i] for i in ballot_ind]
         return self.ballot_pool_to_profile(ballots, self.candidates) 
-
-
-    def generate_profile_space_optimized(self, number_of_ballots, by_bloc = False):
-        '''
-            Generates a preference profile in such a way that does not
-            hold then entire n! possible ballots in memory.
-
-            See BallotSimplex.generate_profile for signature
-        '''
-
-        num_cands = len(self.candidates)
-        perm_set = it.permutations(self.candidates, num_cands)
-        indices_chosen = np.random.choice(a=math.factorial(num_cands), size=number_of_ballots, replace=False)
-        sorted_indices = np.sort(indices_chosen)
-        
-        ballots = np.zeros((number_of_ballots, num_cands), dtype=type(self.candidates[0])) 
-        # NOTE: assuming each ballot is complete here
-        # NOTE: assuming that self.candidates is populated and each
-            # candidate has the same datatype
-
-        # lazily evaluate the permutation generator and grab each of
-        # the desired indices
-        next_avail_index = 0
-        for i in range(sorted_indices[-1]+1): # we only need to grab max(indices) elements from it.permutations
-            if i == sorted_indices[next_avail_index]:
-                ballots[next_avail_index] = np.array(next(perm_set))
-                next_avail_index += 1 # is there another way of doing this which does not rely on me correctly incrementing this counter?
-            else:
-                next(perm_set)
-        np.random.shuffle(ballots) # is it worth reorganizing ballots into the original sampled order?
-
-        return self.ballot_pool_to_profile(ballots, self.candidates)
-
 
 
 class ImpartialAnonymousCulture(BallotSimplex):
