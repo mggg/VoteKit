@@ -447,7 +447,7 @@ class ImpartialCulture(BallotSimplex):
         ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
     
-    def _generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
+    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
         '''
             Simple random walk on the neighbour-swap ballot graph. The
                 BallotGraph class generates and saves all nodes n!
@@ -515,6 +515,8 @@ class ImpartialAnonymousCulture(BallotSimplex):
     """
 
     def __init__(self, **data):
+        self._OPTIMIZED_ENABLED = False
+
         super().__init__(alpha=1, **data)
 
 
