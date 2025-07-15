@@ -430,12 +430,12 @@ class ImpartialCulture(BallotSimplex):
     def __init__(self, **data):
         super().__init__(alpha=float("inf"), **data)
 
-    def generate_profile(self, number_of_ballots, by_bloc: bool = False, use_optimized = False) -> PreferenceProfile | Dict:
+    def generate_profile(self, number_of_ballots: int, by_bloc: bool = False, use_optimized = False) -> PreferenceProfile | Dict:
         if use_optimized:
             return self._generate_profile_optimized(number_of_ballots, by_bloc)
         return super().generate_profile(number_of_ballots, by_bloc)
 
-    def _generate_profile_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+    def _generate_profile_optimized(self, number_of_ballots: int, by_bloc: bool = False) -> PreferenceProfile | Dict:
         '''
             Generate a preference profile for IC in a space and time
             efficient way.
@@ -447,7 +447,7 @@ class ImpartialCulture(BallotSimplex):
         ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
     
-    def generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
+    def generate_profile_MCMC(self, number_of_ballots: int, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
         '''
             Simple random walk on the neighbour-swap ballot graph. The
                 BallotGraph class generates and saves all nodes n!
