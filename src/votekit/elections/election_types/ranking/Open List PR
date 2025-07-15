@@ -1,0 +1,204 @@
+from typing import Dict, List, Optional
+import random
+from ....models import Election
+from ....pref_profile import PreferenceProfile
+from ....election_state import ElectionState
+
+class OpenListPR(Election):
+    r"""
+    Open-list party-list proportional representation (one-vote version).
+
+    In this system, each voter selects exactly one candidate on their ballot. Seats are allocated to parties
+    iteratively using a divisor method, where a party's score is calculated as `party_votes / (divisor)`.
+    The party with the highest score in each round wins a seat, which is assigned to their highest-vote-getting
+    candidate who hasn't yet been seated. If a party has no remaining nominees, it is excluded from further rounds.
+    Supported divisor methods include D'Hondt, Sainte-Laguë, and Imperiali.
+
+    Args:
+        profile (PreferenceProfile): The election profile containing ballots with single-candidate rankings.
+        m (int): The total number of seats to be allocated. Must be positive.
+        party_map (dict[str, str], optional): A dictionary mapping each candidate (str) to their party (str).
+            If not provided, assumes each candidate belongs to a unique party.
+        tiebreak (str, optional): Method to break ties when multiple parties have the same score.
+            Options are "random" (selects a random party) or None (raises an error on ties). Defaults to None.
+        divisor_method (str, optional): The divisor method for seat allocation. Options are:
+            - "dhondt" (default): Uses divisor `1 + seats_won`.
+            - "sainte-lague": Uses divisor `2 * seats_won + 1`.
+            - "imperiali": Uses divisor `seats_won + 2`.
+    """
+    def __init__(self, profile: PreferenceProfile, m: float = 1, 
+                 party_map: Optional[Dict[str, str]] = None, 
+                 tiebreak: Optional[str] = None, divisor_method: str = "dhondt"):
+
+        if m <= 0:
+            raise ValueError("`m` must be positive.")
+
+        self.m = m
+        self.tiebreak = tiebreak
+        self.party_map = party_map
+        self.divisor_method = divisor_method.lower()  
+        self._validate_profile(profile)
+
+        self.party_seats: Dict[str, int] = {}
+        self._party_lists: Dict[str, List[str]] = {}
+        self.winners: List[str] = []
+        self.party_scores: Dict[str, float] = {}
+
+        super().__init__(profile=profile)
+
+    def _validate_profile(self, profile):
+        # All ballots must have a single vote
+        for ballot in profile.ballots:
+            if len(ballot.ranking) != 1: 
+                raise ValueError("Each ballot must rank exactly one candidate.")
+
+    def _is_finished(self) -> bool:
+        """
+        Determines if the election has concluded.
+
+        The election is complete when the number of winners equals the total number of seats (`m`).
+        This method is used to check the termination condition for the seat allocation process.
+
+        Returns:
+            bool: True if the number of seated candidates equals `m`, False otherwise.
+        """
+        return len(self.winners) == self.m
+
+    def _run_step(self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False
+    ) -> PreferenceProfile:
+        # Count candidate votes:
+        self.candidate_votes: Dict[str, int] = {candidate: 0 for candidate in profile.candidates_cast}
+        for ballot in profile.ballots:
+            cand = ballot.ranking[0]
+
+            if isinstance(cand, (set, frozenset)):
+                cand = next(iter(cand))
+            cand = str(cand)
+            self.candidate_votes[cand] += 1
+
+        # Count party votes
+        self.party_votes: Dict[str, int] = {}
+        for candidate, num_votes in self.candidate_votes.items():
+            party = self.party_map[candidate]  # Identify party of the candidate evaluated
+            self.party_votes[party] = self.party_votes.get(party, 0) + num_votes  # Add votes to the party total
+
+        # Build & sort each party’s nominee list by votes
+        for candidate in self.candidate_votes:
+            self._party_lists.setdefault(self.party_map[candidate], []).append(candidate)
+
+        for party, list_of_cands in self._party_lists.items():
+            self._party_lists[party] = sorted(
+                list_of_cands, key=lambda candidate: (-self.candidate_votes[candidate], random.random())
+            )
+
+        # Fill the seats:
+        self.party_seats = {party: 0 for party in self._party_lists}
+        round_no = 1
+
+        while len(self.winners) < self.m:
+
+            # Calculate scores for the current round
+            self.party_scores = {}
+
+            for party, nominees in self._party_lists.items():
+                if self.party_seats[party] >= len(nominees):
+                    self.party_scores[party] = 0.0
+                else:
+                    seats = self.party_seats[party]
+
+                    # Handle each divisor method
+                    if self.divisor_method == "dhondt":
+                        divisor = 1 + seats                           
+                    elif self.divisor_method == "sainte-lague":
+                        divisor = 2 * seats + 1                       
+                    elif self.divisor_method == "imperiali":
+                        divisor = seats + 2                           
+                    else:
+                        raise ValueError(f"Unknown divisor method: {self.divisor_method}")
+
+                    self.party_scores[party] = self.party_votes[party] / divisor
+
+            max_score = max(self.party_scores.values())
+            top_parties = [party for party, score in self.party_scores.items() if score == max_score and score > 0]
+            if not top_parties:  # No one left to seat
+                raise ValueError("Not enough nominees to fill all seats.")
+
+            if len(top_parties) > 1:
+                if self.tiebreak == "random":
+                    winner_party = random.choice(top_parties)
+                    tiebreak_note = {tuple(sorted(top_parties)): winner_party}
+                else:
+                    raise ValueError(
+                        f"Tie between parties {top_parties} with no tiebreak strategy."
+                    )
+            else:
+                winner_party = top_parties[0]
+                tiebreak_note = {}
+
+            seat_idx = self.party_seats[winner_party]
+            winner_cand = self._party_lists[winner_party][seat_idx]
+
+            self.winners.append(winner_cand)
+            self.party_seats[winner_party] += 1
+
+            if store_states:
+                remaining = [candidate for candidate in self._profile.candidates if candidate not in self.winners]
+                eliminated = [frozenset({c}) for c in self._profile.candidates if c not in self.winners]
+
+                self.election_states.append(
+                    ElectionState(
+                        round_number=round_no,
+                        remaining=[frozenset({c}) for c in remaining],
+                        eliminated=eliminated,
+                        elected=[frozenset({winner_cand})],
+                        scores=dict(self.party_scores),
+                        tiebreaks=tiebreak_note,
+                    )
+                )
+
+            round_no += 1
+
+        # Recalculate party scores to reflect final state where parties may be exhausted
+        self.party_scores = {}
+        for party, nominees in self._party_lists.items():
+            if self.party_seats[party] >= len(nominees):
+                self.party_scores[party] = 0.0
+            else:
+                seats = self.party_seats[party]
+                if self.divisor_method == "dhondt":
+                    divisor = 1 + seats
+                elif self.divisor_method == "sainte-lague":
+                    divisor = 2 * seats + 1
+                elif self.divisor_method == "imperiali":
+                    divisor = seats + 2
+                else:
+                    raise ValueError(f"Unknown divisor method: {self.divisor_method}")
+                self.party_scores[party] = self.party_votes[party] / divisor
+
+        return profile
+
+    def run_election(self) -> Dict:
+        """
+        Returns a summary of the election results after execution.
+
+        The election is executed automatically during initialization. This method compiles the final results,
+        including the list of winners, seats allocated to each party, and the final party scores.
+
+        Returns:
+            dict: A dictionary containing:
+                - winners (tuple[str]): The final list of seated candidates.
+                - party_seats (dict[str, int]): Number of seats allocated to each party.
+                - last_scores (dict[str, float]): Final party scores after seat allocation.
+        """
+        if not self.election_states:
+            self._run_election()
+        final_state = self.election_states[-1]
+        winners = tuple(self.winners)
+        last_scores = dict(self.party_scores)
+        party_seats = dict(self.party_seats)
+
+        return {
+            "winners": winners,
+            "party_seats": party_seats,
+            "last_scores": last_scores,
+        }
