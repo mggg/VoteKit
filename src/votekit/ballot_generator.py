@@ -516,7 +516,6 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
     def __init__(self, **data):
         self._OPTIMIZED_ENABLED = False
-
         super().__init__(alpha=1, **data)
 
 
