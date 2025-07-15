@@ -93,6 +93,7 @@ def test_ic_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
+
 def test_ic_optimized_distribution():
     # Set-up
     number_of_ballots = 100
@@ -112,6 +113,7 @@ def test_ic_optimized_distribution():
 
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+
 
 def test_ic_MCMC_distribution():
     # Set-up
@@ -172,8 +174,9 @@ def test_iac_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
+
 # NOTE: Enable this test once the optimized version is completed
-def test_iac_optimized_distribution():        
+def test_iac_optimized_distribution():
 
     number_of_ballots = 1000
     ballot_length = 4
@@ -194,10 +197,12 @@ def test_iac_optimized_distribution():
     if not iac_inst._OPTIMIZED_ENABLED:
         # NOTE: no test if performed if the optimized profile
         # generation is not enabled
-        assert(True)
-        return  
-    
-    generated_profile = iac_inst.generate_profile(number_of_ballots=500, use_optimized=True)
+        assert True
+        return
+
+    generated_profile = iac_inst.generate_profile(
+        number_of_ballots=500, use_optimized=True
+    )
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
