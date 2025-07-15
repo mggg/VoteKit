@@ -430,6 +430,77 @@ class ImpartialCulture(BallotSimplex):
     def __init__(self, **data):
         super().__init__(alpha=float("inf"), **data)
 
+    def generate_profile(self, number_of_ballots, by_bloc: bool = False, use_optimized = False) -> PreferenceProfile | Dict:
+        if use_optimized:
+            return self._generate_profile_optimized(number_of_ballots, by_bloc)
+        return super().generate_profile(number_of_ballots, by_bloc)
+
+    def _generate_profile_optimized(self, number_of_ballots, by_bloc: bool = False) -> PreferenceProfile | Dict:
+        '''
+            Generate a preference profile for IC in a space and time
+            efficient way.
+
+            See BallotSimplex.generate_profile for method signature
+                description
+        '''
+        rng = np.random.default_rng()
+        ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+    
+    def _generate_profile_MCMC(self, number_of_ballots, by_bloc: bool = False, BURN_IN_TIME = 0) -> PreferenceProfile | Dict:
+        '''
+            Simple random walk on the neighbour-swap ballot graph. The
+                BallotGraph class generates and saves all nodes n!
+                nodes. And so here we perform a simple random walk
+                where we only compute and save the immediate
+                neighbours.
+            
+            See BallotSimplex.generate_profile for method signature
+        '''
+        # NOTE: I avoid using the Votekit `BallotGraph` class, because
+        # that appears to generate a networkx graph with all n! nodes.
+
+        def compute_neighs(node):
+            '''
+            Helper function to compute the adjacent-only swaps
+                and thus giving all the ballot-graph neighbours of
+                `node' 
+            returns: list of lists, each element being an
+                adjacent-only swap of node
+            '''
+            # the following line computes every possible
+            # neighbour-swap of given node
+            neighs = [node[:i] + node[i+1:i-1:-1] + node[i+2:] for i in range(1, len(node)-1)]
+            neighs.append(node[1::-1] + node[2:])
+            return neighs
+
+
+        # initialize current ballot at some starting node
+        # for each i in {num of ballots}
+        # compute all n-1 swaps for current ballot
+        # uniformally choose one of the n-1 swaps to step to next
+        # record the destination of next step
+        num_cands = len(self.candidates)
+        ballot_ind = np.zeros((number_of_ballots, num_cands), dtype=np.int8)
+        # initialize starting node
+        next_node = list(range(num_cands))
+        random.shuffle(next_node)
+
+        # burn in loop
+        for i in range(BURN_IN_TIME):
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+
+        # writing loop
+        for i in range(number_of_ballots):
+            neighs = compute_neighs(next_node)
+            next_node = random.choice(neighs)
+            ballot_ind[i] = np.array(next_node)
+
+        cands_as_nparray = np.array(self.candidates)
+        ballots = [cands_as_nparray[i] for i in ballot_ind]
+        return self.ballot_pool_to_profile(ballots, self.candidates) 
+
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
@@ -446,6 +517,38 @@ class ImpartialAnonymousCulture(BallotSimplex):
     def __init__(self, **data):
         super().__init__(alpha=1, **data)
 
+
+    def _indices_to_ballots(self, list_of_indices):
+        '''
+            Takes in a list of indices, whose values are between 0 and
+                {num_cands}!
+            Returns a list of ballots which corresponds to said
+            indices
+        '''
+        raise NotImplementedError("_indices_to_ballots not implemented")
+
+    def _generate_profile_optimized(self, num_ballots: int, num_cands: int) -> PreferenceProfile | Dict:
+        # choose index as sampled 0 to N, do this n! times
+        num_gaps = num_ballots + 1
+        gap_freq = np.zeros(num_gaps, dtype=int) # record the number of gaps in stars/bars
+        for _ in range(math.factorial(num_cands)):
+            index = random.randint(0, num_gaps-1)
+            gap_freq[index] += 1
+
+        # The following comment is a fancy numpy way to do the above,
+        # but requires n! space
+        # indices = np.random.choice(num_gaps, factorial(num_cands))
+        # np.add.at(gap_freq, indices, 1)
+
+        ballot_indices = np.cumsum(gap_freq)
+        ballots = self._indices_to_ballots(ballot_indices)
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+    def generate_profile(self, number_of_ballots, by_bloc: bool = False, use_optimized: bool = False) -> PreferenceProfile | Dict:
+        if use_optimized:
+            return self._generate_profile_optimized(number_of_ballots, by_bloc)
+        else:
+            return super().generate_profile(number_of_ballots, by_bloc)
 
 class short_name_PlackettLuce(BallotGenerator):
     """

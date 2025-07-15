@@ -93,6 +93,46 @@ def test_ic_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
+def test_ic_optimized_distribution():
+    # Set-up
+    number_of_ballots = 100
+
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    # Find ballot probs
+    possible_rankings = it.permutations(candidates, len(candidates))
+    ballot_prob_dict = {
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
+    }
+
+    # Generate ballots
+    generated_profile = ImpartialCulture(
+        candidates=candidates,
+    ).generate_profile_optimized(number_of_ballots=number_of_ballots)
+
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+
+def test_ic_MCMC_distribution():
+    # Set-up
+    number_of_ballots = 100
+
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    # Find ballot probs
+    possible_rankings = it.permutations(candidates, len(candidates))
+    ballot_prob_dict = {
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
+    }
+
+    # Generate ballots
+    generated_profile = ImpartialCulture(
+        candidates=candidates,
+    ).generate_profile_MCMC(number_of_ballots=number_of_ballots)
+
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+
 
 def test_ballot_simplex_from_point():
     number_of_ballots = 1000
