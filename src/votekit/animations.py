@@ -26,7 +26,6 @@ class ElectionScene(Scene):
         self.rounds = rounds
         self.title = title
 
-
         self.width = 8
         self.bar_height = 3.5 / len(self.candidates)
         self.font_size = 3*40 / len(self.candidates)
@@ -118,7 +117,6 @@ class ElectionScene(Scene):
                                color = BLACK,
                                fill_opacity = 1).shift(UP * self.ticker_tape_height).set_z_index(-1)
 
-
         # Create and place candidate names
         for name in sorted_candidates:
             candidate = self.candidates[name]
@@ -128,8 +126,6 @@ class ElectionScene(Scene):
                 color=candidate['color']
                 ).next_to(candidate['bars'][0], LEFT, buff=0.2)
 
-
-        
         # Draw the bars and names
         self.play(*[FadeIn(self.candidates[name]['name_text']) for name in sorted_candidates], FadeIn(background))
         self.play(*[Create(self.candidates[name]['bars'][0]) for name in sorted_candidates])
@@ -174,11 +170,11 @@ class ElectionScene(Scene):
         self.play(highlight_message, *unhighlight_other_messages)
 
         
-
     def __update_quota_line__(self, quota):
         some_candidate = list(self.candidates.values())[0]
 
         if not self.quota_line:
+            # If the quota line doesn't exist yet, draw it.
             line_top = self.camera.frame_height / 2
             line_bottom = self.ticker_tape_line.get_top()[1]
             self.quota_line = Line(
@@ -189,10 +185,8 @@ class ElectionScene(Scene):
             self.quota_line.shift((self.width * quota/self.max_support) * RIGHT)
             self.quota_line.set_z_index(1) # Keep the quota line in the front
 
-            quota_text = Text("Threshold", font_size = 24).next_to(self.quota_line).align_to(self.quota_line, UP).shift(DOWN / 2)
-            self.play(Create(self.quota_line), Create(quota_text))
+            self.play(Create(self.quota_line))
             self.wait(2)
-            self.play(Uncreate(quota_text))
         else:
             self.play(self.quota_line.animate.align_to(some_candidate['bars'][0], LEFT).shift((self.width * quota/self.max_support) * RIGHT))
 
@@ -321,7 +315,9 @@ class ElectionScene(Scene):
         
 
         # Animate the splitting of the old bar into sub-bars
-        self.play(*[bar.animate.set_fill(self.eliminated_bar_color).set_opacity(self.ghost_opacity) for bar in old_bars],
+        self.play(*[
+            bar.animate.set_opacity(self.ghost_opacity)
+            for bar in old_bars],
                   *[FadeIn(bar) for bar in new_bars],
                   FadeIn(exhausted_bar))
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
@@ -388,18 +384,16 @@ class ElectionScene(Scene):
 
 
 class STVAnimation():
-    def __init__(self, election):
+    def __init__(self, election, title = None):
         self.candidates = self.__make_candidate_dict__(election)
         self.rounds = self.__make_event_list__(election)
+        self.title = title
 
     def __make_candidate_dict__(self, election): #this creates the candidate dictionary
-        viz_candidates = {}
-        for fset in election.get_remaining(0):
-            name, = fset
-            viz_candidates[name] = {'support': int(election.election_states[0].scores[name])}
+        viz_candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
         return viz_candidates
     
-    def __get_transferred_votes__(self, election, candidate, round_number): #this helps create the round dictionary, for transferred points
+    def __get_transferred_votes__(self, election, candidate, round_number):
         prev_state = election.election_states[round_number-1]
         current_state = election.election_states[round_number]
         prev_score = int(prev_state.scores[candidate])
@@ -409,62 +403,63 @@ class STVAnimation():
     def __make_event_list__(self, election):
         events = []
         for round_number, election_round in enumerate(election.election_states[1:], start = 1): #Nothing happens in election round 0
+
+            remaining_candidates = []
+            for fset in election_round.remaining:
+                remaining_candidates += list(fset)
+
             elected_candidates = []
             for fset in election_round.elected:
+                if len(fset) == 0:
+                    break
                 name, = fset
                 elected_candidates.append(name)
-            for name in elected_candidates: #Create a new event for each candidate elected this round
+
+            eliminated_candidates = []
+            for fset in election_round.eliminated:
+                if len(fset) == 0:
+                    break
+                name, = fset
+                eliminated_candidates.append(name)
+            
+            for name in elected_candidates[:1]: #TODO This code currently skips all but the first elected candidate. It will take some work to deduce how support transferred if multiple candidates were elected at once.
+                #Create a new event for each candidate elected this round
                 event_type = 'win'
                 message = f'Round {round_number}: {name} Elected'
                 support_transferred = {}
-                if round_number < len(election): #If it's the last round, don't worry about the runoff
-                    for (UH-OH)
-
-
-    def __make_round_list__(self, election):
-        rounds = [0]*(len(election))
-        for election_round in range(1, len(election)+1): #I think we start at 1 because 0 is how people start?
-            if len(election.election_states[r].elected[0]) > 0: #in the case that someone is elected
-                event = 'win'
-                candidate = list(election.election_states[r].elected[0])[0] #Is it possible for more than one person to win at the same time?
-                message = f'Round {r}: {candidate} Elected'
+                if round_number < len(election): #If it's the last round, don't worry about the transferred votes
+                    for candidate in remaining_candidates:
+                        if candidate == name:
+                            continue
+                        support_transferred[candidate] = self.__get_transferred_votes__(election, candidate, round_number)
+                events.append(dict(
+                    event = event_type,
+                    candidate = name,
+                    support_transferred = support_transferred,
+                    quota = election.threshold,
+                    message = message
+                ))
+            
+            for name in eliminated_candidates[:1]: #TODO This code currently skips all but the first eliminated candidate. It will take some work to deduce how support transferred if multiple candidates were eliminated at once.
+                #Create a new event for each candidate eliminated this round
+                event_type = 'elimination'
+                message = f'Round {round_number}: {name} Eliminated'
                 support_transferred = {}
-                for party in runners: #aka going over all of the parties, then going through all of the voters in each party, to remove any candidates that have won and are now out of the election
-                    if candidate in runners[party]:
-                        runners[party].remove(candidate)
-                    
-                    if r != len(election):
-                        for cand in runners[party]:
-                            support_transferred[cand] = self.__get_transferred_votes__(election, cand, r)
-                    else:
-                        support_transferred = {}
-                rounds[r-1] = {'event': event,
-                               'candidate': candidate,
-                               'support_transferred': support_transferred,
-                               'quota': election.threshold,
-                               'message' : message}
 
-            else: #in the case that someone was eliminated
-                event = 'elimination'
-                candidate = list(election.election_states[r].eliminated[0])[0]
-                message = f'Round {r}: {candidate} Eliminated'
-                support_transferred = {}
-                for party in runners:
-                    if candidate in runners[party]:
-                        runners[party].remove(candidate)
-
-                    if r!= len(election):
-                        for cand in runners[party]:
-                            support_transferred[cand] = self.__get_transferred_votes__(election, cand, r)
-                    else:
-                        support_transferred = {}
-                rounds[r-1] = {'event': event,
-                               'candidate': candidate,
-                               'support_transferred': support_transferred,
-                               'quota': election.threshold,
-                               'message': message}
-        return rounds
+                if round_number < len(election): #If it's the last round, don't worry about the transferred votes
+                    for candidate in remaining_candidates:
+                        if candidate == name:
+                            continue
+                        support_transferred[candidate] = self.__get_transferred_votes__(election, candidate, round_number)
+                events.append(dict(
+                    event = event_type,
+                    candidate = name,
+                    support_transferred = support_transferred,
+                    quota = election.threshold,
+                    message = message
+                ))
+        return events
 
     def render(self, preview=False):
-        manimation = ElectionScene(self.candidates, self.rounds)
+        manimation = ElectionScene(self.candidates, self.rounds, title=self.title)
         manimation.render(preview=preview)
