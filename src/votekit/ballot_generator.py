@@ -413,8 +413,11 @@ class BallotSimplex(BallotGenerator):
         ballot_pool = [perm_rankings[indices[i]] for i in range(number_of_ballots)]
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+
+    def __total_ballots(self, n_candidates, max_ballot_length):
+        return sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
     
-    def __index_to_lexicographic_ballot__(self, index: int, n_candidates: int, max_length: int) -> list[int]:
+    def __index_to_lexicographic_ballot(self, index: int, n_candidates: int, max_length: int) -> list[int]:
         """
         Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
         The ordering of the ballots is lexicographic, i.e., the first ballot is the
@@ -439,8 +442,7 @@ class BallotSimplex(BallotGenerator):
         Returns:
             list[int]: A list representing the ballot corresponding to index.
         """
-        total_ballots = lambda n,l: sum(math.comb(n, i) * math.factorial(i) for i in range(1, l + 1))
-        chunk_size = lambda n,l: total_ballots(n,l) // n
+        chunk_size = lambda n,l: self.__total_ballots(n,l) // n
         candidates = list(range(n_candidates))
         out = []
         bn = chunk_size(n_candidates+1, max_length + 1)
@@ -473,14 +475,18 @@ class ImpartialCulture(BallotSimplex):
         super().__init__(alpha=float("inf"), **data)
 
     def generate_profile(
-        self, number_of_ballots: int, by_bloc: bool = False, use_optimized=False
+        self, number_of_ballots: int, by_bloc: bool = False, use_optimized=False,
+        max_ballot_length = None
     ) -> PreferenceProfile | Dict:
+        if max_ballot_length is None:
+            max_ballot_length = len(self.candidates)
+
         if use_optimized:
-            return self._generate_profile_optimized(number_of_ballots, by_bloc)
+            return self._generate_profile_optimized(number_of_ballots, by_bloc, max_ballot_length)
         return super().generate_profile(number_of_ballots, by_bloc)
 
     def _generate_profile_optimized(
-        self, number_of_ballots: int, by_bloc: bool = False
+        self, number_of_ballots: int, by_bloc: bool = False, max_ballot_length = None
     ) -> PreferenceProfile | Dict:
         """
         Generate a preference profile for IC in a space and time
@@ -489,66 +495,14 @@ class ImpartialCulture(BallotSimplex):
         See BallotSimplex.generate_profile for method signature
             description
         """
-        rng = np.random.default_rng()
-        ballots = [rng.permutation(self.candidates) for _ in range(number_of_ballots)]
-        return self.ballot_pool_to_profile(ballots, self.candidates)
-
-    def generate_profile_MCMC(
-        self, number_of_ballots: int, by_bloc: bool = False, BURN_IN_TIME=0
-    ) -> PreferenceProfile | Dict:
-        """
-        Simple random walk on the neighbour-swap ballot graph. The
-            BallotGraph class generates and saves all nodes n!
-            nodes. And so here we perform a simple random walk
-            where we only compute and save the immediate
-            neighbours.
-
-        See BallotSimplex.generate_profile for method signature
-        """
-        # NOTE: I avoid using the Votekit `BallotGraph` class, because
-        # that appears to generate a networkx graph with all n! nodes.
-
-        def compute_neighs(node):
-            """
-            Helper function to compute the adjacent-only swaps
-                and thus giving all the ballot-graph neighbours of
-                `node'
-            returns: list of lists, each element being an
-                adjacent-only swap of node
-            """
-            # the following line computes every possible
-            # neighbour-swap of given node
-            neighs = [
-                node[:i] + node[i + 1 : i - 1 : -1] + node[i + 2 :]
-                for i in range(1, len(node) - 1)
-            ]
-            neighs.append(node[1::-1] + node[2:])
-            return neighs
-
-        # initialize current ballot at some starting node
-        # for each i in {num of ballots}
-        # compute all n-1 swaps for current ballot
-        # uniformally choose one of the n-1 swaps to step to next
-        # record the destination of next step
         num_cands = len(self.candidates)
-        ballot_ind = np.zeros((number_of_ballots, num_cands), dtype=np.int8)
-        # initialize starting node
-        next_node = list(range(num_cands))
-        random.shuffle(next_node)
+        if max_ballot_length is None:
+            max_ballot_length = num_cands
+        total_ballots = self.__total_ballots(num_cands, max_ballot_length)
 
-        # burn in loop
-        for i in range(BURN_IN_TIME):
-            neighs = compute_neighs(next_node)
-            next_node = random.choice(neighs)
-
-        # writing loop
-        for i in range(number_of_ballots):
-            neighs = compute_neighs(next_node)
-            next_node = random.choice(neighs)
-            ballot_ind[i] = np.array(next_node)
-
-        cands_as_nparray = np.array(self.candidates)
-        ballots = [cands_as_nparray[i] for i in ballot_ind]
+        ballots = [self.__index_to_lexicographic_ballot(
+            random.randint(0, total_ballots-1), num_cands, max_ballot_length
+        ) for _ in range(number_of_ballots)]
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
 
