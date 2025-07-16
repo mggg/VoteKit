@@ -413,6 +413,48 @@ class BallotSimplex(BallotGenerator):
         ballot_pool = [perm_rankings[indices[i]] for i in range(number_of_ballots)]
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
+    
+    def __index_to_lexicographic_ballot__(self, index: int, n_candidates: int, max_length: int) -> list[int]:
+        """
+        Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
+        The ordering of the ballots is lexicographic, i.e., the first ballot is the
+        lexicographically smallest ballot and continues in that order:
+
+        (0,),
+        (0,1),
+        (0,1,2),
+        ...
+        (0,2),
+        (0,2,1),
+        ...
+        (n-1, n-2, ..., n-l)
+        
+        where n is the number of candidates and l is the maximum ballot length.
+        
+        Args:
+            index (int): The index to convert.
+            n_candidates (int): The number of candidates.
+            max_length (int): The maximum allowed ballot rank.
+
+        Returns:
+            list[int]: A list representing the ballot corresponding to index.
+        """
+        total_ballots = lambda n,l: sum(math.comb(n, i) * math.factorial(i) for i in range(1, l + 1))
+        chunk_size = lambda n,l: total_ballots(n,l) // n
+        candidates = list(range(n_candidates))
+        out = []
+        bn = chunk_size(n_candidates+1, max_length + 1)
+        for i in range(n_candidates, 0, -1):
+            bn = (bn - 1) // i
+            # Perform Euclidean division of index by bn
+            section = index // bn
+            remaining = index % bn
+            out.append(candidates.pop(section))
+            if remaining == 0:
+                # Cut off the ballot here
+                break
+            index = remaining - 1
+        return out
 
 
 class ImpartialCulture(BallotSimplex):
