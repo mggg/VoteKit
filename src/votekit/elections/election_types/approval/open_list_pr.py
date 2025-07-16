@@ -1,176 +1,134 @@
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import random
 from ....models import Election
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....utils import (
-    elect_cands_from_set_ranking,
-)
-from ....cleaning import remove_and_condense
-from typing import Optional
+from ....cleaning import remove_and_condense_ranked_profile
 
 
 class OpenListPR(Election):
-    r"""
-    Open-list party-list PR (one-vote version).
-
-    • Each ballot chooses exactly one candidate.  
-    • Seats are filled one-by-one using the divisor `party_votes / (1 + seats_won)`.  
-      If a party has no nominees left, it simply drops out of the scoring
-      pool for the remaining rounds.
-
-    Args
-    ----
-    profile : PreferenceProfile
-    m       : int                total seats
-    party_map : dict[candidate, party], optional
-    tiebreak : {"random", None}, optional  how to break party-score ties
-    """
     def __init__(
-            self,
-            profile: PreferenceProfile,
-            m: float = 1,
-            party_map: Optional[Dict[str, str]] = None,
-            tiebreak: Optional[str] = None,
+        self,
+        profile: PreferenceProfile,
+        m: int = 1,
+        party_map: Optional[Dict[str, str]] = None,
+        tiebreak: Optional[str] = None,
     ):
         if m <= 0:
-            raise ValueError("`m` must be positive.")
-        
+            raise ValueError("m must be positive.")
+        if party_map is None:
+            raise ValueError("A party map must be provided for OpenListPR.")
+
         self.m = m
         self.tiebreak = tiebreak
         self.party_map = party_map
         self._validate_profile(profile)
 
-        self.party_seats: Dict[str, int] = {}
-        self._party_lists: Dict[str, List[str]] = {}
-        self.winners: List[str] = []
-        self.party_scores: Dict[str, float] = {}
+        # Precompute once before the real run
+        (
+            self._candidate_votes,
+            self._party_votes,
+            self._party_lists,
+        ) = self._precompute(profile)
+
+        # Will be updated only in the real run during each step
+        self._party_seats: Dict[str, int] = {p: 0 for p in self._party_votes}
+        self._winners: List[str] = []
+        self._last_scores: Dict[str, float] = {}
+
+        super().__init__(profile=profile)
         
-        super().__init__(
-            profile=profile, 
-        )
-
-    def _validate_profile(self, profile):
-        # All ballots must have a single vote
-        for ballot in profile.ballots:
-            if len(ballot.ranking) != 1: 
+    def _validate_profile(self, profile: PreferenceProfile) -> None:
+        for b in profile.ballots:
+            if len(b.ranking) != 1:
                 raise ValueError("Each ballot must rank exactly one candidate.")
-            
+            if b.weight < 0:
+                raise ValueError("All ballots must have non‑negative weight.")
+
+    def _precompute(self, profile: PreferenceProfile) -> tuple[Dict[str, int], Dict[str, int], Dict[str, List[str]]]:
+        # tally candidates aggregates
+        cand_votes: Dict[str, int] = {c: 0 for c in profile.candidates_cast}
+        for b in profile.ballots:
+            c = next(iter(b.ranking[0])) if isinstance(b.ranking[0], (set, frozenset)) else b.ranking[0]
+            cand_votes[c] += b.weight
+
+        # aggregate parties and sort party-candidate lists
+        party_votes: Dict[str, int] = {}
+        party_lists: Dict[str, List[str]] = {}
+        for c, v in cand_votes.items():
+            p = self.party_map[c]
+            party_votes[p] = party_votes.get(p, 0) + v
+            party_lists.setdefault(p, []).append(c)
+
+        for p, lst in party_lists.items():
+            party_lists[p] = sorted(lst, key=lambda c: (-cand_votes[c], random.random()))
+        return cand_votes, party_votes, party_lists
+
     def _is_finished(self) -> bool:
-        """
-        Checks if the election is finished (single-round election).
+        return len(self._winners) == self.m
 
-        Returns:
-            bool: True if the election has completed (two states exist), False otherwise.
-        """
-        return len(self.winners) == self.m
-            
-    def _run_step(self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False
+    def _run_step(self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False,
     ) -> PreferenceProfile:
-        # Count candidate votes:
-        self.candidate_votes: Dict[str, int] = {candidate: 0 for candidate in profile.candidates_cast}
-        for ballot in profile.ballots:
-            cand = ballot.ranking[0]
-            
-            if isinstance(cand, (set, frozenset)):
-                cand = next(iter(cand))
-            cand = str(cand)
-            self.candidate_votes[cand] += 1
+        
+        # compute how many seats each party has so far (from prev_state history)
+        seats_so_far: Dict[str, int] = {p: 0 for p in self._party_votes}
+        for state in self.election_states[1: prev_state.round_number + 1]:
+            for s in state.elected:
+                for c in s:
+                    seats_so_far[self.party_map[c]] += 1
 
-        # Count party votes
-        self.party_votes: Dict[str, int] = {}
-        for candidate, num_votes in self.candidate_votes.items():
-            party = self.party_map[candidate] # Identify party of the candidate evaluated
-            self.party_votes[party] = self.party_votes.get(party, 0) + num_votes # Add votes to the party total (for seat allocation)
+        # compute party scores
+        scores: Dict[str, float] = {}
+        for p, tot in self._party_votes.items():
+            scores[p] = 0.0 if seats_so_far[p] >= len(self._party_lists[p]) else tot / (1 + seats_so_far[p])
 
-        # Build & sort each party’s nominee list by votes
-        for candidate in self.candidate_votes:
-            self._party_lists.setdefault(self.party_map[candidate], []).append(candidate)
+        # pick party leader
+        max_score = max(scores.values())
+        leaders = [p for p, s in scores.items() if s == max_score and s > 0]
+        if not leaders:
+            raise ValueError("Not enough nominees to fill all seats.")
+        if len(leaders) > 1:
+            if self.tiebreak == "random":
+                winner_party = random.choice(leaders)
+            else:
+                raise ValueError("Tie between parties with no tiebreak.")
+        else:
+            winner_party = leaders[0]
 
-        for party, list_of_cands in self._party_lists.items():
-            self._party_lists[party] = sorted(
-                list_of_cands, key=lambda candidate: (-self.candidate_votes[candidate], random.random())
+        # fill seat with candidate from party leader
+        idx = seats_so_far[winner_party]
+        winner = self._party_lists[winner_party][idx]
+
+        # update profile
+        next_prof = remove_and_condense_ranked_profile([winner], profile)
+
+        # update state
+        if store_states:
+            self._winners.append(winner)
+            self._party_seats[winner_party] += 1
+            self._last_scores = scores
+
+            rem = [frozenset({c}) for c in profile.candidates_cast if c not in self._winners]
+            rem.sort(key=lambda s: next(iter(s)))
+
+            self.election_states.append(
+                ElectionState(
+                    round_number=prev_state.round_number + 1,
+                    remaining=rem,
+                    eliminated=tuple(),
+                    elected=[frozenset({winner})],
+                    scores=dict(scores),
+                    tiebreaks={},
+                )
             )
 
-        # Fill the seats:
-        self.party_seats = {party: 0 for party in self._party_lists}
-        round_no = 1
+        return next_prof
 
-        while len(self.winners) < self.m:
-            
-            # Calculate scores for the currnet round
-            self.party_scores = {}
-
-            for party, nominees in self._party_lists.items():
-                if self.party_seats[party] >= len(nominees):
-                    self.party_scores[party] = 0.0 # If no nominees left, score is 0
-                else:
-                    divisor = 1 + self.party_seats[party]
-                    self.party_scores[party] = self.party_votes[party] / divisor
-
-            max_score = max(self.party_scores.values())
-            top_parties = [party for party, score in self.party_scores.items() if score == max_score and score > 0]
-            if not top_parties:                       # no one left to seat
-                raise ValueError("Not enough nominees to fill all seats.")
-
-            if len(top_parties) > 1:
-                if self.tiebreak == "random":
-                    winner_party = random.choice(top_parties)
-                    tiebreak_note = {tuple(sorted(top_parties)): winner_party}
-                else:
-                    raise ValueError(
-                        f"Tie between parties {top_parties} with no tiebreak strategy."
-                    )
-            else:
-                winner_party = top_parties[0]
-                tiebreak_note = {}
-
-            seat_idx = self.party_seats[winner_party]
-            winner_cand = self._party_lists[winner_party][seat_idx]
-
-            self.winners.append(winner_cand)
-            self.party_seats[winner_party] += 1
-
-            if store_states:
-                remaining = [candidate for candidate in self._profile.candidates if candidate not in self.winners]
-                eliminated = [frozenset({c}) for c in self._profile.candidates if c not in self.winners]
-
-                self.election_states.append(
-                    ElectionState(
-                        round_number=round_no,
-                        remaining=[frozenset({c}) for c in remaining],
-                        eliminated=eliminated,
-                        elected=[frozenset({winner_cand}),],
-                        scores=dict(self.party_scores),
-                        tiebreaks=tiebreak_note,
-                    )
-                )
-
-            round_no += 1
-
-        return profile
-    
     def run_election(self) -> Dict:
-        """
-        Return a compact summary once the election has already been executed
-        (it is executed automatically by Election.__init__).
-
-        Returns
-        -------
-        dict
-            winners : tuple[str] final list of seated candidates
-            party_seats : dict[str,int]
-            last_scores : dict[str,float]  party scores
-        """
         if not self.election_states:
             self._run_election()
-        final_state = self.election_states[-1]
-        winners = tuple(self.winners)
-        last_scores = dict(self.party_scores)
-        party_seats = dict(self.party_seats)
-
         return {
-            "winners": winners,
-            "party_seats": party_seats,
-            "last_scores": last_scores,
+            "winners": tuple(self._winners),
+            "party_seats": dict(self._party_seats),
+            "last_scores": dict(self._last_scores),
         }
