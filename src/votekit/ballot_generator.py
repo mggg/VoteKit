@@ -7,7 +7,7 @@ from pathlib import Path
 import pickle
 import random
 import warnings
-from typing import Optional, Union, Tuple, Callable, Dict, Any
+from typing import Optional, Union, Tuple, Callable, Dict, Any, List
 import apportionment.methods as apportion  # type: ignore
 
 from .ballot import Ballot
@@ -1697,10 +1697,184 @@ class name_BradleyTerry(BallotGenerator):
         #     return pp
         return pp_by_bloc
 
+## MCMC sample array output (for diagnostics)
+
+    def _BT_mcmc_arr_ballots(
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
+    ):
+        """
+        Sample from BT distribution for a given preference interval using MCMC. 
+        The output will be a list of Ballots, so that we can subsample from.
+
+        num_ballots (int): the number of ballots to sample
+        pref_interval (dict): the preference interval to determine BT distribution
+        sub_sample_length (int): how many attempts at swaps to make before saving ballot
+        seed_ballot: Ballot, the seed ballot for the Markov chain
+        verbose: bool, if True, print the acceptance ratio of the chain
+        """
+
+        # check that seed ballot has no ties
+        for s in seed_ballot.ranking:
+            if len(s) > 1:
+                raise ValueError("Seed ballot contains ties")
+
+        ballots = [-1] * num_ballots
+        accept = 0
+        current_ranking = list(seed_ballot.ranking)
+        num_candidates = len(current_ranking)
+
+        if verbose:
+            print("MCMC on non-shortcut graph")
+
+        # presample swap indices
+        BURN_IN_TIME = BURN_IN_TIME #int(10e5)
+        if verbose:
+            print(f"Burn in time: {BURN_IN_TIME}")
+        swap_indices = [
+            (j1, j1 + 1)
+            for j1 in random.choices(range(num_candidates - 1), k=num_ballots+BURN_IN_TIME)
+        ]
+
+        for i in range(BURN_IN_TIME):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+
+        # generate MCMC sample
+        for i in range(num_ballots):
+            # choose adjacent pair to propose a swap
+            j1, j2 = swap_indices[i]
+            acceptance_prob = min(
+                1,
+                pref_interval[next(iter(current_ranking[j2]))]
+                / pref_interval[next(iter(current_ranking[j1]))],
+            )
+
+            # if you accept, make the swap
+            if random.random() < acceptance_prob:
+                current_ranking[j1], current_ranking[j2] = (
+                    current_ranking[j2],
+                    current_ranking[j1],
+                )
+                accept += 1
+
+            if len(zero_cands) > 0:
+                ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
+            else:
+                ballots[i] = Ballot(ranking=current_ranking)
+
+        if verbose:
+            print(
+                f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+BURN_IN_TIME):.2}"
+            )
+
+        if -1 in ballots:
+            raise ValueError("Some element of ballots list is not a ballot.")
+
+        # pp = PreferenceProfile(ballots=ballots)
+        # pp = pp.group_ballots()
+        return ballots
+
+    def generate_profile_MCMC_arr_ballots(
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False, BURN_IN_TIME = 0
+    ) -> List[Ballot]:
+        """
+        Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
+        be sufficiently large to allow for convergence of the chain.
+
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
+                                        is False.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+
+        Returns:
+            List[Ballot]
+        """
+
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(
+            zip(
+                self.blocs,
+                apportion.compute("huntington", bloc_props, number_of_ballots),
+            )
+        )
+
+        pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
+
+        for bloc in self.blocs:
+            num_ballots = ballots_per_block[bloc]
+            pref_interval = self.pref_interval_by_bloc[bloc]
+            pref_interval_dict = pref_interval.interval
+            non_zero_cands = pref_interval.non_zero_cands
+            zero_cands = pref_interval.zero_cands
+
+            seed_ballot = Ballot(
+                ranking=tuple([frozenset({c}) for c in non_zero_cands])
+            )
+            # if on_shortcut_graph:
+            #     pp = self._BT_mcmc_shortcut(
+            #         num_ballots,
+            #         pref_interval_dict,
+            #         seed_ballot,
+            #         zero_cands=zero_cands,
+            #         verbose=verbose,
+            #         BURN_IN_TIME=BURN_IN_TIME
+            #     )
+            # else:
+            #     pp = self._BT_mcmc(
+            #         num_ballots,
+            #         pref_interval_dict,
+            #         seed_ballot,
+            #         zero_cands=zero_cands,
+            #         verbose=verbose,
+            #         BURN_IN_TIME=BURN_IN_TIME
+            #     )
+            
+            pp = self._BT_mcmc_arr_ballots(
+                num_ballots,
+                pref_interval_dict,
+                seed_ballot,
+                zero_cands=zero_cands,
+                verbose=verbose,
+                BURN_IN_TIME=BURN_IN_TIME
+            )
+
+            pp_by_bloc[bloc] = pp
+
+        # combine the profiles
+        # pp = PreferenceProfile()
+        pp = []
+        for profile in pp_by_bloc.values():
+            pp.extend(profile)#  += profile
+
+        if by_bloc:
+            return (pp_by_bloc, pp)
+
+        # else return the combined profiles
+        else:
+            return pp
+
 ## Pre-defined chain length with samples to be picked ------------
     # TODO: Change this name to be _BT_mcmc once this works fine
     def _BT_mcmc_even_subsample(
-        self, num_ballots, chain_length, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0
+        self, num_ballots, pref_interval, seed_ballot, zero_cands={}, verbose=False, BURN_IN_TIME=0, chain_length=100000
     ):
         """
         Sample from BT distribution for a given preference interval using MCMC.
@@ -1857,12 +2031,12 @@ class name_BradleyTerry(BallotGenerator):
             #     )
             pp = self._BT_mcmc_even_subsample(
                 num_ballots,
-                chain_length,
                 pref_interval_dict,
                 seed_ballot,
                 zero_cands=zero_cands,
                 verbose=verbose,
-                BURN_IN_TIME=BURN_IN_TIME
+                BURN_IN_TIME=BURN_IN_TIME,
+                chain_length=chain_length
             )
 
             pp_by_bloc[bloc] = pp
