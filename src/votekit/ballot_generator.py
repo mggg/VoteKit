@@ -486,8 +486,18 @@ class ImpartialCulture(BallotSimplex):
         return super().generate_profile(number_of_ballots, by_bloc)
 
     def _generate_profile_optimized_non_short(
-        self, number_of_ballots: int, by_bloc: bool = False
+        self, number_of_ballots: int
     ):
+        """
+        Generate an IC preference profile using Fisher-Yates shuffle
+        {number_of_ballots} times. Used to generate a profile when
+        short ballots are disallowed
+
+        args:
+            number_of_ballots: int; the number of ballots to generate
+        returns:
+            PreferenceProfile
+        """
         cands_inds = np.array(range(0,len(self.candidates)))
         ballots_as_ind = [
             np.random.permutation(cands_ind) for _ in range(number_of_ballots)
@@ -497,14 +507,21 @@ class ImpartialCulture(BallotSimplex):
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def _generate_profile_optimized_with_short(
-        self, number_of_ballots: int, by_bloc: bool = False, max_ballot_length = None
+        self, number_of_ballots: int, max_ballot_length = None
     ) -> PreferenceProfile | Dict:
         """
-        Generate a preference profile for IC in a space and time
-        efficient way.
+        Generate an IC profile in the case where short ballots are
+        allowed. Randomly sample indices between 0 and number_of_valid
+        ballots, we do this {number_of_ballots} times. Then we convert
+        the indices to ballots using a help function
 
-        See BallotSimplex.generate_profile for method signature
-            description
+        args:
+            number_of_ballots: the number of ballots to generate for
+                the profile
+            max_ballot_length: the maximum length allowed in the
+            profile
+        returns:
+            PreferenceProfile
         """
         num_cands = len(self.candidates)
         if max_ballot_length is None:
@@ -531,7 +548,9 @@ class ImpartialAnonymousCulture(BallotSimplex):
     """
 
     def __init__(self, **data):
-        self._OPTIMIZED_ENABLED = False
+        self._OPTIMIZED_ENABLED = False # Flag to indicate whether 
+        self._MAX_BINOM_EXPERIMENT_SIZE = 2**63 - 1
+
         super().__init__(alpha=1, **data)
 
     def _indices_to_ballots(self, list_of_indices):
@@ -544,13 +563,24 @@ class ImpartialAnonymousCulture(BallotSimplex):
         raise NotImplementedError("_indices_to_ballots not implemented")
 
     def _generate_profile_optimized(
-        self, num_ballots: int, num_cands: int
+        self, num_ballots: int, max_ballot_length: int
     ) -> PreferenceProfile | Dict:
         # choose index as sampled 0 to N, do this n! times
+        num_cands = len(self.candidates)
         num_gaps = num_ballots + 1
         gap_freq = np.zeros(
             num_gaps, dtype=int
         )  # record the number of gaps in stars/bars
+
+        num_cands_fact = math.factorial(num_cands)
+        num_iterations = num_cands_fact  // self._MAX_BINOM_EXPERIMENT_SIZE
+        remainder = num_cands_fact % self._MAX_BINOM_EXPERIMENT_SIZE
+        num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
+        #pvals = [1/num_valid_ballots] * num_valid_ballots
+        #multinom_results = np.zeros()
+        # TODO: BROKEN
+
+
         for _ in range(math.factorial(num_cands)):
             index = random.randint(0, num_gaps - 1)
             gap_freq[index] += 1
