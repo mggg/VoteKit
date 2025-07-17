@@ -414,10 +414,10 @@ class BallotSimplex(BallotGenerator):
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
-    def __total_ballots(self, n_candidates, max_ballot_length):
+    def _total_ballots(self, n_candidates, max_ballot_length):
         return sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
     
-    def __index_to_lexicographic_ballot(self, index: int, n_candidates: int, max_length: int) -> list[int]:
+    def _index_to_lexicographic_ballot(self, index: int, n_candidates: int, max_length: int) -> list[int]:
         """
         Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
         The ordering of the ballots is lexicographic, i.e., the first ballot is the
@@ -442,7 +442,7 @@ class BallotSimplex(BallotGenerator):
         Returns:
             list[int]: A list representing the ballot corresponding to index.
         """
-        chunk_size = lambda n,l: self.__total_ballots(n,l) // n
+        chunk_size = lambda n,l: self._total_ballots(n,l) // n
         candidates = list(range(n_candidates))
         out = []
         bn = chunk_size(n_candidates+1, max_length + 1)
@@ -476,16 +476,27 @@ class ImpartialCulture(BallotSimplex):
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False, use_optimized=False,
-        max_ballot_length = None
+        max_ballot_length = None, allow_short_ballots = False
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
 
         if use_optimized:
-            return self._generate_profile_optimized(number_of_ballots, by_bloc, max_ballot_length)
+            return self._generate_profile_optimized_with_short(number_of_ballots, by_bloc, max_ballot_length)
         return super().generate_profile(number_of_ballots, by_bloc)
 
-    def _generate_profile_optimized(
+    def _generate_profile_optimized_non_short(
+        self, number_of_ballots: int, by_bloc: bool = False
+    ):
+        cands_inds = np.array(range(0,len(self.candidates)))
+        ballots_as_ind = [
+            np.random.permutation(cands_ind) for _ in range(number_of_ballots)
+        ]
+        cands_as_array = np.array(self.candidates)
+        ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
+        return self.ballot_pool_to_profile(ballots, self.candidates)
+
+    def _generate_profile_optimized_with_short(
         self, number_of_ballots: int, by_bloc: bool = False, max_ballot_length = None
     ) -> PreferenceProfile | Dict:
         """
@@ -498,11 +509,12 @@ class ImpartialCulture(BallotSimplex):
         num_cands = len(self.candidates)
         if max_ballot_length is None:
             max_ballot_length = num_cands
-        total_ballots = self.__total_ballots(num_cands, max_ballot_length)
+        total_ballots = self._total_ballots(num_cands, max_ballot_length)
 
-        ballots = [self.__index_to_lexicographic_ballot(
+        ballots_as_cand_ind = [self._index_to_lexicographic_ballot(
             random.randint(0, total_ballots-1), num_cands, max_ballot_length
         ) for _ in range(number_of_ballots)]
+        ballots = [tuple([self.candidates[i] for i in ballot_as_ind]) for ballot_as_ind in ballots_as_cand_ind]
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
 
