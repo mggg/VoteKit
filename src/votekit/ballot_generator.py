@@ -1900,6 +1900,9 @@ class name_BradleyTerry(BallotGenerator):
         if verbose:
             print("MCMC on non-shortcut graph")
 
+        if chain_length < num_ballots:
+            raise ValueError("The number of ballots to be sampled is more than the chain length; supply a greater chain length."
+                             )
         # presample swap indices
         BURN_IN_TIME = BURN_IN_TIME #int(10e5)
         if verbose:
@@ -1968,7 +1971,7 @@ class name_BradleyTerry(BallotGenerator):
 
     # TODO: Change this name to be `generate_profile_MCMC`
     def generate_profile_MCMC_even_subsample(
-        self, number_of_ballots: int, chain_length: int, verbose=False, by_bloc: bool = False, on_shortcut_graph = False, BURN_IN_TIME = 0
+        self, number_of_ballots: int, chain_length: int = 100000, verbose=False, by_bloc: bool = False, on_shortcut_graph = False, BURN_IN_TIME = 0
     ) -> Union[PreferenceProfile, Tuple]:
         """
         Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
@@ -1977,7 +1980,7 @@ class name_BradleyTerry(BallotGenerator):
         Args:
             number_of_ballots (int): The number of ballots to generate, which we subsample 
                 (evenly spaced) from the Markov Chain. 
-            chain_length (int): The length of the Markov Chain we run. 
+            chain_length (int): The length of the Markov Chain ran. 
             verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
                                         is False.
             by_bloc (bool): True if you want the generated profiles returned as a tuple
