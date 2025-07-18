@@ -553,14 +553,20 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
         super().__init__(alpha=1, **data)
 
-    def _indices_to_ballots(self, list_of_indices):
+    def _indices_to_ballots(self, list_of_indices, max_length: int):
         """
         Takes in a list of indices, whose values are between 0 and
             {num_cands}!
-        Returns a list of ballots which corresponds to said
-        indices
+        args:
+            list_of_indices: list of ints, the collection of indices
+                to convert to ballots
+            max_length: maximum ballot length allowed
+        Returns a list of rankings as tuples
         """
-        raise NotImplementedError("_indices_to_ballots not implemented")
+        return [
+            self._index_to_lexicographic_ballot(ind, len(self.candidates), max_length) 
+            for ind in list_of_indices
+        ]
 
     def _generate_profile_optimized(
         self, num_ballots: int, max_ballot_length: int
@@ -572,26 +578,17 @@ class ImpartialAnonymousCulture(BallotSimplex):
             num_gaps, dtype=int
         )  # record the number of gaps in stars/bars
 
-        num_cands_fact = math.factorial(num_cands)
-        num_iterations = num_cands_fact  // self._MAX_BINOM_EXPERIMENT_SIZE
-        remainder = num_cands_fact % self._MAX_BINOM_EXPERIMENT_SIZE
+        # rather than iterate n! times, we perform multiple
+        # multinomial experiments
         num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
-        #pvals = [1/num_valid_ballots] * num_valid_ballots
-        #multinom_results = np.zeros()
-        # TODO: BROKEN
-
-
-        for _ in range(math.factorial(num_cands)):
-            index = random.randint(0, num_gaps - 1)
-            gap_freq[index] += 1
-
-        # The following comment is a fancy numpy way to do the above,
-        # but requires n! space
-        # indices = np.random.choice(num_gaps, factorial(num_cands))
-        # np.add.at(gap_freq, indices, 1)
-
+        num_iterations = num_valid_ballots // self._MAX_BINOM_EXPERIMENT_SIZE
+        remainder = num_valid_ballots % self._MAX_BINOM_EXPERIMENT_SIZE
+        pvals = [1/num_gaps] * num_gaps
+        for _ in range(num_iterations):
+            gap_freq += np.random.multinomial(self._MAX_BINOM_EXPERIMENT_SIZE, pvals)
+        
         ballot_indices = np.cumsum(gap_freq)
-        ballots = self._indices_to_ballots(ballot_indices)
+        ballots = self._indices_to_ballots(ballot_indices, max_ballot_length)
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def generate_profile(
