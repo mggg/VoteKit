@@ -508,7 +508,7 @@ class ImpartialCulture(BallotSimplex):
         """
         cands_inds = np.array(range(0,len(self.candidates)))
         ballots_as_ind = [
-            np.random.choice(cands_inds, ballot_length) for _ in range(number_of_ballots)
+            np.random.choice(cands_inds, ballot_length, replace=False) for _ in range(number_of_ballots)
         ]
         cands_as_array = np.array(self.candidates)
         ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
