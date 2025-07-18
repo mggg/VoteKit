@@ -487,11 +487,14 @@ class ImpartialCulture(BallotSimplex):
             max_ballot_length = len(self.candidates)
 
         if use_optimized:
-            return self._generate_profile_optimized_with_short(number_of_ballots, by_bloc, max_ballot_length)
+            if allow_short_ballots:
+                return self._generate_profile_optimized_with_short(number_of_ballots, max_ballot_length)
+            else:
+                return self._generate_profile_optimized_non_short(number_of_ballots, max_ballot_length)
         return super().generate_profile(number_of_ballots, by_bloc)
 
     def _generate_profile_optimized_non_short(
-        self, number_of_ballots: int
+        self, number_of_ballots: int, ballot_length: int
     ):
         """
         Generate an IC preference profile using Fisher-Yates shuffle
@@ -505,7 +508,7 @@ class ImpartialCulture(BallotSimplex):
         """
         cands_inds = np.array(range(0,len(self.candidates)))
         ballots_as_ind = [
-            np.random.permutation(cands_inds) for _ in range(number_of_ballots)
+            np.random.choice(cands_inds, ballot_length) for _ in range(number_of_ballots)
         ]
         cands_as_array = np.array(self.candidates)
         ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
@@ -598,13 +601,19 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
         # rather than iterate n! times, we perform multiple
         # multinomial experiments
+        
         num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
+        '''
         num_iterations = num_valid_ballots // self._MAX_BINOM_EXPERIMENT_SIZE
         remainder = num_valid_ballots % self._MAX_BINOM_EXPERIMENT_SIZE
         pvals = [1/num_gaps] * num_gaps
         for _ in range(num_iterations):
             gap_freq += np.random.multinomial(self._MAX_BINOM_EXPERIMENT_SIZE, pvals)
         gap_freq += np.random.multinomial(remainder, pvals)
+        '''
+
+        for _ in range(num_valid_ballots):
+            gap_freq[random.randint(0, num_gaps) - 1] += 1
         
         # TODO: Double check possible off by 1 errors here and in `gap_freq`
         ballot_indices = np.cumsum(gap_freq) - 1
