@@ -442,6 +442,11 @@ class BallotSimplex(BallotGenerator):
         Returns:
             list[int]: A list representing the ballot corresponding to index.
         """
+        total_valid_ballots = self._total_ballots(n_candidates, max_length)
+        if index >= total_valid_ballots:
+            # TODO: Improve this error message
+            raise Exception(f"Given ballot index {index} out of range. Max index: {total_valid_ballots}")
+
         chunk_size = lambda n,l: self._total_ballots(n,l) // n
         candidates = list(range(n_candidates))
         out = []
@@ -500,7 +505,7 @@ class ImpartialCulture(BallotSimplex):
         """
         cands_inds = np.array(range(0,len(self.candidates)))
         ballots_as_ind = [
-            np.random.permutation(cands_ind) for _ in range(number_of_ballots)
+            np.random.permutation(cands_inds) for _ in range(number_of_ballots)
         ]
         cands_as_array = np.array(self.candidates)
         ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
@@ -553,6 +558,18 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
         super().__init__(alpha=1, **data)
 
+    def generate_profile(
+        self, number_of_ballots, by_bloc: bool = False, use_optimized: bool = False,
+            max_ballot_length = None
+    ) -> PreferenceProfile | Dict:
+        if max_ballot_length is None:
+            max_ballot_length = len(self.candidates)
+
+        if use_optimized:
+            return self._generate_profile_optimized(number_of_ballots, max_ballot_length)
+        else:
+            return super().generate_profile(number_of_ballots, by_bloc)
+
     def _indices_to_ballots(self, list_of_indices, max_length: int):
         """
         Takes in a list of indices, whose values are between 0 and
@@ -563,17 +580,18 @@ class ImpartialAnonymousCulture(BallotSimplex):
             max_length: maximum ballot length allowed
         Returns a list of rankings as tuples
         """
-        return [
-            self._index_to_lexicographic_ballot(ind, len(self.candidates), max_length) 
+        ballots_as_cand_ind =  [
+            self._index_to_lexicographic_ballot(int(ind), len(self.candidates), max_length) 
             for ind in list_of_indices
         ]
+        return [tuple(self.candidates[i] for i in inds) for inds in ballots_as_cand_ind]
 
     def _generate_profile_optimized(
         self, num_ballots: int, max_ballot_length: int
     ) -> PreferenceProfile | Dict:
         # choose index as sampled 0 to N, do this n! times
         num_cands = len(self.candidates)
-        num_gaps = num_ballots + 1
+        num_gaps = num_ballots #+ 1
         gap_freq = np.zeros(
             num_gaps, dtype=int
         )  # record the number of gaps in stars/bars
@@ -586,19 +604,14 @@ class ImpartialAnonymousCulture(BallotSimplex):
         pvals = [1/num_gaps] * num_gaps
         for _ in range(num_iterations):
             gap_freq += np.random.multinomial(self._MAX_BINOM_EXPERIMENT_SIZE, pvals)
+        gap_freq += np.random.multinomial(remainder, pvals)
         
-        ballot_indices = np.cumsum(gap_freq)
+        # TODO: Double check possible off by 1 errors here and in `gap_freq`
+        ballot_indices = np.cumsum(gap_freq) - 1
         ballots = self._indices_to_ballots(ballot_indices, max_ballot_length)
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
-    def generate_profile(
-        self, number_of_ballots, by_bloc: bool = False, use_optimized: bool = False
-    ) -> PreferenceProfile | Dict:
-        if use_optimized:
-            return self._generate_profile_optimized(number_of_ballots, by_bloc)
-        else:
-            return super().generate_profile(number_of_ballots, by_bloc)
-
+ 
 
 class short_name_PlackettLuce(BallotGenerator):
     """
