@@ -485,6 +485,8 @@ class ImpartialCulture(BallotSimplex):
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
+        elif max_ballot_length > len(self.candidates):
+            raise Exception("Cannot create ballots larger than number of candidates")
 
         if use_optimized:
             if allow_short_ballots:
@@ -506,8 +508,14 @@ class ImpartialCulture(BallotSimplex):
         returns:
             PreferenceProfile
         """
-        cands_inds = np.array(range(0,len(self.candidates)))
-        ballots_as_ind = np.random.choice(cands_inds, size=(ballot_length, number_of_ballots), replace=False) 
+        num_cands = len(self.candidates)
+        #ballots_as_ind = np.random.choice(cands_inds, #size=(number_of_ballots, ballot_length), replace=False) 
+        # TODO: I think there should be a way to do this without list
+        # comprehension, but the above commented line does not appear
+        # to work
+        ballots_as_ind = np.array([
+            np.random.choice(num_cands, size=ballot_length, replace=False) for _ in range(number_of_ballots)
+        ])
         cands_as_array = np.array(self.candidates)
         ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
         return self.ballot_pool_to_profile(ballots, self.candidates)
