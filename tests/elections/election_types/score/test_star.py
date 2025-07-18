@@ -139,15 +139,14 @@ def test_error_conditions():
     with pytest.raises(TypeError, match="score limit"):
         Star(PreferenceProfile(ballots=[Ballot(scores={"A": 6, "B": 1})]), L=5)
 
-    ## TODO: It seems non-positve weight error caught by Ballot
-
-    # with pytest.raises(TypeError, match="positive weight"):
-    #     Star(
-    #         PreferenceProfile(
-    #             ballots=[Ballot(scores={"A": 1, "B": 2}, weight=0)]
-    #         ),
-    #         L=5,
-    #     )
+    neg_ballot = PreferenceProfile(
+        ballots=[Ballot(scores={"A": 1, "B": 1}, weight = 1)]
+    )
+    e = Star(profile=neg_ballot, L=5)
+    neg_ballot.df["Weight"] = -1
+    print(neg_ballot.df)
+    with pytest.raises(ValueError, match="negative"):
+        Star(profile=neg_ballot, L=5)
 
 
 def test_large_election_result_and_status_df():
@@ -181,7 +180,6 @@ def test_large_election_result_and_status_df():
     print(state1.elected)
     assert state1.elected == [frozenset({"E"})]
 
-## ------- standard tests ---------- ##
 def test_init():
     e = Star(profile=profile_simple, L=5)
     print(e.get_elected())
