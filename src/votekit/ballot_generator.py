@@ -329,6 +329,18 @@ class BallotSimplex(BallotGenerator):
         if alpha == 0:
             self.alpha = 1e-10
         self.point = point
+
+        use_ballots_cache_key = "use_total_ballots_cache"
+        self._use_total_ballots_cache = False
+        if use_ballots_cache_key in data:
+            self._use_total_ballots_cache = data[use_ballots_cache_key]
+        print(f"use_cache: {self._use_total_ballots_cache}")
+
+        self._total_ballots_cache = {}
+        self._num_valid_ballots_cache = {}
+        self._cache_writes = 0
+        self._cache_reads = 0
+
         super().__init__(**data)
 
     @classmethod
@@ -414,9 +426,34 @@ class BallotSimplex(BallotGenerator):
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
+    def _clear_cache(self):
+        self._total_ballots_cache = {}
+        self._num_valid_ballots_cache = {}
+        self._cache_writes = 0
+        self._cache_reads = 0
+
     def _total_ballots(self, n_candidates, max_ballot_length):
-        return sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
+        if not self._use_total_ballots_cache:
+            return sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
+
+        key = (n_candidates, max_ballot_length)
+        if key not in self._total_ballots_cache:
+            self._total_ballots_cache[key] = sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
+            self._cache_writes += 1
+        self._cache_reads += 1
+        return self._total_ballots_cache[key]
     
+    def _num_valid_ballots(self, n_candidates, max_ballot_length):
+        if not self._use_total_ballots_cache:
+            raise Exception("Attempting to use cached num_valid_ballots, without enabling cache")
+
+        key = (n_candidates, max_ballot_length)
+        if key not in self._num_valid_ballots_cache:
+            self._num_valid_ballots_cache[key] = self._total_ballots(n_candidates, max_ballot_length) // n_candidates
+            self._cache_writes += 1
+        self._cache_reads += 1
+        return self._num_valid_ballots_cache[key]
+
     def _index_to_lexicographic_ballot(self, index: int, n_candidates: int, max_length: int) -> list[int]:
         """
         Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
@@ -450,9 +487,17 @@ class BallotSimplex(BallotGenerator):
         chunk_size = lambda n,l: self._total_ballots(n,l) // n
         candidates = list(range(n_candidates))
         out = []
-        bn = chunk_size(n_candidates+1, max_length + 1)
+        if self._use_total_ballots_cache:
+            bn = self._num_valid_ballots(n_candidates+1, max_length+1)
+        else:
+            bn = chunk_size(n_candidates+1, max_length + 1)
+        
         for i in range(n_candidates, 0, -1):
-            bn = (bn - 1) // i
+            if self._use_total_ballots_cache:
+                # TODO: check if this is correct
+                bn = self._num_valid_ballots(n_candidates=i, max_ballot_length=max_length)
+            else:
+                bn = (bn - 1) // i
             # Perform Euclidean division of index by bn
             section = index // bn
             remaining = index % bn
@@ -546,6 +591,8 @@ class ImpartialCulture(BallotSimplex):
             random.randint(0, total_ballots-1), num_cands, max_ballot_length
         ) for _ in range(number_of_ballots)]
         ballots = [tuple([self.candidates[i] for i in ballot_as_ind]) for ballot_as_ind in ballots_as_cand_ind]
+        #print(f"Total Cache Writes = {self._cache_writes}")
+        #print(f"Total Cache reads = {self._cache_reads}")
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
 
