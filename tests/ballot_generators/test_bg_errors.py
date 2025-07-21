@@ -10,7 +10,6 @@ from votekit.ballot_generator import (
 )
 
 
-
 from votekit.pref_interval import PreferenceInterval
 
 
@@ -208,9 +207,10 @@ def test_clustered_spatial_generator():
             candidate_dist_kwargs=normal_params,
         )
 
+
 def test_MCMC_subsample_chain_length_error():
     """
-    Test to check chain_length < num_ballots to be sampled 
+    Test to check chain_length < num_ballots to be sampled
     """
 
     # Initialization of parameters; doesn't matter for this test
@@ -235,15 +235,23 @@ def test_MCMC_subsample_chain_length_error():
         bloc_voter_prop=bloc_voter_prop,
         cohesion_parameters=cohesion_parameters,
     )
-    
+
     number_of_ballots = 3001
 
     # Error where minority bloc needs 0.3*10,000 = 3,000 number of ballots, where 10,000 is the preset chain_length
-    with pytest.raises(ValueError, match="The number of ballots to be sampled is more than the chain length; supply a greater chain length."):
+    with pytest.raises(
+        ValueError,
+        match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+    ):
         bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
-        
-    chain_length = 100 
+
+    chain_length = 100
     number_of_ballots = 101
-    
-    with pytest.raises(ValueError, match="The number of ballots to be sampled is more than the chain length; supply a greater chain length."):
-        bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots, chain_length=chain_length)
+
+    with pytest.raises(
+        ValueError,
+        match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+    ):
+        bt.generate_profile_MCMC_even_subsample(
+            number_of_ballots=number_of_ballots, chain_length=chain_length
+        )
