@@ -331,10 +331,12 @@ class BallotSimplex(BallotGenerator):
         self.point = point
 
         use_ballots_cache_key = "use_total_ballots_cache"
-        self._use_total_ballots_cache = False
-        if use_ballots_cache_key in data:
-            self._use_total_ballots_cache = data[use_ballots_cache_key]
+        use_single_cache_key = "use_single_cache"
+        self._use_total_ballots_cache = data.get(use_ballots_cache_key, False)
+        self._use_single_cache = data.get(use_single_cache_key, False)
+
         print(f"use_cache: {self._use_total_ballots_cache}")
+        print(f"use single cache {self._use_single_cache}")
 
         self._total_ballots_cache = {}
         self._num_valid_ballots_cache = {}
@@ -444,9 +446,11 @@ class BallotSimplex(BallotGenerator):
         return self._total_ballots_cache[key]
     
     def _num_valid_ballots(self, n_candidates, max_ballot_length):
+        if self._use_single_cache:
+            return self._total_ballots(n_candidates, max_ballot_length) // n_candidates
+
         if not self._use_total_ballots_cache:
             raise Exception("Attempting to use cached num_valid_ballots, without enabling cache")
-
         key = (n_candidates, max_ballot_length)
         if key not in self._num_valid_ballots_cache:
             self._num_valid_ballots_cache[key] = self._total_ballots(n_candidates, max_ballot_length) // n_candidates
