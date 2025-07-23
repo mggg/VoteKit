@@ -45,13 +45,20 @@ class Star(Election):
         L: float = 5,
         tiebreak: Optional[str] = None,
     ):
+        """Initialize a STAR election."""
         if L <= 0:
             raise ValueError("L must be positive.")
         self.L = L
         if tiebreak not in [None, 'most_top_ratings']:
             raise ValueError("tiebreak must be None or 'most_top_ratings'.")
+        
         self.tiebreak = tiebreak
         self._validate_profile(profile)
+
+        self._cands = list(profile.candidates_cast)
+        df = profile.df
+        self._weights = profile.df["Weight"]
+        self._scores_df = df[self._cands].fillna(0)
         
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
@@ -103,6 +110,7 @@ class Star(Election):
             (b.scores.get(f, 0) for b in ballots for f in finalists),
             default=0
         )
+
         top_ratings = {f: 0 for f in finalists}
 
         for ballot in ballots:
@@ -110,8 +118,11 @@ class Star(Election):
             for f in finalists:
                 if ballot.scores.get(f, 0) == top_score:
                     top_ratings[f] += weight
+
+        
         if top_ratings[finalists[0]] != top_ratings[finalists[1]]:
             return max(top_ratings, key=top_ratings.get)
+        
         return None
 
     def _is_finished(self) -> bool:
@@ -139,28 +150,25 @@ class Star(Election):
             PreferenceProfile: The profile after removing the elected candidate.
         """
         # Compute total scores
-        scores = self.score_function(profile) if self.score_function else {}
-        sorted_candidates = sorted(scores, key=scores.get, reverse=True)
-        finalist1, finalist2 = sorted_candidates[:2]
-        finalists = (finalist1, finalist2)
+        scores = self._scores_df.multiply(self._weights, axis=0).sum()
+        (finalist1, finalist2) = scores.nlargest(2).index
 
         # Runoff: count preferences between finalists
         runoff_counts = {finalist1: 0, finalist2: 0, "No Preference": 0}
-        for ballot in profile.ballots:
-            weight = getattr(ballot, 'weight', 1)
-            score1 = ballot.scores.get(finalist1, 0)
-            score2 = ballot.scores.get(finalist2, 0)
-            if score1 > score2:
-                runoff_counts[finalist1] += weight
-            elif score2 > score1:
-                runoff_counts[finalist2] += weight
-            else:
-                runoff_counts["No Preference"] += weight
+
+        s1 = self._scores_df[finalist1]
+        s2 = self._scores_df[finalist2]
+        w  = self._weights
+        runoff = {
+            finalist1:       w[s1 > s2].sum(),
+            finalist2:       w[s2 > s1].sum(),
+            "No Preference": w[s1 == s2].sum()
+        }
 
         # Determine winner
-        if runoff_counts[finalist1] > runoff_counts[finalist2]:
+        if runoff[finalist1] > runoff_counts[finalist2]:
             winner = finalist1
-        elif runoff_counts[finalist2] > runoff_counts[finalist1]:
+        elif runoff[finalist2] > runoff_counts[finalist1]:
             winner = finalist2
         else:
             winner = None
@@ -171,7 +179,7 @@ class Star(Election):
         remaining = [c for c in profile.candidates_cast if c != winner]
 
         # Update profile by removing elected candidate
-        elected_cands = [c for s in elected for c in s]
+        elected_cands = [winner] if winner else []
         new_profile = remove_and_condense(elected_cands, profile)
         self.runoff_counts = runoff_counts
 
@@ -181,7 +189,7 @@ class Star(Election):
                 remaining=tuple(),
                 eliminated=[frozenset({c}) for c in remaining],
                 elected=elected,
-                scores=scores,
+                scores=scores.to_dict(),
                 tiebreaks={} if winner else {f"{finalist1},{finalist2}": None},
                 #metadata={"runoff_counts": runoff_counts}
             )
