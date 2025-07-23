@@ -9,6 +9,154 @@ from collections import defaultdict
 import logging
 
 
+
+class STVAnimation():
+    """
+    A class which creates round-by-round animations of STV elections.
+
+    Args:
+        election (STV): An STV election to animate.
+        title (str): Text to be displayed at the beginning of the animation as a title screen. If None, the title screen will be skipped.
+    """
+    def __init__(self, election : STV, title : (str | None) = None):
+        # Extract only the salient details from the election.
+        self.candidates = self._make_candidate_dict(election)
+        self.rounds = self._make_event_list(election)
+        self.title = title
+
+    def _make_candidate_dict(self, election : STV) -> dict:
+        """
+        Create the dictionary of candidates and relevant facts about each one.
+
+        Args:
+            election (STV): An STV election from which to extract the candidates.
+        
+        Returns:
+            dict: A dictionary whose keys are candidate names and whose values are themselves dictionaries with details about each candidate.
+        """
+        candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
+        return candidates
+    
+
+    def _make_event_list(self, election : STV) -> List[dict]:
+        """
+        Process an STV election into a condensed list of only the salient details from each round.
+
+        Args:
+            election (STV): The STV election to process.
+
+        Returns:
+            List[dict]: A list of dictionaries corresponding to the rounds of the election. Each dictionary records salient attributes of the corresponding round.
+        """
+        events = []
+        for round_number, election_round in enumerate(election.election_states[1:], start = 1): #Nothing happens in election round 0
+
+            remaining_candidates = []
+            for fset in election_round.remaining:
+                remaining_candidates += list(fset)
+
+            elected_candidates = []
+            for fset in election_round.elected:
+                if len(fset) > 0:
+                    name, = fset
+                    elected_candidates.append(name)
+
+            eliminated_candidates = []
+            for fset in election_round.eliminated:
+                if len(fset) > 0:
+                    name, = fset
+                    eliminated_candidates.append(name)
+
+            if len(elected_candidates) > 0:
+                event_type = 'win'
+                message = f'Round {round_number}: {elected_candidates} Elected'
+                support_transferred = {}
+                if round_number == len(election): #If it's the last round, don't worry about the transferred votes
+                    support_transferred = {cand : {} for cand in elected_candidates}
+                else:
+                    support_transferred = self._get_transferred_votes(election, round_number, elected_candidates, 'win')
+                events.append(dict(
+                    event = event_type,
+                    candidates = elected_candidates,
+                    support_transferred = support_transferred,
+                    quota = election.threshold,
+                    message = message
+                ))
+            elif len(eliminated_candidates) > 0:
+                event_type = 'elimination'
+                message = f'Round {round_number}: {eliminated_candidates} Eliminated'
+                support_transferred = self._get_transferred_votes(election, round_number, eliminated_candidates, 'elimination')
+                events.append(dict(
+                    event = event_type,
+                    candidates = eliminated_candidates,
+                    support_transferred = support_transferred,
+                    quota = election.threshold,
+                    message = message
+                ))
+        return events
+
+    
+    def _get_transferred_votes(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']) -> dict[str, dict[str, float]]:
+        """
+        Compute the number of votes transferred from each elected or eliminated candidate to each remaining candidate.
+
+        Args:
+            election (STV): The election.
+            round_number (int): The number of the round in question.
+            from_candidates (List[str]): A list of the names of the elected or eliminated candidates.
+            event_type (str): "win" if candidates were elected this round, "elimination" otherwise.
+
+        Returns:
+            dict[str, dict[str, float]]: A nested dictionary. If d is the return value, c1 was a candidate eliminated this round, and c2 is a remaining candidate, then d[c1][c2] will be the total support transferred this round from c1 to c2.
+        """
+        prev_profile, prev_state = election.get_step(round_number-1)
+        current_state = election.election_states[round_number]
+
+        if event_type == 'elimination':
+            if len(from_candidates) > 1:
+                raise ValueError(f'Round {round_number} is eliminating multiple candidates ({len(from_candidates)}), which is not supported.')
+            from_candidate = from_candidates[0]
+            result_dict = {}
+            for to_candidate in [c for s in current_state.remaining for c in s]:
+                prev_score = int(prev_state.scores[to_candidate])
+                current_score = int(current_state.scores[to_candidate])
+                result_dict[to_candidate] = current_score - prev_score
+            return result_dict
+        
+        elif event_type == 'win':
+            ballots_by_fpv = ballots_by_first_cand(prev_profile)
+            transfers = {}
+            for from_candidate in from_candidates:
+                new_ballots = election.transfer(
+                    from_candidate,
+                    prev_state.scores[from_candidate],
+                    ballots_by_fpv[from_candidate],
+                    election.threshold
+                )
+                clean_ballots = [
+                    condense_ballot_ranking(remove_cand_from_ballot(from_candidates, b))
+                    for b in new_ballots
+                ]
+                transfer_weights_from_candidate = defaultdict(float)
+                for ballot in clean_ballots:
+                    if ballot.ranking is not None:
+                        to_candidate, = ballot.ranking[0]
+                        transfer_weights_from_candidate[to_candidate] += ballot.weight
+
+                transfers[from_candidate] = transfer_weights_from_candidate
+            return transfers
+
+    def render(self, preview : bool = False) -> None:
+        """
+        Renders the STV animation using Manim.
+
+        Args:
+            preview (bool): If true, display the result in a video player immediately upon completion.
+        """
+        manimation = ElectionScene(self.candidates, self.rounds, title=self.title)
+        manimation.render(preview=preview)
+
+
 class ElectionScene(manim.Scene):
     """
     Class for Manim animation of an STV election. This class is instantiated by the class STVAnimation. It should not be instantiated directly.
@@ -481,149 +629,3 @@ class ElectionScene(manim.Scene):
             float: The width, in manim coordinates, of a bar representing the support.
         """
         return self.width * support / self.max_support
-
-
-
-class STVAnimation():
-    """
-    A class which creates round-by-round animations of STV elections.
-
-    Args:
-        election (STV): An STV election to animate.
-        title (str): Text to be displayed at the beginning of the animation as a title screen. If None, the title screen will be skipped.
-    """
-    def __init__(self, election : STV, title : (str | None) = None):
-        # Extract only the salient details from the election.
-        self.candidates = self._make_candidate_dict(election)
-        self.rounds = self._make_event_list(election)
-        self.title = title
-
-    def _make_candidate_dict(self, election : STV) -> dict:
-        """
-        Create the dictionary of candidates and relevant facts about each one.
-
-        Args:
-            election (STV): An STV election from which to extract the candidates.
-        
-        Returns:
-            dict: A dictionary whose keys are candidate names and whose values are themselves dictionaries with details about each candidate.
-        """
-        candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
-        return candidates
-    
-    def _get_transferred_votes(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']) -> dict[str, dict[str, float]]:
-        """
-        Compute the number of votes transferred from each elected or eliminated candidate to each remaining candidate.
-
-        Args:
-            election (STV): The election.
-            round_number (int): The number of the round in question.
-            from_candidates (List[str]): A list of the names of the elected or eliminated candidates.
-            event_type (str): "win" if candidates were elected this round, "elimination" otherwise.
-
-        Returns:
-            dict[str, dict[str, float]]: A nested dictionary. If d is the return value, c1 was a candidate eliminated this round, and c2 is a remaining candidate, then d[c1][c2] will be the total support transferred this round from c1 to c2.
-        """
-        prev_profile, prev_state = election.get_step(round_number-1)
-        current_state = election.election_states[round_number]
-
-        if event_type == 'elimination':
-            if len(from_candidates) > 1:
-                raise ValueError(f'Round {round_number} is eliminating multiple candidates ({len(from_candidates)}), which is not supported.')
-            from_candidate = from_candidates[0]
-            result_dict = {}
-            for to_candidate in [c for s in current_state.remaining for c in s]:
-                prev_score = int(prev_state.scores[to_candidate])
-                current_score = int(current_state.scores[to_candidate])
-                result_dict[to_candidate] = current_score - prev_score
-            return result_dict
-        
-        elif event_type == 'win':
-            ballots_by_fpv = ballots_by_first_cand(prev_profile)
-            transfers = {}
-            for from_candidate in from_candidates:
-                new_ballots = election.transfer(
-                    from_candidate,
-                    prev_state.scores[from_candidate],
-                    ballots_by_fpv[from_candidate],
-                    election.threshold
-                )
-                clean_ballots = [
-                    condense_ballot_ranking(remove_cand_from_ballot(from_candidates, b))
-                    for b in new_ballots
-                ]
-                transfer_weights_from_candidate = defaultdict(float)
-                for ballot in clean_ballots:
-                    if ballot.ranking is not None:
-                        to_candidate, = ballot.ranking[0]
-                        transfer_weights_from_candidate[to_candidate] += ballot.weight
-
-                transfers[from_candidate] = transfer_weights_from_candidate
-            return transfers
-
-    def _make_event_list(self, election : STV) -> List[dict]:
-        """
-        Process an STV election into a condensed list of only the salient details from each round.
-
-        Args:
-            election (STV): The STV election to process.
-
-        Returns:
-            List[dict]: A list of dictionaries corresponding to the rounds of the election. Each dictionary records salient attributes of the corresponding round.
-        """
-        events = []
-        for round_number, election_round in enumerate(election.election_states[1:], start = 1): #Nothing happens in election round 0
-
-            remaining_candidates = []
-            for fset in election_round.remaining:
-                remaining_candidates += list(fset)
-
-            elected_candidates = []
-            for fset in election_round.elected:
-                if len(fset) > 0:
-                    name, = fset
-                    elected_candidates.append(name)
-
-            eliminated_candidates = []
-            for fset in election_round.eliminated:
-                if len(fset) > 0:
-                    name, = fset
-                    eliminated_candidates.append(name)
-
-            if len(elected_candidates) > 0:
-                event_type = 'win'
-                message = f'Round {round_number}: {elected_candidates} Elected'
-                support_transferred = {}
-                if round_number == len(election): #If it's the last round, don't worry about the transferred votes
-                    support_transferred = {cand : {} for cand in elected_candidates}
-                else:
-                    support_transferred = self._get_transferred_votes(election, round_number, elected_candidates, 'win')
-                events.append(dict(
-                    event = event_type,
-                    candidates = elected_candidates,
-                    support_transferred = support_transferred,
-                    quota = election.threshold,
-                    message = message
-                ))
-            elif len(eliminated_candidates) > 0:
-                event_type = 'elimination'
-                message = f'Round {round_number}: {eliminated_candidates} Eliminated'
-                support_transferred = self._get_transferred_votes(election, round_number, eliminated_candidates, 'elimination')
-                events.append(dict(
-                    event = event_type,
-                    candidates = eliminated_candidates,
-                    support_transferred = support_transferred,
-                    quota = election.threshold,
-                    message = message
-                ))
-        return events
-
-    def render(self, preview : bool = False) -> None:
-        """
-        Renders the STV animation using Manim.
-
-        Args:
-            preview (bool): If true, display the result in a video player immediately upon completion.
-        """
-        manimation = ElectionScene(self.candidates, self.rounds, title=self.title)
-        manimation.render(preview=preview)
