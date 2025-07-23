@@ -1,15 +1,16 @@
 from copy import deepcopy
-from manim import *
-from votekit.cleaning import condense_ballot_ranking, remove_cand_from_ballot
-from votekit.utils import ballots_by_first_cand
-from votekit.elections.election_types.ranking.stv import STV
+import manim
+from manim import Animation, Transform, Rectangle, SurroundingRectangle, Line, Create, Uncreate, FadeIn, FadeOut, Text, UP, DOWN, LEFT, RIGHT
+from .cleaning import condense_ballot_ranking, remove_cand_from_ballot
+from .utils import ballots_by_first_cand
+from .elections.election_types.ranking.stv import STV
 from typing import Literal, List
 from collections import defaultdict
 import logging
 
 
-class ElectionScene(Scene):
-    colors = [color.ManimColor(hex) for hex in [
+class ElectionScene(manim.Scene):
+    colors = [manim.color.ManimColor(hex) for hex in [
         "#16DEBD",
         "#163EDE",
         "#9F34F6",
@@ -17,18 +18,18 @@ class ElectionScene(Scene):
         "#8F560C",
         "#E2AD00",
         "#8AD412"]]
-    bar_color = LIGHT_GRAY
+    bar_color = manim.LIGHT_GRAY
     bar_opacity = 1
-    win_bar_color = GREEN
-    eliminated_bar_color = RED
+    win_bar_color = manim.GREEN
+    eliminated_bar_color = manim.RED
     ghost_opacity = 0.3
     ticker_tape_height = 2
     offscreen_sentinel = '__offscreen__'
-    offscreen_candidate_color = GRAY
+    offscreen_candidate_color = manim.GRAY
     title_font_size = 48
 
     def __init__(self, candidates, rounds, title=None):
-        Scene.__init__(self)
+        super().__init__()
         self.candidates = candidates
         self.rounds = rounds
         self.title = title
@@ -36,8 +37,9 @@ class ElectionScene(Scene):
         self.width = 8
         self.bar_height = 3.5 / len(self.candidates)
         self.font_size = 3*40 / len(self.candidates)
+        self.bar_opacity = 1
         self.bar_buffer_size = 1 / len(self.candidates)
-        self.strikethrough_width = self.font_size / 5
+        self.strikethrough_thickness = self.font_size / 5
         self.max_support = 1.1 * max([round['quota'] for round in self.rounds])
 
         self.quota_line = None
@@ -48,9 +50,9 @@ class ElectionScene(Scene):
         logging.getLogger("manim").setLevel(logging.WARNING)
 
         if self.title is not None:
-            self.__draw_title__(self.title)
-        self.__draw_initial_bars__()
-        self.__initialize_ticker_tape__()
+            self._draw_title(self.title)
+        self._draw_initial_bars()
+        self._initialize_ticker_tape()
         
         # Go round by round and animate the events
         for round_number, round in enumerate(self.rounds):     
@@ -68,26 +70,26 @@ class ElectionScene(Scene):
             self.wait(2)
 
             # Draw or move the quota line
-            self.__update_quota_line__(round['quota'])
+            self._update_quota_line(round['quota'])
 
-            self.__ticker_animation_shift__(round)
-            self.__ticker_animation_highlight__(round)
+            self._ticker_animation_shift(round)
+            self._ticker_animation_highlight(round)
 
             if round['event'] == 'elimination':
                 if eliminated_candidates is None: #Offscreen candidate eliminated
-                    self.__animate_elimination_offscreen__(round)
+                    self._animate_elimination_offscreen(round)
                 else: #Onscreen candidate eliminated
-                    self.__animate_elimination__(eliminated_candidates, round)
+                    self._animate_elimination(eliminated_candidates, round)
             elif round['event'] == 'win':
                 assert eliminated_candidates is not None
-                self.__animate_win__(eliminated_candidates, round)
+                self._animate_win(eliminated_candidates, round)
             else:
                 raise Exception(f"Event type {round['event']} not recognized.")
     
         self.wait(2)
 
-    def __draw_title__(self, message):
-        text = Tex(
+    def _draw_title(self, message):
+        text = manim.Tex(
             r"{7cm}\centering " + message,
             tex_environment="minipage"
         ).scale_to_fit_width(10)
@@ -95,7 +97,7 @@ class ElectionScene(Scene):
         self.wait(3)
         self.play(Uncreate(text))
 
-    def __draw_initial_bars__(self):
+    def _draw_initial_bars(self):
         # Sort candidates by starting first place votes
         sorted_candidates = sorted(self.candidates.keys(), key=lambda x: self.candidates[x]['support'], reverse=True)
 
@@ -104,7 +106,7 @@ class ElectionScene(Scene):
             color = self.colors[i % len(self.colors)]
             self.candidates[name]['color'] = color
             self.candidates[name]['bars'] = [Rectangle(
-                width=self.__support_to_bar_width__(self.candidates[name]['support']),
+                width=self._support_to_bar_width(self.candidates[name]['support']),
                 height=self.bar_height,
                 color=self.bar_color,
                 fill_color=color,
@@ -125,8 +127,8 @@ class ElectionScene(Scene):
         # Draw a large black rectangle for the background so that the ticker tape vanishes behind it
         background = Rectangle(width = self.camera.frame_width,
                                height = self.camera.frame_height,
-                               fill_color = BLACK,
-                               color = BLACK,
+                               fill_color = manim.BLACK,
+                               color = manim.BLACK,
                                fill_opacity = 1).shift(UP * self.ticker_tape_height).set_z_index(-1)
 
         # Create and place candidate names
@@ -142,7 +144,7 @@ class ElectionScene(Scene):
         self.play(*[FadeIn(self.candidates[name]['name_text']) for name in sorted_candidates], FadeIn(background))
         self.play(*[Create(self.candidates[name]['bars'][0]) for name in sorted_candidates])
 
-    def __initialize_ticker_tape__(self):
+    def _initialize_ticker_tape(self):
         line_length = self.camera.frame_width
         ticker_line = Line(start = [-line_length/2, 0., 0.],
                            end = [line_length/2, 0., 0.])
@@ -154,7 +156,7 @@ class ElectionScene(Scene):
             new_message = Text(
                 round['message'],
                 font_size = 24,
-                color=DARK_GRAY)
+                color=manim.DARK_GRAY)
             round['ticker_text'] = new_message
             if i == 0:
                 new_message.to_edge(DOWN,buff=0).shift(DOWN)
@@ -165,30 +167,31 @@ class ElectionScene(Scene):
         self.play(Create(ticker_line))
         self.play(*[Create(round['ticker_text']) for round in self.rounds])
 
-    def __ticker_animation_shift__(self, round):
+    def _ticker_animation_shift(self, round):
         shift_to_round = round['ticker_text'].animate.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height/3)
         drag_other_messages = [
-            MaintainPositionRelativeTo(other_round['ticker_text'], round['ticker_text'])
+            manim.MaintainPositionRelativeTo(other_round['ticker_text'], round['ticker_text'])
             for other_round in self.rounds if not other_round == round
         ]
         self.play(shift_to_round, *drag_other_messages)
 
-    def __ticker_animation_highlight__(self, round):
-        highlight_message = round['ticker_text'].animate.set_color(WHITE)
+    def _ticker_animation_highlight(self, round):
+        highlight_message = round['ticker_text'].animate.set_color(manim.WHITE)
         unhighlight_other_messages = [
-            other_round['ticker_text'].animate.set_color(DARK_GRAY)
+            other_round['ticker_text'].animate.set_color(manim.DARK_GRAY)
             for other_round in self.rounds if not other_round == round
         ]
         self.play(highlight_message, *unhighlight_other_messages)
 
         
-    def __update_quota_line__(self, quota):
+    def _update_quota_line(self, quota):
         some_candidate = list(self.candidates.values())[0]
 
         if not self.quota_line:
             # If the quota line doesn't exist yet, draw it.
-            line_top = self.camera.frame_height / 2
+            assert self.ticker_tape_line is not None
             line_bottom = self.ticker_tape_line.get_top()[1]
+            line_top = self.camera.frame_height / 2
             self.quota_line = Line(
                 start = [0., line_top, 0.],
                 end = [0., line_bottom, 0.],
@@ -203,13 +206,13 @@ class ElectionScene(Scene):
             self.play(self.quota_line.animate.align_to(some_candidate['bars'][0], LEFT).shift((self.width * quota/self.max_support) * RIGHT))
 
 
-    def __animate_win__(self, from_candidates : dict, round):
+    def _animate_win(self, from_candidates : dict, round):
         for c in from_candidates:
             print("Candidate", c)
         print(f"{round=}")
 
         #Box the winners' names
-        winner_boxes = [SurroundingRectangle(from_candidate['name_text'], color=GREEN, buff=0.1)
+        winner_boxes = [SurroundingRectangle(from_candidate['name_text'], color=manim.GREEN, buff=0.1)
                         for from_candidate in from_candidates.values()]
         
 
@@ -224,8 +227,8 @@ class ElectionScene(Scene):
             destinations = round['support_transferred'][from_candidate_name]
             candidate_color = from_candidate['color']
 
-            winner_rectangle = Rectangle(
-                width=self.__support_to_bar_width__(round['quota']),
+            winner_bar = Rectangle(
+                width=self._support_to_bar_width(round['quota']),
                 height=self.bar_height,
                 color=self.bar_color,
                 fill_color=self.win_bar_color,
@@ -237,7 +240,7 @@ class ElectionScene(Scene):
                 if votes <= 0:
                     continue
                 sub_bar = Rectangle(
-                    width = self.__support_to_bar_width__(votes),
+                    width = self._support_to_bar_width(votes),
                     height=self.bar_height,
                     color=self.bar_color, 
                     fill_color=candidate_color,
@@ -265,9 +268,9 @@ class ElectionScene(Scene):
 
 
             # Create a final short bar representing the exhausted votes
-            exhausted_votes = from_candidate['support'] - round['quota'] - np.sum(list(destinations.values()))
+            exhausted_votes = from_candidate['support'] - round['quota'] - sum(list(destinations.values()))
             exhausted_bar = Rectangle(
-                width = self.__support_to_bar_width__(exhausted_votes),
+                width = self._support_to_bar_width(exhausted_votes),
                 height=self.bar_height,
                 color=self.bar_color, 
                 fill_color=candidate_color,
@@ -279,7 +282,7 @@ class ElectionScene(Scene):
             # Animate the splitting of the old bar into the new sub_bars
             self.play(
                 *[FadeOut(bar) for bar in old_bars],
-                FadeIn(winner_rectangle),
+                FadeIn(winner_bar),
                 *[FadeIn(bar) for bar in new_bars],
                 FadeIn(exhausted_bar)
             )
@@ -290,7 +293,7 @@ class ElectionScene(Scene):
 
 
 
-    def __animate_elimination__(self, from_candidates, round):
+    def _animate_elimination(self, from_candidates, round):
         print(from_candidates)
         from_candidate = list(from_candidates.values())[0]
         destinations = round['support_transferred']
@@ -299,9 +302,9 @@ class ElectionScene(Scene):
         cross = Line(
             from_candidate['name_text'].get_left(),
             from_candidate['name_text'].get_right(),
-            color=RED,
+            color=manim.RED,
             )
-        cross.set_stroke(width=self.strikethrough_width)
+        cross.set_stroke(width=self.strikethrough_thickness)
         self.play(Create(cross))
 
         # Create short bars that will replace the candidate's current bars
@@ -313,7 +316,7 @@ class ElectionScene(Scene):
             if votes <= 0:
                 continue
             sub_bar = Rectangle(
-                width = self.__support_to_bar_width__(votes),
+                width = self._support_to_bar_width(votes),
                 height=self.bar_height,
                 color=self.bar_color, 
                 fill_color=candidate_color,
@@ -328,9 +331,9 @@ class ElectionScene(Scene):
             ) #The sub-bars will move to be next to the bars of their destination candidates
             self.candidates[destination]['bars'].append(sub_bar)
         # Create a final short bar representing the exhausted votes
-        exhausted_votes = from_candidate['support'] - np.sum(list(destinations.values()))
+        exhausted_votes = from_candidate['support'] - sum(list(destinations.values()))
         exhausted_bar = Rectangle(
-            width = self.__support_to_bar_width__(exhausted_votes),
+            width = self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
             color=self.bar_color, 
             fill_color=candidate_color,
@@ -356,7 +359,7 @@ class ElectionScene(Scene):
 
     
 
-    def __animate_elimination_offscreen__(self, round):
+    def _animate_elimination_offscreen(self, round):
         destinations = round['support_transferred']
 
         # Create short bars that will replace the candidate's current bars
@@ -366,7 +369,7 @@ class ElectionScene(Scene):
             if votes <= 0:
                 continue
             sub_bar = Rectangle(
-                width = self.__support_to_bar_width__(votes),
+                width = self._support_to_bar_width(votes),
                 height=self.bar_height,
                 color=self.bar_color, 
                 fill_color=self.offscreen_candidate_color,
@@ -389,7 +392,7 @@ class ElectionScene(Scene):
         self.play(*transformations)
 
             
-    def __rescale_bars__(self):
+    def _rescale_bars(self):
         #Re-scale the bars so they're not out of frame
         self.max_support = max([candidate['support'] for candidate in self.candidates.values()])
 
@@ -397,7 +400,7 @@ class ElectionScene(Scene):
         for candidate in self.candidates.values():
             old_bar = candidate['bar']
             new_bar = Rectangle(
-                width=self.__support_to_bar_width__(candidate['support']),
+                width=self._support_to_bar_width(candidate['support']),
                 height=self.bar_height,
                 color=self.bar_color, 
                 fill_color=candidate['color'],
@@ -409,23 +412,23 @@ class ElectionScene(Scene):
             transformations.append(bar_shortening_transformation) 
         self.play(*[transformations])
 
-    def __support_to_bar_width__(self, support):
+    def _support_to_bar_width(self, support):
         return self.width * support / self.max_support
 
 
 
 class STVAnimation():
     def __init__(self, election, title = None):
-        self.candidates = self.__make_candidate_dict__(election)
-        self.rounds = self.__make_event_list__(election)
+        self.candidates = self._make_candidate_dict(election)
+        self.rounds = self._make_event_list(election)
         print(self.rounds)
         self.title = title
 
-    def __make_candidate_dict__(self, election): #this creates the candidate dictionary
+    def _make_candidate_dict(self, election): #this creates the candidate dictionary
         viz_candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
         return viz_candidates
     
-    def __get_transferred_votes__(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']):
+    def _get_transferred_votes(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']):
         prev_profile, prev_state = election.get_step(round_number-1)
         current_state = election.election_states[round_number]
 
@@ -463,7 +466,7 @@ class STVAnimation():
                 transfers[from_candidate] = transfer_weights_from_candidate
             return transfers
 
-    def __make_event_list__(self, election : STV):
+    def _make_event_list(self, election : STV):
         events = []
         for round_number, election_round in enumerate(election.election_states[1:], start = 1): #Nothing happens in election round 0
 
@@ -490,7 +493,7 @@ class STVAnimation():
                 if round_number == len(election): #If it's the last round, don't worry about the transferred votes
                     support_transferred = {cand : {} for cand in elected_candidates}
                 else:
-                    support_transferred = self.__get_transferred_votes__(election, round_number, elected_candidates, 'win')
+                    support_transferred = self._get_transferred_votes(election, round_number, elected_candidates, 'win')
                 events.append(dict(
                     event = event_type,
                     candidates = elected_candidates,
@@ -501,7 +504,7 @@ class STVAnimation():
             elif len(eliminated_candidates) > 0:
                 event_type = 'elimination'
                 message = f'Round {round_number}: {eliminated_candidates} Eliminated'
-                support_transferred = self.__get_transferred_votes__(election, round_number, eliminated_candidates, 'elimination')
+                support_transferred = self._get_transferred_votes(election, round_number, eliminated_candidates, 'elimination')
                 events.append(dict(
                     event = event_type,
                     candidates = eliminated_candidates,
