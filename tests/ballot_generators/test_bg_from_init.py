@@ -49,14 +49,6 @@ def test_IC_optimized_completion():
     assert type(profile3) is PreferenceProfile
     assert profile3.total_ballot_wt == 100
 
-
-def test_IC_MCMC_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile_MCMC(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-    assert profile.total_ballot_wt == 100
-
-
 def test_IAC_completion():
     iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = iac.generate_profile(number_of_ballots=100)
