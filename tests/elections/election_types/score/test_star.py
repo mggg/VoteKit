@@ -8,6 +8,8 @@ from votekit.elections import ElectionState
 from votekit import PreferenceProfile, Ballot
 import pandas as pd
 import pytest
+import random
+import time
 
 
 # ---------- sample profiles -------------
@@ -144,8 +146,7 @@ def test_error_conditions():
     )
     e = Star(profile=neg_ballot, L=5)
     neg_ballot.df["Weight"] = -1
-    print(neg_ballot.df)
-    with pytest.raises(ValueError, match="negative"):
+    with pytest.raises(TypeError, match="positive"):
         Star(profile=neg_ballot, L=5)
 
 
@@ -177,13 +178,10 @@ def test_large_election_result_and_status_df():
 
     # after runoff (state-1) winner E elected
     state1 = election.get_step(1)[-1]
-    print(state1.elected)
     assert state1.elected == [frozenset({"E"})]
 
 def test_init():
     e = Star(profile=profile_simple, L=5)
-    print(e.get_elected())
-    print(winner_simple)
     assert [e for e in next(iter(e.get_elected()[0]))] == winner_simple
 
 def test_ties():
@@ -192,9 +190,6 @@ def test_ties():
 
 def test_state_list():
     e = Star(profile=profile_simple, L=5)
-    print(e.election_states)
-    print(" ")
-    print(states_simple)
     assert e.election_states == states_simple
 
 def test_get_profile():
@@ -231,10 +226,6 @@ def test_get_status_df():
         {"Status": ["Elected", "Eliminated", "Eliminated"], "Round": [1] * 3},
         index=["B", "A", "C"],
     )
-    print(df0)
-    print(e.get_status_df(0))
-    print(df1)
-    print(e.get_status_df(1))
     assert e.get_status_df(0).sort_index().equals(df0.sort_index())
     assert e.get_status_df(1).sort_index().equals(df1.sort_index())
 
@@ -269,4 +260,28 @@ def test_validate_profile():
     with pytest.raises(TypeError, match="score limit"):
         Star(profile=bad2, L=5)
 
+## ---- Stress Testing ---- ##
+n_ballots = 100_000
+n_candidates = 30
+
+# Build candidates
+candidates = [f"C{i}" for i in range(n_candidates)]
+
+# Build ballots with STAR scores (randomized)
+ballots = [Ballot(scores={c: random.randint(0, 5) for c in candidates}, weight=1) for _ in range(n_ballots)]
+
+profile_stress = PreferenceProfile(
+    ballots=ballots,
+    candidates=candidates,
+)
+
+def test_stress():
+    time0 = time.time()
+    # Stress test for STAR with large profile
+    election = Star(profile_stress, L=5)
+    time1 = time.time()
+    print(f"STAR stress test completed in {time1 - time0:.2f} seconds")
+    assert len(election.get_elected()) <= 1  # STAR elects one winner
+    time_stress = time1 - time0
+    assert (time_stress) < 10
     

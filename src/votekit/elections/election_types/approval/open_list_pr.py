@@ -77,11 +77,11 @@ class OpenListPR(Election):
             ValueError: If a ballot does not rank exactly one candidate or if any ballot
             has a negative weight.
         """
-        for b in profile.ballots:
-            if len(b.ranking) != 1:
-                raise ValueError("Each ballot must rank exactly one candidate.")
-            if b.weight < 0:
-                raise ValueError("All ballots must have non‑negative weight.")
+        if profile.df["Weight"].min() < 0:
+            raise ValueError("All ballots must have non‑negative weight.")
+        
+        if "Ranking_2" in profile.df.columns:
+            raise ValueError("Each ballot must rank exactly one candidate.")
 
     def _precompute(self, profile: PreferenceProfile) -> tuple[Dict[str, int], Dict[str, int], Dict[str, List[str]]]:
         """
@@ -99,22 +99,21 @@ class OpenListPR(Election):
             its total number of votes. The third dictionary maps each party to a
             sorted list of its candidates in descending order of votes.
         """
-        # tally candidates aggregates
+        ## tally candidates aggregates
         cand_votes: Dict[str, int] = {c: 0 for c in profile.candidates_cast}
-        for b in profile.ballots:
-            c = next(iter(b.ranking[0])) if isinstance(b.ranking[0], (set, frozenset)) else b.ranking[0]
-            cand_votes[c] += b.weight
+        df = profile.df.copy()
+        df['Candidate'] = df['Ranking_1'].apply(lambda r: next(iter(r)) if isinstance(r, (set, frozenset)) else r[0])
+        cand_votes = df.groupby('Candidate')['Weight'].sum().to_dict()
 
-        # aggregate parties and sort party-candidate lists
-        party_votes: Dict[str, int] = {}
-        party_lists: Dict[str, List[str]] = {}
-        for c, v in cand_votes.items():
-            p = self.party_map[c]
-            party_votes[p] = party_votes.get(p, 0) + v
-            party_lists.setdefault(p, []).append(c)
+        df['Party'] = df['Candidate'].map(self.party_map)
+        party_votes = df.groupby('Party')['Weight'].sum().to_dict()
+        def sorted_candidates(group):
+            votes = group.groupby('Candidate')['Weight'].sum()
+            sorted_cands = votes.sort_values(ascending=False).index.tolist()
+            return sorted_cands
 
-        for p, lst in party_lists.items():
-            party_lists[p] = sorted(lst, key=lambda c: (-cand_votes[c], random.random()))
+        party_lists = df.groupby('Party').apply(sorted_candidates).to_dict()
+
         return cand_votes, party_votes, party_lists
 
     def _is_finished(self) -> bool:

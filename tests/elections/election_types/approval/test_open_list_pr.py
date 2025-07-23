@@ -5,10 +5,12 @@ To run:
     pytest tests/test_openlist_pr.py
 """
 import pytest
+import random
 import pandas as pd
 from votekit import PreferenceProfile, Ballot
 from votekit.elections import ElectionState
 from votekit.elections.election_types.approval.open_list_pr import OpenListPR
+import time
         
         # ---------- samples ----------
 
@@ -125,9 +127,7 @@ def test_party_exhaustion():
     assert election.election_states[1].scores["Solo"] == 12
     assert election.election_states[2].scores["Solo"] == 0
 
-# ---------- states ---------- #
-
-def test_state_list_and_helpers():
+def test_state_list_and_helpers():    
     election = OpenListPR(profile_simple, m=3, party_map=party_map_simple, tiebreak="random")
     
     # three rounds = three stored states (+ initial state)
@@ -153,8 +153,6 @@ def test_error_conditions():
     with pytest.raises(ValueError, match="must be positive"):
         OpenListPR(profile_simple, m=0, party_map=party_map_simple)
 
-
-## -------------- standard tests -------------- ##
 def test_init():
     e = OpenListPR(profile_simple, party_map=party_map_simple, m=3, tiebreak="random")
     assert [c for c in e.get_elected()] == winners_simple
@@ -165,8 +163,6 @@ def test_ties():
 
 def test_state_list():
     e = OpenListPR(profile_simple, party_map=party_map_simple, m=2, tiebreak="random")
-    print(e.election_states)
-    print(states_simple)
     assert e.election_states == states_simple
 
 def test_get_profile():
@@ -223,7 +219,7 @@ def test_get_status_df():
 
 def test_errors():
     # m must be positive
-    with pytest.raises(ValueError, match="`m` must be positive"):
+    with pytest.raises(ValueError, match="m must be positive"):
         OpenListPR(profile_simple, m=0, party_map=party_map_simple, tiebreak="random")
 
     # cannot elect more seats than there are candidates
@@ -242,3 +238,28 @@ def test_validate_profile():
     )
     with pytest.raises(ValueError, match="exactly one"):
         OpenListPR(bad1, m=1, party_map={"X": "P", "Y": "P"})
+
+## ---- Stress Testing ---- ##
+n_ballots = 100_000
+n_candidates = 30
+
+# Build candidates
+candidates = [f"C{i}" for i in range(n_candidates)]
+
+# Built ballots
+ballots = [Ballot(ranking=(frozenset({random.choice(candidates)}),), weight=1) for _ in range(n_ballots)]
+
+profile_stress = PreferenceProfile(
+    ballots=ballots,
+    candidates=candidates,
+)
+
+def test_stress():
+    time0 = time.time()
+    # Stress test for OpenListPR with large profile
+    election = OpenListPR(profile_stress, m=10, party_map={c: "Party{c}" for c in candidates}, tiebreak="random")
+    time1 = time.time()
+    print(f"Stress test completed in {time1 - time0:.2f} seconds")
+    assert len(election.get_elected()) <= 10 
+    time_stress = time1 - time0
+    assert (time_stress) < 10

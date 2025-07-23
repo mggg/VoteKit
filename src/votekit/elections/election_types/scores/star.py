@@ -52,6 +52,7 @@ class Star(Election):
             raise ValueError("tiebreak must be None or 'most_top_ratings'.")
         self.tiebreak = tiebreak
         self._validate_profile(profile)
+        
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
         )
@@ -67,17 +68,25 @@ class Star(Election):
             ValueError: Fewer than two candidates provided (STAR requires at least two).
             TypeError: Ballots lack score dictionaries or have non-positive weights.
         """
-        if len(profile.candidates_cast) <= 1:
+        # Need at least two candidates
+        cands = list(profile.candidates_cast)
+        if len(cands) <= 1:
             raise ValueError("STAR requires at least two candidates.")
+        
+        # Every Ballot must actually carry a .scores dict
+        if any(b.scores is None for b in profile.ballots):
+            raise TypeError("All ballots must have score dictionary.")
+        
+        df = profile.df
+
+        # No negative weights allowed
+        if (df["Weight"] < 0).any():
+            raise TypeError("Ballot must have positive weight.")
+
+        # Catch any ballot whose explicit scores exceed L
         for b in profile.ballots:
-            if b.scores is None:
-                raise TypeError("All ballots must have score dictionary.")
-            elif any(score > self.L for score in b.scores.values()):
-                raise TypeError(
-                    f"Ballot {b} violates score limit {self.L} per candidate."
-                )
-            elif hasattr(b, 'weight') and b.weight <= 0:
-                raise TypeError(f"Ballot {b} must have positive weight.")
+            if any(score > self.L for score in b.scores.values()):
+                raise TypeError(f"Ballot violates score limit {self.L} per candidate.")
 
     def _tiebreak_most_top_ratings(self, finalists: List[str], ballots: List) -> Optional[str]:
         """
@@ -90,8 +99,12 @@ class Star(Election):
         Returns:
             Optional[str]: The winning candidate, or None if the tie persists.
         """
-        top_score = max((score for b in ballots for score in b.scores.values()), default=0)
+        top_score = max(
+            (b.scores.get(f, 0) for b in ballots for f in finalists),
+            default=0
+        )
         top_ratings = {f: 0 for f in finalists}
+
         for ballot in ballots:
             weight = getattr(ballot, 'weight', 1)
             for f in finalists:
@@ -165,7 +178,7 @@ class Star(Election):
         if store_states:
             new_state = ElectionState(
                 round_number=1,
-                remaining=[frozenset({c}) for c in remaining],
+                remaining=tuple(),
                 eliminated=[frozenset({c}) for c in remaining],
                 elected=elected,
                 scores=scores,
