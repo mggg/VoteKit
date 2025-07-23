@@ -10,6 +10,14 @@ import logging
 
 
 class ElectionScene(manim.Scene):
+    """
+    Class for Manim animation of an STV election. This class is instantiated by the class STVAnimation. It should not be instantiated directly.
+
+    Args:
+        candidates (dict[str,dict]): A dictionary mapping each candidate to a dictionary of attributes of the candidate.
+        rounds (List[dict]): A list of dictionaries representing the rounds of the election. Each dictionary is a summary of the events in the round it represents.
+        title (str): A string to be displayed at the beginning of the animation as a title screen. If None, the animation will skip the title screen.
+    """
     colors = [manim.color.ManimColor(hex) for hex in [
         "#16DEBD",
         "#163EDE",
@@ -28,7 +36,7 @@ class ElectionScene(manim.Scene):
     offscreen_candidate_color = manim.GRAY
     title_font_size = 48
 
-    def __init__(self, candidates, rounds, title=None):
+    def __init__(self, candidates : dict[str,dict], rounds : List[dict], title : (str | None) = None):
         super().__init__()
         self.candidates = candidates
         self.rounds = rounds
@@ -46,7 +54,12 @@ class ElectionScene(manim.Scene):
         self.ticker_tape_line = None
 
 
-    def construct(self):
+    def construct(self) -> None:
+        """
+        Constructs the animation.
+        """
+
+        # Manim produces a lot of logging output. Set the logging level to WARNING.
         logging.getLogger("manim").setLevel(logging.WARNING)
 
         if self.title is not None:
@@ -56,8 +69,6 @@ class ElectionScene(manim.Scene):
         
         # Go round by round and animate the events
         for round_number, round in enumerate(self.rounds):     
-            print(f"Animating round: {round['event']}, {round['candidates']}")
-
             # Remove the candidate from the candidate list
             if round['candidates'] == self.offscreen_sentinel: #If the eliminated candidate is offscreen
                 eliminated_candidates = None
@@ -88,7 +99,14 @@ class ElectionScene(manim.Scene):
     
         self.wait(2)
 
-    def _draw_title(self, message):
+
+    def _draw_title(self, message : str) -> None:
+        """
+        Draw the title screen.
+
+        Args:
+            message (str): String that the title screen will display.
+        """
         text = manim.Tex(
             r"{7cm}\centering " + message,
             tex_environment="minipage"
@@ -97,7 +115,10 @@ class ElectionScene(manim.Scene):
         self.wait(3)
         self.play(Uncreate(text))
 
-    def _draw_initial_bars(self):
+    def _draw_initial_bars(self) -> None:
+        """
+        Instantiate and draw the names and bars for each candidate.
+        """
         # Sort candidates by starting first place votes
         sorted_candidates = sorted(self.candidates.keys(), key=lambda x: self.candidates[x]['support'], reverse=True)
 
@@ -125,8 +146,10 @@ class ElectionScene(manim.Scene):
             ) #The rest of the candidates go below
 
         # Draw a large black rectangle for the background so that the ticker tape vanishes behind it
-        background = Rectangle(width = self.camera.frame_width,
-                               height = self.camera.frame_height,
+        frame_width = manim.config.frame_width
+        frame_height = manim.config.frame_height
+        background = Rectangle(width = frame_width,
+                               height = frame_height,
                                fill_color = manim.BLACK,
                                color = manim.BLACK,
                                fill_opacity = 1).shift(UP * self.ticker_tape_height).set_z_index(-1)
@@ -144,10 +167,13 @@ class ElectionScene(manim.Scene):
         self.play(*[FadeIn(self.candidates[name]['name_text']) for name in sorted_candidates], FadeIn(background))
         self.play(*[Create(self.candidates[name]['bars'][0]) for name in sorted_candidates])
 
-    def _initialize_ticker_tape(self):
-        line_length = self.camera.frame_width
-        ticker_line = Line(start = [-line_length/2, 0., 0.],
-                           end = [line_length/2, 0., 0.])
+    def _initialize_ticker_tape(self) -> None:
+        """
+        Instantiate and draw the ticker tape line and text.
+        """
+        line_length = manim.config.frame_width
+        ticker_line = Line(start = LEFT * line_length/2,
+                           end = RIGHT * line_length/2,)
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
         ticker_line.set_z_index(2) #Keep this line in front of the bars and the quota line
         self.ticker_tape_line = ticker_line
@@ -167,7 +193,13 @@ class ElectionScene(manim.Scene):
         self.play(Create(ticker_line))
         self.play(*[Create(round['ticker_text']) for round in self.rounds])
 
-    def _ticker_animation_shift(self, round):
+    def _ticker_animation_shift(self, round : dict) -> None:
+        """
+        Animate the shifting of the ticker tape to display the message for a given round.
+
+        Args:
+            round (dict): The round whose message will shift into view.
+        """
         shift_to_round = round['ticker_text'].animate.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height/3)
         drag_other_messages = [
             manim.MaintainPositionRelativeTo(other_round['ticker_text'], round['ticker_text'])
@@ -175,7 +207,13 @@ class ElectionScene(manim.Scene):
         ]
         self.play(shift_to_round, *drag_other_messages)
 
-    def _ticker_animation_highlight(self, round):
+    def _ticker_animation_highlight(self, round : dict) -> None:
+        """
+        Play an animation graying out all ticker tape message but one.
+
+        Args:
+            round (dict): The round whose message will be highlighted.
+        """
         highlight_message = round['ticker_text'].animate.set_color(manim.WHITE)
         unhighlight_other_messages = [
             other_round['ticker_text'].animate.set_color(manim.DARK_GRAY)
@@ -184,17 +222,22 @@ class ElectionScene(manim.Scene):
         self.play(highlight_message, *unhighlight_other_messages)
 
         
-    def _update_quota_line(self, quota):
-        some_candidate = list(self.candidates.values())[0]
+    def _update_quota_line(self, quota : float) -> None:
+        """
+        Update the position of the quota line to reflect the given quota. If no quota line exists, create it and animate its creation.
 
+        Args:
+            quota (float): The threshold number of votes necessary to be elected in the current round.
+        """
+        some_candidate = list(self.candidates.values())[0]
         if not self.quota_line:
             # If the quota line doesn't exist yet, draw it.
             assert self.ticker_tape_line is not None
             line_bottom = self.ticker_tape_line.get_top()[1]
-            line_top = self.camera.frame_height / 2
+            line_top = manim.config.frame_height / 2
             self.quota_line = Line(
-                start = [0., line_top, 0.],
-                end = [0., line_bottom, 0.],
+                start = UP * line_top,
+                end = UP * line_bottom,
                 color=self.win_bar_color)
             self.quota_line.align_to(some_candidate['bars'][0], LEFT)
             self.quota_line.shift((self.width * quota/self.max_support) * RIGHT)
@@ -206,11 +249,14 @@ class ElectionScene(manim.Scene):
             self.play(self.quota_line.animate.align_to(some_candidate['bars'][0], LEFT).shift((self.width * quota/self.max_support) * RIGHT))
 
 
-    def _animate_win(self, from_candidates : dict, round):
-        for c in from_candidates:
-            print("Candidate", c)
-        print(f"{round=}")
+    def _animate_win(self, from_candidates : dict[str,dict], round : dict) -> None:
+        """
+        Animate a round in which one or more candidates are elected.
 
+        Args:
+            from_candidates (dict[str,dict]): A dictionary in which the keys are the candidates elected this round and the values are dictionaries recording the candidate's attributes.
+            round (dict): A dictionary recording the events of this round.
+        """
         #Box the winners' names
         winner_boxes = [SurroundingRectangle(from_candidate['name_text'], color=manim.GREEN, buff=0.1)
                         for from_candidate in from_candidates.values()]
@@ -223,7 +269,7 @@ class ElectionScene(manim.Scene):
         for from_candidate_name, from_candidate in from_candidates.items():
             old_bars : List[Rectangle] = from_candidate['bars']
             new_bars : List[Rectangle] = []
-            transformations : List[Animation] = []
+            transformations = []
             destinations = round['support_transferred'][from_candidate_name]
             candidate_color = from_candidate['color']
 
@@ -293,8 +339,14 @@ class ElectionScene(manim.Scene):
 
 
 
-    def _animate_elimination(self, from_candidates, round):
-        print(from_candidates)
+    def _animate_elimination(self, from_candidates : dict[str,dict], round : dict) -> None:
+        """
+        Animate a round in which a candidate was eliminated. While the interface supports multiple candidate eliminations in one round for future extensibility, this function currently only supports elimination of one candidate at a time. The from_candidates argument should have exactly one entry.
+
+        Args:
+            from_candidates (dict[str,dict]): A dictionary in which the keys are the candidates eliminated this round and the values are dictionaries recording the candidate's attributes. This function currently only supports one elimination at a time, so from_candidates should be a dictionary with exactly one entry.
+            round (dict): A dictionary recording the events of this round.
+        """
         from_candidate = list(from_candidates.values())[0]
         destinations = round['support_transferred']
 
@@ -359,7 +411,13 @@ class ElectionScene(manim.Scene):
 
     
 
-    def _animate_elimination_offscreen(self, round):
+    def _animate_elimination_offscreen(self, round : dict) -> None:
+        """
+        Animate a round in which offscreen candidates were eliminated.
+
+        Args:
+            round (dict): A dictionary recording the events of this round.
+        """
         destinations = round['support_transferred']
 
         # Create short bars that will replace the candidate's current bars
@@ -392,11 +450,11 @@ class ElectionScene(manim.Scene):
         self.play(*transformations)
 
             
-    def _rescale_bars(self):
-        #Re-scale the bars so they're not out of frame
+    def _rescale_bars(self) -> None:
+        """Re-scale the bars so they fit nicely in frame."""
         self.max_support = max([candidate['support'] for candidate in self.candidates.values()])
 
-        transformations : List[Animation] = []
+        transformations : List[Transform] = []
         for candidate in self.candidates.values():
             old_bar = candidate['bar']
             new_bar = Rectangle(
@@ -410,25 +468,62 @@ class ElectionScene(manim.Scene):
                 new_bar,
             )
             transformations.append(bar_shortening_transformation) 
-        self.play(*[transformations])
+        self.play(*transformations)
 
-    def _support_to_bar_width(self, support):
+    def _support_to_bar_width(self, support : float) -> float:
+        """
+        Convert a number of votes to the width of a bar in manim coordinates representing that many votes.
+
+        Args:
+            support (float): A number of votes.
+
+        Returns:
+            float: The width, in manim coordinates, of a bar representing the support.
+        """
         return self.width * support / self.max_support
 
 
 
 class STVAnimation():
-    def __init__(self, election, title = None):
+    """
+    A class which creates round-by-round animations of STV elections.
+
+    Args:
+        election (STV): An STV election to animate.
+        title (str): Text to be displayed at the beginning of the animation as a title screen. If None, the title screen will be skipped.
+    """
+    def __init__(self, election : STV, title : (str | None) = None):
+        # Extract only the salient details from the election.
         self.candidates = self._make_candidate_dict(election)
         self.rounds = self._make_event_list(election)
-        print(self.rounds)
         self.title = title
 
-    def _make_candidate_dict(self, election): #this creates the candidate dictionary
-        viz_candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
-        return viz_candidates
+    def _make_candidate_dict(self, election : STV) -> dict:
+        """
+        Create the dictionary of candidates and relevant facts about each one.
+
+        Args:
+            election (STV): An STV election from which to extract the candidates.
+        
+        Returns:
+            dict: A dictionary whose keys are candidate names and whose values are themselves dictionaries with details about each candidate.
+        """
+        candidates = {name : {'support' : support} for name, support in election.election_states[0].scores.items()}
+        return candidates
     
-    def _get_transferred_votes(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']):
+    def _get_transferred_votes(self, election : STV, round_number : int, from_candidates : List[str], event_type : Literal['win', 'elimination']) -> dict[str, dict[str, float]]:
+        """
+        Compute the number of votes transferred from each elected or eliminated candidate to each remaining candidate.
+
+        Args:
+            election (STV): The election.
+            round_number (int): The number of the round in question.
+            from_candidates (List[str]): A list of the names of the elected or eliminated candidates.
+            event_type (str): "win" if candidates were elected this round, "elimination" otherwise.
+
+        Returns:
+            dict[str, dict[str, float]]: A nested dictionary. If d is the return value, c1 was a candidate eliminated this round, and c2 is a remaining candidate, then d[c1][c2] will be the total support transferred this round from c1 to c2.
+        """
         prev_profile, prev_state = election.get_step(round_number-1)
         current_state = election.election_states[round_number]
 
@@ -466,7 +561,16 @@ class STVAnimation():
                 transfers[from_candidate] = transfer_weights_from_candidate
             return transfers
 
-    def _make_event_list(self, election : STV):
+    def _make_event_list(self, election : STV) -> List[dict]:
+        """
+        Process an STV election into a condensed list of only the salient details from each round.
+
+        Args:
+            election (STV): The STV election to process.
+
+        Returns:
+            List[dict]: A list of dictionaries corresponding to the rounds of the election. Each dictionary records salient attributes of the corresponding round.
+        """
         events = []
         for round_number, election_round in enumerate(election.election_states[1:], start = 1): #Nothing happens in election round 0
 
@@ -514,6 +618,12 @@ class STVAnimation():
                 ))
         return events
 
-    def render(self, preview=False):
+    def render(self, preview : bool = False) -> None:
+        """
+        Renders the STV animation using Manim.
+
+        Args:
+            preview (bool): If true, display the result in a video player immediately upon completion.
+        """
         manimation = ElectionScene(self.candidates, self.rounds, title=self.title)
         manimation.render(preview=preview)
