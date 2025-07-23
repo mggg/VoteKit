@@ -29,9 +29,18 @@ def test_IC_completion():
 
 def test_IC_optimized_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile(number_of_ballots=100, use_optimized=True, allow_short_ballots=True)
-    profile2 = ic.generate_profile(number_of_ballots=100, use_optimized=True, allow_short_ballots=True, max_ballot_length=2)
-    profile3 = ic.generate_profile(number_of_ballots=100, use_optimized=True, allow_short_ballots=False)
+    profile = ic.generate_profile(
+        number_of_ballots=100, use_optimized=True, allow_short_ballots=True
+    )
+    profile2 = ic.generate_profile(
+        number_of_ballots=100,
+        use_optimized=True,
+        allow_short_ballots=True,
+        max_ballot_length=2,
+    )
+    profile3 = ic.generate_profile(
+        number_of_ballots=100, use_optimized=True, allow_short_ballots=False
+    )
 
     assert type(profile) is PreferenceProfile
     assert profile.total_ballot_wt == 100
@@ -39,6 +48,7 @@ def test_IC_optimized_completion():
     assert profile2.total_ballot_wt == 100
     assert type(profile3) is PreferenceProfile
     assert profile3.total_ballot_wt == 100
+
 
 def test_IC_MCMC_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])

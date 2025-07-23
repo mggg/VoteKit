@@ -1053,6 +1053,7 @@ def test_slate_BT_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
+
 def test_NBT_MCMC_subsample_distribution():
     # Set-up
     number_of_ballots = 500
@@ -1079,12 +1080,14 @@ def test_NBT_MCMC_subsample_distribution():
         bloc_voter_prop=bloc_voter_prop,
         cohesion_parameters=cohesion_parameters,
     )
-    generated_profile = bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
-    
+    generated_profile = bt.generate_profile_MCMC_even_subsample(
+        number_of_ballots=number_of_ballots
+    )
+
     # Length of ballot should be number_of_ballots, not chain length
-    
+
     # chain length < number_of_ballots --> resorts to number_of_ballots
-    
-    # Continuous sampling should do worse than spaced out subsampling w.h.p. 
-    
+
+    # Continuous sampling should do worse than spaced out subsampling w.h.p.
+
     # Acceptance ratio should be roughly be between two values

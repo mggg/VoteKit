@@ -7,14 +7,13 @@ from pathlib import Path
 import pickle
 import random
 import warnings
-from typing import Optional, Union, Tuple, Callable, Dict, Any, List
+from typing import Optional, Union, Tuple, Callable, Dict, Any
 import apportionment.methods as apportion  # type: ignore
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.metrics import euclidean_dist
-from .graphs import BallotGraph
 
 
 def sample_cohesion_ballot_types(
@@ -339,8 +338,8 @@ class BallotSimplex(BallotGenerator):
         print(f"use_cache: {self._use_total_ballots_cache}")
         print(f"use single cache {self._use_single_cache}")
 
-        self._total_ballots_cache = {}
-        self._num_valid_ballots_cache = {}
+        self._total_ballots_cache : dict[tuple[int, int], int] = {}
+        self._num_valid_ballots_cache : dict[tuple[int, int], int] = {}
         self._cache_writes = 0
         self._cache_reads = 0
 
@@ -437,29 +436,41 @@ class BallotSimplex(BallotGenerator):
 
     def _total_ballots(self, n_candidates, max_ballot_length):
         if not self._use_total_ballots_cache:
-            return sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
+            return sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
 
         key = (n_candidates, max_ballot_length)
         if key not in self._total_ballots_cache:
-            self._total_ballots_cache[key] = sum(math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1))
+            self._total_ballots_cache[key] = sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
             self._cache_writes += 1
         self._cache_reads += 1
         return self._total_ballots_cache[key]
-    
+
     def _num_valid_ballots(self, n_candidates, max_ballot_length):
         if self._use_single_cache:
             return self._total_ballots(n_candidates, max_ballot_length) // n_candidates
 
         if not self._use_total_ballots_cache:
-            raise Exception("Attempting to use cached num_valid_ballots, without enabling cache")
+            raise Exception(
+                "Attempting to use cached num_valid_ballots, without enabling cache"
+            )
         key = (n_candidates, max_ballot_length)
         if key not in self._num_valid_ballots_cache:
-            self._num_valid_ballots_cache[key] = self._total_ballots(n_candidates, max_ballot_length) // n_candidates
+            self._num_valid_ballots_cache[key] = (
+                self._total_ballots(n_candidates, max_ballot_length) // n_candidates
+            )
             self._cache_writes += 1
         self._cache_reads += 1
         return self._num_valid_ballots_cache[key]
 
-    def _index_to_lexicographic_ballot(self, index: int, n_candidates: int, max_length: int) -> list[int]:
+    def _index_to_lexicographic_ballot(
+        self, index: int, n_candidates: int, max_length: int
+    ) -> list[int]:
         """
         Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
         The ordering of the ballots is lexicographic, i.e., the first ballot is the
@@ -473,9 +484,9 @@ class BallotSimplex(BallotGenerator):
         (0,2,1),
         ...
         (n-1, n-2, ..., n-l)
-        
+
         where n is the number of candidates and l is the maximum ballot length.
-        
+
         Args:
             index (int): The index to convert.
             n_candidates (int): The number of candidates.
@@ -487,20 +498,24 @@ class BallotSimplex(BallotGenerator):
         total_valid_ballots = self._total_ballots(n_candidates, max_length)
         if index >= total_valid_ballots:
             # TODO: Improve this error message
-            raise Exception(f"Given ballot index {index} out of range. Max index: {total_valid_ballots}")
+            raise Exception(
+                f"Given ballot index {index} out of range. Max index: {total_valid_ballots}"
+            )
 
-        chunk_size = lambda n,l: self._total_ballots(n,l) // n
+        chunk_size = lambda n, l: self._total_ballots(n, l) // n
         candidates = list(range(n_candidates))
         out = []
         if self._use_total_ballots_cache:
-            bn = self._num_valid_ballots(n_candidates+1, max_length+1)
+            bn = self._num_valid_ballots(n_candidates + 1, max_length + 1)
         else:
-            bn = chunk_size(n_candidates+1, max_length + 1)
-        
+            bn = chunk_size(n_candidates + 1, max_length + 1)
+
         for i in range(n_candidates, 0, -1):
             if self._use_total_ballots_cache:
                 # TODO: check if this is correct
-                bn = self._num_valid_ballots(n_candidates=i, max_ballot_length=max_length)
+                bn = self._num_valid_ballots(
+                    n_candidates=i, max_ballot_length=max_length
+                )
             else:
                 bn = (bn - 1) // i
             # Perform Euclidean division of index by bn
@@ -530,8 +545,12 @@ class ImpartialCulture(BallotSimplex):
         super().__init__(alpha=float("inf"), **data)
 
     def generate_profile(
-        self, number_of_ballots: int, by_bloc: bool = False, use_optimized=False,
-        max_ballot_length = None, allow_short_ballots = False
+        self,
+        number_of_ballots: int,
+        by_bloc: bool = False,
+        use_optimized=False,
+        max_ballot_length=None,
+        allow_short_ballots=False,
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
@@ -540,9 +559,13 @@ class ImpartialCulture(BallotSimplex):
 
         if use_optimized:
             if allow_short_ballots:
-                return self._generate_profile_optimized_with_short(number_of_ballots, max_ballot_length)
+                return self._generate_profile_optimized_with_short(
+                    number_of_ballots, max_ballot_length
+                )
             else:
-                return self._generate_profile_optimized_non_short(number_of_ballots, max_ballot_length)
+                return self._generate_profile_optimized_non_short(
+                    number_of_ballots, max_ballot_length
+                )
         return super().generate_profile(number_of_ballots, by_bloc)
 
     def _generate_profile_optimized_non_short(
@@ -559,19 +582,22 @@ class ImpartialCulture(BallotSimplex):
             PreferenceProfile
         """
         num_cands = len(self.candidates)
-        #ballots_as_ind = np.random.choice(cands_inds, #size=(number_of_ballots, ballot_length), replace=False) 
+        # ballots_as_ind = np.random.choice(cands_inds, #size=(number_of_ballots, ballot_length), replace=False)
         # TODO: I think there should be a way to do this without list
         # comprehension, but the above commented line does not appear
         # to work
-        ballots_as_ind = np.array([
-            np.random.choice(num_cands, size=ballot_length, replace=False) for _ in range(number_of_ballots)
-        ])
+        ballots_as_ind = np.array(
+            [
+                np.random.choice(num_cands, size=ballot_length, replace=False)
+                for _ in range(number_of_ballots)
+            ]
+        )
         cands_as_array = np.array(self.candidates)
-        ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind] 
+        ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind]
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def _generate_profile_optimized_with_short(
-        self, number_of_ballots: int, max_ballot_length = None
+        self, number_of_ballots: int, max_ballot_length=None
     ) -> PreferenceProfile | Dict:
         """
         Generate an IC profile in the case where short ballots are
@@ -592,13 +618,20 @@ class ImpartialCulture(BallotSimplex):
             max_ballot_length = num_cands
         total_ballots = self._total_ballots(num_cands, max_ballot_length)
 
-        ballots_as_cand_ind = [self._index_to_lexicographic_ballot(
-            random.randint(0, total_ballots-1), num_cands, max_ballot_length
-        ) for _ in range(number_of_ballots)]
-        ballots = [tuple([self.candidates[i] for i in ballot_as_ind]) for ballot_as_ind in ballots_as_cand_ind]
-        #print(f"Total Cache Writes = {self._cache_writes}")
-        #print(f"Total Cache reads = {self._cache_reads}")
+        ballots_as_cand_ind = [
+            self._index_to_lexicographic_ballot(
+                random.randint(0, total_ballots - 1), num_cands, max_ballot_length
+            )
+            for _ in range(number_of_ballots)
+        ]
+        ballots = [
+            tuple([self.candidates[i] for i in ballot_as_ind])
+            for ballot_as_ind in ballots_as_cand_ind
+        ]
+        # print(f"Total Cache Writes = {self._cache_writes}")
+        # print(f"Total Cache reads = {self._cache_reads}")
         return self.ballot_pool_to_profile(ballots, self.candidates)
+
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
@@ -613,20 +646,25 @@ class ImpartialAnonymousCulture(BallotSimplex):
     """
 
     def __init__(self, **data):
-        self._OPTIMIZED_ENABLED = False # Flag to indicate whether 
+        self._OPTIMIZED_ENABLED = False  # Flag to indicate whether
         self._MAX_BINOM_EXPERIMENT_SIZE = 2**63 - 1
 
         super().__init__(alpha=1, **data)
 
     def generate_profile(
-        self, number_of_ballots, by_bloc: bool = False, use_optimized: bool = False,
-            max_ballot_length = None
+        self,
+        number_of_ballots,
+        by_bloc: bool = False,
+        use_optimized: bool = False,
+        max_ballot_length=None,
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
 
         if use_optimized:
-            return self._generate_profile_optimized(number_of_ballots, max_ballot_length)
+            return self._generate_profile_optimized(
+                number_of_ballots, max_ballot_length
+            )
         else:
             return super().generate_profile(number_of_ballots, by_bloc)
 
@@ -640,8 +678,10 @@ class ImpartialAnonymousCulture(BallotSimplex):
             max_length: maximum ballot length allowed
         Returns a list of rankings as tuples
         """
-        ballots_as_cand_ind =  [
-            self._index_to_lexicographic_ballot(int(ind), len(self.candidates), max_length) 
+        ballots_as_cand_ind = [
+            self._index_to_lexicographic_ballot(
+                int(ind), len(self.candidates), max_length
+            )
             for ind in list_of_indices
         ]
         return [tuple(self.candidates[i] for i in inds) for inds in ballots_as_cand_ind]
@@ -651,27 +691,27 @@ class ImpartialAnonymousCulture(BallotSimplex):
     ) -> PreferenceProfile | Dict:
         # choose index as sampled 0 to N, do this n! times
         num_cands = len(self.candidates)
-        num_gaps = num_ballots #+ 1
+        num_gaps = num_ballots  # + 1
         gap_freq = np.zeros(
             num_gaps, dtype=int
         )  # record the number of gaps in stars/bars
 
         # rather than iterate n! times, we perform multiple
         # multinomial experiments
-        
+
         num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
-        '''
+        """
         num_iterations = num_valid_ballots // self._MAX_BINOM_EXPERIMENT_SIZE
         remainder = num_valid_ballots % self._MAX_BINOM_EXPERIMENT_SIZE
         pvals = [1/num_gaps] * num_gaps
         for _ in range(num_iterations):
             gap_freq += np.random.multinomial(self._MAX_BINOM_EXPERIMENT_SIZE, pvals)
         gap_freq += np.random.multinomial(remainder, pvals)
-        '''
+        """
 
         for _ in range(num_valid_ballots):
             gap_freq[random.randint(0, num_gaps) - 1] += 1
-        
+
         # TODO: Double check possible off by 1 errors here and in `gap_freq`
         ballot_indices = np.cumsum(gap_freq) - 1
         ballots = self._indices_to_ballots(ballot_indices, max_ballot_length)
