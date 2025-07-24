@@ -69,7 +69,10 @@ class STVAnimation():
 
             if len(elected_candidates) > 0:
                 event_type = 'win'
-                message = f'Round {round_number}: {elected_candidates} Elected'
+                elected_candidates_str = elected_candidates[0]
+                for candidate_name in elected_candidates[1:]:
+                    elected_candidates_str += ", " + candidate_name
+                message = f'Round {round_number}: {elected_candidates_str} Elected'
                 support_transferred = {}
                 if round_number == len(election): #If it's the last round, don't worry about the transferred votes
                     support_transferred = {cand : {} for cand in elected_candidates}
@@ -84,7 +87,10 @@ class STVAnimation():
                 ))
             elif len(eliminated_candidates) > 0:
                 event_type = 'elimination'
-                message = f'Round {round_number}: {eliminated_candidates} Eliminated'
+                eliminated_candidates_str = eliminated_candidates[0]
+                for candidate_name in eliminated_candidates[1:]:
+                    eliminated_candidates_str += ", " + candidate_name
+                message = f'Round {round_number}: {eliminated_candidates_str} Eliminated'
                 support_transferred = self._get_transferred_votes(election, round_number, eliminated_candidates, 'elimination')
                 events.append(dict(
                     event = event_type,
