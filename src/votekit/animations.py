@@ -1,6 +1,6 @@
 from copy import deepcopy
 import manim
-from manim import Animation, Transform, Rectangle, SurroundingRectangle, Line, Create, Uncreate, FadeIn, FadeOut, Text, UP, DOWN, LEFT, RIGHT
+from manim import Transform, Rectangle, SurroundingRectangle, Line, Create, Uncreate, FadeIn, FadeOut, Text, UP, DOWN, LEFT, RIGHT
 from .cleaning import condense_ballot_ranking, remove_cand_from_ballot
 from .utils import ballots_by_first_cand
 from .elections.election_types.ranking.stv import STV
@@ -153,7 +153,7 @@ class STVAnimation():
         Args:
             preview (bool): If true, display the result in a video player immediately upon completion.
         """
-        manimation = ElectionScene(self.candidates, self.rounds, title=self.title)
+        manimation = ElectionScene(deepcopy(self.candidates), deepcopy(self.rounds), title=self.title)
         manimation.render(preview=preview)
 
 
