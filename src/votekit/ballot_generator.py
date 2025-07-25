@@ -318,6 +318,8 @@ class BallotSimplex(BallotGenerator):
             candidates as keys and floats in [0,1] as values.
     """
 
+    _total_ballots_cache : dict[tuple[int,int], int] = {}
+
     def __init__(
         self, alpha: Optional[float] = None, point: Optional[dict] = None, **data
     ):
@@ -331,18 +333,9 @@ class BallotSimplex(BallotGenerator):
         self.point = point
 
         use_ballots_cache_key = "use_total_ballots_cache"
-        use_single_cache_key = "use_single_cache"
         self._use_total_ballots_cache = data.get(use_ballots_cache_key, False)
-        self._use_single_cache = data.get(use_single_cache_key, False)
 
         print(f"use_cache: {self._use_total_ballots_cache}")
-        print(f"use single cache {self._use_single_cache}")
-
-        self._total_ballots_cache : dict[tuple[int, int], int] = {}
-        self._num_valid_ballots_cache : dict[tuple[int, int], int] = {}
-        self._cache_writes = 0
-        self._cache_reads = 0
-
         super().__init__(**data)
 
     @classmethod
@@ -429,10 +422,7 @@ class BallotSimplex(BallotGenerator):
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
     def _clear_cache(self):
-        self._total_ballots_cache = {}
-        self._num_valid_ballots_cache = {}
-        self._cache_writes = 0
-        self._cache_reads = 0
+        BallotSimplex._total_ballots_cache = {}
 
     def _total_ballots(self, n_candidates, max_ballot_length):
         if not self._use_total_ballots_cache:
@@ -447,26 +437,7 @@ class BallotSimplex(BallotGenerator):
                 math.comb(n_candidates, i) * math.factorial(i)
                 for i in range(1, max_ballot_length + 1)
             )
-            self._cache_writes += 1
-        self._cache_reads += 1
         return self._total_ballots_cache[key]
-
-    def _num_valid_ballots(self, n_candidates, max_ballot_length):
-        if self._use_single_cache:
-            return self._total_ballots(n_candidates, max_ballot_length) // n_candidates
-
-        if not self._use_total_ballots_cache:
-            raise Exception(
-                "Attempting to use cached num_valid_ballots, without enabling cache"
-            )
-        key = (n_candidates, max_ballot_length)
-        if key not in self._num_valid_ballots_cache:
-            self._num_valid_ballots_cache[key] = (
-                self._total_ballots(n_candidates, max_ballot_length) // n_candidates
-            )
-            self._cache_writes += 1
-        self._cache_reads += 1
-        return self._num_valid_ballots_cache[key]
 
     def _index_to_lexicographic_ballot(
         self, index: int, n_candidates: int, max_length: int
@@ -506,16 +477,14 @@ class BallotSimplex(BallotGenerator):
         candidates = list(range(n_candidates))
         out = []
         if self._use_total_ballots_cache:
-            bn = self._num_valid_ballots(n_candidates + 1, max_length + 1)
+            bn = self._total_ballots(n_candidates + 1, max_length + 1) // (n_candidates + 1)
         else:
             bn = chunk_size(n_candidates + 1, max_length + 1)
 
         for i in range(n_candidates, 0, -1):
             if self._use_total_ballots_cache:
                 # TODO: check if this is correct
-                bn = self._num_valid_ballots(
-                    n_candidates=i, max_ballot_length=max_length
-                )
+                bn = self._total_ballots(n_candidates=i, max_ballot_length=max_length) // (i)
             else:
                 bn = (bn - 1) // i
             # Perform Euclidean division of index by bn
@@ -551,6 +520,7 @@ class ImpartialCulture(BallotSimplex):
         use_optimized=False,
         max_ballot_length=None,
         allow_short_ballots=False,
+        return_raw = False
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
@@ -560,7 +530,7 @@ class ImpartialCulture(BallotSimplex):
         if use_optimized:
             if allow_short_ballots:
                 return self._generate_profile_optimized_with_short(
-                    number_of_ballots, max_ballot_length
+                    number_of_ballots, max_ballot_length, return_raw
                 )
             else:
                 return self._generate_profile_optimized_non_short(
@@ -597,7 +567,7 @@ class ImpartialCulture(BallotSimplex):
         return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def _generate_profile_optimized_with_short(
-        self, number_of_ballots: int, max_ballot_length=None
+        self, number_of_ballots: int, max_ballot_length=None, return_raw = False
     ) -> PreferenceProfile | Dict:
         """
         Generate an IC profile in the case where short ballots are
@@ -628,6 +598,9 @@ class ImpartialCulture(BallotSimplex):
             tuple([self.candidates[i] for i in ballot_as_ind])
             for ballot_as_ind in ballots_as_cand_ind
         ]
+
+        if return_raw:
+            return ballots
         # print(f"Total Cache Writes = {self._cache_writes}")
         # print(f"Total Cache reads = {self._cache_reads}")
         return self.ballot_pool_to_profile(ballots, self.candidates)
