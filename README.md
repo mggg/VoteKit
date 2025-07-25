@@ -72,7 +72,7 @@ minn_election.run_election()
 ## Issues and Contributing
 This project is in active development in the [mggg/VoteKit](https://github.com/mggg/VoteKit) GitHub repository, where [bug reports and feature requests](https://votekit.readthedocs.io/en/latest/package_info/issues/), as well as [contributions](https://votekit.readthedocs.io/en/latest/package_info/contributing/), are welcome.
 
-Currently VoteKit uses `poetry` to manage the development environment. If you want to make a pull request, first `pip install poetry` to your computer. Then, within the Votekit directory and with a virtual environment activated, run `poetry install .` This will install all of the development packages you might need. Before making a pull request, run the following:
+Currently VoteKit uses `poetry` to manage the development environment. If you want to make a pull request, first `pip install poetry` to your computer. Then, within the Votekit directory and with a virtual environment activated, run `poetry install` This will install all of the development packages you might need. Before making a pull request, run the following:
 - `poetry run pytest tests` to check the test suite,
 - `poetry run black .` to format your code,
 - `poetry run ruff check .` to check the formatting, and then
