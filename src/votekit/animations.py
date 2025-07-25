@@ -683,28 +683,6 @@ class ElectionScene(manim.Scene):
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
         self.play(*transformations)
 
-    def _rescale_bars(self) -> None:
-        """Re-scale the bars so they fit nicely in frame."""
-        self.max_support = max(
-            [candidate["support"] for candidate in self.candidates.values()]
-        )
-
-        transformations: List[Transform] = []
-        for candidate in self.candidates.values():
-            old_bar = candidate["bar"]
-            new_bar = Rectangle(
-                width=self._support_to_bar_width(candidate["support"]),
-                height=self.bar_height,
-                color=self.bar_color,
-                fill_color=candidate["color"],
-                fill_opacity=self.bar_opacity,
-            ).next_to(candidate["name_text"], RIGHT)
-            bar_shortening_transformation = Transform(
-                old_bar,
-                new_bar,
-            )
-            transformations.append(bar_shortening_transformation)
-        self.play(*transformations)
 
     def _support_to_bar_width(self, support: float) -> float:
         """
