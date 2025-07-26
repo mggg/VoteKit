@@ -1,43 +1,41 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, List
+import numpy as np
+import pandas as pd
 import random
-from ....models import Election
+from votekit import PreferenceProfile, Ballot
+from votekit.elections.election_types.scores.rating import GeneralRating as Election
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense_ranked_profile
-
 
 class OpenListPR(Election):
     """
-    Open-list party-list PR.
+    Open-list party-list proportional representation (PR) election method.
+
+    In Open-list, each party gives a list of candidates to elect. Voters can cast votes for individual candidates
+    as well as whole parties (as opposed to closed-list PR where voters can only vote for parties). The total number
+    of seats allocated to each party is determined by a function that takes in the sum of votes recieved by
+    each party and their individual candidates. Once a party's seats are determined, the candidates are elected from the party's
+    list in order of their individual vote totals. 
     """
     def __init__(
         self,
         profile: PreferenceProfile,
+        party_map: Dict[str, str],
         m: int = 1,
-        party_map: Optional[Dict[str, str]] = None,
         tiebreak: Optional[str] = None,
-        divisor_method: Optional[str] = "dhondt",
+        divisor_method: str = "dhondt",
     ): 
         """
         Initialize an OpenListPR election.
 
-        Parameters
-        ----------
-        profile : PreferenceProfile
-            The input preference profile.
-        m : int, optional
-            The number of seats to be filled. Defaults to 1.
-        party_map : Dict[str, str], optional
-            A dictionary mapping each candidate to a party. Defaults to None.
-        tiebreak : str, optional
-            A string indicating the method to break ties. Defaults to None.
-        divisor_method : str, optional
-            A string indicating the divisor method to use. Defaults to "dhondt".
-
-        Raises
-        ------
-        ValueError
-            If m is not positive or if party_map is None.
+        Args:
+        profile (PreferenceProfile): Profile from votekit, containing a list of Ballot objects
+            with rankings of candidates and optional weights.
+        party_map Dict[str, str]: A dictionary mapping each candidate to a party. 
+        m (int, optional): Number of seats to be filled. Defaults to 1.
+        tiebreak (str, optional): Tiebreak method to use. Options are None or 'random'.
+        divisor_method (str, optional): Method to use for calculating party seat allocation.
+            Options are "dhondt", "saint-lague", or "imperiali".
         """
 
         if m <= 0:
@@ -53,17 +51,23 @@ class OpenListPR(Election):
 
         # Precompute once before the real run
         (
-            self._candidate_votes,
-            self._party_votes,
-            self._party_lists,
+            self._candidate_vote_totals,
+            self._party_vote_totals,
+            self._party_to_sorted_candidates,
         ) = self._precompute(profile)
 
         # Will be updated only in the real run during each step
-        self._party_seats: Dict[str, int] = {p: 0 for p in self._party_votes}
+        self._party_seats: Dict[str, int] = {p: 0 for p in self._party_vote_totals}
         self._winners: List[str] = []
         self._last_scores: Dict[str, float] = {}
 
-        super().__init__(profile=profile)
+        self._base_party_df = pd.DataFrame({
+            "total_votes": pd.Series(self._party_vote_totals),
+            "num_candidates": pd.Series({p: len(cands) for p, cands in self._party_to_sorted_candidates.items()}),
+            "seats_so_far": 0,
+        })
+
+        super().__init__(profile=profile, m=m, tiebreak=tiebreak)
         
     def _validate_profile(self, profile: PreferenceProfile) -> None:
         """
@@ -77,11 +81,20 @@ class OpenListPR(Election):
             ValueError: If a ballot does not rank exactly one candidate or if any ballot
             has a negative weight.
         """
-        if profile.df["Weight"].min() < 0:
+        df = profile.df
+
+        # No negative weights
+        if df["Weight"].lt(0).any():
             raise ValueError("All ballots must have non‑negative weight.")
-        
-        if "Ranking_2" in profile.df.columns:
-            raise ValueError("Each ballot must rank exactly one candidate.")
+
+        # Grab the candidate columns 
+        cand_cols = list(profile.candidates_cast)
+        cand_df = df[cand_cols].fillna(0)
+
+        # No ballot may award more than 1 point to any candidate
+        if cand_df.gt(1).values.any():
+            raise ValueError("Ballots can only accept candidates (scores of one).")
+
 
     def _precompute(self, profile: PreferenceProfile) -> tuple[Dict[str, int], Dict[str, int], Dict[str, List[str]]]:
         """
@@ -99,22 +112,37 @@ class OpenListPR(Election):
             its total number of votes. The third dictionary maps each party to a
             sorted list of its candidates in descending order of votes.
         """
-        ## tally candidates aggregates
-        cand_votes: Dict[str, int] = {c: 0 for c in profile.candidates_cast}
         df = profile.df.copy()
-        df['Candidate'] = df['Ranking_1'].apply(lambda r: next(iter(r)) if isinstance(r, (set, frozenset)) else r[0])
-        cand_votes = df.groupby('Candidate')['Weight'].sum().to_dict()
+        candidate_cols = list(profile.candidates_cast)
 
-        df['Party'] = df['Candidate'].map(self.party_map)
-        party_votes = df.groupby('Party')['Weight'].sum().to_dict()
-        def sorted_candidates(group):
-            votes = group.groupby('Candidate')['Weight'].sum()
-            sorted_cands = votes.sort_values(ascending=False).index.tolist()
-            return sorted_cands
+        ## tally candidates aggregated
+        weights = df["Weight"].fillna(1).to_numpy()
+        df_cleaned = df[candidate_cols].fillna(0).to_numpy()
 
-        party_lists = df.groupby('Party').apply(sorted_candidates).to_dict()
+        # Calculate weighted votes for each candidate
+        weighted_votes = df_cleaned.T.dot(weights)
+        candidate_vote_totals = dict(zip(candidate_cols, weighted_votes))
+        
+        # Party vote totals
+        candidate_votes = pd.Series(candidate_vote_totals)
+        party_series = pd.Series(self.party_map)
+        party_vote_totals = candidate_votes.groupby(party_series).sum().to_dict()
 
-        return cand_votes, party_votes, party_lists
+        # Build sorted party lists
+        cand_df = pd.DataFrame({
+            "candidate": list(profile.candidates_cast),
+            "party": [self.party_map[c] for c in profile.candidates_cast],
+            "votes": [candidate_vote_totals[c] for c in profile.candidates_cast]
+        })
+
+        party_to_sorted_candidates = (
+            cand_df.sort_values(["party", "votes"], ascending=[True, False])
+            .groupby("party")["candidate"]
+            .apply(list)
+            .to_dict()
+        )
+
+        return candidate_vote_totals, party_vote_totals, party_to_sorted_candidates
 
     def _is_finished(self) -> bool:
         """
@@ -124,7 +152,55 @@ class OpenListPR(Election):
             bool: True if the number of winners equals the number of seats to be filled (m),
             indicating that the election has finished. False otherwise.
         """
-        return len(self._winners) == self.m
+        elected_cands = [c for s in self.get_elected() for c in s]
+
+        if len(elected_cands) == self.m:
+            return True
+        return False
+
+    def fast_remove_and_condense(self,removed: List[str], profile: PreferenceProfile, remove_empty_ballots: bool = True, remove_zero_weight_ballots: bool = True,
+    ) -> PreferenceProfile:
+        """
+        Faster version of remove_and_condense for OpenListPR elections.
+
+        Args:
+            removed (List[str]): List of candidates to be removed from the profile.
+            profile (PreferenceProfile): The original preference profile.
+            remove_empty_ballots (bool, optional): If True, removes ballots with no votes.
+            remove_zero_weight_ballots (bool, optional): If True, removes ballots with zero weight.
+
+        Returns:
+            PreferenceProfile: A new profile with the specified candidates removed and ballots condensed.
+        """
+        if isinstance(removed, str):
+            removed = [removed]
+
+        # pull out candidate list, df, and weight vector
+        all_cands_list = list(profile.candidates_cast)
+        kept_cands_list = [c for c in all_cands_list if c not in removed]
+        df = profile.df
+
+        # build data arrays
+        weights = df["Weight"].fillna(1).to_numpy()
+        candidate_scores = df[kept_cands_list].fillna(0).to_numpy() 
+
+        # filter out zero‑weight and empty ballots
+        filter = np.ones_like(weights, dtype=bool)
+        if remove_zero_weight_ballots:
+            filter &= (weights > 0)
+        if remove_empty_ballots:
+            filter &= (candidate_scores.sum(axis=1) > 0)
+        weight_f = weights[filter] 
+        cand_scores_f = candidate_scores[filter, :]  
+
+        totals = cand_scores_f.T.dot(weight_f)
+        new_ballots = [Ballot(scores={cand: 1}, weight=wt) for cand, wt in zip(kept_cands_list, totals) if wt > 0]
+
+        # return new profile
+        return PreferenceProfile(
+            ballots=new_ballots,
+            candidates=kept_cands_list,
+        )
 
     def _run_step(self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False,
     ) -> PreferenceProfile:
@@ -141,48 +217,54 @@ class OpenListPR(Election):
         Returns:
             PreferenceProfile: The profile of ballots after the round is completed.
         """
-        # compute how many seats each party has so far (from prev_state history)
-        seats_so_far: Dict[str, int] = {p: 0 for p in self._party_votes}
+        seats = {p: 0 for p in self._party_vote_totals}
         for state in self.election_states[1: prev_state.round_number + 1]:
             for s in state.elected:
                 for c in s:
-                    seats_so_far[self.party_map[c]] += 1
+                    seats[self.party_map[c]] += 1
+
+        df = self._base_party_df.copy()
+        df["seats_so_far"] = pd.Series(seats)
 
         # compute party scores
         scores: Dict[str, float] = {}
-        for party, total in self._party_votes.items():
-            divisor = 0
-            if self.divisor_method == "dhondt":
-                divisor = 1 + seats_so_far[party]
-            elif self.divisor_method == "saint-lague":
-                divisor = 2 * seats_so_far[party] + 1
-            elif self.divisor_method == "imperiali":
-                divisor = seats_so_far[party] + 2
-            else:
-                raise ValueError(f"Unknown divisor method: {self.divisor_method}")
-            
-            scores[party] = 0.0 if seats_so_far[party] >= len(self._party_lists[party]) \
-                else total / (1 + seats_so_far[party])
+        if self.divisor_method == "dhondt":
+            df["divisor"] = 1 + df["seats_so_far"]
+        elif self.divisor_method == "saint-lague":
+            df["divisor"] = 2 * df["seats_so_far"] + 1
+        elif self.divisor_method == "imperiali":
+            df["divisor"] = df["seats_so_far"] + 2
+        else:
+            raise ValueError(f"Unknown divisor method: {self.divisor_method}")
+
+        # Compute scores
+        df["score"] = df.apply(
+            lambda row: 0.0 if row["seats_so_far"] >= row["num_candidates"]
+            else row["total_votes"] / row["divisor"],
+            axis=1
+        )
+        scores = df["score"].to_dict()
 
         # pick party leader
         max_score = max(scores.values())
         leaders = [p for p, s in scores.items() if s == max_score and s > 0]
+
         if not leaders:
             raise ValueError("Not enough nominees to fill all seats.")
         if len(leaders) > 1:
             if self.tiebreak == "random":
                 winner_party = random.choice(leaders)
             else:
-                raise ValueError("Tie between parties with no tiebreak.")
+                raise ValueError("Tie between parties with no tiebreak rule provided.")
         else:
             winner_party = leaders[0]
 
         # fill seat with candidate from party leader
-        idx = seats_so_far[winner_party]
-        winner = self._party_lists[winner_party][idx]
+        idx = seats[winner_party]
+        winner = self._party_to_sorted_candidates[winner_party][idx]
 
         # update profile
-        next_prof = remove_and_condense_ranked_profile([winner], profile)
+        next_prof = self.fast_remove_and_condense([winner], profile)
 
         # update state
         if store_states:
@@ -203,25 +285,22 @@ class OpenListPR(Election):
                     tiebreaks={},
                 )
             )
-
         return next_prof
-
-    def run_election(self) -> Dict:
-        """
-        Return a compact summary once the election has already been executed
-        (it is executed automatically by Election.__init__).
-
-        Returns
-        -------
-        dict
-            winners : tuple[str] final list of seated candidates
-            party_seats : dict[str,int]
-            last_scores : dict[str,float]  party scores
-        """
-        if not self.election_states:
-            self._run_election()
-        return {
-            "winners": tuple(self._winners),
-            "party_seats": dict(self._party_seats),
-            "last_scores": dict(self._last_scores),
-        }
+    
+    def _run_election(self):
+        # initialize
+        self.election_states.append(
+            ElectionState(
+                round_number=0,
+                remaining=tuple(frozenset({c}) for c in self._candidate_vote_totals),
+                scores={},
+                tiebreaks={},
+            )
+        )
+        
+        # run election steps until finished
+        profile = self._profile
+        prev_state = self.election_states[0]
+        while not self._is_finished():
+            profile = self._run_step(profile, prev_state, store_states=True)
+            prev_state = self.election_states[-1]
