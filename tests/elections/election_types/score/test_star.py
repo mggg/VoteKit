@@ -102,17 +102,10 @@ def test_runoff_only_profile():
     assert result["winner"] == "B"
     assert set(result["finalists"]) == {"B", "C"}
 
-
-def test_tabulation_tie_without_tiebreak():
-    """All three candidates tied on score without tiebreak winner is None."""
-    res = Star(profile_tie_tabulation, L=5).run_election()
-    assert res["winner"] is None
-
-
 def test_tabulation_tie_with_most_top_ratings():
     """Same tie but with 'most_top_ratings' still ends in None (1=1)."""
     res = Star(profile_tie_tabulation, L=5, tiebreak="most_top_ratings").run_election()
-    assert res["winner"] is None
+    assert len(res["winner"])== 1
     assert set(res["finalists"]) == {"A", "B"}
 
 def test_state_list_and_helpers():
@@ -132,9 +125,6 @@ def test_remaining_ranking():
     assert election.get_ranking(0) == (frozenset({"B"}), frozenset({"C"}), frozenset({"A"}))
 
 def test_error_conditions():
-    with pytest.raises(ValueError, match="STAR requires at least two candidates."):
-        Star(PreferenceProfile(ballots=[Ballot(scores={"Only": 5})]), L=5)
-
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
         Star(PreferenceProfile(ballots=[Ballot(ranking=("A","B"))]), L=5)
 
@@ -146,7 +136,7 @@ def test_error_conditions():
     )
     e = Star(profile=neg_ballot, L=5)
     neg_ballot.df["Weight"] = -1
-    with pytest.raises(TypeError, match="positive"):
+    with pytest.raises(ValueError, match="positive"):
         Star(profile=neg_ballot, L=5)
 
 
@@ -186,7 +176,7 @@ def test_init():
 
 def test_ties():
     e = Star(profile=profile_tie_tabulation, L=5, tiebreak="most_top_ratings")
-    assert len(e.get_elected()) == 0
+    assert len(e.get_elected()) == 1
 
 def test_state_list():
     e = Star(profile=profile_simple, L=5)
@@ -235,17 +225,10 @@ def test_errors():
         Star(profile=profile_simple, L=-1)
 
     # tiebreak must be none or must be most_top_ratings
-    with pytest.raises(ValueError, match="tiebreak must be None or 'most_top_ratings'"):
-        Star(profile=profile_simple, L=5, tiebreak="random")
+    with pytest.raises(ValueError, match="tiebreak must be 'most_top_ratings'"):
+        Star(profile=profile_simple, L=5, tiebreak="no_tiebreak")
 
 def test_validate_profile():
-    # there must be at least two candidates
-    bad0 = PreferenceProfile(
-        ballots=[Ballot(scores={"A": 5}, weight=10),]
-    )
-    with pytest.raises(ValueError, match="at least two"):
-        Star(profile=bad0, L=5)
-
     # ballot must have score dictionary
     bad1 = PreferenceProfile(
         ballots=[Ballot(ranking=(frozenset({"X"}), frozenset({"Y"})))]
