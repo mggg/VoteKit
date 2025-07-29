@@ -1,8 +1,8 @@
-from typing import Dict, List, Optional, Union, List
+from typing import Dict, List, Optional, List
 import numpy as np
 import pandas as pd
 import random
-from votekit import PreferenceProfile, Ballot
+from votekit import Ballot
 from votekit.elections.election_types.scores.rating import GeneralRating as Election
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
@@ -156,7 +156,7 @@ class OpenListPR(Election):
                 tied = [c for c, v in zip(cand_list, votes) if v == top_vote]
 
                 if len(tied) > 1:
-                    
+
                     candidate_tie_notices[party] = {
                         "tied_candidates": tied,
                         "votes": top_vote,
