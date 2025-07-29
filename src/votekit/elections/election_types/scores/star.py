@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Optional
 from votekit import Ballot
 import numpy as np
+import pandas as pd
 from votekit.elections.election_types.scores.rating import GeneralRating as Election
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
@@ -58,9 +59,9 @@ class Star(Election):
         self._validate_profile(profile)
 
         self._cands = list(profile.candidates_cast)
-        df = profile.df
-        self._scores_mat = df[self._cands].fillna(0).to_numpy()
-        self._weights    = df["Weight"].to_numpy()  
+        self.df = profile.df
+        self._scores_mat = self.df[self._cands].fillna(0).to_numpy()
+        self._weights    = self.df["Weight"].to_numpy()  
 
         if any(self._weights < 0):
             raise ValueError("All ballot weights must be positive.")
@@ -70,7 +71,7 @@ class Star(Election):
             m=1,
             tiebreak=tiebreak,
             L=L,
-        )
+        )        
 
     def remove_and_condense_ratings(self,removed: List[str], profile: PreferenceProfile, remove_empty_ballots: bool = True, remove_zero_weight_ballots: bool = True,
         ) -> PreferenceProfile:
@@ -104,14 +105,20 @@ class Star(Election):
                 filter &= (weights > 0)
             if remove_empty_ballots:
                 filter &= (candidate_scores.sum(axis=1) > 0)
-            weight_f = weights[filter] 
-            cand_scores_f = candidate_scores[filter, :]  
+            weight_filtered = weights[filter] 
+            cand_scores_filtered = candidate_scores[filter, :]  
 
-            new_ballots = []
-            for scores_row, weight in zip(cand_scores_f, weight_f):
-                scores_dict = {cand: score for cand, score in zip(kept_cands_list, scores_row) if score > 0}
-                if scores_dict:
-                    new_ballots.append(Ballot(scores=scores_dict, weight=weight))
+            # Build out the information
+            rows, cols = np.where(cand_scores_filtered > 0)
+            ballot_dicts = [{} for _ in range(cand_scores_filtered.shape[0])]
+            for i, j in zip(rows, cols):
+                ballot_dicts[i][kept_cands_list[j]] = cand_scores_filtered[i, j]
+
+            new_ballots = [
+                Ballot(scores=d, weight=w)
+                for d, w in zip(ballot_dicts, weight_filtered)
+                if d
+            ]
                     
             # return new profile
             return PreferenceProfile(
@@ -135,7 +142,8 @@ class Star(Election):
 
         top_score = scores_df.max().max()
 
-        for score_rank in range(int(top_score) - 1, -1, -1):
+        # Check and retrun which of the finalists has more top ratings, secondary ratings, triary ratings, and then return randomly if all are equal. 
+        for score_rank in range(int(top_score) - 1, int(top_score) - 3, -1):
             counts = {
                 cand: weights[scores_df[cand] == score_rank].sum()
                 for cand in finalists
@@ -152,7 +160,8 @@ class Star(Election):
         scores_df = df[self._cands].fillna(0)
 
         # Total scores per candidate
-        totals = (scores_df.T * weights).T.sum()
+        totals = (scores_df.values * weights.values[:, None]).sum(axis=0)
+        totals = pd.Series(totals, index=scores_df.columns)
 
         # Find top 2 finalists
         top2 = totals.sort_values(ascending=False).index[:2]
