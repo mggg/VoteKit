@@ -5,25 +5,21 @@ from ..pref_profile import PreferenceProfile
 
 
 def _validate_rank_columns(df, rank_cols):
-    if any(r_col < 0 or r_col > len(df.columns) for r_col in rank_cols):
+    if any(r_col < 0 or r_col > len(df.columns) - 1 for r_col in rank_cols):
         for r_col in rank_cols:
-            if r_col < 0:
-                raise ValueError(f"Ranking column index {r_col} must be non-negative.")
-            elif r_col > len(df.columns):
+            if r_col < 0 or r_col > len(df.columns) - 1:
                 raise ValueError(
-                    f"Ranking column index {r_col} must be less than {len(df.columns)}, "
-                    "the number of columns of the csv file."
+                    f"Ranking column index {r_col} must be in [0, {len(df.columns) -1}] "
+                    "because Python is 0-indexed."
                 )
 
 
 def _validate_id_col(df, id_col):
     if id_col is not None:
-        if id_col < 0:
-            raise ValueError(f"ID column index {id_col} must be non-negative.")
-        elif id_col > len(df.columns):
+        if id_col < 0 or id_col > len(df.columns) - 1:
             raise ValueError(
-                f"ID column index {id_col} must be less than {len(df.columns)}, "
-                "the number of columns of the csv file."
+                f"ID column index {id_col} must be in [0, {len(df.columns) -1}] "
+                "because Python is 0-indexed."
             )
 
 
@@ -50,12 +46,10 @@ def _validate_weight_col(df, weight_col):
     if weight_col is None:
         return
 
-    if weight_col < 0:
-        raise ValueError(f"Weight column index {weight_col} must be non-negative.")
-    elif weight_col > len(df.columns):
+    if weight_col < 0 or weight_col > len(df.columns) - 1:
         raise ValueError(
-            f"Weight column index {weight_col} must be less than {len(df.columns)}, "
-            "the number of columns of the csv file."
+            f"Weight column index {weight_col} must be in [0, {len(df.columns) -1}] "
+            "because Python is 0-indexed."
         )
 
     _validate_numeric_weights(df, weight_col)
@@ -99,7 +93,7 @@ def _format_df(df, rank_cols, id_col, weight_col):
     if id_col is not None:
         renamed_columns.update({id_col: "Voter Set"})
     else:
-        df["Voter Set"] = set()
+        df["Voter Set"] = [set() for _ in range(len(df))]
 
     df.columns = [renamed_columns.get(i, col) for i, col in enumerate(df.columns)]
     df.index.name = "Ballot Index"
@@ -112,7 +106,9 @@ def _format_df(df, rank_cols, id_col, weight_col):
             lambda x: frozenset({x}) if isinstance(x, str) else frozenset()
         )
 
-    df["Voter Set"] = df["Voter Set"].map(lambda x: {x})
+    df["Voter Set"] = df["Voter Set"].map(
+        lambda x: {x} if not isinstance(x, set) else x
+    )
     return df, rank_cols
 
 
@@ -140,8 +136,8 @@ def _find_and_validate_cands(df, rank_cols, candidates):
             for c in candidates_found:
                 if c not in candidates:
                     raise ValueError(
-                        f"Candidate {c} was found in the csv but not but not provided in "
-                        "candidates {candidates}."
+                        f"Candidate {c} was found in the csv but not provided in "
+                        f"candidates {candidates}."
                     )
 
     return candidates
@@ -192,12 +188,15 @@ def load_csv(
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
     """
+    # TODO if weight or id are provided, what do we assume about rank_cols
+    # TODO header row???
     df = pd.read_csv(
         path_or_url,
         on_bad_lines="error",
         encoding="utf8",
         index_col=False,
         delimiter=delimiter,
+        header=None,
     )
 
     if rank_cols is None:
