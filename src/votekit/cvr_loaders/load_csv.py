@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Optional
-
+import numpy as np
 from ..pref_profile import PreferenceProfile
 
 
@@ -8,10 +8,10 @@ def _validate_rank_columns(df, rank_cols):
     if any(r_col < 0 or r_col > len(df.columns) for r_col in rank_cols):
         for r_col in rank_cols:
             if r_col < 0:
-                raise ValueError(f"Ranking column {r_col} must be non-negative.")
+                raise ValueError(f"Ranking column index {r_col} must be non-negative.")
             elif r_col > len(df.columns):
                 raise ValueError(
-                    f"Ranking column {r_col} must be less than {len(df.columns)}, "
+                    f"Ranking column index {r_col} must be less than {len(df.columns)}, "
                     "the number of columns of the csv file."
                 )
 
@@ -19,31 +19,50 @@ def _validate_rank_columns(df, rank_cols):
 def _validate_id_col(df, id_col):
     if id_col is not None:
         if id_col < 0:
-            raise ValueError(f"ID column {id_col} must be non-negative.")
+            raise ValueError(f"ID column index {id_col} must be non-negative.")
         elif id_col > len(df.columns):
             raise ValueError(
-                f"ID column {id_col} must be less than {len(df.columns)}, "
+                f"ID column index {id_col} must be less than {len(df.columns)}, "
                 "the number of columns of the csv file."
             )
+
+
+def _validate_numeric_weights(df, weight_col):
+    to_float = pd.to_numeric(df.iloc[:, weight_col], errors="coerce").notna().all()
+    if to_float is False:
+        for idx, weight in df.iloc[:, weight_col]:
+            try:
+                float(weight)
+            except ValueError:
+                raise ValueError(
+                    f"Weight {weight} in row {idx} must be able to be cast to float."
+                )
+
+
+def _validate_nonempty_weights(df, weight_col):
+    if np.isnan(df.iloc[:, weight_col]).any():
+        for idx, weight in df.iloc[:, weight_col]:
+            if np.isnan(weight):
+                raise ValueError(f"No weight provided in row {idx}.")
 
 
 def _validate_weight_col(df, weight_col):
-    if weight_col is not None:
-        if weight_col < 0:
-            raise ValueError(f"Weight column {weight_col} must be non-negative.")
-        elif weight_col > len(df.columns):
-            raise ValueError(
-                f"Weight column {weight_col} must be less than {len(df.columns)}, "
-                "the number of columns of the csv file."
-            )
+    if weight_col is None:
+        return
+
+    if weight_col < 0:
+        raise ValueError(f"Weight column index {weight_col} must be non-negative.")
+    elif weight_col > len(df.columns):
+        raise ValueError(
+            f"Weight column index {weight_col} must be less than {len(df.columns)}, "
+            "the number of columns of the csv file."
+        )
+
+    _validate_numeric_weights(df, weight_col)
+    _validate_nonempty_weights(df, weight_col)
 
 
 def _validate_distinct_cols(df, rank_cols, id_col, weight_col):
-    if id_col is not None and weight_col is not None:
-        if id_col == weight_col:
-            raise ValueError(
-                f"ID column {id_col} and weight column {weight_col} must be distinct."
-            )
 
     if id_col in rank_cols:
         raise ValueError(
@@ -57,6 +76,12 @@ def _validate_distinct_cols(df, rank_cols, id_col, weight_col):
 
 
 def _validate_columns(df, rank_cols, id_col, weight_col):
+
+    if weight_col and id_col:
+        raise ValueError(
+            "Only one of weight_col and id_col can be provided; you cannot have an ID"
+            " column if the weight of each ballot is anything but 1."
+        )
 
     _validate_rank_columns(df, rank_cols)
     _validate_id_col(df, id_col)
@@ -82,20 +107,16 @@ def _format_df(df, rank_cols, id_col, weight_col):
 
     df = df[rank_cols + ["Voter Set", "Weight"]]
 
-    # TODO is there any way to deal with empty as skip versus empty as no ranking?
-    # #no ranking should be a tilde, skip should be empty frozenset
-    # but if you default to the tilde, then there are "invalid ballots" that are empty at the front
     for r_col in rank_cols:
         df[r_col] = df[r_col].map(
             lambda x: frozenset({x}) if isinstance(x, str) else frozenset()
-        )  # handles nan from empty load
+        )
 
     df["Voter Set"] = df["Voter Set"].map(lambda x: {x})
     return df, rank_cols
 
 
 def _find_and_validate_cands(df, rank_cols, candidates):
-    # find candidates in csv
     candidates_found: set[str] = set()
 
     sets = df.loc[:, rank_cols].to_numpy().ravel()
@@ -153,15 +174,24 @@ def load_csv(
 
 
     Raises:
-        FileNotFoundError: If fpath is invalid.
-        EmptyDataError: If dataset is empty.
-        ValueError: If the voter id column has missing values.
-        DataError: If the voter id column has duplicate values.
+        FileNotFoundError: CSV cannot be found
+        URLError: Invalid url.
+        HTTPError: URL is valid but other failure occurs.
+        ParserError: Pandas fails to read the csv.
+        UnicodeDecodeError: Bad encoding.
+        ValueError: Candidates provided but they do not exist in the CSV.
+        ValueError: Candidates provided but extra candidates are found in the CSV.
+        ValueError: Only one of weight_col or id_col can be provided.
+        ValueError: weight_col or id_col are not distinct from rank_cols.
+        ValueError: weight_col, id_col, and each entry of rank_cols must be non-negative and
+            within the number of columns of the csv.
+        ValueError: If weight_col is provided, weights must be non-empty and convertible to
+            float.
+
 
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
     """
-    # TODO what does pandas raise for a bad file path or url
     df = pd.read_csv(
         path_or_url,
         on_bad_lines="error",
@@ -179,9 +209,6 @@ def load_csv(
 
     candidates = _find_and_validate_cands(df, rank_cols, candidates)
 
-    # # TODO if weight is not 1, how do we handle voter id
-    # # TODO check for empty voter id and weight entries if those columns were provided
-    # TODO check that weight can be cast to float?
     # TODO call .ballots in a test b/c it will notice if there is a tilde in an invalid place
 
     return PreferenceProfile(
