@@ -74,31 +74,6 @@ class OpenListPR(Election):
 
         super().__init__(profile=profile, m=m, tiebreak=tiebreak)
         
-    def _validate_profile(self, profile: PreferenceProfile) -> None:
-        """
-        Validates the profile to ensure that each ballot ranks exactly one candidate
-        and all weights are non-negative.
-
-        Args:
-            profile (PreferenceProfile): The profile containing ballots to be validated.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If a ballot does not rank exactly one candidate or if any ballot
-            has a negative weight.
-        """
-        df = profile.df
-
-        # Grab the candidate columns 
-        cand_cols = list(profile.candidates_cast)
-        cand_df = df[cand_cols].fillna(0)
-
-        # No ballot may award more than 1 point to any candidate
-        if cand_df.gt(1).values.any():
-            raise ValueError("Ballots can only accept candidates (scores of one).")
-
     def _precompute_scores(self, profile: PreferenceProfile) -> tuple[Dict[str, int], Dict[str, int], Dict[str, List[str]]]:
         """
         This function computes the total number of votes for each candidate, the
