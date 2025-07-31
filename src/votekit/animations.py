@@ -52,8 +52,12 @@ class STVAnimation:
         title (str): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped.
     """
 
-    def __init__(self, election: STV, title: Optional[str] = None):
+    def __init__(self, election: STV, title: Optional[str] = None, focus : Optional[List[str]] = None):
         # Extract only the salient details from the election.
+        if focus is None:
+            #Focus all candidates
+            focus = [c for s in election.get_remaining(0) for c in s]
+        self.focus : List[str] = focus
         self.candidates = self._make_candidate_dict(election)
         self.rounds = self._make_event_list(election)
         self.title = title
@@ -70,6 +74,7 @@ class STVAnimation:
         candidates = {
             name: {"support": support}
             for name, support in election.election_states[0].scores.items()
+            if name in self.focus
         }
         return candidates
 
@@ -87,8 +92,6 @@ class STVAnimation:
             election.election_states[1:], start=1
         ):
             # Nothing happens in election round 0
-
-            remaining_candidates = [c for s in election_round.remaining for c in s]
             elected_candidates = [c for s in election_round.elected for c in s]
             eliminated_candidates = [c for s in election_round.eliminated for c in s]
 
@@ -119,12 +122,22 @@ class STVAnimation:
                 support_transferred = self._get_transferred_votes(
                     election, round_number, eliminated_candidates, "elimination"
                 )
-                events.append(
-                    EliminationEvent(quota = election.threshold,
-                                     candidate = eliminated_candidates[0],
-                                     support_transferred = support_transferred[eliminated_candidate],
-                                     message = message)
-                )
+                if eliminated_candidate in self.focus:
+                    events.append(
+                        EliminationEvent(quota = election.threshold,
+                                        candidate = eliminated_candidate,
+                                        support_transferred = support_transferred[eliminated_candidate],
+                                        message = message)
+                    )
+                else:
+                    events.append(
+                        EliminationOffscreenEvent(quota = election.threshold,
+                                        support_transferred = support_transferred[eliminated_candidate],
+                                        message = message)
+                    )
+
+        self.rounds = self._condense_offscreen_rounds(self.rounds)
+
         return events
 
     def _get_transferred_votes(
@@ -163,7 +176,7 @@ class STVAnimation:
                 )
             from_candidate = from_candidates[0]
             transfers = {from_candidate : {}}
-            for to_candidate in [c for s in current_state.remaining for c in s]:
+            for to_candidate in [c for s in current_state.remaining for c in s if c in self.focus]:
                 prev_score = int(prev_state.scores[to_candidate])
                 current_score = int(current_state.scores[to_candidate])
                 transfers[from_candidate][to_candidate] = current_score - prev_score
@@ -184,11 +197,15 @@ class STVAnimation:
                 for ballot in clean_ballots:
                     if ballot.ranking is not None:
                         (to_candidate,) = ballot.ranking[0]
-                        transfer_weights_from_candidate[to_candidate] += ballot.weight
+                        if to_candidate in self.focus:
+                            transfer_weights_from_candidate[to_candidate] += ballot.weight
 
                 transfers[from_candidate] = transfer_weights_from_candidate
                 
         return transfers
+    
+    def _condense_offscreen_rounds(self, rounds : List[AnimationEvent]) -> List[AnimationEvent]:
+        return rounds
 
     def render(self, preview: bool = False) -> None:
         """Renders the STV animation using Manim.
@@ -239,7 +256,7 @@ class ElectionScene(manim.Scene):
     title_font_size = 48
 
     def __init__(
-        self, candidates: dict[str, dict], rounds: List[AnimationEvent], title: str | None = None
+        self, candidates: dict[str, dict], rounds: List[AnimationEvent], title: Optional[str] = None
     ):
         super().__init__()
         self.candidates = candidates
@@ -660,8 +677,8 @@ class ElectionScene(manim.Scene):
         """
         destinations = round.support_transferred
 
-        # Create short bars that will replace the candidate's current bars
-        new_bars = []  # The bits to be redistributed
+        # Create short bars that will begin offscreen
+        new_bars = []
         transformations = []
         for destination, votes in destinations.items():
             if votes <= 0:
