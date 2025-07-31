@@ -67,22 +67,29 @@ class GeneralRating(Election):
             ValueError: Ballot violates score budget.
             ValueError: Not enough candidates received votes to be elected.
         """
-        if len(profile.candidates_cast) < self.m:
+        candidate_cols = list(profile.candidates_cast)
+        df = profile.df[candidate_cols].fillna(0)
+
+        if df.isnull().any(axis=1).any():
+            raise TypeError("All ballots must have score dictionary.")
+        
+        if len(candidate_cols) < self.m:
             raise ValueError("Not enough candidates received votes to be elected.")
 
-        for b in profile.ballots:
-            if b.scores is None:
-                raise TypeError("All ballots must have score dictionary.")
-            elif any(score > self.L for score in b.scores.values()):
-                raise TypeError(
-                    f"Ballot {b} violates score limit {self.L} per candidate."
+        # Check if any score exceeds max limit L
+        if (df > self.L).any(axis=None):
+            raise TypeError(
+                f"Ballot violates score limit {self.L} per candidate."
                 )
-            elif any(score < 0 for score in b.scores.values()):
-                raise TypeError(f"Ballot {b} must have non-negative scores.")
+        # Check for any negative scores
+        if (df < 0).any(axis=None):
+            raise TypeError(f"Ballot must have non-negative scores.")
 
-            if self.k:
-                if sum(b.scores.values()) > self.k:
-                    raise TypeError(f"Ballot {b} violates total score budget {self.k}.")
+        # If k is specified, check that no ballot exceeds total score budget
+        if self.k:
+            ballot_totals = df.sum(axis=1)
+            if (ballot_totals > self.k).any():
+                raise TypeError(f"Ballot violates total score budget.")
 
     def _is_finished(self):
         # single round election
