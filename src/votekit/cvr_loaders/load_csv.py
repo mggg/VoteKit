@@ -54,8 +54,8 @@ def _validate_weight_col(df, weight_col):
 
     _validate_in_range(df, weight_col, "Weight")
 
-    _validate_numeric_weights(df, weight_col)
     _validate_nonempty_weights(df, weight_col)
+    _validate_numeric_weights(df, weight_col)
 
 
 def _validate_distinct_cols(rank_cols, id_col, weight_col):
