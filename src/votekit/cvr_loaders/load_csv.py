@@ -4,29 +4,35 @@ import numpy as np
 from ..pref_profile import PreferenceProfile
 
 
-def _validate_rank_columns(df, rank_cols):
-    if any(r_col < 0 or r_col > len(df.columns) - 1 for r_col in rank_cols):
-        for r_col in rank_cols:
-            if r_col < 0 or r_col > len(df.columns) - 1:
+def _validate_in_range(df, col_idxs, label):
+    if not isinstance(col_idxs, list):
+        col_idxs = [col_idxs]
+
+    if any(idx < 0 or idx > len(df.columns) - 1 for idx in col_idxs):
+        for idx in col_idxs:
+            if idx < 0 or idx > len(df.columns) - 1:
                 raise ValueError(
-                    f"Ranking column index {r_col} must be in [0, {len(df.columns) -1}] "
+                    f"{label} column index {idx} must be in [0, {len(df.columns) -1}] "
                     "because Python is 0-indexed."
                 )
 
 
+def _validate_rank_columns(df, rank_cols):
+    _validate_in_range(df, rank_cols, "Ranking")
+
+
 def _validate_id_col(df, id_col):
-    if id_col is not None:
-        if id_col < 0 or id_col > len(df.columns) - 1:
-            raise ValueError(
-                f"ID column index {id_col} must be in [0, {len(df.columns) -1}] "
-                "because Python is 0-indexed."
-            )
+    if id_col is None:
+        return
+    _validate_in_range(df, id_col, "ID")
 
 
 def _validate_numeric_weights(df, weight_col):
-    to_float = pd.to_numeric(df.iloc[:, weight_col], errors="coerce").notna().all()
-    if to_float is False:
-        for idx, weight in df.iloc[:, weight_col]:
+    try:
+        df.iloc[:, weight_col].astype(float)
+    except ValueError:
+
+        for idx, weight in df.iloc[:, weight_col].items():
             try:
                 float(weight)
             except ValueError:
@@ -36,8 +42,8 @@ def _validate_numeric_weights(df, weight_col):
 
 
 def _validate_nonempty_weights(df, weight_col):
-    if np.isnan(df.iloc[:, weight_col]).any():
-        for idx, weight in df.iloc[:, weight_col]:
+    if df.iloc[:, weight_col].isna().any():
+        for idx, weight in df.iloc[:, weight_col].items():
             if np.isnan(weight):
                 raise ValueError(f"No weight provided in row {idx}.")
 
@@ -46,24 +52,20 @@ def _validate_weight_col(df, weight_col):
     if weight_col is None:
         return
 
-    if weight_col < 0 or weight_col > len(df.columns) - 1:
-        raise ValueError(
-            f"Weight column index {weight_col} must be in [0, {len(df.columns) -1}] "
-            "because Python is 0-indexed."
-        )
+    _validate_in_range(df, weight_col, "Weight")
 
     _validate_numeric_weights(df, weight_col)
     _validate_nonempty_weights(df, weight_col)
 
 
-def _validate_distinct_cols(df, rank_cols, id_col, weight_col):
+def _validate_distinct_cols(rank_cols, id_col, weight_col):
 
-    if id_col in rank_cols:
+    if id_col is not None and id_col in rank_cols:
         raise ValueError(
             f"ID column {id_col} must not be a ranking column {rank_cols}."
         )
 
-    if weight_col in rank_cols:
+    if weight_col is not None and weight_col in rank_cols:
         raise ValueError(
             f"Weight column {weight_col} must not be a ranking column {rank_cols}."
         )
@@ -77,10 +79,22 @@ def _validate_columns(df, rank_cols, id_col, weight_col):
             " column if the weight of each ballot is anything but 1."
         )
 
+    if rank_cols is None:
+        rank_cols = [x for x in range(len(df.columns)) if x not in [weight_col, id_col]]
+
+        if len(rank_cols) == 0:
+            raise ValueError(
+                "CSV has only one column but one of weight_col or id_col is provided."
+                " Then what are the ranking columns?"
+            )
+
+    _validate_distinct_cols(rank_cols, id_col, weight_col)
+
     _validate_rank_columns(df, rank_cols)
     _validate_id_col(df, id_col)
     _validate_weight_col(df, weight_col)
-    _validate_distinct_cols(df, rank_cols, id_col, weight_col)
+
+    return rank_cols, id_col, weight_col
 
 
 def _format_df(df, rank_cols, id_col, weight_col):
@@ -97,7 +111,7 @@ def _format_df(df, rank_cols, id_col, weight_col):
 
     df.columns = [renamed_columns.get(i, col) for i, col in enumerate(df.columns)]
     df.index.name = "Ballot Index"
-    rank_cols = [c for c in df.columns if c.startswith("Ranking_")]
+    rank_cols = [c for c in df.columns if str(c).startswith("Ranking_")]
 
     df = df[rank_cols + ["Voter Set", "Weight"]]
 
@@ -105,6 +119,8 @@ def _format_df(df, rank_cols, id_col, weight_col):
         df[r_col] = df[r_col].map(
             lambda x: frozenset({x}) if isinstance(x, str) else frozenset()
         )
+
+    df["Weight"] = df["Weight"].astype(float)
 
     df["Voter Set"] = df["Voter Set"].map(
         lambda x: {x} if not isinstance(x, set) else x
@@ -151,6 +167,7 @@ def load_csv(
     id_col: Optional[int] = None,
     candidates: Optional[list[str]] = None,
     delimiter: str = ",",
+    header: Optional[int] = None,
 ) -> PreferenceProfile:
     """
     Given a file path or url, loads cast vote record (cvr) with ranks as columns and voters as rows.
@@ -167,6 +184,8 @@ def load_csv(
         candidates (list[str], optional): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
         delimiter (str, optional): The character that separates entries. Defaults to a comma.
+        header (int, optional): The row containing the column names, below which the datae begins.
+            Defaults to None, in which case row 0 is considered to be the first ballot.
 
 
     Raises:
@@ -183,26 +202,27 @@ def load_csv(
             within the number of columns of the csv.
         ValueError: If weight_col is provided, weights must be non-empty and convertible to
             float.
+        ValueError: If no rank_cols are provided, but weight or id col is, and the csv has only one
+            column.
+        ValueError: Header must be non-negative.
 
 
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
     """
-    # TODO if weight or id are provided, what do we assume about rank_cols
-    # TODO header row???
+    if header is not None and header < 0:
+        raise ValueError(f"Header {header} must be non-negative.")
+
     df = pd.read_csv(
         path_or_url,
         on_bad_lines="error",
         encoding="utf8",
         index_col=False,
         delimiter=delimiter,
-        header=None,
+        header=header,
     )
 
-    if rank_cols is None:
-        rank_cols = list(range(len(df.columns)))
-
-    _validate_columns(df, rank_cols, id_col, weight_col)
+    rank_cols, id_col, weight_col = _validate_columns(df, rank_cols, id_col, weight_col)
 
     df, rank_cols = _format_df(df, rank_cols, id_col, weight_col)
 
