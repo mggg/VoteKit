@@ -73,12 +73,9 @@ class STVAnimation:
         title (str): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped.
     """
 
-    def __init__(self, election: STV, title: Optional[str] = None, focus : Optional[List[str]] = None):
-        # Extract only the salient details from the election.
-        if focus is None:
-            #Focus all candidates
-            focus = [c for s in election.get_remaining(0) for c in s]
-        self.focus : List[str] = focus
+    def __init__(self, election: STV, title: Optional[str] = None, focus : List[str] = []):
+        elected_candidates = [c for s in election.get_elected() for c in s]
+        self.focus : List[str] = list(set(focus).union(set(elected_candidates)))
         self.candidates = self._make_candidate_dict(election)
         self.rounds = self._make_event_list(election)
         self.title = title
