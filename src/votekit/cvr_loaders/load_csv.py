@@ -79,15 +79,6 @@ def _validate_columns(df, rank_cols, id_col, weight_col):
             " column if the weight of each ballot is anything but 1."
         )
 
-    if rank_cols is None:
-        rank_cols = [x for x in range(len(df.columns)) if x not in [weight_col, id_col]]
-
-        if len(rank_cols) == 0:
-            raise ValueError(
-                "CSV has only one column but one of weight_col or id_col is provided."
-                " Then what are the ranking columns?"
-            )
-
     _validate_distinct_cols(rank_cols, id_col, weight_col)
 
     _validate_rank_columns(df, rank_cols)
@@ -95,6 +86,22 @@ def _validate_columns(df, rank_cols, id_col, weight_col):
     _validate_weight_col(df, weight_col)
 
     return rank_cols, id_col, weight_col
+
+
+def _format_ranking_cols(df, rank_cols):
+    for row_idx, row in df.iterrows():
+        for rank_idx, (rank_col, candidate) in enumerate(row[rank_cols].items()):
+            if isinstance(candidate, str):
+                df.at[row_idx, rank_col] = frozenset({candidate})
+                continue
+
+            if any(isinstance(c, str) for c in row[rank_cols][(rank_idx + 1) :]):
+                df.at[row_idx, rank_col] = frozenset()
+                continue
+
+            df.at[row_idx, rank_col] = frozenset("~")
+
+    return df
 
 
 def _format_df(df, rank_cols, id_col, weight_col):
@@ -115,10 +122,7 @@ def _format_df(df, rank_cols, id_col, weight_col):
 
     df = df[rank_cols + ["Voter Set", "Weight"]]
 
-    for r_col in rank_cols:
-        df[r_col] = df[r_col].map(
-            lambda x: frozenset({x}) if isinstance(x, str) else frozenset()
-        )
+    df = _format_ranking_cols(df, rank_cols)
 
     df["Weight"] = df["Weight"].astype(float)
 
@@ -161,7 +165,7 @@ def _find_and_validate_cands(df, rank_cols, candidates):
 
 def load_csv(
     path_or_url: str,
-    rank_cols: Optional[list[int]] = None,
+    rank_cols: list[int],
     *,
     weight_col: Optional[int] = None,
     id_col: Optional[int] = None,
@@ -175,9 +179,8 @@ def load_csv(
 
     Args:
         path_or_url (str): Path or url to cvr file.
-        rank_cols (list[int], optional): List of column indices that contain rankings. Indexing
-            starts from 0, in order from top to bottom rank. Default is None, which implies
-            that all columns contain rankings.
+        rank_cols (list[int]): List of column indices that contain rankings. Column indexing
+            starts from 0, in order from top to bottom rank.
         weight_col (int, optional): The column position for ballot weights. Defaults to None, which
             implies each row has weight 1.
         id_col (int, optional): Index for the column with voter ids. Defaults to None.
@@ -227,8 +230,6 @@ def load_csv(
     df, rank_cols = _format_df(df, rank_cols, id_col, weight_col)
 
     candidates = _find_and_validate_cands(df, rank_cols, candidates)
-
-    # TODO call .ballots in a test b/c it will notice if there is a tilde in an invalid place
 
     return PreferenceProfile(
         df=df,
