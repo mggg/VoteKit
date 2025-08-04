@@ -21,26 +21,47 @@ from typing import Literal, List, Optional, Sequence, Mapping
 from collections import defaultdict
 import logging
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 
 @dataclass
-class AnimationEvent:
+class AnimationEvent(ABC):
     quota : float
-    message : str
+    @abstractmethod
+    def get_message(self) -> str:
+        pass
+
 
 @dataclass
 class EliminationEvent(AnimationEvent):
     candidate : str
     support_transferred : Mapping[str,float]
+    round_number : int
+    def get_message(self) -> str:
+        return f"Round {self.round_number}: {self.candidate} eliminated."
 
 @dataclass
 class EliminationOffscreenEvent(AnimationEvent):
     support_transferred : Mapping[str,float]
+    round_numbers : List[int]
+    def get_message(self) -> str:
+        if len(self.round_numbers) == 1:
+            return f"Round {self.round_numbers[0]}: 1 candidate eliminated."
+        else:
+            message = f"Rounds {self.round_numbers[0]}-{self.round_numbers[-1]}: {len(self.round_numbers)} candidates eliminated."
+            return message
+
 
 @dataclass
 class WinEvent(AnimationEvent):
     candidates : Sequence[str]
     support_transferred : Mapping[str, Mapping[str,float]]
+    round_number : int
+    def get_message(self) -> str:
+        candidate_string = self.candidates[0]
+        for candidate_name in self.candidates[1:]:
+            candidate_string += f", {candidate_name}"
+        return f"Round {self.round_number}: {candidate_string} elected."
 
 
 
@@ -97,9 +118,6 @@ class STVAnimation:
 
             if len(elected_candidates) > 0: # Win round
                 elected_candidates_str = elected_candidates[0]
-                for candidate_name in elected_candidates[1:]:
-                    elected_candidates_str += ", " + candidate_name
-                message = f"Round {round_number}: {elected_candidates_str} Elected"
                 support_transferred : dict[str, dict[str, float]] = {}
                 if round_number == len(election):
                     # If it's the last round, don't worry about the transferred votes
@@ -112,13 +130,12 @@ class STVAnimation:
                     WinEvent(quota = election.threshold,
                              candidates = elected_candidates,
                              support_transferred = support_transferred,
-                             message=message)
+                             round_number = round_number)
                 )
             elif len(eliminated_candidates) > 0: # Elimination round
                 if len(eliminated_candidates) > 1:
                     raise ValueError(f"Multiple-elimination rounds not supported. At most one candidate should be eliminated in each round. Candidates eliminated in round {round_number}: {eliminated_candidates}.")
                 eliminated_candidate = eliminated_candidates[0]
-                message = f"Round {round_number}: {eliminated_candidate} Eliminated"
                 support_transferred = self._get_transferred_votes(
                     election, round_number, eliminated_candidates, "elimination"
                 )
@@ -127,16 +144,16 @@ class STVAnimation:
                         EliminationEvent(quota = election.threshold,
                                         candidate = eliminated_candidate,
                                         support_transferred = support_transferred[eliminated_candidate],
-                                        message = message)
+                                        round_number = round_number)
                     )
                 else:
                     events.append(
                         EliminationOffscreenEvent(quota = election.threshold,
                                         support_transferred = support_transferred[eliminated_candidate],
-                                        message = message)
+                                        round_numbers = [round_number])
                     )
 
-        self.rounds = self._condense_offscreen_rounds(self.rounds)
+        events = self._condense_offscreen_events(events)
 
         return events
 
@@ -204,8 +221,34 @@ class STVAnimation:
                 
         return transfers
     
-    def _condense_offscreen_rounds(self, rounds : List[AnimationEvent]) -> List[AnimationEvent]:
-        return rounds
+    def _condense_offscreen_events(self, rounds : List[AnimationEvent]) -> List[AnimationEvent]:
+        return_events : List[AnimationEvent] = [rounds[0]]
+        for event in rounds[1:]:
+            if isinstance(
+                return_events[-1], EliminationOffscreenEvent
+            ) and isinstance(
+                event, EliminationOffscreenEvent
+            ):
+                return_events[-1] = self._compose_offscreen_eliminations(return_events[-1], event)
+            else:
+                return_events.append(event)
+        return return_events
+    
+    def _compose_offscreen_eliminations(self, event1 : EliminationOffscreenEvent, event2: EliminationOffscreenEvent) -> EliminationOffscreenEvent:
+        support_transferred = defaultdict(float)
+        for key, value in event1.support_transferred.items():
+            support_transferred[key] += value
+        for key, value in event2.support_transferred.items():
+            support_transferred[key] += value
+        round_numbers = event1.round_numbers + event2.round_numbers
+        quota = event1.quota
+        return EliminationOffscreenEvent(
+            quota = quota,
+            support_transferred = support_transferred,
+            round_numbers = round_numbers
+        )
+
+
 
     def render(self, preview: bool = False) -> None:
         """Renders the STV animation using Manim.
@@ -406,7 +449,7 @@ class ElectionScene(manim.Scene):
         self.ticker_tape_line = ticker_line
         self.ticker_tape = []
         for i, round in enumerate(self.rounds):
-            new_message = Text(round.message, font_size=24, color=manim.DARK_GRAY)
+            new_message = Text(round.get_message(), font_size=24, color=manim.DARK_GRAY)
             if i == 0:
                 new_message.to_edge(DOWN, buff=0).shift(DOWN)
             else:
