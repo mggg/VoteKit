@@ -310,7 +310,7 @@ class ElectionScene(manim.Scene):
         self.bar_height = 3.5 / len(self.candidates)
         self.font_size = 3 * 40 / len(self.candidates)
         self.bar_opacity = 1
-        self.bar_buffer_size = 1 / len(self.candidates)
+        self.bar_buffer_size = self.bar_height
         self.strikethrough_thickness = self.font_size / 5
         self.max_support = 1.1 * max([round.quota for round in self.rounds])
 
@@ -381,28 +381,49 @@ class ElectionScene(manim.Scene):
             reverse=True,
         )
 
-        # Create bars
+        # Assign colors
         for i, name in enumerate(sorted_candidates):
             color = self.colors[i % len(self.colors)]
             self.candidates[name]["color"] = color
-            self.candidates[name]["bars"] = [
+
+
+        # Create candidate name text
+        for i, name in enumerate(sorted_candidates):
+            candidate = self.candidates[name]
+            candidate["name_text"] = Text(
+                name, font_size=self.font_size, color=candidate["color"]
+            )
+            if i==0:
+                #First candidate goes at the top
+                candidate["name_text"].to_edge(UP, buff=self.bar_buffer_size)
+            else:
+                #The rest of the candidates go below, right justified
+                candidate["name_text"].next_to(
+                    self.candidates[sorted_candidates[i-1]]["name_text"],
+                    DOWN,
+                    buff=self.bar_buffer_size
+                ).align_to(
+                    self.candidates[sorted_candidates[0]]["name_text"],
+                    RIGHT
+                )
+        # Align candidate names to the left
+        group = manim.Group().add(*[
+            candidate["name_text"] for candidate in self.candidates.values()
+        ])
+        group.to_edge(LEFT)
+        del group
+
+        # Create bars
+        for candidate in self.candidates.values():
+            candidate["bars"] = [
                 Rectangle(
-                    width=self._support_to_bar_width(self.candidates[name]["support"]),
+                    width=self._support_to_bar_width(candidate["support"]),
                     height=self.bar_height,
                     color=self.bar_color,
-                    fill_color=color,
+                    fill_color=candidate["color"],
                     fill_opacity=self.bar_opacity,
-                )
+                ).next_to(candidate["name_text"], RIGHT, buff=0.2)
             ]
-        # First candidate goes at the top
-        self.candidates[sorted_candidates[0]]["bars"][0].to_edge(UP)
-        # The rest of the candidates go below
-        for i, name in enumerate(sorted_candidates[1:], start=1):
-            self.candidates[name]["bars"][0].next_to(
-                self.candidates[sorted_candidates[i - 1]]["bars"][0],
-                DOWN,
-                buff=self.bar_buffer_size,
-            ).align_to(self.candidates[sorted_candidates[0]]["bars"][0], LEFT)
 
         # Draw a large black rectangle for the background so that the ticker tape vanishes behind it
         frame_width = manim.config.frame_width
@@ -419,12 +440,6 @@ class ElectionScene(manim.Scene):
             .set_z_index(-1)
         )
 
-        # Create and place candidate names
-        for name in sorted_candidates:
-            candidate = self.candidates[name]
-            candidate["name_text"] = Text(
-                name, font_size=self.font_size, color=candidate["color"]
-            ).next_to(candidate["bars"][0], LEFT, buff=0.2)
 
         # Draw the bars and names
         self.play(
