@@ -22,5 +22,5 @@ test_election_happy = STV(test_profile_happy, m=3)
 
 def test_init():
     animation = STVAnimation(test_election_happy)
-    assert animation.candidates is not None
-    assert animation.rounds is not None
+    assert animation.candidate_dict is not None
+    assert animation.events is not None
