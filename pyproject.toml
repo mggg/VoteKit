@@ -21,6 +21,7 @@ dependencies = [
     "types-seaborn (>=0.13.2.20250728,<0.14.0.0)",
     "mypy-extensions (>=1.1.0)",
     "numba (>=0.61.2,<0.62.0)",
+    "types-networkx (>=3.5.0.20250728,<4.0.0.0)",
 ]
 
 
@@ -48,3 +49,10 @@ repository = "https://github.com/mggg/VoteKit"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+markers = [
+  "slow: long-running tests",
+]
+testpaths = ["tests"]

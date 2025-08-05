@@ -6,6 +6,25 @@ import itertools
 print("conftest.py is being imported")
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--runslow", action="store_true", default=False, help="run tests marked slow"
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: long-running tests")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--runslow"):
+        return
+    skip_slow = pytest.mark.skip(reason="use --runslow to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
+
+
 def partitions_with_permutations_of_size(set_, subset_size):
     """
     Generate all partitions of subsets of a given size with all permutations of each partition.
