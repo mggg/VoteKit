@@ -1,26 +1,31 @@
-from votekit.animations import STVAnimation
+from votekit.animations import STVAnimation, AnimationEvent
 from votekit import Ballot, PreferenceProfile
 from votekit.elections import STV
+import pytest
 
 # modified from STV wiki
 # Election following the "happy path". One elimination or election per round. No ties. No exact quota matches. No funny business.
-test_profile_happy = PreferenceProfile(
-    ballots=(
-        Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-        Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-        Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-        Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-        Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-        Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-        Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-    ),
-    max_ranking_length=3,
-)
 
-test_election_happy = STV(test_profile_happy, m=3)
+@pytest.fixture
+def election_happy():
+    profile_happy = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
+            Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+            Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
+            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+        ),
+        max_ranking_length=3,
+    )
+    return STV(profile_happy, m=3)
 
 
-def test_init():
-    animation = STVAnimation(test_election_happy)
-    assert animation.candidate_dict is not None
-    assert animation.events is not None
+def test_STVAnimation_init(election_happy):
+    animation = STVAnimation(election_happy)
+    assert isinstance(animation.candidate_dict, dict)
+    assert isinstance(animation.events, list)
+    assert "Pear" in animation.candidate_dict.keys()
+    assert animation.candidate_dict["Pear"]["support"] == 8
