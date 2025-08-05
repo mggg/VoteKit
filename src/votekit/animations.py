@@ -720,7 +720,8 @@ class ElectionScene(manim.Scene):
             exhausted_bar = Rectangle(
                 width=self._support_to_bar_width(exhausted_votes),
                 height=self.bar_height,
-                color=self.bar_color,
+                # color=self.bar_color,
+                color = manim.GOLD,
                 fill_color=candidate_color,
                 fill_opacity=self.bar_opacity,
             )
@@ -739,8 +740,9 @@ class ElectionScene(manim.Scene):
             )
 
             # Animate moving the sub-bars to the destination bars, and the destruction of the exhausted votes
+            transformations.append(Uncreate(exhausted_bar))
             if len(transformations) > 0:
-                self.play(*transformations, Uncreate(exhausted_bar))
+                self.play(*transformations)
 
     def _animate_elimination(
         self, from_candidates: dict[str, dict], event: EliminationEvent
@@ -802,7 +804,7 @@ class ElectionScene(manim.Scene):
             self.candidate_dict[destination]["bars"].append(sub_bar)
         # Create a final short bar representing the exhausted votes
         exhausted_votes = from_candidate["support"] - sum(list(destinations.values()))
-        exhausted_bar = Rectangle(
+        exhausted_bar = Rectangle(``
             width=self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
             color=self.bar_color,
