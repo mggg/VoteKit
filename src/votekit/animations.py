@@ -804,7 +804,7 @@ class ElectionScene(manim.Scene):
             self.candidate_dict[destination]["bars"].append(sub_bar)
         # Create a final short bar representing the exhausted votes
         exhausted_votes = from_candidate["support"] - sum(list(destinations.values()))
-        exhausted_bar = Rectangle(``
+        exhausted_bar = Rectangle(
             width=self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
             color=self.bar_color,
