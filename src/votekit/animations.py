@@ -87,9 +87,7 @@ class WinEvent(AnimationEvent):
     support_transferred : Mapping[str, Mapping[str,float]]
     round_number : int
     def get_message(self) -> str:
-        candidate_string = self.candidates[0]
-        for candidate_name in self.candidates[1:]:
-            candidate_string += f", {candidate_name}"
+        candidate_string = ", ".join(self.candidates)
         return f"Round {self.round_number}: {candidate_string} elected."
 
 
@@ -101,15 +99,20 @@ class STVAnimation:
     Args:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (List[str], optional): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. Defaults to an empty list.
+        focus (List[str], optional): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. If ``None``, focus only the elected candidates. Defaults to ``None``.
     """
 
-    def __init__(self, election: STV, title: Optional[str] = None, focus : List[str] = []):
+    def __init__(self, election: STV, title: Optional[str] = None, focus : Optional[List[str]] = None):
+        if focus is None: focus = []
         self.focus = focus
         elected_candidates = [c for s in election.get_elected() for c in s]
         focus += [name for name in elected_candidates if name not in focus]
         self.candidate_dict = self._make_candidate_dict(election)
         self.events = self._make_event_list(election)
+        if len(self.candidate_dict) == 0:
+            raise ValueError("Tried creating animation with no candidates.")
+        if len(self.events) == 0:
+            raise ValueError("Tried creating animation with no animation event.")
         self.title = title
 
     def _make_candidate_dict(self, election: STV) -> dict[str, dict[str,object]]:
@@ -222,8 +225,8 @@ class STVAnimation:
             from_candidate = from_candidates[0]
             transfers = {from_candidate : {}}
             for to_candidate in [c for s in current_state.remaining for c in s if c in self.focus]:
-                prev_score = int(prev_state.scores[to_candidate])
-                current_score = int(current_state.scores[to_candidate])
+                prev_score = prev_state.scores[to_candidate]
+                current_score = current_state.scores[to_candidate]
                 transfers[from_candidate][to_candidate] = current_score - prev_score
         elif event_type == "win":
             ballots_by_fpv = ballots_by_first_cand(prev_profile)
@@ -346,6 +349,8 @@ class ElectionScene(manim.Scene):
     offscreen_sentinel = "__offscreen__"
     offscreen_candidate_color = manim.GRAY
     title_font_size = 48
+    name_bar_spacing = 0.2
+    winner_box_buffer = 0.1
 
     def __init__(
         self, candidate_dict: dict[str, dict], events: List[AnimationEvent], title: Optional[str] = None
@@ -471,7 +476,7 @@ class ElectionScene(manim.Scene):
                     color=self.bar_color,
                     fill_color=candidate["color"],
                     fill_opacity=self.bar_opacity,
-                ).next_to(candidate["name_text"], RIGHT, buff=0.2)
+                ).next_to(candidate["name_text"], RIGHT, buff=self.name_bar_spacing)
             ]
 
         # Draw a large black rectangle for the background so that the ticker tape vanishes behind it
@@ -600,7 +605,7 @@ class ElectionScene(manim.Scene):
         # Box the winners' names
         winner_boxes = [
             SurroundingRectangle(
-                from_candidate["name_text"], color=manim.GREEN, buff=0.1
+                from_candidate["name_text"], color=manim.GREEN, buff=self.winner_box_buffer
             )
             for from_candidate in from_candidates.values()
         ]
@@ -656,7 +661,7 @@ class ElectionScene(manim.Scene):
                 transformations.append(transformation)
 
                 # Let the new sub-bar be owned by its destination candidate
-                self.candidate_dict[destination]["bars"] += sub_bar
+                self.candidate_dict[destination]["bars"].append(sub_bar)
 
             # Create a final short bar representing the exhausted votes
             exhausted_votes = (
