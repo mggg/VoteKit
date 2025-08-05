@@ -6,12 +6,86 @@ import networkx as nx  # type: ignore
 from functools import cache
 from typing import Optional
 from ..pref_profile import PreferenceProfile
-from ..pref_profile.utils import _convert_ranking_cols_to_ranking
+from numpy.typing import NDArray
+import numpy as np  # type: ignore
+from numba import njit, float64, int32  # type: ignore
+
+
+def _rows_to_indices(
+    profile: PreferenceProfile, candidates: list[str]
+) -> tuple[NDArray, dict[str, int]]:
+    """
+    Converts the ranking columns of a PreferenceProfile to integer indices.
+    Each singleton candidate set is converted to an index based on the provided candidates list.
+    A special value of -2 is used for the short ballot candidate set {"~"} and -1 for undefined
+    entries.
+
+    Args:
+        profile (PreferenceProfile): The preference profile containing rankings.
+        candidates (list[str]): List of candidates to convert rankings to indices.
+
+    Returns:
+        tuple[NDArray, dict[str, int]]: A tuple containing:
+            - An NDArray of integer indices representing the rankings.
+            - A dictionary mapping candidates to their corresponding indices.
+    """
+
+    cand_to_idx = {c: i for i, c in enumerate(candidates)}
+    fs_to_idx = {frozenset({c}): cand_to_idx[c] for c in candidates}
+    fs_to_idx[frozenset({"~"})] = -2  # Make a special value for short ballots
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    mat_obj = profile.df[ranking_cols].to_numpy(object)
+    flat = mat_obj.ravel()
+    flat_idx = np.empty(flat.shape[0], dtype=np.int32)
+    for k, x in enumerate(flat):
+        flat_idx[k] = fs_to_idx.get(x, -1)  # -1 for any undefined entry
+    return flat_idx.reshape(mat_obj.shape).astype(np.int32), cand_to_idx
+
+
+# NOTE: There are a couple more optimizations that could be made here, such as avoiding the
+# boolean indexing and using a visited epoch array, but this is already a significant
+# speedup and is further optimization just makes this hard to read.
+@njit((float64[:, :], int32[:, :], float64[:], int32), cache=True, fastmath=True)
+def _tally_and_mutate_head_to_head(
+    mutated_head_to_head_matrix: NDArray,
+    integer_rankings_mat: NDArray,
+    wt_vec: NDArray,
+    n_cands: int,
+):
+    """
+    Tallies the head-to-head matrix and mutates it in place.
+
+    Args:
+        mutated_head_to_head_matrix (NDArray): The head to head matrix to mutate.
+        integer_rankings_mat (NDArray): The integer rankings matrix.
+        wt_vec (NDArray): The weight vector.
+        n_cands (int): The number of candidates.
+
+
+    Returns:
+        NDArray: The mutated head to head matrix.
+    """
+    for row_idx, row in enumerate(integer_rankings_mat):
+        seen_vec = np.zeros(n_cands, dtype=np.bool_)
+        for candset_idx in row:
+            # -1 is for undefined entries
+            if candset_idx == -1:
+                continue
+            # Special value for short ballots "~"
+            if candset_idx == -2:
+                break
+
+            seen_vec[candset_idx] = True
+
+            # Candidates always beat everyone that has not been seen yet in head to head
+            mutated_head_to_head_matrix[candset_idx, ~seen_vec] += 1 * wt_vec[row_idx]
+
+    return mutated_head_to_head_matrix
 
 
 def pairwise_dict(
     profile: PreferenceProfile,
-) -> dict[tuple[str, ...], list[float]]:
+) -> dict[tuple[str, str], list[float]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
@@ -21,57 +95,65 @@ def pairwise_dict(
 
     Returns:
         dict[tuple[str, ...], list[float]]: Pairwise comparison dictionary.
-
     """
-
     if profile.contains_scores:
         raise ValueError("Profile must only contain rankings, not scores.")
     elif not profile.contains_rankings:
         raise ValueError("Profile must contain rankings.")
-    pairwise_dict = {
-        tuple(sorted((c1, c2))): [0.0, 0.0]
-        for c1, c2 in combinations(profile.candidates, 2)
+
+    candidates = sorted(profile.candidates)
+    n_cands = len(candidates)
+
+    integer_rankings_mat, cand_to_idx = _rows_to_indices(profile, candidates)
+    wt_vec = profile.df["Weight"].to_numpy().astype(np.float64)
+
+    head_to_head_matrix = np.zeros((n_cands, n_cands), dtype=np.float64)
+
+    head_to_head_matrix = _tally_and_mutate_head_to_head(
+        head_to_head_matrix, integer_rankings_mat, wt_vec, n_cands
+    )
+
+    pairwise = {
+        (a, b): [
+            head_to_head_matrix[cand_to_idx[a], cand_to_idx[b]],
+            head_to_head_matrix[cand_to_idx[b], cand_to_idx[a]],
+        ]
+        for a, b in combinations(sorted(candidates), 2)
     }
+    return pairwise
 
-    candidate_set = set(profile.candidates)
 
-    mentioned_pairs_dict: dict[str, list[tuple[str, str]]] = {
-        c: [] for c in profile.candidates
-    }
-    for c1, c2 in pairwise_dict.keys():
-        mentioned_pairs_dict[c1].append((c1, c2))
-        mentioned_pairs_dict[c2].append((c1, c2))
+def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
+    """
+    Compute the dominating tiers of the pairwise comparison graph.
+    Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
 
-    sets_mentioned_pairs_dict = {
-        c: set(mentioned_pairs_dict[c]) for c in mentioned_pairs_dict
-    }
+    Args:
+        graph (nx.DiGraph): A dierected graph representing pairwise comparisons.
 
-    for _, row in profile.df.iterrows():
-        ranking = _convert_ranking_cols_to_ranking(
-            row, max_ranking_length=profile.max_ranking_length
-        )
+    Returns:
+        list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
+    """
+    dominating_tiers = []
 
-        mentioned_so_far = set()
-        if ranking is not None:
-            for i, cand_set in enumerate(ranking):
-                if len(cand_set) > 1:
-                    raise ValueError(
-                        "Pairwise dict does not support profiles with ties in ballots."
-                    )
-                cand = next(iter(cand_set))
-                if cand in mentioned_so_far:
-                    continue
+    G_left = graph.copy()
 
-                mentioned_so_far.add(cand)
+    while len(G_left.nodes) > 0:
+        start_dom = set({min(map(lambda x: (x[1], x[0]), G_left.in_degree()))[1]})  # type: ignore
+        new_dom = start_dom.copy()
+        while True:
+            for node in start_dom:
+                new_dom = new_dom.union(set(G_left.predecessors(node)))
 
-                remaining_candidates = candidate_set - mentioned_so_far
-                for c1, c2 in sets_mentioned_pairs_dict[cand]:
-                    if c1 in remaining_candidates or c2 in remaining_candidates:
-                        if c1 == cand:
-                            pairwise_dict[(c1, c2)][0] += row["Weight"]
-                        else:
-                            pairwise_dict[(c1, c2)][1] += row["Weight"]
-    return pairwise_dict
+            if new_dom == start_dom:
+                break
+
+            start_dom = new_dom
+
+        dominating_tiers.append(new_dom)
+        G_left.remove_nodes_from(new_dom)
+
+    return dominating_tiers
 
 
 def restrict_pairwise_dict_to_subset(
@@ -139,13 +221,13 @@ class PairwiseComparisonGraph(nx.DiGraph):
     def __init__(self, profile: PreferenceProfile):
         self.profile = profile
         self.pairwise_dict = pairwise_dict(profile)
-        self.pairwise_graph = self._build_graph()
+        self.pairwise_graph: nx.DiGraph = self._build_graph()
 
     def _build_graph(self) -> nx.DiGraph:
         """
         Constructs the pairwise comparison graph from the pairwise comparison dictionary.
         """
-        G = nx.DiGraph()
+        G: nx.DiGraph = nx.DiGraph()
         decoupled = [item for tup in self.pairwise_dict.keys() for item in tup]
         G.add_nodes_from(decoupled)
 
@@ -189,26 +271,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
             list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
 
         """
-        dominating_tiers = []
-
-        G_left = self.pairwise_graph.copy()
-
-        while len(G_left.nodes()) > 0:
-            start_dom = set({min(map(lambda x: (x[1], x[0]), G_left.in_degree()))[1]})
-            new_dom = start_dom.copy()
-            while True:
-                for node in start_dom:
-                    new_dom = new_dom.union(set(G_left.predecessors(node)))
-
-                if new_dom == start_dom:
-                    break
-
-                start_dom = new_dom
-
-            dominating_tiers.append(new_dom)
-            G_left.remove_nodes_from(new_dom)
-
-        return dominating_tiers
+        return get_dominating_tiers_digraph(self.pairwise_graph)
 
     def has_condorcet_winner(self) -> bool:
         """
@@ -278,7 +341,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
         Returns:
             Axes: Matplotlib axes of pairwise comparison graph.
         """
-        G = self.pairwise_graph
+        G: nx.DiGraph = self.pairwise_graph
 
         known_candidate_list = list(G.nodes)
         if candidate_list is None:
@@ -289,7 +352,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
             f"a subset of known candidates {set(G.nodes)}"
         )
 
-        G = G.subgraph(candidate_list).copy()
+        G = nx.DiGraph(G.subgraph(candidate_list))
 
         ranking_labels = {c: i for i, c in enumerate(candidate_list)}
 

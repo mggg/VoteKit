@@ -40,8 +40,7 @@ class BallotGraph(Graph):
         allow_partial: Optional[bool] = True,
         fix_short: Optional[bool] = True,
     ):
-        super().__init__()
-
+        super().__init__(nx.Graph())
         self.profile = None
         self.candidates = None
         self.allow_partial = allow_partial
@@ -60,7 +59,7 @@ class BallotGraph(Graph):
             self.num_voters = source.total_ballot_wt
             self.num_cands = len(source.candidates)
             self.allow_partial = True
-            if self.graph is None:
+            if len(self.graph.nodes) == 0:
                 self.graph = self.build_graph(len(source.candidates))
             self.graph = self.from_profile(source, fix_short=fix_short)
 
@@ -103,7 +102,7 @@ class BallotGraph(Graph):
         Returns:
             networkx.Graph: A ``networkx`` graph.
         """
-        Gc = nx.Graph()
+        Gc: nx.Graph = nx.Graph()
         # base cases
         if n == 1:
             Gc.add_nodes_from([1], weight=0, cast=False)

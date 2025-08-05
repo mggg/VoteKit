@@ -6,25 +6,26 @@ authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
 dependencies = [
-    "scipy (>=1.15.3, <2.0)",
-    "mypy (==1.16)",
+    "scipy (>=1.16.1, <2.0)",
+    "mypy (==1.17.1)",
     "pydantic (>=2.11.5, <3.0)",
     "pot (==0.9.5)",
     "networkx (>=3.5, <4.0)",
-    "jinja2 (>=3.1.2, <4.0)",
-    "matplotlib (>=3.10.3, <4.0)",
+    "jinja2 (>=3.1.6, <4.0)",
+    "matplotlib (>=3.10.5, <4.0)",
     "pandas (>2.2)",
     "apportionment (>=1.0, <2.0)",
-    "scikit-learn (>=1.7.0, <2.0)",
+    "scikit-learn (>=1.7.1, <2.0)",
     "numpy (>=2.2.6, <3.0)",
     "seaborn (>=0.13.2,<0.14.0)",
-    "types-seaborn (>=0.13.2.20250516,<0.14.0.0)",
+    "types-seaborn (>=0.13.2.20250728,<0.14.0.0)",
     "mypy-extensions (>=1.1.0)",
+    "numba (>=0.61.2,<0.62.0)",
 ]
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.11.13"
+ruff = "^0.12.7"
 black = "^25.1.0"
 pytest = "^8.4.0"
 pytest-cov = "^6.2.1"
@@ -35,7 +36,7 @@ sphinx-copybutton = "^0.5.2"
 recommonmark = "^0.7.1"
 sphinx-rtd-theme = "^3.0.2"
 seaborn = "^0.13.2"
-ipykernel = "^6.29.5"
+ipykernel = "^6.30.1"
 nbconvert = "^7.16.6"
 
 [tool.ruff]
