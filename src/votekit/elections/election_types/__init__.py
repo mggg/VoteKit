@@ -13,6 +13,7 @@ from .ranking import (  # noqa
     PluralityVeto,
     RandomDictator,
     BoostedRandomDictator,
+    RankedPairs,
 )
 
 
