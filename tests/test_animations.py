@@ -1,10 +1,11 @@
-from votekit.animations import STVAnimation, AnimationEvent
+from votekit.animations import STVAnimation
 from votekit import Ballot, PreferenceProfile
 from votekit.elections import STV
 import pytest
 
 # modified from STV wiki
 # Election following the "happy path". One elimination or election per round. No ties. No exact quota matches. No funny business.
+
 
 @pytest.fixture
 def election_happy():
