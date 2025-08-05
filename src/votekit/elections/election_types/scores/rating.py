@@ -16,7 +16,7 @@ class GeneralRating(Election):
     :math:`k` points per voter. The :math:`m` winners are those with the highest total score.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (PreferenceProfile): Profile containing a list of Ballot objects with approval scores of candidates.
         m (int, optional): Number of seats to elect. Defaults to 1.
         L (float, optional): Rating per candidate limit. Defaults to 1.
         k (float, optional): Budget per ballot limit. Defaults to None, in which
@@ -75,6 +75,7 @@ class GeneralRating(Election):
         
         if len(candidate_cols) < self.m:
             raise ValueError("Not enough candidates received votes to be elected.")
+
 
         # Check if any score exceeds max limit L
         if (df > self.L).any(axis=None):

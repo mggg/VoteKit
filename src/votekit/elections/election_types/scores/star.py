@@ -108,7 +108,7 @@ class Star(Election):
             weight_filtered = weights[filter] 
             cand_scores_filtered = candidate_scores[filter, :]  
 
-            # Build out the information
+            # Build out information
             rows, cols = np.where(cand_scores_filtered > 0)
             ballot_dicts = [{} for _ in range(cand_scores_filtered.shape[0])]
             for i, j in zip(rows, cols):
@@ -139,11 +139,8 @@ class Star(Election):
         df = self._profile.df
         scores_df = df[finalists].fillna(0)
         weights = df["Weight"].fillna(1)
-
-        top_score = scores_df.max().max()
-
         # Check and retrun which of the finalists has more top ratings, secondary ratings, triary ratings, and then return randomly if all are equal. 
-        for score_rank in range(int(top_score) - 1, int(top_score) - 3, -1):
+        for score_rank in range(int(self.L) - 1, -1, -1):
             counts = {
                 cand: weights[scores_df[cand] == score_rank].sum()
                 for cand in finalists
