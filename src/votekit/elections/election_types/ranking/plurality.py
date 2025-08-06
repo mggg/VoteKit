@@ -30,7 +30,7 @@ class Plurality(RankingElection):
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
-        if m == 0:
+        if m <= 0:
             raise ValueError("m must be strictly positive")
         if len(profile.candidates_cast) < m:
             raise ValueError("Not enough candidates received votes to be elected.")
