@@ -68,20 +68,23 @@ class GeneralRating(Election):
             ValueError: Not enough candidates received votes to be elected.
         """
         candidate_cols = list(profile.candidates_cast)
-        df = profile.df[candidate_cols].fillna(0)
+        df = profile.df[candidate_cols]
 
         if df.isnull().any(axis=1).any():
+            df = df.fillna(0)
+
+        if df.isnull().all(axis=1).any():
             raise TypeError("All ballots must have score dictionary.")
         
         if len(candidate_cols) < self.m:
             raise ValueError("Not enough candidates received votes to be elected.")
-
 
         # Check if any score exceeds max limit L
         if (df > self.L).any(axis=None):
             raise TypeError(
                 f"Ballot violates score limit {self.L} per candidate."
                 )
+        
         # Check for any negative scores
         if (df < 0).any(axis=None):
             raise TypeError(f"Ballot must have non-negative scores.")

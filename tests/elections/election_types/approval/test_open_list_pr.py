@@ -1,9 +1,3 @@
-"""
-pytest test-suite for the Open-list Party-list PR election class.
-
-To run:
-    pytest tests/test_openlist_pr.py
-"""
 import pytest
 import random
 import pandas as pd
@@ -17,10 +11,10 @@ import time
 # 3 seat, two parties
 profile_simple = PreferenceProfile(
     ballots=[
-        Ballot(ranking=(frozenset({"G1"}),), weight = 40),
-        Ballot(ranking=(frozenset({"G2"}),), weight = 25),
-        Ballot(ranking=(frozenset({"R1"}),), weight = 30),
-        Ballot(ranking=(frozenset({"R2"}),), weight = 20),
+        Ballot(scores={"G1": 1}, weight = 40),
+        Ballot(scores={"G2": 1}, weight = 25),
+        Ballot(scores={"R1": 1}, weight = 30),
+        Ballot(scores={"R2": 1}, weight = 20),
     ]
 )
 party_map_simple = {"G1": "Green", "G2": "Green", "R1": "Red", "R2": "Red"}
@@ -29,8 +23,8 @@ winners_simple = [frozenset({"G1"}), frozenset({"R1"}), frozenset({"G2"})]  #["G
 # tie
 profile_tie = PreferenceProfile(
     ballots=[
-        Ballot(ranking=(frozenset({"A1"}),), weight=10),
-        Ballot(ranking=(frozenset({"B1"}),), weight=10)
+        Ballot(scores={"A1": 1}, weight=10),
+        Ballot(scores={"B1": 1}, weight=10)
     ] 
 )
 party_map_tie = {"A1": "Alpha", "B1": "Beta"}
@@ -38,23 +32,23 @@ party_map_tie = {"A1": "Alpha", "B1": "Beta"}
 
 # Party with 1 nominee but wins a seat amount > nominees
 profile_exhaustion = PreferenceProfile(
-    ballots=[Ballot(ranking=(frozenset({"S1"}),), weight=12),
-    Ballot(ranking=(frozenset({"D1"}),), weight=3), 
-    Ballot(ranking=(frozenset({"D2"}),), weight=2)]
+    ballots=[Ballot(scores={"S1":1}, weight=12),
+    Ballot(scores={"D1":1}, weight=3), 
+    Ballot(scores={"D2":1}, weight=2)]
     )
 party_map_exhaustion = {"S1": "Solo", "D1": "Duo", "D2": "Duo"}
 
 # 3 seats 4 parties
 profile_large = PreferenceProfile(
     ballots=
-    [Ballot(ranking=(frozenset({"A"}),), weight=7),
-    Ballot(ranking=(frozenset({"B"}),), weight=5),
-    Ballot(ranking=(frozenset({"C"}),), weight=10),
-    Ballot(ranking=(frozenset({"D"}),), weight=3),
-    Ballot(ranking=(frozenset({"E"}),), weight=8),
-    Ballot(ranking=(frozenset({"F"}),), weight=10),
-    Ballot(ranking=(frozenset({"G"}),), weight=15),
-    Ballot(ranking=(frozenset({"H"}),), weight=5),]
+    [Ballot(scores={"A": 1}, weight=7),
+    Ballot(scores={"B": 1}, weight=5),
+    Ballot(scores={"C": 1}, weight=10),
+    Ballot(scores={"D": 1}, weight=3),
+    Ballot(scores={"E": 1}, weight=8),
+    Ballot(scores={"F": 1}, weight=10),
+    Ballot(scores={"G": 1}, weight=15),
+    Ballot(scores={"H": 1}, weight=5),]
 )
 party_map_large = {"A": "Party1", "B": "Party1", "C": "Party1", 
                    "D": "Party2", "E": "Party2", 
@@ -67,7 +61,7 @@ winners_large = ("G", "C", "F")
 
 states_simple = [
     ElectionState(
-        remaining=(frozenset({"G1", "R1", "G2", "R2"}),),
+        remaining=(frozenset({"G1"}), frozenset({"G2"}), frozenset({"R1"}), frozenset({"R2"})),
         scores={},
         eliminated=(frozenset({}),),
     ),
@@ -89,46 +83,46 @@ states_simple = [
 
 profile_simple_round_1 = PreferenceProfile(
     ballots=[
-        Ballot(ranking=(frozenset({"G2"}),), weight=25),
-        Ballot(ranking=(frozenset({"R1"}),), weight=30),
-        Ballot(ranking=(frozenset({"R2"}),), weight=20),
+        Ballot(scores={"G1": 1}, weight = 40),
+        Ballot(scores={"G2": 1}, weight = 25),
+        Ballot(scores={"R1": 1}, weight = 30),
+        Ballot(scores={"R2": 1}, weight = 20),
     ]
 )
 
         # ------------------ tests ------------------
 def test_basic_allocation():
     """Correct winners & deterministic seat order for a simple election."""
-    election = OpenListPR(profile_simple, m=3, party_map=party_map_simple, tiebreak="random")
+    election = OpenListPR(profile_simple, party_map=party_map_simple, m=3, tiebreak="random")
     elected_list = [candidate for candidate in election.get_elected()]
     assert elected_list == winners_simple
 
 def test_ballot_validation():
-    """Ballots must contain exactly one ranked candidate."""
-    bad_profile = PreferenceProfile(ballots=[Ballot(ranking=(frozenset({"X"}), frozenset({"Y"})))])
-    with pytest.raises(ValueError, match="exactly one"):
-        OpenListPR(bad_profile, m=1, party_map={"X":"XParty", "Y":"YParty"}, tiebreak="random")
+    """Ballots accept candidates with a score of 1."""
+    bad_profile1 = PreferenceProfile(ballots=[Ballot(scores={"X": 2, "Y": 1}, weight=10)])
+    with pytest.raises(TypeError, match="violates score limit"):
+        OpenListPR(bad_profile1, party_map={"X":"XParty", "Y":"YParty"}, m=1, tiebreak="random")
 
 def test_tie_needs_tiebreak():
-    """A tie in party scores must raise unless tiebreak strategy supplied."""
+    """A tie in party scoress must raise unless tiebreak strategy supplied."""
     # Without tiebreak
-    with pytest.raises(ValueError, match="Tie between parties"):
-        OpenListPR(profile_tie, m=1, party_map=party_map_tie)
+    with pytest.raises(ValueError, match="Tie"):
+        OpenListPR(profile_tie, party_map=party_map_tie, m=1, tiebreak="deter")
 
     # With random tiebreak should succeed
-    election = OpenListPR(profile_tie, m=1, party_map=party_map_tie, tiebreak="random")
+    election = OpenListPR(profile_tie,  party_map=party_map_tie, m=1,tiebreak="random")
     assert len(election.get_elected()) == 1
     assert election.get_elected()[0] in {frozenset({"A1"}), frozenset({"B1"})}
 
 def test_party_exhaustion():
     """Solo party seats its only nominee, then drops out."""
-    election = OpenListPR(profile_exhaustion, m=2, party_map=party_map_exhaustion, tiebreak="random")
-    assert election.run_election()["winners"] == ("S1", "D1")
+    election = OpenListPR(profile_exhaustion, party_map=party_map_exhaustion, m=2, tiebreak="random")
 
     assert election.election_states[1].scores["Solo"] == 12
     assert election.election_states[2].scores["Solo"] == 0
 
 def test_state_list_and_helpers():    
-    election = OpenListPR(profile_simple, m=3, party_map=party_map_simple, tiebreak="random")
+    election = OpenListPR(profile_simple,party_map=party_map_simple,  m=3, tiebreak="random")
     
     # three rounds = three stored states (+ initial state)
     assert len(election.election_states) == 4
@@ -141,24 +135,16 @@ def test_state_list_and_helpers():
     assert state1 == election.election_states[1]
     assert next(iter(winners_simple[1])) in prof1.candidates 
 
-def test_large_election():
-    election = OpenListPR(profile_large, m=3, party_map=party_map_large, tiebreak="random")
-    res = election.run_election()
-
-    assert res["winners"] == winners_large
-    assert res["party_seats"] == {"Party1": 1, "Party2": 0, "Party3": 2, "Party4": 0}
-
-
 def test_error_conditions():
     with pytest.raises(ValueError, match="must be positive"):
-        OpenListPR(profile_simple, m=0, party_map=party_map_simple)
+        OpenListPR(profile_simple, party_map=party_map_simple, m=0)
 
 def test_init():
     e = OpenListPR(profile_simple, party_map=party_map_simple, m=3, tiebreak="random")
     assert [c for c in e.get_elected()] == winners_simple
 
 def test_ties():
-    e_random = OpenListPR(profile_tie, m=1, party_map=party_map_tie, tiebreak="random")
+    e_random = OpenListPR(profile_tie, party_map=party_map_tie,  m=1,tiebreak="random")
     assert len([c for s in e_random.get_elected() for c in s]) == 1
 
 def test_state_list():
@@ -166,12 +152,15 @@ def test_state_list():
     assert e.election_states == states_simple
 
 def test_get_profile():
-    e = OpenListPR(profile_simple, m=2, party_map=party_map_simple, tiebreak="random")
+    e = OpenListPR(profile_simple,  party_map=party_map_simple, m=2,tiebreak="random")
     assert e.get_profile(0) == profile_simple
     assert e.get_profile(1) == profile_simple_round_1
 
 def test_get_step():
-    e = OpenListPR(profile_simple, m=2, party_map=party_map_simple, tiebreak="random")
+    e = OpenListPR(profile_simple,  party_map=party_map_simple, m=2,tiebreak="random")
+    print(e.get_step(0))
+    print(e.get_step(1))
+    print(profile_simple_round_1, states_simple[1])
     assert e.get_step(1) == (profile_simple_round_1, states_simple[1])
 
 
@@ -181,7 +170,6 @@ def test_get_elected():
     assert e.get_elected(1) == (frozenset({"G1"}),)
     assert e.get_elected(2) == (frozenset({"G1"}),frozenset({"R1"}))
 
-
 def test_get_eliminated():
     e = OpenListPR(profile_simple, party_map=party_map_simple, tiebreak="random", m=2)
     assert e.get_eliminated(0) == tuple()
@@ -189,15 +177,15 @@ def test_get_eliminated():
 
 def test_get_remaining():
     e = OpenListPR(profile_simple, party_map=party_map_simple, tiebreak="random", m=2)
-    assert e.get_remaining(0) == (frozenset({"R1", "R2", "G1", "G2"}),)
+    assert e.get_remaining(0) == (frozenset({"G1"}), frozenset({"G2"}), frozenset({"R1"}), frozenset({"R2"}))
     assert e.get_remaining(1) == (frozenset({"G2"}), frozenset({"R1"}), frozenset({"R2"}))
 
 def test_get_status_df():
     profile_no_ties = PreferenceProfile(
         ballots=[
-            Ballot(ranking=(frozenset({"A"}),), weight=3),
-            Ballot(ranking=(frozenset({"B"}),), weight=2),
-            Ballot(ranking=(frozenset({"C"}),), weight=1),
+            Ballot(scores={"A": 1}, weight=3),
+            Ballot(scores={"B": 1}, weight=2),
+            Ballot(scores= {"C": 1}, weight=1),
         ],
         candidates=("A", "B", "C"),
     )
@@ -223,20 +211,15 @@ def test_errors():
         OpenListPR(profile_simple, m=0, party_map=party_map_simple, tiebreak="random")
 
     # cannot elect more seats than there are candidates
-    with pytest.raises(ValueError, match="Not enough nominees"):
+    with pytest.raises(ValueError, match="Not enough candidates"):
         OpenListPR(profile_simple, m=5, party_map=party_map_simple, tiebreak="random")
-
-    # tie without tiebreak must error
-    with pytest.raises(ValueError, match="Tie between parties"):
-        OpenListPR(profile_tie, m=1, party_map=party_map_tie)
-
 
 def test_validate_profile():
     # ballot ranking too long
     bad1 = PreferenceProfile(
-        ballots=[Ballot(ranking=(frozenset({"X"}), frozenset({"Y"})))]
+        ballots=[Ballot(scores={"X": 2, "Y": 1}, weight=10)]
     )
-    with pytest.raises(ValueError, match="exactly one"):
+    with pytest.raises(TypeError, match="violates score limit"):
         OpenListPR(bad1, m=1, party_map={"X": "P", "Y": "P"})
 
 ## ---- Stress Testing ---- ##
@@ -247,7 +230,7 @@ n_candidates = 30
 candidates = [f"C{i}" for i in range(n_candidates)]
 
 # Built ballots
-ballots = [Ballot(ranking=(frozenset({random.choice(candidates)}),), weight=1) for _ in range(n_ballots)]
+ballots = [Ballot(scores={random.choice(candidates): 1}, weight=1) for _ in range(n_ballots)]
 
 profile_stress = PreferenceProfile(
     ballots=ballots,

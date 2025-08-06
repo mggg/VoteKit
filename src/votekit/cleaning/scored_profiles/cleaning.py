@@ -24,19 +24,19 @@ def remove_and_condense_scored(removed: List[str] | str, profile: PreferenceProf
     # pull out candidate list, df, and weight vector
     all_cands_list = list(profile.candidates_cast)
     kept_cands_list = [c for c in all_cands_list if c not in removed]
-    df = profile.df
-    df = df[["Weight"] + kept_cands_list]
+    df = profile.df.drop(columns=removed)
 
     # Remove zero-weight ballots
     if remove_zero_weight_ballots:
         df = df[df["Weight"] > 0]
 
     if remove_empty_ballots:
-        df = df[df[kept_cands_list].sum(axis=1) > 0]
+        #df = df[df[kept_cands_list].sum(axis=1) > 0]
+        candidate_matrix = df[kept_cands_list].to_numpy()
+        mask = (np.nansum(candidate_matrix, axis=1) > 0)
+        df = df[mask]
 
-
-    # build data arrays
-    weights = df["Weight"].to_numpy()
-    candidate_scores = df[kept_cands_list].fillna(0).to_numpy() 
-
-    return PreferenceProfile(df=df, candidates=kept_cands_list, weights=weights)
+    return PreferenceProfile(df=df, 
+                            candidates=kept_cands_list, 
+                            contains_scores=profile.contains_scores,
+                            contains_rankings=profile.contains_rankings)
