@@ -15,3 +15,4 @@ from .top_two import TopTwo  # noqa
 from .plurality_veto import PluralityVeto  # noqa
 from .random_dictator import RandomDictator  # noqa
 from .boosted_random_dictator import BoostedRandomDictator  # noqa
+from .ranked_pairs import RankedPairs  # noqa

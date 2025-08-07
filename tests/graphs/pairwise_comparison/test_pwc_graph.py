@@ -16,31 +16,37 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
 portland_profile = remove_and_condense(
     "skipped",
-    load_csv(CSV_DIR / "Portland_D3_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6]),
+    load_csv(str(CSV_DIR / "Portland_D3_Condensed.csv"), rank_cols=[1, 2, 3, 4, 5, 6]),
 )
 
 
-ballot_list = [
-    Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=10),
-    Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=10),
-    Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=10),
-    Ballot(ranking=[{"A"}], weight=24),
-]
+ballot_list = (
+    Ballot(
+        ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10
+    ),
+    Ballot(
+        ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}, {"E"}])), weight=10
+    ),
+    Ballot(
+        ranking=tuple(map(frozenset, [{"D"}, {"A"}, {"E"}, {"B"}, {"C"}])), weight=10
+    ),
+    Ballot(ranking=tuple(map(frozenset, [{"A"}])), weight=24),
+)
 TEST_PROFILE = PreferenceProfile(ballots=ballot_list)
 
-simple_ballot_list = [
-    Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=10),
-    Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=10),
-    Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=10),
-]
+simple_ballot_list = (
+    Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=10),
+    Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=10),
+    Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=10),
+)
 SIMPLE_TEST_PROFILE = PreferenceProfile(ballots=simple_ballot_list)
 
 EDGE_WEIGHT_0_PROFILE = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ]
+    ballots=(
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"}))), weight=2),
+    )
 )
 
 
