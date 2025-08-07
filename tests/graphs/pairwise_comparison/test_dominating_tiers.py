@@ -60,9 +60,9 @@ def test_multimember_bottom_tiers():
 
 
 # ABC
-# |
-# v
-# D
+#  |
+#  v
+#  D
 def test_cycle_in_top_tier():
     graph = nx.DiGraph()
     graph = add_cycle(graph, ["A", "B", "C"])

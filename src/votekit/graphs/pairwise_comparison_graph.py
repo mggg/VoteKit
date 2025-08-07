@@ -22,7 +22,8 @@ def __rows_to_indices(
 
     Args:
         profile (PreferenceProfile): The preference profile containing rankings.
-        candidates (list[str]): List of candidates to convert rankings to indices.
+        cand_name_to_idx (dict[str, int]): A mapping from candidate names to their integer index
+            representations.
 
     Returns:
         NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
@@ -88,6 +89,8 @@ def pairwise_dict(
 
     Args:
         profile (PreferenceProfile): Profile to compute dict on.
+        sort_candidate_pairs (bool): If True, candidate pairs in the pairwise comparison dictionary
+            will be sorted lexicographically. Defaults to True.
 
     Returns:
         dict[tuple[str, str], tuple[float, float]]: Pairwise comparison dictionary.
@@ -148,9 +151,7 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
 
     # Deal with unequal legs by checking checking the pairwise node sets for paths.
     required_merge = True
-    max_iter = 5
-    while required_merge and max_iter > 0:
-        max_iter -= 1
+    while required_merge:
         merged_generations = []
 
         required_merge = False
@@ -162,18 +163,18 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
             generation_nlist = source_nlist.copy()
 
             # Include the source nodes in the common set to guarantee termination
-            common_descedant_set = set.intersection(
+            common_descendant_set = set.intersection(
                 *[node_to_descendants[n] for n in source_nlist]
             ) | set(generation_nlist)
 
             for target_nlist_idx in range(src_nlist_idx + 1, len(quotient_generations)):
                 target_nlist = quotient_generations[target_nlist_idx]
-                if set(target_nlist).issubset(common_descedant_set):
+                if set(target_nlist).issubset(common_descendant_set):
                     continue
 
                 required_merge = True
                 generation_nlist.extend(target_nlist)
-                common_descedant_set = common_descedant_set.intersection(
+                common_descendant_set = common_descendant_set.intersection(
                     *[node_to_descendants[n] for n in target_nlist],
                 ) | set(generation_nlist)
 
