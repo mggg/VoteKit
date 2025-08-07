@@ -91,7 +91,7 @@ test_profile_limit_case = PreferenceProfile(
     contains_rankings=True,
 )
 
-ambiguous_profile = PreferenceProfile(
+borda_ambiguous_profile = PreferenceProfile(
     ballots=(
         Ballot(
             ranking=tuple(map(frozenset, ["A", "B", "C"])),
@@ -110,6 +110,19 @@ ambiguous_profile = PreferenceProfile(
     contains_rankings=True,
 )
 
+dominating_ambiguous_profile = PreferenceProfile(
+    ballots=(
+        Ballot(
+            ranking=tuple(map(frozenset, ["A", "B", "C", "D"])),
+            weight=1,
+        ),
+        Ballot(
+            ranking=tuple(map(frozenset, ["A", "C", "B", "D"])),
+            weight=1,
+        ),
+    ),
+    contains_rankings=True,
+)
 
 profile_tied_set = PreferenceProfile(
     ballots=(
@@ -170,12 +183,21 @@ def test_limit_case():
     assert e.get_elected() == convert_to_fs_tuple(["C", "A"])
 
 
-def test_ambiguous_profile_returns_lexicographic_order():
-    e = RankedPairs(ambiguous_profile, m=1)
+def test_borda_ambiguous_profile_returns_lexicographic_order():
+    e = RankedPairs(borda_ambiguous_profile, m=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = RankedPairs(ambiguous_profile, m=2)
+    e = RankedPairs(borda_ambiguous_profile, m=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = RankedPairs(ambiguous_profile, m=3)
+    e = RankedPairs(borda_ambiguous_profile, m=3)
+    assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
+
+
+def test_dominating_ambigous_profile_returns_lexicographic_order():
+    e = RankedPairs(dominating_ambiguous_profile, m=1)
+    assert e.get_elected() == convert_to_fs_tuple(["A"])
+    e = RankedPairs(dominating_ambiguous_profile, m=2)
+    assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
+    e = RankedPairs(dominating_ambiguous_profile, m=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
@@ -272,7 +294,7 @@ states = [
         remaining=(frozenset({"B"}), frozenset({"C"})),
         elected=(frozenset({"A"}),),
         eliminated=(frozenset(),),
-        tiebreaks={},
+        tiebreaks={frozenset({"A", "B"}): (frozenset({"A"}), frozenset({"B"}))},
         scores={},
     ),
 ]

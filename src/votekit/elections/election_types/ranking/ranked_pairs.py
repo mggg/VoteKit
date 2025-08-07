@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from votekit.graphs.pairwise_comparison_graph import (
+from ....graphs.pairwise_comparison_graph import (
     pairwise_dict,
     get_dominating_tiers_digraph,
 )
@@ -18,8 +18,8 @@ class RankedPairs(RankingElection):
     and then sort them by the margin of victory. We then lock this order in and construct
     a directed graph from the head-to-head results by traversing the locked order and skipping
     any edges that would create a cycle in the directed graph. The final ranking of the election
-    is then determined by the dominating tiers (topological sort) of the directed graph with
-    ties broken lexicographically.
+    is then determined by the dominating tiers of the directed graph with ties broken
+    lexicographically.
 
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
@@ -82,11 +82,8 @@ class RankedPairs(RankingElection):
         for (a, b), (weight_a, weight_b) in pairwise.items():
             if weight_a > weight_b:
                 ordered_winners[(a, b)] = weight_a - weight_b
-            elif weight_b > weight_a:
+            if weight_b > weight_a:
                 ordered_winners[(b, a)] = weight_b - weight_a
-            else:
-                lex_list = sorted((a, b))
-                ordered_winners[(lex_list[0], lex_list[1])] = 0
 
         # Lock the order
         sorted_winners = sorted(
@@ -103,9 +100,18 @@ class RankedPairs(RankingElection):
                 continue
             graph.add_edge(edge[0], edge[1])
 
+        dominating_tiers = get_dominating_tiers_digraph(graph)
+
+        tiebreak_resolutions = {}
+        for candidate_tier_set in dominating_tiers:
+            if len(candidate_tier_set) > 1:
+                tiebreak_resolutions[frozenset(candidate_tier_set)] = tuple(
+                    frozenset({c}) for c in sorted(candidate_tier_set)
+                )
+
         ordered_candidates = [
             candidate
-            for candidate_set in get_dominating_tiers_digraph(graph)
+            for candidate_set in dominating_tiers
             for candidate in sorted(candidate_set)
         ]
 
@@ -116,6 +122,7 @@ class RankedPairs(RankingElection):
             round_number=prev_state.round_number + 1,
             elected=elected,
             remaining=remaining,
+            tiebreaks=tiebreak_resolutions,
         )
 
         self.election_states.append(new_state)
