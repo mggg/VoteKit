@@ -35,7 +35,7 @@ def test_restrict_pairwise_single_cand():
             ranking=tuple(map(frozenset, [{"Chris"}, {"Peter"}, {"Moon"}])), weight=10
         ),
     ]
-    profile = PreferenceProfile(ballots=ballots)
+    profile = PreferenceProfile(ballots=tuple(ballots))
 
     pwd = pairwise_dict(profile)
 

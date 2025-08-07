@@ -128,6 +128,8 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
     """
     Compute the dominating tiers of the pairwise comparison graph.
     Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
+    In other words, every candidate in a given tier must have a path to every candidate in
+    the lower tier in the head-to-head graph.
 
     Args:
         graph (nx.DiGraph): A directed graph representing pairwise comparisons.
@@ -135,37 +137,56 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
     Returns:
         list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
     """
-    if not nx.is_connected(graph.to_undirected()):
-        raise ValueError(
-            "Graph must be connected. Use `nx.is_connected(graph.to_undirected())` to check."
-        )
+    # Condense the head-to-head cycles so we have a directed acyclic graph (DAG)
+    condensed_acyclic_graph = nx.condensation(graph)
+    quotient_generations = list(nx.topological_generations(condensed_acyclic_graph))
 
-    dominating_tiers = []
+    node_to_descendants = {
+        n: set(nx.descendants(condensed_acyclic_graph, n))
+        for n in condensed_acyclic_graph.nodes
+    }
 
-    G_left = graph.copy()
-    while len(G_left.nodes) > 0:
+    # Deal with unequal legs by checking checking the pairwise node sets for paths.
+    required_merge = True
+    max_iter = 5
+    while required_merge and max_iter > 0:
+        max_iter -= 1
+        merged_generations = []
 
-        # Start at the node id with the minimum in-degree
-        min_nodeid_indegree_pair = min(G_left.in_degree, key=lambda x: x[1])
-        dominating_set = set({min_nodeid_indegree_pair[0]})
-        new_dominating_set = dominating_set.copy()
+        required_merge = False
+        seen_nodes: set[int] = set()
+        for src_nlist_idx, source_nlist in enumerate(quotient_generations):
+            if set(source_nlist).issubset(seen_nodes):
+                continue
 
-        # Grow by BFS on predecessors
-        while True:
-            for node in dominating_set:
-                new_dominating_set = new_dominating_set.union(
-                    set(G_left.predecessors(node))
-                )
+            generation_nlist = source_nlist.copy()
 
-            if new_dominating_set == dominating_set:
-                break
+            # Include the source nodes in the common set to guarantee termination
+            common_descedant_set = set.intersection(
+                *[node_to_descendants[n] for n in source_nlist]
+            ) | set(generation_nlist)
 
-            dominating_set = new_dominating_set
+            for target_nlist_idx in range(src_nlist_idx + 1, len(quotient_generations)):
+                target_nlist = quotient_generations[target_nlist_idx]
+                if set(target_nlist).issubset(common_descedant_set):
+                    continue
 
-        dominating_tiers.append(new_dominating_set)
-        G_left.remove_nodes_from(new_dominating_set)
+                required_merge = True
+                generation_nlist.extend(target_nlist)
+                common_descedant_set = common_descedant_set.intersection(
+                    *[node_to_descendants[n] for n in target_nlist],
+                ) | set(generation_nlist)
 
-    return dominating_tiers
+            merged_generations.append(generation_nlist)
+            seen_nodes.update(generation_nlist)
+
+        quotient_generations = merged_generations
+
+    # Now we need to unpack the quotient generations back into our dominating tiers.
+    return [
+        set().union(*[condensed_acyclic_graph.nodes[n]["members"] for n in nlist])
+        for nlist in quotient_generations
+    ]
 
 
 def restrict_pairwise_dict_to_subset(
