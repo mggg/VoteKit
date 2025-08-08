@@ -357,3 +357,25 @@ def test_stv_cands_cast():
     )
 
     assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
+
+
+def test_stv_resolves_tiebreaks_consistently_on_rerun():
+    for _ in range(100):
+        profile = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=({"Orange"}, {"Pear"}), weight=5),
+                Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+                Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
+                Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+                Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=2),
+                Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+                Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=4),
+            ),
+            max_ranking_length=3,
+        )
+
+        # There is a tiebreak between Burger and Chicken that must be resolved
+        election = STV(profile, m=3)
+
+        # The following line will error if the tiebreaks are not resolved consistently
+        election.get_step(7)

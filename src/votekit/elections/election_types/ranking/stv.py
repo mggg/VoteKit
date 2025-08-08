@@ -291,6 +291,7 @@ class STV(RankingElection):
         """
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
+        current_round = prev_state.round_number + 1
         above_thresh_cands = [
             c for c, score in prev_state.scores.items() if score >= self.threshold
         ]
@@ -322,12 +323,21 @@ class STV(RankingElection):
             lowest_fpv_cands = prev_state.remaining[-1]
 
             if len(lowest_fpv_cands) > 1:
-                tiebroken_ranking = tiebreak_set(
-                    lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
-                )
+                tiebroken_ranking = None
+                if current_round < len(self.election_states):
+                    possible_tiebreaks = list(
+                        self.election_states[current_round].tiebreaks.values()
+                    )
+                    if len(possible_tiebreaks) > 0:
+                        tiebroken_ranking = possible_tiebreaks[0]
+                if tiebroken_ranking is None or len(tiebroken_ranking) == 0:
+                    tiebroken_ranking = tiebreak_set(
+                        lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
+                    )
+
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}
 
-                eliminated_cand = list(tiebroken_ranking[-1])[0]
+                eliminated_cand = list(tiebroken_ranking[-1])[-1]
 
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
