@@ -185,9 +185,7 @@ def __format_df(
     """
     mutated_df = mutated_df.copy()
 
-    renamed_columns = {
-        mutated_df.columns[r_col]: f"Ranking_{i+1}" for i, r_col in enumerate(rank_cols)
-    }
+    renamed_columns = {r_col: f"Ranking_{i+1}" for i, r_col in enumerate(rank_cols)}
 
     if weight_col is not None:
         renamed_columns.update({weight_col: "Weight"})
@@ -325,6 +323,8 @@ def load_ranking_csv(
         delimiter=delimiter,
         header=header,
     )
+
+    df.columns = pd.Index(range(len(df.columns)))
 
     rank_cols, id_col, weight_col = __validate_columns(
         df, rank_cols, id_col, weight_col

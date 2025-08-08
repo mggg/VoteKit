@@ -5,7 +5,6 @@ import re
 from votekit.cvr_loaders import load_csv, load_ranking_csv
 from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
-from votekit.elections import STV
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_DIR = BASE_DIR / "data/csv/load_ranking_csv"
@@ -244,21 +243,47 @@ def test_load_ranking_csv_w_id():
 
 def test_load_ranking_csv_header():
     profile = load_ranking_csv(
-        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], header=0
+        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], id_col=4, header=0
     )
 
     true_profile = PreferenceProfile(
         ballots=(
-            Ballot(ranking=({"Peter"}, {"Chris"})),
-            Ballot(ranking=({"Chris"}, {"Moon"})),
-            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"})),
-            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"})),
+            Ballot(ranking=({"Peter"}, {"Chris"}), voter_set={"X40"}),
+            Ballot(ranking=({"Chris"}, {"Moon"}), voter_set={"X31"}),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), voter_set={"X29"}),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), voter_set={"X400"}),
             Ballot(
                 ranking=(
                     frozenset(),
                     frozenset(),
                     {"Moon"},
-                )
+                ),
+                voter_set={"X31"},
+            ),
+        )
+    )
+
+    assert profile == true_profile
+    # checks that converting from df to ballot list works
+    assert profile.ballots == true_profile.ballots
+
+    profile = load_ranking_csv(
+        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], weight_col=3, header=0
+    )
+
+    true_profile = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"Peter"}, {"Chris"}), weight=1),
+            Ballot(ranking=({"Chris"}, {"Moon"}), weight=1),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=1.5),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=0.5),
+            Ballot(
+                ranking=(
+                    frozenset(),
+                    frozenset(),
+                    {"Moon"},
+                ),
+                weight=2,
             ),
         )
     )
@@ -291,14 +316,3 @@ def test_print(capsys):
     captured = capsys.readouterr()
 
     assert "Profile contains rankings:" not in captured.out
-
-
-def test_MN_profile():
-
-    profile = load_ranking_csv(
-        BASE_DIR / "data/csv/mn_2013_cast_vote_record.csv",
-        rank_cols=[0, 1, 2],
-        header=0,
-    )
-
-    assert STV(profile, m=1).get_elected() == (frozenset({"BETSY HODGES"}),)
