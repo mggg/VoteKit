@@ -20,13 +20,16 @@ For more detailed instructions, please see the [installation](https://votekit.re
 A simple example of how to use VoteKit to load, clean, and run an election using real [data](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/) taken from the 2013 Minneapolis Mayoral election. For a more comprehensive walkthrough, see the [documentation](https://votekit.readthedocs.io/en/latest/). 
 
 ```python
-from votekit import load_csv, remove_noncands
+from votekit.cvr_loaders import load_ranking_csv
+from votekit.cleaning import remove_repeated_candidates, remove_cand, condense_profile
 from votekit.elections import STV
 
-minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
+minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", [0,1,2], header = 0)
 
 # clean downloaded file to remove edited aspects of the cast vote record
-minneapolis_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
+minneapolis_profile = remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)
+minneapolis_profile = remove_repeated_candidates(minneapolis_profile)
+minneapolis_profile = condense_profile(minneapolis_profile)
 
 minn_election = STV(profile = minneapolis_profile, m = 1)
 minn_election.run_election()
