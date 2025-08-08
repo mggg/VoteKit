@@ -507,15 +507,9 @@ our cleaning using VoteKit’s built in cleaning tools.
 
 .. code:: ipython3
 
-    from votekit.cvr_loaders import load_csv
+    from votekit.cvr_loaders import load_ranking_csv
     
-    profile = load_csv("Portland_D1_raw_votekit_format.csv", rank_cols=[1,2,3,4,5,6])
-
-.. code:: ipython3
-
-    profile
-
-
+    profile = load_ranking_csv("Portland_D1_raw_votekit_format.csv", rank_cols=[1,2,3,4,5,6], header=0)
 
 
 .. parsed-literal::
@@ -523,19 +517,20 @@ our cleaning using VoteKit’s built in cleaning tools.
     Profile contains rankings: True
     Maximum ranking length: 6
     Profile contains scores: False
-    Candidates: ('Candace Avalos', 'Cayle Tern', 'Jamie Dunphy', 'Loretta Smith', 'Steph Routh', 'Doug Clove', 'Michael (Mike) Sands', 'David Linn', 'Timur Ender', 'Deian Salazar', 'Peggy Sue Owens', 'Joe Allen', 'Joe Furi', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Uncertified Write In', 'Write-in-121', 'Write-in-122', 'Write-in-120', 'overvote')
-    Candidates who received votes: ('Candace Avalos', 'Cayle Tern', 'Jamie Dunphy', 'Loretta Smith', 'Steph Routh', 'Doug Clove', 'Michael (Mike) Sands', 'David Linn', 'Timur Ender', 'Deian Salazar', 'Peggy Sue Owens', 'Joe Allen', 'Joe Furi', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Uncertified Write In', 'Write-in-121', 'Write-in-122', 'Write-in-120', 'overvote')
-    Total number of Ballot objects: 19933
+    Candidates: ('Uncertified Write In', 'Write-in-122', 'overvote', 'Write-in-120', 'Write-in-121', 'Michael (Mike) Sands', 'Noah Ernst', 'Candace Avalos', 'Terrence Hayes', 'Timur Ender', 'Steph Routh', 'Jamie Dunphy', 'Joe Furi', 'David Linn', 'Deian Salazar', 'Peggy Sue Owens', 'Thomas Shervey', 'Doug Clove', 'Cayle Tern', 'Joe Allen', 'Loretta Smith')
+    Candidates who received votes: ('Uncertified Write In', 'Write-in-122', 'overvote', 'Write-in-120', 'Write-in-121', 'Michael (Mike) Sands', 'Noah Ernst', 'Candace Avalos', 'Terrence Hayes', 'Timur Ender', 'Steph Routh', 'Jamie Dunphy', 'Joe Furi', 'David Linn', 'Deian Salazar', 'Peggy Sue Owens', 'Thomas Shervey', 'Doug Clove', 'Cayle Tern', 'Joe Allen', 'Loretta Smith')
+    Total number of Ballot objects: 43669
     Total weight of Ballot objects: 43669.0
+    
 
 
-
-Notice above that there is a difference between the number of total
-ballots and the total weight. This indicates that the profile has been
-grouped; that is, ballots with the same ranking have been aggregated so
-that there is one ballot, but with increased weight. We need to be
-careful and sum the ballot weights, not the number of ballots, if we
-want to know the total number of voters.
+Notice above that there are two different stats about the ballots:
+number of total ballots and the total weight. The number of ballots
+counts the number of ``Ballot`` objects in the profile, while the total
+weight sums the ``weight`` of all of them. In this case, they are the
+same since each ballot had weight 1, but in general this does not need
+to be the case. We need to be careful and sum the ballot weights, not
+the number of ballots, if we want to know the total number of voters.
 
 We will take this moment to analyze how many overvotes occurred in first
 place, as well as how many occurred anywhere on the ballot.
@@ -663,9 +658,9 @@ it as a pickle file, which is a way of storing Python variables.
 Analysis
 --------
 
-Finally, we have a CVR that is cleaned and ready to be analyzed. If
-youskipped all of the cleaning steps above, you can download the
-prepared data
+Finally, we have a CVR that is cleaned and ready to be analyzed. If you
+skipped all of the cleaning steps above, you can download the prepared
+data
 `here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.pkl>`__.
 Save the pkl file in the same working directory as your Python notebook.
 
@@ -781,7 +776,7 @@ election.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_36_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_35_0.png
 
 
 Well the candidate names are too long to fit on the axis, so let’s
@@ -799,7 +794,7 @@ relabel them.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_38_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_37_0.png
 
 
 We now see visually who is viable: Avalos, Routh, Dunphy, Smith, Ender,
@@ -856,7 +851,7 @@ bit more work and expose the underlying function that
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_42_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_41_0.png
 
 
 Whoops, the candidates are not in our desired order. This is also easy
@@ -874,7 +869,7 @@ to fix by adding the ``candidate_ordering`` parameter.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_44_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_43_0.png
 
 
 We see that part of the reason Routh was not elected is that he has
@@ -974,7 +969,7 @@ by candidate j.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_52_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_51_0.png
 
 
 Since there are so many candidates, we should adjust the figure size and
@@ -995,7 +990,7 @@ maybe the font size as well.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_54_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_53_0.png
 
 
 The matrix heatmap uses a scale from purple to green, where dark purple
@@ -1032,7 +1027,7 @@ distance between candidates i and j when i >= j on the same ballot.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_57_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_56_0.png
 
 
 Finally, the (i,j) entry of the comentions matrix shows the number of
@@ -1055,7 +1050,7 @@ the number of times that i and j were mentioned on the same ballot
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_59_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_58_0.png
 
 
 .. code:: ipython3
@@ -1072,7 +1067,7 @@ the number of times that i and j were mentioned on the same ballot
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_60_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_59_0.png
 
 
 Voter Behavior
@@ -1104,7 +1099,7 @@ winner set.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_63_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_62_0.png
 
 
 Portland D1 voters did a great job casting complete ballots: almost 40%
@@ -1168,7 +1163,7 @@ results meaningfully.
 
 
 
-.. image:: 7_portland_case_study_files/7_portland_case_study_65_0.png
+.. image:: 7_portland_case_study_files/7_portland_case_study_64_0.png
 
 
 Ballot Exhaustion
