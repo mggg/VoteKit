@@ -2,6 +2,7 @@ from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict, field_validator
 from typing import Optional
 from dataclasses import field
+from numbers import Real
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -86,10 +87,7 @@ class Ballot:
         cls, scores: Optional[dict[str, float]]
     ) -> Optional[dict[str, float]]:
         if scores:
-            if any(
-                not (isinstance(s, float) or isinstance(s, int))
-                for s in scores.values()
-            ):
+            if any(not isinstance(s, Real) for s in scores.values()):
                 raise TypeError("Score values must be numeric.")
 
             return {c.strip(): s for c, s in scores.items() if s != 0}
