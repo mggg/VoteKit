@@ -102,6 +102,12 @@ class BallotGraph(Graph):
         Returns:
             networkx.Graph: A ``networkx`` graph.
         """
+        if n > 7:
+            raise ValueError(
+                "Ballot graphs with more than 7 candidates are not supported due to "
+                "exponential growth in the number of possible ballots."
+            )
+
         Gc: nx.Graph = nx.Graph()
         # base cases
         if n == 1:

@@ -1,45 +1,149 @@
 from votekit.pref_profile import PreferenceProfile, profile_to_ranking_dict
 from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
-import ot  # type: ignore
 import networkx as nx  # type: ignore
 from typing import Union, Optional
+from scipy.optimize import linprog
+from scipy.sparse import identity, kron, vstack, csr_matrix
+from scipy.sparse.csgraph import floyd_warshall
 
 
-# TODO slateemd branch of PRVTP has refactored
-def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> int:
+def emd_via_scipy_linear_program(
+    source_distribution: np.ndarray,
+    target_distribution: np.ndarray,
+    cost_matrix: np.ndarray,
+) -> float:
     """
-    Computes the earth mover distance between two profiles.
-    Assumes both profiles share the same candidates.
+    Compute the Earth Mover's Distance (EMD) between two discrete distributions using
+    a linear programming formulation of the optimal transport problem.
+
+    Classical Formulation:
+        minimize ⟨cost_matrix, transport_plan⟩
+        subject to:
+            transport_plan @ 1 = source_distribution
+            transport_plan.T @ 1 = target_distribution
+            transport_plan >= 0
+
+    Linear Program:
+        Suppose that 'a' is the source distribution, 'b' is the target distribution, C is the
+        cost matrix, and 'X' is the transport plan. Let 'x' be the row-major vectorization of 'X'
+        and let 'c' be the vectorization of 'C'. The linear program can be expressed as:
+
+        Then let 'A' be the constraint matrix formed by the Kronecker products of identity
+        matrices and the ones vector, so
+
+        A = [I_n ⊗  1_m^T, 1_n^T ⊗ I_m]
+
+        where I_n is the identity matrix of size n (number of sources) and I_m is the identity
+        matrix of size m (number of targets). The linear program can be expressed as:
+
+        minimize c^T x
+
+        subject to:
+            Ax = y
+
+        where 'y' is the concatenation of the source and target distributions y = [a, b]^T.
 
     Args:
-        pp1 (PreferenceProfile): ``PreferenceProfile`` for first election.
-        pp2 (PreferenceProfile): ``PreferenceProfile`` for second election.
+        source_distribution (np.ndarray): Mass distribution of the source (length n).
+        target_distribution (np.ndarray): Mass distribution of the target (length m).
+        cost_matrix (np.ndarray): n×m matrix of transportation costs.
 
     Returns:
-        int: Earth mover distance between inputted profiles.
+        float: The computed Earth Mover's Distance (minimum transport cost).
     """
-    # create ballot graph
-    ballot_graph = BallotGraph(source=pp2).graph
-    # ballot_graph = graph.from_profile(profile=pp2, complete=True)
+    nonzero_source_mask = source_distribution > 0
+    nonzero_target_mask = target_distribution > 0
 
-    # Solving Earth Mover Distance
-    electA_distr = np.array(em_array(pp=pp1))
-    electB_distr = np.array(em_array(pp=pp2))
+    if not nonzero_source_mask.any() and not nonzero_target_mask.any():
+        return 0.0
 
-    # Floyd Warshall Shortest Distance alorithm. Returns a dictionary of shortest path for each node
-    fw_dist_dict = nx.floyd_warshall(ballot_graph)
-    keys_list = sorted(fw_dist_dict.keys())
-    cost_matrix = np.zeros((len(keys_list), len(keys_list)))
-    for i in range(len(keys_list)):
-        node_dict = fw_dist_dict[keys_list[i]]
-        cost_col = [value for key, value in sorted(node_dict.items())]
-        cost_matrix[i] = cost_col
-    earth_mover_matrix = ot.emd(electA_distr, electB_distr, cost_matrix)
+    # Trim to only nonzero entries to reduce LP size
+    trimmed_source = source_distribution[nonzero_source_mask]
+    trimmed_target = target_distribution[nonzero_target_mask]
 
-    # Hadamard Product = Earth mover dist between two matrices
-    earth_mover_dist = np.sum(np.multiply(cost_matrix, earth_mover_matrix))
-    return earth_mover_dist
+    # NOTE: np.ix_ is used to create a meshgrid for indexing so you grab the correct submatrix
+    trimmed_cost_matrix = cost_matrix[np.ix_(nonzero_source_mask, nonzero_target_mask)]
+    num_sources, num_targets = trimmed_cost_matrix.shape
+
+    # For each source, we need to ensure that the total mass is fully received by the targets
+    # Suppose n=2 sources, m=3 targets, and transport plan:
+    #
+    #     X = [[x11, x12, x13],
+    #          [x21, x22, x23]]
+    #
+    # Flattened row-major:
+    #     x = [x11, x12, x13, x21, x22, x23]   # length n*m = 6
+    #
+    # Now with the Kronecker product, we get the constraints:
+    # Row constraints: I_n ⊗ [1 1 1]   → sums each source's row:
+    #     [[1 1 1 0 0 0],               # x11 + x12 + x13 = a1
+    #      [0 0 0 1 1 1]]               # x21 + x22 + x23 = a2
+    #
+    # Col constraints: [1 1] ⊗ I_m     → sums each target's column:
+    #     [[1 0 0 1 0 0],               # x11 + x21 = b1
+    #      [0 1 0 0 1 0],               # x12 + x22 = b2
+    #      [0 0 1 0 0 1]]               # x13 + x23 = b3
+    row_constraints = kron(
+        identity(num_sources, format="csr"),
+        csr_matrix(np.ones((1, num_targets))),
+    )
+    col_constraints = kron(
+        csr_matrix(np.ones((1, num_sources))),
+        identity(num_targets, format="csr"),
+    )
+
+    # Matrix formulation of the constraints:
+    A_eq = vstack([row_constraints, col_constraints], format="csr")
+
+    # NOTE: np.r_ is used to concatenate the trimmed source and target distributions
+    b_eq = np.r_[trimmed_source, trimmed_target]
+
+    # Solve LP
+    result = linprog(
+        trimmed_cost_matrix.ravel(),
+        A_eq=A_eq,
+        b_eq=b_eq,
+        bounds=(0, None),
+        method="highs",
+    )
+
+    if not result.success:
+        raise RuntimeError(f"linprog failed: {result.message}")
+
+    return result.fun
+
+
+def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
+    """
+    Computes the Earth Mover's Distance (EMD) between two preference profiles.
+    Assumes both elections share the same candidates.
+
+    Args:
+        pp1 (PreferenceProfile): PreferenceProfile for first profile.
+        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+
+    Returns:
+        float: Earth Mover's Distance between two profiles.
+    """
+    ballot_graphA = BallotGraph(source=pp1, fix_short=True)
+    ballot_graphB = BallotGraph(source=pp2, fix_short=True)
+
+    assert set(ballot_graphA.graph.nodes) == set(ballot_graphB.graph.nodes)
+
+    electA_distr = np.array(list(ballot_graphA.node_weights.values()))
+    electA_distr /= np.sum(electA_distr)
+    electB_distr = np.array(list(ballot_graphB.node_weights.values()))
+    electB_distr /= np.sum(electB_distr)
+
+    A = nx.to_scipy_sparse_array(ballot_graphB.graph, weight="weight", dtype=float)
+    cost_matrix = floyd_warshall(A)
+
+    return emd_via_scipy_linear_program(
+        source_distribution=electA_distr,
+        target_distribution=electB_distr,
+        cost_matrix=cost_matrix,
+    )
 
 
 def lp_dist(
@@ -114,43 +218,6 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
         elect_distr = [float(election[key]) for key in sorted(election.keys())]
         electn_ndarry[:, i] = elect_distr
     return electn_ndarry
-
-
-def em_array(pp: PreferenceProfile) -> list:
-    """
-    Converts a ``PreferenceProfile`` into a distribution using ballot graphs.
-
-    Args:
-        pp (PreferenceProfile): PreferenceProfile.
-
-    Returns:
-        list: Distribution of ballots for the profile.
-    """
-    ballot_graph = BallotGraph(source=pp)
-    node_cand_map = ballot_graph.label_cands(sorted(pp.candidates))
-    pp_dict = profile_to_ranking_dict(pp, True)
-
-    # invert node_cand_map to map to pp_dict
-    # split is used to remove the custom labeling from the ballotgraph
-    inverted = {v.split(":")[0]: k for k, v in node_cand_map.items()}
-    combined_dict = {k: 0 for k in node_cand_map}
-
-    # map nodes with weight of corresponding rank
-    # labels on ballotgraph are strings so need to convert key to string
-    formatted_pp_dict = {
-        tuple(next(iter(item)) for item in k): v for k, v in pp_dict.items()
-    }
-    node_pp_dict = {
-        inverted[str(ranking)]: weight for ranking, weight in formatted_pp_dict.items()
-    }
-
-    complete_election_dict = combined_dict | node_pp_dict
-    elect_distr = [
-        float(complete_election_dict[key])
-        for key in sorted(complete_election_dict.keys())
-    ]
-
-    return elect_distr
 
 
 def euclidean_dist(point1: np.ndarray, point2: np.ndarray) -> float:
