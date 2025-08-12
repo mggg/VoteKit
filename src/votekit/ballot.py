@@ -36,7 +36,7 @@ class Ballot:
 
     def __post_init__(self):
         if self.weight < 0:
-            raise ValueError("Ballot weight must cannot be negative.")
+            raise ValueError("Ballot weight cannot be negative.")
 
         # Silently promote weight to float
         object.__setattr__(self, "weight", float(self.weight))
