@@ -12,8 +12,8 @@ def remove_and_condense_scored(removed: List[str] | str, profile: PreferenceProf
     Args:
         removed (List[str] or str): List of candidates to be removed from the profile.
         profile (PreferenceProfile): The original preference profile.
-        remove_empty_ballots (bool, default=True): If True, removes ballots with no votes.
-        remove_zero_weight_ballots (bool, default=True): If True, removes ballots with zero weight.
+        remove_empty_ballots (bool, optional): If True, removes ballots with no votes.
+        remove_zero_weight_ballots (bool, optional): If True, removes ballots with zero weight.
 
     Returns:
         PreferenceProfile: A new profile with the specified candidates removed and ballots condensed.
@@ -31,7 +31,6 @@ def remove_and_condense_scored(removed: List[str] | str, profile: PreferenceProf
         df = df[df["Weight"] > 0]
 
     if remove_empty_ballots:
-        #df = df[df[kept_cands_list].sum(axis=1) > 0]
         candidate_matrix = df[kept_cands_list].to_numpy()
         mask = (np.nansum(candidate_matrix, axis=1) > 0)
         df = df[mask]
@@ -39,4 +38,4 @@ def remove_and_condense_scored(removed: List[str] | str, profile: PreferenceProf
     return PreferenceProfile(df=df, 
                             candidates=kept_cands_list, 
                             contains_scores=profile.contains_scores,
-                            contains_rankings=profile.contains_rankings)
+                            contains_rankings=False)

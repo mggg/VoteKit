@@ -58,7 +58,7 @@ class GeneralRating(Election):
         and a value error for budget/score limit violation.
 
         Args:
-            profile (PreferenceProfile): Profile to validate.
+            profile (PreferenceProfile): Profile containing a list of Ballot objects with scores of candidates.
 
         Raises:
             TypeError: no score dictionary in a ballot.
@@ -157,7 +157,7 @@ class Rating(GeneralRating):
     the highest total score.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (PreferenceProfile): Profile containing a list of Ballot objects with scores of candidates.
         m (int, optional): Number of seats to elect. Defaults to 1.
         L (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
@@ -207,7 +207,7 @@ class Cumulative(Limited):
     the number of seats to be filled. Winners are those with highest total score.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (PreferenceProfile): Profile containing a list of Ballot objects with scores of candidates.
         m (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
             Defaults to None, in which case a tie raises a ValueError.

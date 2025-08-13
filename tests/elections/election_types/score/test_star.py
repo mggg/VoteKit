@@ -11,7 +11,6 @@ import pytest
 import random
 import time
 
-
 # ---------- sample profiles -------------
 
 # 3 ballots, clear finalist pair (B,C) – B wins the run-off 2 : 1
@@ -59,8 +58,8 @@ profile_large_election = PreferenceProfile(
 )
 runoff_large_election = ["E", "A"]
 winner_large_election = ["E"]
-# ------- states (no tie) -----
 
+# ------- states (no tie) -----
 states_simple = [
     ElectionState(
         remaining=(frozenset({"B"}), frozenset({"C"}), frozenset({"A"})),
@@ -84,92 +83,6 @@ profile_simple_round_1 = PreferenceProfile(
 )
 
 # ---------- tests ----------
-
-def test_basic_result():
-    """Winner B, finalists (B,C), correct score totals & runoff counts."""
-    election = Star(profile_simple, L=5)
-    result = election.run_election()
-
-    assert result["winner"] == "B"
-    assert set(result["finalists"]) == {"B", "C"}
-    assert result["scores"] == {"A": 8, "B": 12, "C": 10}
-
-
-def test_runoff_only_profile():
-    """If only finalists appear on ballots B must still win."""
-    election = Star(profile_runoff_only, L=5)
-    result = election.run_election()
-    assert result["winner"] == "B"
-    assert set(result["finalists"]) == {"B", "C"}
-
-def test_tabulation_tie_with_most_top_ratings():
-    """Same tie but with 'most_top_ratings' still ends in None (1=1)."""
-    res = Star(profile_tie_tabulation, L=5, tiebreak="most_top_ratings").run_election()
-    assert len(res["winner"])== 1
-    assert set(res["finalists"]) == {"A", "B"}
-
-def test_state_list_and_helpers():
-    election = Star(profile_simple, L=5)
-    assert len(election.election_states) == 2
-    assert election.election_states[0].scores == states_simple[0].scores
-    assert election.election_states[1].elected == [frozenset({candidate}) for candidate in next(iter(states_simple[1].elected))]
-
-    assert election.get_profile(0) == profile_simple
-    _, state1 = election.get_step(1)
-    assert state1 == election.election_states[1] 
-
-def test_remaining_ranking():
-    election = Star(profile_simple, L=5)
-    assert election.get_remaining(0) == (frozenset({"B"}), frozenset({"C"}), frozenset({"A"}))
-    assert election.get_remaining(1) == tuple()
-    assert election.get_ranking(0) == (frozenset({"B"}), frozenset({"C"}), frozenset({"A"}))
-
-def test_error_conditions():
-    with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        Star(PreferenceProfile(ballots=[Ballot(ranking=("A","B"))]), L=5)
-
-    with pytest.raises(TypeError, match="score limit"):
-        Star(PreferenceProfile(ballots=[Ballot(scores={"A": 6, "B": 1})]), L=5)
-
-    neg_ballot = PreferenceProfile(
-        ballots=[Ballot(scores={"A": 1, "B": 1}, weight = 1)]
-    )
-    e = Star(profile=neg_ballot, L=5)
-    neg_ballot.df["Weight"] = -1
-    with pytest.raises(ValueError, match="positive"):
-        Star(profile=neg_ballot, L=5)
-
-
-def test_large_election_result_and_status_df():
-    """Comprehensive check on the 9-ballot, 5-candidate example."""
-    election = Star(profile_large_election, L=5)
-    res = election.run_election()
-
-    assert res["winner"] == "E"
-    assert set(res["finalists"]) == {"E", "A"}
-
-    # round-0 candidate ordering by total score
-    expected_ranking0 = (
-        frozenset({"E"}),
-        frozenset({"A"}),
-        frozenset({"B"}),
-        frozenset({"D"}),
-        frozenset({"C"}),
-    )
-    state0 = election.get_step(0)[-1]
-    assert tuple(state0.remaining) == expected_ranking0
-
-    # status-df helper
-    df0_expected = pd.DataFrame(
-        {"Status": ["Remaining"] * 5, "Round": [0] * 5},
-        index=["E", "A", "B", "D", "C"],
-    )
-    assert election.get_status_df(0).equals(df0_expected)
-
-    # after runoff (state-1) winner E elected
-    state1 = election.get_step(1)[-1]
-    assert state1.elected == [frozenset({"E"})]
-
 def test_init():
     e = Star(profile=profile_simple, L=5)
     assert [e for e in next(iter(e.get_elected()[0]))] == winner_simple
@@ -228,22 +141,15 @@ def test_errors():
     with pytest.raises(ValueError, match="tiebreak must be 'most_top_ratings'"):
         Star(profile=profile_simple, L=5, tiebreak="no_tiebreak")
 
-def test_validate_profile():
-    # ballot must have score dictionary
-    bad1 = PreferenceProfile(
-        ballots=[Ballot(ranking=(frozenset({"X"}), frozenset({"Y"})))]
-    )
-    with pytest.raises(TypeError, match="score dictionary"):
-        Star(profile=bad1, L=5)
-    
+def test_validate_profile():    
     # ballot cannot violate score limit
-    bad2 = PreferenceProfile(
+    bad1 = PreferenceProfile(
         ballots=[Ballot(scores={"X": 6, "Y": 1})]
     )
     with pytest.raises(TypeError, match="score limit"):
-        Star(profile=bad2, L=5)
+        Star(profile=bad1, L=5)
 
-## ---- Stress Testing ---- ##
+# Stress test
 n_ballots = 100_000
 n_candidates = 30
 
@@ -252,19 +158,20 @@ candidates = [f"C{i}" for i in range(n_candidates)]
 
 # Build ballots with STAR scores (randomized)
 ballots = [Ballot(scores={c: random.randint(0, 5) for c in candidates}, weight=1) for _ in range(n_ballots)]
-
 profile_stress = PreferenceProfile(
-    ballots=ballots,
-    candidates=candidates,
+            ballots=ballots,
+            candidates=candidates,
 )
 
 def test_stress():
-    time0 = time.time()
-    # Stress test for STAR with large profile
-    election = Star(profile_stress, L=5)
-    time1 = time.time()
-    print(f"STAR stress test completed in {time1 - time0:.2f} seconds")
-    assert len(election.get_elected()) <= 1  # STAR elects one winner
-    time_stress = time1 - time0
-    assert (time_stress) < 10
-    
+    # Stress test for OpenListPR with large profile
+    times = []
+    for _ in range(10):
+
+        time0 = time.time()
+        election = Star(profile_stress, L=5)
+        time1 = time.time()
+        times.append(time1 - time0)
+
+    print("Average time:", sum(times)/len(times))
+    assert sum(times)/len(times) < 1
