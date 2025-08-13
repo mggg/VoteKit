@@ -139,16 +139,20 @@ class STV(RankingElection):
                 and whose second entry is the profile of ballots after transfers.
         """
         ranking_by_fpv = prev_state.remaining
+        current_round = prev_state.round_number + 1
 
         elected = []
-        for s in ranking_by_fpv:
-            c = list(s)[0]  # all cands in set have same score
-            if prev_state.scores[c] >= self.threshold:
-                elected.append(s)
+        if current_round < len(self.election_states):
+            elected = list(self.election_states[current_round].elected)
+        else:
+            for s in ranking_by_fpv:
+                c = list(s)[0]  # all cands in set have same score
+                if prev_state.scores[c] >= self.threshold:
+                    elected.append(s)
 
-            # since ranking is ordered by fpv, once below threshold we are done
-            else:
-                break
+                # since ranking is ordered by fpv, once below threshold we are done
+                else:
+                    break
 
         ballots_by_fpv = ballots_by_first_cand(profile)
         new_ballots = [Ballot()] * profile.num_ballots
@@ -217,14 +221,20 @@ class STV(RankingElection):
                 and whose third entry is the profile of ballots after transfers.
         """
         ranking_by_fpv = prev_state.remaining
+        current_round = prev_state.round_number + 1
 
-        elected, remaining, tiebreak = elect_cands_from_set_ranking(
-            ranking_by_fpv, m=1, profile=profile, tiebreak=self.tiebreak
-        )
-        if tiebreak:
-            tiebreaks = {tiebreak[0]: tiebreak[1]}
+        if current_round < len(self.election_states):
+            elected = self.election_states[current_round].elected
+            remaining = self.election_states[current_round].remaining
+            tiebreaks = self.election_states[current_round].tiebreaks
         else:
-            tiebreaks = {}
+            elected, remaining, tiebreak = elect_cands_from_set_ranking(
+                ranking_by_fpv, m=1, profile=profile, tiebreak=self.tiebreak
+            )
+            if tiebreak:
+                tiebreaks = {tiebreak[0]: tiebreak[1]}
+            else:
+                tiebreaks = {}
 
         ballots_by_fpv = ballots_by_first_cand(profile)
         new_ballots = [Ballot()] * profile.num_ballots
