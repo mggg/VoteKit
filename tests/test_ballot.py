@@ -96,3 +96,8 @@ def test_ballot_tilde_errors():
         match="'~' is a reserved character and cannot be used for candidate names.",
     ):
         Ballot(scores={"~": 1})
+
+
+def test_ballot_negative_weight():
+    with pytest.raises(ValueError, match="Ballot weight cannot be negative."):
+        Ballot(weight=-1.5)
