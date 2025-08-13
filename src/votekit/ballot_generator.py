@@ -8,7 +8,9 @@ import pickle
 import random
 import warnings
 from typing import Optional, Union, Tuple, Callable, Dict, Any
-import apportionment.methods as apportion  # type: ignore
+from collections import Counter
+import pandas as pd
+import apportionment.methods as apportion  # type: ignorek
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
@@ -525,7 +527,7 @@ class ImpartialCulture(BallotSimplex):
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
         elif max_ballot_length > len(self.candidates):
-            raise Exception("Cannot create ballots larger than number of candidates")
+            raise Exception("Max ballot length larger than number of candidates given.")
 
         if use_optimized:
             if allow_short_ballots:
@@ -588,23 +590,45 @@ class ImpartialCulture(BallotSimplex):
             max_ballot_length = num_cands
         total_ballots = self._total_ballots(num_cands, max_ballot_length)
 
+        ballot_inds = [random.randint(0, total_ballots-1) for _ in range(number_of_ballots)]
         ballots_as_cand_ind = [
-            self._index_to_lexicographic_ballot(
-                random.randint(0, total_ballots - 1), num_cands, max_ballot_length
-            )
-            for _ in range(number_of_ballots)
-        ]
-        ballots = [
-            tuple([self.candidates[i] for i in ballot_as_ind])
-            for ballot_as_ind in ballots_as_cand_ind
+            tuple(self._index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
+            for ballot_ind in ballot_inds 
         ]
 
-        if return_raw:
-            return ballots
-        # print(f"Total Cache Writes = {self._cache_writes}")
-        # print(f"Total Cache reads = {self._cache_reads}")
-        return self.ballot_pool_to_profile(ballots, self.candidates)
+        ballots_as_counter = Counter(ballots_as_cand_ind)
+        pp_df = self._build_df_from_ballot_samples(dict(ballots_as_counter))
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df = pp_df, 
+            contains_rankings=True, 
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates
+        )
 
+    def _build_df_from_ballot_samples(self, ballots_freq_dict : dict[tuple[int, ...], int]):
+        '''
+        Helper function which creates a pandas df to instantiate a
+        PreferenceProfile
+        args:
+            ballots_freq_dict: dictionary mapping ballots to
+                sampled frequency. The keys should be in candidate id
+                form
+        returns:
+            pandas df
+        '''
+
+        df_data = []    
+        n_cands = len(self.candidates)
+        for ballot in ballots_freq_dict.keys():
+            ballot_as_df = [None for _ in range(n_cands + 1)]
+            ballot_as_frozenset_entries = tuple([frozenset([self.candidates[i]]) for i in ballot])
+            completed_ballot = (ballot_as_frozenset_entries 
+                                + tuple([frozenset(['~']) for _ in range(n_cands - len(ballot))]) # padding short ballots
+                                + tuple([ballots_freq_dict[ballot], set()])) # weight, voter set
+            df_data.append(completed_ballot)
+        return pd.DataFrame(df_data, columns=[f"Ranking_{i}" for i in range(1, n_cands+1)] + ["Weight", "Voter Set"])
+    
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
