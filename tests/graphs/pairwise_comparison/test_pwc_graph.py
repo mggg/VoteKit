@@ -17,7 +17,9 @@ CSV_DIR = BASE_DIR / "data/csv/"
 portland_profile = remove_and_condense(
     "skipped",
     load_ranking_csv(
-        CSV_DIR / "Portland_D3_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6], header=0
+        CSV_DIR / "Portland_D3_Condensed.csv",
+        rank_cols=[1, 2, 3, 4, 5, 6],
+        header_row=0,
     ),
 )
 

@@ -24,7 +24,7 @@ from votekit.cvr_loaders import load_ranking_csv
 from votekit.cleaning import remove_repeated_candidates, remove_cand, condense_profile
 from votekit.elections import STV
 
-minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", [0,1,2], header = 0)
+minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", [0,1,2], header_row = 0)
 
 # clean downloaded file to remove edited aspects of the cast vote record
 minneapolis_profile = remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)

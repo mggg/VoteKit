@@ -509,7 +509,7 @@ our cleaning using VoteKit’s built in cleaning tools.
 
     from votekit.cvr_loaders import load_ranking_csv
     
-    profile = load_ranking_csv("Portland_D1_raw_votekit_format.csv", rank_cols=[1,2,3,4,5,6], header=0)
+    profile = load_ranking_csv("Portland_D1_raw_votekit_format.csv", rank_cols=[1,2,3,4,5,6], header_row=0)
 
 
 .. parsed-literal::

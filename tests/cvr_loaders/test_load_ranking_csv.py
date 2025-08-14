@@ -140,8 +140,8 @@ def test_numerical_weights_error():
 
 
 def test_header_error():
-    with pytest.raises(ValueError, match="Header -1 must be non-negative."):
-        load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], header=-1)
+    with pytest.raises(ValueError, match="Header row -1 must be non-negative."):
+        load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], header_row=-1)
 
 
 def test_load_ranking_csv():
@@ -243,7 +243,7 @@ def test_load_ranking_csv_w_id():
 
 def test_load_ranking_csv_header():
     profile = load_ranking_csv(
-        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], id_col=4, header=0
+        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], id_col=4, header_row=0
     )
 
     true_profile = PreferenceProfile(
@@ -268,7 +268,10 @@ def test_load_ranking_csv_header():
     assert profile.ballots == true_profile.ballots
 
     profile = load_ranking_csv(
-        CSV_DIR / "valid_cvr_w_header.csv", rank_cols=[0, 1, 2], weight_col=3, header=0
+        CSV_DIR / "valid_cvr_w_header.csv",
+        rank_cols=[0, 1, 2],
+        weight_col=3,
+        header_row=0,
     )
 
     true_profile = PreferenceProfile(

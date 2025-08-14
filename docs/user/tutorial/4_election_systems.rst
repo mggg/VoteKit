@@ -30,7 +30,7 @@ all of the same cleaning we did before.
     from votekit.elections import STV
     from votekit.cleaning import remove_repeated_candidates, remove_cand, condense_profile
     
-    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0,1,2], header=0)
+    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0,1,2], header_row=0)
     minneapolis_profile = condense_profile(remove_repeated_candidates(remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)))
     
     # m = 1 means 1 seat
@@ -660,7 +660,7 @@ an STV election where there are many rounds.
 
 .. code:: ipython3
 
-    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0,1,2], header=0)
+    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0,1,2], header_row=0)
     minneapolis_profile = condense_profile(remove_repeated_candidates(remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)))
     
     minn_election = STV(profile=minneapolis_profile, m=1)

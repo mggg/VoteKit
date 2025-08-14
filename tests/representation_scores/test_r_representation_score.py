@@ -53,7 +53,9 @@ def test_r_rep_score_warning():
 
 def test_r_rep_score_portland():
     profile = load_ranking_csv(
-        CSV_DIR / "Portland_D1_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6], header=0
+        CSV_DIR / "Portland_D1_Condensed.csv",
+        rank_cols=[1, 2, 3, 4, 5, 6],
+        header_row=0,
     )
     clean_profile = remove_cand("skipped", profile)
 

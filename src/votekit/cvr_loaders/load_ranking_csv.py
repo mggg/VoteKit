@@ -265,7 +265,7 @@ def load_ranking_csv(
     id_col: Optional[int] = None,
     candidates: Optional[list[str]] = None,
     delimiter: str = ",",
-    header: Optional[int] = None,
+    header_row: Optional[int] = None,
     print_profile: bool = True,
 ) -> PreferenceProfile:
     """
@@ -283,8 +283,8 @@ def load_ranking_csv(
         candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
         delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
-        header (Optional[int]): The row containing the column names, below which the data begins.
-            Defaults to None, in which case row 0 is considered to be the first ballot.
+        header_row (Optional[int]): The row containing the column names, below which the data
+            begins. Defaults to None, in which case row 0 is considered to be the first ballot.
         print_profile (bool): Whether or not to print the loaded profile. Defaults to True. Useful
             for debugging.
 
@@ -309,8 +309,8 @@ def load_ranking_csv(
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
     """
-    if header is not None and header < 0:
-        raise ValueError(f"Header {header} must be non-negative.")
+    if header_row is not None and header_row < 0:
+        raise ValueError(f"Header row {header_row} must be non-negative.")
 
     df = pd.read_csv(
         path_or_url,
@@ -318,7 +318,7 @@ def load_ranking_csv(
         encoding="utf8",
         index_col=False,
         delimiter=delimiter,
-        header=header,
+        header=header_row,
     )
 
     df.columns = pd.Index(range(len(df.columns)))
@@ -353,7 +353,7 @@ def load_csv(
     id_col: Optional[int] = None,
     candidates: Optional[list[str]] = None,
     delimiter: str = ",",
-    header: Optional[int] = None,
+    header_row: Optional[int] = None,
     print_profile: bool = True,
 ) -> PreferenceProfile:
     """
@@ -371,8 +371,8 @@ def load_csv(
         candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
         delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
-        header (Optional[int]): The row containing the column names, below which the data begins.
-            Defaults to None, in which case row 0 is considered to be the first ballot.
+        header_row (Optional[int]): The row containing the column names, below which the data
+            begins. Defaults to None, in which case row 0 is considered to be the first ballot.
         print_profile (bool): Whether or not to print the loaded profile. Defaults to True. Useful
             for debugging.
 
@@ -410,6 +410,6 @@ def load_csv(
         id_col=id_col,
         candidates=candidates,
         delimiter=delimiter,
-        header=header,
+        header_row=header_row,
         print_profile=print_profile,
     )
