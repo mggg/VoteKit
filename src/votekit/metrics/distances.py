@@ -2,10 +2,11 @@ from votekit.pref_profile import PreferenceProfile, profile_to_ranking_dict
 from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
 import networkx as nx  # type: ignore
-from typing import Union, Optional
+from typing import Union, Optional, Sequence
 from scipy.optimize import linprog
 from scipy.sparse import identity, kron, vstack, csr_matrix
 from scipy.sparse.csgraph import floyd_warshall
+from scipy.stats import kendalltau
 
 
 def emd_via_scipy_linear_program(
@@ -114,6 +115,178 @@ def emd_via_scipy_linear_program(
     return result.fun
 
 
+def __vaildate_ranking_distance_inputs(
+    ranking1: Sequence[int], ranking2: Sequence[int], n_candidates: int
+) -> tuple[set[int], set[int], set[int]]:
+    ranked1_set = set(ranking1)
+    ranked2_set = set(ranking2)
+    full_ranking_set = ranked1_set.union(ranked2_set)
+
+    if len(ranked1_set) != len(ranking1):
+        raise ValueError(
+            f"The ranking {ranking1} contains duplicates and is not suitable for distance computation."
+        )
+    if len(ranked2_set) != len(ranking2):
+        raise ValueError(
+            f"The ranking {ranking2} contains duplicates and is not suitable for distance computation."
+        )
+    if len(full_ranking_set) > n_candidates:
+        raise ValueError(
+            "The number of candidates in the rankings exceeds the total number of candidates."
+        )
+    return ranked1_set, ranked2_set, full_ranking_set
+
+
+def __compute_bubble_sort_distance(
+    ranking1: Sequence[int], ranking2: Sequence[int], full_ranking_set: set[int]
+) -> float:
+    if len(ranking1) == 0 or len(ranking2) == 0:
+        return 0.0
+
+    full_ranking_1 = list(ranking1) + [c for c in ranking2 if c not in set(ranking1)]
+    full_ranking_2 = list(ranking2) + [c for c in ranking1 if c not in set(ranking2)]
+
+    assert set(full_ranking_1) == set(full_ranking_2) == full_ranking_set
+
+    ranking1_sort_idx = np.argsort(full_ranking_1)
+    ranking2_sort_idx = np.argsort(full_ranking_2)
+
+    tau, _ = kendalltau(ranking1_sort_idx, ranking2_sort_idx)
+    full_ranking_count = len(full_ranking_set)
+    t_value = (full_ranking_count * (full_ranking_count - 1)) / 2
+    return int(round(t_value * (1 - float(tau)) / 2))
+
+
+def compute_ranking_distance_on_ballot_graph(
+    ranking1: Sequence[int],
+    ranking2: Sequence[int],
+    n_candidates: int,
+):
+    """
+    Computes the distance between two rankings on a ballot graph.
+
+    Args:
+        ranking1 (Sequence[int]): The first ranking as a sequence of candidate indices.
+        ranking2 (Sequence[int]): The second ranking as a sequence of candidate indices.
+        n_candidates (int): The number of candidates in the rankings.
+
+    Returns:
+        float: The computed distance between the two rankings.
+    """
+    if n_candidates <= 0:
+        raise ValueError("The number of candidates must be greater than zero.")
+    if n_candidates == 1:
+        return 0.0
+    if ranking1 == ranking2:
+        return 0.0
+
+    ranked1_set, ranked2_set, full_ranking_set = __vaildate_ranking_distance_inputs(
+        ranking1, ranking2, n_candidates
+    )
+
+    bubble_sort_distance = __compute_bubble_sort_distance(
+        ranking1, ranking2, full_ranking_set
+    )
+
+    insertion_deletion_set = ranked1_set.symmetric_difference(ranked2_set)
+    insertion_deletion_distance = len(insertion_deletion_set) / 2
+
+    if (
+        ranked1_set.intersection(ranked2_set) == set()
+        and len(ranking1) > 0
+        and len(ranking2) > 0
+    ):
+        # Case where there might an insertion and a deletion at the end. Both are free, so we
+        # credit them back 0.5 each.
+        insertion_credit = 1 if len(full_ranking_set) == n_candidates else 0
+    else:
+        # Case where there might be a single insertion or deletion at the end which we need to
+        # credit back.
+        insertion_credit = 0.5 if len(full_ranking_set) == n_candidates else 0
+
+    # Case were where two ballots equivalent to full rankings swap the last two candidates
+    if (
+        len(full_ranking_set) == n_candidates
+        and len(ranking1) != 0
+        and len(ranking2) != 0
+        and ranking1[:-2] == ranking2[:-2]
+    ):
+        insertion_deletion_distance = 0.0
+        insertion_credit = 0.0
+
+    return bubble_sort_distance + insertion_deletion_distance - insertion_credit
+
+
+def __build_simultaneous_profile_distribution(
+    pp1: PreferenceProfile, pp2: PreferenceProfile
+) -> dict[tuple[int, ...], tuple[float, float]]:
+    """
+    Builds a simultaneous distribution of two preference profiles, where each key is a tuple
+    representing a ranking and the value is a tuple containing the weights from each of the
+    profiles in order. If the rankin is not present in one of the profiles, the weight is set to
+    0.0.
+
+    Args:
+        pp1 (PreferenceProfile): PreferenceProfile for first profile.
+        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+
+    Returns:
+        dict[tuple[int, ...], tuple[float, float]]: A dictionary where keys are tuples of candidate
+            indices representing rankings and values are tuples of weights from each profile
+            in the order of pp1 and pp2.
+    """
+    profile1 = pp1.group_ballots()
+    profile2 = pp2.group_ballots()
+
+    cand_to_index_mapping = {
+        cand: i for i, cand in enumerate(sorted(profile1.candidates))
+    }
+
+    profile_distribution_dict = dict()
+
+    profile1_ranking_array = profile1.df[
+        [f"Ranking_{i}" for i in range(1, profile1.max_ranking_length + 1)]
+    ].to_numpy()
+
+    profile1_wt_vector = profile1.df["Weight"].to_numpy()
+    profile1_wt_vector /= np.sum(profile1_wt_vector)
+
+    for idx, ranking_tuple in enumerate(profile1_ranking_array):
+        tup = tuple(
+            [
+                cand_to_index_mapping[cand]
+                for cand_set in ranking_tuple
+                for cand in cand_set
+                if cand != "~"
+            ]
+        )
+
+        profile_distribution_dict[tup] = (float(profile1_wt_vector[idx]), 0.0)
+
+    profile2_ranking_array = profile2.df[
+        [f"Ranking_{i}" for i in range(1, profile2.max_ranking_length + 1)]
+    ].to_numpy()
+    profile2_wt_vector = profile2.df["Weight"].to_numpy()
+    profile2_wt_vector /= np.sum(profile2_wt_vector)
+
+    for idx, ranking_tuple in enumerate(profile2_ranking_array):
+        tup = tuple(
+            [
+                cand_to_index_mapping[cand]
+                for cand_set in ranking_tuple
+                for cand in cand_set
+                if cand != "~"
+            ]
+        )
+
+        profile_distribution_dict[tup] = (
+            profile_distribution_dict.get(tup, (0.0, 0.0))[0],
+            float(profile2_wt_vector[idx]),
+        )
+
+    return profile_distribution_dict
+
+
 def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
     """
     Computes the Earth Mover's Distance (EMD) between two preference profiles.
@@ -126,22 +299,42 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
     Returns:
         float: Earth Mover's Distance between two profiles.
     """
-    ballot_graphA = BallotGraph(source=pp1, fix_short=True)
-    ballot_graphB = BallotGraph(source=pp2, fix_short=True)
+    if set(pp1.candidates) != set(pp2.candidates):
+        raise ValueError("The two profiles must have the same candidates.")
 
-    assert set(ballot_graphA.graph.nodes) == set(ballot_graphB.graph.nodes)
+    if not pp1.contains_rankings or not pp2.contains_rankings:
+        raise ValueError(
+            "Both profiles must contain rankings to compute the Earth Mover's Distance."
+        )
+    if pp1.max_ranking_length != pp2.max_ranking_length:
+        raise ValueError(
+            "Both profiles must have the same maximum ranking length to compute the Earth Mover's Distance."
+        )
 
-    electA_distr = np.array(list(ballot_graphA.node_weights.values()))
-    electA_distr /= np.sum(electA_distr)
-    electB_distr = np.array(list(ballot_graphB.node_weights.values()))
-    electB_distr /= np.sum(electB_distr)
+    profile_distribution_dict = __build_simultaneous_profile_distribution(pp1, pp2)
 
-    A = nx.to_scipy_sparse_array(ballot_graphB.graph, weight="weight", dtype=float)
-    cost_matrix = floyd_warshall(A)
+    profile1_distribution = np.zeros(len(profile_distribution_dict))
+    profile2_distribution = np.zeros(len(profile_distribution_dict))
+    for idx, (v1, v2) in enumerate(profile_distribution_dict.values()):
+        profile1_distribution[idx] = v1
+        profile2_distribution[idx] = v2
+
+    distribution_len = len(profile_distribution_dict)
+    cost_matrix = np.zeros((distribution_len, distribution_len))
+
+    n_candidates = len(pp1.candidates)
+    all_ranking_tuples = list(profile_distribution_dict.keys())
+    for idx1, rank1 in enumerate(all_ranking_tuples):
+        for idx2 in range(idx1 + 1, len(all_ranking_tuples)):
+            rank2 = all_ranking_tuples[idx2]
+            cost_matrix[idx1, idx2] = compute_ranking_distance_on_ballot_graph(
+                rank1, rank2, n_candidates
+            )
+            cost_matrix[idx2, idx1] = cost_matrix[idx1, idx2]
 
     return emd_via_scipy_linear_program(
-        source_distribution=electA_distr,
-        target_distribution=electB_distr,
+        source_distribution=profile1_distribution,
+        target_distribution=profile2_distribution,
         cost_matrix=cost_matrix,
     )
 
