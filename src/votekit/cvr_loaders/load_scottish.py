@@ -1,87 +1,9 @@
 import os
 import csv
-import pandas as pd
 from pandas.errors import EmptyDataError, DataError
-from typing import Optional
 
-from .pref_profile import PreferenceProfile
-from .ballot import Ballot
-
-
-def load_csv(
-    path_or_url: str,
-    rank_cols: list[int] = [],
-    *,
-    weight_col: Optional[int] = None,
-    delimiter: Optional[str] = None,
-    id_col: Optional[int] = None,
-) -> PreferenceProfile:
-    """
-    Given a file path, loads cast vote record (cvr) with ranks as columns and voters as rows.
-    Empty cells are treated as None.
-
-    Args:
-        fpath (str): Path to cvr file.
-        rank_cols (list[int]): List of column indexes that contain rankings. Indexing starts from 0,
-            in order from top to bottom rank. Default is empty list, which implies that all columns
-            contain rankings.
-        weight_col (int, optional): The column position for ballot weights. Defaults to None, which
-            implies each row has weight 1.
-        delimiter (str, optional): The character that breaks up rows. Defaults to None, which
-            implies a carriage return.
-        id_col (int, optional): Index for the column with voter ids. Defaults to None.
-
-    Raises:
-        FileNotFoundError: If fpath is invalid.
-        EmptyDataError: If dataset is empty.
-        ValueError: If the voter id column has missing values.
-        DataError: If the voter id column has duplicate values.
-
-    Returns:
-        PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the election.
-    """
-    df = pd.read_csv(
-        path_or_url,
-        on_bad_lines="error",
-        encoding="utf8",
-        index_col=False,
-        delimiter=delimiter,
-    )
-
-    if df.empty:
-        raise EmptyDataError("Dataset cannot be empty")
-    if id_col is not None and df.iloc[:, id_col].isnull().values.any():  # type: ignore
-        raise ValueError(f"Missing value(s) in column at index {id_col}")
-    if id_col is not None and not df.iloc[:, id_col].is_unique:
-        raise DataError(f"Duplicate value(s) in column at index {id_col}")
-
-    if rank_cols:
-        if id_col is not None:
-            df = df.iloc[:, rank_cols + [id_col]]
-        else:
-            df = df.iloc[:, rank_cols]
-
-    ranks = list(df.columns)
-    if id_col is not None:
-        ranks.remove(df.columns[id_col])
-    grouped = df.groupby(ranks, dropna=False)
-    ballots = []
-
-    for group, group_df in grouped:
-        ranking = tuple(
-            [frozenset() if pd.isnull(c) else frozenset({c}) for c in group]
-        )
-
-        voter_set = set()
-        if id_col is not None:
-            voter_set = set(group_df.iloc[:, id_col])
-        weight = len(group_df)
-        if weight_col is not None:
-            weight = sum(group_df.iloc[:, weight_col])
-        b = Ballot(ranking=ranking, weight=weight, voter_set=voter_set)
-        ballots.append(b)
-
-    return PreferenceProfile(ballots=tuple(ballots))
+from ..pref_profile import PreferenceProfile
+from ..ballot import Ballot
 
 
 def load_scottish(
