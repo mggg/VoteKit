@@ -9,7 +9,7 @@ class Graph(ABC):
     applicable to any implementation
     """
 
-    def __init__(self, graph: nx.Graph = None):
+    def __init__(self, graph: nx.Graph):
         self.graph = graph
         self.node_weights: dict = {}  # store node weights to avoid acessing Nx.graph
 

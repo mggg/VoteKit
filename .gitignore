@@ -13,3 +13,5 @@ docs/_build
 .dev
 vote2
 .envrc
+dev_files
+__pycache__

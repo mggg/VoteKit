@@ -32,5 +32,5 @@ jobs:
     - name: lint with mypy
       run: poetry run mypy src
     - name: pytest
-      run: poetry run pytest 
+      run: poetry run pytest --runslow
       
