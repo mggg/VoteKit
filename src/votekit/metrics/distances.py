@@ -1,11 +1,8 @@
 from votekit.pref_profile import PreferenceProfile, profile_to_ranking_dict
-from votekit.graphs.ballot_graph import BallotGraph
 import numpy as np
-import networkx as nx  # type: ignore
 from typing import Union, Optional, Sequence
 from scipy.optimize import linprog
 from scipy.sparse import identity, kron, vstack, csr_matrix
-from scipy.sparse.csgraph import floyd_warshall
 from scipy.stats import kendalltau
 
 
@@ -118,6 +115,24 @@ def emd_via_scipy_linear_program(
 def __vaildate_ranking_distance_inputs(
     ranking1: Sequence[int], ranking2: Sequence[int], n_candidates: int
 ) -> tuple[set[int], set[int], set[int]]:
+    """
+    Validates the inputs for computing the distance between two rankings.
+
+    Args:
+        ranking1 (Sequence[int]): The first ranking as a sequence of candidate indices.
+        ranking2 (Sequence[int]): The second ranking as a sequence of candidate indices.
+        n_candidates (int): The total number of candidates in the rankings.
+
+    Returns:
+        tuple[set[int], set[int], set[int]]: A tuple containing three sets:
+            - The set of candidates in the first ranking.
+            - The set of candidates in the second ranking.
+            - The union of both sets, representing all candidates in both rankings.
+
+    Raises:
+        ValueError: If the rankings contain duplicates or if the number of candidates jointly
+        contained within the rankings exceeds the total number of candidates.
+    """
     ranked1_set = set(ranking1)
     ranked2_set = set(ranking2)
     full_ranking_set = ranked1_set.union(ranked2_set)
@@ -140,6 +155,33 @@ def __vaildate_ranking_distance_inputs(
 def __compute_bubble_sort_distance(
     ranking1: Sequence[int], ranking2: Sequence[int], full_ranking_set: set[int]
 ) -> float:
+    r"""
+    Computes the bubble sort distance between two rankings.
+
+    This function makes use of the Kendall tau correlation coefficient to compute the
+    bubble sort distance, which is defined as the number of adjacent transpositions needed to
+    transform one ranking into another. The formula for the Kendall tau statistic is given by:
+
+    .. math::
+        \tau = \frac{2(C - D}{n(n-1)}
+
+    where :math:`C` is the number of concordant pairs, :math:`C` is the number of discordant pairs,
+    and :math:`n` is the number of items being ranked. The bubble sort distance, :math:`D` is then
+    computed as:
+
+    .. math::
+        \text{Bubble Sort Distance} = \frac{n(n-1)}{4} \cdot (1 - \tau)
+
+    where :math:`n` is the number of candidates in the full ranking set.
+
+    Args:
+        ranking1 (Sequence[int]): The first ranking as a sequence of candidate indices.
+        ranking2 (Sequence[int]): The second ranking as a sequence of candidate indices.
+        full_ranking_set (set[int]): The set of all candidates in both rankings.
+
+    Returns:
+        float: The computed bubble sort distance between the two rankings.
+    """
     if len(ranking1) == 0 or len(ranking2) == 0:
         return 0.0
 
@@ -154,7 +196,7 @@ def __compute_bubble_sort_distance(
     tau, _ = kendalltau(ranking1_sort_idx, ranking2_sort_idx)
     full_ranking_count = len(full_ranking_set)
     t_value = (full_ranking_count * (full_ranking_count - 1)) / 2
-    return int(round(t_value * (1 - float(tau)) / 2))
+    return int(round(t_value * (1 - float(tau)) / 2))  # type: ignore[return-value]
 
 
 def compute_ranking_distance_on_ballot_graph(
@@ -198,11 +240,11 @@ def compute_ranking_distance_on_ballot_graph(
     ):
         # Case where there might an insertion and a deletion at the end. Both are free, so we
         # credit them back 0.5 each.
-        insertion_credit = 1 if len(full_ranking_set) == n_candidates else 0
+        insertion_credit = 1 if len(full_ranking_set) == n_candidates else 0.0
     else:
         # Case where there might be a single insertion or deletion at the end which we need to
         # credit back.
-        insertion_credit = 0.5 if len(full_ranking_set) == n_candidates else 0
+        insertion_credit = 0.5 if len(full_ranking_set) == n_candidates else 0.0
 
     # Case were where two ballots equivalent to full rankings swap the last two candidates
     if (

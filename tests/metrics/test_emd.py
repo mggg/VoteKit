@@ -1,12 +1,13 @@
-from votekit import PreferenceProfile
-import numpy as np
 from votekit import PreferenceProfile, Ballot
 import numpy as np
 import pytest
 from scipy.stats import wasserstein_distance
 
-from votekit.metrics.distances import *
-from votekit.metrics.distances import __vaildate_ranking_distance_inputs
+from votekit.metrics.distances import (
+    earth_mover_dist,
+    emd_via_scipy_linear_program,
+    __vaildate_ranking_distance_inputs,
+)
 
 
 def test_lp_perfect_match():
