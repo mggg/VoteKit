@@ -184,7 +184,6 @@ def __format_df(
 
     """
     mutated_df = mutated_df.copy()
-
     renamed_columns = {r_col: f"Ranking_{i+1}" for i, r_col in enumerate(rank_cols)}
 
     if weight_col is not None:
@@ -201,9 +200,7 @@ def __format_df(
     mutated_df.index.name = "Ballot Index"
 
     str_rank_cols = [c for c in mutated_df.columns if str(c).startswith("Ranking_")]
-
     mutated_df = mutated_df[str_rank_cols + ["Voter Set", "Weight"]]
-
     mutated_df = __format_ranking_cols(mutated_df, str_rank_cols)
 
     mutated_df["Weight"] = mutated_df["Weight"].astype(float)
@@ -272,17 +269,17 @@ def load_ranking_csv(
     print_profile: bool = True,
 ) -> PreferenceProfile:
     """
-    Given a file path or url, loads cast vote record (cvr) with ranks as columns and voters as rows.
-    Does not currently support score based profiles.
+    Given a file path or url, loads ranked cast vote record (cvr) with ranks as columns and
+    voters as rows.
 
     Args:
         path_or_url (str): Path or url to cvr file.
         rank_cols (list[int]): List of column indices that contain rankings. Column indexing
             starts from 0, in order from top to bottom rank.
         weight_col (Optional[int]): The column position for ballot weights. Defaults to None, which
-            implies each row has weight 1. Cannot be provided if ``id_col`` is not None.
+            implies each row has weight 1. Cannot be provided if ``id_col`` is also provided.
         id_col (Optional[int]): Index for the column with voter ids. Defaults to None.
-            Cannot be provided if ``weight_col`` is not None.
+            Cannot be provided if ``weight_col`` is also provided.
         candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
         delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
@@ -360,17 +357,17 @@ def load_csv(
     print_profile: bool = True,
 ) -> PreferenceProfile:
     """
-    Given a file path or url, loads cast vote record (cvr) with ranks as columns and voters as rows.
-    Does not currently support score based profiles.
+    Given a file path or url, loads ranked cast vote record (cvr) with ranks as columns and
+    voters as rows.
 
     Args:
         path_or_url (str): Path or url to cvr file.
         rank_cols (list[int]): List of column indices that contain rankings. Column indexing
             starts from 0, in order from top to bottom rank.
         weight_col (Optional[int]): The column position for ballot weights. Defaults to None, which
-            implies each row has weight 1. Cannot be provided if ``id_col`` is not None.
+            implies each row has weight 1. Cannot be provided if ``id_col`` is also provided.
         id_col (Optional[int]): Index for the column with voter ids. Defaults to None.
-            Cannot be provided if ``weight_col`` is not None.
+            Cannot be provided if ``weight_col`` is also provided.
         candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
         delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
