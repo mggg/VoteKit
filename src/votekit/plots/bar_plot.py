@@ -291,8 +291,6 @@ def _prepare_data_bar_plot(
             all_data_values.extend(dct.values())
 
     flat_y_data = [item for sublist in y_data for item in sublist]
-    print(flat_y_data)
-    print(all_data_values)
 
     data_ratio = float(
         1.0 if not normalize else max(flat_y_data) / max(all_data_values)
