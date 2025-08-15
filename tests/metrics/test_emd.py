@@ -271,7 +271,7 @@ def test_new_emd_speed():
         total_time += time() - start_time
 
     # This is a super wide bound. On my machine, this takes 1.2 seconds, but hardware can really
-    # change this, and < 1s is totally fine since this used to take over an hour.
+    # change this, and < 10s is totally fine since this used to take over an hour.
     assert total_time < 10
 
 
