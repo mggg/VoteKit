@@ -23,24 +23,24 @@ def emd_via_scipy_linear_program(
             transport_plan >= 0
 
     Linear Program:
-        Suppose that 'a' is the source distribution, 'b' is the target distribution, C is the
+        Suppose that 'a' is the source distribution, 'b' is the target distribution, 'C' is the
         cost matrix, and 'X' is the transport plan. Let 'x' be the row-major vectorization of 'X'
-        and let 'c' be the vectorization of 'C'. The linear program can be expressed as:
+        and let 'c' be the vectorization of 'C'.
 
         Then let 'A' be the constraint matrix formed by the Kronecker products of identity
         matrices and the ones vector, so
 
         A = [I_n ⊗  1_m^T, 1_n^T ⊗ I_m]
 
-        where I_n is the identity matrix of size n (number of sources) and I_m is the identity
-        matrix of size m (number of targets). The linear program can be expressed as:
+        where 'I_n' is the identity matrix of size 'n' (number of sources) and 'I_m' is the identity
+        matrix of size 'm' (number of targets). The linear program can be expressed as:
 
         minimize c^T x
 
         subject to:
             Ax = y
 
-        where 'y' is the concatenation of the source and target distributions y = [a, b]^T.
+        where 'y' is the concatenation of the source and target distributions 'y = [a, b]^T'.
 
     Args:
         source_distribution (np.ndarray): Mass distribution of the source (length n).
@@ -55,6 +55,11 @@ def emd_via_scipy_linear_program(
 
     if not nonzero_source_mask.any() and not nonzero_target_mask.any():
         return 0.0
+
+    if (source_distribution < 0).any() or (target_distribution < 0).any():
+        raise ValueError(
+            "Negative entries in source or target distributions are not allowed."
+        )
 
     # Trim to only nonzero entries to reduce LP size
     trimmed_source = source_distribution[nonzero_source_mask]
@@ -131,7 +136,7 @@ def __vaildate_ranking_distance_inputs(
 
     Raises:
         ValueError: If the rankings contain duplicates or if the number of candidates jointly
-        contained within the rankings exceeds the total number of candidates.
+            contained within the rankings exceeds the total number of candidates.
     """
     ranked1_set = set(ranking1)
     ranked2_set = set(ranking2)
@@ -265,7 +270,7 @@ def __build_simultaneous_profile_distribution(
     """
     Builds a simultaneous distribution of two preference profiles, where each key is a tuple
     representing a ranking and the value is a tuple containing the weights from each of the
-    profiles in order. If the rankin is not present in one of the profiles, the weight is set to
+    profiles in order. If the ranking is not present in one of the profiles, the weight is set to
     0.0.
 
     Args:
@@ -289,9 +294,13 @@ def __build_simultaneous_profile_distribution(
     profile1_ranking_array = profile1.df[
         [f"Ranking_{i}" for i in range(1, profile1.max_ranking_length + 1)]
     ].to_numpy()
-
     profile1_wt_vector = profile1.df["Weight"].to_numpy()
     profile1_wt_vector /= np.sum(profile1_wt_vector)
+
+    if (profile1_ranking_array == frozenset({})).any():
+        raise ValueError(
+            "The first profile contains an empty ranking, which is not allowed."
+        )
 
     for idx, ranking_tuple in enumerate(profile1_ranking_array):
         tup = tuple(
@@ -310,6 +319,11 @@ def __build_simultaneous_profile_distribution(
     ].to_numpy()
     profile2_wt_vector = profile2.df["Weight"].to_numpy()
     profile2_wt_vector /= np.sum(profile2_wt_vector)
+
+    if (profile2_ranking_array == frozenset({})).any():
+        raise ValueError(
+            "The second profile contains an empty ranking, which is not allowed."
+        )
 
     for idx, ranking_tuple in enumerate(profile2_ranking_array):
         tup = tuple(

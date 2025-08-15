@@ -92,7 +92,7 @@ class BallotGraph(Graph):
 
         return nx.relabel_nodes(gr, node_map)
 
-    def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
+    def build_graph(self, n: int) -> nx.Graph:
         """
         Builds graph of all possible ballots given a number of candiates.
 

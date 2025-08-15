@@ -2,6 +2,7 @@ from votekit import PreferenceProfile, Ballot
 import numpy as np
 import pytest
 from scipy.stats import wasserstein_distance
+from time import time
 
 from votekit.metrics.distances import (
     earth_mover_dist,
@@ -78,39 +79,23 @@ def test_against_scipy_wasserstein():
         )
 
 
-def make_random_profile(n_voters: int, cand_list: list[str]) -> PreferenceProfile:
+def test_emd_scipy_negative_error():
+    source = np.array([1.0, 0.0])
+    target = np.array([-1.0, 2.0])
+    cost = np.array([[0.0, 2.0], [2.0, 0.0]])
 
-    weights = np.unique_counts(list(map(int, np.random.gamma(5, 1, n_voters))))[1]
+    with pytest.raises(
+        ValueError,
+        match="Negative entries in source or target distributions are not allowed.",
+    ):
+        emd_via_scipy_linear_program(source, target, cost)
 
-    n_cands = len(cand_list)
-    all_cand_set = set(map(lambda x: frozenset({x}), cand_list))
-    ballot_list = []
-    for wt in weights:
-        ranking = list(
-            map(
-                lambda x: frozenset({str(x)}),
-                np.random.choice(
-                    cand_list,
-                    size=np.random.randint(1, len(cand_list)),
-                    replace=False,
-                ),
-            )
-        )
-        if len(ranking) == n_cands - 1:
-            ranking.append(*(all_cand_set - set(ranking)))
-
-        ballot_list.append(
-            Ballot(
-                ranking=tuple(ranking),
-                weight=wt,
-            )
-        )
-
-    return PreferenceProfile(
-        ballots=tuple(ballot_list),
-        candidates=tuple(cand_list),
-        max_ranking_length=n_cands,
-    )
+    target = np.array([2.0, -1.0])
+    with pytest.raises(
+        ValueError,
+        match="Negative entries in source or target distributions are not allowed.",
+    ):
+        emd_via_scipy_linear_program(source, target, cost)
 
 
 def _ballot(candidate_list: list[str], wt: int = 1) -> Ballot:
@@ -247,3 +232,79 @@ def test_emd_profile_errors():
             PreferenceProfile(ballots=(_ballot(["A", "B"]),)),
             PreferenceProfile(ballots=(_ballot(["A", "B", "B"]),)),
         )
+
+    with pytest.raises(ValueError, match="The first profile contains an empty ranking"):
+        earth_mover_dist(
+            PreferenceProfile(
+                ballots=(
+                    _ballot(["A", "B"]),
+                    Ballot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
+                )
+            ),
+            PreferenceProfile(ballots=(_ballot(["A", "B", "C"]),)),
+        )
+
+    with pytest.raises(
+        ValueError, match="The second profile contains an empty ranking"
+    ):
+        earth_mover_dist(
+            PreferenceProfile(ballots=(_ballot(["A", "B", "C"]),)),
+            PreferenceProfile(
+                ballots=(
+                    _ballot(["A", "B"]),
+                    Ballot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
+                )
+            ),
+        )
+
+
+def test_new_emd_speed():
+    alphabet = list("ABCDEFGH")
+    n_voters = 1_000_000
+    total_time = 0.0
+    for _ in range(10):
+        profile1 = make_random_profile(n_voters, alphabet)
+        profile2 = make_random_profile(n_voters, alphabet)
+
+        start_time = time()
+        _ = earth_mover_dist(profile1, profile2)
+        total_time += time() - start_time
+
+    # This is a super wide bound. On my machine, this takes 1.2 seconds, but hardware can really
+    # change this, and < 1s is totally fine since this used to take over an hour.
+    assert total_time < 10
+
+
+def make_random_profile(n_voters: int, cand_list: list[str]) -> PreferenceProfile:
+
+    weights = np.unique_counts(list(map(int, np.random.gamma(5, 1, n_voters))))[1]
+
+    n_cands = len(cand_list)
+    all_cand_set = set(map(lambda x: frozenset({x}), cand_list))
+    ballot_list = []
+    for wt in weights:
+        ranking = list(
+            map(
+                lambda x: frozenset({str(x)}),
+                np.random.choice(
+                    cand_list,
+                    size=np.random.randint(1, len(cand_list)),
+                    replace=False,
+                ),
+            )
+        )
+        if len(ranking) == n_cands - 1:
+            ranking.append(*(all_cand_set - set(ranking)))
+
+        ballot_list.append(
+            Ballot(
+                ranking=tuple(ranking),
+                weight=wt,
+            )
+        )
+
+    return PreferenceProfile(
+        ballots=tuple(ballot_list),
+        candidates=tuple(cand_list),
+        max_ranking_length=n_cands,
+    )
