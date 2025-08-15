@@ -7,16 +7,18 @@ data = {
 
 
 def test_prepare_data():
-    y_data = _prepare_data_bar_plot(
+    y_data, data_ratio = _prepare_data_bar_plot(
         data=data, normalize=False, category_ordering=["Chris", "Moon", "Peter"]
     )
 
     assert y_data == [[5, 7, 6], [4, 2, 3]]
+    assert data_ratio == 1.0
 
 
 def test_normalize_parameter():
-    y_data = _prepare_data_bar_plot(
+    y_data, data_ratio = _prepare_data_bar_plot(
         data=data, normalize=True, category_ordering=["Chris", "Moon", "Peter"]
     )
 
     assert y_data == [[5 / 18, 7 / 18, 6 / 18], [4 / 9, 2 / 9, 3 / 9]]
+    assert data_ratio == (4 / 9) / (7)
