@@ -118,13 +118,14 @@ class RankedPairs(RankingElection):
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])
         remaining = tuple(frozenset({c}) for c in ordered_candidates[self.m :])
 
-        new_state = ElectionState(
-            round_number=prev_state.round_number + 1,
-            elected=elected,
-            remaining=remaining,
-            tiebreaks=tiebreak_resolutions,
-        )
+        if store_states:
+            new_state = ElectionState(
+                round_number=prev_state.round_number + 1,
+                elected=elected,
+                remaining=remaining,
+                tiebreaks=tiebreak_resolutions,
+            )
 
-        self.election_states.append(new_state)
+            self.election_states.append(new_state)
 
         return profile

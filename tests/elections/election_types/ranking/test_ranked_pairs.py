@@ -316,6 +316,18 @@ def test_get_step():
     assert profile.group_ballots(), state == (profile_tied_set, states[1])
 
 
+def test_get_step_does_not_extend_election_states():
+    e = RankedPairs(profile_tied_set)
+    assert len(e.election_states) == 2
+
+    profile, state = e.get_step(1)
+    assert profile.group_ballots(), state == (profile_tied_set, states[1])
+    assert len(e.election_states) == 2
+
+    profile, state = e.get_step(1)
+    assert len(e.election_states) == 2
+
+
 def test_get_elected():
     e = RankedPairs(profile_tied_set)
     assert e.get_elected(0) == tuple()
