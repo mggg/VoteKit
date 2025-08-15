@@ -92,7 +92,7 @@ class BallotGraph(Graph):
 
         return nx.relabel_nodes(gr, node_map)
 
-    def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
+    def build_graph(self, n: int) -> nx.Graph:
         """
         Builds graph of all possible ballots given a number of candiates.
 
@@ -102,6 +102,12 @@ class BallotGraph(Graph):
         Returns:
             networkx.Graph: A ``networkx`` graph.
         """
+        if n > 9:
+            raise ValueError(
+                "Ballot graphs with more than 9 candidates are not supported due to "
+                "exponential growth in the number of possible ballots."
+            )
+
         Gc: nx.Graph = nx.Graph()
         # base cases
         if n == 1:
