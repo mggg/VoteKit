@@ -21,6 +21,7 @@ def test_boosted_random_dictator_error():
         BoostedRandomDictator(PreferenceProfile(), m=1)
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_simple():
     random.seed(919717)
 
@@ -55,6 +56,7 @@ def test_boosted_random_dictator_simple():
     )
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_without_ties():
     random.seed(919717)
 
@@ -119,6 +121,7 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     )
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_with_ties():
     random.seed(919717)
 
@@ -173,6 +176,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     )
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     random.seed(919717)
 

@@ -51,6 +51,7 @@ def test_r_rep_score_warning():
         r_representation_score(profile, 3, ["David", "Chris", "Jeanne", "Mala"])
 
 
+@pytest.mark.slow
 def test_r_rep_score_portland():
     profile = load_ranking_csv(
         CSV_DIR / "Portland_D1_Condensed.csv",

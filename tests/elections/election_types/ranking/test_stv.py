@@ -459,6 +459,7 @@ def test_stv_cands_cast():
     assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
 
 
+@pytest.mark.slow
 def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
     for _ in range(100):
         profile = PreferenceProfile(
@@ -503,6 +504,7 @@ def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
         election.get_step(7)
 
 
+@pytest.mark.slow
 def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
     for _ in range(100):
         profile = PreferenceProfile(
