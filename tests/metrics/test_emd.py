@@ -258,6 +258,7 @@ def test_emd_profile_errors():
         )
 
 
+@pytest.mark.slow
 def test_new_emd_speed():
     alphabet = list("ABCDEFGH")
     n_voters = 1_000_000

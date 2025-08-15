@@ -71,6 +71,7 @@ def test_winner_sets_r_rep_score_error_m():
         winner_sets_r_representation_scores(PreferenceProfile(), 2, 1, ["Chris"])
 
 
+@pytest.mark.slow
 def test_winner_sets_r_rep_score_portland():
     profile = load_ranking_csv(
         CSV_DIR / "Portland_D1_Condensed.csv",
