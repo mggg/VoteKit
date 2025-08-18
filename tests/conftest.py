@@ -1,9 +1,32 @@
 import pytest
 from votekit import Ballot
 import itertools
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pytest
 
 
-print("conftest.py is being imported")
+# NOTE: Lock down the rendering for snapshot tests
+@pytest.fixture(autouse=True)
+def _stable_matplotlib_rc():
+    mpl.rcParams.update(
+        {
+            "figure.dpi": 100,
+            "savefig.dpi": 100,
+            "font.family": "DejaVu Sans",
+            "axes.titlesize": 10,
+            "axes.labelsize": 9,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8,
+            "figure.figsize": (4.8, 3.2),
+            "savefig.bbox": "tight",
+        }
+    )
+    sns.set_theme(style="whitegrid", rc={})
+    yield
+    plt.close("all")
 
 
 def pytest_addoption(parser):

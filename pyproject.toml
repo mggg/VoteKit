@@ -39,6 +39,7 @@ seaborn = "^0.13.2"
 ipykernel = "^6.30.1"
 nbconvert = "^7.16.6"
 scipy-stubs = "^1.16.1.0"
+pytest-mpl = ">=0.17.0,<0.18.0"
 
 [tool.ruff]
 line-length = 100
