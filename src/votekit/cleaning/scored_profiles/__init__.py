@@ -1,1 +1,1 @@
-from .cleaning import remove_and_condense_scored
+from .cleaning import remove_cand_scored

@@ -64,15 +64,15 @@ states_simple = [
     ),
     ElectionState(
         round_number=1,
-        remaining=[frozenset({"R1"}), frozenset({"G2"}), frozenset({"R2"})],
-        elected=[frozenset({"G1"})],
+        remaining=(frozenset({"R1"}), frozenset({"G2"}), frozenset({"R2"})),
+        elected=(frozenset({"G1"}),),
         scores={"Green": 65.0, "Red": 50.0},
         eliminated=tuple()
     ),
     ElectionState(
         round_number=2,
-        remaining=[frozenset({"G2"}), frozenset({"R2"})],
-        elected=[frozenset({"R1"})],
+        remaining=(frozenset({"G2"}), frozenset({"R2"})),
+        elected=(frozenset({"R1"}),),
         scores={"Green": 32.5, "Red": 50.0},
         eliminated=tuple(),
     ),
@@ -167,7 +167,7 @@ def test_validate_profile():
     bad1 = PreferenceProfile(
         ballots=[Ballot(scores={"X": 2, "Y": 1}, weight=10)]
     )
-    with pytest.raises(TypeError, match="violates score limit"):
+    with pytest.raises(TypeError, match="score limit"):
         OpenListPR(bad1, m=1, party_to_candidate_map={"P": ["X", "Y"]})
 
 ## ---- Stress Testing ---- ##

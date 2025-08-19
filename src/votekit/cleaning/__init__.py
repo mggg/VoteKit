@@ -16,5 +16,5 @@ from .ranked_profiles import (
     remove_and_condense_ranked_profile,  # noqa
 )
 from .scored_profiles import (
-    remove_and_condense_scored,
+    remove_cand_scored,
 )

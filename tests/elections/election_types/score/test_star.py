@@ -68,8 +68,8 @@ states_simple = [
     ElectionState(
         round_number=1,
         remaining=tuple(),
-        elected=[frozenset({"B"}),],
-        eliminated = [frozenset({'A'}), frozenset({'C'})],
+        elected=tuple([frozenset({"B"}),]),
+        eliminated = tuple([frozenset({'A'}), frozenset({'C'})]),
         scores={"A": 8.0, "B": 12.0, "C": 10.0},
     )
 ]

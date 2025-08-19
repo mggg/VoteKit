@@ -1,10 +1,11 @@
 from typing import List, Optional
+from typing import cast
 import numpy as np
 import pandas as pd
 from votekit.elections.election_types.scores.rating import GeneralRating
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
-from ....cleaning import remove_and_condense_scored
+from ....cleaning import remove_cand_scored
 from typing import Optional
 
 class Star(GeneralRating):
@@ -44,22 +45,20 @@ class Star(GeneralRating):
         if tiebreak != 'most_top_ratings':
             raise ValueError("tiebreak must be 'most_top_ratings'. No other methods supported at this time")
         
+        # Store parameters
         self.L = L
         self.tiebreak = tiebreak
         self.m = m
         self.k = k
         
+        # Gather candidates considered in election
         self._cands = list(profile.candidates_cast)
         self._cand_index = {cand: i for i, cand in enumerate(self._cands)}
 
+        # Store profile information
         self.df = profile.df
-
-        S = np.nan_to_num(self.df[self._cands]\
-                .to_numpy(copy=False), nan=0.0, copy=False)\
-                .astype(np.float32, copy=False)
-        self._scores_mat = np.asfortranarray(S, dtype=np.float32)
-        
-        self._weights = self.df["Weight"].to_numpy(dtype=np.float32, copy=False)
+        self._scores_mat = self.df.loc[:, self._cands].fillna(0).to_numpy()
+        self._weights = self.df["Weight"].to_numpy(copy=False)
         
         super().__init__(
             profile,
@@ -68,7 +67,7 @@ class Star(GeneralRating):
             L=L,
         )
             
-    def _tiebreak_most_top_ratings(self, finalist_indices: List[int]) -> Optional[str]:
+    def _tiebreak_most_top_ratings(self, finalist_indices: List[int]) -> str:
         """
         Resolves a tie by selecting the finalist with more ballots assigning the maximum score.
 
@@ -80,13 +79,14 @@ class Star(GeneralRating):
         """
         finalist_score_matrix = self._scores_mat[:, finalist_indices]
         
+        # Compare candidates by the number of votes at each score until a winner is found
         for score_rank in range(int(self.L) - 1, -1, -1):
             mask = (finalist_score_matrix == score_rank)
             counts = np.dot(self._weights, mask)
             if counts[0] != counts[1]:
                 winner_idx = finalist_indices[np.argmax(counts)]
                 return self._cands[winner_idx]
-        return self._cands[np.random.choice(finalist_indices)]
+        return self._cands[np.random.choice(finalist_indices)] # random tiebreak if all else fails
     
     def _is_finished(self) -> bool:
         """
@@ -102,7 +102,7 @@ class Star(GeneralRating):
             return True
         return False
     
-    def _run_step(self, profile: PreferenceProfile, prev_state: dict, store_states: bool = False):
+    def _run_step(self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False):
         """
         Runs the STAR voting method.
         
@@ -118,13 +118,12 @@ class Star(GeneralRating):
         score_totals = self._scores_mat.T @ self._weights
 
         # Find the top two candidates
-        idx1 = int(score_totals.argmax())
-        totals_edited = score_totals.copy(); totals_edited[idx1] = 0
-        idx2 = int(totals_edited.argmax())
-        finalist_1, finalist_2 = self._cands[idx1], self._cands[idx2]
+        idx1, idx2 = np.argsort(score_totals)[-2:]
+        int_idx1, int_idx2 = int(idx1), int(idx2)
+        finalist_1, finalist_2 = self._cands[int_idx1], self._cands[int_idx2]
 
         # Runoff Election
-        diff = self._scores_mat[:, idx1] - self._scores_mat[:, idx2]
+        diff = self._scores_mat[:, int_idx1] - self._scores_mat[:, int_idx2]
         wins1 = self._weights[diff > 0].sum()
         wins2 = self._weights[diff < 0].sum()
 
@@ -135,18 +134,25 @@ class Star(GeneralRating):
             winner = finalist_2
         else:
             tiebreak = True
-            tied_candidates = [finalist_1, finalist_2]
-            winner = self._tiebreak_most_top_ratings([idx1, idx2])          
+            winner = self._tiebreak_most_top_ratings([int_idx1, int_idx2])          
 
         # Build the new profile
-        new_profile = remove_and_condense_scored([winner], profile)
+        new_profile = remove_cand_scored([winner], profile)
+
         if store_states:
+
+            eliminated = tuple(frozenset({candidate}) for candidate in profile.candidates_cast if candidate != winner)
+            elected = (frozenset({winner}),)
+            scores = dict(zip(self._cands, score_totals))
+            tiebreaks = ({frozenset({finalist_1, finalist_2}): cast(tuple[frozenset[str], ...], (frozenset({winner}),))} if tiebreak else {})
+
             self.election_states.append(ElectionState(
                 round_number=prev_state.round_number + 1,
                 remaining=tuple(),
-                eliminated=[frozenset({c}) for c in profile.candidates_cast if c != winner],
-                elected=[frozenset({winner})],
-                scores=dict(zip(self._cands, score_totals.astype(float, copy=False))),
-                tiebreaks=tied_candidates if tiebreak else {},
+                eliminated=eliminated,
+                elected=elected,
+                scores=scores,
+                tiebreaks=tiebreaks,
             ))
+
         return new_profile
