@@ -56,6 +56,7 @@ class CondoBorda(RankingElection):
         )
 
         if tiebreak:
+            warnings.warn('There was a tie in the Condo part of the election. Borda was used to untie.')
             tiebreaks = {tiebreak[0]: tiebreak[1]}
         else:
             tiebreaks = {}
