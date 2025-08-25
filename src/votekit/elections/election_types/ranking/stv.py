@@ -7,6 +7,7 @@ from ....cleaning import (
     remove_and_condense_ranked_profile,
     remove_cand_from_ballot,
     condense_ballot_ranking,
+    condense_profile,
 )
 from ....utils import (
     _first_place_votes_from_df_no_ties,
@@ -16,6 +17,705 @@ from ....utils import (
     score_dict_to_ranking,
 )
 from typing import Optional, Callable, Union
+import pandas as pd
+import numpy as np
+
+
+class fast_STV:
+    """
+    STV elections. All ballots must have no ties.
+
+    Args:
+        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        m (int, optional): Number of seats to be elected. Defaults to 1.
+        transfer (str, optional): Transfer method to be used. Accepts 'fractional' and 'random'.
+        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        simultaneous (bool, optional): True if all candidates who cross threshold in a round are
+            elected simultaneously, False if only the candidate with highest first-place votes
+            who crosses the threshold is elected in a round. Defaults to True.
+        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+
+    """
+
+    def __init__(
+        self,
+        profile: PreferenceProfile,
+        m: int = 1,
+        transfer: Optional[str] = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = False,
+        tiebreak: Optional[str] = None,
+    ):
+        self._stv_validate_profile(profile)
+
+        if m <= 0:
+            raise ValueError("m must be positive.")
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
+        self.m = m
+        if transfer not in ["fractional", "random"]:
+            raise ValueError(
+                "transfer must be a string -- either 'fractional' or 'random'."
+            )
+        self.transfer = transfer
+        self.quota = quota
+
+        self._ballot_length = profile.max_ranking_length
+
+        self.threshold = 0  # ?
+        self.threshold = self._get_threshold(profile.total_ballot_wt)
+        self.simultaneous = simultaneous
+        self.tiebreak = tiebreak
+
+        self.candidates = list(
+            profile.candidates
+        )  # canonical ordering! don't ever touch this list again
+
+        self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
+        self._winners, self._tally_record, self._play_by_play, self._tiebreak_record = (
+            self._run_STV(
+                self._ballot_matrix,
+                np.array(self._wt_vec),
+                self._fpv_vec,
+                m,
+                len(self.candidates),
+            )
+        )
+        self.election_states = self._election_states()
+
+    def _stv_validate_profile(
+        self, profile: PreferenceProfile
+    ):  # this might be adding overhead in general (~100ms)? Maybe add a validate_profile = False param in init
+        """
+        Validate that each ballot has a ranking, and that there are no ties in ballots.
+        """
+        ranking_rows = [
+            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
+        try:
+            np_arr = profile.df[ranking_rows].to_numpy()
+            weight_col = profile.df["Weight"]
+        except KeyError:
+            raise TypeError("Ballots must have rankings.")
+
+        tilde = frozenset({"~"})
+        for idx, row in enumerate(np_arr):
+            if any(len(s) > 1 for s in row):
+                raise TypeError(
+                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
+                    "contains a tied ranking."
+                )
+            if (row == tilde).all():
+                raise TypeError("Ballots must have rankings.")
+
+    def _get_threshold(self, total_ballot_wt: float) -> int:
+        """
+        Calculates threshold required for election.
+
+        Args:
+            total_ballot_wt (float): Total weight of ballots to compute threshold.
+        Returns:
+            int: Value of the threshold.
+        """
+        if self.threshold == 0:
+            if self.quota == "droop":
+                return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
+            elif self.quota == "hare":
+                return int(total_ballot_wt / self.m)  # takes floor
+            else:
+                raise ValueError("Misspelled or unknown quota type.")
+        else:
+            return self.threshold
+
+    def _convert_df(self, profile):
+        """
+        This converts the profile into a numpy matrix with some helper arrays for faster iteration.
+        """
+        df = profile.df
+        candidate_to_index = {
+            name: i for i, name in enumerate(self.candidates)
+        }  # canonical ordering or riot
+        ranking_columns = sorted(
+            [col for col in df.columns if col.startswith("Ranking")]
+        )
+
+        num_rows = len(df)
+        num_cols = len(ranking_columns)
+
+        # +1 column for padding -- adds some data overhead, but this might not be avoidable? you've gotta communicate ballot length somehow
+        ballot_matrix = np.full(
+            (num_rows, num_cols + 1), fill_value=-127, dtype=np.int8
+        )
+        wt_vec = np.empty(num_rows, dtype=np.float64)
+
+        for col_idx, col in enumerate(ranking_columns):
+            col_values = df[col].to_numpy()
+            for row_idx, frozenset_entry in enumerate(col_values):
+                val = next(
+                    iter(frozenset_entry)
+                ).strip()  # unwrap the frozenset; I hecking love frozensets
+                if val == "~":
+                    ballot_matrix[row_idx, col_idx] = (
+                        -127
+                    )  # possible TODO: improve this iteration not to look at ballot entries beyond the first empty one -- maybe by removing rows from the df as we go?
+                else:
+                    try:
+                        ballot_matrix[row_idx, col_idx] = candidate_to_index[val]
+                    except KeyError:
+                        raise ValueError(f"Candidate '{val}' not in candidate list.")
+
+        wt_vec[:] = df["Weight"].astype(np.float64).to_numpy()
+        fpv_vec = ballot_matrix[:, 0].copy()
+
+        return ballot_matrix, wt_vec, fpv_vec
+
+    def _run_STV(
+        self, ballot_matrix, wt_vec, fpv_vec, m, ncands
+    ) -> tuple[
+        list[int], list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
+    ]:
+        """
+        This runs the STV algorithm. Based.
+        """
+        tally_record = []
+        play_by_play = []
+        turn = 0
+        quota = self.threshold
+        winner_list = []
+        gone_list = []
+        tiebreak_record = dict()
+        pos_vec = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
+        while len(winner_list) < m:
+            # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
+            tallies = np.bincount(
+                fpv_vec[fpv_vec != -127],
+                weights=wt_vec[fpv_vec != -127],
+                minlength=ncands,
+            )  # don't count -127 entries from fpv_vec
+            tally_record.append(tallies.copy())
+            while np.any(tallies >= quota):
+                if self.simultaneous:
+                    winners = np.where(tallies >= quota)[0]
+                    # re-order winners by tally size
+                    winners = winners[np.argsort(-tallies[winners])]
+                    tau_values = {}
+                    for w in winners:
+                        winner_list.append(int(w))
+                        gone_list.append(w)
+                        tau_values[w] = (tallies[w] - quota) / tallies[w]
+                    if self.transfer == "fractional":
+                        for i in range(len(fpv_vec)):
+                            if fpv_vec[i] in winners:
+                                tau = tau_values[int(fpv_vec[i])]
+                                while (
+                                    ballot_matrix[i, pos_vec[i]] in gone_list
+                                ):  # this must end by the time we reach the last column, which is padded with -127
+                                    pos_vec[i] += 1
+                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+                                wt_vec[i] *= tau
+                    elif self.transfer == "random":
+                        new_weights = dict()
+                        for w in winners:
+                            transfer_bundle = self._sample_to_transfer(
+                                fpv_vec, wt_vec, w, int(tallies[w] - quota)
+                            )
+                            new_weights[w] = np.bincount(
+                                transfer_bundle, minlength=len(fpv_vec)
+                            )
+                        for i in range(len(fpv_vec)):
+                            if fpv_vec[i] in winners:
+                                while ballot_matrix[i, pos_vec[i]] in gone_list:
+                                    pos_vec[i] += 1
+                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+                                wt_vec[i] = new_weights[fpv_vec[i]][i]
+                    play_by_play.append((turn, winners, np.array(wt_vec), 1))
+                    turn += 1
+                else:
+                    # check if tallies attains its maximum twice
+                    if np.count_nonzero(tallies == np.max(tallies)) > 1:
+                        potential_winners = np.where(tallies == np.max(tallies))[0]
+                        if self.tiebreak is None:
+                            raise ValueError(
+                                "Cannot elect correct number of candidates without breaking ties."
+                            )
+                        if self.tiebreak == "random":
+                            w = np.random.choice(potential_winners)
+                            tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                        elif self.tiebreak == "borda":
+                            borda_scores = np.zeros_like(
+                                potential_winners, dtype=np.float64
+                            )
+                            for j in range(ballot_matrix.shape[0]):
+                                for i in range(pos_vec[j], ballot_matrix.shape[1]):
+                                    if ballot_matrix[j, i] in potential_winners:
+                                        borda_scores[
+                                            np.where(
+                                                potential_winners == ballot_matrix[j, i]
+                                            )[0][0]
+                                        ] += wt_vec[j] * (
+                                            ballot_matrix.shape[1] - i + pos_vec[j]
+                                        )
+                            w = potential_winners[
+                                np.argmax(borda_scores)
+                            ]  # it's possible the borda scores are tied too? oh well
+                            tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                    else:
+                        w = np.argmax(tallies)
+                    winner_list.append(int(w))
+                    gone_list.append(w)
+                    tau = (tallies[w] - quota) / tallies[w]
+                    if self.transfer == "fractional":
+                        for i in range(len(fpv_vec)):
+                            if fpv_vec[i] == w:
+                                while (
+                                    ballot_matrix[i, pos_vec[i]] in gone_list
+                                ):  # again, we're padded
+                                    pos_vec[i] += 1
+                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+                                wt_vec[i] *= tau
+                    elif self.transfer == "random":
+                        transfer_bundle = self._sample_to_transfer(
+                            fpv_vec, wt_vec, w, int(tallies[w] - quota)
+                        )
+                        new_weights = np.bincount(
+                            transfer_bundle, minlength=len(fpv_vec)
+                        )
+                        for i in range(len(fpv_vec)):
+                            if fpv_vec[i] == w:
+                                while ballot_matrix[i, pos_vec[i]] in gone_list:
+                                    pos_vec[i] += 1
+                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+                                wt_vec[i] = new_weights[i]
+                    play_by_play.append((turn, [w], np.array(wt_vec), 1))
+                    turn += 1
+                tallies = np.bincount(
+                    fpv_vec[fpv_vec != -127],
+                    weights=wt_vec[fpv_vec != -127],
+                    minlength=ncands,
+                )
+                tally_record.append(tallies.copy())
+            if len(winner_list) == m:
+                return winner_list, tally_record, play_by_play, tiebreak_record
+            if len(gone_list) - len(winner_list) == ncands - m:
+                still_standing = [i for i in range(ncands) if i not in gone_list]
+                winner_list += still_standing
+                play_by_play.append((turn, still_standing, [], 2))
+                turn += 1
+                tally_record.append(
+                    np.zeros(ncands, dtype=np.float64)
+                )  # this is needed for get_remaining to behave nicely
+                return winner_list, tally_record, play_by_play, tiebreak_record
+            # masked tallies ignores indices in gone_list only (potentially leaving in candidates with 0 FPVs if they were not eliminated yet)
+            masked_tallies = np.where(
+                np.isin(np.arange(len(tallies)), gone_list), np.inf, tallies
+            )  # used to be np.where(tallies > 0, tallies, np.inf)
+            if (
+                np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
+            ):  # do something funny if masked_tallies attains the minimum twice
+                # count FPV votes of each I guess
+                potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
+                L = potential_losers[
+                    np.argmin(tally_record[0][potential_losers])
+                ]  # it's possible this is tied too. oh well
+                tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
+            else:
+                L = np.argmin(masked_tallies)
+            gone_list.append(L)
+            for i in range(len(fpv_vec)):
+                if fpv_vec[i] == L:
+                    while ballot_matrix[i, pos_vec[i]] in gone_list:
+                        pos_vec[i] += 1
+                    fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+            play_by_play.append((turn, [L], [], 0))
+            turn += 1
+        return winner_list, tally_record, play_by_play, tiebreak_record
+
+    def get_remaining(
+        self, round_number: int = -1
+    ) -> tuple[frozenset]:  # I have become that which I most dread
+        """
+        Fetch the remaining candidates after the given round.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            tuple[frozenset[str],...]:
+                Tuple of sets of remaining candidates. Ordering of tuple
+                denotes ranking of remaining candidates, sets denote ties.
+        """
+        tallies = self._tally_record[round_number]
+        # weird dict structure to detect ties, which must be put in the same fset
+        this_is_great_and_not_weird = dict()
+        for c, t in enumerate(tallies):
+            if t > 0:
+                if t not in this_is_great_and_not_weird:
+                    this_is_great_and_not_weird[t] = [self.candidates[c]]
+                else:
+                    this_is_great_and_not_weird[t].append(self.candidates[c])
+        this_is_great_and_not_weird = dict(
+            sorted(
+                this_is_great_and_not_weird.items(),
+                key=lambda item: item[0],
+                reverse=True,
+            )
+        )
+        return (
+            tuple(frozenset(value) for value in this_is_great_and_not_weird.values())
+            if len(this_is_great_and_not_weird) > 0
+            else (frozenset(),)
+        )
+
+    def get_elected(self, round_number: int = -1) -> tuple[frozenset]:
+        """
+        Fetch the elected candidates up to the given round number.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            tuple[frozenset[str],...]:
+                List of winning candidates in order of election. Candidates
+                in the same set were elected simultaneously, i.e. in the final ranking
+                they are tied.
+        """
+        if (
+            round_number < -len(self._tally_record)
+            or round_number > len(self._tally_record) - 1
+        ):
+            raise IndexError("round_number out of range.")
+        round_number = round_number % len(self._tally_record)
+        list_of_winners = [
+            [c]
+            for _, cand_list, _, turn_type in self._play_by_play[:round_number]
+            if turn_type == 1
+            for c in cand_list
+        ] + [
+            cand_list
+            for _, cand_list, _, turn_type in self._play_by_play[:round_number]
+            if turn_type == 2
+        ]
+        return tuple(
+            frozenset([self.candidates[c] for c in w_list])
+            for w_list in list_of_winners
+        )
+
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset]:
+        """
+        Fetch the eliminated candidates up to the given round number.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            tuple[frozenset[str],...]:
+                Tuple of eliminated candidates in reverse order of elimination.
+                Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
+                they are tied.
+        """
+        if (
+            round_number < -len(self._tally_record)
+            or round_number > len(self._tally_record) - 1
+        ):
+            raise IndexError("round_number out of range.")
+        round_number = round_number % len(self._tally_record)
+        if round_number == 0:
+            return tuple()
+        list_of_losers = [
+            cand_list
+            for _, cand_list, _, turn_type in self._play_by_play[round_number - 1 :: -1]
+            if turn_type == 0
+        ]
+        return tuple(
+            frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers
+        )
+
+    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+        """
+        Fetch the ranking of candidates after a given round.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            tuple[frozenset[str],...]: Ranking of candidates.
+        """
+        # len condition handles empty remaining candidates
+        return tuple(
+            [
+                s
+                for s in self.get_elected(round_number)
+                + self.get_remaining(round_number)
+                + self.get_eliminated(round_number)
+                if len(s) != 0
+            ]
+        )
+
+    def get_status_df(self, round_number: int = -1) -> pd.DataFrame:
+        """
+        Yield the status (elected, eliminated, remaining) of the candidates in the given round.
+        DataFrame is sorted by current ranking.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            pd.DataFrame:
+                Data frame displaying candidate, status (elected, eliminated,
+                remaining), and the round their status updated.
+        """
+        status_df = pd.DataFrame(
+            {
+                "Status": ["Remaining"] * len(self.candidates),
+                "Round": [0] * len(self.candidates),
+            },
+            index=self.candidates,
+        )
+        if (
+            round_number < -len(self._tally_record)
+            or round_number > len(self._tally_record) - 1
+        ):
+            raise IndexError("round_number out of range.")
+
+        round_number = round_number % len(self._tally_record)
+        new_index = [c for s in self.get_ranking(round_number) for c in s]
+
+        for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
+            if turn_type == 0:  # loser
+                status_df.at[self.candidates[birthday_list[0]], "Status"] = "Eliminated"
+                status_df.at[self.candidates[birthday_list[0]], "Round"] = turn_id + 1
+            elif turn_type == 1:  # winner
+                for c in birthday_list:
+                    status_df.at[self.candidates[c], "Status"] = "Elected"
+                    status_df.at[self.candidates[c], "Round"] = turn_id + 1
+            elif turn_type == 2:  # winner by default
+                for c in birthday_list:
+                    status_df.at[self.candidates[c], "Status"] = "Elected"
+                    status_df.at[self.candidates[c], "Round"] = turn_id + 1
+        # iterating through the rows of status_df, change "Round" to round_number if "Status" is still "Remaining"
+        for c in self.candidates:
+            if status_df.at[c, "Status"] == "Remaining":
+                status_df.at[c, "Round"] = round_number
+        status_df = status_df.reindex(new_index)
+        return status_df
+
+    def _election_states(self):
+        e_states = [
+            ElectionState(
+                round_number=0,
+                remaining=self.get_remaining(0),
+                scores={
+                    self.candidates[c]: self._tally_record[0][c]
+                    for c in self._tally_record[0].nonzero()[0]
+                },
+            )
+        ]
+        for i, play in enumerate(self._play_by_play):
+            if i in self._tiebreak_record.keys():
+                tiebreak = self._tiebreak_record[
+                    i
+                ]  # tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                w = tiebreak[1]
+                tied_cands = tiebreak[0]
+                denouement_list = [
+                    self.candidates[c] for c in tied_cands if c != tiebreak[1]
+                ]
+                if tiebreak[-1] == 1:
+                    denouement = (
+                        frozenset([self.candidates[w]]),
+                        frozenset([c for c in denouement_list]),
+                    )
+                if tiebreak[-1] == 0:
+                    denouement = (
+                        frozenset([c for c in denouement_list]),
+                        frozenset([self.candidates[w]]),
+                    )
+                formatted_tiebreak = {
+                    frozenset([self.candidates[c] for c in tied_cands]): denouement
+                }
+            else:
+                formatted_tiebreak = None
+            if play[-1] == 0:
+                if formatted_tiebreak is None:
+                    e_states.append(
+                        ElectionState(
+                            round_number=i + 1,
+                            remaining=self.get_remaining(i + 1),
+                            elected=(frozenset(),),
+                            eliminated=(
+                                frozenset([self.candidates[c] for c in play[1]]),
+                            ),
+                            scores={
+                                self.candidates[c]: self._tally_record[i + 1][c]
+                                for c in self._tally_record[i + 1].nonzero()[0]
+                            },
+                        )
+                    )
+                else:
+                    e_states.append(
+                        ElectionState(
+                            round_number=i + 1,
+                            remaining=self.get_remaining(i + 1),
+                            elected=(frozenset(),),
+                            tiebreaks=formatted_tiebreak,
+                            eliminated=(
+                                frozenset([self.candidates[c] for c in play[1]]),
+                            ),
+                            scores={
+                                self.candidates[c]: self._tally_record[i + 1][c]
+                                for c in self._tally_record[i + 1].nonzero()[0]
+                            },
+                        )
+                    )
+            elif play[-1] == 1:
+                if formatted_tiebreak is None:
+                    e_states.append(
+                        ElectionState(
+                            round_number=i + 1,
+                            remaining=self.get_remaining(i + 1),
+                            elected=tuple(
+                                [frozenset([self.candidates[c]]) for c in play[1]]
+                            ),
+                            eliminated=(frozenset(),),
+                            scores={
+                                self.candidates[c]: self._tally_record[i + 1][c]
+                                for c in self._tally_record[i + 1].nonzero()[0]
+                            },
+                        )
+                    )
+                else:
+                    e_states.append(
+                        ElectionState(
+                            round_number=i + 1,
+                            remaining=self.get_remaining(i + 1),
+                            elected=tuple(
+                                [frozenset([self.candidates[c]]) for c in play[1]]
+                            ),
+                            tiebreaks=formatted_tiebreak,
+                            eliminated=(frozenset(),),
+                            scores={
+                                self.candidates[c]: self._tally_record[i + 1][c]
+                                for c in self._tally_record[i + 1].nonzero()[0]
+                            },
+                        )
+                    )
+            elif play[-1] == 2:
+                e_states.append(
+                    ElectionState(
+                        round_number=i + 1,
+                        remaining=self.get_remaining(i + 1),
+                        elected=tuple(
+                            frozenset([self.candidates[c] for c in play[1]])
+                            for c in play[1]
+                        ),
+                        eliminated=(frozenset(),),
+                        scores={
+                            self.candidates[c]: self._tally_record[i + 1][c]
+                            for c in self._tally_record[i + 1].nonzero()[0]
+                        },
+                    )
+                )
+
+        return e_states
+
+    def get_profile(self, round_number: int = -1) -> PreferenceProfile:
+        """
+        Fetch the PreferenceProfile of the given round number.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            PreferenceProfile
+
+        """
+        if (
+            round_number < -len(self.election_states)
+            or round_number > len(self.election_states) - 1
+        ):
+            raise IndexError("round_number out of range.")
+
+        round_number = round_number % len(self.election_states)
+
+        hopeful = self._tally_record[round_number].nonzero()[0]
+        ballots = []
+        wt_vec = self._wt_vec.copy()
+        if self.m > 1:
+            # find the last entry in play_by_play[:round_number] with a 1 in the last position (there may be no such entry)
+            for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
+                if self._play_by_play[i][-1] == 1:
+                    wt_vec = self._play_by_play[i][2]
+                    break
+        # print(wt_vec)
+        for i, row in enumerate(self._ballot_matrix):
+            ballot = []
+            for entry in row:
+                if entry == -127:
+                    break
+                elif entry in hopeful:
+                    ballot.append(frozenset([self.candidates[entry]]))
+            if len(ballot) > 0:
+                ballots.append(Ballot(ranking=tuple(ballot), weight=wt_vec[i]))
+        return condense_profile(
+            PreferenceProfile(
+                ballots=tuple(ballots), max_ranking_length=self._ballot_length
+            )
+        )
+
+    def get_step(
+        self, round_number: int = -1
+    ) -> tuple[PreferenceProfile, ElectionState]:
+        """
+        Fetches the profile and ElectionState of the given round number.
+
+        Args:
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            tuple[PreferenceProfile, ElectionState]
+        """
+        return (self.get_profile(round_number), self.election_states[round_number])
+
+    def _sample_to_transfer(
+        self, fpv_vec, wt_vec, w: np.int8, s: int, rng=None
+    ) -> np.ndarray:
+        """
+        Build a list of indices i such that fpv_vec[i] == w;
+        each index is repeated round(wt_vec[i]) times, then we sample s entries uniformly.
+        This is different from the Cambridge transfer!!!
+        Some of the ballots selected for transfer may still be exhausted if they list no further preference.
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        # mask for eligible indices
+        mask = fpv_vec == w
+        eligible_idx = np.flatnonzero(mask)
+
+        # round weights to nearest int, clip at zero
+        weights = np.rint(wt_vec[eligible_idx]).astype(int)
+        weights = np.clip(weights, 0, None)
+
+        # build pool of indices
+        pool = np.repeat(eligible_idx, weights)
+
+        # sample uniformly from pool
+        return rng.choice(pool, size=s, replace=True)
+
+    def __str__(self):
+        return self.get_status_df().to_string(index=True, justify="justify")
+
+    __repr__ = __str__
 
 
 class STV(RankingElection):
