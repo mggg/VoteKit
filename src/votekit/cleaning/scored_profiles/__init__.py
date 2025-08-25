@@ -1,1 +1,1 @@
-from .cleaning import remove_cand_scored
+from .cleaning import remove_cand_scored # noqa

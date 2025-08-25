@@ -96,7 +96,7 @@ class GeneralRating(Election):
         
         # Check for any negative scores
         if (df < 0).any(axis=None):
-            raise TypeError(f"Ballot must have non-negative scores.")
+            raise TypeError("Ballot must have non-negative scores.")
 
         # If k is specified, check that no ballot exceeds total score budget
         if self.k:

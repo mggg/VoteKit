@@ -1,12 +1,10 @@
 from typing import List, Optional
 from typing import cast
 import numpy as np
-import pandas as pd
 from votekit.elections.election_types.scores.rating import GeneralRating
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 from ....cleaning import remove_cand_scored
-from typing import Optional
 
 class Star(GeneralRating):
     """

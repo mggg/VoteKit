@@ -1,9 +1,7 @@
-from typing import Dict, List, Optional, List
-import numpy as np
+from typing import Dict, List, Optional
 import pandas as pd
 from collections import defaultdict, Counter
 import random
-from votekit import Ballot
 from votekit.elections.election_types.scores.rating import GeneralRating
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
@@ -103,8 +101,6 @@ class OpenListPR(GeneralRating):
         candidate_vote_totals = dict(zip(candidate_cols, candidate_totals_array))
         
         # Party vote totals
-        parties = list(self.party_to_candidate_map.keys())
-        party_idx = {party: idx for idx, party in enumerate(parties)}
         party_vote_totals = {p : sum(candidate_vote_totals[c] for c in cand_list) for p, cand_list in self.party_to_candidate_map.items()}  
 
         # Build sorted party lists
