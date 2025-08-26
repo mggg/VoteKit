@@ -554,10 +554,6 @@ class ImpartialCulture(BallotSimplex):
             PreferenceProfile
         """
         num_cands = len(self.candidates)
-        # ballots_as_ind = np.random.choice(cands_inds, #size=(number_of_ballots, ballot_length), replace=False)
-        # TODO: I think there should be a way to do this without list
-        # comprehension, but the above commented line does not appear
-        # to work
         ballots_as_ind = np.array(
             [
                 np.random.choice(num_cands, size=ballot_length, replace=False)
@@ -590,12 +586,15 @@ class ImpartialCulture(BallotSimplex):
             max_ballot_length = num_cands
         total_ballots = self._total_ballots(num_cands, max_ballot_length)
 
+        # sample indices (representing allowed ballots) uniformally at
+        # random
         ballot_inds = [random.randint(0, total_ballots-1) for _ in range(number_of_ballots)]
         ballots_as_cand_ind = [
             tuple(self._index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
             for ballot_ind in ballot_inds 
         ]
 
+        # Instantiate the preference profile using a dataframe
         ballots_as_counter = Counter(ballots_as_cand_ind)
         pp_df = self._build_df_from_ballot_samples(dict(ballots_as_counter))
         pp_df.index.name = "Ballot Index"
@@ -617,7 +616,6 @@ class ImpartialCulture(BallotSimplex):
         returns:
             pandas df
         '''
-
         df_data = []    
         n_cands = len(self.candidates)
         for ballot in ballots_freq_dict.keys():
@@ -695,17 +693,7 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
         # rather than iterate n! times, we perform multiple
         # multinomial experiments
-
         num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
-        """
-        num_iterations = num_valid_ballots // self._MAX_BINOM_EXPERIMENT_SIZE
-        remainder = num_valid_ballots % self._MAX_BINOM_EXPERIMENT_SIZE
-        pvals = [1/num_gaps] * num_gaps
-        for _ in range(num_iterations):
-            gap_freq += np.random.multinomial(self._MAX_BINOM_EXPERIMENT_SIZE, pvals)
-        gap_freq += np.random.multinomial(remainder, pvals)
-        """
-
         for _ in range(num_valid_ballots):
             gap_freq[random.randint(0, num_gaps) - 1] += 1
 
