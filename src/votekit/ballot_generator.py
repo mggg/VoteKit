@@ -500,7 +500,7 @@ class BallotSimplex(BallotGenerator):
         return out
 
 
-class ImpartialCulture(BallotSimplex):
+class ImpartialCulture:
     """
     Impartial Culture model where each ballot is equally likely.
     Equivalent to the ballot simplex with an alpha value of infinity.
@@ -511,9 +511,21 @@ class ImpartialCulture(BallotSimplex):
     Attributes:
         alpha (float): Alpha parameter for Dirichlet distribution.
     """
+    _total_ballots_cache : dict[tuple[int,int], int] = {}
 
     def __init__(self, **data):
-        super().__init__(alpha=float("inf"), **data)
+        if "candidates" not in data: #and "slate_to_candidates" not in data:
+            raise ValueError(
+                "At least one of candidates or slate_to_candidates must be provided."
+            )
+        if "candidates" in data:
+            self.candidates = data["candidates"]
+
+        use_ballots_cache_key = "use_total_ballots_cache"
+        self._use_total_ballots_cache = data.get(use_ballots_cache_key, False)
+
+    def _clear_cache(self):
+        ImpartialCulture._total_ballots_cache = {}
 
     def generate_profile(
         self,
@@ -627,6 +639,78 @@ class ImpartialCulture(BallotSimplex):
             df_data.append(completed_ballot)
         return pd.DataFrame(df_data, columns=[f"Ranking_{i}" for i in range(1, n_cands+1)] + ["Weight", "Voter Set"])
     
+
+    def _total_ballots(self, n_candidates, max_ballot_length):
+        if not self._use_total_ballots_cache:
+            return sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
+
+        key = (n_candidates, max_ballot_length)
+        if key not in ImpartialCulture._total_ballots_cache:
+            ImpartialCulture._total_ballots_cache[key] = sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
+        return ImpartialCulture._total_ballots_cache[key]
+
+    def _index_to_lexicographic_ballot(
+        self, index: int, n_candidates: int, max_length: int
+    ) -> list[int]:
+        """
+        Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
+        The ordering of the ballots is lexicographic, i.e., the first ballot is the
+        lexicographically smallest ballot and continues in that order:
+
+        (0,),
+        (0,1),
+        (0,1,2),
+        ...
+        (0,2),
+        (0,2,1),
+        ...
+        (n-1, n-2, ..., n-l)
+
+        where n is the number of candidates and l is the maximum ballot length.
+
+        Args:
+            index (int): The index to convert.
+            n_candidates (int): The number of candidates.
+            max_length (int): The maximum allowed ballot rank.
+
+        Returns:
+            list[int]: A list representing the ballot corresponding to index.
+        """
+        total_valid_ballots = self._total_ballots(n_candidates, max_length)
+        if index >= total_valid_ballots:
+            raise Exception(
+                f"Given ballot index {index} out of range. Max index: {total_valid_ballots}"
+            )
+
+        chunk_size = lambda n, l: self._total_ballots(n, l) // n
+        candidates = list(range(n_candidates))
+        out = []
+        if self._use_total_ballots_cache:
+            bn = self._total_ballots(n_candidates + 1, max_length + 1) // (n_candidates + 1)
+        else:
+            bn = chunk_size(n_candidates + 1, max_length + 1)
+
+        for i in range(n_candidates, 0, -1):
+            if self._use_total_ballots_cache:
+                bn = self._total_ballots(n_candidates=i, max_ballot_length=max_length) // (i)
+            else:
+                bn = (bn - 1) // i
+            # Perform Euclidean division of index by bn
+            section = index // bn
+            remaining = index % bn
+            out.append(candidates.pop(section))
+            if remaining == 0:
+                # Cut off the ballot here
+                break
+            index = remaining - 1
+        return out
+
 
 class ImpartialAnonymousCulture(BallotSimplex):
     """
