@@ -6,7 +6,7 @@ from .plurality import (  # noqa
 )
 
 from .borda import Borda  # noqa
-from .stv import STV, IRV, SequentialRCV  # noqa
+from .stv import STV, IRV, SequentialRCV, fast_STV  # noqa
 from .alaska import Alaska  # noqa
 from .top_two import TopTwo  # noqa
 from .dominating_sets import DominatingSets  # noqa
