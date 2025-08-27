@@ -705,12 +705,12 @@ def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
 
 
 def index_to_lexicographic_ballot(
-        ballot_index: int, 
-        n_candidates: int, 
-        max_length: int, 
-        total_valid_ballots_method,
-        always_use_total_valid_ballots_method : bool = True
-    ) -> list[int]:
+    ballot_index: int,
+    n_candidates: int,
+    max_length: int,
+    total_valid_ballots_method,
+    always_use_total_valid_ballots_method: bool = True,
+) -> list[int]:
     """
     Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
     The ordering of the ballots is lexicographic, i.e., the first ballot is the
@@ -752,13 +752,17 @@ def index_to_lexicographic_ballot(
     candidates = list(range(n_candidates))
     out = []
     if always_use_total_valid_ballots_method:
-        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (n_candidates + 1)
+        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (
+            n_candidates + 1
+        )
     else:
         bn = chunk_size(n_candidates + 1, max_length + 1)
 
     for i in range(n_candidates, 0, -1):
         if always_use_total_valid_ballots_method:
-            bn = total_valid_ballots_method(n_candidates=i, max_ballot_length=max_length) // (i)
+            bn = total_valid_ballots_method(
+                n_candidates=i, max_ballot_length=max_length
+            ) // (i)
         else:
             bn = (bn - 1) // i
         # Perform Euclidean division of index by bn
@@ -771,24 +775,37 @@ def index_to_lexicographic_ballot(
         ballot_index = remaining - 1
     return out
 
-def build_df_from_ballot_samples(ballots_freq_dict : dict[tuple[int, ...], int], candidates: list[str]):
-        '''
-        Helper function which creates a pandas df to instantiate a
-        PreferenceProfile
-        args:
-            ballots_freq_dict: dictionary mapping ballots to
-                sampled frequency. The keys should be in candidate id
-                form
-            candidates : list of candidates in the profile
-        returns:
-            pandas df
-        '''
-        df_data = []    
-        n_cands = len(candidates)
-        for ballot in ballots_freq_dict.keys():
-            ballot_as_frozenset_entries = tuple([frozenset([candidates[i]]) for i in ballot])
-            completed_ballot = (ballot_as_frozenset_entries 
-                                + tuple([frozenset(['~']) for _ in range(n_cands - len(ballot))]) # padding short ballots
-                                + tuple([ballots_freq_dict[ballot], set()])) # weight, voter set
-            df_data.append(completed_ballot)
-        return pd.DataFrame(df_data, columns=[f"Ranking_{i}" for i in range(1, n_cands+1)] + ["Weight", "Voter Set"])
+
+def build_df_from_ballot_samples(
+    ballots_freq_dict: dict[tuple[int, ...], int], candidates: list[str]
+):
+    """
+    Helper function which creates a pandas df to instantiate a
+    PreferenceProfile
+    args:
+        ballots_freq_dict: dictionary mapping ballots to
+            sampled frequency. The keys should be in candidate id
+            form
+        candidates : list of candidates in the profile
+    returns:
+        pandas df
+    """
+    df_data = []
+    n_cands = len(candidates)
+    for ballot in ballots_freq_dict.keys():
+        ballot_as_frozenset_entries = tuple(
+            [frozenset([candidates[i]]) for i in ballot]
+        )
+        completed_ballot = (
+            ballot_as_frozenset_entries
+            + tuple(
+                [frozenset(["~"]) for _ in range(n_cands - len(ballot))]
+            )  # padding short ballots
+            + tuple([ballots_freq_dict[ballot], set()])
+        )  # weight, voter set
+        df_data.append(completed_ballot)
+    return pd.DataFrame(
+        df_data,
+        columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)]
+        + ["Weight", "Voter Set"],
+    )

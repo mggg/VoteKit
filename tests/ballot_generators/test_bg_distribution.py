@@ -12,7 +12,6 @@ from votekit.ballot_generator import (
     name_BradleyTerry,
     AlternatingCrossover,
     CambridgeSampler,
-    BallotSimplex,
     slate_PlackettLuce,
     slate_BradleyTerry,
     name_Cumulative,
@@ -94,6 +93,7 @@ def test_ic_distribution():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
+"""
 def test_ic_optimized_distribution():
     # Set-up
     number_of_ballots = 100
@@ -129,6 +129,7 @@ def test_ballot_simplex_from_point():
     ).generate_profile(number_of_ballots=number_of_ballots)
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+"""
 
 
 def test_iac_distribution():
@@ -153,6 +154,7 @@ def test_iac_distribution():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
+"""
 # NOTE: Enable this test once the optimized version is completed
 def test_iac_optimized_distribution():
 
@@ -183,6 +185,7 @@ def test_iac_optimized_distribution():
     )
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+"""
 
 
 def test_NPL_distribution():

@@ -9,7 +9,6 @@ import random
 import warnings
 from typing import Optional, Union, Tuple, Callable, Dict, Any
 from collections import Counter
-import pandas as pd
 import apportionment.methods as apportion  # type: ignorek
 
 from .ballot import Ballot
@@ -321,8 +320,6 @@ class BallotSimplex(BallotGenerator):
             candidates as keys and floats in [0,1] as values.
     """
 
-    _total_ballots_cache : dict[tuple[int,int], int] = {}
-
     def __init__(
         self, alpha: Optional[float] = None, point: Optional[dict] = None, **data
     ):
@@ -424,81 +421,6 @@ class BallotSimplex(BallotGenerator):
 
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
-    def _clear_cache(self):
-        BallotSimplex._total_ballots_cache = {}
-
-    def _total_ballots(self, n_candidates, max_ballot_length):
-        if not self._use_total_ballots_cache:
-            return sum(
-                math.comb(n_candidates, i) * math.factorial(i)
-                for i in range(1, max_ballot_length + 1)
-            )
-
-        key = (n_candidates, max_ballot_length)
-        if key not in self._total_ballots_cache:
-            self._total_ballots_cache[key] = sum(
-                math.comb(n_candidates, i) * math.factorial(i)
-                for i in range(1, max_ballot_length + 1)
-            )
-        return self._total_ballots_cache[key]
-
-    def _index_to_lexicographic_ballot(
-        self, index: int, n_candidates: int, max_length: int
-    ) -> list[int]:
-        """
-        Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
-        The ordering of the ballots is lexicographic, i.e., the first ballot is the
-        lexicographically smallest ballot and continues in that order:
-
-        (0,),
-        (0,1),
-        (0,1,2),
-        ...
-        (0,2),
-        (0,2,1),
-        ...
-        (n-1, n-2, ..., n-l)
-
-        where n is the number of candidates and l is the maximum ballot length.
-
-        Args:
-            index (int): The index to convert.
-            n_candidates (int): The number of candidates.
-            max_length (int): The maximum allowed ballot rank.
-
-        Returns:
-            list[int]: A list representing the ballot corresponding to index.
-        """
-        total_valid_ballots = self._total_ballots(n_candidates, max_length)
-        if index >= total_valid_ballots:
-            # TODO: Improve this error message
-            raise Exception(
-                f"Given ballot index {index} out of range. Max index: {total_valid_ballots}"
-            )
-
-        chunk_size = lambda n, l: self._total_ballots(n, l) // n
-        candidates = list(range(n_candidates))
-        out = []
-        if self._use_total_ballots_cache:
-            bn = self._total_ballots(n_candidates + 1, max_length + 1) // (n_candidates + 1)
-        else:
-            bn = chunk_size(n_candidates + 1, max_length + 1)
-
-        for i in range(n_candidates, 0, -1):
-            if self._use_total_ballots_cache:
-                # TODO: check if this is correct
-                bn = self._total_ballots(n_candidates=i, max_ballot_length=max_length) // (i)
-            else:
-                bn = (bn - 1) // i
-            # Perform Euclidean division of index by bn
-            section = index // bn
-            remaining = index % bn
-            out.append(candidates.pop(section))
-            if remaining == 0:
-                # Cut off the ballot here
-                break
-            index = remaining - 1
-        return out
 
 class ImpartialCulture:
     """
@@ -511,10 +433,11 @@ class ImpartialCulture:
     Attributes:
         alpha (float): Alpha parameter for Dirichlet distribution.
     """
-    _total_ballots_cache : dict[tuple[int,int], int] = {}
+
+    _total_ballots_cache: dict[tuple[int, int], int] = {}
 
     def __init__(self, **data):
-        if "candidates" not in data: #and "slate_to_candidates" not in data:
+        if "candidates" not in data:  # and "slate_to_candidates" not in data:
             raise ValueError(
                 "At least one of candidates or slate_to_candidates must be provided."
             )
@@ -562,17 +485,17 @@ class ImpartialCulture:
         """
         num_cands = len(self.candidates)
         ballots_as_ind = [
-                tuple(np.random.choice(num_cands, size=ballot_length, replace=False))
-                for _ in range(number_of_ballots)
-            ]
+            tuple(np.random.choice(num_cands, size=ballot_length, replace=False))
+            for _ in range(number_of_ballots)
+        ]
         ballots_as_counter = Counter(ballots_as_ind)
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
         return PreferenceProfile(
-            df = pp_df, 
-            contains_rankings=True, 
+            df=pp_df,
+            contains_rankings=True,
             max_ranking_length=len(self.candidates),
-            candidates=self.candidates
+            candidates=self.candidates,
         )
 
     def _generate_profile_optimized_with_short(
@@ -599,15 +522,16 @@ class ImpartialCulture:
 
         # sample indices (representing allowed ballots) uniformally at
         # random
-        ballot_inds = [random.randint(0, total_ballots-1) for _ in range(number_of_ballots)]
+        ballot_inds = [
+            random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)
+        ]
         ballots_as_cand_ind = [
-            tuple(index_to_lexicographic_ballot(
-                ballot_ind, 
-                num_cands, 
-                max_ballot_length,
-                self._total_ballots
-            ))
-            for ballot_ind in ballot_inds 
+            tuple(
+                index_to_lexicographic_ballot(
+                    ballot_ind, num_cands, max_ballot_length, self._total_ballots
+                )
+            )
+            for ballot_ind in ballot_inds
         ]
 
         # Instantiate the preference profile using a dataframe
@@ -615,12 +539,12 @@ class ImpartialCulture:
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
         return PreferenceProfile(
-            df = pp_df, 
-            contains_rankings=True, 
+            df=pp_df,
+            contains_rankings=True,
             max_ranking_length=len(self.candidates),
-            candidates=self.candidates
+            candidates=self.candidates,
         )
-    
+
     def _total_ballots(self, n_candidates, max_ballot_length):
         if not self._use_total_ballots_cache:
             return sum(
@@ -637,7 +561,7 @@ class ImpartialCulture:
         return ImpartialCulture._total_ballots_cache[key]
 
 
-class ImpartialAnonymousCulture():
+class ImpartialAnonymousCulture:
     """
     Impartial Anonymous Culture model wher each profile is equally likely. Equivalent to the ballot
     simplex with an alpha value of 1.
@@ -648,7 +572,7 @@ class ImpartialAnonymousCulture():
     """
 
     def __init__(self, **data):
-        if "candidates" not in data: #and "slate_to_candidates" not in data:
+        if "candidates" not in data:  # and "slate_to_candidates" not in data:
             raise ValueError(
                 "At least one of candidates or slate_to_candidates must be provided."
             )
@@ -671,9 +595,7 @@ class ImpartialAnonymousCulture():
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
 
-        return self._generate_profile_optimized(
-            number_of_ballots, max_ballot_length
-        )
+        return self._generate_profile_optimized(number_of_ballots, max_ballot_length)
 
     def _generate_profile_optimized(
         self, num_ballots: int, max_ballot_length: int
@@ -694,23 +616,25 @@ class ImpartialAnonymousCulture():
         # TODO: Double check possible off by 1 errors here and in `gap_freq`
         ballot_indices = np.cumsum(gap_freq) - 1
         ballots_as_cand_ind = [
-            tuple(index_to_lexicographic_ballot(
-                ballot_ind, 
-                num_cands, 
-                max_ballot_length,
-                self._total_ballots,
-                always_use_total_valid_ballots_method=False
-            ))
+            tuple(
+                index_to_lexicographic_ballot(
+                    ballot_ind,
+                    num_cands,
+                    max_ballot_length,
+                    self._total_ballots,
+                    always_use_total_valid_ballots_method=False,
+                )
+            )
             for ballot_ind in ballot_indices
-        ] 
+        ]
         ballots_as_counter = Counter(ballots_as_cand_ind)
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
         return PreferenceProfile(
-            df = pp_df, 
-            contains_rankings=True, 
+            df=pp_df,
+            contains_rankings=True,
             max_ranking_length=len(self.candidates),
-            candidates=self.candidates
+            candidates=self.candidates,
         )
 
 
