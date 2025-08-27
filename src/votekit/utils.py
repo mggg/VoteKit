@@ -748,7 +748,10 @@ def index_to_lexicographic_ballot(
         raise Exception(
             f"Given ballot index {ballot_index} out of range. Max index: {total_valid_ballots}"
         )
-    chunk_size = lambda n, l: total_valid_ballots_method(n, l) // n
+
+    def chunk_size(n_cands: int, ballot_len: int) -> int:
+        return total_valid_ballots_method(n_cands, ballot_len) // n_cands
+
     candidates = list(range(n_candidates))
     out = []
     if always_use_total_valid_ballots_method:

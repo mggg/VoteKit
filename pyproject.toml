@@ -51,6 +51,12 @@ repository = "https://github.com/mggg/VoteKit"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+module = ["apportionment", "apportionment.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 markers = [
