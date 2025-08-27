@@ -7,14 +7,15 @@ from pathlib import Path
 import pickle
 import random
 import warnings
-from typing import Optional, Union, Tuple, Callable, Dict, Any, List
-import apportionment.methods as apportion  # type: ignore
+from typing import Optional, Union, Tuple, Callable, Dict, Any
+from collections import Counter
+import apportionment.methods as apportion  # type: ignorek
 
 from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.metrics import euclidean_dist
-from .graphs import BallotGraph
+from .utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
 def sample_cohesion_ballot_types(
@@ -330,6 +331,11 @@ class BallotSimplex(BallotGenerator):
         if alpha == 0:
             self.alpha = 1e-10
         self.point = point
+
+        use_ballots_cache_key = "use_total_ballots_cache"
+        self._use_total_ballots_cache = data.get(use_ballots_cache_key, False)
+
+        print(f"use_cache: {self._use_total_ballots_cache}")
         super().__init__(**data)
 
     @classmethod
@@ -416,7 +422,7 @@ class BallotSimplex(BallotGenerator):
         return self.ballot_pool_to_profile(ballot_pool, self.candidates)
 
 
-class ImpartialCulture(BallotSimplex):
+class ImpartialCulture:
     """
     Impartial Culture model where each ballot is equally likely.
     Equivalent to the ballot simplex with an alpha value of infinity.
@@ -428,24 +434,208 @@ class ImpartialCulture(BallotSimplex):
         alpha (float): Alpha parameter for Dirichlet distribution.
     """
 
+    _total_ballots_cache: dict[tuple[int, int], int] = {}
+
     def __init__(self, **data):
-        super().__init__(alpha=float("inf"), **data)
+        if "candidates" not in data:  # and "slate_to_candidates" not in data:
+            raise ValueError(
+                "At least one of candidates or slate_to_candidates must be provided."
+            )
+        if "candidates" in data:
+            self.candidates = data["candidates"]
+
+        use_ballots_cache_key = "use_total_ballots_cache"
+        self._use_total_ballots_cache = data.get(use_ballots_cache_key, True)
+
+    def _clear_cache(self):
+        ImpartialCulture._total_ballots_cache = {}
+
+    def generate_profile(
+        self,
+        number_of_ballots: int,
+        max_ballot_length=None,
+        allow_short_ballots=False,
+    ) -> PreferenceProfile | Dict:
+        if max_ballot_length is None:
+            max_ballot_length = len(self.candidates)
+        elif max_ballot_length > len(self.candidates):
+            raise Exception("Max ballot length larger than number of candidates given.")
+
+        if allow_short_ballots:
+            return self._generate_profile_optimized_with_short(
+                number_of_ballots, max_ballot_length
+            )
+        else:
+            return self._generate_profile_optimized_non_short(
+                number_of_ballots, max_ballot_length
+            )
+
+    def _generate_profile_optimized_non_short(
+        self, number_of_ballots: int, ballot_length: int
+    ):
+        """
+        Generate an IC preference profile using Fisher-Yates shuffle
+        {number_of_ballots} times. Used to generate a profile when
+        short ballots are disallowed
+
+        args:
+            number_of_ballots: int; the number of ballots to generate
+        returns:
+            PreferenceProfile
+        """
+        num_cands = len(self.candidates)
+        ballots_as_ind = [
+            tuple(np.random.choice(num_cands, size=ballot_length, replace=False))
+            for _ in range(number_of_ballots)
+        ]
+        ballots_as_counter = Counter(ballots_as_ind)
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df=pp_df,
+            contains_rankings=True,
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates,
+        )
+
+    def _generate_profile_optimized_with_short(
+        self, number_of_ballots: int, max_ballot_length: int = -1
+    ) -> PreferenceProfile | Dict:
+        """
+        Generate an IC profile in the case where short ballots are
+        allowed. Randomly sample indices between 0 and number_of_valid
+        ballots, we do this {number_of_ballots} times. Then we convert
+        the indices to ballots using a help function
+
+        args:
+            number_of_ballots: the number of ballots to generate for
+                the profile
+            max_ballot_length: the maximum length allowed in the
+            profile
+        returns:
+            PreferenceProfile
+        """
+        num_cands = len(self.candidates)
+        if max_ballot_length == -1:
+            max_ballot_length = num_cands
+        total_ballots = self._total_ballots(num_cands, max_ballot_length)
+
+        # sample indices (representing allowed ballots) uniformally at
+        # random
+        ballot_inds = [
+            random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)
+        ]
+        ballots_as_cand_ind = [
+            tuple(
+                index_to_lexicographic_ballot(
+                    ballot_ind, num_cands, max_ballot_length, self._total_ballots
+                )
+            )
+            for ballot_ind in ballot_inds
+        ]
+
+        # Instantiate the preference profile using a dataframe
+        ballots_as_counter = Counter(ballots_as_cand_ind)
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df=pp_df,
+            contains_rankings=True,
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates,
+        )
+
+    def _total_ballots(self, n_candidates, max_ballot_length):
+        if not self._use_total_ballots_cache:
+            return sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
+
+        key = (n_candidates, max_ballot_length)
+        if key not in ImpartialCulture._total_ballots_cache:
+            ImpartialCulture._total_ballots_cache[key] = sum(
+                math.comb(n_candidates, i) * math.factorial(i)
+                for i in range(1, max_ballot_length + 1)
+            )
+        return ImpartialCulture._total_ballots_cache[key]
 
 
-class ImpartialAnonymousCulture(BallotSimplex):
+class ImpartialAnonymousCulture:
     """
     Impartial Anonymous Culture model wher each profile is equally likely. Equivalent to the ballot
     simplex with an alpha value of 1.
 
     Args:
-        **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
     Attributes:
-        alpha (float): Alpha parameter for Dirichlet distribution.
     """
 
     def __init__(self, **data):
-        super().__init__(alpha=1, **data)
+        if "candidates" not in data:  # and "slate_to_candidates" not in data:
+            raise ValueError(
+                "At least one of candidates or slate_to_candidates must be provided."
+            )
+        if "candidates" in data:
+            self.candidates = data["candidates"]
+
+        self._MAX_BINOM_EXPERIMENT_SIZE = 2**63 - 1
+
+    def _total_ballots(self, n_candidates, max_ballot_length):
+        return sum(
+            math.comb(n_candidates, i) * math.factorial(i)
+            for i in range(1, max_ballot_length + 1)
+        )
+
+    def generate_profile(
+        self,
+        number_of_ballots,
+        max_ballot_length=None,
+    ) -> PreferenceProfile | Dict:
+        if max_ballot_length is None:
+            max_ballot_length = len(self.candidates)
+
+        return self._generate_profile_optimized(number_of_ballots, max_ballot_length)
+
+    def _generate_profile_optimized(
+        self, num_ballots: int, max_ballot_length: int
+    ) -> PreferenceProfile | Dict:
+        # choose index as sampled 0 to N, do this n! times
+        num_cands = len(self.candidates)
+        num_gaps = num_ballots  # + 1
+        gap_freq = np.zeros(
+            num_gaps, dtype=int
+        )  # record the number of gaps in stars/bars
+
+        # rather than iterate n! times, we perform multiple
+        # multinomial experiments
+        num_valid_ballots = self._total_ballots(num_cands, max_ballot_length)
+        for _ in range(num_valid_ballots):
+            gap_freq[random.randint(0, num_gaps) - 1] += 1
+
+        # TODO: Double check possible off by 1 errors here and in `gap_freq`
+        ballot_indices = np.cumsum(gap_freq) - 1
+        ballots_as_cand_ind = [
+            tuple(
+                index_to_lexicographic_ballot(
+                    ballot_ind,
+                    num_cands,
+                    max_ballot_length,
+                    self._total_ballots,
+                    always_use_total_valid_ballots_method=False,
+                )
+            )
+            for ballot_ind in ballot_indices
+        ]
+        ballots_as_counter = Counter(ballots_as_cand_ind)
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df=pp_df,
+            contains_rankings=True,
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates,
+        )
 
 
 class short_name_PlackettLuce(BallotGenerator):
@@ -1002,9 +1192,6 @@ class name_BradleyTerry(BallotGenerator):
         current_ranking = list(seed_ballot.ranking)
         num_candidates = len(current_ranking)
 
-        if verbose:
-            print("MCMC on non-shortcut graph")
-
         # presample swap indices
         burn_in_time = burn_in_time  # int(10e5)
         if verbose:
@@ -1058,11 +1245,13 @@ class name_BradleyTerry(BallotGenerator):
 
         if verbose:
             print(
+
                 f"Acceptance ratio as number accepted / total steps: {accept/(num_ballots+burn_in_time):.2}"
             )
 
         if -1 in ballots:
             raise ValueError("Some element of ballots list is not a ballot.")
+
 
         if num_ballots > chain_length: 
             raise ValueError("The Markov Chain length cannot be less than the number of ballots.")
@@ -1083,6 +1272,68 @@ class name_BradleyTerry(BallotGenerator):
         pp = pp.group_ballots()
         return pp
 
+    def generate_profile_MCMC(
+        self, number_of_ballots: int, verbose=False, by_bloc: bool = False
+    ) -> Union[PreferenceProfile, Tuple]:
+        """
+        Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
+        be sufficiently large to allow for convergence of the chain.
+
+        Args:
+            number_of_ballots (int): The number of ballots to generate.
+            verbose (bool, optional): If True, print the acceptance ratio of the chain. Default
+                                        is False.
+            by_bloc (bool): True if you want the generated profiles returned as a tuple
+                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
+                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                you only want the aggregated profile. Defaults to False.
+
+        Returns:
+            Union[PreferenceProfile, Tuple]
+        """
+
+        # the number of ballots per bloc is determined by Huntington-Hill apportionment
+        bloc_props = list(self.bloc_voter_prop.values())
+        ballots_per_block = dict(
+            zip(
+                self.blocs,
+                apportion.compute("huntington", bloc_props, number_of_ballots),
+            )
+        )
+
+        pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
+
+        for bloc in self.blocs:
+            num_ballots = ballots_per_block[bloc]
+            pref_interval = self.pref_interval_by_bloc[bloc]
+            pref_interval_dict = pref_interval.interval
+            non_zero_cands = pref_interval.non_zero_cands
+            zero_cands = pref_interval.zero_cands
+
+            seed_ballot = Ballot(
+                ranking=tuple([frozenset({c}) for c in non_zero_cands])
+            )
+            pp = self._BT_mcmc(
+                num_ballots,
+                pref_interval_dict,
+                seed_ballot,
+                zero_cands=zero_cands,
+                verbose=verbose,
+            )
+
+            pp_by_bloc[bloc] = pp
+
+        # combine the profiles
+        pp = PreferenceProfile()
+        for profile in pp_by_bloc.values():
+            pp += profile
+
+        if by_bloc:
+            return (pp_by_bloc, pp)
+
+        # else return the combined profiles
+        else:
+            return pp
 
 class AlternatingCrossover(BallotGenerator):
     """

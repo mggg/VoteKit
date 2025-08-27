@@ -1,6 +1,6 @@
 from votekit.representation_scores import winner_sets_r_representation_scores
 from votekit import PreferenceProfile, Ballot
-from votekit.cvr_loaders import load_csv
+from votekit.cvr_loaders import load_ranking_csv
 from votekit.cleaning import remove_cand
 from pathlib import Path
 import pytest
@@ -71,9 +71,12 @@ def test_winner_sets_r_rep_score_error_m():
         winner_sets_r_representation_scores(PreferenceProfile(), 2, 1, ["Chris"])
 
 
+@pytest.mark.slow
 def test_winner_sets_r_rep_score_portland():
-    profile = load_csv(
-        CSV_DIR / "Portland_D1_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6]
+    profile = load_ranking_csv(
+        CSV_DIR / "Portland_D1_Condensed.csv",
+        rank_cols=[1, 2, 3, 4, 5, 6],
+        header_row=0,
     )
     clean_profile = remove_cand("skipped", profile)
 

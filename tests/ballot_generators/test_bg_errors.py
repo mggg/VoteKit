@@ -3,7 +3,6 @@ import numpy as np
 
 from votekit.ballot_generator import (
     name_PlackettLuce,
-    name_BradleyTerry,
     CambridgeSampler,
     Spatial,
     ClusteredSpatial,
@@ -207,7 +206,6 @@ def test_clustered_spatial_generator():
             candidate_dist_kwargs=normal_params,
         )
 
-
 def test_MCMC_subsample_chain_length_error():
     """
     Test to check chain_length < num_ballots to be sampled
@@ -255,3 +253,4 @@ def test_MCMC_subsample_chain_length_error():
         bt.generate_profile_MCMC_even_subsample(
             number_of_ballots=number_of_ballots, chain_length=chain_length
         )
+

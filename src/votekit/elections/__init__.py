@@ -22,4 +22,5 @@ from .election_types import (  # noqa
     PluralityVeto,
     RandomDictator,
     BoostedRandomDictator,
+    RankedPairs,
 )

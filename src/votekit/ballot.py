@@ -2,6 +2,7 @@ from pydantic.dataclasses import dataclass
 from pydantic import ConfigDict, field_validator
 from typing import Optional
 from dataclasses import field
+from numbers import Real
 
 
 @dataclass(frozen=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -35,7 +36,7 @@ class Ballot:
 
     def __post_init__(self):
         if self.weight < 0:
-            raise ValueError("Ballot weight must cannot be negative.")
+            raise ValueError("Ballot weight cannot be negative.")
 
         # Silently promote weight to float
         object.__setattr__(self, "weight", float(self.weight))
@@ -86,10 +87,7 @@ class Ballot:
         cls, scores: Optional[dict[str, float]]
     ) -> Optional[dict[str, float]]:
         if scores:
-            if any(
-                not (isinstance(s, float) or isinstance(s, int))
-                for s in scores.values()
-            ):
+            if any(not isinstance(s, Real) for s in scores.values()):
                 raise TypeError("Score values must be numeric.")
 
             return {c.strip(): s for c, s in scores.items() if s != 0}

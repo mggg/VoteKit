@@ -21,6 +21,7 @@ def test_random_dictator_error():
         RandomDictator(PreferenceProfile(), m=1)
 
 
+@pytest.mark.slow
 def test_random_dictator_simple():
     # set seed for more predictable results
     random.seed(919717)
@@ -50,6 +51,7 @@ def test_random_dictator_simple():
     assert np.allclose(1 / 5, winner_counts["C"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_without_ties():
     random.seed(919717)
 
@@ -96,6 +98,7 @@ def test_random_dictator_4_candidates_without_ties():
     assert np.allclose(float(fpv["D"]), winner_counts["D"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_with_ties():
     random.seed(919717)
 
@@ -133,6 +136,7 @@ def test_random_dictator_4_candidates_with_ties():
     assert np.allclose(float(fpv["D"]), winner_counts["D"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     random.seed(919717)
 

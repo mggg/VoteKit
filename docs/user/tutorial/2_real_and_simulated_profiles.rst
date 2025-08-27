@@ -25,26 +25,31 @@ First we load the appropriate modules.
 
 .. code:: ipython3
 
-    from votekit.cvr_loaders import load_csv
+    from votekit.cvr_loaders import load_ranking_csv
     from votekit.elections import IRV
-    from votekit.cleaning import remove_and_condense
+    from votekit.cleaning import remove_cand, remove_repeated_candidates, condense_profile
 
-Next we’ll use the ``load_csv`` function to load the data. The data
-should be a csv file, where each row is a ballot, and there is a column
-for every position—i.e., a first-place vote column, a second-place vote
-column, and so on.
+Next we’ll use the ``load_ranking_csv`` function to load the data. The
+data should be a csv file, where each row is a ballot, and there is a
+column for every position—i.e., a first-place vote column, a
+second-place vote column, and so on. We need to specify which are the
+ranking columns.
 
-The ``load_csv`` function has some optional parameters; you can specify
-which columns of the csv contain ranking data (all of our columns did so
-no need to specify), whether there is a weight column, some choice of
-end-of-line delimiters (besides the standard, which is a carriage
-return), and a voter ID column. It will return a ``PreferenceProfile``
-object.
+The ``load_ranking_csv`` function has some optional parameters; whether
+there is a weight column, some choice of delimiters (besides the
+standard, which is a comma), a voter ID column, a weight column, and a
+header. It will return a ``PreferenceProfile`` object. The function also
+prints the profile by default, so that you can quickly spot check that
+it was loaded correctly. Often the easiest place to catch loading errors
+is in the candidate list.
+
+Note for previous users: as of VoteKit 3.3.0, the function ``load_csv``
+is being deprecated in favor of ``load_ranking_csv``.
 
 .. code:: ipython3
 
-    minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
-    print(minneapolis_profile)
+    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols= [0,1,2])
+
 
 
 .. parsed-literal::
@@ -52,14 +57,36 @@ object.
     Profile contains rankings: True
     Maximum ranking length: 3
     Profile contains scores: False
-    Candidates: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'undervote', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'UWI', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'overvote', 'CHRISTOPHER CLARK')
-    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'undervote', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'UWI', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'overvote', 'CHRISTOPHER CLARK')
-    Total number of Ballot objects: 7084
-    Total weight of Ballot objects: 80101.0
+    Candidates: ('rank3', 'MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'Rank2', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'undervote', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'rank1', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'ABDUL M RAHAMAN "THE ROCK"', 'BOB FINE', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'overvote', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'UWI', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
+    Candidates who received votes: ('rank3', 'MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'Rank2', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'undervote', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'rank1', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'ABDUL M RAHAMAN "THE ROCK"', 'BOB FINE', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'overvote', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'UWI', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
+    Total number of Ballot objects: 80102
+    Total weight of Ballot objects: 80102.0
     
 
 
-Note that the ``load_csv`` function automatically condenses the profile.
+Ah, check out the candidate list above. There are some incorrect
+candidate names, like “rank1” and “Rank2”. If you go inspect the csv
+file, you’ll see that these are the names of the header row. We forgot
+to include the header as a parameter to ``load_ranking_csv``, which by
+default assumes there is no header.
+
+.. code:: ipython3
+
+    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols= [0,1,2], header_row = 0)
+
+
+
+.. parsed-literal::
+
+    Profile contains rankings: True
+    Maximum ranking length: 3
+    Profile contains scores: False
+    Candidates: ('MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'undervote', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'BOB FINE', 'ABDUL M RAHAMAN "THE ROCK"', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'overvote', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'UWI', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
+    Candidates who received votes: ('MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'undervote', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'BOB FINE', 'ABDUL M RAHAMAN "THE ROCK"', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'overvote', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'UWI', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
+    Total number of Ballot objects: 80101
+    Total weight of Ballot objects: 80101.0
+    
+
 
 Let’s explore the profile using some of the tools we learned in the
 previous notebook.
@@ -118,34 +145,35 @@ previous notebook.
     There are 38 candidates.
 
 
-Woah, that’s a little funky! There are candidates called ‘undervote’,
-‘overvote’, and ‘UWI’. This cast vote record was already cleaned by the
-City of Minneapolis, and they chose this way of parsing the ballots:
-‘undervote’ indicates that the voter left a position unfilled, such as
-by having no candidate listed in second place. The ‘overvote’ notation
-arises when a voter puts two candidates in one position, like by putting
-Hodges and Samuels both in first place. Unfortunately this way of
-storing the profile means we have lost any knowledge of the voter intent
-(which was probably to indicate equal preference). ‘UWI’ stands for
-unregistered write-in.
+There are candidates called ‘undervote’, ‘overvote’, and ‘UWI’. This
+cast vote record was already cleaned by the City of Minneapolis, and
+they chose this way of parsing the ballots: ‘undervote’ indicates that
+the voter left a position unfilled, such as by having no candidate
+listed in second place. The ‘overvote’ notation arises when a voter puts
+two candidates in one position, like by putting Hodges and Samuels both
+in first place. Unfortunately this way of storing the profile means we
+have lost any knowledge of the voter intent (which was probably to
+indicate equal preference). ‘UWI’ stands for unregistered write-in.
 
 This reminds us that it is really important to think carefully about how
 we want to handle cleaning ballots, as some storage methods are
-efficient but lossy. For now, let’s assume that we want to further
-condense the ballots, discarding ‘undervote’, ‘overvote’, and ‘UWI’ as
-candidates. The function ``remove_and_condense`` will do this for us
-once we specify which (non)candidates to remove. If a ballot was “A B
-undervote”, it will become “A B”. If a ballot was “A UWI B” it will now
-be “A B” as well. Many other cleaning options are reasonable.
+efficient but lossy. For now, let’s assume that we want to further clean
+the ballots, discarding ‘undervote’, ‘overvote’, and ‘UWI’ as
+candidates. The function ``remove_cand`` will do this for us once we
+specify which candidates to remove. If a ballot was “A B undervote”, it
+will become “A B ()”. If a ballot was “A UWI B” it will now be “A () B”.
+Many other cleaning options are reasonable.
+
+We will address the removal of “()” later on.
 
 .. code:: ipython3
 
     print("There were", len(minneapolis_profile.candidates), "candidates\n")
     
-    clean_profile = remove_and_condense(["undervote", "overvote", "UWI"], minneapolis_profile)
+    clean_profile = remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)
     print(clean_profile.candidates)
     
-    print("\nThere are now", len(clean_profile.candidates), "candidates")
+    print("\nThere are now", len(clean_profile.candidates), "candidates.\n")
     
     print(clean_profile)
 
@@ -154,29 +182,49 @@ be “A B” as well. Many other cleaning options are reasonable.
 
     There were 38 candidates
     
-    ('JACKIE CHERRYHOMES', 'TROY BENJEGERDES', 'EDMUND BERNARD BRUYERE', 'DON SAMUELS', 'CAM WINTON', 'DOUG MANN', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DAN COHEN', 'JOSHUA REA', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'ALICIA K. BENNETT', 'BETSY HODGES', 'CAPTAIN JACK SPARROW', 'JOHN LESLIE HARTWIG', 'JAYMIE KELLY', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'BILL KAHN', 'KURTIS W. HANNA', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JEFFREY ALAN WAGNER', 'GREGG A. IVERSON', 'MARK V ANDERSON', 'MIKE GOULD', 'ABDUL M RAHAMAN "THE ROCK"', 'CHRISTOPHER CLARK', 'OLE SAVIOR', 'JAMES EVERETT', 'MARK ANDREW', 'BOB FINE')
+    ('MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'BOB FINE', 'ABDUL M RAHAMAN "THE ROCK"', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
     
-    There are now 35 candidates
+    There are now 35 candidates.
+    
     Profile has been cleaned
     Profile contains rankings: True
     Maximum ranking length: 3
     Profile contains scores: False
-    Candidates: ('JACKIE CHERRYHOMES', 'TROY BENJEGERDES', 'EDMUND BERNARD BRUYERE', 'DON SAMUELS', 'CAM WINTON', 'DOUG MANN', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DAN COHEN', 'JOSHUA REA', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'ALICIA K. BENNETT', 'BETSY HODGES', 'CAPTAIN JACK SPARROW', 'JOHN LESLIE HARTWIG', 'JAYMIE KELLY', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'BILL KAHN', 'KURTIS W. HANNA', 'RAHN V. WORKCUFF', 'CYD GORMAN', 'JEFFREY ALAN WAGNER', 'GREGG A. IVERSON', 'MARK V ANDERSON', 'MIKE GOULD', 'ABDUL M RAHAMAN "THE ROCK"', 'CHRISTOPHER CLARK', 'OLE SAVIOR', 'JAMES EVERETT', 'MARK ANDREW', 'BOB FINE')
+    Candidates: ('MERRILL ANDERSON', 'JOHN CHARLES WILSON', 'JOSHUA REA', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'GREGG A. IVERSON', 'OLE SAVIOR', 'CAPTAIN JACK SPARROW', 'TONY LANE', 'MARK V ANDERSON', 'JAMES EVERETT', 'EDMUND BERNARD BRUYERE', 'CAM WINTON', 'MARK ANDREW', 'BOB FINE', 'ABDUL M RAHAMAN "THE ROCK"', 'NEAL BAXTER', 'DAN COHEN', 'BOB "AGAIN" CARNEY JR', 'RAHN V. WORKCUFF', 'STEPHANIE WOODRUFF', 'CHRISTOPHER CLARK', 'KURTIS W. HANNA', 'BETSY HODGES', 'TROY BENJEGERDES', 'CHRISTOPHER ROBIN ZIMMERMAN', 'DOUG MANN', 'DON SAMUELS', 'BILL KAHN', 'MIKE GOULD', 'CYD GORMAN', 'JAYMIE KELLY', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER')
     Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'JAMES EVERETT', 'MARK V ANDERSON', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'BETSY HODGES', 'MARK ANDREW', 'MIKE GOULD', 'BILL KAHN', 'BOB FINE', 'CAM WINTON', 'DON SAMUELS', 'JACKIE CHERRYHOMES', 'JEFFREY ALAN WAGNER', 'JOHN LESLIE HARTWIG', 'KURTIS W. HANNA', 'JOSHUA REA', 'MERRILL ANDERSON', 'NEAL BAXTER', 'STEPHANIE WOODRUFF', 'BOB "AGAIN" CARNEY JR', 'TONY LANE', 'CAPTAIN JACK SPARROW', 'GREGG A. IVERSON', 'JAMES "JIMMY" L. STROUD, JR.', 'JAYMIE KELLY', 'CYD GORMAN', 'EDMUND BERNARD BRUYERE', 'DOUG MANN', 'CHRISTOPHER ROBIN ZIMMERMAN', 'RAHN V. WORKCUFF', 'JOHN CHARLES WILSON', 'OLE SAVIOR', 'CHRISTOPHER CLARK')
-    Total number of Ballot objects: 7073
-    Total weight of Ballot objects: 79378.0
+    Total number of Ballot objects: 80101
+    Total weight of Ballot objects: 80101.0
     
 
 
 Things look a bit cleaner; all three of the non-candidate strings have
 been removed. Note that the order of candidates is not very meaningful;
-it’s just the order in which the names occurred in the input data. When
-listing by weight, note how the top ballot changed from (Mark Andrew,
-undervote, undervote) to just a bullet vote for Mark Andrew, which
-occurred on almost 5 percent of ballots! Briefly, let’s run the same
-kind of election type that was conducted in 2013 to verify we get the
-same outcome as the city announced. The city used IRV elections (which
-are equivalent to STV for one seat). Let’s check it out.
+it’s just the order in which the names occurred in the input data.
+
+We also need to use ``remove_repeated_candidates``, which cleans ballots
+that have the same candidate appear in multiple positions. It keeps the
+first instance and removes any after that. For example, the ballot “A B
+A” would become “A B ()”, while the ballot “A A B” would become “A ()
+B”.
+
+.. code:: ipython3
+
+    clean_profile = remove_repeated_candidates(clean_profile) 
+
+The removal of candidates and repeated candidates has caused some of our
+ballots to have empty ranking positions. The final step of cleaning is
+to condense the ballots, moving up any lower ranked candidates where an
+empty ranking position is. Thus the ballot “A () B” becomes “A B” while
+the ballot “A B ()” also becomes “A B”.
+
+.. code:: ipython3
+
+    clean_profile = condense_profile(clean_profile)
+
+Briefly, let’s run the same kind of election type that was conducted in
+2013 to verify we get the same outcome as the city announced. The city
+used IRV elections (which are equivalent to STV for one seat). Let’s
+check it out.
 
 .. code:: ipython3
 
@@ -223,12 +271,6 @@ are equivalent to STV for one seat). Let’s check it out.
     BOB "AGAIN" CARNEY JR         Eliminated      3
     CYD GORMAN                    Eliminated      2
     JOHN CHARLES WILSON           Eliminated      1
-
-
-.. parsed-literal::
-
-    /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/src/votekit/pref_profile/pref_profile.py:1109: UserWarning: Profile does not contain rankings but max_ranking_length=3. Setting max_ranking_length to 0.
-      warnings.warn(
 
 
 If you’re so moved, take a moment to `go
@@ -303,13 +345,15 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
                  Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
     Ballot Index                                                          
-    0                  (A)       (B)       (Y)       (X)        {}    69.0
-    1                  (A)       (Y)       (B)       (X)        {}     4.0
-    2                  (B)       (A)       (Y)       (X)        {}     7.0
-    3                  (Y)       (X)       (A)       (B)        {}     7.0
+    0                  (A)       (B)       (Y)       (X)        {}    62.0
+    1                  (A)       (Y)       (B)       (X)        {}     6.0
+    2                  (B)       (A)       (Y)       (X)        {}    10.0
+    3                  (B)       (Y)       (A)       (X)        {}     2.0
     4                  (Y)       (X)       (B)       (A)        {}     4.0
-    5                  (X)       (Y)       (A)       (B)        {}     5.0
-    6                  (X)       (Y)       (B)       (A)        {}     4.0
+    5                  (Y)       (X)       (A)       (B)        {}     7.0
+    6                  (Y)       (A)       (X)       (B)        {}     1.0
+    7                  (X)       (Y)       (B)       (A)        {}     4.0
+    8                  (X)       (Y)       (A)       (B)        {}     4.0
 
 
 .. admonition:: A note on s-BT :class: note The probability distribution
@@ -330,13 +374,15 @@ chain.
 
                  Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
     Ballot Index                                                          
-    0                  (A)       (B)       (Y)       (X)        {}    69.0
-    1                  (A)       (Y)       (B)       (X)        {}     4.0
-    2                  (B)       (A)       (Y)       (X)        {}     7.0
-    3                  (Y)       (X)       (A)       (B)        {}     7.0
+    0                  (A)       (B)       (Y)       (X)        {}    62.0
+    1                  (A)       (Y)       (B)       (X)        {}     6.0
+    2                  (B)       (A)       (Y)       (X)        {}    10.0
+    3                  (B)       (Y)       (A)       (X)        {}     2.0
     4                  (Y)       (X)       (B)       (A)        {}     4.0
-    5                  (X)       (Y)       (A)       (B)        {}     5.0
-    6                  (X)       (Y)       (B)       (A)        {}     4.0
+    5                  (Y)       (X)       (A)       (B)        {}     7.0
+    6                  (Y)       (A)       (X)       (B)        {}     1.0
+    7                  (X)       (Y)       (B)       (A)        {}     4.0
+    8                  (X)       (Y)       (A)       (B)        {}     4.0
 
 
 Generating Preference Intervals from Hyperparameters
@@ -377,6 +423,7 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
+   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -405,6 +452,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
+   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -430,9 +478,9 @@ these change with randomness.
 
 .. parsed-literal::
 
-    Strong preference for one candidate {'A': 0.9997, 'B': 0.0003, 'C': 0.0}
-    All bets are off preference {'A': 0.4123, 'B': 0.008, 'C': 0.5797}
-    Uniform preference for all candidates {'A': 0.3021, 'B': 0.3939, 'C': 0.3039}
+    Strong preference for one candidate {'A': np.float64(0.0), 'B': np.float64(0.362), 'C': np.float64(0.638)}
+    All bets are off preference {'A': np.float64(0.4247), 'B': np.float64(0.1194), 'C': np.float64(0.4559)}
+    Uniform preference for all candidates {'A': np.float64(0.1765), 'B': np.float64(0.4636), 'C': np.float64(0.3599)}
 
 
 Let’s initialize the s-PL model from the Dirichlet distribution, using
@@ -476,27 +524,23 @@ the opposing candidates.
 .. parsed-literal::
 
     Preference interval for X bloc and X candidates
-    {'X1': 0.4421, 'X2': 0.5579}
+    {'X1': np.float64(0.6319), 'X2': np.float64(0.3681)}
     
     Preference interval for X bloc and Y candidates
-    {'Y1': 0.4563, 'Y2': 0.5437}
+    {'Y1': np.float64(0.0218), 'Y2': np.float64(0.9782)}
     
                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    0                 (X2)      (X1)      (Y2)      (Y1)    20.0        {}
-    1                 (X2)      (X1)      (Y1)      (Y2)    14.0        {}
-    2                 (X2)      (Y2)      (X1)      (Y1)     1.0        {}
-    3                 (X2)      (Y1)      (X1)      (Y2)     2.0        {}
-    4                 (X1)      (X2)      (Y2)      (Y1)    22.0        {}
-    5                 (X1)      (X2)      (Y1)      (Y2)    10.0        {}
-    6                 (X1)      (Y2)      (X2)      (Y1)     2.0        {}
-    7                 (X1)      (Y1)      (Y2)      (X2)     1.0        {}
-    8                 (X1)      (Y1)      (X2)      (Y2)     2.0        {}
-    9                 (Y1)      (X2)      (X1)      (Y2)     1.0        {}
-    10                (Y2)      (X1)      (Y1)      (X2)     1.0        {}
-    11                (Y2)      (X1)      (X2)      (Y1)     1.0        {}
-    12                (Y2)      (X2)      (X1)      (Y1)     2.0        {}
-    13                (Y2)      (Y1)      (X2)      (X1)     1.0        {}
+    0                 (X2)      (X1)      (Y2)      (Y1)    22.0        {}
+    1                 (X2)      (Y2)      (X1)      (Y1)     4.0        {}
+    2                 (X1)      (Y2)      (X2)      (Y1)     5.0        {}
+    3                 (X1)      (Y2)      (Y1)      (X2)     1.0        {}
+    4                 (X1)      (X2)      (Y2)      (Y1)    40.0        {}
+    5                 (X1)      (X2)      (Y1)      (Y2)     1.0        {}
+    6                 (Y2)      (X1)      (X2)      (Y1)     3.0        {}
+    7                 (Y2)      (X2)      (X1)      (Y1)     2.0        {}
+    8                 (Y2)      (Y1)      (X2)      (X1)     1.0        {}
+    9                 (Y1)      (X1)      (X2)      (Y2)     1.0        {}
 
 
 Let’s confirm that the intervals and ballots look reasonable. We have
@@ -560,16 +604,16 @@ data.
 
                  Ranking_1 Ranking_2 Ranking_3 Ranking_4 Ranking_5 Voter Set  Weight
     Ballot Index                                                                    
-    0                 (W2)      (C2)      (W3)      (W1)      (C1)        {}     3.0
-    1                 (W2)      (C2)      (W3)      (W1)       (~)        {}     4.0
-    2                 (W2)      (C2)      (W3)       (~)       (~)        {}     4.0
-    3                 (W2)      (C2)      (W3)      (C1)      (W1)        {}     2.0
-    4                 (W2)      (C2)      (C1)      (W1)       (~)        {}     8.0
-    5                 (W2)      (C2)      (C1)      (W1)      (W3)        {}    12.0
-    6                 (W2)      (C2)      (C1)       (~)       (~)        {}     3.0
-    7                 (W2)      (C2)      (C1)      (W3)       (~)        {}     2.0
-    8                 (W2)      (C2)      (C1)      (W3)      (W1)        {}     3.0
-    9                 (W2)      (C2)       (~)       (~)       (~)        {}     7.0
+    0                 (W2)      (C1)      (C2)      (W3)      (W1)        {}    15.0
+    1                 (W2)      (C1)      (C2)      (W3)       (~)        {}     1.0
+    2                 (W2)      (C1)      (C2)       (~)       (~)        {}     6.0
+    3                 (W2)      (C1)      (C2)      (W1)      (W3)        {}     9.0
+    4                 (W2)      (C1)      (W1)      (W3)       (~)        {}     2.0
+    5                 (W2)      (C1)      (W1)      (W3)      (C2)        {}     4.0
+    6                 (W2)      (C1)      (W1)       (~)       (~)        {}     4.0
+    7                 (W2)      (C1)      (W1)      (C2)      (W3)        {}     5.0
+    8                 (W2)      (C1)      (W1)      (C2)       (~)        {}     1.0
+    9                 (W2)      (C1)      (W3)       (~)       (~)        {}     6.0
 
 
 Note: the ballot type (as in, Ws and Cs) is strictly drawn from the

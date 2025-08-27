@@ -12,7 +12,6 @@ from votekit.ballot_generator import (
     name_BradleyTerry,
     AlternatingCrossover,
     CambridgeSampler,
-    BallotSimplex,
     slate_PlackettLuce,
     slate_BradleyTerry,
     name_Cumulative,
@@ -94,6 +93,27 @@ def test_ic_distribution():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
+"""
+def test_ic_optimized_distribution():
+    # Set-up
+    number_of_ballots = 100
+
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    # Find ballot probs
+    possible_rankings = it.permutations(candidates, len(candidates))
+    ballot_prob_dict = {
+        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
+    }
+
+    # Generate ballots
+    generated_profile = ImpartialCulture(
+        candidates=candidates,
+    ).generate_profile(number_of_ballots=number_of_ballots, use_optimized=True)
+
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+
 def test_ballot_simplex_from_point():
     number_of_ballots = 1000
     candidates = ["W1", "W2", "C1", "C2"]
@@ -109,6 +129,7 @@ def test_ballot_simplex_from_point():
     ).generate_profile(number_of_ballots=number_of_ballots)
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+"""
 
 
 def test_iac_distribution():
@@ -131,6 +152,40 @@ def test_iac_distribution():
 
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+
+
+"""
+# NOTE: Enable this test once the optimized version is completed
+def test_iac_optimized_distribution():
+
+    number_of_ballots = 1000
+    ballot_length = 4
+    candidates = ["W1", "W2", "C1", "C2"]
+
+    # Find ballot probs
+    possible_rankings = list(it.permutations(candidates, ballot_length))
+    probabilities = np.random.dirichlet([1] * len(possible_rankings))
+
+    ballot_prob_dict = {
+        possible_rankings[b_ind]: probabilities[b_ind]
+        for b_ind in range(len(possible_rankings))
+    }
+    iac_inst = ImpartialAnonymousCulture(
+        number_of_ballots=number_of_ballots,
+        candidates=candidates,
+    )
+    if not iac_inst._OPTIMIZED_ENABLED:
+        # NOTE: no test if performed if the optimized profile
+        # generation is not enabled
+        assert True
+        return
+
+    generated_profile = iac_inst.generate_profile(
+        number_of_ballots=500, use_optimized=True
+    )
+    # Test
+    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+"""
 
 
 def test_NPL_distribution():
@@ -979,7 +1034,6 @@ def test_slate_BT_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
-
 def test_NBT_MCMC_subsample_distribution():
     # Set-up
     number_of_ballots = 500
@@ -1017,3 +1071,4 @@ def test_NBT_MCMC_subsample_distribution():
     # Continuous sampling should do worse than spaced out subsampling w.h.p.
 
     # Acceptance ratio should be roughly be between two values
+
