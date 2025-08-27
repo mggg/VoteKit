@@ -1033,3 +1033,42 @@ def test_slate_BT_distribution():
 
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+
+def test_NBT_MCMC_subsample_distribution():
+    # Set-up
+    number_of_ballots = 500
+
+    candidates = ["W1", "W2", "C1", "C2"]
+    pref_intervals_by_bloc = {
+        "W": {
+            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+            "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+        },
+        "C": {
+            "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+            "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+        },
+    }
+    bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+    bloc_voter_prop = {"W": 0.7, "C": 0.3}
+
+    # Generate ballots
+    bt = name_BradleyTerry(
+        candidates=candidates,
+        pref_intervals_by_bloc=pref_intervals_by_bloc,
+        bloc_voter_prop=bloc_voter_prop,
+        cohesion_parameters=cohesion_parameters,
+    )
+    generated_profile = bt.generate_profile_MCMC_even_subsample(
+        number_of_ballots=number_of_ballots
+    )
+
+    # Length of ballot should be number_of_ballots, not chain length
+
+    # chain length < number_of_ballots --> resorts to number_of_ballots
+
+    # Continuous sampling should do worse than spaced out subsampling w.h.p.
+
+    # Acceptance ratio should be roughly be between two values
+

@@ -9,6 +9,7 @@ dist/
 .idea
 extra_data/
 .venv
+.myenv
 .docs_venv
 docs/_build
 .dev
