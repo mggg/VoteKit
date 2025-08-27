@@ -16,6 +16,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile
 from .pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.metrics import euclidean_dist
+from .utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
 def sample_cohesion_ballot_types(
@@ -499,7 +500,6 @@ class BallotSimplex(BallotGenerator):
             index = remaining - 1
         return out
 
-
 class ImpartialCulture:
     """
     Impartial Culture model where each ballot is equally likely.
@@ -522,7 +522,7 @@ class ImpartialCulture:
             self.candidates = data["candidates"]
 
         use_ballots_cache_key = "use_total_ballots_cache"
-        self._use_total_ballots_cache = data.get(use_ballots_cache_key, False)
+        self._use_total_ballots_cache = data.get(use_ballots_cache_key, True)
 
     def _clear_cache(self):
         ImpartialCulture._total_ballots_cache = {}
@@ -530,27 +530,22 @@ class ImpartialCulture:
     def generate_profile(
         self,
         number_of_ballots: int,
-        by_bloc: bool = False,
-        use_optimized=False,
         max_ballot_length=None,
         allow_short_ballots=False,
-        return_raw = False
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
         elif max_ballot_length > len(self.candidates):
             raise Exception("Max ballot length larger than number of candidates given.")
 
-        if use_optimized:
-            if allow_short_ballots:
-                return self._generate_profile_optimized_with_short(
-                    number_of_ballots, max_ballot_length, return_raw
-                )
-            else:
-                return self._generate_profile_optimized_non_short(
-                    number_of_ballots, max_ballot_length
-                )
-        return super().generate_profile(number_of_ballots, by_bloc)
+        if allow_short_ballots:
+            return self._generate_profile_optimized_with_short(
+                number_of_ballots, max_ballot_length
+            )
+        else:
+            return self._generate_profile_optimized_non_short(
+                number_of_ballots, max_ballot_length
+            )
 
     def _generate_profile_optimized_non_short(
         self, number_of_ballots: int, ballot_length: int
@@ -566,18 +561,22 @@ class ImpartialCulture:
             PreferenceProfile
         """
         num_cands = len(self.candidates)
-        ballots_as_ind = np.array(
-            [
-                np.random.choice(num_cands, size=ballot_length, replace=False)
+        ballots_as_ind = [
+                tuple(np.random.choice(num_cands, size=ballot_length, replace=False))
                 for _ in range(number_of_ballots)
             ]
+        ballots_as_counter = Counter(ballots_as_ind)
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df = pp_df, 
+            contains_rankings=True, 
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates
         )
-        cands_as_array = np.array(self.candidates)
-        ballots = [cands_as_array[inds].tolist() for inds in ballots_as_ind]
-        return self.ballot_pool_to_profile(ballots, self.candidates)
 
     def _generate_profile_optimized_with_short(
-        self, number_of_ballots: int, max_ballot_length=None, return_raw = False
+        self, number_of_ballots: int, max_ballot_length: int = -1
     ) -> PreferenceProfile | Dict:
         """
         Generate an IC profile in the case where short ballots are
@@ -594,7 +593,7 @@ class ImpartialCulture:
             PreferenceProfile
         """
         num_cands = len(self.candidates)
-        if max_ballot_length is None:
+        if max_ballot_length == -1:
             max_ballot_length = num_cands
         total_ballots = self._total_ballots(num_cands, max_ballot_length)
 
@@ -602,13 +601,18 @@ class ImpartialCulture:
         # random
         ballot_inds = [random.randint(0, total_ballots-1) for _ in range(number_of_ballots)]
         ballots_as_cand_ind = [
-            tuple(self._index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
+            tuple(index_to_lexicographic_ballot(
+                ballot_ind, 
+                num_cands, 
+                max_ballot_length,
+                self._total_ballots
+            ))
             for ballot_ind in ballot_inds 
         ]
 
         # Instantiate the preference profile using a dataframe
         ballots_as_counter = Counter(ballots_as_cand_ind)
-        pp_df = self._build_df_from_ballot_samples(dict(ballots_as_counter))
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
         return PreferenceProfile(
             df = pp_df, 
@@ -616,30 +620,7 @@ class ImpartialCulture:
             max_ranking_length=len(self.candidates),
             candidates=self.candidates
         )
-
-    def _build_df_from_ballot_samples(self, ballots_freq_dict : dict[tuple[int, ...], int]):
-        '''
-        Helper function which creates a pandas df to instantiate a
-        PreferenceProfile
-        args:
-            ballots_freq_dict: dictionary mapping ballots to
-                sampled frequency. The keys should be in candidate id
-                form
-        returns:
-            pandas df
-        '''
-        df_data = []    
-        n_cands = len(self.candidates)
-        for ballot in ballots_freq_dict.keys():
-            ballot_as_df = [None for _ in range(n_cands + 1)]
-            ballot_as_frozenset_entries = tuple([frozenset([self.candidates[i]]) for i in ballot])
-            completed_ballot = (ballot_as_frozenset_entries 
-                                + tuple([frozenset(['~']) for _ in range(n_cands - len(ballot))]) # padding short ballots
-                                + tuple([ballots_freq_dict[ballot], set()])) # weight, voter set
-            df_data.append(completed_ballot)
-        return pd.DataFrame(df_data, columns=[f"Ranking_{i}" for i in range(1, n_cands+1)] + ["Weight", "Voter Set"])
     
-
     def _total_ballots(self, n_candidates, max_ballot_length):
         if not self._use_total_ballots_cache:
             return sum(
@@ -655,115 +636,44 @@ class ImpartialCulture:
             )
         return ImpartialCulture._total_ballots_cache[key]
 
-    def _index_to_lexicographic_ballot(
-        self, index: int, n_candidates: int, max_length: int
-    ) -> list[int]:
-        """
-        Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
-        The ordering of the ballots is lexicographic, i.e., the first ballot is the
-        lexicographically smallest ballot and continues in that order:
 
-        (0,),
-        (0,1),
-        (0,1,2),
-        ...
-        (0,2),
-        (0,2,1),
-        ...
-        (n-1, n-2, ..., n-l)
-
-        where n is the number of candidates and l is the maximum ballot length.
-
-        Args:
-            index (int): The index to convert.
-            n_candidates (int): The number of candidates.
-            max_length (int): The maximum allowed ballot rank.
-
-        Returns:
-            list[int]: A list representing the ballot corresponding to index.
-        """
-        total_valid_ballots = self._total_ballots(n_candidates, max_length)
-        if index >= total_valid_ballots:
-            raise Exception(
-                f"Given ballot index {index} out of range. Max index: {total_valid_ballots}"
-            )
-
-        chunk_size = lambda n, l: self._total_ballots(n, l) // n
-        candidates = list(range(n_candidates))
-        out = []
-        if self._use_total_ballots_cache:
-            bn = self._total_ballots(n_candidates + 1, max_length + 1) // (n_candidates + 1)
-        else:
-            bn = chunk_size(n_candidates + 1, max_length + 1)
-
-        for i in range(n_candidates, 0, -1):
-            if self._use_total_ballots_cache:
-                bn = self._total_ballots(n_candidates=i, max_ballot_length=max_length) // (i)
-            else:
-                bn = (bn - 1) // i
-            # Perform Euclidean division of index by bn
-            section = index // bn
-            remaining = index % bn
-            out.append(candidates.pop(section))
-            if remaining == 0:
-                # Cut off the ballot here
-                break
-            index = remaining - 1
-        return out
-
-
-class ImpartialAnonymousCulture(BallotSimplex):
+class ImpartialAnonymousCulture():
     """
     Impartial Anonymous Culture model wher each profile is equally likely. Equivalent to the ballot
     simplex with an alpha value of 1.
 
     Args:
-        **data: kwargs to be passed to ``BallotGenerator`` parent class.
 
     Attributes:
-        alpha (float): Alpha parameter for Dirichlet distribution.
     """
 
     def __init__(self, **data):
-        self._OPTIMIZED_ENABLED = False  # Flag to indicate whether
+        if "candidates" not in data: #and "slate_to_candidates" not in data:
+            raise ValueError(
+                "At least one of candidates or slate_to_candidates must be provided."
+            )
+        if "candidates" in data:
+            self.candidates = data["candidates"]
+
         self._MAX_BINOM_EXPERIMENT_SIZE = 2**63 - 1
 
-        super().__init__(alpha=1, **data)
+    def _total_ballots(self, n_candidates, max_ballot_length):
+        return sum(
+            math.comb(n_candidates, i) * math.factorial(i)
+            for i in range(1, max_ballot_length + 1)
+        )
 
     def generate_profile(
         self,
         number_of_ballots,
-        by_bloc: bool = False,
-        use_optimized: bool = False,
         max_ballot_length=None,
     ) -> PreferenceProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
 
-        if use_optimized:
-            return self._generate_profile_optimized(
-                number_of_ballots, max_ballot_length
-            )
-        else:
-            return super().generate_profile(number_of_ballots, by_bloc)
-
-    def _indices_to_ballots(self, list_of_indices, max_length: int):
-        """
-        Takes in a list of indices, whose values are between 0 and
-            {num_cands}!
-        args:
-            list_of_indices: list of ints, the collection of indices
-                to convert to ballots
-            max_length: maximum ballot length allowed
-        Returns a list of rankings as tuples
-        """
-        ballots_as_cand_ind = [
-            self._index_to_lexicographic_ballot(
-                int(ind), len(self.candidates), max_length
-            )
-            for ind in list_of_indices
-        ]
-        return [tuple(self.candidates[i] for i in inds) for inds in ballots_as_cand_ind]
+        return self._generate_profile_optimized(
+            number_of_ballots, max_ballot_length
+        )
 
     def _generate_profile_optimized(
         self, num_ballots: int, max_ballot_length: int
@@ -783,8 +693,25 @@ class ImpartialAnonymousCulture(BallotSimplex):
 
         # TODO: Double check possible off by 1 errors here and in `gap_freq`
         ballot_indices = np.cumsum(gap_freq) - 1
-        ballots = self._indices_to_ballots(ballot_indices, max_ballot_length)
-        return self.ballot_pool_to_profile(ballots, self.candidates)
+        ballots_as_cand_ind = [
+            tuple(index_to_lexicographic_ballot(
+                ballot_ind, 
+                num_cands, 
+                max_ballot_length,
+                self._total_ballots,
+                always_use_total_valid_ballots_method=False
+            ))
+            for ballot_ind in ballot_indices
+        ] 
+        ballots_as_counter = Counter(ballots_as_cand_ind)
+        pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
+        pp_df.index.name = "Ballot Index"
+        return PreferenceProfile(
+            df = pp_df, 
+            contains_rankings=True, 
+            max_ranking_length=len(self.candidates),
+            candidates=self.candidates
+        )
 
 
 class short_name_PlackettLuce(BallotGenerator):
