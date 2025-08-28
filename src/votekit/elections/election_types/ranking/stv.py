@@ -58,7 +58,7 @@ class fast_STV:
         self.m = m
         if transfer not in ["fractional", "random"]:
             raise ValueError(
-                "transfer must be a string -- either 'fractional' or 'random'."
+                "Transfer method must be either 'fractional' or 'random'."
             )
         self.transfer = transfer
         self.quota = quota
