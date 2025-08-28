@@ -28,7 +28,7 @@ class fast_STV:
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
-        transfer (str, optional): Transfer method to be used. Accepts 'fractional' and 'random'.
+        transfer (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
