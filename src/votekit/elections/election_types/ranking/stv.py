@@ -71,7 +71,7 @@ class fast_STV:
 
         self.candidates = list(
             profile.candidates
-        )  # canonical ordering! don't ever touch this list again
+        )  
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
         self._winners, self._tally_record, self._play_by_play, self._tiebreak_record = (
