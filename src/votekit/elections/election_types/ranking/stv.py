@@ -65,7 +65,6 @@ class fast_STV:
 
         self._ballot_length = profile.max_ranking_length
 
-        self.threshold = 0  # ?
         self.threshold = self._get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
