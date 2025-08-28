@@ -40,7 +40,7 @@ def test_r_rep_score_multi_cand():
 
 
 def test_r_rep_score_error():
-    with pytest.raises(ValueError, match="r \(0\) must be at least 1."):
+    with pytest.raises(ValueError, match="must be at least 1."):
         r_representation_score(PreferenceProfile(), 0, [])
 
 

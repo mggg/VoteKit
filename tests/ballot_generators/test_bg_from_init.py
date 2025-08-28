@@ -284,7 +284,7 @@ def test_AC_completion():
             bloc_voter_prop={"W": 0.7, "C": 0.3},
             cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
         )
-        profile = ac.generate_profile(number_of_ballots=100)
+        ac.generate_profile(number_of_ballots=100)
 
 
 def test_1D_completion():

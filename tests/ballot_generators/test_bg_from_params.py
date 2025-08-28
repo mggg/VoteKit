@@ -3,7 +3,6 @@ import math
 from votekit.ballot_generator import (
     name_PlackettLuce,
     name_BradleyTerry,
-    AlternatingCrossover,
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,

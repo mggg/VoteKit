@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, Literal
+from typing import Sequence, Optional, Literal, Union
 from itertools import permutations
 import math
 import random
@@ -6,6 +6,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile, ProfileError
 import pandas as pd
 import numpy as np
+from numpy.typing import NDArray
 
 COLOR_LIST = [
     "#0099cd",
@@ -188,7 +189,9 @@ def _score_dict_from_rankings_df_no_ties(
     flat_arr = arr.ravel()
 
     # Slick way of converting frozensets to integer codes:
-    codes_flat = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(np.int64)
+    codes_flat: NDArray[np.int64] = pd.Categorical(
+        flat_arr, categories=all_frznst
+    ).codes.astype(np.int64)
 
     # Take care of error codes (-1)
     if (codes_flat == -1).any():
@@ -416,7 +419,11 @@ def tiebreak_set(
     Returns:
         tuple[frozenset[str],...]: tiebroken ranking
     """
-    if tiebreak == "random":
+    if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
+        sorted_cands = sorted([c for c_set in r_set for c in c_set])
+        new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
+
+    elif tiebreak == "random":
         new_ranking = tuple(
             frozenset({c}) for c in random.sample(list(r_set), k=len(r_set))
         )
@@ -524,7 +531,7 @@ def score_dict_to_ranking(
 
 
 def elect_cands_from_set_ranking(
-    ranking: tuple[frozenset[str], ...],
+    ranking: Sequence[Union[frozenset[str], set[str]]],
     m: int,
     profile: Optional[PreferenceProfile] = None,
     tiebreak: Optional[str] = None,
@@ -557,42 +564,45 @@ def elect_cands_from_set_ranking(
     """
     if m < 1:
         raise ValueError("m must be strictly positive")
-
-    # if there are more seats than candidates
     if m > len([c for s in ranking for c in s]):
         raise ValueError("m must be no more than the number of candidates.")
 
+    ranking_fs: tuple[frozenset[str], ...] = tuple(
+        s if isinstance(s, frozenset) else frozenset(s) for s in ranking
+    )
+
     num_elected = 0
-    elected = []
+    elected: list[frozenset[str]] = []
     i = 0
-    tiebreak_ranking = None
+    tiebreak_ranking: Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]] = None
 
     while num_elected < m:
-        elected.append(ranking[i])
-        num_elected += len(ranking[i])
+        elected.append(ranking_fs[i])
+        num_elected += len(ranking_fs[i])
         if num_elected > m:
             if tiebreak is None:
                 raise ValueError(
                     "Cannot elect correct number of candidates without breaking ties."
                 )
-            else:
-                elected.pop(-1)
-                num_elected -= len(ranking[i])
-                tiebroken_ranking = tiebreak_set(ranking[i], profile, tiebreak)
-                elected += tiebroken_ranking[: (m - num_elected)]
-                remaining = list(tiebroken_ranking[(m - num_elected) :])
-                if i < len(ranking):
-                    remaining += list(ranking[(i + 1) :])
+            # back out the overfill
+            elected.pop()
+            num_elected -= len(ranking_fs[i])
 
-                return (
-                    tuple(elected),
-                    tuple(remaining),
-                    (ranking[i], tiebroken_ranking),
-                )
+            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
+            elected += tiebroken[: (m - num_elected)]
 
+            remaining: list[frozenset[str]] = list(tiebroken[(m - num_elected) :])
+            if i < len(ranking_fs):
+                remaining += list(ranking_fs[(i + 1) :])
+
+            return (
+                tuple(elected),
+                tuple(remaining),
+                (ranking_fs[i], tiebroken),
+            )
         i += 1
 
-    return (tuple(elected), ranking[i:], tiebreak_ranking)
+    return (tuple(elected), ranking_fs[i:], tiebreak_ranking)
 
 
 def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:

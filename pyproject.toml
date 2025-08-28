@@ -1,6 +1,6 @@
 [project]
 name = "votekit"
-version = "3.2.2"
+version = "3.3.0"
 description = "A Swiss army knife for computational social choice research."
 authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
@@ -53,9 +53,11 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 python_version = "3.13"
+mypy_path = "src"
+namespace_packages = true
 
 [[tool.mypy.overrides]]
-module = ["apportionment", "apportionment.*"]
+module = ["apportionment", "apportionment.*", "joblib", "joblib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

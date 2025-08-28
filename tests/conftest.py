@@ -4,12 +4,11 @@ import itertools
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pytest
 
 
 # NOTE: Lock down the rendering for snapshot tests
 @pytest.fixture(autouse=True)
-def _stable_matplotlib_rc():
+def stable_matplotlib_rc():
     mpl.rcParams.update(
         {
             "figure.dpi": 100,

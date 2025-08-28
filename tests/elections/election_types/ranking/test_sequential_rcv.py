@@ -98,14 +98,18 @@ states = [
     ),
     ElectionState(
         round_number=2,
-        remaining=({"Cake"}, {"Burger", "Orange"}, {"Chicken"}, {"Chocolate"}),
-        elected=({"Strawberry"},),
+        remaining=tuple(
+            map(frozenset, ({"Cake"}, {"Burger", "Orange"}, {"Chicken"}, {"Chocolate"}))
+        ),
+        elected=tuple(map(frozenset, ({"Strawberry"},))),
         scores={"Burger": 4, "Orange": 4, "Cake": 11, "Chicken": 3, "Chocolate": 1},
     ),
     ElectionState(
         round_number=3,
-        remaining=({"Burger", "Orange", "Chocolate"}, {"Chicken"}),
-        elected=({"Cake"},),
+        remaining=tuple(
+            map(frozenset, ({"Burger", "Orange", "Chocolate"}, {"Chicken"}))
+        ),
+        elected=(frozenset({"Cake"}),),
         scores={"Burger": 4, "Orange": 4, "Chicken": 3, "Chocolate": 4},
     ),
 ]

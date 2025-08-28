@@ -14,9 +14,10 @@ class TestElection(Election):
     """
 
     def __init__(self, profile: PreferenceProfile, sort_high_low: bool = True):
-        def score(profile):
+        def score(profile: PreferenceProfile) -> dict:
             score_dict = {c: 0 for c in profile.candidates}
             for ballot in profile.ballots:
+                assert ballot.ranking is not None
                 for s in ballot.ranking:
                     for c in s:
                         score_dict[c] += "ABCDEF".index(c)
@@ -55,11 +56,13 @@ class TestElection(Election):
         new_profile = PreferenceProfile(ballots=profile.ballots[1:])
 
         if store_states:
+            assert profile.ballots[0].ranking is not None
             elected = list(profile.ballots[0].ranking[0])[0]
             eliminated = list(profile.ballots[0].ranking[1])[0]
             remaining = list(profile.candidates)
             remaining.remove(elected)
             remaining.remove(eliminated)
+            assert self.score_function is not None
             scores = self.score_function(new_profile)
 
             new_state = ElectionState(

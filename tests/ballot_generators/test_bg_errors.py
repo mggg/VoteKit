@@ -6,7 +6,6 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     Spatial,
     ClusteredSpatial,
-    name_BradleyTerry,
 )
 
 
