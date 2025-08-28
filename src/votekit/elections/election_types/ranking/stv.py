@@ -31,7 +31,7 @@ class fast_STV:
         transfer (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
         quota (str): Formula to calculate quota. Accepts "droop" or "hare". Defaults to "droop".
             Defaults to "droop".
-        simultaneous (bool, optional): True if all candidates who cross threshold in a round are
+        simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
             who crosses the threshold is elected in a round. Defaults to True.
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
