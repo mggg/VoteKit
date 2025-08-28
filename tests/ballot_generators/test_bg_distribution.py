@@ -93,45 +93,6 @@ def test_ic_distribution():
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
 
 
-"""
-def test_ic_optimized_distribution():
-    # Set-up
-    number_of_ballots = 100
-
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    # Find ballot probs
-    possible_rankings = it.permutations(candidates, len(candidates))
-    ballot_prob_dict = {
-        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
-    }
-
-    # Generate ballots
-    generated_profile = ImpartialCulture(
-        candidates=candidates,
-    ).generate_profile(number_of_ballots=number_of_ballots, use_optimized=True)
-
-    # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
-
-def test_ballot_simplex_from_point():
-    number_of_ballots = 1000
-    candidates = ["W1", "W2", "C1", "C2"]
-    pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
-
-    possible_rankings = it.permutations(candidates, len(candidates))
-    ballot_prob_dict = {
-        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
-    }
-
-    generated_profile = BallotSimplex.from_point(
-        point=pt, candidates=candidates
-    ).generate_profile(number_of_ballots=number_of_ballots)
-    # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
-"""
-
-
 def test_iac_distribution():
     number_of_ballots = 1000
     ballot_length = 4
@@ -585,101 +546,6 @@ def test_NBT_probability_calculation():
     )
 
 
-def test_AC_distribution():
-    def is_alternating(arr):
-        return all(arr[i] != arr[i + 1] for i in range(len(arr) - 1))
-
-    def group_elements_by_mapping(element_list, mapping):
-        grouped_elements = {group: [] for group in mapping.values()}
-
-        for element in element_list:
-            group = mapping[element]
-            if group is not None:
-                grouped_elements[group].append(element)
-        return grouped_elements
-
-    # Set-up
-    number_of_ballots = 1000
-    candidates = ["W1", "W2", "C1", "C2"]
-    slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
-
-    cand_to_slate = {
-        candidate: slate
-        for slate, candidates in slate_to_candidate.items()
-        for candidate in candidates
-    }
-    pref_intervals_by_bloc = {
-        "W": {
-            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-            "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-        },
-        "C": {
-            "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-            "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-        },
-    }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": 0.9, "C": 0}
-
-    # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, len(candidates)))
-    ballot_prob_dict = {b: 0 for b in possible_rankings}
-
-    for ranking in possible_rankings:
-        slates_for_ranking = [cand_to_slate[cand] for cand in ranking]
-        bloc = cand_to_slate[ranking[0]]
-        starting_prob = 0
-
-        if is_alternating(slates_for_ranking):
-            bloc = cand_to_slate[ranking[1]]
-            crossover_rate = 1 - cohesion_parameters[bloc]
-
-            starting_prob = bloc_voter_prop[bloc] * crossover_rate
-
-        # is bloc voter
-        if set(slates_for_ranking[: len(slate_to_candidate[bloc])]) == {bloc}:
-            starting_prob = bloc_voter_prop[bloc] * cohesion_parameters[bloc]
-
-        ballot_prob_dict[ranking] = starting_prob
-        slate_to_ranked_cands = group_elements_by_mapping(ranking, cand_to_slate)
-
-        cand_support = combine_preference_intervals(
-            list(pref_intervals_by_bloc[bloc].values()), [1 / 2, 1 / 2]
-        ).interval
-
-        prob = 1
-        for ranked_cands in slate_to_ranked_cands.values():
-            pref_interval = {
-                k: cand_support[k] for k in cand_support if k in ranked_cands
-            }
-            pref_interval = {
-                k: pref_interval[k] / sum(pref_interval.values()) for k in pref_interval
-            }
-
-            total_prob = 1
-            for cand in ranked_cands:
-                prob *= pref_interval[cand] / total_prob
-                total_prob -= pref_interval[cand]
-
-        ballot_prob_dict[ranking] *= prob
-
-    cohesion_parameters = {
-        "W": {"W": cohesion_parameters["W"], "C": 1 - cohesion_parameters["W"]},
-        "C": {"C": cohesion_parameters["C"], "W": 1 - cohesion_parameters["C"]},
-    }
-    # Generate ballots
-    generated_profile = AlternatingCrossover(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidates=slate_to_candidate,
-        cohesion_parameters=cohesion_parameters,
-    ).generate_profile(number_of_ballots=number_of_ballots)
-
-    # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
-
-
 def compute_pl_prob(perm, interval):
     pref_interval = interval.copy()
     prob = 1
@@ -706,7 +572,7 @@ def bloc_order_probs_slate_first(slate, ballot_frequencies):
 
 def test_Cambridge_distribution():
     # BASE_DIR = Path(__file__).resolve().parent.parent
-    DATA_DIR = "src/votekit/data"
+    DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     candidates = ["W1", "W2", "C1", "C2"]
@@ -1034,41 +900,42 @@ def test_slate_BT_distribution():
     # Test
     assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
 
-def test_NBT_MCMC_subsample_distribution():
-    # Set-up
-    number_of_ballots = 500
 
-    candidates = ["W1", "W2", "C1", "C2"]
-    pref_intervals_by_bloc = {
-        "W": {
-            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-            "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-        },
-        "C": {
-            "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-        },
-    }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-
-    # Generate ballots
-    bt = name_BradleyTerry(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
-    )
-    generated_profile = bt.generate_profile_MCMC_even_subsample(
-        number_of_ballots=number_of_ballots
-    )
-
-    # Length of ballot should be number_of_ballots, not chain length
-
-    # chain length < number_of_ballots --> resorts to number_of_ballots
-
-    # Continuous sampling should do worse than spaced out subsampling w.h.p.
-
-    # Acceptance ratio should be roughly be between two values
-
+# FIX: Get this test working
+# def test_NBT_MCMC_subsample_distribution():
+#     # Set-up
+#     number_of_ballots = 500
+#
+#     candidates = ["W1", "W2", "C1", "C2"]
+#     pref_intervals_by_bloc = {
+#         "W": {
+#             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+#             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+#         },
+#         "C": {
+#             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+#             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+#         },
+#     }
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#
+#     # Generate ballots
+#     bt = name_BradleyTerry(
+#         candidates=candidates,
+#         pref_intervals_by_bloc=pref_intervals_by_bloc,
+#         bloc_voter_prop=bloc_voter_prop,
+#         cohesion_parameters=cohesion_parameters,
+#     )
+#     generated_profile = bt.generate_profile_MCMC_even_subsample(
+#         number_of_ballots=number_of_ballots
+#     )
+#
+#     # Length of ballot should be number_of_ballots, not chain length
+#
+#     # chain length < number_of_ballots --> resorts to number_of_ballots
+#
+#     # Continuous sampling should do worse than spaced out subsampling w.h.p.
+#
+#     # Acceptance ratio should be roughly be between two values

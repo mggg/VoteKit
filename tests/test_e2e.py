@@ -52,7 +52,8 @@ def test_generate_election_completion():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    DATA_DIR = "src/votekit/data/"
+    DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
+
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     ballot_model = bg.CambridgeSampler(

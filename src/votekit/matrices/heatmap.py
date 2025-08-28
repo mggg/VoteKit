@@ -293,14 +293,14 @@ def matrix_heatmap(
 
     vmin = np.nanmin(matrix)
     vmax = np.nanmax(matrix)
-    norm = (
+    norm: Union[TwoSlopeNorm, str, None] = (
         TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax) if (vmin < 0 < vmax) else None
     )
 
     if cell_color_map is None:
         if np.nanmin(matrix) < 0:
             cell_color_map = sns.color_palette("PRGn", as_cmap=True)
-            norm: Union[TwoSlopeNorm, str] = TwoSlopeNorm(
+            norm = TwoSlopeNorm(
                 vmin=np.nanmin(matrix), vcenter=0.0, vmax=np.nanmax(matrix)
             )
         else:
