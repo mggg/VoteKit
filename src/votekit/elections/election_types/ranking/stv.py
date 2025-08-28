@@ -87,7 +87,7 @@ class fast_STV:
 
     def _stv_validate_profile(
         self, profile: PreferenceProfile
-    ):  # this might be adding overhead in general (~100ms)? Maybe add a validate_profile = False param in init
+    ): 
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
