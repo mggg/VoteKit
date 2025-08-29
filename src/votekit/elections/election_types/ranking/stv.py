@@ -49,7 +49,7 @@ class fast_STV:
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
     ):
-        self._stv_validate_profile(profile)
+        #self._stv_validate_profile(profile)
 
         if m <= 0:
             raise ValueError("m must be positive.")
@@ -81,27 +81,6 @@ class fast_STV:
         )
         self.election_states = self._election_states()
 
-    def _stv_validate_profile(self, profile: PreferenceProfile):
-        """
-        Validate that each ballot has a ranking, and that there are no ties in ballots.
-        """
-        ranking_rows = [
-            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
-        try:
-            np_arr = profile.df[ranking_rows].to_numpy()
-            weight_col = profile.df["Weight"]
-        except KeyError:
-            raise TypeError("Ballots must have rankings.")
-
-        tilde = frozenset({"~"})
-        for idx, row in enumerate(np_arr):
-            if any(len(s) > 1 for s in row):
-                raise TypeError(
-                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
-                    "contains a tied ranking."
-                )
-
     def _get_threshold(self, total_ballot_wt: float) -> int:
         """
         Calculates threshold required for election.
@@ -123,40 +102,39 @@ class fast_STV:
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
         """
         df = profile.df
-        candidate_to_index = {
-            name: i for i, name in enumerate(self.candidates)
-        }  # canonical ordering or riot
-        ranking_columns = sorted(
-            [col for col in df.columns if col.startswith("Ranking")]
-        )
+        candidate_to_index = {name: i for i, name in enumerate(self.candidates)}
+        candidate_to_index["~"] = -127 
+
+        ranking_columns = [col for col in df.columns if col.startswith("Ranking")]
 
         num_rows = len(df)
         num_cols = len(ranking_columns)
 
-        # +1 column for padding -- adds some data overhead, but this might not be avoidable? you've gotta communicate ballot length somehow
-        ballot_matrix = np.full(
-            (num_rows, num_cols + 1), fill_value=-127, dtype=np.int8
-        )
-        wt_vec = np.empty(num_rows, dtype=np.float64)
+        # Pull the ranking subframe into a 2D object array
+        cells = df[ranking_columns].to_numpy()  # dtype=object, shape (num_rows, num_cols)
 
-        for col_idx, col in enumerate(ranking_columns):
-            col_values = df[col].to_numpy()
-            for row_idx, frozenset_entry in enumerate(col_values):
-                val = next(
-                    iter(frozenset_entry)
-                ).strip()  # unwrap the frozenset; I hecking love frozensets
-                if val == "~":
-                    ballot_matrix[row_idx, col_idx] = (
-                        -127
-                    )  # possible TODO: improve this iteration not to look at ballot entries beyond the first empty one -- maybe by removing rows from the df as we go?
-                else:
-                    try:
-                        ballot_matrix[row_idx, col_idx] = candidate_to_index[val]
-                    except KeyError:
-                        raise ValueError(f"Candidate '{val}' not in candidate list.")
+        # 1) Pre-check for ties (frozensets with more than one element)
+        lens = np.frompyfunc(len, 1, 1)(cells).astype(np.int16)  # elementwise len()
+        if np.any(lens > 1):
+            raise TypeError("Ballots must have rankings.")
 
-        wt_vec[:] = df["Weight"].astype(np.float64).to_numpy()
+        vals = np.frompyfunc(lambda fs: next(iter(fs)), 1, 1)(cells)
+
+        # 3) map strings -> codes with default -127
+        mapped = np.frompyfunc(lambda s: candidate_to_index.get(s, -127), 1, 1)(vals).astype(np.int8)
+
+        # 4) build padded ballot matrix
+        ballot_matrix = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
+        ballot_matrix[:, :num_cols] = mapped
+
+        # 5) weights + first-preference vector
+        wt_vec = df["Weight"].astype(np.float64).to_numpy()
         fpv_vec = ballot_matrix[:, 0].copy()
+
+        empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
+        if empty_rows.size:
+            r0 = empty_rows[0]
+            raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
 
