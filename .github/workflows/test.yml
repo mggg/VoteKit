@@ -1,36 +1,81 @@
-name: Test & Lint
+name: Lint & Test
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  push: # all branches
+  pull_request: # all branches
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  lint:
+    name: Lint (black, ruff, mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.3
+
+      - name: Cache Poetry venv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-3.13-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-poetry-3.13-
+
+      - name: Install deps
+        run: poetry install --no-interaction
+
+      - name: Black (check)
+        run: poetry run black src tests --check --diff .
+
+      - name: Ruff
+        run: poetry run ruff check src tests --output-format=github .
+
+      - name: mypy
+        run: poetry run mypy src tests
+
+  tests:
+    name: Tests
+    # only run on PRs or on pushes to main
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.13"]
 
     steps:
-    # Python & dependency installation
-    - uses: actions/checkout@v2
-    - name: setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: 2.1.3
-    - name: install dependencies
-      run: poetry install
-    - name: lint with ruff
-      run: poetry run ruff check src tests
-    - name: lint with mypy
-      run: poetry run mypy src
-    - name: pytest
-      run: poetry run pytest --runslow
-      
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.3
+
+      - name: Cache Poetry venv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-poetry-${{ matrix.python-version }}-
+
+      - name: Install deps
+        run: poetry install --no-interaction
+
+      - name: pytest
+        run: poetry run pytest --runslow
