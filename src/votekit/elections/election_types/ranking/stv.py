@@ -273,7 +273,7 @@ class fast_STV:
             while np.any(tallies >= quota):
                 winners = find_winners(self)
                 update_because_winner(self)
-                play_by_play.append((turn, winners, np.array(wt_vec), 1))
+                play_by_play.append((turn, winners, np.array(wt_vec), 'election'))
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 tally_record.append(tallies.copy())
@@ -282,7 +282,7 @@ class fast_STV:
             if len(gone_list) - len(winner_list) == ncands - m:
                 still_standing = [i for i in range(ncands) if i not in gone_list]
                 winner_list += still_standing
-                play_by_play.append((turn, still_standing, [], 2))
+                play_by_play.append((turn, still_standing, [], 'default'))
                 turn += 1
                 tally_record.append(
                     np.zeros(ncands, dtype=np.float64)
@@ -295,7 +295,7 @@ class fast_STV:
                     while ballot_matrix[i, pos_vec[i]] in gone_list:
                         pos_vec[i] += 1
                     fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-            play_by_play.append((turn, [L], [], 0))
+            play_by_play.append((turn, [L], [], 'elimination'))
             turn += 1
         return winner_list, tally_record, play_by_play, tiebreak_record
 
@@ -357,12 +357,12 @@ class fast_STV:
         list_of_winners = [
             [c]
             for _, cand_list, _, turn_type in self._play_by_play[:round_number]
-            if turn_type == 1
+            if turn_type == 'election'
             for c in cand_list
         ] + [
             cand_list
             for _, cand_list, _, turn_type in self._play_by_play[:round_number]
-            if turn_type == 2
+            if turn_type == 'default'
         ]
         return tuple(
             frozenset([self.candidates[c] for c in w_list])
@@ -394,7 +394,7 @@ class fast_STV:
         list_of_losers = [
             cand_list
             for _, cand_list, _, turn_type in self._play_by_play[round_number - 1 :: -1]
-            if turn_type == 0
+            if turn_type == 'elimination'
         ]
         return tuple(
             frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers
@@ -453,14 +453,14 @@ class fast_STV:
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
         for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
-            if turn_type == 0:  # loser
+            if turn_type == 'elimination':  # loser
                 status_df.at[self.candidates[birthday_list[0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[birthday_list[0]], "Round"] = turn_id + 1
-            elif turn_type == 1:  # winner
+            elif turn_type == 'election':  # winner
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
-            elif turn_type == 2:  # winner by default
+            elif turn_type == 'default':  # winner by default
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
@@ -507,7 +507,7 @@ class fast_STV:
                 }
             else:
                 formatted_tiebreak = None
-            if play[-1] == 0:
+            if play[-1] == 'elimination':
                 if formatted_tiebreak is None:
                     e_states.append(
                         ElectionState(
@@ -539,7 +539,7 @@ class fast_STV:
                             },
                         )
                     )
-            elif play[-1] == 1:
+            elif play[-1] == 'election':
                 if formatted_tiebreak is None:
                     e_states.append(
                         ElectionState(
@@ -571,7 +571,7 @@ class fast_STV:
                             },
                         )
                     )
-            elif play[-1] == 2:
+            elif play[-1] == 'default':
                 e_states.append(
                     ElectionState(
                         round_number=i + 1,
@@ -616,7 +616,7 @@ class fast_STV:
         if self.m > 1:
             # find the last entry in play_by_play[:round_number] with a 1 in the last position (there may be no such entry)
             for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
-                if self._play_by_play[i][-1] == 1:
+                if self._play_by_play[i][-1] == 'election':
                     wt_vec = self._play_by_play[i][2]
                     break
         # print(wt_vec)
