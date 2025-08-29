@@ -178,13 +178,13 @@ class fast_STV:
         gone_list = []
         tiebreak_record = dict()
         pos_vec = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
+
+        def make_tallies(fpv_vec, wt_vec, ncands):
+            return np.bincount(fpv_vec[fpv_vec != -127], weights=wt_vec[fpv_vec != -127], minlength=ncands)
+
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
-            tallies = np.bincount(
-                fpv_vec[fpv_vec != -127],
-                weights=wt_vec[fpv_vec != -127],
-                minlength=ncands,
-            )  # don't count -127 entries from fpv_vec
+            tallies = make_tallies(fpv_vec, wt_vec, ncands)
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
                 if self.simultaneous:
@@ -281,11 +281,7 @@ class fast_STV:
                                 wt_vec[i] = new_weights[i]
                     play_by_play.append((turn, [w], np.array(wt_vec), 1))
                     turn += 1
-                tallies = np.bincount(
-                    fpv_vec[fpv_vec != -127],
-                    weights=wt_vec[fpv_vec != -127],
-                    minlength=ncands,
-                )
+                tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 tally_record.append(tallies.copy())
             if len(winner_list) == m:
                 return winner_list, tally_record, play_by_play, tiebreak_record
