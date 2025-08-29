@@ -37,7 +37,7 @@ jobs:
       - name: Cache Poetry venv
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry/virtualenvs
+          path: .venv
           key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-${{ matrix.python-version }}-
