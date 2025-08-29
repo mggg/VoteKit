@@ -30,7 +30,8 @@ jobs:
           key: ${{ runner.os }}-poetry-3.13-${{ hashFiles('**/poetry.lock') }}
           restore-keys: ${{ runner.os }}-poetry-3.13-
 
-      - run: poetry install --no-interaction --sync
+      - run: poetry install --no-interaction
+      - run: poetry sync
 
       - name: Black (check)
         run: poetry run black --check --diff src tests

@@ -43,7 +43,8 @@ jobs:
             ${{ runner.os }}-poetry-${{ matrix.python-version }}-
 
       - name: Install deps
-        run: poetry install --no-interaction --sync
+        run: poetry install --no-interaction
+        run: poetry sync
 
       - name: pytest
         run: poetry run pytest --runslow
