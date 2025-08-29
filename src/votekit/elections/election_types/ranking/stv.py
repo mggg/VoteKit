@@ -57,9 +57,9 @@ class fast_STV:
             raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
         if transfer not in ["fractional", "random"]:
-            raise ValueError(
-                "Transfer method must be either 'fractional' or 'random'."
-            )
+            raise ValueError("Transfer method must be either 'fractional' or 'random'.")
+        if quota not in ["droop", "hare"]:
+            raise ValueError("Misspelled or unknown quota type.")
         self.transfer = transfer
         self.quota = quota
 
@@ -69,9 +69,7 @@ class fast_STV:
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
 
-        self.candidates = list(
-            profile.candidates
-        )  
+        self.candidates = list(profile.candidates)
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
         self._winners, self._tally_record, self._play_by_play, self._tiebreak_record = (
@@ -85,9 +83,7 @@ class fast_STV:
         )
         self.election_states = self._election_states()
 
-    def _stv_validate_profile(
-        self, profile: PreferenceProfile
-    ): 
+    def _stv_validate_profile(self, profile: PreferenceProfile):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
@@ -119,10 +115,10 @@ class fast_STV:
         Returns:
             int: Value of the threshold.
         """
-            if self.quota == "droop":
-                return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
-            elif self.quota == "hare":
-                return int(total_ballot_wt / self.m)  # takes floor
+        if self.quota == "droop":
+            return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
+        elif self.quota == "hare":
+            return int(total_ballot_wt / self.m)  # takes floor
 
     def _convert_df(self, profile: PreferenceProfile):
         """
@@ -327,9 +323,7 @@ class fast_STV:
             turn += 1
         return winner_list, tally_record, play_by_play, tiebreak_record
 
-    def get_remaining(
-        self, round_number: int = -1
-    ) -> tuple[frozenset]:  
+    def get_remaining(self, round_number: int = -1) -> tuple[frozenset]:
         """
         Fetch the remaining candidates after the given round.
 
