@@ -458,7 +458,7 @@ class fast_STV:
         DataFrame is sorted by current ranking.
 
         Args:
-            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+            round_number (int): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
