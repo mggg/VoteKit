@@ -73,7 +73,7 @@ class fast_STV:
         self._winners, self._tally_record, self._play_by_play, self._tiebreak_record = (
             self._run_STV(
                 self._ballot_matrix,
-                np.array(self._wt_vec),
+                self._wt_vec.copy(), 
                 self._fpv_vec,
                 m,
                 len(self.candidates),
@@ -118,6 +118,7 @@ class fast_STV:
         if np.any(lens > 1):
             raise TypeError("Ballots must have rankings.")
 
+        # 2) extract the single element from each frozenset (we know len==1 now)
         vals = np.frompyfunc(lambda fs: next(iter(fs)), 1, 1)(cells)
 
         # 3) map strings -> codes with default -127
