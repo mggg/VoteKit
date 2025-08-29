@@ -136,6 +136,45 @@ class fast_STV:
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
+    
+    def __update_because_winner(self, winners, tallies, mutated_fpv_vec, mutated_wt_vec, mutated_ballot_matrix, mutated_pos_vec, mutated_gone_list):
+            if self.transfer == "fractional":
+                tau_values = {w: (tallies[w] - self.threshold) / tallies[w] for w in winners}
+                for i in range(len(mutated_fpv_vec)):
+                    if mutated_fpv_vec[i] in winners:
+                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                            mutated_pos_vec[i] += 1
+                        mutated_wt_vec[i] *= tau_values[int(mutated_fpv_vec[i])]
+                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+            elif self.transfer == "random":
+                new_weights = dict()
+                for w in winners:
+                    transfer_bundle = self._sample_to_transfer(
+                        mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
+                    )
+                    new_weights[w] = np.bincount(
+                        transfer_bundle, minlength=len(mutated_fpv_vec)
+                    )
+                for i in range(len(mutated_fpv_vec)):
+                    if mutated_fpv_vec[i] in winners:
+                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                            mutated_pos_vec[i] += 1
+                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+                        mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
+
+                for w in winners:
+                    transfer_bundle = self._sample_to_transfer(
+                        mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
+                    )
+                    new_weights[w] = np.bincount(
+                        transfer_bundle, minlength=len(mutated_fpv_vec)
+                    )
+                for i in range(len(mutated_fpv_vec)):
+                    if mutated_fpv_vec[i] in winners:
+                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                            mutated_pos_vec[i] += 1
+                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+                        mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
 
     def _run_STV(
         self, ballot_matrix, wt_vec, fpv_vec, m, ncands
@@ -247,7 +286,7 @@ class fast_STV:
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners = find_winners(self)
-                update_because_winner(self)
+                self.__update_because_winner(winners, tallies, fpv_vec, wt_vec, ballot_matrix, pos_vec, gone_list)
                 play_by_play.append((turn, winners, np.array(wt_vec), 'election'))
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
