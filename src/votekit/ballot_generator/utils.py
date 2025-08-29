@@ -1,55 +1,48 @@
 import itertools as it
-import numpy as np
 import random
+import numpy as np
+from typing import Union, Mapping
 
 
 def sample_cohesion_ballot_types(
-    slate_to_non_zero_candidates: dict,
+    slate_to_non_zero_candidates: dict[str, list[str]],
     num_ballots: int,
-    cohesion_parameters_for_bloc: dict,
-):
+    cohesion_parameters_for_bloc: Mapping[str, Union[float, int]],
+) -> list[list[str]]:
     """
-    Used to generate bloc orderings given cohesion parameters.
-
-    Args:
-        slate_to_non_zero_candidates (dict): A mapping of slates to their list of non_zero
-                                            candidates.
-        num_ballots (int): the number of ballots to generate.
-        cohesion_parameters_for_bloc (dict): A mapping of blocs to cohesion parameters.
-                                Note, this is equivalent to one value in the cohesion_parameters
-                                dictionary.
-
-
-    Returns:
-      A list of lists of length `num_ballots`, where each sub-list contains the bloc names in order
-      they appear on that ballot.
+    Returns a list of ballots; each ballot is a list of bloc names (strings)
+    in the order they appear on that ballot.
     """
-    candidates = list(it.chain(*list(slate_to_non_zero_candidates.values())))
-    ballots = [[-1]] * num_ballots
-    # pre-compute coin flips
+    candidates = list(it.chain.from_iterable(slate_to_non_zero_candidates.values()))
+
+    ballots: list[list[str]] = [[] for _ in range(num_ballots)]
+
     coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
 
-    def which_bin(dist_bins, flip):
-        for i, bin in enumerate(dist_bins):
-            if bin < flip <= dist_bins[i + 1]:
+    def which_bin(dist_bins: list[float], flip: float) -> int:
+        for i, left in enumerate(dist_bins[:-1]):
+            if left < flip <= dist_bins[i + 1]:
                 return i
+        return len(dist_bins) - 2
 
     blocs_og, values_og = [list(x) for x in zip(*cohesion_parameters_for_bloc.items())]
 
     for j in range(num_ballots):
-        blocs, values = blocs_og.copy(), values_og.copy()
-        # Pre-calculate distribution_bins
-        distribution_bins = [0] + [sum(values[: i + 1]) for i in range(len(blocs))]
-        ballot_type = [-1] * len(candidates)
+        blocs = blocs_og.copy()
+        values = values_og.copy()
+
+        distribution_bins: list[float] = [0.0] + [
+            sum(values[: i + 1]) for i in range(len(blocs))
+        ]
+        ballot_type: list[str] = [""] * len(candidates)
 
         for i, flip in enumerate(
             coin_flips[j * len(candidates) : (j + 1) * len(candidates)]
         ):
-            bloc_index = which_bin(distribution_bins, flip)
+            bloc_index = which_bin(distribution_bins, float(flip))
             bloc_type = blocs[bloc_index]
             ballot_type[i] = bloc_type
 
-            # Check if adding candidate exhausts a slate of candidates
             if ballot_type.count(bloc_type) == len(
                 slate_to_non_zero_candidates[bloc_type]
             ):
@@ -58,8 +51,7 @@ def sample_cohesion_ballot_types(
                 total_value_sum = sum(values)
 
                 if total_value_sum == 0 and len(values) > 0:
-                    # this indicates that remaining blocs have 0 cohesion with this bloc
-                    # so complete ballot with random permutation of remaining blocs
+                    # remaining blocs have zero cohesion → fill with random permutation
                     remaining_blocs = [
                         b
                         for b in blocs
@@ -69,9 +61,10 @@ def sample_cohesion_ballot_types(
                     ballot_type[i + 1 :] = remaining_blocs
                     break
 
+                # renormalize and recompute bins
                 values = [v / total_value_sum for v in values]
-                distribution_bins = [0] + [
-                    sum(values[: i + 1]) for i in range(len(blocs))
+                distribution_bins = [0.0] + [
+                    sum(values[: k + 1]) for k in range(len(blocs))
                 ]
 
         ballots[j] = ballot_type

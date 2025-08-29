@@ -1,13 +1,15 @@
 import os
 import csv
+from pathlib import Path
 from pandas.errors import EmptyDataError, DataError
+from typing import Union
 
 from ..pref_profile import PreferenceProfile
 from ..ballot import Ballot
 
 
 def load_scottish(
-    fpath: str,
+    fpath: Union[str, os.PathLike, Path],
 ) -> tuple[PreferenceProfile, int, list[str], dict[str, str], str]:
     """
     Given a file path, loads cast vote record from format used for Scottish election data
@@ -28,6 +30,8 @@ def load_scottish(
             names, a dictionary mapping candidates to their party, and the ward. The
             candidate names are also stored in the PreferenceProfile object.
     """
+
+    fpath = str(fpath)
 
     if not os.path.isfile(fpath):
         raise FileNotFoundError(f"File with path {fpath} cannot be found")

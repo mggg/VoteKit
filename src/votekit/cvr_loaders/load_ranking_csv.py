@@ -1,5 +1,7 @@
 import pandas as pd
-from typing import Optional
+from typing import Optional, Union
+import os
+from pathlib import Path
 import numpy as np
 from ..pref_profile import PreferenceProfile
 import warnings
@@ -150,24 +152,31 @@ def __format_ranking_cols(
         pd.DataFrame: The mutated dataframe.
 
     """
+    mutated_df[rank_cols] = mutated_df[rank_cols].astype(
+        object
+    )  # ensure object dtype for sets
 
-    for row_idx, row in mutated_df.iterrows():
-        for rank_idx, (rank_col, candidate) in enumerate(row[rank_cols].items()):
+    def _format_row(row: pd.Series) -> pd.Series:
+        vals = row.to_list()
+        out: list[frozenset[str]] = []
+        for i, candidate in enumerate(vals):
             if isinstance(candidate, str):
-                mutated_df.at[row_idx, rank_col] = frozenset({candidate})
-                continue
+                out.append(frozenset({candidate}))
+            elif any(isinstance(c, str) for c in vals[i + 1 :]):
+                out.append(frozenset())  # empty set
+            else:
+                out.append(frozenset({"~"}))  # explicit tilde marker
+        return pd.Series(out, index=row.index)
 
-            if any(isinstance(c, str) for c in row[rank_cols][(rank_idx + 1) :]):
-                mutated_df.at[row_idx, rank_col] = frozenset()
-                continue
-
-            mutated_df.at[row_idx, rank_col] = frozenset("~")
-
+    mutated_df[rank_cols] = mutated_df[rank_cols].apply(_format_row, axis=1)
     return mutated_df
 
 
 def __format_df(
-    mutated_df: pd.DataFrame, rank_cols: list[int], id_col: int, weight_col: int
+    mutated_df: pd.DataFrame,
+    rank_cols: list[int],
+    id_col: Optional[int],
+    weight_col: Optional[int],
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Formats the column names and datatypes.
@@ -258,7 +267,7 @@ def __find_and_validate_cands(
 
 
 def load_ranking_csv(
-    path_or_url: str,
+    path_or_url: Union[str, os.PathLike, Path],
     rank_cols: list[int],
     *,
     weight_col: Optional[int] = None,
@@ -309,6 +318,8 @@ def load_ranking_csv(
     Returns:
         PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
     """
+    path_or_url = str(path_or_url)
+
     if header_row is not None and header_row < 0:
         raise ValueError(f"Header row {header_row} must be non-negative.")
 

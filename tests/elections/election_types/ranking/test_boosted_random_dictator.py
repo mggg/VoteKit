@@ -42,7 +42,7 @@ def test_boosted_random_dictator_simple():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     # check to make sure that the fraction of wins matches the true probability
     assert np.allclose(

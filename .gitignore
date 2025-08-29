@@ -17,3 +17,7 @@ vote2
 .envrc
 dev_files
 __pycache__
+
+tests/data/csv/test_csv_pp_mixed_no_voter_set.csv
+tests/data/csv/test_csv_pp_mixed.csv
+tests/data/csv/test_csv_pp_rankings.csv
