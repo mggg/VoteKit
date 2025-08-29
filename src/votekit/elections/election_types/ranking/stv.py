@@ -58,8 +58,6 @@ class fast_STV:
         self.m = m
         if transfer not in ["fractional", "random"]:
             raise ValueError("Transfer method must be either 'fractional' or 'random'.")
-        if quota not in ["droop", "hare"]:
-            raise ValueError("Misspelled or unknown quota type.")
         self.transfer = transfer
         self.quota = quota
 
@@ -119,6 +117,8 @@ class fast_STV:
             return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
         elif self.quota == "hare":
             return int(total_ballot_wt / self.m)  # takes floor
+        else:
+            raise ValueError("Misspelled or unknown quota type.")
 
     def _convert_df(self, profile: PreferenceProfile):
         """
