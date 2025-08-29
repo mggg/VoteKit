@@ -207,7 +207,25 @@ class fast_STV:
                         fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
                         wt_vec[i] = new_weights[fpv_vec[i]][i]
 
-        def find_winner_list(self):
+        def find_loser(self):
+            masked_tallies = np.where(
+                np.isin(np.arange(len(tallies)), gone_list), np.inf, tallies
+            )  # used to be np.where(tallies > 0, tallies, np.inf)
+            if (
+                np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
+            ):  # do something funny if masked_tallies attains the minimum twice
+                # count FPV votes of each I guess
+                potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
+                L = potential_losers[
+                    np.argmin(tally_record[0][potential_losers])
+                ]  # it's possible this is tied too. oh well
+                tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
+            else:
+                L = np.argmin(masked_tallies)
+            gone_list.append(L)
+            return L
+
+        def find_winners(self):
             if self.simultaneous:
                 winners = np.where(tallies >= self.threshold)[0]
                 winners = winners[np.argsort(-tallies[winners])]
@@ -252,7 +270,7 @@ class fast_STV:
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
-                winners = find_winner_list(self)
+                winners = find_winners(self)
                 update_because_winner(self)
                 play_by_play.append((turn, winners, np.array(wt_vec), 1))
                 turn += 1
@@ -269,22 +287,8 @@ class fast_STV:
                     np.zeros(ncands, dtype=np.float64)
                 )  # this is needed for get_remaining to behave nicely
                 return winner_list, tally_record, play_by_play, tiebreak_record
-            # masked tallies ignores indices in gone_list only (potentially leaving in candidates with 0 FPVs if they were not eliminated yet)
-            masked_tallies = np.where(
-                np.isin(np.arange(len(tallies)), gone_list), np.inf, tallies
-            )  # used to be np.where(tallies > 0, tallies, np.inf)
-            if (
-                np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
-            ):  # do something funny if masked_tallies attains the minimum twice
-                # count FPV votes of each I guess
-                potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
-                L = potential_losers[
-                    np.argmin(tally_record[0][potential_losers])
-                ]  # it's possible this is tied too. oh well
-                tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
-            else:
-                L = np.argmin(masked_tallies)
-            gone_list.append(L)
+            L = find_loser(self)
+            #I could throw the below into another closure if it's bothersome -- it's the analogue of update_because_winner
             for i in range(len(fpv_vec)):
                 if fpv_vec[i] == L:
                     while ballot_matrix[i, pos_vec[i]] in gone_list:
