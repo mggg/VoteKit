@@ -36,10 +36,10 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Black (check)
-        run: poetry run black src tests --check --diff .
+        run: poetry run black src tests --check --diff
 
       - name: Ruff
-        run: poetry run ruff check src tests --output-format=github .
+        run: poetry run ruff check --output-format=github src tests
 
       - name: mypy
         run: poetry run mypy src tests
