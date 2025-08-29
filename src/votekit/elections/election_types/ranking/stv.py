@@ -102,36 +102,34 @@ class fast_STV:
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
         """
         df = profile.df
-        candidate_to_index = {name: i for i, name in enumerate(self.candidates)}
-        candidate_to_index["~"] = -127 
+        candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
+        candidate_to_index[frozenset(["~"])] = -127 
 
-        ranking_columns = [col for col in df.columns if col.startswith("Ranking")]
-
+        ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
         num_rows = len(df)
         num_cols = len(ranking_columns)
 
-        # Pull the ranking subframe into a 2D object array
-        cells = df[ranking_columns].to_numpy()  # dtype=object, shape (num_rows, num_cols)
+        # 2D object array of frozensets from the DataFrame
+        cells = df[ranking_columns].to_numpy()
 
-        # 1) Pre-check for ties (frozensets with more than one element)
-        lens = np.frompyfunc(len, 1, 1)(cells).astype(np.int16)  # elementwise len()
-        if np.any(lens > 1):
-            raise TypeError("Ballots must have rankings.")
+        # 1) Convert cells -> codes, raising if entry not in dict
+        def map_cell(cell):
+            try:
+                return candidate_to_index[cell]
+            except KeyError:
+                raise TypeError("Ballots must have rankings.")
 
-        # 2) extract the single element from each frozenset (we know len==1 now)
-        vals = np.frompyfunc(lambda fs: next(iter(fs)), 1, 1)(cells)
+        mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # 3) map strings -> codes with default -127
-        mapped = np.frompyfunc(lambda s: candidate_to_index.get(s, -127), 1, 1)(vals).astype(np.int8)
-
-        # 4) build padded ballot matrix
+        # 2) Build padded ballot matrix
         ballot_matrix = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
-        # 5) weights + first-preference vector
+        # 3) Weights + first-preference vector
         wt_vec = df["Weight"].astype(np.float64).to_numpy()
         fpv_vec = ballot_matrix[:, 0].copy()
 
+        # 4) Reject ballots that have no rankings at all (all -127)
         empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
         if empty_rows.size:
             r0 = empty_rows[0]
