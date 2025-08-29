@@ -4,12 +4,14 @@ import pandas as pd
 from ..ballot import Ballot
 from .utils import convert_row_to_ballot
 import numpy as np
-from typing import Optional, Tuple, Sequence
+from typing import Optional, Tuple, Sequence, Union
 import warnings
 import pickle
 from .profile_error import ProfileError
 from functools import cached_property
 import ast
+from pathlib import Path
+from os import PathLike
 
 
 def _parse_profile_data_from_csv(
@@ -1451,7 +1453,7 @@ class PreferenceProfile:
             writer.writerows(rows)
 
     @classmethod
-    def from_csv(cls, fpath: str) -> PreferenceProfile:
+    def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
         """
         Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
 
@@ -1463,7 +1465,7 @@ class PreferenceProfile:
             ProfileError: If read profile has no rankings or scores.
 
         """
-        with open(fpath, "r") as file:
+        with open(str(fpath), "r") as file:
             reader = csv.reader(file)
             csv_data = list(reader)
 

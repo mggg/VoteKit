@@ -4,8 +4,6 @@ import networkx.algorithms.isomorphism as iso
 from votekit.ballot import Ballot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from votekit.pref_profile import PreferenceProfile
-from votekit.cvr_loaders import load_ranking_csv
-from votekit.cleaning import remove_and_condense
 
 from matplotlib.axes import Axes
 import pytest
