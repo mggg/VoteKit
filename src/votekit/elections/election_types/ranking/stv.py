@@ -124,7 +124,7 @@ class fast_STV:
             elif self.quota == "hare":
                 return int(total_ballot_wt / self.m)  # takes floor
 
-    def _convert_df(self, profile):
+    def _convert_df(self, profile: PreferenceProfile):
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
         """
