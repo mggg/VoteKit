@@ -101,8 +101,6 @@ class fast_STV:
                     f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
                     "contains a tied ranking."
                 )
-            if (row == tilde).all():
-                raise TypeError("Ballots must have rankings.")
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
         """
