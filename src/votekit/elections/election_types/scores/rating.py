@@ -78,8 +78,10 @@ class GeneralRating(Election):
             for ballot in profile.ballots:
                 if not ballot.scores:
                     ballots.append(ballot)
-            raise TypeError(f"All ballots must have score dictionary. Ballots {ballots} are missing scores.")
-        
+            raise TypeError(
+                f"All ballots must have score dictionary. Ballots {ballots} are missing scores."
+            )
+
         if len(candidate_cols) < self.m:
             raise ValueError("Not enough candidates received votes to be elected.")
 
@@ -89,11 +91,13 @@ class GeneralRating(Election):
             for ballot in profile.ballots:
                 if ballot.scores is not None:
                     for score in ballot.scores.values():
-                        if (score > self.L):
+                        if score > self.L:
                             ballots.append(ballot)
                             continue
-            raise TypeError(f"Ballot(s) {ballots} violate(s) score limit {self.L} per candidate.")
-        
+            raise TypeError(
+                f"Ballot(s) {ballots} violate(s) score limit {self.L} per candidate."
+            )
+
         # Check for any negative scores
         if (df < 0).any(axis=None):
             raise TypeError("Ballot must have non-negative scores.")

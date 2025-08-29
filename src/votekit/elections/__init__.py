@@ -54,4 +54,6 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Star",
+    "OpenListPR",
 ]

@@ -3,6 +3,7 @@ pytest test-suite for the new STAR (Score-Then-Automatic-Runoff) election class.
 Drop this file in  tests/elections/election_types/scores/test_star.py
 and run:  pytest tests/elections/election_types/scores/test_star.py
 """
+
 from votekit.elections.election_types.scores.star import Star
 from votekit.elections import ElectionState
 from votekit import PreferenceProfile, Ballot
@@ -24,7 +25,7 @@ profile_simple = PreferenceProfile(
 runoff_simple = ["B", "C"]
 winner_simple = ["B"]
 
-# Only B and C 
+# Only B and C
 profile_runoff_only = PreferenceProfile(
     ballots=[
         Ballot(scores={"B": 4, "C": 3}),
@@ -68,10 +69,14 @@ states_simple = [
     ElectionState(
         round_number=1,
         remaining=tuple(),
-        elected=tuple([frozenset({"B"}),]),
-        eliminated = tuple([frozenset({'A'}), frozenset({'C'})]),
+        elected=tuple(
+            [
+                frozenset({"B"}),
+            ]
+        ),
+        eliminated=tuple([frozenset({"A"}), frozenset({"C"})]),
         scores={"A": 8.0, "B": 12.0, "C": 10.0},
-    )
+    ),
 ]
 
 profile_simple_round_1 = PreferenceProfile(
@@ -82,42 +87,51 @@ profile_simple_round_1 = PreferenceProfile(
     ]
 )
 
+
 # ---------- tests ----------
 def test_init():
     e = Star(profile=profile_simple, L=5)
     assert [e for e in next(iter(e.get_elected()[0]))] == winner_simple
 
+
 def test_ties():
     e = Star(profile=profile_tie_tabulation, L=5, tiebreak="most_top_ratings")
     assert len(e.get_elected()) == 1
 
+
 def test_state_list():
     e = Star(profile=profile_simple, L=5)
     assert e.election_states == states_simple
+
 
 def test_get_profile():
     e = Star(profile=profile_simple, L=5)
     assert e.get_profile(0) == profile_simple
     assert e.get_profile(1) == profile_simple_round_1
 
+
 def test_get_step():
-    e = Star(profile=profile_simple, L=5)    
+    e = Star(profile=profile_simple, L=5)
     assert e.get_step(1) == (profile_simple_round_1, states_simple[1])
+
 
 def test_get_elected():
     e = Star(profile=profile_simple, L=5)
     assert e.get_elected(0) == tuple()
     assert e.get_elected(1) == (frozenset({"B"}),)
 
+
 def test_get_eliminated():
     e = Star(profile=profile_simple, L=5)
     assert e.get_eliminated(0) == tuple()
-    assert e.get_eliminated(1) == (frozenset({"C"}),frozenset({"A"}))
+    assert e.get_eliminated(1) == (frozenset({"C"}), frozenset({"A"}))
+
 
 def test_get_remaining():
     e = Star(profile=profile_simple, L=5)
     assert e.get_remaining(0) == (frozenset({"B"}), frozenset({"C"}), frozenset({"A"}))
     assert e.get_remaining(1) == tuple()
+
 
 def test_get_status_df():
     e = Star(profile=profile_simple, L=5)
@@ -132,6 +146,7 @@ def test_get_status_df():
     assert e.get_status_df(0).sort_index().equals(df0.sort_index())
     assert e.get_status_df(1).sort_index().equals(df1.sort_index())
 
+
 def test_errors():
     # m must be positive
     with pytest.raises(ValueError, match="L must be positive"):
@@ -141,13 +156,13 @@ def test_errors():
     with pytest.raises(ValueError, match="tiebreak must be 'most_top_ratings'"):
         Star(profile=profile_simple, L=5, tiebreak="no_tiebreak")
 
-def test_validate_profile():    
+
+def test_validate_profile():
     # ballot cannot violate score limit
-    bad1 = PreferenceProfile(
-        ballots=[Ballot(scores={"X": 6, "Y": 1})]
-    )
+    bad1 = PreferenceProfile(ballots=[Ballot(scores={"X": 6, "Y": 1})])
     with pytest.raises(TypeError, match="score limit"):
         Star(profile=bad1, L=5)
+
 
 # Stress test
 n_ballots = 100_000
@@ -157,11 +172,15 @@ n_candidates = 30
 candidates = [f"C{i}" for i in range(n_candidates)]
 
 # Build ballots with STAR scores (randomized)
-ballots = [Ballot(scores={c: random.randint(0, 5) for c in candidates}, weight=1) for _ in range(n_ballots)]
+ballots = [
+    Ballot(scores={c: random.randint(0, 5) for c in candidates}, weight=1)
+    for _ in range(n_ballots)
+]
 profile_stress = PreferenceProfile(
-            ballots=ballots,
-            candidates=candidates,
+    ballots=ballots,
+    candidates=candidates,
 )
+
 
 def test_stress():
     # Stress test for OpenListPR with large profile
@@ -169,9 +188,9 @@ def test_stress():
     for _ in range(10):
 
         time0 = time.time()
-        election = Star(profile_stress, L=5)
+        _ = Star(profile_stress, L=5)
         time1 = time.time()
         times.append(time1 - time0)
 
-    print("Average time:", sum(times)/len(times))
-    assert sum(times)/len(times) < 1
+    print("Average time:", sum(times) / len(times))
+    assert sum(times) / len(times) < 1

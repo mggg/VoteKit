@@ -15,11 +15,9 @@ from .ranked_profiles import (
     condense_ranked_profile,
     remove_and_condense_ranked_profile,
 )
-<<<<<<< HEAD
 from .scored_profiles import (
-    remove_cand_scored, # noqa
+    remove_cand_scored,
 )
-=======
 
 
 __all__ = [
@@ -36,5 +34,5 @@ __all__ = [
     "remove_cand_ranked_profile",
     "condense_ranked_profile",
     "remove_and_condense_ranked_profile",
+    "remove_cand_scored",
 ]
->>>>>>> 3.3.0

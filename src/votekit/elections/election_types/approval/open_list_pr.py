@@ -6,26 +6,28 @@ from votekit.elections.election_types.scores.rating import GeneralRating
 from ....pref_profile import PreferenceProfile
 from ...election_state import ElectionState
 
+
 class OpenListPR(GeneralRating):
     """
     Open-list party-list proportional representation (PR) election method.
 
-    In Open-list, each party gives a list of candidates to elect. The total number of seats 
+    In Open-list, each party gives a list of candidates to elect. The total number of seats
     allocated to each party is determined by a function that takes in the sum of votes recieved by
-    each party and their individual candidates as well as the current party seat share. Once a 
-    party's seats are determined, the candidates are elected from the party's list in order of 
-    their individual vote totals. 
+    each party and their individual candidates as well as the current party seat share. Once a
+    party's seats are determined, the candidates are elected from the party's list in order of
+    their individual vote totals.
     """
+
     def __init__(
         self,
         profile: PreferenceProfile,
-        party_to_candidate_map: (Dict[str, List[str]]),
+        party_to_candidate_map: Dict[str, List[str]],
         m: int = 1,
         tiebreak: Optional[str] = "random",
         divisor_method: str = "dhondt",
         L: float = 1,
         k: float = 1,
-    ): 
+    ):
         """
         Initialize an OpenListPR election.
 
@@ -55,25 +57,38 @@ class OpenListPR(GeneralRating):
             self._candidate_vote_totals,
             self._party_vote_totals,
             self._party_to_sorted_candidates,
-            self.candidate_tie_notices
+            self.candidate_tie_notices,
         ) = self._precompute_scores(profile)
 
         # Will be updated only in the real run during each step
-        self._party_seat_totals: Dict[str, int] = {p: 0 for p in self._party_vote_totals}
+        self._party_seat_totals: Dict[str, int] = {
+            p: 0 for p in self._party_vote_totals
+        }
         self._winners: List[str] = []
         self._last_scores: Dict[str, float] = {}
 
-        self._base_party_df = pd.DataFrame({
-            "total_votes": pd.Series(self._party_vote_totals),
-            "num_candidates": pd.Series({p: len(cands) for p, cands in self._party_to_sorted_candidates.items()}),
-            "seats_so_far": 0,
-        })
+        self._base_party_df = pd.DataFrame(
+            {
+                "total_votes": pd.Series(self._party_vote_totals),
+                "num_candidates": pd.Series(
+                    {
+                        p: len(cands)
+                        for p, cands in self._party_to_sorted_candidates.items()
+                    }
+                ),
+                "seats_so_far": 0,
+            }
+        )
 
         self._party_scores: dict[str, float] = {}
         self._initialize_party_scores()
         super().__init__(profile=profile, m=m, tiebreak=tiebreak)
-        
-    def _precompute_scores(self, profile: PreferenceProfile) -> tuple[Dict[str, int], Dict[str, int], Dict[str, List[str]], Dict[str, List[str]]]:
+
+    def _precompute_scores(
+        self, profile: PreferenceProfile
+    ) -> tuple[
+        Dict[str, int], Dict[str, int], Dict[str, List[str]], Dict[str, List[str]]
+    ]:
         """
         This function computes the total number of votes for each candidate, the
         total number of votes for each party, and sorts the list of candidates
@@ -99,9 +114,12 @@ class OpenListPR(GeneralRating):
 
         # Calculate weighted votes for each candidate
         candidate_vote_totals = dict(zip(candidate_cols, candidate_totals_array))
-        
+
         # Party vote totals
-        party_vote_totals = {p : sum(candidate_vote_totals[c] for c in cand_list) for p, cand_list in self.party_to_candidate_map.items()}  
+        party_vote_totals = {
+            p: sum(candidate_vote_totals[c] for c in cand_list)
+            for p, cand_list in self.party_to_candidate_map.items()
+        }
 
         # Build sorted party lists
         party_to_sorted_candidates = {
@@ -119,13 +137,22 @@ class OpenListPR(GeneralRating):
             votes = [candidate_vote_totals[c] for c in cand_list]
             vote_counts = Counter(votes)
             top_vote_count = max(votes)
-            top_ties = [c for c in cand_list if vote_counts[candidate_vote_totals[c]] == top_vote_count]
+            top_ties = [
+                c
+                for c in cand_list
+                if vote_counts[candidate_vote_totals[c]] == top_vote_count
+            ]
 
             # Candidate tie notice
             if len(top_ties) > 1:
                 candidate_tie_notices[party] = top_ties
 
-        return candidate_vote_totals, party_vote_totals, party_to_sorted_candidates, candidate_tie_notices
+        return (
+            candidate_vote_totals,
+            party_vote_totals,
+            party_to_sorted_candidates,
+            candidate_tie_notices,
+        )
 
     def _is_finished(self) -> bool:
         """
@@ -179,28 +206,41 @@ class OpenListPR(GeneralRating):
             divisor = seats + 2
         else:
             raise ValueError("Not known divisor method provided.")
-        
+
         self._party_scores[party] = self._party_vote_totals[party] / divisor
 
     def _run_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState, store_states: bool = False
+        self,
+        profile: PreferenceProfile,
+        prev_state: ElectionState,
+        store_states: bool = False,
     ) -> PreferenceProfile:
         """
         Run one step of an OpenListPR election from the given profile and previous state.
         """
         # Determine available parties to elect a candidate
-        available_parties = [p for p in self._party_scores if self._party_seat_totals[p] < len(self._party_to_sorted_candidates[p])]
+        available_parties = [
+            p
+            for p in self._party_scores
+            if self._party_seat_totals[p] < len(self._party_to_sorted_candidates[p])
+        ]
         if not available_parties:
             raise ValueError("No parties have remaining candidates to elect.")
 
         # Find the leading party
         max_score = max(self._party_scores[p] for p in available_parties)
-        leading_parties = [p for p in available_parties if self._party_scores[p] == max_score and self._party_scores[p] > 0]
+        leading_parties = [
+            p
+            for p in available_parties
+            if self._party_scores[p] == max_score and self._party_scores[p] > 0
+        ]
 
         # Settle ties between leading parties and record tiebreak information
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
-        if len(leading_parties)==0:
-            raise RuntimeError("All parties have a score of 0 before the end of the election.")
+        if len(leading_parties) == 0:
+            raise RuntimeError(
+                "All parties have a score of 0 before the end of the election."
+            )
 
         if len(leading_parties) > 1:
             if self.tiebreak == "random":
@@ -218,34 +258,46 @@ class OpenListPR(GeneralRating):
 
         candidate_tie = self.candidate_tie_notices.get(winner_party)
         if candidate_tie is not None:
-             tiebreaks[frozenset(candidate_tie)] = (frozenset({winner}),)
+            tiebreaks[frozenset(candidate_tie)] = (frozenset({winner}),)
 
         # Update state and record the result
         if store_states:
             self._winners.append(winner)
             self._party_seat_totals[winner_party] += 1
 
-            remaining_candidates = [c for c in profile.candidates_cast if c not in self._winners]
+            remaining_candidates = [
+                c for c in profile.candidates_cast if c not in self._winners
+            ]
             candidate_groups_by_score: dict[int, List[str]] = defaultdict(list)
             for c in remaining_candidates:
                 candidate_groups_by_score[self._candidate_vote_totals[c]].append(c)
 
-            remaining_groups_by_score: list[frozenset[str]] = [frozenset(sorted(group)) for total, group in sorted(candidate_groups_by_score.items(), key=lambda gv: gv[0], reverse=True)]
+            remaining_groups_by_score: list[frozenset[str]] = [
+                frozenset(sorted(group))
+                for total, group in sorted(
+                    candidate_groups_by_score.items(),
+                    key=lambda gv: gv[0],
+                    reverse=True,
+                )
+            ]
             remaining_groups_by_score_tuple = tuple(remaining_groups_by_score)
             self.election_states.append(
-
                 ElectionState(
                     round_number=prev_state.round_number + 1,
                     remaining=remaining_groups_by_score_tuple,
                     eliminated=tuple(),
-                    elected=tuple([frozenset({winner}),]),
+                    elected=tuple(
+                        [
+                            frozenset({winner}),
+                        ]
+                    ),
                     scores=dict(self._party_scores),
                     tiebreaks=tiebreaks,
                 )
             )
-            self._update_party_scores(winner_party)   
+            self._update_party_scores(winner_party)
         return profile
-    
+
     def _run_election(self):
         """
         Run the OpenListPR election process (overwrite parent _run_election).
@@ -259,12 +311,10 @@ class OpenListPR(GeneralRating):
                 tiebreaks={},
             )
         )
-        
+
         # run election steps until finished
         profile = self._profile
         prev_state = self.election_states[0]
         while not self._is_finished():
             profile = self._run_step(profile, prev_state, store_states=True)
             prev_state = self.election_states[-1]
-
-

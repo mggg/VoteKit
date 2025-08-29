@@ -17,9 +17,8 @@ from .ranking import (
 )
 
 
-from .scores import GeneralRating, Rating, Limited, Cumulative
-from .scores.star import Star  # noqa
-from .approval import Approval, BlocPlurality
+from .scores import GeneralRating, Rating, Limited, Cumulative, Star
+from .approval import Approval, BlocPlurality, OpenListPR
 
 __all__ = [
     "RankingElection",
@@ -43,5 +42,6 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Star",
+    "OpenListPR",
 ]
-from .approval.open_list_pr import OpenListPR  # noqa

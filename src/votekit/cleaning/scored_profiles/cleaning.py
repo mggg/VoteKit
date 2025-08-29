@@ -4,7 +4,12 @@ from ...pref_profile import (
 )
 import numpy as np
 
-def remove_cand_scored(removed: List[str] | str, profile: PreferenceProfile, remove_empty_ballots: bool = True, remove_zero_weight_ballots: bool = True,
+
+def remove_cand_scored(
+    removed: List[str] | str,
+    profile: PreferenceProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
 ) -> PreferenceProfile:
     """
     Faster version of remove_cand for score profiles.
@@ -24,7 +29,9 @@ def remove_cand_scored(removed: List[str] | str, profile: PreferenceProfile, rem
     # pull out candidate list, df, and weight vector
     all_cands_list = list(profile.candidates_cast)
     kept_cands_list = [c for c in all_cands_list if c not in removed]
-    kept_cands_tuple: Tuple[str, ...] = tuple(kept_cands_list) # preferred type for PreferenceProfile
+    kept_cands_tuple: Tuple[str, ...] = tuple(
+        kept_cands_list
+    )  # preferred type for PreferenceProfile
     df = profile.df.drop(columns=removed)
 
     # Remove zero-weight ballots
@@ -33,10 +40,12 @@ def remove_cand_scored(removed: List[str] | str, profile: PreferenceProfile, rem
 
     if remove_empty_ballots:
         candidate_matrix = df[kept_cands_list].to_numpy()
-        mask = (np.nansum(candidate_matrix, axis=1) > 0)
+        mask = np.nansum(candidate_matrix, axis=1) > 0
         df = df[mask]
 
-    return PreferenceProfile(df=df, 
-                            candidates=kept_cands_tuple, 
-                            contains_scores=profile.contains_scores,
-                            contains_rankings=False)
+    return PreferenceProfile(
+        df=df,
+        candidates=kept_cands_tuple,
+        contains_scores=profile.contains_scores,
+        contains_rankings=False,
+    )
