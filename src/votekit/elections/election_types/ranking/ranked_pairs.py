@@ -1,11 +1,14 @@
-from .abstract_ranking import RankingElection
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....graphs.pairwise_comparison_graph import (
+import networkx as nx
+
+from votekit import PreferenceProfile
+from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
     get_dominating_tiers_digraph,
 )
-import networkx as nx
+from votekit.utils import tiebreak_set
+
+from .abstract_ranking import RankingElection
+from ...election_state import ElectionState
 
 
 class RankedPairs(RankingElection):
@@ -29,6 +32,7 @@ class RankedPairs(RankingElection):
     def __init__(
         self,
         profile: PreferenceProfile,
+        tiebreak: str = "lexicographic",
         m: int = 1,
     ):
         if m <= 0:
@@ -36,16 +40,20 @@ class RankedPairs(RankingElection):
         if len(profile.candidates_cast) < m:
             raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
+        self.tiebreak = tiebreak
 
-        # TODO: Think about putting this in utils to make lexicographic tiebreaks easier.
-        def lexicographic_scores(profile: PreferenceProfile) -> dict[str, float]:
-            return {
-                c: i for i, c in enumerate(sorted(profile.candidates, reverse=True))
-            }
+        def quick_tiebreak_candidates(profile: PreferenceProfile) -> dict[str, float]:
+            candidate_set = frozenset(profile.candidates)
+            tiebroken_candidates = tiebreak_set(candidate_set, tiebreak=self.tiebreak)
+
+            if len(tiebroken_candidates) != len(profile.candidates):
+                raise RuntimeError("Tiebreak did not resolve all candidates.")
+
+            return {next(iter(c)): i for i, c in enumerate(tiebroken_candidates[::-1])}
 
         super().__init__(
             profile,
-            score_function=lexicographic_scores,
+            score_function=quick_tiebreak_candidates,
             sort_high_low=True,
         )
 
@@ -105,8 +113,8 @@ class RankedPairs(RankingElection):
         tiebreak_resolutions = {}
         for candidate_tier_set in dominating_tiers:
             if len(candidate_tier_set) > 1:
-                tiebreak_resolutions[frozenset(candidate_tier_set)] = tuple(
-                    frozenset({c}) for c in sorted(candidate_tier_set)
+                tiebreak_resolutions[frozenset(candidate_tier_set)] = tiebreak_set(
+                    frozenset(candidate_tier_set), tiebreak=self.tiebreak
                 )
 
         ordered_candidates = [

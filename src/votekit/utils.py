@@ -396,31 +396,36 @@ def tiebreak_set(
     profile: Optional[PreferenceProfile] = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
+    backup_tiebreak_convention: Optional[str] = None,
 ) -> tuple[frozenset[str], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
     to a tiebreak rule. Rule 1: random. Rule 2: first-place votes; break the tie based on
     first-place votes in the profile. Rule 3: borda; break the tie based on Borda points in the
-    profile.
+    profile. Rule 4: lex/lexicographic/alph/alphabetical; break the tie alphabetically.
 
     Args:
         r_set (frozenset[str]): Set of candidates on which to break tie.
         profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
-        tiebreak (str, optional): Tiebreak method to use. Options are "random", "first_place", and
+        tiebreak (str): Tiebreak method to use. Options are "random", "first_place", and
             "borda". Defaults to "random".
-        scoring_tie_convention (Literal["high", "average", "low"], optional): How to award points
+        scoring_tie_convention (Literal["high", "average", "low"]): How to award points
             for tied rankings. Defaults to "low", where any candidates tied receive the lowest
             possible points for their position, eg three people tied for 3rd would each receive the
             points for 5th. "high" awards the highest possible points, so in the previous example,
             they would each receive the points for 3rd. "average" averages the points, so they would
             each receive the points for 4th place.
+        backup_tiebreak_convention (str, optional): If the initial tiebreak does not resolve all ties,
+            this convention is used to break any remaining ties. Options are "random" and
+            "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
+            "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
 
     Returns:
         tuple[frozenset[str],...]: tiebroken ranking
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        sorted_cands = sorted([c for c_set in r_set for c in c_set])
+        sorted_cands = sorted([c for c in r_set])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
@@ -447,10 +452,34 @@ def tiebreak_set(
         raise ValueError("Invalid tiebreak code was provided")
 
     if any(len(s) > 1 for s in new_ranking):
-        print("Initial tiebreak was unsuccessful, performing random tiebreak")
-        new_ranking, _ = tiebroken_ranking(
-            new_ranking, profile=profile, tiebreak="random"
-        )
+        if backup_tiebreak_convention is None:
+            if tiebreak in [
+                "alphabetical",
+                "lexicographic",
+                "alph",
+                "lex",
+            ]:
+                backup_tiebreak_convention = "lex"
+            else:
+                backup_tiebreak_convention = "random"
+
+        if backup_tiebreak_convention in [
+            "alphabetical",
+            "lexicographic",
+            "alph",
+            "lex",
+        ]:
+            print("Initial tiebreak was unsuccessful, performing alphabetic tiebreak")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="lex"
+            )
+        elif backup_tiebreak_convention == "random":
+            print("Initial tiebreak was unsuccessful, performing random tiebreak")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="random"
+            )
+        else:
+            raise ValueError("Invalid backup tiebreak code was provided")
 
     return new_ranking
 
