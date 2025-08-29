@@ -56,17 +56,19 @@ def test_winner_sets_r_rep_score_subset_cands():
 
 
 def test_winner_sets_r_rep_score_error_r():
-    with pytest.raises(ValueError, match="r \(0\) must be at least 1."):
+    with pytest.raises(ValueError, match="r \\(0\\) must be at least 1."):
         winner_sets_r_representation_scores(profile, 1, 0)
 
 
 def test_winner_sets_r_rep_score_error_m():
-    with pytest.raises(ValueError, match="Number of seats m \(0\) must be at least 1."):
+    with pytest.raises(
+        ValueError, match="Number of seats m \\(0\\) must be at least 1."
+    ):
         winner_sets_r_representation_scores(PreferenceProfile(), 0, 1)
 
     with pytest.raises(
         ValueError,
-        match="Number of seats m \(2\) must be less than number of candidates \(1\).",
+        match="Number of seats m \\(2\\) must be less than number of candidates \\(1\\).",
     ):
         winner_sets_r_representation_scores(PreferenceProfile(), 2, 1, ["Chris"])
 
