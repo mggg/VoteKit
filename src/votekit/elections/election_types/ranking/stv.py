@@ -119,15 +119,10 @@ class fast_STV:
         Returns:
             int: Value of the threshold.
         """
-        if self.threshold == 0:
             if self.quota == "droop":
                 return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
             elif self.quota == "hare":
                 return int(total_ballot_wt / self.m)  # takes floor
-            else:
-                raise ValueError("Misspelled or unknown quota type.")
-        else:
-            return self.threshold
 
     def _convert_df(self, profile):
         """
