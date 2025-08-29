@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Any
 
 
 @dataclass
@@ -33,3 +34,19 @@ class ElectionState:
         default_factory=dict
     )
     scores: dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert the ElectionState to a dictionary representation.
+        """
+        return {
+            "round_number": self.round_number,
+            "remaining": tuple(map(tuple, self.remaining)),
+            "elected": tuple(map(tuple, self.elected)),
+            "eliminated": tuple(map(tuple, self.eliminated)),
+            "tiebreaks": {
+                tuple(tie): tuple(map(tuple, resolution))
+                for tie, resolution in self.tiebreaks.items()
+            },
+            "scores": self.scores,
+        }

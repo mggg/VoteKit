@@ -3,7 +3,6 @@ import math
 from votekit.ballot_generator import (
     name_PlackettLuce,
     name_BradleyTerry,
-    AlternatingCrossover,
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
@@ -56,29 +55,6 @@ def test_NBT_from_params():
     )
 
     profile = gen.generate_profile(3)
-    assert type(profile) is PreferenceProfile
-
-
-def test_AC_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    cohesion_parameters = {"R": {"R": 0.5, "D": 0.5}, "D": {"D": 0.4, "R": 0.6}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-    ac = AlternatingCrossover.from_params(
-        bloc_voter_prop=blocs,
-        alphas=alphas,
-        slate_to_candidates=slate_to_cands,
-        cohesion_parameters=cohesion_parameters,
-    )
-
-    # check if intervals add up to one
-    assert all(
-        math.isclose(sum(ac.pref_intervals_by_bloc[curr_bloc][b].interval.values()), 1)
-        for curr_bloc in blocs.keys()
-        for b in blocs.keys()
-    )
-
-    profile = ac.generate_profile(3)
     assert type(profile) is PreferenceProfile
 
 

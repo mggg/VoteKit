@@ -703,7 +703,7 @@ class STV(RankingElection):
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
 
-    """  # noqa
+    """
 
     def __init__(
         self,
@@ -754,7 +754,7 @@ class STV(RankingElection):
         for idx, row in enumerate(np_arr):
             if any(len(s) > 1 for s in row):
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=tuple(row.to_list()), weight = weight_col[idx])} "
+                    f"Ballot {Ballot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
                     "contains a tied ranking."
                 )
             if (row == tilde).all():
@@ -803,16 +803,20 @@ class STV(RankingElection):
                 and whose second entry is the profile of ballots after transfers.
         """
         ranking_by_fpv = prev_state.remaining
+        current_round = prev_state.round_number + 1
 
         elected = []
-        for s in ranking_by_fpv:
-            c = list(s)[0]  # all cands in set have same score
-            if prev_state.scores[c] >= self.threshold:
-                elected.append(s)
+        if current_round < len(self.election_states):
+            elected = list(self.election_states[current_round].elected)
+        else:
+            for s in ranking_by_fpv:
+                c = list(s)[0]  # all cands in set have same score
+                if prev_state.scores[c] >= self.threshold:
+                    elected.append(s)
 
-            # since ranking is ordered by fpv, once below threshold we are done
-            else:
-                break
+                # since ranking is ordered by fpv, once below threshold we are done
+                else:
+                    break
 
         ballots_by_fpv = ballots_by_first_cand(profile)
         new_ballots = [Ballot()] * profile.num_ballots
@@ -881,14 +885,20 @@ class STV(RankingElection):
                 and whose third entry is the profile of ballots after transfers.
         """
         ranking_by_fpv = prev_state.remaining
+        current_round = prev_state.round_number + 1
 
-        elected, remaining, tiebreak = elect_cands_from_set_ranking(
-            ranking_by_fpv, m=1, profile=profile, tiebreak=self.tiebreak
-        )
-        if tiebreak:
-            tiebreaks = {tiebreak[0]: tiebreak[1]}
+        if current_round < len(self.election_states):
+            elected = self.election_states[current_round].elected
+            remaining = self.election_states[current_round].remaining
+            tiebreaks = self.election_states[current_round].tiebreaks
         else:
-            tiebreaks = {}
+            elected, remaining, tiebreak = elect_cands_from_set_ranking(
+                ranking_by_fpv, m=1, profile=profile, tiebreak=self.tiebreak
+            )
+            if tiebreak:
+                tiebreaks = {tiebreak[0]: tiebreak[1]}
+            else:
+                tiebreaks = {}
 
         ballots_by_fpv = ballots_by_first_cand(profile)
         new_ballots = [Ballot()] * profile.num_ballots
@@ -955,6 +965,7 @@ class STV(RankingElection):
         """
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
+        current_round = prev_state.round_number + 1
         above_thresh_cands = [
             c for c, score in prev_state.scores.items() if score >= self.threshold
         ]
@@ -986,12 +997,21 @@ class STV(RankingElection):
             lowest_fpv_cands = prev_state.remaining[-1]
 
             if len(lowest_fpv_cands) > 1:
-                tiebroken_ranking = tiebreak_set(
-                    lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
-                )
+                tiebroken_ranking = None
+                if current_round < len(self.election_states):
+                    possible_tiebreaks = list(
+                        self.election_states[current_round].tiebreaks.values()
+                    )
+                    if len(possible_tiebreaks) > 0:
+                        tiebroken_ranking = possible_tiebreaks[0]
+                if tiebroken_ranking is None or len(tiebroken_ranking) == 0:
+                    tiebroken_ranking = tiebreak_set(
+                        lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
+                    )
+
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}
 
-                eliminated_cand = list(tiebroken_ranking[-1])[0]
+                eliminated_cand = list(tiebroken_ranking[-1])[-1]
 
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
@@ -1006,8 +1026,10 @@ class STV(RankingElection):
             eliminated = (frozenset([eliminated_cand]),)
 
         if store_states:
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            if self.score_function is None:
+                raise ValueError("No score function defined for election.")
+
+            scores = self.score_function(new_profile)
 
             remaining = score_dict_to_ranking(scores)
 
@@ -1076,15 +1098,22 @@ class SequentialRCV(STV):
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
     ):
+        def _transfer(
+            winner: str,
+            _fpv: float,
+            ballots: Union[tuple[Ballot], list[Ballot]],
+            _threshold: int,
+        ) -> tuple[Ballot, ...]:
+            del _fpv, _threshold  # unused and del on atomics is okay
+            return tuple(
+                condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                for b in ballots
+            )
+
         super().__init__(
             profile,
             m=m,
-            transfer=(
-                lambda winner, fpv, ballots, threshold: tuple(
-                    condense_ballot_ranking(remove_cand_from_ballot(winner, b))
-                    for b in ballots
-                )
-            ),
+            transfer=_transfer,
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,

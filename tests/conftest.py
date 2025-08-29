@@ -1,9 +1,50 @@
 import pytest
 from votekit import Ballot
 import itertools
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-print("conftest.py is being imported")
+# NOTE: Lock down the rendering for snapshot tests
+@pytest.fixture(autouse=True)
+def stable_matplotlib_rc():
+    mpl.rcParams.update(
+        {
+            "figure.dpi": 100,
+            "savefig.dpi": 100,
+            "font.family": "DejaVu Sans",
+            "axes.titlesize": 10,
+            "axes.labelsize": 9,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8,
+            "figure.figsize": (4.8, 3.2),
+            "savefig.bbox": "tight",
+        }
+    )
+    sns.set_theme(style="whitegrid", rc={})
+    yield
+    plt.close("all")
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--runslow", action="store_true", default=False, help="run tests marked slow"
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: long-running tests")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--runslow"):
+        return
+    skip_slow = pytest.mark.skip(reason="use --runslow to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
 
 
 def partitions_with_permutations_of_size(set_, subset_size):

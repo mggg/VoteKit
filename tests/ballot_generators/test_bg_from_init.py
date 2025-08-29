@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
@@ -8,7 +9,6 @@ from votekit.ballot_generator import (
     AlternatingCrossover,
     CambridgeSampler,
     OneDimSpatial,
-    BallotSimplex,
     slate_PlackettLuce,
     slate_BradleyTerry,
     name_Cumulative,
@@ -25,6 +25,31 @@ def test_IC_completion():
     profile = ic.generate_profile(number_of_ballots=100)
     assert type(profile) is PreferenceProfile
     assert profile.total_ballot_wt == 100
+
+
+"""
+def test_IC_optimized_completion():
+    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
+    profile = ic.generate_profile(
+        number_of_ballots=100, use_optimized=True, allow_short_ballots=True
+    )
+    profile2 = ic.generate_profile(
+        number_of_ballots=100,
+        use_optimized=True,
+        allow_short_ballots=True,
+        max_ballot_length=2,
+    )
+    profile3 = ic.generate_profile(
+        number_of_ballots=100, use_optimized=True, allow_short_ballots=False
+    )
+
+    assert type(profile) is PreferenceProfile
+    assert profile.total_ballot_wt == 100
+    assert type(profile2) is PreferenceProfile
+    assert profile2.total_ballot_wt == 100
+    assert type(profile3) is PreferenceProfile
+    assert profile3.total_ballot_wt == 100
+"""
 
 
 def test_IAC_completion():
@@ -242,25 +267,24 @@ def test_SBT_completion():
 
 
 def test_AC_completion():
-    ac = AlternatingCrossover(
-        candidates=["W1", "W2", "C1", "C2"],
-        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "W": {
-                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+    with pytest.raises(NotImplementedError):
+        ac = AlternatingCrossover(
+            candidates=["W1", "W2", "C1", "C2"],
+            slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+            pref_intervals_by_bloc={
+                "W": {
+                    "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                    "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+                },
+                "C": {
+                    "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                    "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+                },
             },
-            "C": {
-                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-    )
-    profile = ac.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
-    assert profile.total_ballot_wt == 100
+            bloc_voter_prop={"W": 0.7, "C": 0.3},
+            cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        )
+        ac.generate_profile(number_of_ballots=100)
 
 
 def test_1D_completion():
@@ -359,25 +383,3 @@ def test_Cambridge_completion_W_C_bloc():
     assert (type(profile_dict["A"])) is PreferenceProfile
     assert type(agg_prof) is PreferenceProfile
     assert agg_prof.total_ballot_wt == 100
-
-
-def test_ballot_simplex_from_point():
-    candidates = ["W1", "W2", "C1", "C2"]
-    pt = {"W1": 1 / 4, "W2": 1 / 4, "C1": 1 / 4, "C2": 1 / 4}
-
-    generated_profile = BallotSimplex.from_point(
-        point=pt, candidates=candidates
-    ).generate_profile(number_of_ballots=10)
-    # Test
-    assert isinstance(generated_profile, PreferenceProfile)
-    assert generated_profile.total_ballot_wt == 10
-
-
-def test_ballot_simplex_from_alpha():
-    number_of_ballots = 100
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    generated_profile = BallotSimplex.from_alpha(
-        alpha=0, candidates=candidates
-    ).generate_profile(number_of_ballots=number_of_ballots)
-    assert generated_profile.total_ballot_wt == 100

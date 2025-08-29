@@ -1,3 +1,10 @@
-from .ballot import Ballot  # noqa
-from .pref_profile import PreferenceProfile  # noqa
-from .pref_interval import PreferenceInterval  # noqa
+from .ballot import Ballot
+from .pref_profile import PreferenceProfile
+from .pref_interval import PreferenceInterval
+
+
+__all__ = [
+    "Ballot",
+    "PreferenceProfile",
+    "PreferenceInterval",
+]

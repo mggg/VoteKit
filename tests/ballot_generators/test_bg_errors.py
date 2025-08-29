@@ -8,6 +8,7 @@ from votekit.ballot_generator import (
     ClusteredSpatial,
 )
 
+
 from votekit.pref_interval import PreferenceInterval
 
 
@@ -204,3 +205,53 @@ def test_clustered_spatial_generator():
             candidate_dist=np.random.normal,
             candidate_dist_kwargs=normal_params,
         )
+
+
+# FIX: Get this method up and running again
+# def test_MCMC_subsample_chain_length_error():
+#     """
+#     Test to check chain_length < num_ballots to be sampled
+#     """
+#
+#     # Initialization of parameters; doesn't matter for this test
+#     candidates = ["W1", "W2", "C1", "C2"]
+#     pref_intervals_by_bloc = {
+#         "W": {
+#             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+#             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+#         },
+#         "C": {
+#             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+#             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+#         },
+#     }
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#
+#     bt = name_BradleyTerry(
+#         candidates=candidates,
+#         pref_intervals_by_bloc=pref_intervals_by_bloc,
+#         bloc_voter_prop=bloc_voter_prop,
+#         cohesion_parameters=cohesion_parameters,
+#     )
+#
+#     number_of_ballots = 3001
+#
+#     # Error where minority bloc needs 0.3*10,000 = 3,000 number of ballots, where 10,000 is the preset chain_length
+#     with pytest.raises(
+#         ValueError,
+#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#     ):
+#         bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
+#
+#     chain_length = 100
+#     number_of_ballots = 101
+#
+#     with pytest.raises(
+#         ValueError,
+#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#     ):
+#         bt.generate_profile_MCMC_even_subsample(
+#             number_of_ballots=number_of_ballots, chain_length=chain_length
+#         )

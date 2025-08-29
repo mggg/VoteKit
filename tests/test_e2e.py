@@ -17,9 +17,7 @@ def test_load_clean_completion():
     BASE_DIR = Path(__file__).resolve().parent
     CSV_DIR = BASE_DIR / "data/csv/"
 
-    pp, seats, cand_list, cand_to_party, ward = load_scottish(
-        CSV_DIR / "scot_wardy_mc_ward.csv"
-    )
+    pp, _, _, _, _ = load_scottish(CSV_DIR / "scot_wardy_mc_ward.csv")
 
     # apply rules to get new PP
     cleaned_pp = clean.condense_profile(clean.remove_cand("Paul", pp))
@@ -52,7 +50,8 @@ def test_generate_election_completion():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    DATA_DIR = "src/votekit/data/"
+    DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
+
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
     ballot_model = bg.CambridgeSampler(
@@ -65,6 +64,8 @@ def test_generate_election_completion():
     )
 
     pp = ballot_model.generate_profile(number_of_ballots=number_of_ballots)
+
+    assert isinstance(pp, PreferenceProfile)
 
     election_borda = elections.Borda(pp, 1, score_vector=None)
 

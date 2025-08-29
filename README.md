@@ -20,13 +20,16 @@ For more detailed instructions, please see the [installation](https://votekit.re
 A simple example of how to use VoteKit to load, clean, and run an election using real [data](https://vote.minneapolismn.gov/results-data/election-results/2013/mayor/) taken from the 2013 Minneapolis Mayoral election. For a more comprehensive walkthrough, see the [documentation](https://votekit.readthedocs.io/en/latest/). 
 
 ```python
-from votekit import load_csv, remove_noncands
+from votekit.cvr_loaders import load_ranking_csv
+from votekit.cleaning import remove_repeated_candidates, remove_cand, condense_profile
 from votekit.elections import STV
 
-minneapolis_profile = load_csv("mn_2013_cast_vote_record.csv")
+minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", [0,1,2], header_row = 0)
 
 # clean downloaded file to remove edited aspects of the cast vote record
-minneapolis_profile = remove_noncands(minneapolis_profile, ["undervote", "overvote", "UWI"])
+minneapolis_profile = remove_cand(["undervote", "overvote", "UWI"], minneapolis_profile)
+minneapolis_profile = remove_repeated_candidates(minneapolis_profile)
+minneapolis_profile = condense_profile(minneapolis_profile)
 
 minn_election = STV(profile = minneapolis_profile, m = 1)
 minn_election.run_election()
@@ -73,7 +76,7 @@ minn_election.run_election()
 This project is in active development in the [mggg/VoteKit](https://github.com/mggg/VoteKit) GitHub repository, where [bug reports and feature requests](https://votekit.readthedocs.io/en/latest/package_info/issues/), as well as [contributions](https://votekit.readthedocs.io/en/latest/package_info/contributing/), are welcome.
 
 Currently VoteKit uses `poetry` to manage the development environment. If you want to make a pull request, first `pip install poetry` to your computer. Then, within the Votekit directory and with a virtual environment activated, run `poetry install` This will install all of the development packages you might need. Before making a pull request, run the following:
-- `poetry run pytest tests` to check the test suite,
+- `poetry run pytest tests --runslow` to check the test suite,
 - `poetry run black .` to format your code,
 - `poetry run ruff check src tests` to check the formatting, and then
 - `poetry run mypy src` to ensure that your typesetting is correct.

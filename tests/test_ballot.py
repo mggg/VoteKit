@@ -10,6 +10,20 @@ def test_ballot_init():
     assert not b.scores
 
 
+def test_ballot_is_frozen():
+    b = Ballot()
+    with pytest.raises(AttributeError, match="is frozen"):
+        b.ranking = (frozenset({"A"}),)
+    with pytest.raises(AttributeError, match="is frozen"):
+        b.weight = 2
+    with pytest.raises(AttributeError, match="is frozen"):
+        b.voter_set = frozenset({"A"})
+    with pytest.raises(AttributeError, match="is frozen"):
+        b.scores = {"A": 1.0}
+    with pytest.raises(AttributeError, match="is frozen"):
+        b._frozen = False
+
+
 def test_ballot_strip_whitespace():
     b = Ballot(
         ranking=(frozenset({" Chris", "Peter "}), frozenset({" Moon "}), frozenset()),
@@ -32,11 +46,15 @@ def test_ballot_post_init():
         "A": 1,
         "B": -1,
     }
-    assert isinstance(Ballot(scores={"A": 2, "B": 2}).scores["A"], float)
-    assert isinstance(Ballot(scores={"A": 2.0, "B": 2}).scores["A"], float)
+    ballot = Ballot(scores={"A": 2, "B": 2})
+    assert ballot.scores is not None
+    assert isinstance(ballot.scores["A"], float)
+    ballot = Ballot(scores={"A": 2.0, "B": 2.0})
+    assert ballot.scores is not None
+    assert isinstance(ballot.scores["A"], float)
 
     with pytest.raises(TypeError, match="Score values must be numeric."):
-        Ballot(scores={"A": "a"})
+        Ballot(scores={"A": "a"})  # type: ignore
 
 
 def test_ballot_eq():
@@ -96,3 +114,8 @@ def test_ballot_tilde_errors():
         match="'~' is a reserved character and cannot be used for candidate names.",
     ):
         Ballot(scores={"~": 1})
+
+
+def test_ballot_negative_weight():
+    with pytest.raises(ValueError, match="Ballot weight cannot be negative."):
+        Ballot(weight=-1.5)

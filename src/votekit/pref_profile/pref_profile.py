@@ -4,7 +4,7 @@ import pandas as pd
 from ..ballot import Ballot
 from .utils import convert_row_to_ballot
 import numpy as np
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence
 import warnings
 import pickle
 from .profile_error import ProfileError
@@ -608,7 +608,7 @@ class PreferenceProfile:
     you want to edit the ballots, candidates, etc.
 
     Args:
-        ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
+        ballots (Sequence[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
         candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
         max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
@@ -624,7 +624,7 @@ class PreferenceProfile:
             a ranking, then this will be set  to `True`).
 
     Parameters:
-        ballots (tuple[Ballot]): Tuple of ``Ballot`` objects.
+        ballots (Sequence[Ballot]): Tuple of ``Ballot`` objects.
         candidates (tuple[str]): Tuple of candidate strings.
         max_ranking_length (int): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election.
@@ -657,14 +657,15 @@ class PreferenceProfile:
     def __init__(
         self,
         *,
-        ballots: tuple[Ballot, ...] = tuple(),
-        candidates: tuple[str, ...] = tuple(),
+        ballots: Sequence[Ballot] = tuple(),
+        candidates: Sequence[str] = tuple(),
         max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
         contains_rankings: Optional[bool] = None,
         contains_scores: Optional[bool] = None,
     ):
-        self.candidates = candidates
+
+        self.candidates = tuple(candidates)
         self.max_ranking_length = max_ranking_length
         self.contains_rankings = contains_rankings
         self.contains_scores = contains_scores
@@ -829,13 +830,13 @@ class PreferenceProfile:
             )
 
     def __init_ballot_data(
-        self, ballots: tuple[Ballot, ...]
+        self, ballots: Sequence[Ballot]
     ) -> Tuple[int, dict[str, list]]:
         """
         Create the ballot data objects.
 
         Args:
-            ballots (tuple[Ballot,...]): Tuple of ballots.
+            ballots (Sequence[Ballot,...]): Tuple of ballots.
 
         Returns:
             Tuple[int, dict[str, list]]: num_ballots, ballot_data
@@ -902,13 +903,13 @@ class PreferenceProfile:
         return df
 
     def _init_from_ballots(
-        self, ballots: tuple[Ballot, ...]
+        self, ballots: Sequence[Ballot]
     ) -> tuple[pd.DataFrame, bool, bool, tuple[str, ...]]:
         """
         Create the pandas dataframe representation of the profile.
 
         Args:
-            ballots (tuple[Ballot,...]): Tuple of ballots.
+            ballots (Sequence[Ballot,...]): Tuple of ballots.
 
         Returns:
             tuple[pd.DataFrame, bool, bool]: df, contains_rankings_indicator,
