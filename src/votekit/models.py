@@ -30,7 +30,7 @@ class Election(ABC):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
         length (int): The number of rounds of the election.
-    """  # noqa
+    """
 
     def __init__(
         self,

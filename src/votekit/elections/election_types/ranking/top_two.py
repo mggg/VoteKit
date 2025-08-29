@@ -73,8 +73,12 @@ class TopTwo(RankingElection):
                 [c for s in eliminated for c in s], profile
             )
 
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            if self.score_function is None:
+                raise ValueError(
+                    "score_function must be set for TopTwo elections when recording states"
+                )
+
+            scores = self.score_function(new_profile)
 
             if store_states:
                 new_state = ElectionState(

@@ -38,7 +38,7 @@ class Alaska(RankingElection):
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
             Only used by ``score_function`` parameter.
 
-    """  # noqa
+    """
 
     def __init__(
         self,
@@ -148,8 +148,9 @@ class Alaska(RankingElection):
                 profile,
             )
 
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            if self.score_function is None:
+                raise ValueError("score_function must be defined for Alaska election.")
+            scores = self.score_function(new_profile)
 
             if store_states:
                 new_state = ElectionState(

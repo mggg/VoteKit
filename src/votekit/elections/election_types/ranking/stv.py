@@ -39,7 +39,7 @@ class STV(RankingElection):
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
 
-    """  # noqa
+    """
 
     def __init__(
         self,
@@ -362,8 +362,10 @@ class STV(RankingElection):
             eliminated = (frozenset([eliminated_cand]),)
 
         if store_states:
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            if self.score_function is None:
+                raise ValueError("No score function defined for election.")
+
+            scores = self.score_function(new_profile)
 
             remaining = score_dict_to_ranking(scores)
 
@@ -432,15 +434,22 @@ class SequentialRCV(STV):
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
     ):
+        def _transfer(
+            winner: str,
+            _fpv: float,
+            ballots: Union[tuple[Ballot], list[Ballot]],
+            _threshold: int,
+        ) -> tuple[Ballot, ...]:
+            del _fpv, _threshold  # unused and del on atomics is okay
+            return tuple(
+                condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                for b in ballots
+            )
+
         super().__init__(
             profile,
             m=m,
-            transfer=(
-                lambda winner, fpv, ballots, threshold: tuple(
-                    condense_ballot_ranking(remove_cand_from_ballot(winner, b))
-                    for b in ballots
-                )
-            ),
+            transfer=_transfer,
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
