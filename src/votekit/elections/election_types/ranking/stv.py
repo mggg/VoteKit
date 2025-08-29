@@ -404,7 +404,7 @@ class fast_STV:
         Fetch the eliminated candidates up to the given round number.
 
         Args:
-            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+            round_number (int): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
