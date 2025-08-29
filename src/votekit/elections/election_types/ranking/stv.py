@@ -182,105 +182,80 @@ class fast_STV:
         def make_tallies(fpv_vec, wt_vec, ncands):
             return np.bincount(fpv_vec[fpv_vec != -127], weights=wt_vec[fpv_vec != -127], minlength=ncands)
 
+        def update_because_winner(self):
+            if self.transfer == "fractional":
+                tau_values = {w: (tallies[w] - self.threshold) / tallies[w] for w in winners}
+                for i in range(len(fpv_vec)):
+                    if fpv_vec[i] in winners:
+                        while ballot_matrix[i, pos_vec[i]] in gone_list:
+                            pos_vec[i] += 1
+                        wt_vec[i] *= tau_values[int(fpv_vec[i])]
+                        fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+            elif self.transfer == "random":
+                new_weights = dict()
+                for w in winners:
+                    transfer_bundle = self._sample_to_transfer(
+                        fpv_vec, wt_vec, w, int(tallies[w] - self.threshold)
+                    )
+                    new_weights[w] = np.bincount(
+                        transfer_bundle, minlength=len(fpv_vec)
+                    )
+                for i in range(len(fpv_vec)):
+                    if fpv_vec[i] in winners:
+                        while ballot_matrix[i, pos_vec[i]] in gone_list:
+                            pos_vec[i] += 1
+                        fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+                        wt_vec[i] = new_weights[fpv_vec[i]][i]
+
+        def find_winner_list(self):
+            if self.simultaneous:
+                winners = np.where(tallies >= self.threshold)[0]
+                winners = winners[np.argsort(-tallies[winners])]
+            else:
+                if np.count_nonzero(tallies == np.max(tallies)) > 1:
+                    potential_winners = np.where(tallies == np.max(tallies))[0]
+                    if self.tiebreak is None:
+                        raise ValueError(
+                            "Cannot elect correct number of candidates without breaking ties."
+                        )
+                    elif self.tiebreak == "random":
+                        w = np.random.choice(potential_winners)
+                        tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                    elif self.tiebreak == "borda":
+                        borda_scores = np.zeros_like(
+                            potential_winners, dtype=np.float64
+                        )
+                        for j in range(ballot_matrix.shape[0]):
+                            for i in range(pos_vec[j], ballot_matrix.shape[1]):
+                                if ballot_matrix[j, i] in potential_winners:
+                                    borda_scores[
+                                        np.where(
+                                            potential_winners == ballot_matrix[j, i]
+                                        )[0][0]
+                                    ] += wt_vec[j] * (
+                                        ballot_matrix.shape[1] - i + pos_vec[j]
+                                    )
+                        w = potential_winners[
+                            np.argmax(borda_scores)
+                        ]  # it's possible the borda scores are tied too? oh well
+                        tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                else:
+                    w = np.argmax(tallies)
+                winners = [w]
+            for w in winners:
+                winner_list.append(int(w))
+                gone_list.append(w)
+            return winners
+
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
-                if self.simultaneous:
-                    winners = np.where(tallies >= quota)[0]
-                    # re-order winners by tally size
-                    winners = winners[np.argsort(-tallies[winners])]
-                    tau_values = {}
-                    for w in winners:
-                        winner_list.append(int(w))
-                        gone_list.append(w)
-                        tau_values[w] = (tallies[w] - quota) / tallies[w]
-                    if self.transfer == "fractional":
-                        for i in range(len(fpv_vec)):
-                            if fpv_vec[i] in winners:
-                                tau = tau_values[int(fpv_vec[i])]
-                                while (
-                                    ballot_matrix[i, pos_vec[i]] in gone_list
-                                ):  # this must end by the time we reach the last column, which is padded with -127
-                                    pos_vec[i] += 1
-                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-                                wt_vec[i] *= tau
-                    elif self.transfer == "random":
-                        new_weights = dict()
-                        for w in winners:
-                            transfer_bundle = self._sample_to_transfer(
-                                fpv_vec, wt_vec, w, int(tallies[w] - quota)
-                            )
-                            new_weights[w] = np.bincount(
-                                transfer_bundle, minlength=len(fpv_vec)
-                            )
-                        for i in range(len(fpv_vec)):
-                            if fpv_vec[i] in winners:
-                                while ballot_matrix[i, pos_vec[i]] in gone_list:
-                                    pos_vec[i] += 1
-                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-                                wt_vec[i] = new_weights[fpv_vec[i]][i]
-                    play_by_play.append((turn, winners, np.array(wt_vec), 1))
-                    turn += 1
-                else:
-                    # check if tallies attains its maximum twice
-                    if np.count_nonzero(tallies == np.max(tallies)) > 1:
-                        potential_winners = np.where(tallies == np.max(tallies))[0]
-                        if self.tiebreak is None:
-                            raise ValueError(
-                                "Cannot elect correct number of candidates without breaking ties."
-                            )
-                        if self.tiebreak == "random":
-                            w = np.random.choice(potential_winners)
-                            tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                        elif self.tiebreak == "borda":
-                            borda_scores = np.zeros_like(
-                                potential_winners, dtype=np.float64
-                            )
-                            for j in range(ballot_matrix.shape[0]):
-                                for i in range(pos_vec[j], ballot_matrix.shape[1]):
-                                    if ballot_matrix[j, i] in potential_winners:
-                                        borda_scores[
-                                            np.where(
-                                                potential_winners == ballot_matrix[j, i]
-                                            )[0][0]
-                                        ] += wt_vec[j] * (
-                                            ballot_matrix.shape[1] - i + pos_vec[j]
-                                        )
-                            w = potential_winners[
-                                np.argmax(borda_scores)
-                            ]  # it's possible the borda scores are tied too? oh well
-                            tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                    else:
-                        w = np.argmax(tallies)
-                    winner_list.append(int(w))
-                    gone_list.append(w)
-                    tau = (tallies[w] - quota) / tallies[w]
-                    if self.transfer == "fractional":
-                        for i in range(len(fpv_vec)):
-                            if fpv_vec[i] == w:
-                                while (
-                                    ballot_matrix[i, pos_vec[i]] in gone_list
-                                ):  # again, we're padded
-                                    pos_vec[i] += 1
-                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-                                wt_vec[i] *= tau
-                    elif self.transfer == "random":
-                        transfer_bundle = self._sample_to_transfer(
-                            fpv_vec, wt_vec, w, int(tallies[w] - quota)
-                        )
-                        new_weights = np.bincount(
-                            transfer_bundle, minlength=len(fpv_vec)
-                        )
-                        for i in range(len(fpv_vec)):
-                            if fpv_vec[i] == w:
-                                while ballot_matrix[i, pos_vec[i]] in gone_list:
-                                    pos_vec[i] += 1
-                                fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-                                wt_vec[i] = new_weights[i]
-                    play_by_play.append((turn, [w], np.array(wt_vec), 1))
-                    turn += 1
+                winners = find_winner_list(self)
+                update_because_winner(self)
+                play_by_play.append((turn, winners, np.array(wt_vec), 1))
+                turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 tally_record.append(tallies.copy())
             if len(winner_list) == m:
