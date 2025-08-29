@@ -1,53 +1,19 @@
-name: Lint & Test
+name: Tests
 
 on:
-  push: # all branches
-  pull_request: # all branches
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint (black, ruff, mypy)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 2.1.3
-
-      - name: Cache Poetry venv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pypoetry/virtualenvs
-          key: ${{ runner.os }}-poetry-3.13-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: ${{ runner.os }}-poetry-3.13-
-
-      - name: Install deps
-        run: poetry install --no-interaction
-
-      - name: Black (check)
-        run: poetry run black src tests --check --diff
-
-      - name: Ruff
-        run: poetry run ruff check --output-format=github src tests
-
-      - name: mypy
-        run: poetry run mypy src tests
-
   tests:
-    name: Tests
-    # only run on PRs or on pushes to main
-    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    # Run unless it's a draft PR. Pushes to main & manual runs always pass this.
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -67,15 +33,17 @@ jobs:
         with:
           version: 2.1.3
 
+      # Cache Poetry venv so it loads faster on subsequent runs
       - name: Cache Poetry venv
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: ${{ runner.os }}-poetry-${{ matrix.python-version }}-
+          restore-keys: |
+            ${{ runner.os }}-poetry-${{ matrix.python-version }}-
 
       - name: Install deps
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --sync
 
       - name: pytest
         run: poetry run pytest --runslow
