@@ -47,7 +47,7 @@ jobs:
   tests:
     name: Tests
     # only run on PRs or on pushes to main
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
