@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, Literal
+from typing import Sequence, Optional, Literal, Union
 from itertools import permutations
 import math
 import random
@@ -6,6 +6,7 @@ from .ballot import Ballot
 from .pref_profile import PreferenceProfile, ProfileError
 import pandas as pd
 import numpy as np
+from numpy.typing import NDArray
 
 COLOR_LIST = [
     "#0099cd",
@@ -188,7 +189,9 @@ def _score_dict_from_rankings_df_no_ties(
     flat_arr = arr.ravel()
 
     # Slick way of converting frozensets to integer codes:
-    codes_flat = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(np.int64)
+    codes_flat: NDArray[np.int64] = pd.Categorical(
+        flat_arr, categories=all_frznst
+    ).codes.astype(np.int64)
 
     # Take care of error codes (-1)
     if (codes_flat == -1).any():
@@ -416,7 +419,11 @@ def tiebreak_set(
     Returns:
         tuple[frozenset[str],...]: tiebroken ranking
     """
-    if tiebreak == "random":
+    if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
+        sorted_cands = sorted([c for c_set in r_set for c in c_set])
+        new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
+
+    elif tiebreak == "random":
         new_ranking = tuple(
             frozenset({c}) for c in random.sample(list(r_set), k=len(r_set))
         )
@@ -524,7 +531,7 @@ def score_dict_to_ranking(
 
 
 def elect_cands_from_set_ranking(
-    ranking: tuple[frozenset[str], ...],
+    ranking: Sequence[Union[frozenset[str], set[str]]],
     m: int,
     profile: Optional[PreferenceProfile] = None,
     tiebreak: Optional[str] = None,
@@ -557,42 +564,45 @@ def elect_cands_from_set_ranking(
     """
     if m < 1:
         raise ValueError("m must be strictly positive")
-
-    # if there are more seats than candidates
     if m > len([c for s in ranking for c in s]):
         raise ValueError("m must be no more than the number of candidates.")
 
+    ranking_fs: tuple[frozenset[str], ...] = tuple(
+        s if isinstance(s, frozenset) else frozenset(s) for s in ranking
+    )
+
     num_elected = 0
-    elected = []
+    elected: list[frozenset[str]] = []
     i = 0
-    tiebreak_ranking = None
+    tiebreak_ranking: Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]] = None
 
     while num_elected < m:
-        elected.append(ranking[i])
-        num_elected += len(ranking[i])
+        elected.append(ranking_fs[i])
+        num_elected += len(ranking_fs[i])
         if num_elected > m:
             if tiebreak is None:
                 raise ValueError(
                     "Cannot elect correct number of candidates without breaking ties."
                 )
-            else:
-                elected.pop(-1)
-                num_elected -= len(ranking[i])
-                tiebroken_ranking = tiebreak_set(ranking[i], profile, tiebreak)
-                elected += tiebroken_ranking[: (m - num_elected)]
-                remaining = list(tiebroken_ranking[(m - num_elected) :])
-                if i < len(ranking):
-                    remaining += list(ranking[(i + 1) :])
+            # back out the overfill
+            elected.pop()
+            num_elected -= len(ranking_fs[i])
 
-                return (
-                    tuple(elected),
-                    tuple(remaining),
-                    (ranking[i], tiebroken_ranking),
-                )
+            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
+            elected += tiebroken[: (m - num_elected)]
 
+            remaining: list[frozenset[str]] = list(tiebroken[(m - num_elected) :])
+            if i < len(ranking_fs):
+                remaining += list(ranking_fs[(i + 1) :])
+
+            return (
+                tuple(elected),
+                tuple(remaining),
+                (ranking_fs[i], tiebroken),
+            )
         i += 1
 
-    return (tuple(elected), ranking[i:], tiebreak_ranking)
+    return (tuple(elected), ranking_fs[i:], tiebreak_ranking)
 
 
 def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
@@ -702,3 +712,113 @@ def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
         ballot_lengths[length] += ballot.weight
 
     return ballot_lengths
+
+
+def index_to_lexicographic_ballot(
+    ballot_index: int,
+    n_candidates: int,
+    max_length: int,
+    total_valid_ballots_method,
+    always_use_total_valid_ballots_method: bool = True,
+) -> list[int]:
+    """
+    Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
+    The ordering of the ballots is lexicographic, i.e., the first ballot is the
+    lexicographically smallest ballot and continues in that order:
+
+    (0,),
+    (0,1),
+    (0,1,2),
+    ...
+    (0,2),
+    (0,2,1),
+    ...
+    (n-1, n-2, ..., n-l)
+
+    where n is the number of candidates and l is the maximum ballot length.
+
+    Args:
+        ballot_index (int): The index to convert.
+        n_candidates (int): The number of candidates.
+        max_length (int): The maximum allowed ballot rank.
+        total_valid_ballots_method: ((n_candidates, max_length) ->
+            integer) a method which returns the total number of
+            allowed ballots.
+        always_use_total_valid_ballots_method (bool): a flag
+            indicating whether the given total valid ballots method
+            should be used when computing b_n. If
+            total_valid_ballots_method is using a cache then this
+            should be True for maximum runtime efficiency.
+
+    Returns:
+        list[int]: A list representing the ballot corresponding to index.
+    """
+    total_valid_ballots = total_valid_ballots_method(n_candidates, max_length)
+    if ballot_index >= total_valid_ballots:
+        raise Exception(
+            f"Given ballot index {ballot_index} out of range. Max index: {total_valid_ballots}"
+        )
+
+    def chunk_size(n_cands: int, ballot_len: int) -> int:
+        return total_valid_ballots_method(n_cands, ballot_len) // n_cands
+
+    candidates = list(range(n_candidates))
+    out = []
+    if always_use_total_valid_ballots_method:
+        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (
+            n_candidates + 1
+        )
+    else:
+        bn = chunk_size(n_candidates + 1, max_length + 1)
+
+    for i in range(n_candidates, 0, -1):
+        if always_use_total_valid_ballots_method:
+            bn = total_valid_ballots_method(
+                n_candidates=i, max_ballot_length=max_length
+            ) // (i)
+        else:
+            bn = (bn - 1) // i
+        # Perform Euclidean division of index by bn
+        section = ballot_index // bn
+        remaining = ballot_index % bn
+        out.append(candidates.pop(section))
+        if remaining == 0:
+            # Cut off the ballot here
+            break
+        ballot_index = remaining - 1
+    return out
+
+
+def build_df_from_ballot_samples(
+    ballots_freq_dict: dict[tuple[int, ...], int], candidates: list[str]
+):
+    """
+    Helper function which creates a pandas df to instantiate a
+    PreferenceProfile
+    args:
+        ballots_freq_dict: dictionary mapping ballots to
+            sampled frequency. The keys should be in candidate id
+            form
+        candidates : list of candidates in the profile
+    returns:
+        pandas df
+    """
+    df_data = []
+    n_cands = len(candidates)
+    for ballot in ballots_freq_dict.keys():
+        ballot_as_frozenset_entries = tuple(
+            [frozenset([candidates[i]]) for i in ballot]
+        )
+        completed_ballot = (
+            ballot_as_frozenset_entries
+            + tuple(
+                [frozenset(["~"]) for _ in range(n_cands - len(ballot))]
+            )  # padding short ballots
+            + tuple([ballots_freq_dict[ballot], set()])
+        )  # weight, voter set
+        df_data.append(completed_ballot)
+    return pd.DataFrame(
+        df_data,
+        columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)]
+        + ["Weight", "Voter Set"],
+    )

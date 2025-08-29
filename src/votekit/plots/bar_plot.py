@@ -103,13 +103,13 @@ def _set_default_bar_plot_args(
     if isinstance(threshold_values, list):
         if not isinstance(threshold_kwds, list):
             threshold_kwds = [dict() for _ in range(len(threshold_values))]
-        for i, kwd_dict in enumerate(threshold_kwds):
+        for kwd_dict in threshold_kwds:
             for k, v in DEFAULT_LINE_KWDS.items():
                 if k not in kwd_dict:
                     kwd_dict[k] = v
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(3 * len(category_ordering), 6))
+        _, ax = plt.subplots(figsize=(3 * len(category_ordering), 6))
 
     return {
         "data_set_to_color": data_set_to_color,
@@ -259,7 +259,7 @@ def _prepare_data_bar_plot(
     normalize: bool,
     data: dict[str, dict[str, float]],
     category_ordering: list[str],
-) -> list[list[float]]:
+) -> tuple[list[list[float]], float]:
     """
     Formats data and normalizes if required.
 
@@ -273,17 +273,34 @@ def _prepare_data_bar_plot(
         list[list[float]]: Height of bars, one list for each data set.
 
     """
+    plot_data = data
     if normalize:
-        data = {
+        plot_data = {
             label: _normalize_data_dict(data_dict) for label, data_dict in data.items()
         }
 
     y_data = [
         [data_dict[x_label] for x_label in category_ordering]
-        for data_dict in data.values()
+        for data_dict in plot_data.values()
     ]
 
-    return y_data
+    all_data_values: list[float] = []
+    # NOTE: data is dict[str, dict[str, float]]
+    for dct in data.values():
+        if isinstance(dct, dict):
+            all_data_values.extend(dct.values())
+
+    flat_y_data = [item for sublist in y_data for item in sublist]
+
+    data_ratio = float(
+        1.0 if not normalize else max(flat_y_data) / max(all_data_values)
+    )
+
+    assert isinstance(
+        data_ratio, float
+    ), "Something went wrong in computation of data_ratio."
+
+    return y_data, data_ratio
 
 
 def _plot_datasets_on_bar_plot(
@@ -401,6 +418,7 @@ def _add_horizontal_lines_bar_plot(
     threshold_values: list[float],
     threshold_kwds: list[dict],
     ax: Axes,
+    data_ratio: float = 1.0,
 ):
     """
     Add horizontal lines to the bar plot.
@@ -416,7 +434,7 @@ def _add_horizontal_lines_bar_plot(
     """
 
     for i, y in enumerate(threshold_values):
-        ax.axhline(y, **threshold_kwds[i])
+        ax.axhline(y * data_ratio, **threshold_kwds[i])
 
     return ax
 
@@ -431,7 +449,7 @@ def _add_data_sets_legend_bar_plot(
     legend_font_size: float,
     legend_loc: str,
     legend_bbox_to_anchor: Tuple[float, float],
-) -> Tuple[Axes, Legend]:
+) -> Tuple[Axes, Optional[Legend]]:
     """
     Add legend to bar plot for data sets and any horizontal lines.
 
@@ -462,6 +480,7 @@ def _add_data_sets_legend_bar_plot(
             line = Line2D([0], [0], **kwd_dict)
             proxy_artists.append(line)
 
+    leg = ax.get_legend()
     if proxy_artists:
         leg = ax.legend(
             handles=proxy_artists,
@@ -473,7 +492,7 @@ def _add_data_sets_legend_bar_plot(
             fancybox=True,
         )
 
-    if categories_legend:
+    if categories_legend and leg is not None:
         ax.add_artist(leg)
 
     return ax, leg
@@ -617,7 +636,7 @@ def multi_bar_plot(
         threshold_kwds=barplot_kwds["threshold_kwds"],
     )
 
-    y_data = _prepare_data_bar_plot(
+    y_data, data_ratio = _prepare_data_bar_plot(
         normalize=normalize,
         data=data,
         category_ordering=barplot_kwds["category_ordering"],
@@ -647,6 +666,7 @@ def multi_bar_plot(
             threshold_values=barplot_kwds["threshold_values"],
             threshold_kwds=barplot_kwds["threshold_kwds"],
             ax=ax,
+            data_ratio=data_ratio,
         )
 
         for kwd_dict in barplot_kwds["threshold_kwds"]:

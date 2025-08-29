@@ -41,17 +41,20 @@ profiles = [
 states = [
     ElectionState(
         round_number=0,
-        remaining=({"B", "C"}, {"A"}, {"D"}),
+        remaining=(frozenset({"B", "C"}), frozenset({"A"}), frozenset({"D"})),
         scores={"A": 1, "B": 2, "C": 2, "D": 0},
     ),
     ElectionState(
         round_number=1,
-        remaining=({"B", "C"}, {"A"}),
-        eliminated=({"D"},),
+        remaining=(frozenset({"B", "C"}), frozenset({"A"})),
+        eliminated=(frozenset({"D"}),),
         scores={"A": 1, "B": 2, "C": 2},
     ),
     ElectionState(
-        round_number=2, remaining=({"A"},), elected=({"B", "C"},), scores={"A": 1}
+        round_number=2,
+        remaining=(frozenset({"A"}),),
+        elected=(frozenset({"B", "C"}),),
+        scores={"A": 1},
     ),
 ]
 

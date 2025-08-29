@@ -51,13 +51,13 @@ def test_init():
 
 
 def test_ties():
-    e_random = Rating(profile_tied_rating, m=1, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=1, tiebreak="random", L=3)
     assert len([c for s in e_random.get_elected() for c in s]) == 1
 
-    e_random = Rating(profile_tied_rating, m=2, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=2, tiebreak="random", L=3)
     assert len([c for s in e_random.get_elected() for c in s]) == 2
 
-    e_random = Rating(profile_tied_rating, m=3, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=3, tiebreak="random", L=3)
     assert e_random.get_elected() == (frozenset({"A", "C", "B"}),)
 
 
