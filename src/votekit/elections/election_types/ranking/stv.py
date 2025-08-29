@@ -329,7 +329,7 @@ class fast_STV:
 
     def get_remaining(
         self, round_number: int = -1
-    ) -> tuple[frozenset]:  # I have become that which I most dread
+    ) -> tuple[frozenset]:  
         """
         Fetch the remaining candidates after the given round.
 
