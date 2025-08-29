@@ -44,6 +44,8 @@ jobs:
 
       - name: Install deps
         run: poetry install --no-interaction
+
+      - name: Sync poetry (safety check)
         run: poetry sync
 
       - name: pytest
