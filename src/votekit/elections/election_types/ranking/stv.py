@@ -239,7 +239,7 @@ class fast_STV:
                     elif self.tiebreak == "random":
                         w = np.random.choice(potential_winners)
                         tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                    elif self.tiebreak == "borda":
+                    elif self.tiebreak == "borda": # maybe I should the votekit implementation of borda for this?
                         borda_scores = np.zeros_like(
                             potential_winners, dtype=np.float64
                         )
@@ -264,7 +264,8 @@ class fast_STV:
                 winner_list.append(int(w))
                 gone_list.append(w)
             return winners
-
+        
+        #below is the main loop of the algorithm
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
