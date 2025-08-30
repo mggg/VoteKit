@@ -74,7 +74,7 @@ class fast_STV:
                 len(self.candidates),
             )
         )
-        self.election_states = self._election_states()
+        self.election_states = self._make_election_states()
 
     def _misc_validation(self, profile, m, transfer):
         if m <= 0:
@@ -496,7 +496,7 @@ class fast_STV:
         status_df = status_df.reindex(new_index)
         return status_df
 
-    def _election_states(self):
+    def _make_election_states(self):
         e_states = [
             ElectionState(
                 round_number=0,
