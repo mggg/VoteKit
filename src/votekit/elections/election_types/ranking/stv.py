@@ -672,13 +672,23 @@ class fast_STV:
         return (self.get_profile(round_number), self.election_states[round_number])
 
     def _sample_to_transfer(
-        self, fpv_vec, wt_vec, w: np.int8, s: int, rng=None
+        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, w: int, s: int, rng=None
     ) -> np.ndarray:
         """
         Build a list of indices i such that fpv_vec[i] == w;
         each index is repeated round(wt_vec[i]) times, then we sample s entries uniformly.
         This is different from the Cambridge transfer!!!
         Some of the ballots selected for transfer may still be exhausted if they list no further preference.
+
+        Args:
+            fpv_vec (np.ndarray): First-preference vector.
+            wt_vec (np.ndarray): Weight vector.
+            w (int): Candidate index to transfer from.
+            s (int): Number of ballots to transfer.
+            rng (np.random.Generator, optional): Random number generator. Defaults to None.
+
+        Returns:
+            np.ndarray: Array of sampled indices.
         """
         if rng is None:
             rng = np.random.default_rng()
