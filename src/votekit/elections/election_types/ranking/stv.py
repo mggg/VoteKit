@@ -298,7 +298,7 @@ class fast_STV:
         fpv_vec: np.ndarray,
         m: int,
         ncands: int,
-    ) -> tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
+    ) -> tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict
     ]:
         """
         This runs the STV algorithm. Based.
@@ -365,7 +365,7 @@ class fast_STV:
             if len(gone_list) - len(winner_list) == ncands - m:
                 still_standing = [i for i in range(ncands) if i not in gone_list]
                 winner_list += still_standing
-                play_by_play.append((turn, still_standing, [], "default"))
+                play_by_play.append((turn, still_standing, np.array([]), "default"))
                 turn += 1
                 tally_record.append(
                     np.zeros(ncands, dtype=np.float64)
@@ -378,7 +378,7 @@ class fast_STV:
                     while ballot_matrix[i, pos_vec[i]] in gone_list:
                         pos_vec[i] += 1
                     fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-            play_by_play.append((turn, [L], [], "elimination"))
+            play_by_play.append((turn, [L], np.array([]), "elimination"))
             turn += 1
 
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset]:
