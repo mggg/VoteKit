@@ -196,29 +196,14 @@ class fast_STV:
             L = np.argmin(masked_tallies)
         mutant_gone_list.append(L)
         return L
-    
+
     def __find_winners(self, tallies, turn, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
         if self.simultaneous:
             winners = np.where(tallies >= self.threshold)[0]
             winners = winners[np.argsort(-tallies[winners])]
         else:
             if np.count_nonzero(tallies == np.max(tallies)) > 1:
-                potential_winners = np.where(tallies == np.max(tallies))[0]
-                if self.tiebreak is None:
-                    raise ValueError(
-                        "Cannot elect correct number of candidates without breaking ties."
-                    )
-                elif self.tiebreak == "random":
-                    w = np.random.choice(potential_winners)
-                    mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                elif self.tiebreak == "borda": # I cast shahrazad
-                    if not hasattr(self, "_borda_scores"):
-                        full_borda_scores = borda_scores(self.profile)
-                        self._borda_scores = [full_borda_scores.get(c, 0) for c in self.candidates]
-                    w = potential_winners[
-                        np.argmax(self._borda_scores)
-                    ]  # it's possible the borda scores are tied too? oh well
-                    mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                w, mutant_tiebreak_record = self.__winner_tiebreak(tallies, turn, mutant_tiebreak_record)
             else:
                 w = np.argmax(tallies)
             winners = [w]
@@ -226,6 +211,29 @@ class fast_STV:
             mutant_winner_list.append(int(w))
             mutant_gone_list.append(w)
         return winners, (mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
+    
+    def __winner_tiebreak(self, tallies, turn, mutant_tiebreak_record):
+        potential_winners = np.where(tallies == np.max(tallies))[0]
+        if self.tiebreak is None:
+            raise ValueError(
+                "Cannot elect correct number of candidates without breaking ties."
+            )
+        elif self.tiebreak == "random":
+            w = np.random.choice(potential_winners)
+            mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+        elif self.tiebreak == "borda": # I cast shahrazad
+            if not hasattr(self, "_borda_scores"):
+                full_borda_scores = borda_scores(self.profile)
+                self._borda_scores = [full_borda_scores.get(c, 0) for c in self.candidates]
+            if np.count_nonzero(self._borda_scores == np.max(self._borda_scores)) > 1: # I cast burning wish
+                print("Initial tiebreak was unsuccessful, performing random tiebreak")
+                w = np.random.choice(potential_winners)
+            else:
+                w = potential_winners[
+                    np.argmax(self._borda_scores)
+                ]
+                mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+        return w, mutant_tiebreak_record
 
     def _run_STV(
         self, ballot_matrix, wt_vec, fpv_vec, m, ncands
