@@ -6,7 +6,7 @@ from .plurality import (
 )
 
 from .borda import Borda
-from .stv import STV, IRV, SequentialRCV
+from .stv import fast_STV, STV, IRV, SequentialRCV
 from .alaska import Alaska
 from .top_two import TopTwo
 from .dominating_sets import DominatingSets
@@ -22,6 +22,7 @@ __all__ = [
     "Plurality",
     "SNTV",
     "Borda",
+    "fast_STV",
     "STV",
     "IRV",
     "SequentialRCV",
