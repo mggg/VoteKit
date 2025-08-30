@@ -15,7 +15,7 @@ from ....utils import (
     tiebreak_set,
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
-    borda_scores
+    borda_scores,
 )
 from typing import Optional, Callable, Union
 import pandas as pd
@@ -65,14 +65,12 @@ class fast_STV:
         self.candidates = list(profile.candidates)
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
-        self._tally_record, self._play_by_play, self._tiebreak_record = (
-            self._run_STV(
-                self._ballot_matrix,
-                self._wt_vec.copy(), 
-                self._fpv_vec,
-                m,
-                len(self.candidates),
-            )
+        self._tally_record, self._play_by_play, self._tiebreak_record = self._run_STV(
+            self._ballot_matrix,
+            self._wt_vec.copy(),
+            self._fpv_vec,
+            m,
+            len(self.candidates),
         )
         self.election_states = self._make_election_states()
 
@@ -101,7 +99,9 @@ class fast_STV:
         else:
             raise ValueError("Misspelled or unknown quota type.")
 
-    def _convert_df(self, profile: PreferenceProfile) -> tuple[np.ndarray[np.int8], np.ndarray[np.float64], np.ndarray[np.int8]]:
+    def _convert_df(
+        self, profile: PreferenceProfile
+    ) -> tuple[np.ndarray[np.int8], np.ndarray[np.float64], np.ndarray[np.int8]]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
@@ -112,8 +112,10 @@ class fast_STV:
             tuple[np.ndarray, np.ndarray, np.ndarray]: The ballot matrix, weights vector, and first-preference vector.
         """
         df = profile.df
-        candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
-        candidate_to_index[frozenset(["~"])] = -127 
+        candidate_to_index = {
+            frozenset([name]): i for i, name in enumerate(self.candidates)
+        }
+        candidate_to_index[frozenset(["~"])] = -127
 
         ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
         num_rows = len(df)
@@ -146,19 +148,30 @@ class fast_STV:
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
-    
-    def __update_because_winner(self, winners, tallies, mutated_fpv_vec, mutated_wt_vec, mutated_stencil, mutated_pos_vec, mutated_gone_list):
+
+    def __update_because_winner(
+        self,
+        winners,
+        tallies,
+        mutated_fpv_vec,
+        mutated_wt_vec,
+        mutated_stencil,
+        mutated_pos_vec,
+        mutated_gone_list,
+    ):
         rows = np.isin(mutated_fpv_vec, winners)
         # Allowed positions are where skip is False
-        allowed = ~mutated_stencil # this is creating another large array, but in contains only bits
+        allowed = (
+            ~mutated_stencil
+        )  # this is creating another large array, but in contains only bits
 
         # For each row i, we want the first allowed column j >= mutated_pos_vec[i]
         cols = np.arange(self._ballot_matrix.shape[1])
-        after = cols >= mutated_pos_vec[:, None]          # shape (n_rows, n_cols), broadcasts
-        next_allowed = allowed & after                      # mask of acceptable next positions
+        after = cols >= mutated_pos_vec[:, None]  # shape (n_rows, n_cols), broadcasts
+        next_allowed = allowed & after  # mask of acceptable next positions
 
         # Since the last column is guaranteed allowed (not masked), each row has at least one True
-        next_idx = next_allowed.argmax(axis=1)              # first True per row
+        next_idx = next_allowed.argmax(axis=1)  # first True per row
 
         # Update only the affected rows
         idx_rows = np.where(rows)[0]
@@ -166,7 +179,9 @@ class fast_STV:
         mutated_pos_vec[rows] = next_idx[rows]
         if self.transfer == "fractional":
             # rows needing an update: current first-preference in winners
-            get_tau = np.frompyfunc(lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1)
+            get_tau = np.frompyfunc(
+                lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
+            )
             tau_values = get_tau(mutated_fpv_vec[rows]).astype(np.float64)
             mutated_wt_vec[rows] *= tau_values
             mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx[rows]]
@@ -181,9 +196,24 @@ class fast_STV:
                 )
             mutated_wt_vec[rows] = new_weights[mutated_fpv_vec[rows]]
             mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx[rows]]
-        return mutated_fpv_vec, mutated_wt_vec, mutated_stencil, mutated_pos_vec, mutated_gone_list
-    
-    def __find_loser(self, tallies, initial_tally, turn, mutant_stencil, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
+        return (
+            mutated_fpv_vec,
+            mutated_wt_vec,
+            mutated_stencil,
+            mutated_pos_vec,
+            mutated_gone_list,
+        )
+
+    def __find_loser(
+        self,
+        tallies,
+        initial_tally,
+        turn,
+        mutant_stencil,
+        mutant_winner_list,
+        mutant_gone_list,
+        mutant_tiebreak_record,
+    ):
         masked_tallies = np.where(
             np.isin(np.arange(len(tallies)), mutant_gone_list), np.inf, tallies
         )  # used to be np.where(tallies > 0, tallies, np.inf)
@@ -202,13 +232,23 @@ class fast_STV:
         self.__update_stencil(mutant_stencil, [L])
         return L
 
-    def __find_winners(self, tallies, turn, mutant_stencil, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
+    def __find_winners(
+        self,
+        tallies,
+        turn,
+        mutant_stencil,
+        mutant_winner_list,
+        mutant_gone_list,
+        mutant_tiebreak_record,
+    ):
         if self.simultaneous:
             winners = np.where(tallies >= self.threshold)[0]
             winners = winners[np.argsort(-tallies[winners])]
         else:
             if np.count_nonzero(tallies == np.max(tallies)) > 1:
-                w, mutant_tiebreak_record = self.__winner_tiebreak(tallies, turn, mutant_tiebreak_record)
+                w, mutant_tiebreak_record = self.__winner_tiebreak(
+                    tallies, turn, mutant_tiebreak_record
+                )
             else:
                 w = np.argmax(tallies)
             winners = [w]
@@ -216,8 +256,13 @@ class fast_STV:
             mutant_winner_list.append(int(w))
             mutant_gone_list.append(w)
         self.__update_stencil(mutant_stencil, winners)
-        return winners, (mutant_stencil, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
-    
+        return winners, (
+            mutant_stencil,
+            mutant_winner_list,
+            mutant_gone_list,
+            mutant_tiebreak_record,
+        )
+
     def __winner_tiebreak(self, tallies, turn, mutant_tiebreak_record):
         potential_winners = np.where(tallies == np.max(tallies))[0]
         if self.tiebreak is None:
@@ -227,17 +272,19 @@ class fast_STV:
         elif self.tiebreak == "random":
             w = np.random.choice(potential_winners)
             mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-        elif self.tiebreak == "borda": # I cast shahrazad
+        elif self.tiebreak == "borda":  # I cast shahrazad
             if not hasattr(self, "_borda_scores"):
                 full_borda_scores = borda_scores(self.profile)
-                self._borda_scores = [full_borda_scores.get(c, 0) for c in self.candidates]
-            if np.count_nonzero(self._borda_scores == np.max(self._borda_scores)) > 1: # I cast burning wish
+                self._borda_scores = [
+                    full_borda_scores.get(c, 0) for c in self.candidates
+                ]
+            if (
+                np.count_nonzero(self._borda_scores == np.max(self._borda_scores)) > 1
+            ):  # I cast burning wish
                 print("Initial tiebreak was unsuccessful, performing random tiebreak")
                 w = np.random.choice(potential_winners)
             else:
-                w = potential_winners[
-                    np.argmax(self._borda_scores)
-                ]
+                w = potential_winners[np.argmax(self._borda_scores)]
                 mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
         return w, mutant_tiebreak_record
 
@@ -246,7 +293,12 @@ class fast_STV:
         return _mutant_stencil
 
     def _run_STV(
-        self, ballot_matrix: np.ndarray[np.int8], wt_vec: np.ndarray[np.float64], fpv_vec: np.ndarray[np.int8], m: int, ncands: int
+        self,
+        ballot_matrix: np.ndarray[np.int8],
+        wt_vec: np.ndarray[np.float64],
+        fpv_vec: np.ndarray[np.int8],
+        m: int,
+        ncands: int,
     ) -> tuple[
         list[int], list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
     ]:
@@ -264,7 +316,7 @@ class fast_STV:
 
         Returns:
             tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[list[int], int, int]]:
-                The tally record is a list with one array per round; 
+                The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
                     - turn number
@@ -285,19 +337,27 @@ class fast_STV:
         mutant_stencil = np.zeros_like(ballot_matrix, dtype=bool)
 
         def make_tallies(fpv_vec, wt_vec, ncands):
-            return np.bincount(fpv_vec[fpv_vec != -127], weights=wt_vec[fpv_vec != -127], minlength=ncands)
-        
+            return np.bincount(
+                fpv_vec[fpv_vec != -127],
+                weights=wt_vec[fpv_vec != -127],
+                minlength=ncands,
+            )
+
         mutant_engine = (fpv_vec, wt_vec, mutant_stencil, pos_vec, gone_list)
         mutant_record = (mutant_stencil, winner_list, gone_list, tiebreak_record)
-        #below is the main loop of the algorithm
+        # below is the main loop of the algorithm
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
-                winners, mutant_record = self.__find_winners(tallies, turn, *mutant_record)
-                mutant_engine = self.__update_because_winner(winners, tallies, *mutant_engine)
-                play_by_play.append((turn, winners, np.array(wt_vec), 'election'))
+                winners, mutant_record = self.__find_winners(
+                    tallies, turn, *mutant_record
+                )
+                mutant_engine = self.__update_because_winner(
+                    winners, tallies, *mutant_engine
+                )
+                play_by_play.append((turn, winners, np.array(wt_vec), "election"))
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 tally_record.append(tallies.copy())
@@ -306,20 +366,20 @@ class fast_STV:
             if len(gone_list) - len(winner_list) == ncands - m:
                 still_standing = [i for i in range(ncands) if i not in gone_list]
                 winner_list += still_standing
-                play_by_play.append((turn, still_standing, [], 'default'))
+                play_by_play.append((turn, still_standing, [], "default"))
                 turn += 1
                 tally_record.append(
                     np.zeros(ncands, dtype=np.float64)
                 )  # this is needed for get_remaining to behave nicely
                 return tally_record, play_by_play, tiebreak_record
             L = self.__find_loser(tallies, tally_record[0], turn, *mutant_record)
-            #I could throw the below into another private method if it's bothersome -- it's the analogue of update_because_winner
+            # I could throw the below into another private method if it's bothersome -- it's the analogue of update_because_winner
             for i in range(len(fpv_vec)):
                 if fpv_vec[i] == L:
                     while ballot_matrix[i, pos_vec[i]] in gone_list:
                         pos_vec[i] += 1
                     fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-            play_by_play.append((turn, [L], [], 'elimination'))
+            play_by_play.append((turn, [L], [], "elimination"))
             turn += 1
 
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset]:
@@ -379,12 +439,12 @@ class fast_STV:
         list_of_winners = [
             [c]
             for _, cand_list, _, turn_type in self._play_by_play[:round_number]
-            if turn_type == 'election'
+            if turn_type == "election"
             for c in cand_list
         ] + [
             cand_list
             for _, cand_list, _, turn_type in self._play_by_play[:round_number]
-            if turn_type == 'default'
+            if turn_type == "default"
         ]
         return tuple(
             frozenset([self.candidates[c] for c in w_list])
@@ -416,7 +476,7 @@ class fast_STV:
         list_of_losers = [
             cand_list
             for _, cand_list, _, turn_type in self._play_by_play[round_number - 1 :: -1]
-            if turn_type == 'elimination'
+            if turn_type == "elimination"
         ]
         return tuple(
             frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers
@@ -475,14 +535,14 @@ class fast_STV:
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
         for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
-            if turn_type == 'elimination':  # loser
+            if turn_type == "elimination":  # loser
                 status_df.at[self.candidates[birthday_list[0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[birthday_list[0]], "Round"] = turn_id + 1
-            elif turn_type == 'election':  # winner
+            elif turn_type == "election":  # winner
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
-            elif turn_type == 'default':  # winner by default
+            elif turn_type == "default":  # winner by default
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
@@ -529,7 +589,7 @@ class fast_STV:
                 }
             else:
                 formatted_tiebreak = None
-            if play[-1] == 'elimination':
+            if play[-1] == "elimination":
                 if formatted_tiebreak is None:
                     e_states.append(
                         ElectionState(
@@ -561,7 +621,7 @@ class fast_STV:
                             },
                         )
                     )
-            elif play[-1] == 'election':
+            elif play[-1] == "election":
                 if formatted_tiebreak is None:
                     e_states.append(
                         ElectionState(
@@ -593,7 +653,7 @@ class fast_STV:
                             },
                         )
                     )
-            elif play[-1] == 'default':
+            elif play[-1] == "default":
                 e_states.append(
                     ElectionState(
                         round_number=i + 1,
@@ -638,7 +698,7 @@ class fast_STV:
         if self.m > 1:
             # find the last entry in play_by_play[:round_number] with a 1 in the last position (there may be no such entry)
             for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
-                if self._play_by_play[i][-1] == 'election':
+                if self._play_by_play[i][-1] == "election":
                     wt_vec = self._play_by_play[i][2]
                     break
         for i, row in enumerate(self._ballot_matrix):
@@ -797,7 +857,7 @@ class STV(RankingElection):
 
         Args:
             total_ballot_wt (float): Total weight of ballots to compute threshold.
-            
+
         Returns:
             int: Value of the threshold.
         """

@@ -1,10 +1,11 @@
 from votekit.cvr_loaders import load_scottish
 from votekit.elections import STV, fast_STV
 import numpy as np
-from tqdm import tqdm #tqdm is not currently a dependency... oh well
+from tqdm import tqdm  # tqdm is not currently a dependency... oh well
 import os
 
 simult = False
+
 
 def is_same_election_state(e1, e2):
     return (
@@ -16,6 +17,7 @@ def is_same_election_state(e1, e2):
         and e1.scores.keys() == e2.scores.keys()
         and all(np.isclose(e1.scores[k], e2.scores[k]) for k in e1.scores.keys())
     )
+
 
 def check_election_states(profile):
     new = fast_STV(profile, m=2, simultaneous=simult)
@@ -40,15 +42,18 @@ def check_election_states(profile):
             print("State number:", i)
             return True
 
+
 def check_full_election(profile):
     new = fast_STV(profile, m=2, simultaneous=simult)
     old = STV(profile, m=2, simultaneous=simult)
 
     num_rounds = len(new._tally_record)
-    
+
     for i in range(num_rounds):
         # check that get_rankings returns the same pandas df string
-        if old.get_status_df(i).to_string(index=True, justify="justify") != new.get_status_df(i).to_string(index=True, justify="justify"):
+        if old.get_status_df(i).to_string(
+            index=True, justify="justify"
+        ) != new.get_status_df(i).to_string(index=True, justify="justify"):
             print("Mismatch found during get_status_df!")
             print("Old:")
             print(old.get_status_df(i).to_string(index=True, justify="justify"))
@@ -93,6 +98,7 @@ def check_full_election(profile):
             print("Round number:", i)
             return True
 
+
 def test_scot_methods():
     for filename in tqdm(os.listdir("data/8_cands")):
         if filename.endswith(".csv"):
@@ -101,6 +107,7 @@ def test_scot_methods():
                 print(f"Election {filename} failed")
                 assert False
     assert True
+
 
 def test_scot_states():
     for filename in tqdm(os.listdir("data/8_cands/*.csv")):
