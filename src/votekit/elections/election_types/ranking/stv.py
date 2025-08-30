@@ -248,7 +248,7 @@ class fast_STV:
         #the above is hopefully unnecesary as long as I never add -127 to the stencil
 
     def _run_STV(
-        self, ballot_matrix, wt_vec, fpv_vec, m, ncands
+        self, ballot_matrix: np.ndarray[np.int8], wt_vec: np.ndarray[np.float64], fpv_vec: np.ndarray[np.int8], m: int, ncands: int
     ) -> tuple[
         list[int], list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
     ]:
