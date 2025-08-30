@@ -29,7 +29,7 @@ class fast_STV:
     Args:
         profile (PreferenceProfile): PreferenceProfile to run election on.
         m (int): Number of seats to be elected. Defaults to 1.
-        transfer (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
+        transfer (Optional[str]): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
         quota (str): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
@@ -427,7 +427,7 @@ class fast_STV:
         Fetch the ranking of candidates after a given round.
 
         Args:
-            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+            round_number (int): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
@@ -617,7 +617,7 @@ class fast_STV:
         Fetch the PreferenceProfile of the given round number.
 
         Args:
-            round_number (int, optional): The round number. Supports negative indexing. Defaults to
+            round_number (int): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
@@ -685,7 +685,7 @@ class fast_STV:
             wt_vec (np.ndarray): Weight vector.
             w (int): Candidate index to transfer from.
             s (int): Number of ballots to transfer.
-            rng (np.random.Generator, optional): Random number generator. Defaults to None.
+            rng (np.random.Generator): Random number generator. Defaults to None.
 
         Returns:
             np.ndarray: Array of sampled indices.
@@ -719,18 +719,18 @@ class STV(RankingElection):
 
     Args:
         profile (PreferenceProfile):   PreferenceProfile to run election on.
-        m (int, optional): Number of seats to be elected. Defaults to 1.
-        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        m (int): Number of seats to be elected. Defaults to 1.
+        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]]):
         Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
             after transfer.
-        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
-        simultaneous (bool, optional): True if all candidates who cross threshold in a round are
+        simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
             who crosses the threshold is elected in a round. Defaults to False.
-        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+        tiebreak (str): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
 
