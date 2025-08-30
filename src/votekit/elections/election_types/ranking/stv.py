@@ -263,6 +263,13 @@ class fast_STV:
 
         Returns:
             tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[list[int], int, int]]:
+                The tally record is a list with one array per round; 
+                    each array counts the first-place votes for the remaining candidates.
+                The play-by-play logs some information for the public methods:
+                    - turn number
+                    - list of candidates elected or eliminated this turn
+                    - weight vector at this turn, if the turn was an election
+                    - turn type: 'election', 'elimination', or 'default'
         """
         tally_record = []
         play_by_play = []
