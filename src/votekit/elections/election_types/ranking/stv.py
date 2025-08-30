@@ -244,8 +244,6 @@ class fast_STV:
     def __update_stencil(self, _mutant_stencil, newly_gone):
         _mutant_stencil |= np.isin(self._ballot_matrix, newly_gone)
         return _mutant_stencil
-        #mutant_stencil[:, -1] = False  # never mask the sentinel column
-        #the above is hopefully unnecesary as long as I never add -127 to the stencil
 
     def _run_STV(
         self, ballot_matrix: np.ndarray[np.int8], wt_vec: np.ndarray[np.float64], fpv_vec: np.ndarray[np.int8], m: int, ncands: int
@@ -393,7 +391,7 @@ class fast_STV:
             for w_list in list_of_winners
         )
 
-    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset]:
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the eliminated candidates up to the given round number.
 
@@ -634,7 +632,7 @@ class fast_STV:
 
         round_number = round_number % len(self.election_states)
 
-        hopeful = self._tally_record[round_number].nonzero()[0]
+        remaining = self._tally_record[round_number].nonzero()[0]
         ballots = []
         wt_vec = self._wt_vec.copy()
         if self.m > 1:
@@ -643,13 +641,12 @@ class fast_STV:
                 if self._play_by_play[i][-1] == 'election':
                     wt_vec = self._play_by_play[i][2]
                     break
-        # print(wt_vec)
         for i, row in enumerate(self._ballot_matrix):
             ballot = []
             for entry in row:
                 if entry == -127:
                     break
-                elif entry in hopeful:
+                elif entry in remaining:
                     ballot.append(frozenset([self.candidates[entry]]))
             if len(ballot) > 0:
                 ballots.append(Ballot(ranking=tuple(ballot), weight=wt_vec[i]))
@@ -722,7 +719,7 @@ class STV(RankingElection):
             Defaults to "droop".
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
-            who crosses the threshold is elected in a round. Defaults to True.
+            who crosses the threshold is elected in a round. Defaults to False.
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
