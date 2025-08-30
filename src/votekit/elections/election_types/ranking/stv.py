@@ -34,7 +34,7 @@ class fast_STV:
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
-            who crosses the threshold is elected in a round. Defaults to True.
+            who crosses the threshold is elected in a round. Defaults to False.
         tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
