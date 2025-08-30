@@ -32,13 +32,13 @@ def check_election_states(profile):
         print("New number of states:", len(new_states))
         return True
 
-    for i, (ns, os) in enumerate(zip(new_states, old_states)):
-        if not is_same_election_state(ns, os):
+    for i, (new_state, old_state) in enumerate(zip(new_states, old_states)):
+        if not is_same_election_state(new_state, old_state):
             print("Mismatch found during election_states!")
             print("Old:")
-            print(os)
+            print(old_state)
             print("New:")
-            print(ns)
+            print(new_state)
             print("State number:", i)
             return True
 

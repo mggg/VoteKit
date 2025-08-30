@@ -101,7 +101,7 @@ class fast_STV:
 
     def _convert_df(
         self, profile: PreferenceProfile
-    ) -> tuple[np.ndarray[np.int8], np.ndarray[np.float64], np.ndarray[np.int8]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
@@ -144,7 +144,6 @@ class fast_STV:
         # 4) Reject ballots that have no rankings at all (all -127)
         empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
         if empty_rows.size:
-            r0 = empty_rows[0]
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
@@ -294,13 +293,12 @@ class fast_STV:
 
     def _run_STV(
         self,
-        ballot_matrix: np.ndarray[np.int8],
-        wt_vec: np.ndarray[np.float64],
-        fpv_vec: np.ndarray[np.int8],
+        ballot_matrix: np.ndarray,
+        wt_vec: np.ndarray,
+        fpv_vec: np.ndarray,
         m: int,
         ncands: int,
-    ) -> tuple[
-        list[int], list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
+    ) -> tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, int]], dict
     ]:
         """
         This runs the STV algorithm. Based.
@@ -315,7 +313,7 @@ class fast_STV:
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[list[int], int, int]]:
+            tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[int:(list[int], int, int)]]:
                 The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
@@ -323,14 +321,15 @@ class fast_STV:
                     - list of candidates elected or eliminated this turn
                     - weight vector at this turn, if the turn was an election
                     - turn type: 'election', 'elimination', or 'default'
+                The tiebreak record is a dictionary mapping turn number to a tuple of
         """
         tally_record = []
         play_by_play = []
         turn = 0
         quota = self.threshold
-        winner_list = []
-        gone_list = []
-        tiebreak_record = dict()
+        winner_list: list[int] = []
+        gone_list: list[int] = []
+        tiebreak_record: dict[int, tuple[list[int], int, int]] = dict()
         pos_vec = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
 
         # Build once; update as winners change
