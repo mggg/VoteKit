@@ -27,10 +27,10 @@ class fast_STV:
     STV elections. All ballots must have no ties.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (PreferenceProfile): PreferenceProfile to run election on.
         m (int): Number of seats to be elected. Defaults to 1.
         transfer (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
-        quota (str): Formula to calculate quota. Accepts "droop" or "hare". Defaults to "droop".
+        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
@@ -98,9 +98,15 @@ class fast_STV:
         else:
             raise ValueError("Misspelled or unknown quota type.")
 
-    def _convert_df(self, profile: PreferenceProfile):
+    def _convert_df(self, profile: PreferenceProfile) -> tuple[np.ndarray[np.int8], np.ndarray[np.float64], np.ndarray[np.int8]]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
+
+        Args:
+            profile (PreferenceProfile): The preference profile to convert.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray]: The ballot matrix, weights vector, and first-preference vector.
         """
         df = profile.df
         candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
@@ -256,7 +262,7 @@ class fast_STV:
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[list[int], int, int]]:
         """
         tally_record = []
         play_by_play = []
@@ -317,7 +323,7 @@ class fast_STV:
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[str], ...]:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
         """
@@ -352,8 +358,8 @@ class fast_STV:
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
-                List of winning candidates in order of election. Candidates
+            tuple[frozenset[str], ...]:
+                Tuple of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
                 they are tied.
         """
@@ -387,7 +393,7 @@ class fast_STV:
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[str], ...]:
                 Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
                 they are tied.
@@ -775,6 +781,7 @@ class STV(RankingElection):
 
         Args:
             total_ballot_wt (float): Total weight of ballots to compute threshold.
+            
         Returns:
             int: Value of the threshold.
         """
