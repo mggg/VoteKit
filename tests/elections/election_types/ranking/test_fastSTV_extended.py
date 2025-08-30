@@ -103,7 +103,7 @@ def test_scot_methods():
     assert True
 
 def test_scot_states():
-    for filename in tqdm(os.listdir("data/8_cands")):
+    for filename in tqdm(os.listdir("data/8_cands/*.csv")):
         if filename.endswith(".csv"):
             pf1 = load_scottish(f"data/8_cands/{filename}")[0]
             if check_election_states(pf1):
