@@ -69,7 +69,8 @@ class fast_STV:
 
         self.candidates = list(profile.candidates)
 
-        self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
+        ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
+        self._ballot_matrix = ballot_matrix.copy()
         self._winners, self._tally_record, self._play_by_play, self._tiebreak_record = (
             self._run_STV(
                 self._ballot_matrix,
@@ -177,45 +178,63 @@ class fast_STV:
                     mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
         return mutated_fpv_vec, mutated_wt_vec, mutated_ballot_matrix, mutated_pos_vec, mutated_gone_list
     
+    def __find_loser(self, tallies, initial_tally, turn, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
+        masked_tallies = np.where(
+            np.isin(np.arange(len(tallies)), mutant_gone_list), np.inf, tallies
+        )  # used to be np.where(tallies > 0, tallies, np.inf)
+        if (
+            np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
+        ):  # do something funny if masked_tallies attains the minimum twice
+            # count FPV votes of each I guess
+            potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
+            L = potential_losers[
+                np.argmin(initial_tally[potential_losers])
+            ]  # it's possible this is tied too. oh well
+            mutant_tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
+        else:
+            L = np.argmin(masked_tallies)
+        mutant_gone_list.append(L)
+        return L
+    
     def __find_winners(self, tallies, turn, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
-            if self.simultaneous:
-                winners = np.where(tallies >= self.threshold)[0]
-                winners = winners[np.argsort(-tallies[winners])]
+        if self.simultaneous:
+            winners = np.where(tallies >= self.threshold)[0]
+            winners = winners[np.argsort(-tallies[winners])]
+        else:
+            if np.count_nonzero(tallies == np.max(tallies)) > 1:
+                potential_winners = np.where(tallies == np.max(tallies))[0]
+                if self.tiebreak is None:
+                    raise ValueError(
+                        "Cannot elect correct number of candidates without breaking ties."
+                    )
+                elif self.tiebreak == "random":
+                    w = np.random.choice(potential_winners)
+                    mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                elif self.tiebreak == "borda": # I cast shahrazad
+                    borda_scores = np.zeros_like(
+                        potential_winners, dtype=np.float64
+                    )
+                    for j in range(self._ballot_matrix.shape[0]):
+                        for i in range(self._pos_vec[j], self._ballot_matrix.shape[1]):
+                            if self._ballot_matrix[j, i] in potential_winners:
+                                borda_scores[
+                                    np.where(
+                                        potential_winners == self._ballot_matrix[j, i]
+                                    )[0][0]
+                                ] += self._wt_vec[j] * (
+                                    self._ballot_matrix.shape[1] - i + self._pos_vec[j]
+                                )
+                    w = potential_winners[
+                        np.argmax(borda_scores)
+                    ]  # it's possible the borda scores are tied too? oh well
+                    mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
             else:
-                if np.count_nonzero(tallies == np.max(tallies)) > 1:
-                    potential_winners = np.where(tallies == np.max(tallies))[0]
-                    if self.tiebreak is None:
-                        raise ValueError(
-                            "Cannot elect correct number of candidates without breaking ties."
-                        )
-                    elif self.tiebreak == "random":
-                        w = np.random.choice(potential_winners)
-                        mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                    elif self.tiebreak == "borda": # I cast shahrazad
-                        borda_scores = np.zeros_like(
-                            potential_winners, dtype=np.float64
-                        )
-                        for j in range(self._ballot_matrix.shape[0]):
-                            for i in range(self._pos_vec[j], self._ballot_matrix.shape[1]):
-                                if self._ballot_matrix[j, i] in potential_winners:
-                                    borda_scores[
-                                        np.where(
-                                            potential_winners == self._ballot_matrix[j, i]
-                                        )[0][0]
-                                    ] += self._wt_vec[j] * (
-                                        self._ballot_matrix.shape[1] - i + self._pos_vec[j]
-                                    )
-                        w = potential_winners[
-                            np.argmax(borda_scores)
-                        ]  # it's possible the borda scores are tied too? oh well
-                        mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                else:
-                    w = np.argmax(tallies)
-                winners = [w]
-            for w in winners:
-                mutant_winner_list.append(int(w))
-                mutant_gone_list.append(w)
-            return winners, (mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
+                w = np.argmax(tallies)
+            winners = [w]
+        for w in winners:
+            mutant_winner_list.append(int(w))
+            mutant_gone_list.append(w)
+        return winners, (mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
 
     def _run_STV(
         self, ballot_matrix, wt_vec, fpv_vec, m, ncands
@@ -236,64 +255,6 @@ class fast_STV:
 
         def make_tallies(fpv_vec, wt_vec, ncands):
             return np.bincount(fpv_vec[fpv_vec != -127], weights=wt_vec[fpv_vec != -127], minlength=ncands)
-
-        def find_loser(self):
-            masked_tallies = np.where(
-                np.isin(np.arange(len(tallies)), gone_list), np.inf, tallies
-            )  # used to be np.where(tallies > 0, tallies, np.inf)
-            if (
-                np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
-            ):  # do something funny if masked_tallies attains the minimum twice
-                # count FPV votes of each I guess
-                potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
-                L = potential_losers[
-                    np.argmin(tally_record[0][potential_losers])
-                ]  # it's possible this is tied too. oh well
-                tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
-            else:
-                L = np.argmin(masked_tallies)
-            gone_list.append(L)
-            return L
-
-        def find_winners(self):
-            if self.simultaneous:
-                winners = np.where(tallies >= self.threshold)[0]
-                winners = winners[np.argsort(-tallies[winners])]
-            else:
-                if np.count_nonzero(tallies == np.max(tallies)) > 1:
-                    potential_winners = np.where(tallies == np.max(tallies))[0]
-                    if self.tiebreak is None:
-                        raise ValueError(
-                            "Cannot elect correct number of candidates without breaking ties."
-                        )
-                    elif self.tiebreak == "random":
-                        w = np.random.choice(potential_winners)
-                        tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                    elif self.tiebreak == "borda": # maybe I should the votekit implementation of borda for this?
-                        borda_scores = np.zeros_like(
-                            potential_winners, dtype=np.float64
-                        )
-                        for j in range(ballot_matrix.shape[0]):
-                            for i in range(pos_vec[j], ballot_matrix.shape[1]):
-                                if ballot_matrix[j, i] in potential_winners:
-                                    borda_scores[
-                                        np.where(
-                                            potential_winners == ballot_matrix[j, i]
-                                        )[0][0]
-                                    ] += wt_vec[j] * (
-                                        ballot_matrix.shape[1] - i + pos_vec[j]
-                                    )
-                        w = potential_winners[
-                            np.argmax(borda_scores)
-                        ]  # it's possible the borda scores are tied too? oh well
-                        tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                else:
-                    w = np.argmax(tallies)
-                winners = [w]
-            for w in winners:
-                winner_list.append(int(w))
-                gone_list.append(w)
-            return winners
         
         mutant_engine = (fpv_vec, wt_vec, ballot_matrix, pos_vec, gone_list)
         mutant_record = (winner_list, gone_list, tiebreak_record)
@@ -320,7 +281,7 @@ class fast_STV:
                     np.zeros(ncands, dtype=np.float64)
                 )  # this is needed for get_remaining to behave nicely
                 return winner_list, tally_record, play_by_play, tiebreak_record
-            L = find_loser(self)
+            L = self.__find_loser(tallies, tally_record[0], turn, *mutant_record)
             #I could throw the below into another closure if it's bothersome -- it's the analogue of update_because_winner
             for i in range(len(fpv_vec)):
                 if fpv_vec[i] == L:
@@ -329,7 +290,6 @@ class fast_STV:
                     fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
             play_by_play.append((turn, [L], [], 'elimination'))
             turn += 1
-        return winner_list, tally_record, play_by_play, tiebreak_record
 
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset]:
         """
