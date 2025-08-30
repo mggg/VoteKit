@@ -50,15 +50,9 @@ class fast_STV:
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
     ):
+        self._misc_validation(profile, m, transfer)
         self.profile = profile
-
-        if m <= 0:
-            raise ValueError("m must be positive.")
-        elif len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
-        if transfer not in ["fractional", "random"]:
-            raise ValueError("Transfer method must be either 'fractional' or 'random'.")
         self.transfer = transfer
         self.quota = quota
 
@@ -81,6 +75,15 @@ class fast_STV:
             )
         )
         self.election_states = self._election_states()
+
+    def _misc_validation(self, profile, m, transfer):
+        if m <= 0:
+            raise ValueError("m must be positive.")
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
+        self.m = m
+        if transfer not in ["fractional", "random"]:
+            raise ValueError("Transfer method must be either 'fractional' or 'random'.")
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
         """
