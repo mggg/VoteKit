@@ -138,43 +138,84 @@ class fast_STV:
         return ballot_matrix, wt_vec, fpv_vec
     
     def __update_because_winner(self, winners, tallies, mutated_fpv_vec, mutated_wt_vec, mutated_ballot_matrix, mutated_pos_vec, mutated_gone_list):
-            if self.transfer == "fractional":
-                tau_values = {w: (tallies[w] - self.threshold) / tallies[w] for w in winners}
-                for i in range(len(mutated_fpv_vec)):
-                    if mutated_fpv_vec[i] in winners:
-                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
-                            mutated_pos_vec[i] += 1
-                        mutated_wt_vec[i] *= tau_values[int(mutated_fpv_vec[i])]
-                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
-            elif self.transfer == "random":
-                new_weights = dict()
-                for w in winners:
-                    transfer_bundle = self._sample_to_transfer(
-                        mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
-                    )
-                    new_weights[w] = np.bincount(
-                        transfer_bundle, minlength=len(mutated_fpv_vec)
-                    )
-                for i in range(len(mutated_fpv_vec)):
-                    if mutated_fpv_vec[i] in winners:
-                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
-                            mutated_pos_vec[i] += 1
-                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
-                        mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
+        if self.transfer == "fractional":
+            tau_values = {w: (tallies[w] - self.threshold) / tallies[w] for w in winners}
+            for i in range(len(mutated_fpv_vec)):
+                if mutated_fpv_vec[i] in winners:
+                    while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                        mutated_pos_vec[i] += 1
+                    mutated_wt_vec[i] *= tau_values[int(mutated_fpv_vec[i])]
+                    mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+        elif self.transfer == "random":
+            new_weights = dict()
+            for w in winners:
+                transfer_bundle = self._sample_to_transfer(
+                    mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
+                )
+                new_weights[w] = np.bincount(
+                    transfer_bundle, minlength=len(mutated_fpv_vec)
+                )
+            for i in range(len(mutated_fpv_vec)):
+                if mutated_fpv_vec[i] in winners:
+                    while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                        mutated_pos_vec[i] += 1
+                    mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+                    mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
 
-                for w in winners:
-                    transfer_bundle = self._sample_to_transfer(
-                        mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
-                    )
-                    new_weights[w] = np.bincount(
-                        transfer_bundle, minlength=len(mutated_fpv_vec)
-                    )
-                for i in range(len(mutated_fpv_vec)):
-                    if mutated_fpv_vec[i] in winners:
-                        while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
-                            mutated_pos_vec[i] += 1
-                        mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
-                        mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
+            for w in winners:
+                transfer_bundle = self._sample_to_transfer(
+                    mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
+                )
+                new_weights[w] = np.bincount(
+                    transfer_bundle, minlength=len(mutated_fpv_vec)
+                )
+            for i in range(len(mutated_fpv_vec)):
+                if mutated_fpv_vec[i] in winners:
+                    while mutated_ballot_matrix[i, mutated_pos_vec[i]] in mutated_gone_list:
+                        mutated_pos_vec[i] += 1
+                    mutated_fpv_vec[i] = mutated_ballot_matrix[i, mutated_pos_vec[i]]
+                    mutated_wt_vec[i] = new_weights[mutated_fpv_vec[i]][i]
+        return mutated_fpv_vec, mutated_wt_vec, mutated_ballot_matrix, mutated_pos_vec, mutated_gone_list
+    
+    def __find_winners(self, tallies, turn, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record):
+            if self.simultaneous:
+                winners = np.where(tallies >= self.threshold)[0]
+                winners = winners[np.argsort(-tallies[winners])]
+            else:
+                if np.count_nonzero(tallies == np.max(tallies)) > 1:
+                    potential_winners = np.where(tallies == np.max(tallies))[0]
+                    if self.tiebreak is None:
+                        raise ValueError(
+                            "Cannot elect correct number of candidates without breaking ties."
+                        )
+                    elif self.tiebreak == "random":
+                        w = np.random.choice(potential_winners)
+                        mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                    elif self.tiebreak == "borda": # I cast shahrazad
+                        borda_scores = np.zeros_like(
+                            potential_winners, dtype=np.float64
+                        )
+                        for j in range(self._ballot_matrix.shape[0]):
+                            for i in range(self._pos_vec[j], self._ballot_matrix.shape[1]):
+                                if self._ballot_matrix[j, i] in potential_winners:
+                                    borda_scores[
+                                        np.where(
+                                            potential_winners == self._ballot_matrix[j, i]
+                                        )[0][0]
+                                    ] += self._wt_vec[j] * (
+                                        self._ballot_matrix.shape[1] - i + self._pos_vec[j]
+                                    )
+                        w = potential_winners[
+                            np.argmax(borda_scores)
+                        ]  # it's possible the borda scores are tied too? oh well
+                        mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
+                else:
+                    w = np.argmax(tallies)
+                winners = [w]
+            for w in winners:
+                mutant_winner_list.append(int(w))
+                mutant_gone_list.append(w)
+            return winners, (mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
 
     def _run_STV(
         self, ballot_matrix, wt_vec, fpv_vec, m, ncands
@@ -195,31 +236,6 @@ class fast_STV:
 
         def make_tallies(fpv_vec, wt_vec, ncands):
             return np.bincount(fpv_vec[fpv_vec != -127], weights=wt_vec[fpv_vec != -127], minlength=ncands)
-
-        def update_because_winner(self):
-            if self.transfer == "fractional":
-                tau_values = {w: (tallies[w] - self.threshold) / tallies[w] for w in winners}
-                for i in range(len(fpv_vec)):
-                    if fpv_vec[i] in winners:
-                        while ballot_matrix[i, pos_vec[i]] in gone_list:
-                            pos_vec[i] += 1
-                        wt_vec[i] *= tau_values[int(fpv_vec[i])]
-                        fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-            elif self.transfer == "random":
-                new_weights = dict()
-                for w in winners:
-                    transfer_bundle = self._sample_to_transfer(
-                        fpv_vec, wt_vec, w, int(tallies[w] - self.threshold)
-                    )
-                    new_weights[w] = np.bincount(
-                        transfer_bundle, minlength=len(fpv_vec)
-                    )
-                for i in range(len(fpv_vec)):
-                    if fpv_vec[i] in winners:
-                        while ballot_matrix[i, pos_vec[i]] in gone_list:
-                            pos_vec[i] += 1
-                        fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
-                        wt_vec[i] = new_weights[fpv_vec[i]][i]
 
         def find_loser(self):
             masked_tallies = np.where(
@@ -279,14 +295,16 @@ class fast_STV:
                 gone_list.append(w)
             return winners
         
+        mutant_engine = (fpv_vec, wt_vec, ballot_matrix, pos_vec, gone_list)
+        mutant_record = (winner_list, gone_list, tiebreak_record)
         #below is the main loop of the algorithm
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             tally_record.append(tallies.copy())
             while np.any(tallies >= quota):
-                winners = find_winners(self)
-                self.__update_because_winner(winners, tallies, fpv_vec, wt_vec, ballot_matrix, pos_vec, gone_list)
+                winners, mutant_record = self.__find_winners(tallies, turn, *mutant_record)
+                mutant_engine = self.__update_because_winner(winners, tallies, *mutant_engine)
                 play_by_play.append((turn, winners, np.array(wt_vec), 'election'))
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
