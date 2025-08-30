@@ -338,28 +338,27 @@ class fast_STV:
                 denotes ranking of remaining candidates, sets denote ties.
         """
         tallies = self._tally_record[round_number]
-        # weird dict structure to detect ties, which must be put in the same fset
-        this_is_great_and_not_weird = dict()
+        tallies_to_cands = dict()
         for c, t in enumerate(tallies):
             if t > 0:
-                if t not in this_is_great_and_not_weird:
-                    this_is_great_and_not_weird[t] = [self.candidates[c]]
+                if t not in tallies_to_cands:
+                    tallies_to_cands[t] = [self.candidates[c]]
                 else:
-                    this_is_great_and_not_weird[t].append(self.candidates[c])
-        this_is_great_and_not_weird = dict(
+                    tallies_to_cands[t].append(self.candidates[c])
+        tallies_to_cands = dict(
             sorted(
-                this_is_great_and_not_weird.items(),
+                tallies_to_cands.items(),
                 key=lambda item: item[0],
                 reverse=True,
             )
         )
         return (
-            tuple(frozenset(value) for value in this_is_great_and_not_weird.values())
-            if len(this_is_great_and_not_weird) > 0
+            tuple(frozenset(value) for value in tallies_to_cands.values())
+            if len(tallies_to_cands) > 0
             else (frozenset(),)
         )
 
-    def get_elected(self, round_number: int = -1) -> tuple[frozenset]:
+    def get_elected(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
         """
         Fetch the elected candidates up to the given round number.
 
