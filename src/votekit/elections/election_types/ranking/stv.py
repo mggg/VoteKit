@@ -15,6 +15,7 @@ from ....utils import (
     tiebreak_set,
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
+    borda_scores
 )
 from typing import Optional, Callable, Union
 import pandas as pd
@@ -49,7 +50,7 @@ class fast_STV:
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
     ):
-        #self._stv_validate_profile(profile)
+        self.profile = profile
 
         if m <= 0:
             raise ValueError("m must be positive.")
@@ -211,21 +212,11 @@ class fast_STV:
                     w = np.random.choice(potential_winners)
                     mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
                 elif self.tiebreak == "borda": # I cast shahrazad
-                    borda_scores = np.zeros_like(
-                        potential_winners, dtype=np.float64
-                    )
-                    for j in range(self._ballot_matrix.shape[0]):
-                        for i in range(self._pos_vec[j], self._ballot_matrix.shape[1]):
-                            if self._ballot_matrix[j, i] in potential_winners:
-                                borda_scores[
-                                    np.where(
-                                        potential_winners == self._ballot_matrix[j, i]
-                                    )[0][0]
-                                ] += self._wt_vec[j] * (
-                                    self._ballot_matrix.shape[1] - i + self._pos_vec[j]
-                                )
+                    if not hasattr(self, "_borda_scores"):
+                        full_borda_scores = borda_scores(self.profile)
+                        self._borda_scores = [full_borda_scores.get(c, 0) for c in self.candidates]
                     w = potential_winners[
-                        np.argmax(borda_scores)
+                        np.argmax(self._borda_scores)
                     ]  # it's possible the borda scores are tied too? oh well
                     mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
             else:
