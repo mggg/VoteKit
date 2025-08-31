@@ -755,9 +755,18 @@ class fast_STV:
 
     def _sample_to_transfer(self, fpv_vec: np.ndarray, wt_vec: np.ndarray, w: int, s: int, rng=None) -> np.ndarray:
         """
-        Return counts per *global row* for s selections without replacement
-        from the multiset where row i appears wt_vec[i] times among rows with fpv_vec[i] == w.
+        Samples s row indices to transfer from an implicit pool,
+        where each row index i appears wt_vec[i] times if fpv_vec[i] == w.
+        Returns a counts vector where counts[i] is the number of times row i was sampled.
         Ensures sum(counts) == s and counts[i] <= wt_vec[i].
+
+        Args:
+            fpv_vec (np.ndarray[np.int8]): First-preference vector.
+            wt_vec (np.ndarray[np.float64]): Weights vector.
+            w (int): Candidate code whose ballots are to be transferred.
+            s (int): Number of surplus votes to transfer.
+            rng (np.random.Generator, optional): Random number generator. If None, a new default
+                generator is created. Defaults to None.
         """
         if rng is None:
             rng = np.random.default_rng()
