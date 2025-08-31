@@ -358,3 +358,19 @@ def test_stv_cands_cast():
     )
 
     assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
+
+def test_random_transfers():
+    #in the below profile, B always wins with Cambridge-styled random transfers,
+    #but C would always win with fractional transfers, and wins with probability P = 1 - (1/2)**49 with the "transfer2" method
+    why_cambridge_is_evil = PreferenceProfile(
+                ballots=(
+                    Ballot(ranking=(frozenset({"A"}),frozenset({"B"})), weight = 50),
+                    Ballot(ranking=(frozenset({"A"}),), weight = 150),
+                    Ballot(ranking=(frozenset({"B"}),), weight = 24),
+                    Ballot(ranking=(frozenset({"C"}),), weight = 73),
+                ),
+                candidates=("A", "B", "C"),
+            )
+    assert STV(why_cambridge_is_evil, m=2, transfer="random").get_elected() == ({"A"}, {"B"})
+    assert STV(why_cambridge_is_evil, m=2, transfer="random2").get_elected() == ({"A"}, {"C"})
+    assert STV(why_cambridge_is_evil, m=2, transfer="fractional").get_elected() == ({"A"}, {"C"})
