@@ -65,7 +65,7 @@ class fast_STV:
         self.candidates = list(profile.candidates)
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
-        self._tally_record, self._play_by_play, self._tiebreak_record = self._run_STV(
+        self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._run_STV(
             self._ballot_matrix,
             self._wt_vec.copy(),
             self._fpv_vec,
@@ -80,7 +80,7 @@ class fast_STV:
         elif len(profile.candidates_cast) < m:
             raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
-        if transfer not in ["fractional", "random"]:
+        if transfer not in ["fractional", "random", "random2"]:
             raise ValueError("Transfer method must be either 'fractional' or 'random'.")
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
@@ -159,23 +159,19 @@ class fast_STV:
         mutated_gone_list,
     ):
         rows = np.isin(mutated_fpv_vec, winners)
-        # Allowed positions are where skip is False
-        allowed = (
-            ~mutated_stencil
-        )  # this is creating another large array, but in contains only bits
 
-        # For each row i, we want the first allowed column j >= mutated_pos_vec[i]
-        cols = np.arange(self._ballot_matrix.shape[1])
-        after = cols >= mutated_pos_vec[:, None]  # shape (n_rows, n_cols), broadcasts
-        next_allowed = allowed & after  # mask of acceptable next positions
-
-        # Since the last column is guaranteed allowed (not masked), each row has at least one True
-        next_idx = next_allowed.argmax(axis=1)  # first True per row
-
-        # Update only the affected rows
         idx_rows = np.where(rows)[0]
+        allowed = (~mutated_stencil)[idx_rows]
+        cols = np.arange(self._ballot_matrix.shape[1])
 
-        mutated_pos_vec[rows] = next_idx[rows]
+        after = cols >= mutated_pos_vec[idx_rows][:, None]
+        next_allowed = allowed & after
+        next_idx = next_allowed.argmax(axis=1)
+
+        mutated_pos_vec[idx_rows] = next_idx
+
+        next_candidates_rows = self._ballot_matrix[idx_rows, next_idx]
+
         if self.transfer == "fractional":
             # rows needing an update: current first-preference in winners
             get_tau = np.frompyfunc(
@@ -183,18 +179,45 @@ class fast_STV:
             )
             tau_values = get_tau(mutated_fpv_vec[rows]).astype(np.float64)
             mutated_wt_vec[rows] *= tau_values
-            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx[rows]]
+            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
         elif self.transfer == "random":
-            new_weights = dict()
+            new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for w in winners:
-                transfer_bundle = self._sample_to_transfer(
-                    mutated_fpv_vec, mutated_wt_vec, w, int(tallies[w] - self.threshold)
+                #pre-emptively exhaust ballots that will be exhausted
+                mutated_fpv_vec[idx_rows[next_candidates_rows == -127]] = -127
+                surplus = int(tallies[w] - self.threshold)
+                counts = self._sample_to_transfer(
+                    fpv_vec=mutated_fpv_vec,
+                    wt_vec=mutated_wt_vec,
+                    w=w,
+                    s=surplus,
+                    rng=None,
                 )
-                new_weights[w] = np.bincount(
-                    transfer_bundle, minlength=len(mutated_fpv_vec)
+                new_weights += counts.astype(new_weights.dtype)
+
+            # set the new weights for rows in play to exactly the transferred amount
+            mutated_wt_vec[idx_rows] = new_weights[idx_rows]
+            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+
+        elif self.transfer == "random2":
+            new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
+            for w in winners:
+                surplus = int(tallies[w] - self.threshold)
+                counts = self._sample_to_transfer(
+                    fpv_vec=mutated_fpv_vec,
+                    wt_vec=mutated_wt_vec,
+                    w=w,
+                    s=surplus,
+                    rng=None,
                 )
-            mutated_wt_vec[rows] = new_weights[mutated_fpv_vec[rows]]
-            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx[rows]]
+
+                # Only eligible & not exhausted rows for w will have nonzero counts;
+                # counts are already ≤ current weights and sum to 'surplus'
+                new_weights += counts.astype(new_weights.dtype)
+
+            # set the new weights for rows in play to exactly the transferred amount
+            mutated_wt_vec[idx_rows] = new_weights[idx_rows]
+            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
         return (
             mutated_fpv_vec,
             mutated_wt_vec,
@@ -323,7 +346,7 @@ class fast_STV:
                     - turn type: 'election', 'elimination', or 'default'
                 The tiebreak record is a dictionary mapping turn number to a tuple of
         """
-        tally_record = []
+        fpv_by_round = []
         play_by_play = []
         turn = 0
         quota = self.threshold
@@ -348,7 +371,7 @@ class fast_STV:
         while len(winner_list) < m:
             # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
-            tally_record.append(tallies.copy())
+            fpv_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self.__find_winners(
                     tallies, turn, *mutant_record
@@ -359,19 +382,19 @@ class fast_STV:
                 play_by_play.append((turn, winners, np.array(wt_vec), "election"))
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
-                tally_record.append(tallies.copy())
+                fpv_by_round.append(tallies.copy())
             if len(winner_list) == m:
-                return tally_record, play_by_play, tiebreak_record
+                return fpv_by_round, play_by_play, tiebreak_record
             if len(gone_list) - len(winner_list) == ncands - m:
                 still_standing = [i for i in range(ncands) if i not in gone_list]
                 winner_list += still_standing
                 play_by_play.append((turn, still_standing, np.array([]), "default"))
                 turn += 1
-                tally_record.append(
+                fpv_by_round.append(
                     np.zeros(ncands, dtype=np.float64)
                 )  # this is needed for get_remaining to behave nicely
-                return tally_record, play_by_play, tiebreak_record
-            L = self.__find_loser(tallies, tally_record[0], turn, *mutant_record)
+                return fpv_by_round, play_by_play, tiebreak_record
+            L = self.__find_loser(tallies, fpv_by_round[0], turn, *mutant_record)
             # I could throw the below into another private method if it's bothersome -- it's the analogue of update_because_winner
             for i in range(len(fpv_vec)):
                 if fpv_vec[i] == L:
@@ -394,7 +417,7 @@ class fast_STV:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
         """
-        tallies = self._tally_record[round_number]
+        tallies = self._fpv_by_round[round_number]
         tallies_to_cands = dict()
         for c, t in enumerate(tallies):
             if t > 0:
@@ -430,11 +453,11 @@ class fast_STV:
                 they are tied.
         """
         if (
-            round_number < -len(self._tally_record)
-            or round_number > len(self._tally_record) - 1
+            round_number < -len(self._fpv_by_round)
+            or round_number > len(self._fpv_by_round) - 1
         ):
             raise IndexError("round_number out of range.")
-        round_number = round_number % len(self._tally_record)
+        round_number = round_number % len(self._fpv_by_round)
         list_of_winners = [
             [c]
             for _, cand_list, _, turn_type in self._play_by_play[:round_number]
@@ -465,11 +488,11 @@ class fast_STV:
                 they are tied.
         """
         if (
-            round_number < -len(self._tally_record)
-            or round_number > len(self._tally_record) - 1
+            round_number < -len(self._fpv_by_round)
+            or round_number > len(self._fpv_by_round) - 1
         ):
             raise IndexError("round_number out of range.")
-        round_number = round_number % len(self._tally_record)
+        round_number = round_number % len(self._fpv_by_round)
         if round_number == 0:
             return tuple()
         list_of_losers = [
@@ -525,12 +548,12 @@ class fast_STV:
             index=self.candidates,
         )
         if (
-            round_number < -len(self._tally_record)
-            or round_number > len(self._tally_record) - 1
+            round_number < -len(self._fpv_by_round)
+            or round_number > len(self._fpv_by_round) - 1
         ):
             raise IndexError("round_number out of range.")
 
-        round_number = round_number % len(self._tally_record)
+        round_number = round_number % len(self._fpv_by_round)
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
         for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
@@ -558,8 +581,8 @@ class fast_STV:
                 round_number=0,
                 remaining=self.get_remaining(0),
                 scores={
-                    self.candidates[c]: self._tally_record[0][c]
-                    for c in self._tally_record[0].nonzero()[0]
+                    self.candidates[c]: self._fpv_by_round[0][c]
+                    for c in self._fpv_by_round[0].nonzero()[0]
                 },
             )
         ]
@@ -599,8 +622,8 @@ class fast_STV:
                                 frozenset([self.candidates[c] for c in play[1]]),
                             ),
                             scores={
-                                self.candidates[c]: self._tally_record[i + 1][c]
-                                for c in self._tally_record[i + 1].nonzero()[0]
+                                self.candidates[c]: self._fpv_by_round[i + 1][c]
+                                for c in self._fpv_by_round[i + 1].nonzero()[0]
                             },
                         )
                     )
@@ -615,8 +638,8 @@ class fast_STV:
                                 frozenset([self.candidates[c] for c in play[1]]),
                             ),
                             scores={
-                                self.candidates[c]: self._tally_record[i + 1][c]
-                                for c in self._tally_record[i + 1].nonzero()[0]
+                                self.candidates[c]: self._fpv_by_round[i + 1][c]
+                                for c in self._fpv_by_round[i + 1].nonzero()[0]
                             },
                         )
                     )
@@ -631,8 +654,8 @@ class fast_STV:
                             ),
                             eliminated=(frozenset(),),
                             scores={
-                                self.candidates[c]: self._tally_record[i + 1][c]
-                                for c in self._tally_record[i + 1].nonzero()[0]
+                                self.candidates[c]: self._fpv_by_round[i + 1][c]
+                                for c in self._fpv_by_round[i + 1].nonzero()[0]
                             },
                         )
                     )
@@ -647,8 +670,8 @@ class fast_STV:
                             tiebreaks=formatted_tiebreak,
                             eliminated=(frozenset(),),
                             scores={
-                                self.candidates[c]: self._tally_record[i + 1][c]
-                                for c in self._tally_record[i + 1].nonzero()[0]
+                                self.candidates[c]: self._fpv_by_round[i + 1][c]
+                                for c in self._fpv_by_round[i + 1].nonzero()[0]
                             },
                         )
                     )
@@ -663,8 +686,8 @@ class fast_STV:
                         ),
                         eliminated=(frozenset(),),
                         scores={
-                            self.candidates[c]: self._tally_record[i + 1][c]
-                            for c in self._tally_record[i + 1].nonzero()[0]
+                            self.candidates[c]: self._fpv_by_round[i + 1][c]
+                            for c in self._fpv_by_round[i + 1].nonzero()[0]
                         },
                     )
                 )
@@ -691,7 +714,7 @@ class fast_STV:
 
         round_number = round_number % len(self.election_states)
 
-        remaining = self._tally_record[round_number].nonzero()[0]
+        remaining = self._fpv_by_round[round_number].nonzero()[0]
         ballots = []
         wt_vec = self._wt_vec.copy()
         if self.m > 1:
@@ -730,41 +753,38 @@ class fast_STV:
         """
         return (self.get_profile(round_number), self.election_states[round_number])
 
-    def _sample_to_transfer(
-        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, w: int, s: int, rng=None
-    ) -> np.ndarray:
+    def _sample_to_transfer(self, fpv_vec: np.ndarray, wt_vec: np.ndarray, w: int, s: int, rng=None) -> np.ndarray:
         """
-        Build a list of indices i such that fpv_vec[i] == w;
-        each index is repeated round(wt_vec[i]) times, then we sample s entries uniformly.
-        This is different from the Cambridge transfer!!!
-        Some of the ballots selected for transfer may still be exhausted if they list no further preference.
-
-        Args:
-            fpv_vec (np.ndarray): First-preference vector.
-            wt_vec (np.ndarray): Weight vector.
-            w (int): Candidate index to transfer from.
-            s (int): Number of ballots to transfer.
-            rng (np.random.Generator): Random number generator. Defaults to None.
-
-        Returns:
-            np.ndarray: Array of sampled indices.
+        Return counts per *global row* for s selections without replacement
+        from the multiset where row i appears wt_vec[i] times among rows with fpv_vec[i] == w.
+        Ensures sum(counts) == s and counts[i] <= wt_vec[i].
         """
         if rng is None:
             rng = np.random.default_rng()
 
-        # mask for eligible indices
-        mask = fpv_vec == w
-        eligible_idx = np.flatnonzero(mask)
+        eligible = (fpv_vec == w)
+        idx = np.flatnonzero(eligible)
 
-        # round weights to nearest int, clip at zero
-        weights = np.rint(wt_vec[eligible_idx]).astype(int)
-        weights = np.clip(weights, 0, None)
+        # integer weights; clip negatives to 0 (shouldn't happen if you enforce invariants upstream)
+        wts = wt_vec[idx].astype(np.int64)
+        total = int(wts.sum())
 
-        # build pool of indices
-        pool = np.repeat(eligible_idx, weights)
+        # s cannot exceed total available units
+        s = min(s, total)
 
-        # sample uniformly from pool
-        return rng.choice(pool, size=s, replace=True)
+        # Sample s distinct positions in the implicit pool [0, total)
+        pos = rng.choice(total, size=s, replace=False)
+        pos.sort()
+
+        # Map positions to owner rows via cumulative weights
+        bins = np.cumsum(wts)                   # len = len(idx)
+        owners = np.searchsorted(bins, pos, side="right")  # values in [0, len(idx))
+
+        # Accumulate counts back to global rows
+        counts_local = np.bincount(owners, minlength=idx.size)  # per-eligible-row counts
+        counts = np.zeros(fpv_vec.shape[0], dtype=np.int64)
+        counts[idx] = counts_local
+        return counts
 
     def __str__(self):
         return self.get_status_df().to_string(index=True, justify="justify")
