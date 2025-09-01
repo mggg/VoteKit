@@ -74,7 +74,15 @@ class fast_STV:
         )
         self.election_states = self._make_election_states()
 
-    def _misc_validation(self, profile, m, transfer):
+    def _misc_validation(self, profile: PreferenceProfile, m: int, transfer: str):
+        """
+        Performs miscellaneous validation checks before running the STV algorithm.
+
+        Args:
+            profile (PreferenceProfile): The preference profile to validate.
+            m (int): The number of seats to be elected.
+            transfer (str): The transfer method to be used.
+        """
         if m <= 0:
             raise ValueError("m must be positive.")
         elif len(profile.candidates_cast) < m:
@@ -175,8 +183,7 @@ class fast_STV:
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
         Returns:
-            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated vectors
-                in the same order as input parameters.
+            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated helper arrays.
         """
         rows = np.isin(mutated_fpv_vec, winners)
 
@@ -200,11 +207,12 @@ class fast_STV:
             tau_values = get_tau(mutated_fpv_vec[rows]).astype(np.float64)
             mutated_wt_vec[rows] *= tau_values
             mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
-        elif self.transfer == "random":
+        elif "random" in self.transfer: # keeping the option for two different random methods
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for w in winners:
-                #pre-emptively exhaust ballots that will be exhausted
-                mutated_fpv_vec[idx_rows[next_candidates_rows == -127]] = -127
+                if self.transfer == "random":
+                    # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
+                    mutated_fpv_vec[idx_rows[next_candidates_rows == -127]] = -127
                 surplus = int(tallies[w] - self.threshold)
                 counts = self._sample_to_transfer(
                     fpv_vec=mutated_fpv_vec,
@@ -213,26 +221,6 @@ class fast_STV:
                     s=surplus,
                     rng=None,
                 )
-                new_weights += counts.astype(new_weights.dtype)
-
-            # set the new weights for rows in play to exactly the transferred amount
-            mutated_wt_vec[idx_rows] = new_weights[idx_rows]
-            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
-
-        elif self.transfer == "random2":
-            new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
-            for w in winners:
-                surplus = int(tallies[w] - self.threshold)
-                counts = self._sample_to_transfer(
-                    fpv_vec=mutated_fpv_vec,
-                    wt_vec=mutated_wt_vec,
-                    w=w,
-                    s=surplus,
-                    rng=None,
-                )
-
-                # Only eligible & not exhausted rows for w will have nonzero counts;
-                # counts are already ≤ current weights and sum to 'surplus'
                 new_weights += counts.astype(new_weights.dtype)
 
             # set the new weights for rows in play to exactly the transferred amount
@@ -256,9 +244,9 @@ class fast_STV:
         mutated_gone_list: list[int],
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
         """
-        Updates helper arrays after candidates have been elected, transferring surplus votes.
+        Updates helper arrays after a single candidate has been eliminated, transferring surplus votes.
 
-        There's not a lot to do here -- find loser already updates the mutant stencil,
+        There's not a lot to do here -- find_loser already updates the mutant stencil,
         so we just need to move the pos and fpv vecs to their pre-calculated new positions.
 
         Args:
@@ -271,8 +259,7 @@ class fast_STV:
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
         Returns:
-            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated vectors
-                in the same order as input parameters.
+            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated helper arrays.
         """
         
         rows = np.isin(mutated_fpv_vec, loser)
