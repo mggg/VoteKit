@@ -374,3 +374,35 @@ def test_random_transfers():
     assert STV(why_cambridge_is_evil, m=2, transfer="random").get_elected() == ({"A"}, {"B"})
     assert STV(why_cambridge_is_evil, m=2, transfer="random2").get_elected() == ({"A"}, {"C"})
     assert STV(why_cambridge_is_evil, m=2, transfer="fractional").get_elected() == ({"A"}, {"C"})
+
+def test_simult_not_same_as_1b1():
+    profile = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=(frozenset({"C"}),), weight=73),
+                Ballot(ranking=(frozenset({"B"}),frozenset({"C"})), weight=100),
+                Ballot(ranking=(frozenset({"A"}), frozenset({"B"}), frozenset({"D"})), weight=150),
+                Ballot(ranking=(frozenset({"D"}),), weight=73),
+            ),
+            candidates=("A", "B", "C", "D"),
+        )
+    assert STV(profile, m=3, simultaneous=True).get_elected() == ({"A"}, {"B"}, {"D"})
+    assert STV(profile, m=3, simultaneous=False).get_elected() == ({"A"}, {"B"}, {"C"})
+
+def test_borda_tiebreak():
+    winning_earlier_is_not_better = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=(frozenset({"C"}),), weight=48),
+                Ballot(ranking=(frozenset({"B"}),frozenset({"A"}), frozenset({"D"})), weight=150),
+                Ballot(ranking=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})), weight=150),
+                Ballot(ranking=(frozenset({"D"}),frozenset({"B"})), weight=48),
+            ),
+            candidates=("A", "B", "C", "D"),
+        )
+    e = STV(winning_earlier_is_not_better, m=3, simultaneous=False, tiebreak = 'borda')
+    assert e.get_elected() == ({"B"}, {"A"}, {"C"}) #weirdge b/c C gets rewarded for listing fewer preferences
+    winner_record = set()
+    for _ in range(50):
+        e = STV(winning_earlier_is_not_better, m=3, simultaneous=False, tiebreak = 'random')
+        for c in e.get_elected():
+            winner_record.add(list(c)[0])
+    assert 'D' in winner_record
