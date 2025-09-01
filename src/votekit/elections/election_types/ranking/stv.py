@@ -150,14 +150,34 @@ class fast_STV:
 
     def __update_because_winner(
         self,
-        winners,
-        tallies,
-        mutated_fpv_vec,
-        mutated_wt_vec,
-        mutated_stencil,
-        mutated_pos_vec,
-        mutated_gone_list,
-    ):
+        winners: list[int],
+        tallies: np.ndarray,
+        mutated_fpv_vec: np.ndarray,
+        mutated_wt_vec: np.ndarray,
+        mutated_stencil: np.ndarray,
+        mutated_pos_vec: np.ndarray,
+        mutated_gone_list: list[int],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
+        """
+        Updates ballot vectors after candidates have been elected, transferring surplus votes.
+
+        This method handles the vote transfer process when one or more candidates cross the
+        election threshold. It moves ballot pointers to the next available candidate and
+        adjusts vote weights according to the transfer method (fractional or random).
+
+        Args:
+            winners (list[int]): List of candidate indices who were elected this round.
+            tallies (np.ndarray): Current vote tallies for all candidates.
+            mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
+            mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
+            mutated_stencil (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+            mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
+            mutated_gone_list (list[int]): List of all eliminated/elected candidates.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated vectors
+                in the same order as input parameters.
+        """
         rows = np.isin(mutated_fpv_vec, winners)
 
         idx_rows = np.where(rows)[0]
@@ -228,41 +248,69 @@ class fast_STV:
 
     def __find_loser(
         self,
-        tallies,
-        initial_tally,
-        turn,
-        mutant_stencil,
-        mutant_winner_list,
-        mutant_gone_list,
-        mutant_tiebreak_record,
-    ):
+        tallies: np.ndarray,
+        initial_tally: np.ndarray,
+        turn: int,
+        mutant_stencil: np.ndarray,
+        mutant_winner_list: list[int],
+        mutant_gone_list: list[int],
+        mutant_tiebreak_record: dict[int, tuple[list[int], int, int]],
+    ) -> tuple[int, tuple[np.ndarray, list[int], list[int], dict[int, tuple[list[int], int, int]]]]:
+        """
+        Identify the candidate to eliminate in the current round, applying tiebreaks if necessary.
+
+        Args:
+            tallies (np.ndarray): Current tallies for each candidate.
+            initial_tally (np.ndarray): Initial tallies for tiebreaking.
+            turn (int): The current round number.
+            mutant_stencil (np.ndarray): Boolean mask for eliminated candidates.
+            mutant_winner_list (list[int]): List of winner candidate indices so far.
+            mutant_gone_list (list[int]): List of eliminated candidate indices so far.
+            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+
+        Returns:
+            tuple: (index of eliminated candidate, updated state tuple)
+        """
         masked_tallies = np.where(
             np.isin(np.arange(len(tallies)), mutant_gone_list), np.inf, tallies
-        )  # used to be np.where(tallies > 0, tallies, np.inf)
+        )
         if (
             np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
-        ):  # do something funny if masked_tallies attains the minimum twice
-            # count FPV votes of each I guess
+        ):
             potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
             L = potential_losers[
                 np.argmin(initial_tally[potential_losers])
             ]  # it's possible this is tied too. oh well
             mutant_tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
         else:
-            L = np.argmin(masked_tallies)
+            L = int(np.argmin(masked_tallies))
         mutant_gone_list.append(L)
         self.__update_stencil(mutant_stencil, [L])
-        return L
+        return L, (mutant_stencil, mutant_winner_list, mutant_gone_list, mutant_tiebreak_record)
 
     def __find_winners(
         self,
-        tallies,
-        turn,
-        mutant_stencil,
-        mutant_winner_list,
-        mutant_gone_list,
-        mutant_tiebreak_record,
-    ):
+        tallies: np.ndarray,
+        turn: int,
+        mutant_stencil: np.ndarray,
+        mutant_winner_list: list[int],
+        mutant_gone_list: list[int],
+        mutant_tiebreak_record: dict[int, tuple[list[int], int, int]],
+    ) -> tuple[list[int], tuple[np.ndarray, list[int], list[int], dict[int, tuple[list[int], int, int]]]]:
+        """
+        Identify the candidate(s) to elect in the current round, applying tiebreaks if necessary.
+
+        Args:
+            tallies (np.ndarray): Current tallies for each candidate.
+            turn (int): The current round number.
+            mutant_stencil (np.ndarray): Boolean mask for eliminated/elected candidates.
+            mutant_winner_list (list[int]): List of winner candidate indices so far.
+            mutant_gone_list (list[int]): List of eliminated/elected candidate indices so far.
+            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+
+        Returns:
+            tuple: (list of elected candidate indices, updated state tuple)
+        """
         if self.simultaneous:
             winners = np.where(tallies >= self.threshold)[0]
             winners = winners[np.argsort(-tallies[winners])]
@@ -272,7 +320,7 @@ class fast_STV:
                     tallies, turn, mutant_tiebreak_record
                 )
             else:
-                w = np.argmax(tallies)
+                w = int(np.argmax(tallies))
             winners = [w]
         for w in winners:
             mutant_winner_list.append(int(w))
@@ -285,14 +333,30 @@ class fast_STV:
             mutant_tiebreak_record,
         )
 
-    def __winner_tiebreak(self, tallies, turn, mutant_tiebreak_record):
+    def __winner_tiebreak(
+        self,
+        tallies: np.ndarray,
+        turn: int,
+        mutant_tiebreak_record: dict[int, tuple[list[int], int, int]]
+    ) -> tuple[int, dict[int, tuple[list[int], int, int]]]:
+        """
+        Break ties among candidates with the highest tally using the specified tiebreak method.
+
+        Args:
+            tallies (np.ndarray): Array of candidate tallies.
+            turn (int): The current round number.
+            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Record of tiebreaks.
+
+        Returns:
+            tuple: (winning candidate index, updated tiebreak record)
+        """
         potential_winners = np.where(tallies == np.max(tallies))[0]
         if self.tiebreak is None:
             raise ValueError(
                 "Cannot elect correct number of candidates without breaking ties."
             )
         elif self.tiebreak == "random":
-            w = np.random.choice(potential_winners)
+            w = int(np.random.choice(potential_winners))
             mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
         elif self.tiebreak == "borda":  # I cast shahrazad
             if not hasattr(self, "_borda_scores"):
@@ -304,13 +368,27 @@ class fast_STV:
                 np.count_nonzero(self._borda_scores == np.max(self._borda_scores)) > 1
             ):  # I cast burning wish
                 print("Initial tiebreak was unsuccessful, performing random tiebreak")
-                w = np.random.choice(potential_winners)
+                w = int(np.random.choice(potential_winners))
             else:
-                w = potential_winners[np.argmax(self._borda_scores)]
+                w = int(potential_winners[np.argmax(self._borda_scores)])
                 mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
         return w, mutant_tiebreak_record
 
-    def __update_stencil(self, _mutant_stencil, newly_gone):
+    def __update_stencil(
+        self,
+        _mutant_stencil: np.ndarray,
+        newly_gone: list[int]
+    ) -> np.ndarray:
+        """
+        Update the stencil mask to mark candidates as eliminated or elected.
+
+        Args:
+            _mutant_stencil (np.ndarray): Boolean mask of eliminated/elected candidates.
+            newly_gone (list[int]): List of candidate indices to mark as eliminated/elected.
+
+        Returns:
+            np.ndarray: Updated stencil mask.
+        """
         _mutant_stencil |= np.isin(self._ballot_matrix, newly_gone)
         return _mutant_stencil
 
@@ -321,7 +399,7 @@ class fast_STV:
         fpv_vec: np.ndarray,
         m: int,
         ncands: int,
-    ) -> tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict
+    ) -> tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[int, tuple[list[int], int, int]]
     ]:
         """
         This runs the STV algorithm. Based.
@@ -336,7 +414,7 @@ class fast_STV:
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[int:(list[int], int, int)]]:
+            tuple[list[np.ndarray], list[tuple[int, list[int], np.ndarray, str]], dict[int, tuple[list[int], int, int]]]:
                 The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
@@ -345,6 +423,7 @@ class fast_STV:
                     - weight vector at this turn, if the turn was an election
                     - turn type: 'election', 'elimination', or 'default'
                 The tiebreak record is a dictionary mapping turn number to a tuple of
+                    (potential candidates involved in tiebreak, chosen candidate, tiebreak type).
         """
         fpv_by_round = []
         play_by_play = []
@@ -394,7 +473,7 @@ class fast_STV:
                     np.zeros(ncands, dtype=np.float64)
                 )  # this is needed for get_remaining to behave nicely
                 return fpv_by_round, play_by_play, tiebreak_record
-            L = self.__find_loser(tallies, fpv_by_round[0], turn, *mutant_record)
+            L, mutant_record = self.__find_loser(tallies, fpv_by_round[0], turn, *mutant_record)
             # I could throw the below into another private method if it's bothersome -- it's the analogue of update_because_winner
             for i in range(len(fpv_vec)):
                 if fpv_vec[i] == L:
@@ -774,11 +853,11 @@ class fast_STV:
         eligible = (fpv_vec == w)
         idx = np.flatnonzero(eligible)
 
-        # integer weights; clip negatives to 0 (shouldn't happen if you enforce invariants upstream)
+        # integer weights of each row
         wts = wt_vec[idx].astype(np.int64)
         total = int(wts.sum())
 
-        # s cannot exceed total available units
+        # this deals with cases where there are fewer than s votes to transfer (lots of exhausted ballots)
         s = min(s, total)
 
         # Sample s distinct positions in the implicit pool [0, total)
