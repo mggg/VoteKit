@@ -315,9 +315,14 @@ class fast_STV:
             np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
         ):
             potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
-            L = potential_losers[
-                np.argmin(initial_tally[potential_losers])
-            ]  # it's possible this is tied too. oh well
+            #first check if initial tally reaches its minimum twice among candidates in potential losers
+            if np.count_nonzero(initial_tally[potential_losers] == np.min(initial_tally[potential_losers])) > 1:
+                print('Initial tiebreak unsuccessful, performing random tiebreak')
+                L = np.random.choice(potential_losers)
+            else:
+                L = potential_losers[
+                    np.argmin(initial_tally[potential_losers])
+                ]
             mutant_tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
         else:
             L = int(np.argmin(masked_tallies))
