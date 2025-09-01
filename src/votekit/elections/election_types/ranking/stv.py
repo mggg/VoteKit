@@ -159,7 +159,7 @@ class fast_STV:
         mutated_gone_list: list[int],
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
         """
-        Updates ballot vectors after candidates have been elected, transferring surplus votes.
+        Updates helper arrays after candidates have been elected, transferring surplus votes.
 
         This method handles the vote transfer process when one or more candidates cross the
         election threshold. It moves ballot pointers to the next available candidate and
@@ -238,6 +238,56 @@ class fast_STV:
             # set the new weights for rows in play to exactly the transferred amount
             mutated_wt_vec[idx_rows] = new_weights[idx_rows]
             mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+        return (
+            mutated_fpv_vec,
+            mutated_wt_vec,
+            mutated_stencil,
+            mutated_pos_vec,
+            mutated_gone_list,
+        )
+    
+    def __update_because_loser(
+        self,
+        loser: int,
+        mutated_fpv_vec: np.ndarray,
+        mutated_wt_vec: np.ndarray,
+        mutated_stencil: np.ndarray,
+        mutated_pos_vec: np.ndarray,
+        mutated_gone_list: list[int],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
+        """
+        Updates helper arrays after candidates have been elected, transferring surplus votes.
+
+        There's not a lot to do here -- find loser already updates the mutant stencil,
+        so we just need to move the pos and fpv vecs to their pre-calculated new positions.
+
+        Args:
+            loser (int): Index of the candidate who was eliminated this round.
+            tallies (np.ndarray): Current vote tallies for all candidates.
+            mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
+            mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
+            mutated_stencil (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+            mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
+            mutated_gone_list (list[int]): List of all eliminated/elected candidates.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated vectors
+                in the same order as input parameters.
+        """
+        
+        rows = np.isin(mutated_fpv_vec, loser)
+
+        idx_rows = np.where(rows)[0]
+        allowed = (~mutated_stencil)[idx_rows]
+        cols = np.arange(self._ballot_matrix.shape[1])
+
+        after = cols >= mutated_pos_vec[idx_rows][:, None]
+        next_allowed = allowed & after
+        next_idx = next_allowed.argmax(axis=1)
+
+        mutated_pos_vec[idx_rows] = next_idx
+        mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+
         return (
             mutated_fpv_vec,
             mutated_wt_vec,
@@ -475,11 +525,7 @@ class fast_STV:
                 return fpv_by_round, play_by_play, tiebreak_record
             L, mutant_record = self.__find_loser(tallies, fpv_by_round[0], turn, *mutant_record)
             # I could throw the below into another private method if it's bothersome -- it's the analogue of update_because_winner
-            for i in range(len(fpv_vec)):
-                if fpv_vec[i] == L:
-                    while ballot_matrix[i, pos_vec[i]] in gone_list:
-                        pos_vec[i] += 1
-                    fpv_vec[i] = ballot_matrix[i, pos_vec[i]]
+            mutant_engine = self.__update_because_loser(L, *mutant_engine)
             play_by_play.append((turn, [L], np.array([]), "elimination"))
             turn += 1
 
