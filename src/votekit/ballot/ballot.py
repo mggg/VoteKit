@@ -1,0 +1,237 @@
+from typing import Optional, Union, TypeAlias, Iterable, Sequence
+from numbers import Real
+
+
+Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
+RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
+
+
+class Ballot:
+    """
+    Ballot parent class,
+
+
+    contains ranking and assigned weight. Note that we trim trailing or
+    leading whitespace from candidate names.
+
+    Args:
+        ranking (Optional[Sequence[Iterable[str]]]): Candidate ranking. Entry i of the
+            sequence is an iterable of candidates ranked in position i. Defaults to None.
+            Will be coerced to tuple[frozenset[str], ...].
+        weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
+            Can be input as int or float, and will be coerced to float.
+        voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
+            Defaults to frozenset(). Will be coerced to frozenset.
+        scores (Optional[dict[str, Union[int, float]]): Scores for individual candidates.
+            Defaults to None. Values can be input as int or float but will be coerced to float.
+            Only retains non-zero scores.
+
+    Attributes:
+        ranking (Optional[tuple[frozenset[str], ...]]): Tuple of candidate ranking.
+            Entry i of the tuple is a
+            frozenset of candidates ranked in position i.
+        weight (float): Weight assigned to a given ballot.
+        voter_set (frozenset[str]): Set of voters who cast the ballot.
+        scores (Optional[dict[str, float]]): Scores for individual candidates.
+
+    Raises:
+        TypeError: Only one of ranking or scores can be provided.
+        ValueError: Ballot weight cannot be negative.
+    """
+
+    # Memory trick since this is a basic type
+    __slots__ = [
+        "ranking",
+        "weight",
+        "voter_set",
+        "scores",
+        "_frozen",
+    ]
+
+    def __new__(
+        cls,
+        *,
+        ranking: Optional[Sequence[Iterable[str]]] = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ):
+        if ranking is not None and scores is not None:
+            raise TypeError("Only one of ranking or scores can be provided.")
+        elif ranking is not None:
+            return super().__new__(RankBallot)
+        elif scores is not None:
+            return super().__new__(ScoreBallot)
+
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        *,
+        ranking: Optional[Sequence[Iterable[str]]] = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ):
+
+        self.voter_set = (
+            frozenset(voter_set) if isinstance(voter_set, set) else voter_set
+        )
+
+        if weight < 0:
+            raise ValueError("Ballot weight cannot be negative.")
+
+        # Silently promote weight to float
+        self.weight = float(weight)
+        self._frozen = True
+
+    def __eq__(self, other):
+        # Check type
+        if not isinstance(other, Ballot):
+            return False
+
+        # Check weight
+        if self.weight != other.weight:
+            return False
+
+        # Check voters
+        if self.voter_set != other.voter_set:
+            return False
+
+        return True
+
+    def __str__(self):
+        # TODO hmmm is there a way to say "Ballot" here with how I call the subclasses
+        repr_str = f"Weight: {self.weight}"
+        if self.voter_set != frozenset():
+            # TODO is there a way to make voter set consistent across reruns?:
+            repr_str += f"\nVoter set: {set(self.voter_set)}"
+        return repr_str
+
+    __repr__ = __str__
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_frozen", False):
+            raise AttributeError(f"{type(self).__name__} is frozen")
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name):
+        if getattr(self, "_frozen", False):
+            raise AttributeError(f"{type(self).__name__} is frozen")
+        object.__delattr__(self, name)
+
+
+class RankBallot(Ballot):
+    """ """
+
+    def __init__(
+        self,
+        *,
+        ranking: RankingLike = None,
+        weight: Union[int, float] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ):
+        self._validate_ranking_candidates(ranking)
+        self.ranking = self._strip_whitespace_ranking_candidates(ranking)
+        super().__init__(weight=weight, voter_set=voter_set)
+
+    def _validate_ranking_candidates(self, ranking: RankingLike):
+        if ranking is None:
+            return
+        if any(c == "~" for cand_set in ranking for c in cand_set):
+            raise ValueError(
+                f"Candidate '~' found in ballot ranking {ranking}."
+                " '~' is a reserved character and cannot be used for"
+                " candidate names."
+            )
+
+    def _strip_whitespace_ranking_candidates(self, ranking: RankingLike) -> Ranking:
+        if ranking is None:
+            return None
+
+        return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
+
+    def __eq__(self, other):
+        if not isinstance(other, RankBallot):
+            return False
+
+        if self.ranking != other.ranking:
+            return False
+
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.ranking)
+
+    def __str__(self):
+        ranking_str = ""
+
+        if self.ranking:
+            ranking_str = "RankBallot\n"
+            for i, s in enumerate(self.ranking):
+                ranking_str += f"{i+1}.) "
+                for c in s:
+                    ranking_str += f"{c}, "
+
+                if len(s) > 1:
+                    ranking_str += "(tie)"
+                ranking_str += "\n"
+
+        return ranking_str + super().__str__()
+
+
+class ScoreBallot(Ballot):
+    """ """
+
+    def __init__(
+        self,
+        *,
+        scores: Optional[dict[str, Union[int, float]]] = None,
+        weight: Union[int, float] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ):
+        self._validate_scores_candidates(scores)
+        self.scores = self._convert_scores_to_float_strip_whitespace(scores)
+
+        super().__init__(weight=weight, voter_set=voter_set)
+
+    def _validate_scores_candidates(
+        self, scores: Optional[dict[str, Union[int, float]]]
+    ):
+        if scores is not None:
+            if "~" in scores:
+                raise ValueError(
+                    f"Candidate '~' found in ballot scores {list(scores.keys())}."
+                    " '~' is a reserved character and cannot be used for"
+                    " candidate names."
+                )
+
+    def _convert_scores_to_float_strip_whitespace(
+        self, scores: Optional[dict[str, float]]
+    ) -> Optional[dict[str, float]]:
+        if scores is None:
+            return None
+
+        if any(not isinstance(s, Real) for s in scores.values()):
+            raise TypeError("Score values must be numeric.")
+
+        return {c.strip(): float(s) for c, s in scores.items() if s != 0}
+
+    def __eq__(self, other):
+        if not isinstance(other, ScoreBallot):
+            return False
+        if self.scores != other.scores:
+            return False
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.scores)
+
+    def __str__(self):
+        score_str = ""
+        if self.scores:
+            score_str = "ScoreBallot\n"
+            for c, score in self.scores.items():
+                score_str += f"{c}: {score:.2f}\n"
+
+        return score_str + super().__str__()
