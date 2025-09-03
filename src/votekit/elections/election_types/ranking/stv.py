@@ -23,7 +23,7 @@ import numpy as np
 from itertools import groupby
 
 
-class fast_STV:
+class fastSTV:
     """
     STV elections. All ballots must have no ties.
 
