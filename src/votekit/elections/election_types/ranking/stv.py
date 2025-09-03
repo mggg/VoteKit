@@ -20,6 +20,7 @@ from ....utils import (
 from typing import Optional, Callable, Union
 import pandas as pd
 import numpy as np
+from itertools import groupby
 
 
 class fast_STV:
@@ -60,11 +61,13 @@ class fast_STV:
 
         self.threshold = self._get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
-        self.tiebreak = tiebreak
+        self._winner_tiebreak = tiebreak
+        self._loser_tiebreak = tiebreak if tiebreak is not None else 'first_place' #this is what legacy does
 
         self.candidates = list(profile.candidates)
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
+        self._initial_fpv = self._make_initial_fpv()
         self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._run_STV(
             self._ballot_matrix,
             self._wt_vec.copy(),
@@ -155,6 +158,74 @@ class fast_STV:
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
+    
+    def _make_initial_fpv(self):
+        return np.bincount(
+            self._fpv_vec[self._fpv_vec != -127],
+            weights=self._wt_vec[self._fpv_vec != -127],
+            minlength=len(self.candidates),
+        )
+    
+    def __fpv_tiebreak(self, tied_cands, tiebreak_type) -> tuple[int, tuple[frozenset[str], ...]]:
+        """
+        Break ties among tied_cands using initial_fpv tallies.
+
+        Returns:
+            (chosen_candidate_index, packaged_ranking)
+            where packaged_ranking is a tuple of frozensets of candidate NAMES,
+            ordered by descending score; sets represent tie clusters.
+
+        Rules:
+        - Build tie clusters by equal scores (descending).
+        - Keep only clusters that intersect tied_cands.
+        - If the relevant cluster (top for 'winner', bottom for 'loser') has size > 1,
+            call tiebreak_set(..., tiebreak='random') on that cluster of names.
+        """
+
+        tied_cands_set = set(tied_cands)
+        if not hasattr(self, '__fpv_clusters'):
+            scores = np.asarray(self._initial_fpv)
+
+            # Order indices by score (descending); stable so equal scores keep original order.
+            order = np.argsort(scores, kind="mergesort")[::-1]
+            # Pair (score, idx) in that order
+            pairs = [(float(scores[i]), int(i)) for i in order]
+
+            # Group consecutive equal scores into clusters of indices
+            self.__fpv_clusters: list[list[int]] = [
+                [idx for _, idx in group]
+                for _, group in groupby(pairs, key=lambda x: x[0])
+            ]
+
+        # Keep only clusters that intersect tied_cands
+        # also throw out elements of each cluster not in tied_cands
+        clusters_containing_tied_cands: list[list[int]] = [[c for c in cluster if c in tied_cands_set]
+            for cluster in self.__fpv_clusters if any(i in tied_cands_set for i in cluster)
+        ]
+
+        # Package as frozensets of NAMES, in descending score order
+        packaged_ranking: tuple[frozenset[str], ...] = tuple(
+            frozenset(self.candidates[i] for i in cluster) for cluster in clusters_containing_tied_cands
+        )
+
+        # Pick relevant cluster: top for winner, bottom for loser
+        relevant = 0 if tiebreak_type == "winner" else -1
+        target_cluster = clusters_containing_tied_cands[relevant]
+
+        if len(target_cluster) == 1: #yay
+            return target_cluster[0], packaged_ranking
+
+    # note: it would be possible to only randomly break the tie in target_cluster according to a backup method (see below)
+    # (this is also a philosophical decision about how we want the tiebreak record to reflect backup tiebreaks)
+    # my head is empty and I just do what legacy does
+    #    chosen_ordered = tiebreak_set(
+    #        r_set=packaged_ranking[relevant],
+    #        profile=self.profile,
+    #        tiebreak=self._backup_tiebreak,
+    #    )
+        tiebroken_candidate = int(np.random.choice(target_cluster)) #ok my head is not that empty
+        return tiebroken_candidate, packaged_ranking
+
 
     def __update_because_winner(
         self,
@@ -317,19 +388,10 @@ class fast_STV:
             np.isin(np.arange(len(tallies)), mutant_gone_list), np.inf, tallies
         )
         if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
-            potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0]
-            if (
-                np.count_nonzero(
-                    initial_tally[potential_losers]
-                    == np.min(initial_tally[potential_losers])
-                )
-                > 1
-            ):
-                # print('Initial tiebreak unsuccessful, performing random tiebreak')
-                L = np.random.choice(potential_losers)
-            else:
-                L = potential_losers[np.argmin(initial_tally[potential_losers])]
-            mutant_tiebreak_record[turn] = (potential_losers.tolist(), L, 0)
+            potential_losers = np.where(masked_tallies == np.min(masked_tallies))[0].tolist()
+            L, mutant_tiebreak_record = self.__new_loser_tiebreak(
+                potential_losers, initial_tally, turn, mutant_tiebreak_record
+            )
         else:
             L = int(np.argmin(masked_tallies))
         mutant_gone_list.append(L)
@@ -390,6 +452,51 @@ class fast_STV:
             mutant_tiebreak_record,
         )
 
+    def __new_winner_tiebreak(self, tied_winners, turn, mutant_tiebreak_record):
+        """
+        Handle new winner tiebreaking logic.
+
+        Args:
+            tied_winners (list[int]): List of candidate indices that are tied.
+            turn (int): The current round number.
+            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+
+        Returns:
+            tuple: (index of new winner, updated tiebreak record)
+        """
+        packaged_tie = frozenset([self.candidates[w] for w in tied_winners])
+        if self._loser_tiebreak == 'first_place':
+            W, packaged_ranking = self.__fpv_tiebreak(tied_winners, 'winner')
+        elif self._winner_tiebreak is not None:
+           packaged_ranking = tiebreak_set(r_set=packaged_tie, profile=self.profile, tiebreak=self._winner_tiebreak)
+           W = self.candidates.index(list(packaged_ranking[0])[0])
+        else:
+            packaged_ranking = tiebreak_set(r_set=packaged_tie, profile=self.profile)
+            W = self.candidates.index(list(packaged_ranking[0])[0])
+        mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
+        return W, mutant_tiebreak_record
+
+    def __new_loser_tiebreak(self, tied_losers, initial_tally, turn, mutant_tiebreak_record):
+        """
+        Handle new loser tiebreaking logic.
+
+        Args:
+            tied_losers (list[int]): List of candidate indices that are tied.
+            turn (int): The current round number.
+            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+
+        Returns:
+            tuple: (index of new loser, updated tiebreak record)
+        """
+        packaged_tie = frozenset([self.candidates[w] for w in tied_losers])
+        if self._loser_tiebreak == 'first_place':
+            L, packaged_ranking = self.__fpv_tiebreak(tied_losers, 'loser')
+        else:
+            packaged_ranking = tiebreak_set(r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak)
+            L = self.candidates.index(list(packaged_ranking[-1])[0]) #I hecking love fsets
+        mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
+        return L, mutant_tiebreak_record
+
     def __winner_tiebreak(
         self,
         tallies: np.ndarray,
@@ -408,14 +515,14 @@ class fast_STV:
             tuple: (winning candidate index, updated tiebreak record)
         """
         potential_winners = np.where(tallies == np.max(tallies))[0]
-        if self.tiebreak is None:
+        if self._winner_tiebreak is None:
             raise ValueError(
                 "Cannot elect correct number of candidates without breaking ties."
             )
-        elif self.tiebreak == "random":
+        elif self._winner_tiebreak == "random":
             w = int(np.random.choice(potential_winners))
             mutant_tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-        elif self.tiebreak == "borda":  # I cast shahrazad
+        elif self._winner_tiebreak == "borda":  # I cast shahrazad
             if not hasattr(self, "_borda_scores"):
                 full_borda_scores = borda_scores(self.profile)
                 self._borda_scores = [
@@ -446,6 +553,13 @@ class fast_STV:
         """
         _mutant_stencil |= np.isin(self._ballot_matrix, newly_gone)
         return _mutant_stencil
+
+    def _make_initial_fpv(self):
+        return np.bincount(
+            self._fpv_vec[self._fpv_vec != -127],
+            weights=self._wt_vec[self._fpv_vec != -127],
+            minlength=len(self.candidates),
+        )
 
     def _run_STV(
         self,
@@ -722,108 +836,23 @@ class fast_STV:
             )
         ]
         for i, play in enumerate(self._play_by_play):
-            if i in self._tiebreak_record.keys():
-                tiebreak = self._tiebreak_record[
-                    i
-                ]  # tiebreak_record[turn] = (potential_winners.tolist(), w, 1)
-                w = tiebreak[1]
-                tied_cands = tiebreak[0]
-                denouement_list = [
-                    self.candidates[c] for c in tied_cands if c != tiebreak[1]
-                ]
-                if tiebreak[-1] == 1:
-                    denouement = (
-                        frozenset([self.candidates[w]]),
-                        frozenset([c for c in denouement_list]),
-                    )
-                if tiebreak[-1] == 0:
-                    denouement = (
-                        frozenset([c for c in denouement_list]),
-                        frozenset([self.candidates[w]]),
-                    )
-                formatted_tiebreak = {
-                    frozenset([self.candidates[c] for c in tied_cands]): denouement
-                }
-            else:
-                formatted_tiebreak = None
-            if play[-1] == "elimination":
-                if formatted_tiebreak is None:
-                    e_states.append(
-                        ElectionState(
-                            round_number=i + 1,
-                            remaining=self.get_remaining(i + 1),
-                            elected=(frozenset(),),
-                            eliminated=(
-                                frozenset([self.candidates[c] for c in play[1]]),
-                            ),
-                            scores={
-                                self.candidates[c]: self._fpv_by_round[i + 1][c]
-                                for c in self._fpv_by_round[i + 1].nonzero()[0]
-                            },
-                        )
-                    )
-                else:
-                    e_states.append(
-                        ElectionState(
-                            round_number=i + 1,
-                            remaining=self.get_remaining(i + 1),
-                            elected=(frozenset(),),
-                            tiebreaks=formatted_tiebreak,
-                            eliminated=(
-                                frozenset([self.candidates[c] for c in play[1]]),
-                            ),
-                            scores={
-                                self.candidates[c]: self._fpv_by_round[i + 1][c]
-                                for c in self._fpv_by_round[i + 1].nonzero()[0]
-                            },
-                        )
-                    )
-            elif play[-1] == "election":
-                if formatted_tiebreak is None:
-                    e_states.append(
-                        ElectionState(
-                            round_number=i + 1,
-                            remaining=self.get_remaining(i + 1),
-                            elected=tuple(
-                                [frozenset([self.candidates[c]]) for c in play[1]]
-                            ),
-                            eliminated=(frozenset(),),
-                            scores={
-                                self.candidates[c]: self._fpv_by_round[i + 1][c]
-                                for c in self._fpv_by_round[i + 1].nonzero()[0]
-                            },
-                        )
-                    )
-                else:
-                    e_states.append(
-                        ElectionState(
-                            round_number=i + 1,
-                            remaining=self.get_remaining(i + 1),
-                            elected=tuple(
-                                [frozenset([self.candidates[c]]) for c in play[1]]
-                            ),
-                            tiebreaks=formatted_tiebreak,
-                            eliminated=(frozenset(),),
-                            scores={
-                                self.candidates[c]: self._fpv_by_round[i + 1][c]
-                                for c in self._fpv_by_round[i + 1].nonzero()[0]
-                            },
-                        )
-                    )
-            elif play[-1] == "default":
-                e_states.append(
+            packaged_tiebreak = self._tiebreak_record.get(i, dict())
+            packaged_elected = tuple([frozenset([self.candidates[c]]) for c in play[1]]
+                            ) if play[-1] != "elimination" else (frozenset(),)
+            packaged_eliminated=(frozenset([self.candidates[c] for c in play[1]]),
+                        ) if play[-1] == "elimination" else (frozenset(),)
+            packaged_scores={
+                self.candidates[c]: self._fpv_by_round[i + 1][c]
+                for c in self._fpv_by_round[i + 1].nonzero()[0]
+            }
+            e_states.append(
                     ElectionState(
                         round_number=i + 1,
                         remaining=self.get_remaining(i + 1),
-                        elected=tuple(
-                            frozenset([self.candidates[c] for c in play[1]])
-                            for c in play[1]
-                        ),
-                        eliminated=(frozenset(),),
-                        scores={
-                            self.candidates[c]: self._fpv_by_round[i + 1][c]
-                            for c in self._fpv_by_round[i + 1].nonzero()[0]
-                        },
+                        elected=packaged_elected,
+                        tiebreaks=packaged_tiebreak,
+                        eliminated=packaged_eliminated,
+                        scores=packaged_scores,
                     )
                 )
 
