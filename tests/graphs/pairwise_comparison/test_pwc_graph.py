@@ -4,8 +4,6 @@ import networkx.algorithms.isomorphism as iso
 from votekit.ballot import Ballot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from votekit.pref_profile import PreferenceProfile
-from votekit.cvr_loaders import load_ranking_csv
-from votekit.cleaning import remove_and_condense
 
 from matplotlib.axes import Axes
 import pytest
@@ -14,15 +12,9 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
-portland_profile = remove_and_condense(
-    "skipped",
-    load_ranking_csv(
-        CSV_DIR / "Portland_D3_Condensed.csv",
-        rank_cols=[1, 2, 3, 4, 5, 6],
-        header_row=0,
-    ),
+portland_profile = PreferenceProfile.from_csv(
+    CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv"
 )
-
 
 ballot_list = (
     Ballot(

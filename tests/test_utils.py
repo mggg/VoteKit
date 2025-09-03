@@ -331,6 +331,29 @@ def test_tiebreak_set():
     assert len(tiebreak_set(tied_set)) == 3
 
 
+def test_tiebreak_set_longer_names():
+    fpv_ranking = (frozenset({"Abby"}), frozenset({"Bob"}), frozenset({"Cynthia"}))
+    borda_ranking = (frozenset({"Abby"}), frozenset({"Cynthia"}), frozenset({"Bob"}))
+    lex_ranking = (frozenset({"Abby"}), frozenset({"Bob"}), frozenset({"Cynthia"}))
+    tied_set = frozenset({"Abby", "Cynthia", "Bob"})
+
+    profile = PreferenceProfile(
+        ballots=[
+            Ballot(ranking=[{"Bob"}], weight=2),
+            Ballot(ranking=[{"Abby", "Bob", "Cynthia"}], weight=1),
+            Ballot(ranking=[{"Abby"}, {"Cynthia"}, {"Bob"}], weight=7),
+        ]
+    )
+
+    assert tiebreak_set(tied_set, profile, "first_place") == fpv_ranking
+    assert tiebreak_set(tied_set, profile, "borda") == borda_ranking
+    assert tiebreak_set(tied_set, profile, "lex") == lex_ranking
+    assert tiebreak_set(tied_set, profile, "lexicographic") == lex_ranking
+    assert tiebreak_set(tied_set, profile, "alph") == lex_ranking
+    assert tiebreak_set(tied_set, profile, "alphabetical") == lex_ranking
+    assert len(tiebreak_set(tied_set)) == 3
+
+
 def test_tiebreak_set_errors():
     tied_set = frozenset({"A", "C", "B"})
     with pytest.raises(ValueError, match="Method of tiebreak requires profile."):
@@ -349,7 +372,22 @@ def test_tiebreak_no_res():
             Ballot(ranking=({"C"},)),
         ]
     )
-    assert len(tiebreak_set(frozenset({"A", "B", "C"}), profile, "first_place")) == 3
+
+    assert tiebreak_set(
+        frozenset({"A", "B", "C"}),
+        profile,
+        "first_place",
+        backup_tiebreak_convention="random",
+    ) in {
+        (frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
+        (frozenset({"B"}), frozenset({"A"}), frozenset({"C"})),
+    }
+    assert tiebreak_set(
+        frozenset({"A", "B", "C"}),
+        profile,
+        "first_place",
+        backup_tiebreak_convention="lex",
+    ) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_tiebroken_ranking():
