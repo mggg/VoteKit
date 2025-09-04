@@ -75,7 +75,7 @@ class Ballot:
     ):
 
         self.voter_set = (
-            frozenset(voter_set) if isinstance(voter_set, set) else voter_set
+            frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
         )
 
         if weight < 0:
@@ -100,11 +100,12 @@ class Ballot:
 
         return True
 
+    def __hash__(self):
+        return hash(self.weight) + hash(self.voter_set)
+
     def __str__(self):
-        # TODO hmmm is there a way to say "Ballot" here with how I call the subclasses
-        repr_str = f"Weight: {self.weight}"
+        repr_str = f"Ballot\nWeight: {self.weight}"
         if self.voter_set != frozenset():
-            # TODO is there a way to make voter set consistent across reruns?:
             repr_str += f"\nVoter set: {set(self.voter_set)}"
         return repr_str
 
@@ -161,13 +162,12 @@ class RankBallot(Ballot):
         return super().__eq__(other)
 
     def __hash__(self):
-        return hash(self.ranking)
+        return hash(self.ranking) + super().__hash__()
 
     def __str__(self):
-        ranking_str = ""
+        ranking_str = "RankBallot\n"
 
         if self.ranking:
-            ranking_str = "RankBallot\n"
             for i, s in enumerate(self.ranking):
                 ranking_str += f"{i+1}.) "
                 for c in s:
@@ -177,7 +177,10 @@ class RankBallot(Ballot):
                     ranking_str += "(tie)"
                 ranking_str += "\n"
 
-        return ranking_str + super().__str__()
+        ranking_str += f"Weight: {self.weight}"
+        if self.voter_set != frozenset():
+            ranking_str += f"\nVoter set: {set(self.voter_set)}"
+        return ranking_str
 
 
 class ScoreBallot(Ballot):
@@ -225,13 +228,15 @@ class ScoreBallot(Ballot):
         return super().__eq__(other)
 
     def __hash__(self):
-        return hash(self.scores)
+        return hash(self.scores) + super().__hash__()
 
     def __str__(self):
-        score_str = ""
+        score_str = "ScoreBallot\n"
         if self.scores:
-            score_str = "ScoreBallot\n"
             for c, score in self.scores.items():
                 score_str += f"{c}: {score:.2f}\n"
 
-        return score_str + super().__str__()
+        score_str += f"Weight: {self.weight}"
+        if self.voter_set != frozenset():
+            score_str += f"\nVoter set: {set(self.voter_set)}"
+        return score_str
