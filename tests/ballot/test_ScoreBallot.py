@@ -2,7 +2,6 @@ from votekit.ballot import ScoreBallot, Ballot
 import pytest
 
 
-# TODO add hash
 def test_ballot_init():
     b = ScoreBallot()
     assert isinstance(b, ScoreBallot)
@@ -28,7 +27,6 @@ def test_init_from_parent_class():
     assert b == ScoreBallot(scores={"A": 3, "B": 0}, voter_set={"Chris"}, weight=2)
 
 
-# TODO add delete tests
 def test_ballot_is_frozen():
     b = ScoreBallot()
     with pytest.raises(AttributeError, match="is frozen"):
@@ -39,6 +37,27 @@ def test_ballot_is_frozen():
         b.voter_set = frozenset({"A"})
     with pytest.raises(AttributeError, match="is frozen"):
         b._frozen = False
+
+
+def test_ballot_is_frozen_del():
+    b = Ballot(weight=2, voter_set={"A"})
+    with pytest.raises(AttributeError, match="is frozen"):
+        del b.weight
+    with pytest.raises(AttributeError, match="is frozen"):
+        del b.voter_set
+    with pytest.raises(AttributeError, match="is frozen"):
+        del b._frozen
+
+
+def test_ballot_hash():
+    b1 = Ballot(weight=2, voter_set={"A"})
+    b2 = Ballot(weight=2, voter_set={"A"})
+    b3 = Ballot(weight=2, voter_set={"B"})
+
+    assert b1 == b2 and hash(b1) == hash(b2)
+    assert b1 != b3 and hash(b1) != hash(b3)
+
+    assert b2 in {b1}
 
 
 def test_ballot_coerce_wt_to_float():
