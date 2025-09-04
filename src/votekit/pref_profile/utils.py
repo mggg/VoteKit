@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .pref_profile import PreferenceProfile
 
-from ..ballot import Ballot
+from ..ballot import Ballot, RankBallot, ScoreBallot
 from typing import Optional
 import pandas as pd
 from functools import partial
@@ -50,39 +50,62 @@ def _convert_ranking_cols_to_ranking(
     return tuple(ranking) if len(ranking) > 0 else None
 
 
-def convert_row_to_ballot(
-    row: pd.Series, candidates: tuple[str, ...], max_ranking_length: int = 0
-) -> Ballot:
+# TODO tests
+def convert_row_to_rank_ballot(
+    row: pd.Series, max_ranking_length: int = 0
+) -> RankBallot:
+    """
+    Convert a row of a properly formatted profile.df to a Ballot.
+
+    Args:
+        row (pd.Series): Row of a profile.df.
+        max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
+            is used for ballots with no ranking.
+
+    Returns:
+        RankBallot: Ballot corresponding to the row of the df.
+    """
+    ranking = None
+    if max_ranking_length > 0:
+        ranking = _convert_ranking_cols_to_ranking(row, max_ranking_length)
+    voter_set = row["Voter Set"]
+    weight = row["Weight"]
+
+    return RankBallot(
+        ranking=ranking,
+        weight=weight,
+        voter_set=voter_set,
+    )
+
+
+# TODO tests
+def convert_row_to_score_ballot(
+    row: pd.Series, candidates: tuple[str, ...]
+) -> ScoreBallot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
 
     Args:
         row (pd.Series): Row of a profile.df.
         candidates (tuple[str,...]): The name of the candidates.
-        max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
-            is used for ballots with no ranking.
 
     Returns:
-        Ballot: Ballot corresponding to the row of the df.
+        ScoreBallot: Ballot corresponding to the row of the df.
     """
-    ranking = None
-    if max_ranking_length > 0:
-        ranking = _convert_ranking_cols_to_ranking(row, max_ranking_length)
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
     voter_set = row["Voter Set"]
     weight = row["Weight"]
 
-    return Ballot(
-        ranking=ranking,
+    return ScoreBallot(
         scores=scores if scores else None,
         weight=weight,
         voter_set=voter_set,
     )
 
 
-def _df_to_ballot_tuple(
+def _df_to_rank_ballot_tuple(
     df: pd.DataFrame, candidates: tuple[str, ...], max_ranking_length: int = 0
-) -> tuple[Ballot, ...]:
+) -> tuple[RankBallot, ...]:
     """
     Convert a properly formatted profile.df into a list of ballots.
 
@@ -93,7 +116,7 @@ def _df_to_ballot_tuple(
             is used for ballots with no ranking.
 
     Returns:
-        tuple[Ballot]: The tuple of ballots.
+        tuple[RankBallot]: The tuple of ballots.
     """
     if df.empty:
         return tuple()
@@ -101,7 +124,7 @@ def _df_to_ballot_tuple(
     return tuple(
         df.apply(  # type: ignore[call-overload]
             partial(
-                convert_row_to_ballot,
+                convert_row_to_rank_ballot,
                 candidates=candidates,
                 max_ranking_length=max_ranking_length,
             ),
