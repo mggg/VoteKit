@@ -132,19 +132,20 @@ class fastSTV:
         num_rows = len(df)
         num_cols = len(ranking_columns)
 
-        # 2D object array of frozensets from the DataFrame
+        # np matrix of frozensets from the DataFrame
         cells = df[ranking_columns].to_numpy()
 
-        # 1) Convert cells -> codes, raising if entry not in dict
+        # 1) Convert cells -> np.int8 indices, raising an error if entry not in dict
         def map_cell(cell):
             try:
                 return candidate_to_index[cell]
             except KeyError:
                 raise TypeError("Ballots must have rankings.")
 
+        # np matrix of indices -- we just need to add padding now
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # 2) Build padded ballot matrix
+        # 2) Add padding
         ballot_matrix = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
@@ -153,6 +154,7 @@ class fastSTV:
         fpv_vec = ballot_matrix[:, 0].copy()
 
         # 4) Reject ballots that have no rankings at all (all -127)
+        # Chris thinks this can/should be replaced with pf.contains_rankings == True? 
         empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
         if empty_rows.size:
             raise TypeError("Ballots must have rankings.")
