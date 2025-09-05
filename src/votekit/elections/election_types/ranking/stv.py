@@ -184,14 +184,15 @@ class fastSTV:
 
         tied_cands_set = set(tied_cands)
         if not hasattr(self, '__fpv_clusters'):
+            # for example: say the initial_fpv is [52, 10, 52, 70]
             scores = np.asarray(self._initial_fpv)
 
-            # Order indices by score (descending); stable so equal scores keep original order.
+            # in our example: order = [3, 2, 0, 1]
             order = np.argsort(scores, kind="mergesort")[::-1]
-            # Pair (score, idx) in that order
+            # in our example: pairs = [(70, 3), (52, 2), (52, 0), (10, 1)]
             pairs = [(float(scores[i]), int(i)) for i in order]
 
-            # Group consecutive equal scores into clusters of indices
+            # in our example: fpv_clusters = [[3], [2, 0], [1]]
             self.__fpv_clusters: list[list[int]] = [
                 [idx for _, idx in group]
                 for _, group in groupby(pairs, key=lambda x: x[0])
@@ -203,7 +204,6 @@ class fastSTV:
             for cluster in self.__fpv_clusters if any(i in tied_cands_set for i in cluster)
         ]
 
-        # Package as frozensets of NAMES, in descending score order
         packaged_ranking: tuple[frozenset[str], ...] = tuple(
             frozenset(self.candidates[i] for i in cluster) for cluster in clusters_containing_tied_cands
         )
@@ -249,6 +249,7 @@ class fastSTV:
             mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
             mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
             bool_ballot_matrix (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+                (This has been already updated in find_winners.)
             mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
@@ -340,6 +341,7 @@ class fastSTV:
             mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
             mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
             bool_ballot_matrix (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+                (This has been already updated in find_loser).
             mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
