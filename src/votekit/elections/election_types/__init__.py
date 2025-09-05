@@ -4,6 +4,7 @@ from .ranking import (
     SNTV,
     Borda,
     STV,
+    fastSTV,
     IRV,
     Alaska,
     DominatingSets,

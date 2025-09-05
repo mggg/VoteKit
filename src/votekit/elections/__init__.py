@@ -7,6 +7,7 @@ from .election_types import (
     SNTV,
     Borda,
     STV,
+    fastSTV,
     IRV,
     SequentialRCV,
     Alaska,
