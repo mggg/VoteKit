@@ -2,7 +2,7 @@ from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 import pytest
 
-filepath = "tests/data/pickle"
+filepath = "tests/pref_profile/data/pickle"
 
 
 def test_pkl_bijection_rankings():
