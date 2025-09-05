@@ -228,7 +228,15 @@ class ScoreBallot(Ballot):
         return super().__eq__(other)
 
     def __hash__(self):
-        return hash(self.scores) + super().__hash__()
+
+        return (
+            hash(
+                tuple((c, s) for c, s in enumerate(self.scores))
+                if self.scores is not None
+                else self.scores
+            )
+            + super().__hash__()
+        )
 
     def __str__(self):
         score_str = "ScoreBallot\n"
@@ -240,3 +248,5 @@ class ScoreBallot(Ballot):
         if self.voter_set != frozenset():
             score_str += f"\nVoter set: {set(self.voter_set)}"
         return score_str
+
+    __repr__ = __str__

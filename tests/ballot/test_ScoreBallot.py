@@ -50,9 +50,9 @@ def test_ballot_is_frozen_del():
 
 
 def test_ballot_hash():
-    b1 = Ballot(weight=2, voter_set={"A"})
-    b2 = Ballot(weight=2, voter_set={"A"})
-    b3 = Ballot(weight=2, voter_set={"B"})
+    b1 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
+    b2 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
+    b3 = ScoreBallot(scores={"A": 2, "B": 2}, weight=2, voter_set={"B"})
 
     assert b1 == b2 and hash(b1) == hash(b2)
     assert b1 != b3 and hash(b1) != hash(b3)
