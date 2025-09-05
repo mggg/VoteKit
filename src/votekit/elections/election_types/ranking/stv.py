@@ -307,8 +307,8 @@ class fastSTV:
                 counts = self._sample_to_transfer(
                     fpv_vec=mutated_fpv_vec,
                     wt_vec=mutated_wt_vec,
-                    w=w,
-                    s=surplus,
+                    winner=w,
+                    surplus=surplus,
                     rng=None,
                 )
                 new_weights += counts.astype(new_weights.dtype)
