@@ -2,11 +2,14 @@ from __future__ import annotations
 import csv
 import pandas as pd
 from ..ballot import Ballot, ScoreBallot, RankBallot
-from .utils import convert_row_to_rank_ballot
+from .utils import convert_row_to_rank_ballot, convert_row_to_score_ballot
 from .csv_utils import (
     _validate_rank_csv_format,
     _parse_profile_data_from_rank_csv,
     _parse_ballot_from_rank_csv,
+    _validate_score_csv_format,
+    _parse_profile_data_from_score_csv,
+    _parse_ballot_from_score_csv,
 )
 import numpy as np
 from typing import Optional, Tuple, Sequence, Union
@@ -85,6 +88,9 @@ class PreferenceProfile:
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
             )
 
+        if df.equals(pd.DataFrame()) and ballots == tuple():
+            return super().__new__(cls)
+
         elif df.equals(pd.DataFrame()):
             if all(isinstance(b, RankBallot) for b in ballots):
                 return super().__new__(RankProfile)
@@ -115,12 +121,19 @@ class PreferenceProfile:
         self,
         *,
         ballots: Sequence[Ballot] = tuple(),
+        candidates_cast: Sequence[str] = tuple(),
         candidates: Sequence[str] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
+        self.candidates_cast = candidates_cast
+        self.candidates = candidates
+        self.max_ranking_length = max_ranking_length
+        self.df = df
+
         self.total_ballot_wt = self._find_total_ballot_wt()
         self.num_ballots = self._find_num_ballots()
+        self._validate_and_set_candidates()
 
         self._is_frozen = True
 
@@ -156,6 +169,15 @@ class PreferenceProfile:
             ProfileError: Candidate names must not be the same as "Ranking_i".
             ProfileError: Candidate names must be unique.
         """
+        for cand in self.candidates:
+            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
+                raise ProfileError(
+                    (
+                        f"Candidate {cand} must not share name with"
+                        " ranking columns: Ranking_i."
+                    )
+                )
+
         if not len(set(self.candidates)) == len(self.candidates):
             raise ProfileError("All candidates must be unique.")
 
@@ -277,9 +299,13 @@ class RankProfile(PreferenceProfile):
             self.df, self.candidates_cast = self._init_from_rank_df(df)
 
         self.max_ranking_length = self._find_max_ranking_length()
-        self._validate_and_set_candidates_from_rankings()
 
-        super().__init__()
+        super().__init__(
+            candidates=self.candidates,
+            candidates_cast=self.candidates_cast,
+            df=self.df,
+            max_ranking_length=self.max_ranking_length,
+        )
 
     def __update_ballot_ranking_data(
         self,
@@ -560,28 +586,8 @@ class RankProfile(PreferenceProfile):
 
         return self.max_ranking_length
 
-    def _validate_and_set_candidates_from_rankings(self) -> None:
-        """
-        Ensure that the candidate names are not equal to the ranking column names, that they are
-        unique, and strips whitespace from candidates.
-
-        Raises:
-            ProfileError: Candidate names must not be the same as "Ranking_i".
-            ProfileError: Candidate names must be unique.
-        """
-        for cand in self.candidates:
-            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
-                raise ProfileError(
-                    (
-                        f"Candidate {cand} must not share name with"
-                        " ranking columns: Ranking_i."
-                    )
-                )
-
-        super()._validate_and_set_candidates()
-
     @cached_property
-    def ballots(self: PreferenceProfile) -> tuple[RankBallot, ...]:
+    def ballots(self: RankProfile) -> tuple[RankBallot, ...]:
         """
         Compute the ballot tuple as a cached property.
         """
@@ -736,7 +742,7 @@ class RankProfile(PreferenceProfile):
             include_voter_set (bool): Whether or not to include the voter set of each
                 ballot.
             candidate_mapping (dict[str, int]): Mapping candidate names to integers.
-            weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+            weight_precision (int): Number of decimals to round float weights to.
 
         """
         row = self.__to_rank_csv_ranking_list(ballot, candidate_mapping)
@@ -864,5 +870,545 @@ class RankProfile(PreferenceProfile):
 
 class ScoreProfile(PreferenceProfile):
 
-    def __init__():
-        pass
+    def __init__(
+        self,
+        *,
+        ballots: Sequence[Ballot] = tuple(),
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: Optional[int] = None,
+        df: pd.DataFrame = pd.DataFrame(),
+    ):
+        self.candidates = tuple(candidates)
+
+        if df.equals(pd.DataFrame()):
+            (
+                self.df,
+                self.candidates_cast,
+            ) = self._init_from_score_ballots(ballots)
+
+            if self.candidates == tuple():
+                self.candidates = self.candidates_cast
+
+        else:
+            self.df, self.candidates_cast = self._init_from_score_df(df)
+
+        super().__init__(
+            candidates=self.candidates,
+            candidates_cast=self.candidates_cast,
+            df=self.df,
+        )
+
+    def __update_ballot_scores_data(
+        self,
+        score_ballot_data: dict[str, list],
+        idx: int,
+        ballot: Ballot,
+        candidates_cast: list[str],
+        num_ballots: int,
+    ) -> None:
+        """
+        Update the score data from a ballot.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            idx (int): Index of ballot.
+            ballot (Ballot): Ballot.
+            candidates_cast (list[str]): List of candidates who have received votes.
+            num_ballots (int): Total number of ballots.
+        """
+        if ballot.scores is None:
+            return
+
+        for c, score in ballot.scores.items():
+            if ballot.weight > 0 and c not in candidates_cast:
+                candidates_cast.append(c)
+
+            if c not in score_ballot_data:
+                if self.candidates:
+                    raise ProfileError(
+                        f"Candidate {c} found in ballot {ballot} but not in "
+                        f"candidate list {self.candidates}."
+                    )
+                score_ballot_data[c] = [np.nan] * num_ballots
+            score_ballot_data[c][idx] = score
+
+    def __update_score_ballot_data_attrs(
+        self,
+        score_ballot_data: dict[str, list],
+        idx: int,
+        ballot: Ballot,
+        candidates_cast: list[str],
+        num_ballots: int,
+    ) -> None:
+        """
+        Update all ballot data from a ballot.
+
+        Args:
+            ballot_data (dict[str, list]): Dictionary storing ballot data.
+            idx (int): Index of ballot.
+            ballot (Ballot): Ballot.
+            candidates_cast (list[str]): List of candidates who have received votes.
+            num_ballots (int): Total number of ballots.
+        """
+        score_ballot_data["Weight"][idx] = ballot.weight
+
+        if ballot.voter_set != frozenset():
+            score_ballot_data["Voter Set"][idx] = ballot.voter_set
+
+        if ballot.scores is not None:
+            self.__update_ballot_scores_data(
+                score_ballot_data=score_ballot_data,
+                idx=idx,
+                ballot=ballot,
+                candidates_cast=candidates_cast,
+                num_ballots=num_ballots,
+            )
+
+    def __init_score_ballot_data(
+        self, ballots: Sequence[Ballot]
+    ) -> Tuple[int, dict[str, list]]:
+        """
+        Create the ballot data objects.
+
+        Args:
+            ballots (Sequence[Ballot,...]): Tuple of ballots.
+
+        Returns:
+            Tuple[int, dict[str, list]]: num_ballots, score_ballot_data
+
+        """
+        num_ballots = len(ballots)
+
+        score_ballot_data: dict[str, list] = {
+            "Weight": [np.nan] * num_ballots,
+            "Voter Set": [set()] * num_ballots,
+        }
+
+        if self.candidates != tuple():
+            score_ballot_data.update(
+                {c: [np.nan] * num_ballots for c in self.candidates}
+            )
+
+        return num_ballots, score_ballot_data
+
+    def __init_formatted_score_df(
+        self,
+        score_ballot_data: dict[str, list],
+        candidates_cast: list[str],
+    ) -> pd.DataFrame:
+        """
+        Create a pandas dataframe from the ballot data.
+
+        Args:
+            score_ballot_data (dict[str, list]): Dictionary storing ballot data.
+            candidates_cast (list[str]): List of candidates who received votes.
+
+        Returns:
+            pd.DataFrame: Dataframe of profile.
+        """
+        df = pd.DataFrame(score_ballot_data)
+        temp_col_order = [
+            "Voter Set",
+            "Weight",
+        ]
+
+        col_order = list(self.candidates) + temp_col_order
+
+        if self.candidates == tuple():
+            remaining_cands = set(candidates_cast) - set(df.columns)
+            empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
+            df[list(remaining_cands)] = empty_df_cols
+
+            col_order = (
+                sorted([c for c in df.columns if c not in temp_col_order])
+                + temp_col_order
+            )
+
+        df = df[col_order]
+        df.index.name = "Ballot Index"
+        return df
+
+    def _init_from_score_ballots(
+        self, ballots: Sequence[ScoreBallot]
+    ) -> tuple[pd.DataFrame, tuple[str, ...]]:
+        """
+        Create the pandas dataframe representation of the profile.
+
+        Args:
+            ballots (Sequence[Ballot,...]): Tuple of ballots.
+
+        Returns:
+            tuple[pd.DataFrame, tuple[str, ...]]: df, candidates_cast
+
+        """
+        # `score_ballot_data` sends {Weight, Voter Set} keys to a list to be
+        # indexed in the same order as the output df containing information
+        # for each ballot. So ballot_data[<weight>][<index>] is the weight value for
+        # the ballot at index <index> in the df.
+        num_ballots, score_ballot_data = self.__init_score_ballot_data(ballots)
+
+        candidates_cast: list[str] = []
+
+        for i, b in enumerate(ballots):
+
+            self.__update_score_ballot_data_attrs(
+                score_ballot_data=score_ballot_data,
+                idx=i,
+                ballot=b,
+                candidates_cast=candidates_cast,
+                num_ballots=num_ballots,
+            )
+
+        df = self.__init_formatted_score_df(
+            score_ballot_data=score_ballot_data,
+            candidates_cast=candidates_cast,
+        )
+        return (
+            df,
+            tuple(candidates_cast),
+        )
+
+    def __validate_init_score_df_params(self, df: pd.DataFrame) -> None:
+        """
+        Validate that the correct params were passed to the init method when constructing
+        from a dataframe.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Raises:
+            ValueError: One of contains_rankings and contains_scores must be True.
+            ValueError: If contains_rankings is True, max_ranking_length must be provided.
+            ValueError: Candidates must be provided.
+        """
+        boiler_plate = (
+            "When providing a dataframe and no ballot list to the init method, "
+        )
+        if len(df) == 0:
+            return
+
+        if self.candidates == tuple():
+            raise ValueError(boiler_plate + "candidates must be provided.")
+
+    def __validate_init_score_df(self, df: pd.DataFrame) -> None:
+        """
+        Validate that the df passed to the init method is of valid type.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Raises:
+            ValueError: Candidate column is missing.
+            ValueError: Ranking column is missing.
+            ValueError: Weight column is missing.
+            ValueError: Voter set column is missing.
+            ValueError: Index column is misformatted.
+
+        """
+        if "Weight" not in df.columns:
+            raise ValueError(f"Weight column not in dataframe: {df.columns}")
+        if "Voter Set" not in df.columns:
+            raise ValueError(f"Voter Set column not in dataframe: {df.columns}")
+        if df.index.name != "Ballot Index":
+            raise ValueError(f"Index not named 'Ballot Index': {df.index.name}")
+        if any(c not in df.columns for c in self.candidates):
+            for c in self.candidates:
+                if c not in df.columns:
+                    raise ValueError(
+                        f"Candidate column '{c}' not in dataframe: {df.columns}"
+                    )
+
+    def __find_candidates_cast_from_init_score_df(
+        self, df: pd.DataFrame
+    ) -> tuple[str, ...]:
+        """
+        Compute which candidates received votes from the df and set the candidates_cast and
+        candidates attr.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Returns:
+            tuple[str]: Candidates cast.
+        """
+
+        mask = df["Weight"] > 0
+
+        candidates_cast: set[str] = set()
+
+        positive = df.loc[mask, list(self.candidates)].gt(0).any()
+        # .any() applies along the columns, so we get a boolean series where the
+        # value is True the candidate has any positive score the column
+        candidates_cast |= set(positive[positive].index)
+
+        return tuple(candidates_cast)
+
+    def _init_from_score_df(
+        self, df: pd.DataFrame
+    ) -> tuple[pd.DataFrame, tuple[str, ...]]:
+        """
+        Validate the dataframe and determine the candidates cast.
+
+        Args:
+            df (pd.DataFrame): Dataframe representation of ballots.
+
+        Returns
+            tuple[pd.DataFrame, tuple[str]]: df, candidates_cast
+        """
+        self.__validate_init_score_df_params(df)
+        self.__validate_init_score_df(df)
+        candidates_cast = self.__find_candidates_cast_from_init_score_df(df)
+
+        return df, candidates_cast
+
+    @cached_property
+    def ballots(self: ScoreProfile) -> tuple[ScoreBallot, ...]:
+        """
+        Compute the ballot tuple as a cached property.
+        """
+        # TODO with map?
+        computed_ballots = [ScoreBallot()] * len(self.df)
+        for i, (_, b_row) in enumerate(self.df.iterrows()):
+            computed_ballots[i] = convert_row_to_score_ballot(b_row, self.candidates)
+        return tuple(computed_ballots)
+
+    def __add__(self, other):
+        """
+        Add two PreferenceProfiles by combining their ballot lists.
+        """
+        # TODO with df?
+        if isinstance(other, ScoreProfile):
+            ballots = self.ballots + other.ballots
+            candidates = set(self.candidates).union(other.candidates)
+            return ScoreProfile(
+                ballots=ballots,
+                candidates=candidates,
+            )
+
+        raise TypeError(
+            "Unsupported operand type. Must be an instance of ScoreProfile."
+        )
+
+    def group_ballots(self) -> ScoreProfile:
+        """
+        Groups ballots by scores and updates weights. Retains voter sets, but
+        loses ballot ids.
+
+        Returns:
+            ScoreProfile: A ScoreProfile object with grouped ballot list.
+        """
+        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
+        empty_df.index.name = "Ballot Index"
+
+        if len(self.df) == 0:
+            return ScoreProfile(
+                candidates=self.candidates,
+            )
+
+        non_group_cols = ["Weight", "Voter Set"]
+        cand_cols = [c for c in self.df.columns if c not in non_group_cols]
+
+        group_df = self.df.groupby(cand_cols, dropna=False)
+        new_df = group_df.aggregate(
+            {
+                "Weight": "sum",
+                "Voter Set": (lambda sets: set().union(*sets)),
+            }
+        ).reset_index()
+
+        new_df.index.name = "Ballot Index"
+
+        return ScoreProfile(
+            df=new_df,
+            candidates=self.candidates,
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, ScoreProfile):
+            return False
+
+        return super().__eq__(other)
+
+    def __str__(self) -> str:
+
+        repr_str = "ScoreProfile\n"
+
+        repr_str += (
+            f"Candidates: {self.candidates}\n"
+            f"Candidates who received votes: {self.candidates_cast}\n"
+            f"Total number of Ballot objects: {self.num_ballots}\n"
+            f"Total weight of Ballot objects: {self.total_ballot_wt}\n"
+        )
+
+        return repr_str
+
+    __repr__ = __str__
+
+    def __to_score_csv_header(
+        self, candidate_mapping: dict[str, str], include_voter_set: bool
+    ) -> list[list]:
+        """
+        Construct the header rows for the PrefProfile a custom CSV format.
+
+        Args:
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+        """
+        header = [
+            ["VoteKit ScoreProfile"],
+            ["Candidates"],
+            [f"({c}:{cand_label})" for c, cand_label in candidate_mapping.items()],
+        ]
+        header += [["Includes Voter Set"], [str(include_voter_set)]]
+        header += [["="] * 10]
+
+        return header
+
+    def __to_score_csv_score_list(self, score_ballot: ScoreBallot) -> list:
+        """
+        Create the list of score data for a ballot in the profile.
+
+        Args:
+            ballot (Ballot): Ballot.
+
+        """
+        if score_ballot.scores is not None:
+            return [float(score_ballot.scores.get(c, 0)) for c in self.candidates]
+
+        return [""] * len(self.candidates)
+
+    def __to_score_csv_ballot_row(
+        self,
+        score_ballot: ScoreBallot,
+        include_voter_set: bool,
+        weight_precision: int,
+    ) -> list[list]:
+        """
+        Create the row for a ballot in the profile.
+
+        Args:
+            score_ballot (ScoreBallot): Ballot.
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+            weight_precision (int): Number of decimals to round float weights to.
+
+
+        """
+        row = self.__to_score_csv_score_list(score_ballot)
+        row += ["&"]
+
+        row += [round(score_ballot.weight, weight_precision), "&"]
+
+        if include_voter_set:
+            row += [v for v in sorted(score_ballot.voter_set)]
+
+        return row
+
+    def __to_score_csv_data_column_names(
+        self, include_voter_set: bool, candidate_mapping: dict[str, str]
+    ) -> list:
+        """
+        Create the data column header.
+
+        Args:
+            include_voter_set (bool): Whether or not to include the voter set of each
+                ballot.
+            candidate_mapping (dict[str, str]): Maps candidate names to prefixes.
+        """
+        data_col_names = [f"{cand_label}" for cand_label in candidate_mapping.values()]
+        data_col_names += ["&", "Weight", "&"]
+
+        if include_voter_set:
+            data_col_names += ["Voter Set"]
+
+        return data_col_names
+
+    def to_csv(
+        self,
+        fpath: Union[str, PathLike, Path],
+        include_voter_set: bool = False,
+        weight_precision: int = 2,
+    ):
+        """
+        Saves PreferenceProfile to a custom CSV format.
+
+        Args:
+            fpath (Union[str, PathLike, Path]): Path to the saved csv.
+            include_voter_set (bool, optional): Whether or not to include the voter set of each
+                ballot. Defaults to False.
+            weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+
+        Raises:
+            ProfileError: Cannot write a profile with no ballots to a csv.
+            ValueError: File path must be provided.
+        """
+        if fpath == "":
+            raise ValueError("File path must be provided.")
+
+        if len(self.ballots) == 0:
+            raise ProfileError("Cannot write a profile with no ballots to a csv.")
+
+        prefix_idx = 1
+        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
+            prefix_idx += 1
+            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+
+        header = self.__to_score_csv_header(candidate_mapping, include_voter_set)
+        data_col_names = self.__to_score_csv_data_column_names(
+            include_voter_set, candidate_mapping
+        )
+        ballot_rows = [
+            self.__to_score_csv_ballot_row(b, include_voter_set, weight_precision)
+            for b in self.ballots
+        ]
+        rows = header + [data_col_names] + ballot_rows
+
+        with open(
+            fpath,
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(rows)
+
+    @classmethod
+    def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+        """
+        Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+
+        Args:
+            fpath (str): Path to csv.
+
+        Raises:
+            ValueError: If csv is improperly formatted for VoteKit.
+            ProfileError: If read profile has no rankings or scores.
+
+        """
+        with open(str(fpath), "r") as file:
+            reader = csv.reader(file)
+            csv_data = list(reader)
+
+        _validate_score_csv_format(csv_data)
+
+        (
+            inv_candidate_mapping,
+            includes_voter_set,
+            break_indices,
+        ) = _parse_profile_data_from_score_csv(csv_data)
+
+        ballots = [
+            _parse_ballot_from_score_csv(
+                row,
+                includes_voter_set,
+                break_indices,
+                inv_candidate_mapping,
+            )
+            for row in csv_data[7:]
+        ]
+
+        return cls(
+            ballots=tuple(ballots),
+            candidates=tuple(inv_candidate_mapping.values()),
+        )
