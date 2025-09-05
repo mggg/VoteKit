@@ -1,5 +1,5 @@
 from votekit.cvr_loaders import load_scottish
-from votekit.elections import STV, fast_STV
+from votekit.elections import STV, fastSTV
 import numpy as np
 from tqdm import tqdm  # tqdm is not currently a dependency... oh well
 import os
@@ -20,7 +20,7 @@ def is_same_election_state(e1, e2):
 
 
 def check_election_states(profile):
-    new = fast_STV(profile, m=2, simultaneous=simult)
+    new = fastSTV(profile, m=2, simultaneous=simult)
     old = STV(profile, m=2, simultaneous=simult)
 
     new_states = new.election_states
@@ -44,10 +44,10 @@ def check_election_states(profile):
 
 
 def check_full_election(profile):
-    new = fast_STV(profile, m=2, simultaneous=simult)
+    new = fastSTV(profile, m=2, simultaneous=simult)
     old = STV(profile, m=2, simultaneous=simult)
 
-    num_rounds = len(new._tally_record)
+    num_rounds = len(new._fpv_by_round)
 
     for i in range(num_rounds):
         # check that get_rankings returns the same pandas df string
