@@ -6,7 +6,7 @@ from .plurality import (
 )
 
 from .borda import Borda
-from .stv import fast_STV, STV, IRV, SequentialRCV
+from .stv import fastSTV, STV, IRV, SequentialRCV
 from .alaska import Alaska
 from .top_two import TopTwo
 from .dominating_sets import DominatingSets
