@@ -347,18 +347,12 @@ class fastSTV:
             tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated helper arrays.
         """
 
-        rows = np.isin(mutated_fpv_vec, loser)
-
-        idx_rows = np.where(rows)[0]
-        allowed = bool_ballot_matrix[idx_rows]
-        cols = np.arange(self._ballot_matrix.shape[1])
-
-        after = cols >= mutated_pos_vec[idx_rows][:, None]
-        next_allowed = allowed & after
-        next_idx = next_allowed.argmax(axis=1)
-
-        mutated_pos_vec[idx_rows] = next_idx
-        mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+        # cf. update_because_winner for detailed example
+        rows_with_loser_fpv = np.isin(mutated_fpv_vec, loser)
+        loser_row_indices = np.where(rows_with_loser_fpv)[0]
+        allowed_pos_matrix = bool_ballot_matrix[loser_row_indices]
+        mutated_pos_vec[loser_row_indices]  = allowed_pos_matrix.argmax(axis=1)
+        mutated_fpv_vec[loser_row_indices] = self._ballot_matrix[loser_row_indices, mutated_pos_vec[loser_row_indices]]
 
         return (
             mutated_fpv_vec,
