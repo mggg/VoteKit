@@ -855,28 +855,55 @@ class fastSTV:
         round_number = round_number % len(self.election_states)
 
         remaining = self._fpv_by_round[round_number].nonzero()[0]
-        ballots = []
         wt_vec = self._wt_vec.copy()
-        if self.m > 1:
-            # find the last entry in play_by_play[:round_number] with a 1 in the last position (there may be no such entry)
+        if self.m > 1: # this loop could be avoided if we improved how wt_vec is recorded, but the loop is also quite small
             for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
                 if self._play_by_play[i][-1] == "election":
                     wt_vec = self._play_by_play[i][2]
                     break
-        for i, row in enumerate(self._ballot_matrix):
-            ballot = []
-            for entry in row:
-                if entry == -127:
-                    break
-                elif entry in remaining:
-                    ballot.append(frozenset([self.candidates[entry]]))
-            if len(ballot) > 0:
-                ballots.append(Ballot(ranking=tuple(ballot), weight=wt_vec[i]))
-        return condense_profile(
-            PreferenceProfile(
-                ballots=tuple(ballots), max_ranking_length=self._ballot_length
-            )
-        )
+
+        idx_to_fset = {c: frozenset([self.candidates[c]]) for c in remaining}
+
+        # --- 1) drop last column by view ---
+        A = self._ballot_matrix.copy()
+        A = A[:, :-1]
+
+        n_rows, n_cols = A.shape
+
+        # --- 2) keep only entries in `remaining` ---
+        remaining_arr = np.fromiter((int(x) for x in remaining), dtype=np.int64)
+        keep_mask = np.isin(A, remaining_arr)
+
+        # --- 3) stable left-compaction, fill with -127 ---
+        out = np.full_like(A, fill_value=-127)               # int8
+        pos = keep_mask.cumsum(axis=1) - 1                       # target col for each kept entry
+        r_idx, c_idx = np.nonzero(keep_mask)
+        out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
+
+        # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
+        # default for anything missing (including -127): frozenset("~")
+        lut: np.ndarray = np.empty(256, dtype=object)
+        lut[:] = frozenset(["~"])
+        for k, v in idx_to_fset.items():
+            lut[int(np.int16(k)) + 128] = v
+        # index into LUT (shift by +128 to map [-128,127] -> [0,255])
+        obj = lut[out.astype(np.int16) + 128]                    # dtype=object, frozensets
+
+        # --- 5) to DataFrame with Ranking_i columns ---
+        data = {f"Ranking_{i+1}": obj[:, i] for i in range(n_cols)}
+        df = pd.DataFrame(data)
+
+        # --- 6) Ballot Index column & set as index ---
+        df.insert(0, "Ballot Index", np.arange(n_rows, dtype=int))
+        df.set_index("Ballot Index", inplace=True)
+
+        # --- 7) Voter Set: empty set per row (distinct objects) ---
+        df["Voter Set"] = [set() for _ in range(n_rows)]
+
+        # --- 8) Weight column ---
+        df["Weight"] = wt_vec.astype(np.float64, copy=False)
+
+        return condense_profile(PreferenceProfile(contains_rankings=True, max_ranking_length=self.profile.max_ranking_length, candidates=tuple([self.candidates[c] for c in remaining]), df=df))
 
     def get_step(
         self, round_number: int = -1
