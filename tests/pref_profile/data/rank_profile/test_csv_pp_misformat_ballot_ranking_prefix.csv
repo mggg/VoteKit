@@ -1,0 +1,34 @@
+VoteKit RankProfile
+Candidates
+(Aleine:Alei),(Alex:Alex),(C:C),(D:D),(E:E)
+Max Ranking Length
+3
+Includes Voter Set
+True
+=,=,=,=,=,=,=,=,=,=
+Ranking_1,Ranking_2,Ranking_3,&,Weight,&,Voter Set
+"{'Alex', 'Alei'}",{},{'C'},&,1.5,&,Chris,Peter
+"{'Alex', 'Alei'}",{},{'C'},&,0.5,&,Moon
+{'Aleine'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+"{'Alex', 'Alei'}",{},{'C'},&,1.5,&,Chris,Peter
+"{'Alex', 'Alei'}",{},{'C'},&,0.5,&,Moon
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+"{'Alex', 'Alei'}",{},{'C'},&,1.5,&,Chris,Peter
+"{'Alex', 'Alei'}",{},{'C'},&,0.5,&,Moon
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+"{'Alex', 'Alei'}",{},{'C'},&,1.5,&,Chris,Peter
+"{'Alex', 'Alei'}",{},{'C'},&,0.5,&,Moon
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+"{'Alex', 'Alei'}",{},{'C'},&,1.5,&,Chris,Peter
+"{'Alex', 'Alei'}",{},{'C'},&,0.5,&,Moon
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
+{'Alei'},{'Alex'},,&,1.0,&
