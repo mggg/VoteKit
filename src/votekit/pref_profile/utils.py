@@ -97,7 +97,7 @@ def convert_row_to_score_ballot(
     weight = row["Weight"]
 
     return ScoreBallot(
-        scores=scores if scores else None,
+        scores=scores if scores != dict() else None,
         weight=weight,
         voter_set=voter_set,
     )
