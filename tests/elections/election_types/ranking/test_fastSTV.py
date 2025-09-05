@@ -362,7 +362,7 @@ def test_stv_cands_cast():
 
 def test_random_transfers():
     # in the below profile, B always wins with Cambridge-styled random transfers,
-    # but C would always win with fractional transfers, and wins with probability P = 1 - (1/2)**49 with the "transfer2" method
+    # but C would always win with fractional transfers, and wins with probability P > 1 - (1/2)**49 with the "fractional_random" method
     why_cambridge_is_evil = PreferenceProfile(
         ballots=(
             Ballot(ranking=(frozenset({"A"}), frozenset({"B"})), weight=50),
@@ -372,11 +372,11 @@ def test_random_transfers():
         ),
         candidates=("A", "B", "C"),
     )
-    assert STV(why_cambridge_is_evil, m=2, transfer="random").get_elected() == (
+    assert STV(why_cambridge_is_evil, m=2, transfer="cambridge_random").get_elected() == (
         {"A"},
         {"B"},
     )
-    assert STV(why_cambridge_is_evil, m=2, transfer="random2").get_elected() == (
+    assert STV(why_cambridge_is_evil, m=2, transfer="fractional_random").get_elected() == (
         {"A"},
         {"C"},
     )

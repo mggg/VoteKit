@@ -91,8 +91,8 @@ class fastSTV:
         elif len(profile.candidates_cast) < m:
             raise ValueError("Not enough candidates received votes to be elected.")
         self.m = m
-        if transfer not in ["fractional", "random", "random2"]:
-            raise ValueError("Transfer method must be either 'fractional' or 'random'.")
+        if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
+            raise ValueError("Transfer method must be either 'fractional', 'cambridge_random', or 'fractional_random'.")
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
         """
@@ -282,7 +282,7 @@ class fastSTV:
         ):  # keeping the option for two different random methods
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for w in winners:
-                if self.transfer == "random":
+                if self.transfer == "cambridge_random":
                     # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
                     mutated_fpv_vec[idx_rows[next_candidates_rows == -127]] = -127
                 surplus = int(tallies[w] - self.threshold)
