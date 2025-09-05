@@ -921,11 +921,11 @@ class fastSTV:
         return (self.get_profile(round_number), self.election_states[round_number])
 
     def _sample_to_transfer(
-        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, w: int, s: int, rng=None
+        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, winner: int, surplus: int, rng=None
     ) -> np.ndarray:
         """
         Samples s row indices to transfer from an implicit pool,
-        where each row index i appears wt_vec[i] times if fpv_vec[i] == w.
+        where each row index i appears wt_vec[i] times if fpv_vec[i] == winner.
         Returns a counts vector where counts[i] is the number of times row i was sampled.
         Ensures sum(counts) == s and counts[i] <= wt_vec[i].
 
@@ -940,30 +940,40 @@ class fastSTV:
         if rng is None:
             rng = np.random.default_rng()
 
-        eligible = fpv_vec == w
-        idx = np.flatnonzero(eligible)
+        #running example: assume that candidate 2 just won.
+        #assume the fpv_vec looks like [2,5,3,2]
+        #then eligible looks like [True, False, False, True]
+        #and winner_row_indices looks like [0, 3]
+        eligible = fpv_vec == winner
+        winner_row_indices = np.flatnonzero(eligible)
 
-        # integer weights of each row
-        wts = wt_vec[idx].astype(np.int64)
-        total = int(wts.sum())
+        # assume the original weight vector was [200, 100, 50, 25]
+        # then wts looks like [200, 25]
+        wts = wt_vec[winner_row_indices].astype(np.int64)
 
-        # this deals with cases where there are fewer than s votes to transfer (lots of exhausted ballots)
-        s = min(s, total)
+        # assume that quota was 220, so winner 2 had 5 surplus votes and 225 transferable votes
+        transferable = int(wts.sum())
 
-        # Sample s distinct positions in the implicit pool [0, total)
-        pos = rng.choice(total, size=s, replace=False)
-        pos.sort()
+        # this deals with cases where there are fewer than surplus votes to transfer (lots of exhausted ballots)
+        surplus = min(surplus, transferable)
 
-        # Map positions to owner rows via cumulative weights
+        # Sample surplus distinct positions in the implicit pool [0, transferable)
+        # in our example: we sample 5 distinct numbers from [0, 225)
+        positions_to_transfer = rng.choice(transferable, size=surplus, replace=False)
+        positions_to_transfer.sort()
+
+        # Say we sampled the numbers 12, 50, 178, 200, and 201
+        # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled votes go to winner_row_index[0]
+        # numbers 200 and 201 get mapped to the second bin, so they go to our second winner_row_index[1]
         bins = np.cumsum(wts)  # len = len(idx)
-        owners = np.searchsorted(bins, pos, side="right")  # values in [0, len(idx))
+        owners = np.searchsorted(bins, positions_to_transfer, side="right")  # values in winner_row_indices
 
         # Accumulate counts back to global rows
         counts_local = np.bincount(
-            owners, minlength=idx.size
-        )  # per-eligible-row counts
-        counts = np.zeros(fpv_vec.shape[0], dtype=np.int64)
-        counts[idx] = counts_local
+            owners, minlength=winner_row_indices.size
+        )
+        counts = np.zeros(fpv_vec.shape[0], dtype=np.int64) 
+        counts[winner_row_indices] = counts_local #this tells us how many times each row was sampled as indexed in the global ballot_matrix
         return counts
 
     def __str__(self):
