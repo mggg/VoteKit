@@ -255,36 +255,51 @@ class fastSTV:
         Returns:
             tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]: Updated helper arrays.
         """
-        rows = np.isin(mutated_fpv_vec, winners)
+        #Running example: say that self._ballot matrix looks like
+        # [[2, 1, 3, -127],
+        #  [0, 2, 1, -127],
+        #  [2, 3, 1, -127],
+        #  [2, -127, -127, -127]]
 
-        idx_rows = np.where(rows)[0]
-        allowed = bool_ballot_matrix[idx_rows]
-        cols = np.arange(self._ballot_matrix.shape[1])
+        # say that candidate 2 and 3 was already eliminated, and say that 1 just got elected.
+        # in this case the fpv_vec looks like [1,0,1,-127] before update, and the bool_ballot_matrix looks like:
+        # [[0, 1, 0, 1],
+        #  [1, 0, 1, 1],
+        #  [0, 0, 1, 1],
+        #  [0, 1, 1, 1]]
 
-        after = cols >= mutated_pos_vec[idx_rows][:, None]
-        next_allowed = allowed & after
-        next_idx = next_allowed.argmax(axis=1)
+        # rows_with_winner_fpv would look like [True, False, True, False] in the running example
+        rows_with_winner_fpv = np.isin(mutated_fpv_vec, winners)
 
-        mutated_pos_vec[idx_rows] = next_idx
+        # the winner_row_indices would look like [0, 2] in the running example, and the allowed_pos_matrix looks like
+        # [[0, 1, 0, 1], #row 0 of the original matrix
+        #  [0, 0, 1, 1]] #row 2 of the original matrix
+        winner_row_indices = np.where(rows_with_winner_fpv)[0]
+        allowed_pos_matrix = bool_ballot_matrix[winner_row_indices]
+        
+        #this tells us which index the following pos_vec will highlight -- in our example, [3, 3]
+        next_fpv_pos_vec = allowed_pos_matrix.argmax(axis=1)
+        mutated_pos_vec[winner_row_indices] = next_fpv_pos_vec
 
-        next_candidates_rows = self._ballot_matrix[idx_rows, next_idx]
+        # this tells us who the new fpv vote will be with the updated positions
+        next_fpv_vec = self._ballot_matrix[winner_row_indices, next_fpv_pos_vec]
+        # don't update fpv_vec yet because we need to know current fpv to transfer weights
 
         if self.transfer == "fractional":
-            # rows needing an update: current first-preference in winners
-            get_tau = np.frompyfunc(
+            get_transfer_value = np.frompyfunc(
                 lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
             )
-            tau_values = get_tau(mutated_fpv_vec[rows]).astype(np.float64)
-            mutated_wt_vec[rows] *= tau_values
-            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+            transfer_value_values = get_transfer_value(mutated_fpv_vec[rows_with_winner_fpv]).astype(np.float64)
+            mutated_wt_vec[rows_with_winner_fpv] *= transfer_value_values
+            mutated_fpv_vec[rows_with_winner_fpv] = self._ballot_matrix[winner_row_indices, next_fpv_pos_vec]
         elif (
-            self.transfer is not None and "random" in self.transfer #blame mypy
-        ):  # keeping the option for two different random methods
+            self.transfer is not None and "random" in self.transfer 
+        ):  
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for w in winners:
                 if self.transfer == "cambridge_random":
                     # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
-                    mutated_fpv_vec[idx_rows[next_candidates_rows == -127]] = -127
+                    mutated_fpv_vec[winner_row_indices[next_fpv_vec == -127]] = -127
                 surplus = int(tallies[w] - self.threshold)
                 counts = self._sample_to_transfer(
                     fpv_vec=mutated_fpv_vec,
@@ -296,8 +311,8 @@ class fastSTV:
                 new_weights += counts.astype(new_weights.dtype)
 
             # set the new weights for rows in play to exactly the transferred amount
-            mutated_wt_vec[idx_rows] = new_weights[idx_rows]
-            mutated_fpv_vec[rows] = self._ballot_matrix[idx_rows, next_idx]
+            mutated_wt_vec[winner_row_indices] = new_weights[winner_row_indices]
+            mutated_fpv_vec[rows_with_winner_fpv] = next_fpv_vec
         return (
             mutated_fpv_vec,
             mutated_wt_vec,
