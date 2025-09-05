@@ -233,10 +233,9 @@ class fastSTV:
         tallies: np.ndarray,
         mutated_fpv_vec: np.ndarray,
         mutated_wt_vec: np.ndarray,
-        mutated_stencil: np.ndarray,
+        bool_ballot_matrix: np.ndarray,
         mutated_pos_vec: np.ndarray,
-        mutated_gone_list: list[int],
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Updates helper arrays after candidates have been elected, transferring surplus votes.
 
@@ -249,7 +248,7 @@ class fastSTV:
             tallies (np.ndarray): Current vote tallies for all candidates.
             mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
             mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
-            mutated_stencil (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+            bool_ballot_matrix (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
             mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
@@ -259,7 +258,7 @@ class fastSTV:
         rows = np.isin(mutated_fpv_vec, winners)
 
         idx_rows = np.where(rows)[0]
-        allowed = (~mutated_stencil)[idx_rows]
+        allowed = bool_ballot_matrix[idx_rows]
         cols = np.arange(self._ballot_matrix.shape[1])
 
         after = cols >= mutated_pos_vec[idx_rows][:, None]
@@ -302,20 +301,18 @@ class fastSTV:
         return (
             mutated_fpv_vec,
             mutated_wt_vec,
-            mutated_stencil,
+            bool_ballot_matrix,
             mutated_pos_vec,
-            mutated_gone_list,
         )
 
     def __update_because_loser(
         self,
         loser: int,
         mutated_fpv_vec: np.ndarray,
-        mutated_wt_vec: np.ndarray,
-        mutated_stencil: np.ndarray,
+        wt_vec: np.ndarray,
+        bool_ballot_matrix: np.ndarray,
         mutated_pos_vec: np.ndarray,
-        mutated_gone_list: list[int],
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list[int]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Updates helper arrays after a single candidate has been eliminated, transferring surplus votes.
 
@@ -327,7 +324,7 @@ class fastSTV:
             tallies (np.ndarray): Current vote tallies for all candidates.
             mutated_fpv_vec (np.ndarray): First preference vector (modified in place).
             mutated_wt_vec (np.ndarray): Weight vector for ballots (modified in place).
-            mutated_stencil (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
+            bool_ballot_matrix (np.ndarray): Boolean mask indicating entries of the ballot matrix in gone_list.
             mutated_pos_vec (np.ndarray): Position vector tracking current ballot positions.
             mutated_gone_list (list[int]): List of all eliminated/elected candidates.
 
@@ -338,7 +335,7 @@ class fastSTV:
         rows = np.isin(mutated_fpv_vec, loser)
 
         idx_rows = np.where(rows)[0]
-        allowed = (~mutated_stencil)[idx_rows]
+        allowed = bool_ballot_matrix[idx_rows]
         cols = np.arange(self._ballot_matrix.shape[1])
 
         after = cols >= mutated_pos_vec[idx_rows][:, None]
@@ -350,10 +347,9 @@ class fastSTV:
 
         return (
             mutated_fpv_vec,
-            mutated_wt_vec,
-            mutated_stencil,
+            wt_vec,
+            bool_ballot_matrix,
             mutated_pos_vec,
-            mutated_gone_list,
         )
 
     def __find_loser(
@@ -397,7 +393,7 @@ class fastSTV:
         else:
             L = int(np.argmin(masked_tallies))
         mutant_gone_list.append(L)
-        self.__update_stencil(mutant_bool_ballot_matrix, [L])
+        self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, [L])
         return L, (
             mutant_bool_ballot_matrix,
             mutant_winner_list,
@@ -449,7 +445,7 @@ class fastSTV:
         for w in winners:
             mutant_winner_list.append(int(w))
             mutant_gone_list.append(w)
-        self.__update_stencil(mutant_bool_ballot_matrix, winners)
+        self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, winners)
         return winners, (
             mutant_bool_ballot_matrix,
             mutant_winner_list,
@@ -506,7 +502,7 @@ class fastSTV:
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
         return L, mutant_tiebreak_record
 
-    def __update_stencil(
+    def __update_bool_ballot_matrix(
         self, _mutant_bool_ballot_matrix: np.ndarray, newly_gone: list[int]
     ) -> np.ndarray:
         """
@@ -519,7 +515,7 @@ class fastSTV:
         Returns:
             np.ndarray: Updated stencil mask.
         """
-        _mutant_bool_ballot_matrix |= np.isin(self._ballot_matrix, newly_gone)
+        _mutant_bool_ballot_matrix &= ~np.isin(self._ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
     def _make_initial_fpv(self):
@@ -574,8 +570,7 @@ class fastSTV:
         tiebreak_record: dict[int, tuple[list[int], int, int]] = dict()
         pos_vec = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
 
-        # Build once; update as winners change
-        mutant_bool_ballot_matrix = np.zeros_like(ballot_matrix, dtype=bool)
+        mutant_bool_ballot_matrix = np.ones_like(ballot_matrix, dtype=bool)
 
         def make_tallies(fpv_vec, wt_vec, ncands):
             return np.bincount(
@@ -584,7 +579,7 @@ class fastSTV:
                 minlength=ncands,
             )
 
-        mutant_engine = (fpv_vec, wt_vec, mutant_bool_ballot_matrix, pos_vec, gone_list)
+        mutant_engine = (fpv_vec, wt_vec, mutant_bool_ballot_matrix, pos_vec)
         mutant_record = (mutant_bool_ballot_matrix, winner_list, gone_list, tiebreak_record)
         # below is the main loop of the algorithm
         while len(winner_list) < m:
