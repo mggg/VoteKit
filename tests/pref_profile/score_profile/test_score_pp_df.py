@@ -1,24 +1,24 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import ScoreBallot
+from votekit.pref_profile import ScoreProfile
 import pandas as pd
 import numpy as np
 
 ballots_scores = [
-    Ballot(
+    ScoreBallot(
         weight=2,
         scores={
             "A": 1,
             "B": 2,
         },
     ),
-    Ballot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
-    Ballot(),
-    Ballot(weight=0),
+    ScoreBallot(scores={"D": 2, "E": 1}, voter_set={"Chris"}),
+    ScoreBallot(),
+    ScoreBallot(weight=0),
 ]
 
 
-def test_pp_df_scoress():
-    pp = PreferenceProfile(ballots=ballots_scores)
+def test_pp_df_scores():
+    pp = ScoreProfile(ballots=ballots_scores)
     data = {
         "A": [
             1,
@@ -42,11 +42,9 @@ def test_pp_df_scoress():
     assert pp.df.equals(true_df)
 
 
-def test_pp_df_rankings_args():
-    pp = PreferenceProfile(
+def test_pp_df_scores_args():
+    pp = ScoreProfile(
         ballots=ballots_scores,
-        contains_rankings=False,
-        contains_scores=True,
         candidates=["A", "B", "C", "D", "E"],
     )
     data = {

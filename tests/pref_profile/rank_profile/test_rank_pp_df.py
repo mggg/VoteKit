@@ -1,17 +1,17 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
 import pandas as pd
 
 ballots_rankings = [
-    Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
-    Ballot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
-    Ballot(),
-    Ballot(weight=0),
+    RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+    RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
+    RankBallot(),
+    RankBallot(weight=0),
 ]
 
 
 def test_pp_df_rankings():
-    pp = PreferenceProfile(ballots=ballots_rankings)
+    pp = RankProfile(ballots=ballots_rankings)
     data = {
         "Ranking_1": [
             frozenset({"A"}),
@@ -35,10 +35,8 @@ def test_pp_df_rankings():
 
 
 def test_pp_df_rankings_args():
-    pp = PreferenceProfile(
+    pp = RankProfile(
         ballots=ballots_rankings,
-        contains_rankings=True,
-        contains_scores=False,
         candidates=["A", "B", "C", "D", "E"],
         max_ranking_length=4,
     )
