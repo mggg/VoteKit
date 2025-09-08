@@ -8,7 +8,7 @@ from .utils import (
     profile_df_head,
     profile_df_tail,
 )
-from .cleaned_pref_profile import CleanedProfile
+from .cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
 
 __all__ = [
     "PreferenceProfile",
@@ -21,5 +21,6 @@ __all__ = [
     "convert_row_to_ballot",
     "profile_df_head",
     "profile_df_tail",
-    "CleanedProfile",
+    "CleanedRankProfile",
+    "CleanedScoreProfile",
 ]
