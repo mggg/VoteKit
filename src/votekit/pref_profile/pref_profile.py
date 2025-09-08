@@ -81,14 +81,15 @@ class PreferenceProfile:
         candidates: Sequence[str] = tuple(),
         max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
     ):
 
-        if not df.equals(pd.DataFrame()) and ballots != tuple():
+        if not df.equals(pd.DataFrame()) and len(ballots) != 0:
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
             )
 
-        if df.equals(pd.DataFrame()) and ballots == tuple():
+        if df.equals(pd.DataFrame()) and len(ballots) == 0:
             return super().__new__(cls)
 
         elif df.equals(pd.DataFrame()):
@@ -182,7 +183,7 @@ class PreferenceProfile:
             raise ProfileError("All candidates must be unique.")
 
         if not set(self.candidates_cast).issubset(self.candidates):
-            raise ValueError(
+            raise ProfileError(
                 "Candidates cast are not a subset of candidates list. The following "
                 " candidates are in candidates_cast but not candidates: "
                 f"{set(self.candidates_cast)-set(self.candidates)}."
@@ -281,7 +282,6 @@ class RankProfile(PreferenceProfile):
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
-
         self.candidates = tuple(candidates)
         self.max_ranking_length = (
             0 if max_ranking_length is None else max_ranking_length
@@ -494,9 +494,6 @@ class RankProfile(PreferenceProfile):
             raise ProfileError(
                 boiler_plate + "max_ranking_length must be provided and be non-zero."
             )
-
-        if self.candidates == tuple():
-            raise ProfileError(boiler_plate + "candidates must be provided.")
 
     def __validate_init_rank_df(self, df: pd.DataFrame) -> None:
         """
@@ -1088,7 +1085,7 @@ class ScoreProfile(PreferenceProfile):
             return
 
         if self.candidates == tuple():
-            raise ValueError(boiler_plate + "candidates must be provided.")
+            raise ProfileError(boiler_plate + "candidates must be provided.")
 
     def __validate_init_score_df(self, df: pd.DataFrame) -> None:
         """
@@ -1106,15 +1103,15 @@ class ScoreProfile(PreferenceProfile):
 
         """
         if "Weight" not in df.columns:
-            raise ValueError(f"Weight column not in dataframe: {df.columns}")
+            raise ProfileError(f"Weight column not in dataframe: {df.columns}")
         if "Voter Set" not in df.columns:
-            raise ValueError(f"Voter Set column not in dataframe: {df.columns}")
+            raise ProfileError(f"Voter Set column not in dataframe: {df.columns}")
         if df.index.name != "Ballot Index":
-            raise ValueError(f"Index not named 'Ballot Index': {df.index.name}")
+            raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         if any(c not in df.columns for c in self.candidates):
             for c in self.candidates:
                 if c not in df.columns:
-                    raise ValueError(
+                    raise ProfileError(
                         f"Candidate column '{c}' not in dataframe: {df.columns}"
                     )
 
