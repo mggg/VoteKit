@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .pref_profile import PreferenceProfile
+    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+
 
 from ..ballot import Ballot, RankBallot, ScoreBallot
 from typing import Optional
@@ -50,7 +51,6 @@ def _convert_ranking_cols_to_ranking(
     return tuple(ranking) if len(ranking) > 0 else None
 
 
-# TODO tests
 def convert_row_to_rank_ballot(
     row: pd.Series, max_ranking_length: int = 0
 ) -> RankBallot:
@@ -78,7 +78,6 @@ def convert_row_to_rank_ballot(
     )
 
 
-# TODO tests
 def convert_row_to_score_ballot(
     row: pd.Series, candidates: tuple[str, ...]
 ) -> ScoreBallot:
@@ -133,15 +132,15 @@ def _df_to_rank_ballot_tuple(
     )
 
 
-def profile_to_ballot_dict(
-    profile: PreferenceProfile, standardize: bool = False
-) -> dict[Ballot, float]:
+def rank_profile_to_ballot_dict(
+    rank_profile: RankProfile, standardize: bool = False
+) -> dict[RankBallot, float]:
     """
     Converts profile to dictionary with keys = ballots and
     values = corresponding total weights.
 
     Args:
-        profile (PreferenceProfile): Profile to convert.
+        rank_profile (RankProfile): Profile to convert.
         standardize (bool, optional): If True, divides the weight of each ballot by the total
             weight. Defaults to False.
 
@@ -149,12 +148,44 @@ def profile_to_ballot_dict(
         dict[Ballot, float]:
             A dictionary with ballots (keys) and corresponding total weights (values).
     """
-    tot_weight = profile.total_ballot_wt
+    tot_weight = rank_profile.total_ballot_wt
     di: dict = {}
-    for ballot in profile.ballots:
-        print(ballot)
+    for ballot in rank_profile.ballots:
         weightless_ballot = Ballot(
             ranking=ballot.ranking,
+            voter_set=ballot.voter_set,
+        )
+        weight = ballot.weight
+        if standardize:
+            weight /= tot_weight
+
+        if weightless_ballot not in di.keys():
+            di[weightless_ballot] = weight
+        else:
+            di[weightless_ballot] += weight
+    return di
+
+
+def score_profile_to_ballot_dict(
+    score_profile: ScoreProfile, standardize: bool = False
+) -> dict[ScoreBallot, float]:
+    """
+    Converts profile to dictionary with keys = ballots and
+    values = corresponding total weights.
+
+    Args:
+        score_profile (ScoreProfile): Profile to convert.
+        standardize (bool, optional): If True, divides the weight of each ballot by the total
+            weight. Defaults to False.
+
+    Returns:
+        dict[Ballot, float]:
+            A dictionary with ballots (keys) and corresponding total weights (values).
+    """
+    tot_weight = score_profile.total_ballot_wt
+    di: dict = {}
+    for ballot in score_profile.ballots:
+        weightless_ballot = Ballot(
             scores=ballot.scores,
             voter_set=ballot.voter_set,
         )
@@ -166,19 +197,18 @@ def profile_to_ballot_dict(
             di[weightless_ballot] = weight
         else:
             di[weightless_ballot] += weight
-        print()
     return di
 
 
-def profile_to_ranking_dict(
-    profile: PreferenceProfile, standardize: bool = False
+def rank_profile_to_ranking_dict(
+    rank_profile: RankProfile, standardize: bool = False
 ) -> dict[tuple[frozenset[str], ...], float]:
     """
     Converts profile to dictionary with keys = rankings and
     values = corresponding total weights.
 
     Args:
-        profile (PreferenceProfile): Profile to convert.
+        rank_profile (RankProfile): Profile to convert.
         standardize (bool, optional): If True, divides the weight of each ballot by the total
             weight. Defaults to False.
 
@@ -187,19 +217,15 @@ def profile_to_ranking_dict(
             A dictionary with rankings (keys) and corresponding total weights (values).
 
     Raises:
-        ProfileError: Profile must contain rankings.
+        ProfileError: Profile must be a RankProfile.
     """
+    from .pref_profile import RankProfile
 
-    if not profile.contains_rankings:
-        raise ProfileError(
-            (
-                "You are trying to convert a profile that contains no rankings to a "
-                "ranking_dict."
-            )
-        )
-    tot_weight = profile.total_ballot_wt
+    if not isinstance(rank_profile, RankProfile):
+        raise ProfileError(("Profile must be a RankProfile."))
+    tot_weight = rank_profile.total_ballot_wt
     di: dict = {}
-    for ballot in profile.ballots:
+    for ballot in rank_profile.ballots:
         ranking = ballot.ranking
         weight = ballot.weight
         if standardize:
@@ -209,15 +235,15 @@ def profile_to_ranking_dict(
     return di
 
 
-def profile_to_scores_dict(
-    profile: PreferenceProfile, standardize: bool = False
+def score_profile_to_scores_dict(
+    score_profile: ScoreProfile, standardize: bool = False
 ) -> dict[tuple[str, float], float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
 
     Args:
-        profile (PreferenceProfile): Profile to convert.
+        score_profile (ScoreProfile): Profile to convert.
         standardize (bool, optional): If True, divides the weight of each ballot by the total
             weight. Defaults to False.
 
@@ -226,19 +252,16 @@ def profile_to_scores_dict(
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:
-        ProfileError: Profile must contain scores.
+        ProfileError: Profile must be a ScoreProfile.
     """
-    if not profile.contains_scores:
-        raise ProfileError(
-            (
-                "You are trying to convert a profile that contains no scores to a "
-                "scores_dict."
-            )
-        )
+    from .pref_profile import ScoreProfile
 
-    tot_weight = profile.total_ballot_wt
+    if not isinstance(score_profile, ScoreProfile):
+        raise ProfileError(("Profile must be a ScoreProfile."))
+
+    tot_weight = score_profile.total_ballot_wt
     di: dict = {}
-    for ballot in profile.ballots:
+    for ballot in score_profile.ballots:
         scores = tuple(ballot.scores.items()) if ballot.scores else None
         weight = ballot.weight
         if standardize:

@@ -1,10 +1,10 @@
 from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 from .profile_error import ProfileError
 from .utils import (
-    profile_to_ballot_dict,
-    profile_to_ranking_dict,
-    profile_to_scores_dict,
-    # convert_row_to_ballot,
+    rank_profile_to_ballot_dict,
+    score_profile_to_ballot_dict,
+    rank_profile_to_ranking_dict,
+    score_profile_to_scores_dict,
     profile_df_head,
     profile_df_tail,
 )
@@ -15,10 +15,10 @@ __all__ = [
     "RankProfile",
     "ScoreProfile",
     "ProfileError",
-    "profile_to_ballot_dict",
-    "profile_to_ranking_dict",
-    "profile_to_scores_dict",
-    "convert_row_to_ballot",
+    "rank_profile_to_ballot_dict",
+    "score_profile_to_ballot_dict",
+    "rank_profile_to_ranking_dict",
+    "score_profile_to_scores_dict",
     "profile_df_head",
     "profile_df_tail",
     "CleanedRankProfile",
