@@ -1,6 +1,9 @@
 from votekit.pref_profile import ScoreProfile, CleanedScoreProfile, ProfileError
 from typing import Callable
 import pandas as pd
+from typing import Union
+from functools import partial
+import numpy as np
 
 
 def _iterate_and_clean_score_tuples(
@@ -33,7 +36,9 @@ def _iterate_and_clean_score_tuples(
     idxs = cleaned_df.index
 
     unaltr_idxs = {
-        idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c
+        idx
+        for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows))
+        if np.array_equal(o, c, equal_nan=True)
     }
     no_scores_altr_idxs = {
         idx
@@ -120,6 +125,89 @@ def clean_score_profile(
     )
 
 
-# TODO
-def remove_cand_from_score_profile():
-    pass
+def remove_cand_from_score_tuple(
+    removed_idxs: list[int],
+    score_tup: tuple[float, ...],
+) -> tuple[float, ...]:
+    """
+    Removes specified candidate(s) from score tuple.
+
+    Args:
+        removed_idxs (list[int]): Indices of candidates to be removed.
+        ranking_tup (tuple): Ranking to remove candidates from.
+
+    Returns:
+        tuple: Ranking with candidate(s) removed.
+    """
+    return tuple(
+        s if i not in removed_idxs else np.nan for i, s in enumerate(score_tup)
+    )
+
+
+def remove_cand_score_profile(
+    removed: Union[str, list],
+    profile: ScoreProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = False,
+) -> CleanedScoreProfile:
+    """
+    Given a score profile, remove the given candidate(s) from the ballots.
+
+    Wrapper for clean_score_profile that does some extra processing to ensure the candidate list
+    is handled correctly.
+
+    Not as fast as removing the candidate columns directly, but tracks more information
+    about which ballots were adjusted.
+
+    Args:
+        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        profile (ScoreProfile): Profile to remove candidates from.
+        remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
+            ranking or scores as a result of cleaning. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
+            weight as a result of cleaning. Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
+            from the orginal profile in the new profile. If False, takes the original candidate
+            list and removes the candidate(s) given in ``removed``, but preserves all others.
+            Defaults to False.
+
+    Returns:
+        CleanedScoreProfile: A cleaned ``ScoreProfile``.
+
+    Raises:
+        ProfileError: Profile must only contain score ballots.
+    """
+    if isinstance(removed, str):
+        removed = [removed]
+    removed_idxs = [i for i, c in enumerate(profile.df.columns) if c in removed]
+
+    cleaned_profile = clean_score_profile(
+        profile,
+        partial(remove_cand_from_score_tuple, removed_idxs),
+        remove_empty_ballots,
+        remove_zero_weight_ballots,
+        retain_original_candidate_list=True,
+    )
+
+    new_candidates = (
+        [c for c in profile.candidates if c not in removed]
+        if not retain_original_candidate_list
+        else profile.candidates
+    )
+    new_df = (
+        cleaned_profile.df[new_candidates + ["Voter Set", "Weight"]]
+        if not retain_original_candidate_list
+        else cleaned_profile.df
+    )
+
+    return CleanedScoreProfile(
+        df=new_df,
+        candidates=new_candidates,
+        parent_profile=cleaned_profile.parent_profile,
+        df_index_column=cleaned_profile.df_index_column,
+        no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
+        no_scores_altr_idxs=cleaned_profile.no_scores_altr_idxs,
+        nonempty_altr_idxs=cleaned_profile.nonempty_altr_idxs,
+        unaltr_idxs=cleaned_profile.unaltr_idxs,
+    )
