@@ -25,13 +25,13 @@ class RankedPairs(RankingElection):
     lexicographically.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (RankProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
     """
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         tiebreak: str = "lexicographic",
         m: int = 1,
     ):
@@ -42,7 +42,7 @@ class RankedPairs(RankingElection):
         self.m = m
         self.tiebreak = tiebreak
 
-        def quick_tiebreak_candidates(profile: PreferenceProfile) -> dict[str, float]:
+        def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
             candidate_set = frozenset(profile.candidates)
             tiebroken_candidates = tiebreak_set(candidate_set, tiebreak=self.tiebreak)
 
@@ -69,20 +69,20 @@ class RankedPairs(RankingElection):
         return False
 
     def _run_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
-    ) -> PreferenceProfile:
+        self, profile: RankProfile, prev_state: ElectionState, store_states=False
+    ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state. Since this is
         a single-round election, this will complete the election and return the final profile.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
             store_states (bool, optional): Included for compatibility with the base class but not
                  used in this election type.
 
         Returns:
-            PreferenceProfile: The profile of ballots after the round is completed.
+            RankProfile: The profile of ballots after the round is completed.
         """
         pairwise = pairwise_dict(profile)
         ordered_winners = {}

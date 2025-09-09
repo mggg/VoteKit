@@ -46,7 +46,6 @@ electowiki_profile = PreferenceProfile(
         ),
     ),
     max_ranking_length=4,
-    contains_rankings=True,
 )
 
 profile_with_skips = PreferenceProfile(
@@ -69,7 +68,6 @@ profile_with_skips = PreferenceProfile(
         ),
     ),
     max_ranking_length=4,
-    contains_rankings=True,
 )
 
 test_profile_limit_case = PreferenceProfile(
@@ -88,7 +86,6 @@ test_profile_limit_case = PreferenceProfile(
         ),
     ),
     max_ranking_length=3,
-    contains_rankings=True,
 )
 
 borda_ambiguous_profile = PreferenceProfile(
@@ -107,7 +104,6 @@ borda_ambiguous_profile = PreferenceProfile(
         ),
     ),
     max_ranking_length=3,
-    contains_rankings=True,
 )
 
 dominating_ambiguous_profile = PreferenceProfile(
@@ -121,7 +117,6 @@ dominating_ambiguous_profile = PreferenceProfile(
             weight=1,
         ),
     ),
-    contains_rankings=True,
 )
 
 profile_tied_set = PreferenceProfile(

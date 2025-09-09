@@ -9,7 +9,7 @@ class Approval(GeneralRating):
     approve.  Winners are the :math:`m` candidates who received the most approval votes.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (ScoreProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
@@ -17,7 +17,7 @@ class Approval(GeneralRating):
     """
 
     def __init__(
-        self, profile: PreferenceProfile, m: int = 1, tiebreak: Optional[str] = None
+        self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None
     ):
         # limit one per candidate,  but no total budget limit
         super().__init__(profile, m=m, L=1, tiebreak=tiebreak)
@@ -29,7 +29,7 @@ class BlocPlurality(GeneralRating):
     Most commonly, this would be run with :math:`k=m`.
 
     Args:
-        profile (PreferenceProfile): Profile to conduct election on.
+        profile (ScoreProfile): Profile to conduct election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
         k (int, optional): Total budget per voter. Defaults to None, which results in ``m``
             approvals per voter.
@@ -40,7 +40,7 @@ class BlocPlurality(GeneralRating):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: ScoreProfile,
         m: int = 1,
         k: Optional[int] = None,
         tiebreak: Optional[str] = None,

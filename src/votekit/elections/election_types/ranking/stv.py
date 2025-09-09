@@ -23,7 +23,7 @@ class STV(RankingElection):
     STV elections. All ballots must have no ties.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
         transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
         Transfer method. Defaults to fractional transfer.
@@ -43,11 +43,11 @@ class STV(RankingElection):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         transfer: Callable[
-            [str, float, Union[tuple[Ballot], list[Ballot]], int],
-            tuple[Ballot, ...],
+            [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: str = "droop",
         simultaneous: bool = True,
@@ -73,10 +73,11 @@ class STV(RankingElection):
             sort_high_low=True,
         )
 
-    def _stv_validate_profile(self, profile: PreferenceProfile):
+    def _stv_validate_profile(self, profile: RankProfile):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        assert profile.max_ranking_length is not None
         ranking_rows = [
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
@@ -90,7 +91,7 @@ class STV(RankingElection):
         for idx, row in enumerate(np_arr):
             if any(len(s) > 1 for s in row):
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
+                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
                     "contains a tied ranking."
                 )
             if (row == tilde).all():
@@ -123,18 +124,18 @@ class STV(RankingElection):
         return False
 
     def _simultaneous_elect_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState
-    ) -> tuple[tuple[frozenset[str], ...], PreferenceProfile]:
+        self, profile: RankProfile, prev_state: ElectionState
+    ) -> tuple[tuple[frozenset[str], ...], RankProfile]:
         """
         Run one step of an election from the given profile and previous state.
         Used for simultaneous STV election if candidates cross threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
-            tuple[tuple[frozenset[str],...], PreferenceProfile]:
+            tuple[tuple[frozenset[str],...], RankProfile]:
                 A tuple whose first entry is the elected candidates, ranked by first-place votes,
                 and whose second entry is the profile of ballots after transfers.
         """
@@ -155,7 +156,7 @@ class STV(RankingElection):
                     break
 
         ballots_by_fpv = ballots_by_first_cand(profile)
-        new_ballots = [Ballot()] * profile.num_ballots
+        new_ballots = [RankBallot()] * profile.num_ballots
         ballot_index = 0
 
         for s in elected:
@@ -182,7 +183,7 @@ class STV(RankingElection):
 
         cleaned_ballots = tuple(
             condense_ballot_ranking(
-                remove_cand_from_ballot([c for s in elected for c in s], b)
+                remove_cand_from_rank_ballot([c for s in elected for c in s], b)
             )
             for b in new_ballots
             if b.ranking
@@ -192,7 +193,7 @@ class STV(RankingElection):
             [c for s in elected for c in s]
         )
 
-        new_profile = PreferenceProfile(
+        new_profile = RankProfile(
             ballots=cleaned_ballots,
             candidates=tuple(remaining_cands),
             max_ranking_length=profile.max_ranking_length,
@@ -200,23 +201,23 @@ class STV(RankingElection):
         return (tuple(elected), new_profile)
 
     def _single_elect_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState
+        self, profile: RankProfile, prev_state: ElectionState
     ) -> tuple[
         tuple[frozenset[str], ...],
         dict[frozenset[str], tuple[frozenset[str], ...]],
-        PreferenceProfile,
+        RankProfile,
     ]:
         """
         Run one step of an election from the given profile and previous state.
         Used for one-by-one STV election if candidates cross threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
             tuple[tuple[frozenset[str],...], dict[frozenset[str], tuple[frozenset[str],...]],
-            PreferenceProfile]:
+            RankProfile]:
                 A tuple whose first entry is the elected candidate, second is the tiebreak dict,
                 and whose third entry is the profile of ballots after transfers.
         """
@@ -237,7 +238,7 @@ class STV(RankingElection):
                 tiebreaks = {}
 
         ballots_by_fpv = ballots_by_first_cand(profile)
-        new_ballots = [Ballot()] * profile.num_ballots
+        new_ballots = [RankBallot()] * profile.num_ballots
         ballot_index = 0
 
         elected_c = list(elected[0])[0]
@@ -262,7 +263,7 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_ballot_ranking(remove_cand_from_ballot(elected_c, b))
+            condense_ballot_ranking(remove_cand_from_rank_ballot(elected_c, b))
             for b in new_ballots
             if b.ranking
         )
@@ -270,7 +271,7 @@ class STV(RankingElection):
         remaining_cands = set(profile.candidates_cast).difference(
             [c for s in elected for c in s]
         )
-        new_profile = PreferenceProfile(
+        new_profile = RankProfile(
             ballots=cleaned_ballots,
             candidates=tuple(remaining_cands),
             max_ranking_length=profile.max_ranking_length,
@@ -278,8 +279,8 @@ class STV(RankingElection):
         return elected, tiebreaks, new_profile
 
     def _run_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
-    ) -> PreferenceProfile:
+        self, profile: RankProfile, prev_state: ElectionState, store_states=False
+    ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
         STV sets a threshold for first-place votes. If a candidate passes it, they are elected.
@@ -290,14 +291,14 @@ class STV(RankingElection):
         threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
             store_states (bool, optional): True if `self.election_states` should be updated with the
                 ElectionState generated by this round. This should only be True when used by
                 `self._run_election()`. Defaults to False.
 
         Returns:
-            PreferenceProfile: The profile of ballots after the round is completed.
+            RankProfile: The profile of ballots after the round is completed.
         """
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
@@ -327,7 +328,7 @@ class STV(RankingElection):
         ):
             elected = prev_state.remaining
             eliminated = (frozenset(),)
-            new_profile = PreferenceProfile()
+            new_profile = RankProfile()
 
         else:
             lowest_fpv_cands = prev_state.remaining[-1]
@@ -389,7 +390,7 @@ class IRV(STV):
     Equivalent to STV for m = 1.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
@@ -400,7 +401,7 @@ class IRV(STV):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         quota: str = "droop",
         tiebreak: Optional[str] = None,
     ):
@@ -413,7 +414,7 @@ class SequentialRCV(STV):
     been elected. This system is actually used in parts of Utah.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
@@ -428,7 +429,7 @@ class SequentialRCV(STV):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         quota: str = "droop",
         simultaneous: bool = True,
@@ -437,12 +438,12 @@ class SequentialRCV(STV):
         def _transfer(
             winner: str,
             _fpv: float,
-            ballots: Union[tuple[Ballot], list[Ballot]],
+            ballots: Union[tuple[RankBallot], list[RankBallot]],
             _threshold: int,
-        ) -> tuple[Ballot, ...]:
+        ) -> tuple[RankBallot, ...]:
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(
-                condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                condense_ballot_ranking(remove_cand_from_rank_ballot(winner, b))
                 for b in ballots
             )
 
