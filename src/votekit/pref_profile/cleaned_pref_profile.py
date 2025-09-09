@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 import warnings
 import pandas as pd
 

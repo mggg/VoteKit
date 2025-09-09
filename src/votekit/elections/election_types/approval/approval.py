@@ -1,5 +1,5 @@
-from ..scores import GeneralRating
-from ....pref_profile import PreferenceProfile
+from votekit.elections.election_types.scores import GeneralRating
+from votekit.pref_profile import ScoreProfile
 from typing import Optional
 
 

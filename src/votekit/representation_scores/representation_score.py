@@ -1,4 +1,4 @@
-from ..pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from itertools import combinations
 from typing import Optional
 import warnings

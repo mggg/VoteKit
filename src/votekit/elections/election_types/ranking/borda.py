@@ -1,8 +1,8 @@
-from .abstract_ranking import RankingElection
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....cleaning import remove_and_condense_ranked_profile
-from ....utils import (
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_state import ElectionState
+from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.utils import (
     elect_cands_from_set_ranking,
     validate_score_vector,
     score_profile_from_rankings,

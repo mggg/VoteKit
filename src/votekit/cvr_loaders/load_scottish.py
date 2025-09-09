@@ -4,8 +4,8 @@ from pathlib import Path
 from pandas.errors import EmptyDataError, DataError
 from typing import Union
 
-from ..pref_profile import PreferenceProfile
-from ..ballot import Ballot
+from votekit.pref_profile import RankProfile
+from votekit.ballot import RankBallot
 
 
 def load_scottish(

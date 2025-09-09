@@ -1,9 +1,9 @@
 from typing import Callable, Optional, Union, Any
-from ...pref_profile import PreferenceProfile
-from .multi_profile_bar_plot import multi_profile_bar_plot
-from ..bar_plot import bar_plot
+from votekit.pref_profile import PreferenceProfile
+from votekit.plots.profiles.multi_profile_bar_plot import multi_profile_bar_plot
+from votekit.plots.bar_plot import bar_plot
 from matplotlib.axes import Axes
-from ...utils import (
+from votekit.utils import (
     first_place_votes,
     borda_scores,
     mentions,

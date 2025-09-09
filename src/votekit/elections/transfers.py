@@ -1,8 +1,8 @@
 import random
 import math
-from ..ballot import Ballot
+from votekit.ballot import RankBallot
 from typing import Union
-from ..pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
 
 def fractional_transfer(

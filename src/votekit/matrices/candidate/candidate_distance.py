@@ -1,8 +1,8 @@
-from ...ballot import Ballot
-from ...pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.pref_profile import PreferenceProfile
 import numpy as np
 import itertools as it
-from .._utils import _convert_dict_to_matrix
+from votekit.matrices._utils import _convert_dict_to_matrix
 
 
 def candidate_distance(i: str, j: str, ballot: Ballot) -> float:

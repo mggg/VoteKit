@@ -1,8 +1,8 @@
-from .abstract_ranking import RankingElection
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....utils import first_place_votes, elect_cands_from_set_ranking
-from ....cleaning import remove_and_condense_ranked_profile
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_state import ElectionState
+from votekit.utils import first_place_votes, elect_cands_from_set_ranking
+from votekit.cleaning import remove_and_condense_ranked_profile
 from typing import Optional, Literal
 from functools import partial
 

@@ -1,7 +1,7 @@
 from typing import Callable, Optional, Union, Any
-from ...pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from matplotlib.axes import Axes
-from ...utils import (
+from votekit.utils import (
     first_place_votes,
     borda_scores,
     mentions,
@@ -9,7 +9,7 @@ from ...utils import (
     COLOR_LIST,
 )
 from functools import partial
-from ..bar_plot import add_null_keys, multi_bar_plot
+from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
 
 
 def _create_data_dict(

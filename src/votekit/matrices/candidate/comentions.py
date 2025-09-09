@@ -1,6 +1,6 @@
-from ...ballot import Ballot
-from ...pref_profile import PreferenceProfile
-from .._utils import _convert_dict_to_matrix
+from votekit.ballot import Ballot
+from votekit.pref_profile import PreferenceProfile
+from votekit.matrices._utils import _convert_dict_to_matrix
 import numpy as np
 from typing import Union
 

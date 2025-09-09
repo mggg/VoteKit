@@ -2,8 +2,8 @@ from typing import Sequence, Optional, Literal, Union
 from itertools import permutations
 import math
 import random
-from .ballot import Ballot
-from .pref_profile import PreferenceProfile, ProfileError
+from votekit.ballot import Ballot, RankBallot
+from votekit.pref_profile import PreferenceProfile, ProfileError, RankProfile
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray

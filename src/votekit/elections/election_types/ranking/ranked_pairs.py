@@ -1,14 +1,14 @@
 import networkx as nx
 
-from votekit import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
     get_dominating_tiers_digraph,
 )
 from votekit.utils import tiebreak_set
 
-from .abstract_ranking import RankingElection
-from ...election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections.election_state import ElectionState
 
 
 class RankedPairs(RankingElection):

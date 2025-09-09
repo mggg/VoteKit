@@ -1,5 +1,5 @@
-from .base_graph import Graph
-from ..pref_profile import PreferenceProfile
+from votekit.graphs.base_graph import Graph
+from votekit.pref_profile import PreferenceProfile
 from typing import Optional, Union
 import networkx as nx  # type: ignore
 from functools import cache

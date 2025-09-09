@@ -1,14 +1,14 @@
-from .abstract_ranking import RankingElection
-from ...transfers import fractional_transfer
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....ballot import Ballot
-from ....cleaning import (
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections.transfers import fractional_transfer
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_state import ElectionState
+from votekit.ballot import RankBallot
+from votekit.cleaning import (
     remove_and_condense_ranked_profile,
-    remove_cand_from_ballot,
+    remove_cand_from_rank_ballot,
     condense_ballot_ranking,
 )
-from ....utils import (
+from votekit.utils import (
     _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
     tiebreak_set,

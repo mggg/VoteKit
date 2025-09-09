@@ -3,7 +3,7 @@ from typing import Optional, Union
 import os
 from pathlib import Path
 import numpy as np
-from ..pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 import warnings
 
 

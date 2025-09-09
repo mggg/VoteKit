@@ -1,11 +1,11 @@
-from ....models import Election
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....utils import (
+from votekit.models import Election
+from votekit.pref_profile import ScoreProfile
+from votekit.elections.election_state import ElectionState
+from votekit.utils import (
     score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
 )
-from ....cleaning import remove_and_condense
+from votekit.cleaning import remove_and_condense
 from typing import Optional
 
 

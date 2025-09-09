@@ -2,14 +2,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+    from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 
-from ..ballot import Ballot, RankBallot, ScoreBallot
+from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from typing import Optional
 import pandas as pd
 from functools import partial
-from .profile_error import ProfileError
+from votekit.pref_profile.profile_error import ProfileError
 
 
 def _convert_ranking_cols_to_ranking(
@@ -219,7 +219,7 @@ def rank_profile_to_ranking_dict(
     Raises:
         ProfileError: Profile must be a RankProfile.
     """
-    from .pref_profile import RankProfile
+    from votekit.pref_profile import RankProfile
 
     if not isinstance(rank_profile, RankProfile):
         raise ProfileError(("Profile must be a RankProfile."))
@@ -254,7 +254,7 @@ def score_profile_to_scores_dict(
     Raises:
         ProfileError: Profile must be a ScoreProfile.
     """
-    from .pref_profile import ScoreProfile
+    from votekit.pref_profile import ScoreProfile
 
     if not isinstance(score_profile, ScoreProfile):
         raise ProfileError(("Profile must be a ScoreProfile."))

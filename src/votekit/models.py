@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from .elections import ElectionState
-from .pref_profile import PreferenceProfile
+from votekit.elections import ElectionState
+from votekit.pref_profile import PreferenceProfile
 import pandas as pd
-from .utils import (
+from votekit.utils import (
     score_dict_to_ranking,
 )
 from typing import Callable, Optional

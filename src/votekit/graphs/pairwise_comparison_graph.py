@@ -5,7 +5,7 @@ import matplotlib.patches as mpatches
 import networkx as nx  # type: ignore
 from functools import cache
 from typing import Optional
-from ..pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
 from numpy.typing import NDArray
 import numpy as np  # type: ignore
 from numba import njit, float64, int32  # type: ignore

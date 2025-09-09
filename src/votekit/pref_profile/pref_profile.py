@@ -1,9 +1,12 @@
 from __future__ import annotations
 import csv
 import pandas as pd
-from ..ballot import Ballot, ScoreBallot, RankBallot
-from .utils import convert_row_to_rank_ballot, convert_row_to_score_ballot
-from .csv_utils import (
+from votekit.ballot import Ballot, ScoreBallot, RankBallot
+from votekit.pref_profile.utils import (
+    convert_row_to_rank_ballot,
+    convert_row_to_score_ballot,
+)
+from votekit.pref_profile.csv_utils import (
     _validate_rank_csv_format,
     _parse_profile_data_from_rank_csv,
     _parse_ballot_from_rank_csv,
@@ -15,7 +18,7 @@ import numpy as np
 from typing import Optional, Tuple, Sequence, Union
 import warnings
 import pickle
-from .profile_error import ProfileError
+from votekit.pref_profile.profile_error import ProfileError
 from functools import cached_property
 from pathlib import Path
 from os import PathLike

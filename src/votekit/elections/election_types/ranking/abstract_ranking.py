@@ -1,7 +1,7 @@
-from votekit import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from typing import Optional, Callable
-from ....models import Election
-from ...election_state import ElectionState
+from votekit.models import Election
+from votekit.elections.election_state import ElectionState
 from abc import abstractmethod
 
 
