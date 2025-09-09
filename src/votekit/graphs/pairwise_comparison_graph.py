@@ -5,23 +5,23 @@ import matplotlib.patches as mpatches
 import networkx as nx  # type: ignore
 from functools import cache
 from typing import Optional
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from numpy.typing import NDArray
 import numpy as np  # type: ignore
 from numba import njit, float64, int32  # type: ignore
 
 
 def __rows_to_indices(
-    profile: PreferenceProfile, cand_name_to_idx: dict[str, int]
+    profile: RankProfile, cand_name_to_idx: dict[str, int]
 ) -> NDArray:
     """
-    Converts the ranking columns of a PreferenceProfile to integer indices.
+    Converts the ranking columns of a RankProfile to integer indices.
     Each singleton candidate set is converted to an index based on the provided candidates list.
     A special value of -2 is used for the short ballot candidate set {"~"} and -1 for undefined
     entries.
 
     Args:
-        profile (PreferenceProfile): The preference profile containing rankings.
+        profile (RankProfile): The preference profile containing rankings.
         cand_name_to_idx (dict[str, int]): A mapping from candidate names to their integer index
             representations.
 
@@ -30,6 +30,7 @@ def __rows_to_indices(
     """
     fs_to_idx = {frozenset({c}): cand_name_to_idx[c] for c in cand_name_to_idx.keys()}
     fs_to_idx[frozenset({"~"})] = -2  # Make a special value for short ballots
+    assert profile.max_ranking_length is not None
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
     mat_obj = profile.df[ranking_cols].to_numpy(object)
     flat = mat_obj.ravel()
@@ -81,24 +82,22 @@ def __tally_and_mutate_head_to_head(
 
 
 def pairwise_dict(
-    profile: PreferenceProfile, *, sort_candidate_pairs: bool = True
+    profile: RankProfile, *, sort_candidate_pairs: bool = True
 ) -> dict[tuple[str, str], tuple[float, float]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
-        profile (PreferenceProfile): Profile to compute dict on.
+        profile (RankProfile): Profile to compute dict on.
         sort_candidate_pairs (bool): If True, candidate pairs in the pairwise comparison dictionary
             will be sorted lexicographically. Defaults to True.
 
     Returns:
         dict[tuple[str, str], tuple[float, float]]: Pairwise comparison dictionary.
     """
-    if profile.contains_scores:
+    if not isinstance(profile, RankProfile):
         raise ValueError("Profile must only contain rankings, not scores.")
-    elif not profile.contains_rankings:
-        raise ValueError("Profile must contain rankings.")
 
     candidates_lst = list(profile.candidates)
 
@@ -201,7 +200,8 @@ def restrict_pairwise_dict_to_subset(
 
     Args:
         cands (list[str] | tuple[str] | set[str]): Candidate subset to restrict to.
-        pairwise_dict (dict[tuple[str, str], tuple[float, float]): Full pairwise comparison dictionary.
+        pairwise_dict (dict[tuple[str, str], tuple[float, float]): Full pairwise comparison
+            dictionary.
 
     Returns:
         dict[tuple[str, str], tuple[float, float]]: Pairwise dict restricted to the provided
@@ -244,12 +244,12 @@ class PairwiseComparisonGraph(nx.DiGraph):
     and edges are pairwise preferences.
 
     Args:
-        profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
+        profile (RankProfile): ``RankProfile`` to construct graph from.
         sort_candidate_pairs (bool): If True, candidate pairs in the pairwise
             comparison dictionary will be sorted lexicographically. Defaults to True.
 
     Attributes:
-        profile (PreferenceProfile): ``PreferenceProfile`` to construct graph from.
+        profile (RankProfile): ``RankProfile`` to construct graph from.
         candidates (list): List of candidates.
         pairwise_dict (dict[tuple[str, str], tuple[float, float]]): Dictionary constructed from
             ``pairwise_dict``. The pairwise dictionary is a
@@ -259,9 +259,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
         pairwise_graph (networkx.DiGraph): Underlying graph.
     """
 
-    def __init__(
-        self, profile: PreferenceProfile, *, sort_candidate_pairs: bool = True
-    ):
+    def __init__(self, profile: RankProfile, *, sort_candidate_pairs: bool = True):
         self.profile = profile
         self.pairwise_dict = pairwise_dict(
             profile, sort_candidate_pairs=sort_candidate_pairs

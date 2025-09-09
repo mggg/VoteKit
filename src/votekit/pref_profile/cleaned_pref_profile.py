@@ -171,9 +171,6 @@ class CleanedRankProfile(RankProfile):
 
     __repr__ = __str__
 
-    # def __eq__(self, other):
-    #     return super().__eq__(other)
-
 
 class CleanedScoreProfile(ScoreProfile):
     """
@@ -188,7 +185,7 @@ class CleanedScoreProfile(ScoreProfile):
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
         candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
-        parent_profile (PreferenceProfile | CleanedProfile): The profile that was altered.
+        parent_profile (ScoreProfile | CleanedScoreProfile): The profile that was altered.
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
@@ -213,7 +210,7 @@ class CleanedScoreProfile(ScoreProfile):
 
     def __init__(
         self,
-        parent_profile: RankProfile | CleanedRankProfile = (RankProfile()),
+        parent_profile: ScoreProfile | CleanedRankProfile = (ScoreProfile()),
         df_index_column: list[int] = [],
         no_wt_altr_idxs: set[int] = set(),
         no_scores_altr_idxs: set[int] = set(),
@@ -339,6 +336,3 @@ class CleanedScoreProfile(ScoreProfile):
         return "Profile has been cleaned\n" + super().__str__()
 
     __repr__ = __str__
-
-    # def __eq__(self, other):
-    #     return super().__eq__(other)

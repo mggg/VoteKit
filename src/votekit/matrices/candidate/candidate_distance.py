@@ -1,11 +1,11 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
 import numpy as np
 import itertools as it
 from votekit.matrices._utils import _convert_dict_to_matrix
 
 
-def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
+def candidate_distance(i: str, j: str, ballot: RankBallot) -> float:
     """
     Takes candidates i,j and returns distance r(j)-r(i) in ranking.
     Returns numpy.nan if a candidate is not on ballot. Note that this is non-symmetric,
@@ -14,13 +14,13 @@ def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
     Args:
       i (str): Candidate.
       j (str): Candidate.
-      ballot (Ballot): Ballot.
+      ballot (RankBallot): RankBallot.
 
     Returns:
       float: Distance r(j)-r(i) in ranking.
     """
     if ballot.ranking is None:
-        raise TypeError("Ballot must have a ranking.")
+        raise TypeError("RankBallot must have a ranking.")
 
     positions = {i: -1, j: -1}
 
@@ -37,7 +37,7 @@ def candidate_distance(i: str, j: str, ballot: Ballot) -> float:
 
 
 def candidate_distance_matrix(
-    pref_profile: PreferenceProfile, candidates: list[str]
+    pref_profile: RankProfile, candidates: list[str]
 ) -> np.ndarray:
     """
     Takes a preference profile and converts to a matrix
@@ -46,7 +46,7 @@ def candidate_distance_matrix(
     Uses numpy.nan for undefined entries.
 
     Args:
-      pref_profile (PreferenceProfile): Profile.
+      pref_profile (RankProfile): Profile.
       candidates (list[str]): List of candidates to use. Indexing of this list matches indexing of
           output array.
 

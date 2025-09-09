@@ -1,5 +1,5 @@
 from typing import Callable, Optional, Union, Any
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 from matplotlib.axes import Axes
 from votekit.utils import (
     first_place_votes,
@@ -13,17 +13,17 @@ from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
 
 
 def _create_data_dict(
-    profile_dict: dict[str, PreferenceProfile],
-    stat_function: Callable[[PreferenceProfile], dict[str, float]],
+    profile_dict: dict[str, RankProfile | ScoreProfile],
+    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
 ) -> dict[str, dict[str, float]]:
     """
     Create the correctly formatted dict to pass to ``multi_bar_plot``. Ensures each
     subdictionary has the same keys, and uses the default value 0 if a key is missing.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile | ScoreProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
-        stat_function (Callable[[PreferenceProfile], dict[str, float]]): Which stat
+        stat_function (Callable[[RankProfile | ScoreProfile], dict[str, float]]): Which stat
             to use for the bar plot. Must be a callable that takes a profile and returns
             a dict with str keys and float values.
 
@@ -40,8 +40,8 @@ def _create_data_dict(
 
 
 def multi_profile_bar_plot(
-    profile_dict: dict[str, PreferenceProfile],
-    stat_function: Callable[[PreferenceProfile], dict[str, float]],
+    profile_dict: dict[str, RankProfile | ScoreProfile],
+    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
     normalize: bool = False,
     profile_colors: Optional[dict[str, str]] = None,
     bar_width: Optional[float] = None,
@@ -61,9 +61,9 @@ def multi_profile_bar_plot(
     like ballot length, first place votes for candidate, etc.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile | ScoreProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
-        stat_function (Callable[[PreferenceProfile], dict[str, float]]): Which stat
+        stat_function (Callable[[RankProfile | ScoreProfile], dict[str, float]]): Which stat
             to use for the bar plot. Must be a callable that takes a profile and returns
             a dict with str keys and float values.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
@@ -140,7 +140,7 @@ def multi_profile_bar_plot(
 
 
 def multi_profile_borda_plot(
-    profile_dict: dict[str, PreferenceProfile],
+    profile_dict: dict[str, RankProfile],
     borda_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
     profile_colors: Optional[dict[str, str]] = None,
@@ -161,7 +161,7 @@ def multi_profile_borda_plot(
     Plot the borda scores for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
         borda_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``borda_scores``. Defaults to None, in which case default values for ``borda_scores``
@@ -254,7 +254,7 @@ def multi_profile_borda_plot(
 
 
 def multi_profile_mentions_plot(
-    profile_dict: dict[str, PreferenceProfile],
+    profile_dict: dict[str, RankProfile],
     mentions_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
     profile_colors: Optional[dict[str, str]] = None,
@@ -275,7 +275,7 @@ def multi_profile_mentions_plot(
     Plot the mentions for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
         mentions_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``mentions``. Defaults to None, in which case default values for ``mentions``
@@ -367,7 +367,7 @@ def multi_profile_mentions_plot(
 
 
 def multi_profile_fpv_plot(
-    profile_dict: dict[str, PreferenceProfile],
+    profile_dict: dict[str, RankProfile],
     fpv_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
     profile_colors: Optional[dict[str, str]] = None,
@@ -388,7 +388,7 @@ def multi_profile_fpv_plot(
     Plot the first place votes for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
         fpv_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``first_place_votes``. Defaults to None, in which case default values for
@@ -482,7 +482,7 @@ def multi_profile_fpv_plot(
 
 
 def multi_profile_ballot_lengths_plot(
-    profile_dict: dict[str, PreferenceProfile],
+    profile_dict: dict[str, RankProfile],
     ballot_lengths_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
     profile_colors: Optional[dict[str, str]] = None,
@@ -502,7 +502,7 @@ def multi_profile_ballot_lengths_plot(
     Plot the ballot lengths for a collection of profiles. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile_dict (dict[str, PreferenceProfile]): Keys are profile labels and values are
+        profile_dict (dict[str, RankProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
         ballot_lengths_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``ballot_lengths``. Defaults to None, in which case default values for

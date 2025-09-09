@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from votekit.elections import ElectionState
 from votekit.pref_profile import PreferenceProfile
 import pandas as pd
@@ -219,7 +219,7 @@ class Election(Generic[P]):
 
         status_df = pd.DataFrame(
             {"Status": ["Remaining"] * len(candidates), "Round": [0] * len(candidates)},
-            index=candidates,
+            index=tuple(candidates),
         )
 
         for i in range(round_number):

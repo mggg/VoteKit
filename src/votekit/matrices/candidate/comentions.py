@@ -1,26 +1,22 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
 from votekit.matrices._utils import _convert_dict_to_matrix
 import numpy as np
 from typing import Union
 
 
-def comention(cands: Union[str, list[str]], ballot: Ballot):
+def comention(cands: Union[str, list[str]], ballot: RankBallot):
     """
-    Takes cands and returns true if they all appear on the ballot, either in the ranking
-    or the scoring. Candidates who receive 0 points are not counted as mentioned.
+    Takes cands and returns true if they all appear on the ballot in the ranking.
 
     Args:
       cands (Union[str, list[str]]): Candidate name or list of candidate names.
-      ballot (Ballot): Ballot.
+      ballot (RankBallot): RankBallot.
 
     Returns:
       bool: True if all candidates appear in ballot.
     """
-
     all_cands: set[str] = set()
-    if ballot.scores:
-        all_cands = all_cands.union(ballot.scores.keys())
 
     if ballot.ranking:
         all_cands = all_cands.union(c for s in ballot.ranking for c in s)
@@ -31,7 +27,7 @@ def comention(cands: Union[str, list[str]], ballot: Ballot):
     return set(cands).issubset(all_cands)
 
 
-def comention_above(i: str, j: str, ballot: Ballot) -> bool:
+def comention_above(i: str, j: str, ballot: RankBallot) -> bool:
     """
     Takes candidates i,j and returns True if i >= j in the ranking.
     Requires that the ballot has a ranking.
@@ -40,14 +36,14 @@ def comention_above(i: str, j: str, ballot: Ballot) -> bool:
     Args:
       i (str): Candidate name.
       j (str): Candidate name.
-      ballot (Ballot): Ballot.
+      ballot (RankBallot): RankBallot.
 
     Returns:
       bool: True if both i and j appear in ballot and i >= j.
     """
 
     if ballot.ranking is None:
-        raise TypeError(f"Ballot must have a ranking: {ballot}")
+        raise TypeError(f"RankBallot must have a ranking: {ballot}")
     i_index, j_index = (-1, -1)
 
     for rank, s in enumerate(ballot.ranking):
@@ -60,7 +56,7 @@ def comention_above(i: str, j: str, ballot: Ballot) -> bool:
 
 
 def comentions_matrix(
-    pref_profile: PreferenceProfile, candidates: list[str], symmetric: bool = False
+    pref_profile: RankProfile, candidates: list[str], symmetric: bool = False
 ) -> np.ndarray:
     """
     Takes a preference profile and converts to a matrix
@@ -69,7 +65,7 @@ def comentions_matrix(
     the number of times candidates i and j were mentioned on the same ballot.
 
     Args:
-      pref_profile (PreferenceProfile): Profile.
+      pref_profile (RankProfile): Profile.
       candidates (list[str]): List of candidates to use. Indexing of this list matches indexing of
         output array.
       symmetric (bool, optional): Whether or not to make the matrix symmetric. Defaults to False

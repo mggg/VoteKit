@@ -3,7 +3,7 @@ from itertools import permutations
 import math
 import random
 from votekit.ballot import Ballot, RankBallot
-from votekit.pref_profile import PreferenceProfile, ProfileError, RankProfile
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
@@ -68,12 +68,13 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
         raise TypeError("Ballots must have rankings.")
 
     df = profile.df
+    assert profile.max_ranking_length is not None
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     rank_arr = df[ranking_cols].to_numpy()
     weights = df["Weight"].to_numpy()
 
-    cand_dict: dict[str, list[Ballot]] = {c: [] for c in profile.candidates}
+    cand_dict: dict[str, list[RankBallot]] = {c: [] for c in profile.candidates}
     tilde = frozenset({"~"})
 
     for row, w in zip(rank_arr, weights):
@@ -98,19 +99,19 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
     return cand_dict
 
 
-def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
+def add_missing_cands(profile: RankProfile) -> RankProfile:
     """
     Add any candidates from `profile.candidates` that are not listed on a ballot
     as tied in last place.
 
     Args:
-        profile (PreferenceProfile): Input profile.
+        profile (RankProfile): Input profile.
 
     Returns:
-        PreferenceProfile
+        RankProfile
     """
 
-    new_ballots = [Ballot()] * len(profile.ballots)
+    new_ballots = [RankBallot()] * len(profile.ballots)
     candidates = set(profile.candidates)
 
     for i, ballot in enumerate(profile.ballots):
@@ -126,13 +127,13 @@ def add_missing_cands(profile: PreferenceProfile) -> PreferenceProfile:
                 else ballot.ranking
             )
 
-            new_ballots[i] = Ballot(
+            new_ballots[i] = RankBallot(
                 weight=ballot.weight,
                 voter_set=ballot.voter_set,
                 ranking=tuple([frozenset(s) for s in new_ranking]),
             )
 
-    return PreferenceProfile(ballots=tuple(new_ballots), candidates=tuple(candidates))
+    return RankProfile(ballots=tuple(new_ballots), candidates=tuple(candidates))
 
 
 def validate_score_vector(score_vector: Sequence[float]):
@@ -160,15 +161,16 @@ def validate_score_vector(score_vector: Sequence[float]):
 
 
 def _score_dict_from_rankings_df_no_ties(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     score_vector: Sequence[float],
 ) -> dict[str, float]:
 
     validate_score_vector(score_vector)
 
-    if profile.contains_scores:
+    if not isinstance(profile, RankProfile):
         raise ProfileError("Profile must only contain ranked ballots.")
 
+    assert profile.max_ranking_length is not None
     max_len = profile.max_ranking_length
     if len(score_vector) < max_len:
         score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
@@ -206,7 +208,7 @@ def _score_dict_from_rankings_df_no_ties(
 
 
 def score_profile_from_rankings(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     score_vector: Sequence[float],
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> dict[str, float]:
@@ -219,7 +221,7 @@ def score_profile_from_rankings(
 
 
     Args:
-        profile (PreferenceProfile): Profile to score.
+        profile (RankProfile): Profile to score.
         score_vector (Sequence[float]): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
             the profile. If it is shorter, we add 0s.
@@ -236,8 +238,9 @@ def score_profile_from_rankings(
     """
     validate_score_vector(score_vector)
 
-    if profile.contains_scores is True:
+    if not isinstance(profile, RankProfile):
         raise ProfileError("Profile must only contain ranked ballots.")
+    assert profile.max_ranking_length is not None
     max_length = profile.max_ranking_length
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
@@ -292,34 +295,35 @@ def score_profile_from_rankings(
 
 
 def _first_place_votes_from_df_no_ties(
-    profile: PreferenceProfile,
+    profile: RankProfile,
 ) -> dict[str, float]:
     """
-    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
+    Computes first place votes for all candidates_cast in a ``RankProfile``.
     Intended to be much faster than first_place_votes, but does not handle ties in ballots.
 
     Args:
-        profile (PreferenceProfile): The profile to compute first place votes for.
+        profile (RankProfile): The profile to compute first place votes for.
 
     Returns:
         dict[str, float]:
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
+    assert profile.max_ranking_length is not None
     return _score_dict_from_rankings_df_no_ties(
         profile, [1] + [0] * (profile.max_ranking_length - 1)
     )
 
 
 def first_place_votes(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     tie_convention: Literal["high", "average", "low"] = "average",
 ) -> dict[str, float]:
     """
-    Computes first place votes for all candidates_cast in a ``PreferenceProfile``.
+    Computes first place votes for all candidates_cast in a ``RankProfile``.
 
     Args:
-        profile (PreferenceProfile): The profile to compute first place votes for.
+        profile (RankProfile): The profile to compute first place votes for.
         tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
@@ -329,19 +333,20 @@ def first_place_votes(
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
+    assert profile.max_ranking_length is not None
     return score_profile_from_rankings(
         profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
     )
 
 
 def mentions(
-    profile: PreferenceProfile,
+    profile: RankProfile,
 ) -> dict[str, float]:
     """
-    Calculates total mentions for all candidates in a ``PreferenceProfile``.
+    Calculates total mentions for all candidates in a ``RankProfile``.
 
     Args:
-        profile (PreferenceProfile): PreferenceProfile of ballots.
+        profile (RankProfile): RankProfile of ballots.
 
     Returns:
         dict[str, float]:
@@ -360,16 +365,16 @@ def mentions(
 
 
 def borda_scores(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     borda_max: Optional[int] = None,
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> dict[str, float]:
     r"""
-    Calculates Borda scores for candidates_cast in a ``PreferenceProfile``. The Borda vector is
+    Calculates Borda scores for candidates_cast in a ``RankProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
 
     Args:
-        profile (PreferenceProfile): ``PreferenceProfile`` of ballots.
+        profile (RankProfile): ``RankProfile`` of ballots.
         borda_max (int, optional): The maximum value of the Borda vector. Defaults to
             the length of the longest allowable ballot in the profile.
         tie_convention (Literal["high", "average", "low"], optional): How to award points for
@@ -384,6 +389,7 @@ def borda_scores(
             Dictionary mapping candidates to Borda scores.
     """
     if borda_max is None:
+        assert profile.max_ranking_length is not None
         borda_max = profile.max_ranking_length
 
     score_vector = list(range(borda_max, 0, -1))
@@ -393,7 +399,7 @@ def borda_scores(
 
 def tiebreak_set(
     r_set: frozenset[str],
-    profile: Optional[PreferenceProfile] = None,
+    profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
     backup_tiebreak_convention: Optional[str] = None,
@@ -406,7 +412,7 @@ def tiebreak_set(
 
     Args:
         r_set (frozenset[str]): Set of candidates on which to break tie.
-        profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
+        profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str): Tiebreak method to use. Options are "random", "first_place", and
             "borda". Defaults to "random".
@@ -416,7 +422,8 @@ def tiebreak_set(
             points for 5th. "high" awards the highest possible points, so in the previous example,
             they would each receive the points for 3rd. "average" averages the points, so they would
             each receive the points for 4th place.
-        backup_tiebreak_convention (str, optional): If the initial tiebreak does not resolve all ties,
+        backup_tiebreak_convention (str, optional): If the initial tiebreak does not resolve all
+            ties,
             this convention is used to break any remaining ties. Options are "random" and
             "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
             "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
@@ -486,7 +493,7 @@ def tiebreak_set(
 
 def tiebroken_ranking(
     ranking: tuple[frozenset[str], ...],
-    profile: Optional[PreferenceProfile] = None,
+    profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
 ) -> tuple[
     tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str], ...]]
@@ -496,7 +503,7 @@ def tiebroken_ranking(
 
     Args:
         ranking (list[set[str]]): A list-of-set ranking of candidates.
-        profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
+        profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
@@ -562,7 +569,7 @@ def score_dict_to_ranking(
 def elect_cands_from_set_ranking(
     ranking: Sequence[Union[frozenset[str], set[str]]],
     m: int,
-    profile: Optional[PreferenceProfile] = None,
+    profile: Optional[RankProfile] = None,
     tiebreak: Optional[str] = None,
 ) -> tuple[
     tuple[frozenset[str], ...],
@@ -579,7 +586,7 @@ def elect_cands_from_set_ranking(
     Args:
         ranking (tuple[frozenset[str],...]): A list-of-set ranking of candidates.
         m (int): Number of seats to elect.
-        profile (PreferenceProfile, optional): Profile used to break ties in first-place votes or
+        profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to None, which does not break ties.
@@ -634,16 +641,16 @@ def elect_cands_from_set_ranking(
     return (tuple(elected), ranking_fs[i:], tiebreak_ranking)
 
 
-def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
+def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
     """
     Fix tie(s) in a ballot by returning all possible permutations of the tie(s), and divide the
     weight of the original ballot equally among the new ballots.
 
     Args:
-        ballot (Ballot): Ballot to expand tie sets on.
+        ballot (RankBallot): Ballot to expand tie sets on.
 
     Returns:
-        list[Ballot]: All possible permutations of the tie(s).
+        list[v]: All possible permutations of the tie(s).
 
     """
     if ballot.ranking is None:
@@ -655,7 +662,7 @@ def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
         for i, s in enumerate(ballot.ranking):
             if len(s) > 1:
                 new_ballots = [
-                    Ballot(
+                    RankBallot(
                         weight=ballot.weight / math.factorial(len(s)),
                         voter_set=ballot.voter_set,
                         ranking=tuple(ballot.ranking[:i])
@@ -670,27 +677,27 @@ def expand_tied_ballot(ballot: Ballot) -> list[Ballot]:
         assert False  # mypy
 
 
-def resolve_profile_ties(profile: PreferenceProfile) -> PreferenceProfile:
+def resolve_profile_ties(profile: RankProfile) -> RankProfile:
     """
     Takes in a PeferenceProfile with potential ties in ballots. Replaces
     ballots with ties with fractionally weighted ballots corresponding to
     all permutations of the tied ranking.
 
     Args:
-        profile (PreferenceProfile): Input profile with potentially tied rankings.
+        profile (RankProfile): Input profile with potentially tied rankings.
 
     Returns:
-        PreferenceProfile: A PreferenceProfile with resolved ties.
+        RankProfile: A RankProfile with resolved ties.
     """
 
     new_ballots = tuple(
         [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
     )
-    return PreferenceProfile(ballots=new_ballots)
+    return RankProfile(ballots=new_ballots)
 
 
 def score_profile_from_ballot_scores(
-    profile: PreferenceProfile,
+    profile: ScoreProfile,
 ) -> dict[str, float]:
     """
     Score the candidates based on the ``scores`` parameter of the ballots.
@@ -698,7 +705,7 @@ def score_profile_from_ballot_scores(
     with no non-zero scores will raise the same error.
 
     Args:
-        profile (PreferenceProfile): Profile to score.
+        profile (ScoreProfile): Profile to score.
 
     Returns:
         dict[str, float]:
@@ -715,14 +722,14 @@ def score_profile_from_ballot_scores(
     return scores
 
 
-def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
+def ballot_lengths(profile: RankProfile) -> dict[int, float]:
     """
     Compute the frequency of ballot lengths in the profile.
     Includes all lengths from 1 to ``max_ranking_length`` as keys.
     Ballots must have rankings.
 
     Args:
-        profile (PreferenceProfile): Profile to compute ballot lengths.
+        profile (RankProfile): Profile to compute ballot lengths.
 
     Returns:
         dict[int, float]: Dictionary of ballot length frequency.
@@ -730,6 +737,8 @@ def ballot_lengths(profile: PreferenceProfile) -> dict[int, float]:
     Raises:
         TypeError: All ballots must have rankings.
     """
+
+    assert profile.max_ranking_length is not None
 
     ballot_lengths = {i: 0.0 for i in range(1, profile.max_ranking_length + 1)}
 
@@ -751,7 +760,8 @@ def index_to_lexicographic_ballot(
     always_use_total_valid_ballots_method: bool = True,
 ) -> list[int]:
     """
-    Convert an index to one ballot with candidates taken from the list range(n_candidates), and where the ballot has length at most max_length.
+    Convert an index to one ballot with candidates taken from the list range(n_candidates), and
+    where the ballot has length at most max_length.
     The ordering of the ballots is lexicographic, i.e., the first ballot is the
     lexicographically smallest ballot and continues in that order:
 
@@ -823,7 +833,7 @@ def build_df_from_ballot_samples(
 ):
     """
     Helper function which creates a pandas df to instantiate a
-    PreferenceProfile
+    RankProfile
     args:
         ballots_freq_dict: dictionary mapping ballots to
             sampled frequency. The keys should be in candidate id

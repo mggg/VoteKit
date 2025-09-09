@@ -1,11 +1,11 @@
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from itertools import combinations
 from typing import Optional
 import warnings
 
 
 def r_representation_score(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     r: int,
     candidate_list: list[str],
 ) -> float:
@@ -15,7 +15,7 @@ def r_representation_score(
     of their ballot. Typical choices for r are 1, the number of seats, or the max ballot length.
 
     Args:
-        profile (PreferenceProfile): Profile to compute score from.
+        profile (RankProfile): Profile to compute score from.
         r (int): Consider a voter represented if a member of the candidate_list is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
@@ -60,7 +60,7 @@ def r_representation_score(
 
 
 def winner_sets_r_representation_scores(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     m: int,
     r: int,
     candidate_list: Optional[list[str]] = None,
@@ -71,7 +71,7 @@ def winner_sets_r_representation_scores(
     of their ballot. Typical choices for r are 1, the number of seats, or the max ballot length.
 
     Args:
-        profile (PreferenceProfile): Profile to compute score from.
+        profile (RankProfile): Profile to compute score from.
         m (int): Number of seats.
         r (int): Consider a voter represented if a member of the candidate_set is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max

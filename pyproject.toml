@@ -57,7 +57,7 @@ mypy_path = "src"
 namespace_packages = true
 
 [[tool.mypy.overrides]]
-module = ["apportionment", "apportionment.*", "joblib", "joblib.*"]
+module = ["apportionment", "apportionment.*", "joblib", "joblib.*", "networkx", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

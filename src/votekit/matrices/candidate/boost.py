@@ -1,11 +1,11 @@
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.matrices.candidate.comentions import comention
 import numpy as np
 from typing import Tuple
 from votekit.matrices._utils import _convert_dict_to_matrix
 
 
-def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, float]:
+def boost_prob(i: str, j: str, pref_profile: RankProfile) -> Tuple[float, float]:
     """
     Takes candidates i,j and a preference profile and computes the conditional
     P(mention i | mention j) and P(mention i). If candidate j is never mentioned,
@@ -15,7 +15,7 @@ def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, 
     Args:
       i (str): Candidate.
       j (str): Candidate.
-      pref_profile (PreferenceProfile): Profile.
+      pref_profile (RankProfile): Profile.
 
     Returns:
       tuple[float, float]: P(mention i | mention j), P(mention i)
@@ -45,7 +45,7 @@ def boost_prob(i: str, j: str, pref_profile: PreferenceProfile) -> Tuple[float, 
     )
 
 
-def boost_matrix(pref_profile: PreferenceProfile, candidates: list[str]) -> np.ndarray:
+def boost_matrix(pref_profile: RankProfile, candidates: list[str]) -> np.ndarray:
     """
     Takes a profile and converts to a matrix
     where the i,j entry shows P(mention i | mention j) - P(mention i).
@@ -54,7 +54,7 @@ def boost_matrix(pref_profile: PreferenceProfile, candidates: list[str]) -> np.n
     Undefined entries are denoted with numpy.nan values.
 
     Args:
-      pref_profile (PreferenceProfile): Profile.
+      pref_profile (RankProfile): Profile.
       candidates (list[str]): List of candidates to use. Indexing of this list matches indexing of
           output array.
 

@@ -124,7 +124,6 @@ def _df_to_rank_ballot_tuple(
         df.apply(  # type: ignore[call-overload]
             partial(
                 convert_row_to_rank_ballot,
-                candidates=candidates,
                 max_ranking_length=max_ranking_length,
             ),
             axis="columns",

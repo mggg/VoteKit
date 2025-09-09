@@ -6,7 +6,7 @@ from votekit.ballot import RankBallot
 from votekit.cleaning import (
     remove_and_condense_ranked_profile,
     remove_cand_from_rank_ballot,
-    condense_ballot_ranking,
+    condense_rank_ballot,
 )
 from votekit.utils import (
     _first_place_votes_from_df_no_ties,
@@ -25,7 +25,8 @@ class STV(RankingElection):
     Args:
         profile (RankProfile):   RankProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
-        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int],
+            tuple[Ballot,...]], optional):
         Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -182,7 +183,7 @@ class STV(RankingElection):
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_ballot_ranking(
+            condense_rank_ballot(
                 remove_cand_from_rank_ballot([c for s in elected for c in s], b)
             )
             for b in new_ballots
@@ -263,7 +264,7 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_ballot_ranking(remove_cand_from_rank_ballot(elected_c, b))
+            condense_rank_ballot(remove_cand_from_rank_ballot(elected_c, b))
             for b in new_ballots
             if b.ranking
         )
@@ -443,7 +444,7 @@ class SequentialRCV(STV):
         ) -> tuple[RankBallot, ...]:
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(
-                condense_ballot_ranking(remove_cand_from_rank_ballot(winner, b))
+                condense_rank_ballot(remove_cand_from_rank_ballot(winner, b))
                 for b in ballots
             )
 
