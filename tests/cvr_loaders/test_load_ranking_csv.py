@@ -310,7 +310,7 @@ def test_print(capsys):
 
     captured = capsys.readouterr()
 
-    assert "Profile contains rankings:" in captured.out
+    assert "RankProfile" in captured.out
 
     load_ranking_csv(
         CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], print_profile=False
@@ -318,4 +318,4 @@ def test_print(capsys):
 
     captured = capsys.readouterr()
 
-    assert "Profile contains rankings:" not in captured.out
+    assert "RankProfile" not in captured.out
