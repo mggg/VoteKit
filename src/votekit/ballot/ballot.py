@@ -196,7 +196,7 @@ class ScoreBallot(Ballot):
         self._validate_scores_candidates(scores)
         self.scores = self._convert_scores_to_float_strip_whitespace(scores)
 
-        super().__init__(weight=weight, voter_set=voter_set)
+        super().__init__(weight=weight, voter_set=voter_set, scores=scores)
 
     def _validate_scores_candidates(
         self, scores: Optional[dict[str, Union[int, float]]]
@@ -231,7 +231,7 @@ class ScoreBallot(Ballot):
 
         return (
             hash(
-                tuple((c, s) for c, s in enumerate(self.scores))
+                tuple(sorted((c, s) for c, s in self.scores.items()))
                 if self.scores is not None
                 else self.scores
             )
