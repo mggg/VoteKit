@@ -10,7 +10,7 @@ from votekit.ballot import RankBallot
 
 def load_scottish(
     fpath: Union[str, os.PathLike, Path],
-) -> tuple[PreferenceProfile, int, list[str], dict[str, str], str]:
+) -> tuple[RankProfile, int, list[str], dict[str, str], str]:
     """
     Given a file path, loads cast vote record from format used for Scottish election data
     in (this repo)[https://github.com/mggg/scot-elex].
@@ -25,7 +25,7 @@ def load_scottish(
 
     Returns:
         tuple:
-            A tuple ``(PreferenceProfile, seats, cand_list, cand_to_party, ward)``
+            A tuple ``(RankProfile, seats, cand_list, cand_to_party, ward)``
             representing the election, the number of seats in the election, the candidate
             names, a dictionary mapping candidates to their party, and the ward. The
             candidate names are also stored in the PreferenceProfile object.
@@ -89,16 +89,16 @@ def load_scottish(
 
     cand_list = list(cand_to_party.keys())
 
-    ballots = [Ballot()] * len(data[1 : len(data) - (cand_num + 1)])
+    ballots = [RankBallot()] * len(data[1 : len(data) - (cand_num + 1)])
 
     for i, line in enumerate(data[1 : len(data) - (cand_num + 1)]):
         ballot_weight = line[0]
         cand_ordering = line[1:]
         ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
 
-        ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
+        ballots[i] = RankBallot(ranking=ranking, weight=ballot_weight)
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=tuple(ballots), candidates=tuple(cand_list)
     ).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

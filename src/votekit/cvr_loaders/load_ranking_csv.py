@@ -276,7 +276,7 @@ def load_ranking_csv(
     delimiter: str = ",",
     header_row: Optional[int] = None,
     print_profile: bool = True,
-) -> PreferenceProfile:
+) -> RankProfile:
     """
     Given a file path or url, loads ranked cast vote record (cvr) with ranks as columns and
     voters as rows.
@@ -316,7 +316,7 @@ def load_ranking_csv(
 
 
     Returns:
-        PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
+        RankProfile: A ``RankProfile`` that represents all the ballots in the csv.
     """
     path_or_url = str(path_or_url)
 
@@ -342,11 +342,9 @@ def load_ranking_csv(
 
     candidates = __find_and_validate_cands(df, str_rank_cols, candidates)
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         df=df,
         max_ranking_length=len(str_rank_cols),
-        contains_rankings=True,
-        contains_scores=False,
         candidates=tuple(candidates),
     )
 
@@ -366,7 +364,7 @@ def load_csv(
     delimiter: str = ",",
     header_row: Optional[int] = None,
     print_profile: bool = True,
-) -> PreferenceProfile:
+) -> RankProfile:
     """
     Given a file path or url, loads ranked cast vote record (cvr) with ranks as columns and
     voters as rows.
@@ -406,7 +404,7 @@ def load_csv(
 
 
     Returns:
-        PreferenceProfile: A ``PreferenceProfile`` that represents all the ballots in the csv.
+        RankProfile: A ``RankProfile`` that represents all the ballots in the csv.
     """
     warnings.warn(
         "This function is being deprecated in March 2026. The correct function call is "
