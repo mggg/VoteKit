@@ -193,7 +193,7 @@ def remove_cand_score_profile(
     new_candidates = (
         [c for c in profile.candidates if c not in removed]
         if not retain_original_candidate_list
-        else profile.candidates
+        else list(profile.candidates)
     )
     new_df = (
         cleaned_profile.df[new_candidates + ["Voter Set", "Weight"]]
