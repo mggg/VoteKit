@@ -244,7 +244,7 @@ def remove_cand_ranked_profile(
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile (RankProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
