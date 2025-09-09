@@ -1,16 +1,15 @@
-from votekit.pref_profile import PreferenceProfile, CleanedProfile
+from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_repeated_candidates
-import pytest
+from votekit.cleaning import remove_repeat_cands_ranked_profile
 
 
 def test_remove_repeated_candidates():
     ballot = Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)
     ballot_tuple = (ballot, ballot)
     profile = PreferenceProfile(ballots=ballot_tuple)
-    cleaned_profile = remove_repeated_candidates(profile)
+    cleaned_profile = remove_repeat_cands_ranked_profile(profile)
 
-    assert isinstance(cleaned_profile, CleanedProfile)
+    assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
@@ -19,7 +18,7 @@ def test_remove_repeated_candidates():
 
     assert cleaned_profile != profile
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
+    assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1}
     assert cleaned_profile.unaltr_idxs == set()
 
@@ -35,9 +34,9 @@ def test_remove_repeated_candidates_ties():
             ),
         ]
     )
-    cleaned_profile = remove_repeated_candidates(profile)
+    cleaned_profile = remove_repeat_cands_ranked_profile(profile)
 
-    assert isinstance(cleaned_profile, CleanedProfile)
+    assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
@@ -46,18 +45,6 @@ def test_remove_repeated_candidates_ties():
 
     assert cleaned_profile != profile
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
+    assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1}
     assert cleaned_profile.unaltr_idxs == set()
-
-
-def test_remove_repeated_cands_errors():
-    with pytest.raises(TypeError, match="Ballot must have rankings:"):
-        remove_repeated_candidates(PreferenceProfile(ballots=(Ballot(),)))
-
-    with pytest.raises(TypeError, match="Ballot must only have rankings, not scores:"):
-        remove_repeated_candidates(
-            PreferenceProfile(
-                ballots=(Ballot(ranking=(frozenset({"Chris"}),), scores={"Chris": 1}),)
-            )
-        )

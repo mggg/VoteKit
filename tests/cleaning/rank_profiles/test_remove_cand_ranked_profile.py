@@ -1,6 +1,6 @@
-from votekit.pref_profile import PreferenceProfile, CleanedProfile
+from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_cand
+from votekit.cleaning import remove_cand_ranked_profile
 
 profile_no_ties = PreferenceProfile(
     ballots=[
@@ -20,9 +20,9 @@ profile_with_ties = PreferenceProfile(
 
 
 def test_remove_cand():
-    cleaned_profile = remove_cand("A", profile_no_ties)
+    cleaned_profile = remove_cand_ranked_profile("A", profile_no_ties)
 
-    assert isinstance(cleaned_profile, CleanedProfile)
+    assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
     assert cleaned_profile.ballots == (
         Ballot(ranking=[frozenset(), {"B"}], weight=1),
@@ -31,15 +31,15 @@ def test_remove_cand():
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
+    assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
     assert cleaned_profile.unaltr_idxs == set()
 
 
 def test_remove_mult_cands():
-    cleaned_profile = remove_cand(["A", "B"], profile_no_ties)
+    cleaned_profile = remove_cand_ranked_profile(["A", "B"], profile_no_ties)
 
-    assert isinstance(cleaned_profile, CleanedProfile)
+    assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
 
     assert set(cleaned_profile.group_ballots().ballots) == set(
@@ -51,15 +51,15 @@ def test_remove_mult_cands():
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
+    assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
     assert cleaned_profile.unaltr_idxs == set()
 
 
 def test_remove_cand_with_ties():
 
-    cleaned_profile = remove_cand(["A", "B"], profile_with_ties)
-    assert isinstance(cleaned_profile, CleanedProfile)
+    cleaned_profile = remove_cand_ranked_profile(["A", "B"], profile_with_ties)
+    assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
 
     assert set(cleaned_profile.group_ballots().ballots) == set(
@@ -71,58 +71,6 @@ def test_remove_cand_with_ties():
     )
     assert cleaned_profile != profile_with_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
+    assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
-    assert cleaned_profile.unaltr_idxs == set()
-
-
-def test_remove_cands_scores():
-    profile = PreferenceProfile(
-        ballots=(
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-            ),
-            Ballot(
-                scores={"A": 3, "B": 2},
-            ),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-            ),
-            Ballot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
-            Ballot(
-                ranking=({"A"}, {"B"}, {"C"}),
-                scores={"A": 3, "B": 2},
-                weight=2,
-            ),
-        ),
-        candidates=("A", "B", "C"),
-    )
-
-    cleaned_profile = remove_cand("A", profile)
-    assert isinstance(cleaned_profile, CleanedProfile)
-    assert cleaned_profile.parent_profile == profile
-
-    assert cleaned_profile.ballots == (
-        Ballot(
-            ranking=(frozenset(), {"B"}, {"C"}),
-        ),
-        Ballot(
-            scores={"B": 2},
-        ),
-        Ballot(
-            ranking=(frozenset(), {"B"}, {"C"}),
-            scores={"B": 2},
-        ),
-        Ballot(ranking=(frozenset(), {"B"}, {"C"}), weight=2),
-        Ballot(
-            ranking=(frozenset(), {"B"}, {"C"}),
-            scores={"B": 2},
-            weight=2,
-        ),
-    )
-    assert cleaned_profile != profile
-    assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_no_score_altr_idxs == set()
-    assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2, 3, 4}
     assert cleaned_profile.unaltr_idxs == set()

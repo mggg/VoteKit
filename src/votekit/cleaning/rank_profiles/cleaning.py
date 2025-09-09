@@ -1,31 +1,32 @@
 from functools import partial
 from typing import Callable, Union
-from ...pref_profile import (
-    PreferenceProfile,
-    CleanedProfile,
+from votekit.pref_profile import (
+    RankProfile,
+    CleanedRankProfile,
     ProfileError,
 )
 import pandas as pd
 import numpy as np
 
 
-def _iterate_and_clean_rows(
-    profile: PreferenceProfile,
+def _iterate_and_clean_ranking_tuples(
+    profile: RankProfile,
     clean_ranking_func: Callable[[tuple], tuple],
 ) -> tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]:
     """
-    Clean the rows of the df according to the cleaning rule.
+    Clean the ranking tuples of the df according to the cleaning rule.
 
     Args:
-        profile (PreferenceProfile): The original profile of ballots.
+        profile (RankProfile): The original profile of ballots.
         clean_ranking_func (Callable[[tuple], tuple]): Function that
             takes the ranking portion of a row of the profile df and returns an altered ranking.
 
     Returns:
         tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]: cleaned_df, unaltr_idxs,
-            nonempty_altr_idxs, no_wt_altr_idxs, no_rank_no_score_altr_idxs
+            nonempty_altr_idxs, no_wt_altr_idxs, no_rank_altr_idxs
     """
     cleaned_df = profile.df.copy()
+    assert profile.max_ranking_length is not None
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     orig_rows = [
@@ -42,10 +43,10 @@ def _iterate_and_clean_rows(
     unaltr_idxs = {
         idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c
     }
-    no_rank_no_score_altr_idxs = {
+    no_rank_altr_idxs = {
         idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)
     }
-    nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_no_score_altr_idxs
+    nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
     no_wt_altr_idxs: set[int] = set()
 
     return (
@@ -53,26 +54,23 @@ def _iterate_and_clean_rows(
         unaltr_idxs,
         nonempty_altr_idxs,
         no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs,
+        no_rank_altr_idxs,
     )
 
 
 def clean_ranked_profile(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     clean_ranking_func: Callable[[tuple], tuple],
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-) -> CleanedProfile:
+) -> CleanedRankProfile:
     """
-    Allows user-defined cleaning rules for ranked PreferenceProfile. Input function
-    that applies modification to a single ballot.
-
-    By using the underlying dataframe, we make speed improvements as compared to the cleaning
-    functions that rely on the ballot list.
+    Allows user-defined cleaning rules for RankProfile. Input function
+    that applies modification to ranking portion of the df, not weight or voterset.
 
     Args:
-        profile (PreferenceProfile): A PreferenceProfile to clean.
+        profile (RankProfile): A RankProfile to clean.
         clean_ranking_func (Callable[[tuple], tuple]): Function that
             takes the ranking portion of a row of the profile df and returns an altered ranking.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -84,23 +82,24 @@ def clean_ranked_profile(
             votes. Defaults to True.
 
     Returns:
-        CleanedProfile: A cleaned ``PreferenceProfile``.
+        CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
         ProfileError: Profile must only contain ranked ballots.
     """
-    if profile.contains_scores is True:
-        raise ProfileError("Profile must only contain ranked ballots.")
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be a RankProfile.")
 
     (
         cleaned_df,
         unaltr_idxs,
         nonempty_altr_idxs,
         no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs,
-    ) = _iterate_and_clean_rows(profile, clean_ranking_func)
+        no_rank_altr_idxs,
+    ) = _iterate_and_clean_ranking_tuples(profile, clean_ranking_func)
 
     if remove_empty_ballots:
+        assert profile.max_ranking_length is not None
         ranking_cols = [
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
@@ -116,14 +115,12 @@ def clean_ranked_profile(
     if remove_zero_weight_ballots:
         cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
 
-    return CleanedProfile(
+    return CleanedRankProfile(
         df=cleaned_df,
-        contains_rankings=profile.contains_rankings if len(cleaned_df) > 0 else False,
-        contains_scores=False,
         candidates=(profile.candidates if retain_original_candidate_list else tuple()),
         max_ranking_length=profile.max_ranking_length,
         no_wt_altr_idxs=no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs=no_rank_no_score_altr_idxs,
+        no_rank_altr_idxs=no_rank_altr_idxs,
         nonempty_altr_idxs=nonempty_altr_idxs,
         unaltr_idxs=unaltr_idxs,
         parent_profile=profile,
@@ -165,11 +162,11 @@ def remove_repeat_cands_from_ranking_row(
 
 
 def remove_repeat_cands_ranked_profile(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-) -> CleanedProfile:
+) -> CleanedRankProfile:
     """
     Given a profile, if a candidate appears multiple times on a ballot, keep the first instance and
     remove any further instances. Does not condense any empty rankings as as result.
@@ -178,7 +175,7 @@ def remove_repeat_cands_ranked_profile(
     Wrapper for clean_ranked_profile.
 
     Args:
-        profile (PreferenceProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -188,7 +185,7 @@ def remove_repeat_cands_ranked_profile(
             votes. Defaults to True.
 
     Returns:
-        CleanedProfile: A cleaned ``PreferenceProfile``.
+        CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
         ProfileError: Profile must only contain ranked ballots.
@@ -233,11 +230,11 @@ def remove_cand_from_ranking_row(
 
 def remove_cand_ranked_profile(
     removed: Union[str, list],
-    profile: PreferenceProfile,
+    profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
-) -> CleanedProfile:
+) -> CleanedRankProfile:
     """
     Given a ranked profile, remove the given candidate(s) from the ballots. Does not condense the
     resulting ballots.
@@ -247,7 +244,7 @@ def remove_cand_ranked_profile(
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile (PreferenceProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -258,7 +255,7 @@ def remove_cand_ranked_profile(
             Defaults to False.
 
     Returns:
-        CleanedProfile: A cleaned ``PreferenceProfile``.
+        CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
         ProfileError: Profile must only contain ranked ballots.
@@ -280,16 +277,14 @@ def remove_cand_ranked_profile(
         else tuple(set(profile.candidates) - set(removed))
     )
 
-    return CleanedProfile(
+    return CleanedRankProfile(
         df=cleaned_profile.df,
         candidates=new_candidates,
-        contains_rankings=cleaned_profile.contains_rankings,
-        contains_scores=False,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs=cleaned_profile.no_rank_no_score_altr_idxs,
+        no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
         nonempty_altr_idxs=cleaned_profile.nonempty_altr_idxs,
         unaltr_idxs=cleaned_profile.unaltr_idxs,
     )
@@ -349,11 +344,11 @@ def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
 
 
 def condense_ranked_profile(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
-) -> CleanedProfile:
+) -> CleanedRankProfile:
     """
     Given a ranked profile, removes any empty frozensets from the rankings and condenses the
     resulting ranking. If a ranking only has trailing empty positions, the condensed ranking is
@@ -364,7 +359,7 @@ def condense_ranked_profile(
     equivalence is handled correctly.
 
     Args:
-        profile (PreferenceProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -374,7 +369,7 @@ def condense_ranked_profile(
             votes. Defaults to True.
 
     Returns:
-        CleanedProfile: A cleaned ``PreferenceProfile``.
+        CleanedRankProfile: A cleaned ``RankProfile``.
 
     """
     condensed_profile = clean_ranked_profile(
@@ -385,6 +380,7 @@ def condense_ranked_profile(
         retain_original_candidate_list,
     )
 
+    assert profile.max_ranking_length is not None
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
     ranking_df = profile.df[ranking_cols]
     additional_unaltr_idxs = set(
@@ -400,16 +396,14 @@ def condense_ranked_profile(
         additional_unaltr_idxs
     )
 
-    return CleanedProfile(
+    return CleanedRankProfile(
         df=condensed_profile.df,
-        contains_rankings=condensed_profile.contains_rankings,
-        contains_scores=False,
         candidates=condensed_profile.candidates,
         max_ranking_length=condensed_profile.max_ranking_length,
         parent_profile=profile,
         df_index_column=condensed_profile.df_index_column,
         no_wt_altr_idxs=condensed_profile.no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs=condensed_profile.no_rank_no_score_altr_idxs,
+        no_rank_altr_idxs=condensed_profile.no_rank_altr_idxs,
         nonempty_altr_idxs=new_nonempty_altr_idxs,
         unaltr_idxs=new_unaltr_idxs,
     )
@@ -456,11 +450,11 @@ def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) ->
 
 def remove_and_condense_ranked_profile(
     removed: Union[str, list],
-    profile: PreferenceProfile,
+    profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
-) -> CleanedProfile:
+) -> CleanedRankProfile:
     """
     Given a ranked profile, remove the given candidate(s) and condense the
     resulting rankings. If a ranking only has trailing empty positions, the condensed ranking is
@@ -476,7 +470,7 @@ def remove_and_condense_ranked_profile(
 
     Args:
         removed (Union[str, list]): Candidate or list of candidates to be removed.
-        profile (PreferenceProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
@@ -487,7 +481,7 @@ def remove_and_condense_ranked_profile(
             Defaults to False.
 
     Returns:
-        CleanedProfile: A cleaned ``PreferenceProfile``.
+        CleanedRankProfile: A cleaned ``RankProfile``.
     """
 
     if isinstance(removed, str):
@@ -507,6 +501,7 @@ def remove_and_condense_ranked_profile(
         else tuple(set(profile.candidates) - set(removed))
     )
 
+    assert profile.max_ranking_length is not None
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
     ranking_df = profile.df[ranking_cols]
 
@@ -526,16 +521,14 @@ def remove_and_condense_ranked_profile(
         additional_unaltr_idxs
     )
 
-    return CleanedProfile(
+    return CleanedRankProfile(
         df=cleaned_profile.df,
         candidates=new_candidates,
-        contains_rankings=cleaned_profile.contains_rankings,
-        contains_scores=False,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
-        no_rank_no_score_altr_idxs=cleaned_profile.no_rank_no_score_altr_idxs,
+        no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
         nonempty_altr_idxs=new_nonempty_altr_idxs,
         unaltr_idxs=new_unaltr_idxs,
     )
