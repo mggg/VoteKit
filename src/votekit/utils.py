@@ -51,20 +51,20 @@ COLOR_LIST = [
 ]
 
 
-def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]:
+def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
     """
     Partitions the profile by first place candidate. Assumes there are no ties within first place
     positions of ballots.
 
     Args:
-        profile (PreferenceProfile): Profile to partititon.
+        profile (RankProfile): Profile to partititon.
 
     Returns:
-        dict[str, list[Ballot]]:
+        dict[str, list[RankBallot]]:
             A dictionary whose keys are candidates and values are lists of ballots that
             have that candidate first.
     """
-    if not profile.contains_rankings:
+    if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
 
     df = profile.df
@@ -82,7 +82,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
         if len(first) > 1:
             raise ValueError(
                 f"Ballot "
-                f"{Ballot(ranking=tuple(c_set for c_set in row if c_set != tilde), weight=w)} "
+                f"{RankBallot(ranking=tuple(c_set for c_set in row if c_set != tilde), weight=w)} "
                 "has a tie for first."
             )
 
@@ -93,7 +93,7 @@ def ballots_by_first_cand(profile: PreferenceProfile) -> dict[str, list[Ballot]]
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(Ballot(ranking=clean_ranking, weight=w))
+        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=w))
 
     return cand_dict
 
