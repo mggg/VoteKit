@@ -551,7 +551,7 @@ class fastSTV:
         dict[int, tuple[list[int], int, int]],
     ]:
         """
-        This runs the STV algorithm. Based.
+        This runs the STV algorithm.
 
         Args:
             ballot_matrix (np.ndarray[np.int8]): Matrix where each row is a ballot, each column is a ranking.
