@@ -15,7 +15,6 @@ from ....utils import (
     tiebreak_set,
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
-    borda_scores,
 )
 from typing import Optional, Callable, Union
 import pandas as pd
