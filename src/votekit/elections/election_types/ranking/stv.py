@@ -162,6 +162,12 @@ class fastSTV:
         return ballot_matrix, wt_vec, fpv_vec
     
     def _make_initial_fpv(self):
+        """
+        Creates the initial first-preference vote (FPV) vector.
+
+        Returns:
+            np.ndarray: The i-th entry is the initial first-preference vote tally for candidate i.
+        """
         return np.bincount(
             self._fpv_vec[self._fpv_vec != -127],
             weights=self._wt_vec[self._fpv_vec != -127],
