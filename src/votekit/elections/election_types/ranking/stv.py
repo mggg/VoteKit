@@ -46,7 +46,7 @@ class fastSTV:
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        transfer: Optional[str] = "fractional",
+        transfer:str = "fractional",
         quota: str = "droop",
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
