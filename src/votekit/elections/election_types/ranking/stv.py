@@ -186,22 +186,14 @@ class fastSTV:
 
         tied_cands_set = set(tied_cands)
         if not hasattr(self, '__fpv_clusters'):
-            # for example: say the initial_fpv is [52, 10, 52, 70]
             scores = np.asarray(self._initial_fpv)
-
-            # in our example: order = [3, 2, 0, 1]
             order = np.argsort(scores, kind="mergesort")[::-1]
-            # in our example: pairs = [(70, 3), (52, 2), (52, 0), (10, 1)]
             pairs = [(float(scores[i]), int(i)) for i in order]
-
-            # in our example: fpv_clusters = [[3], [2, 0], [1]]
             self.__fpv_clusters: list[list[int]] = [
                 [idx for _, idx in group]
                 for _, group in groupby(pairs, key=lambda x: x[0])
             ]
-
-        # Keep only clusters that intersect tied_cands
-        # also throw out elements of each cluster not in tied_cands
+        
         clusters_containing_tied_cands: list[list[int]] = [[c for c in cluster if c in tied_cands_set]
             for cluster in self.__fpv_clusters if any(i in tied_cands_set for i in cluster)
         ]
@@ -210,7 +202,6 @@ class fastSTV:
             frozenset(self.candidates[i] for i in cluster) for cluster in clusters_containing_tied_cands
         )
 
-        # Pick relevant cluster: top for winner, bottom for loser
         relevant = 0 if tiebreak_type == "winner" else -1
         target_cluster = clusters_containing_tied_cands[relevant]
 
@@ -632,8 +623,7 @@ class fastSTV:
         """
         tallies = self._fpv_by_round[round_number]
         tallies_to_cands = dict()
-tallies_to_cands = {tally: [cand_string for c, cand_string in self.candidates.items() if tallies[c] == tally] for tally in tallies}
-     
+        tallies_to_cands = {tally: [cand_string for c, cand_string in self.candidates.items() if tallies[c] == tally] for tally in tallies}
         tallies_to_cands = dict(
             sorted(
                 tallies_to_cands.items(),
