@@ -493,7 +493,7 @@ class fastSTV:
             L, packaged_ranking = self.__fpv_tiebreak(tied_losers, 'loser')
         else:
             packaged_ranking = tiebreak_set(r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak)
-            L = self.candidates.index(list(packaged_ranking[-1])[0]) #I hecking love fsets
+            L = self.candidates.index(list(packaged_ranking[-1])[0]) 
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
         return L, mutant_tiebreak_record
 
