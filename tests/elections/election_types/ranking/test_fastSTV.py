@@ -372,11 +372,15 @@ def test_random_transfers():
         ),
         candidates=("A", "B", "C"),
     )
-    assert STV(why_cambridge_is_evil, m=2, transfer="cambridge_random").get_elected() == (
+    assert STV(
+        why_cambridge_is_evil, m=2, transfer="cambridge_random"
+    ).get_elected() == (
         {"A"},
         {"B"},
     )
-    assert STV(why_cambridge_is_evil, m=2, transfer="fractional_random").get_elected() == (
+    assert STV(
+        why_cambridge_is_evil, m=2, transfer="fractional_random"
+    ).get_elected() == (
         {"A"},
         {"C"},
     )
