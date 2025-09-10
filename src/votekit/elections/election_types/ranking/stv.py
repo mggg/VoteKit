@@ -618,8 +618,7 @@ class fastSTV:
                 denotes ranking of remaining candidates, sets denote ties.
         """
         tallies = self._fpv_by_round[round_number]
-        tallies_to_cands = dict()
-        tallies_to_cands = {tally: [cand_string for c, cand_string in self.candidates.items() if tallies[c] == tally] for tally in tallies}
+        tallies_to_cands = {tally: [self.candidates[c] for c, t in enumerate(tallies) if t == tally] for tally in tallies if tally != 0}
         tallies_to_cands = dict(
             sorted(
                 tallies_to_cands.items(),
