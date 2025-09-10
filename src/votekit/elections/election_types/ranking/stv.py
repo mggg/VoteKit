@@ -172,16 +172,13 @@ class fastSTV:
         """
         Break ties among tied_cands using initial_fpv tallies.
 
-        Returns:
-            (chosen_candidate_index, packaged_ranking)
-            where packaged_ranking is a tuple of frozensets of candidate NAMES,
-            ordered by descending score; sets represent tie clusters.
+        Args:
+            tied_cands (list[int]): List of candidate indices that are tied.
+            tiebreak_type (str): Type of tiebreaking to perform ('winner' or 'loser').
 
-        Rules:
-        - Build tie clusters by equal scores (descending).
-        - Keep only clusters that intersect tied_cands.
-        - If the relevant cluster (top for 'winner', bottom for 'loser') has size > 1,
-            call tiebreak_set(..., tiebreak='random') on that cluster of names.
+        Returns:
+            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won/lost the tiebreak,
+                and the packaged tuple of frozensets representing the outcome of the tiebreak.
         """
 
         tied_cands_set = set(tied_cands)
