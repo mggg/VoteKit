@@ -451,7 +451,7 @@ class fastSTV:
             mutant_tiebreak_record,
         )
 
-    def __run_winner_tiebreak(self, tied_winners, turn, mutant_tiebreak_record):
+    def __run_winner_tiebreak(self, tied_winners: list[int], turn: int, mutant_tiebreak_record: dict[int, tuple[list[int], int, int]]) -> tuple[int, dict[int, tuple[list[int], int, int]]]:
         """
         Handle new winner tiebreaking logic.
 
