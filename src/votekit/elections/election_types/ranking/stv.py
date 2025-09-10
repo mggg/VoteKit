@@ -217,14 +217,6 @@ class fastSTV:
         if len(target_cluster) == 1: #yay
             return target_cluster[0], packaged_ranking
 
-    # note: it would be possible to only break the tie in target_cluster according to a backup method (see below)
-    # (this is also a philosophical decision about how we want the tiebreak record to reflect backup tiebreaks)
-    # my head is empty and I just do what legacy does
-    #    chosen_ordered = tiebreak_set(
-    #        r_set=packaged_ranking[relevant],
-    #        profile=self.profile,
-    #        tiebreak=self._backup_tiebreak,
-    #    )
         tiebroken_candidate = int(np.random.choice(target_cluster)) #ok my head is not that empty
         return tiebroken_candidate, packaged_ranking
 
