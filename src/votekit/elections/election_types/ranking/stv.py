@@ -644,12 +644,8 @@ class fastSTV:
         """
         tallies = self._fpv_by_round[round_number]
         tallies_to_cands = dict()
-        for c, t in enumerate(tallies):
-            if t > 0:
-                if t not in tallies_to_cands:
-                    tallies_to_cands[t] = [self.candidates[c]]
-                else:
-                    tallies_to_cands[t].append(self.candidates[c])
+tallies_to_cands = {tally: [cand_string for c, cand_string in self.candidates.items() if tallies[c] == tally] for tally in tallies}
+     
         tallies_to_cands = dict(
             sorted(
                 tallies_to_cands.items(),
