@@ -46,7 +46,7 @@ class fastSTV:
         self,
         profile: PreferenceProfile,
         m: int = 1,
-        transfer:str = "fractional",
+        transfer: str = "fractional",
         quota: str = "droop",
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
@@ -513,13 +513,6 @@ class fastSTV:
         _mutant_bool_ballot_matrix &= ~np.isin(self._ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def _make_initial_fpv(self):
-        return np.bincount(
-            self._fpv_vec[self._fpv_vec != -127],
-            weights=self._wt_vec[self._fpv_vec != -127],
-            minlength=len(self.candidates),
-        )
-
     def _run_STV(
         self,
         ballot_matrix: np.ndarray,
@@ -778,6 +771,11 @@ class fastSTV:
         return status_df
 
     def _make_election_states(self):
+        """
+        Creates the list of election states after the main loop has run.
+        Returns:
+            list[ElectionState]: List of ElectionState objects representing each round in chronological order.
+        """
         e_states = [
             ElectionState(
                 round_number=0,
