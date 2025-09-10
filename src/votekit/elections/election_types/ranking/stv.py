@@ -1,6 +1,6 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.transfers import fractional_transfer
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
@@ -78,6 +78,8 @@ class STV(RankingElection):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        if not isinstance(profile, RankProfile):
+            raise ProfileError("Profile must be of type RankProfile.")
         assert profile.max_ranking_length is not None
         ranking_rows = [
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)

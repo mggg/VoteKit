@@ -53,7 +53,6 @@ class CleanedRankProfile(RankProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
-        print("cleaned profile init")
 
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column

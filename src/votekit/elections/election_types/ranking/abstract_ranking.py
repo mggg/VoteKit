@@ -1,4 +1,4 @@
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ProfileError
 from typing import Optional, Callable
 from votekit.models import Election
 from votekit.elections.election_state import ElectionState
@@ -45,6 +45,9 @@ class RankingElection(Election[RankProfile]):
         Args:
             profile (RankProfile): Profile of ballots.
         """
+        if not isinstance(profile, RankProfile):
+            raise ProfileError("Profile must be of type RankProfile.")
+
         assert profile.max_ranking_length is not None
         ranking_cols = [
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)

@@ -1,5 +1,5 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.cleaning import remove_and_condense_ranked_profile
 from votekit.utils import (
@@ -49,6 +49,8 @@ class Borda(RankingElection):
         self.m = m
         self.tiebreak = tiebreak
         if score_vector is None:
+            if not isinstance(profile, RankProfile):
+                raise ProfileError("Profile must be of type RankProfile.")
             assert profile.max_ranking_length is not None
             score_vector = list(range(profile.max_ranking_length, 0, -1))
 

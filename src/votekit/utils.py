@@ -110,7 +110,8 @@ def add_missing_cands(profile: RankProfile) -> RankProfile:
     Returns:
         RankProfile
     """
-
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be of type RankProfile.")
     new_ballots = [RankBallot()] * len(profile.ballots)
     candidates = set(profile.candidates)
 
@@ -333,6 +334,8 @@ def first_place_votes(
             Dictionary mapping candidates to number of first place votes.
     """
     # equiv to score vector of (1,0,0,...)
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be of type RankProfile.")
     assert profile.max_ranking_length is not None
     return score_profile_from_rankings(
         profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
@@ -353,7 +356,8 @@ def mentions(
             Dictionary mapping candidates to mention totals (values).
     """
     mentions = {c: 0.0 for c in profile.candidates}
-
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be of type RankProfile.")
     for ballot in profile.ballots:
         if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
@@ -388,6 +392,8 @@ def borda_scores(
         dict[str, float]:
             Dictionary mapping candidates to Borda scores.
     """
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be of type RankProfile.")
     if borda_max is None:
         assert profile.max_ranking_length is not None
         borda_max = profile.max_ranking_length
@@ -653,6 +659,8 @@ def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
         list[v]: All possible permutations of the tie(s).
 
     """
+    if not isinstance(ballot, RankBallot):
+        raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
         raise TypeError("Ballot must have ranking.")
     if all(len(s) == 1 for s in ballot.ranking):
@@ -712,6 +720,8 @@ def score_profile_from_ballot_scores(
             Dictionary mapping candidates to scores.
     """
     scores = {c: 0.0 for c in profile.candidates}
+    if not isinstance(profile, ScoreProfile):
+        raise ProfileError("Profile must be of type ScoreProfile.")
     for ballot in profile.ballots:
         if ballot.scores is None:
             raise TypeError(f"Ballot {ballot} has no scores.")
@@ -737,7 +747,8 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
     Raises:
         TypeError: All ballots must have rankings.
     """
-
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be of type RankProfile.")
     assert profile.max_ranking_length is not None
 
     ballot_lengths = {i: 0.0 for i in range(1, profile.max_ranking_length + 1)}

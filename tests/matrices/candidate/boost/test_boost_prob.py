@@ -1,5 +1,5 @@
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.matrices import boost_prob
 import numpy as np
 
@@ -8,7 +8,7 @@ ballot_1 = Ballot(
 )
 ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})))
 ballot_3 = Ballot(ranking=(frozenset({"Chris"}),))
-pref_profile = PreferenceProfile(
+pref_profile = RankProfile(
     ballots=tuple(
         [ballot_1 for _ in range(5)]
         + [ballot_2 for _ in range(2)]
@@ -32,7 +32,7 @@ def test_boost_prob_nan_no_mention():
 
 
 def test_boost_prob_nan_no_weight():
-    cond, uncond = boost_prob("Chris", "Mala", PreferenceProfile())
+    cond, uncond = boost_prob("Chris", "Mala", RankProfile())
 
     assert np.isnan(cond)
     assert np.isnan(uncond)

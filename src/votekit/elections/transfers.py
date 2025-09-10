@@ -28,7 +28,7 @@ def fractional_transfer(
 
     transfered_ballots = [RankBallot()] * len(ballots)
     for i, ballot in enumerate(ballots):
-        if ballot.ranking:
+        if ballot.ranking is not None:
             # if winner is first place, transfer ballot with fractional weight
             if ballot.ranking[0] == {winner}:
                 transfered_weight = ballot.weight * transfer_value
@@ -84,7 +84,7 @@ def random_transfer(
         if not math.isclose(int(ballot.weight) - ballot.weight, 0):
             raise TypeError(f"Ballot {ballot} does not have integer weight.")
 
-        if ballot.ranking:
+        if ballot.ranking is not None:
             # remove winner from ballot
             new_ranking = tuple(
                 [frozenset([c for c in s if c != winner]) for s in ballot.ranking]

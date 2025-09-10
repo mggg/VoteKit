@@ -17,7 +17,7 @@ def test_candidate_distance():
 def test_candidate_distance_no_ranking_error():
     b = Ballot(scores={"Chris": 4})
 
-    with pytest.raises(TypeError, match="Ballot must have a ranking."):
+    with pytest.raises(TypeError, match="Ballot must be of type RankBallot"):
         candidate_distance("Chris", "Peter", b)
 
 

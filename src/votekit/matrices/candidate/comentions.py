@@ -41,7 +41,8 @@ def comention_above(i: str, j: str, ballot: RankBallot) -> bool:
     Returns:
       bool: True if both i and j appear in ballot and i >= j.
     """
-
+    if not isinstance(ballot, RankBallot):
+        raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
         raise TypeError(f"RankBallot must have a ranking: {ballot}")
     i_index, j_index = (-1, -1)

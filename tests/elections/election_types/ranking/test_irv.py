@@ -1,91 +1,92 @@
 from votekit.elections import IRV, ElectionState
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import RankProfile, ScoreProfile, ProfileError
+from votekit.ballot import RankBallot, ScoreBallot
 import pandas as pd
 import pytest
 
 # taken from STV wiki
-test_profile = PreferenceProfile(
+test_profile = RankProfile(
     ballots=[
-        Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-        Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-        Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1 / 2),
-        Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-        Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-        Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-        Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+        RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3),
+        RankBallot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+        RankBallot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1 / 2),
+        RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+        RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+        RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+        RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
     ],
     max_ranking_length=3,
 )
 
 profile_list = [
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-            Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1 / 2),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3),
+            RankBallot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1 / 2),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
-            Ballot(ranking=({"Pear"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
+            RankBallot(ranking=({"Pear"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
-            Ballot(ranking=({"Pear"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Cake"},), weight=3),
-            Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
+            RankBallot(ranking=({"Pear"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Cake"},), weight=3),
+            RankBallot(ranking=({"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Burger"}), weight=3),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
-            Ballot(ranking=({"Pear"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Cake"},), weight=3),
-            Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"},), weight=7),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3.5),
+            RankBallot(ranking=({"Pear"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Cake"},), weight=3),
+            RankBallot(ranking=({"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"},), weight=7),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Pear"},), weight=3.5),
-            Ballot(ranking=({"Pear"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Cake"},), weight=3),
-            Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"},), weight=7),
+            RankBallot(ranking=({"Pear"},), weight=3.5),
+            RankBallot(ranking=({"Pear"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Cake"},), weight=3),
+            RankBallot(ranking=({"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"},), weight=7),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Pear"},), weight=11.5),
-            Ballot(ranking=({"Burger"},), weight=8),
+            RankBallot(ranking=({"Pear"},), weight=11.5),
+            RankBallot(ranking=({"Burger"},), weight=8),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Pear"},), weight=11.5),
+            RankBallot(ranking=({"Pear"},), weight=11.5),
         ],
         max_ranking_length=3,
     ),
-    PreferenceProfile(),
+    RankProfile(max_ranking_length=3),
 ]
 
 states = [
@@ -196,6 +197,11 @@ def test_quotas():
 
 def test_profiles():
     e = IRV(test_profile)
+    for i in range(len(e.election_states)):
+        if e.get_profile(i) != profile_list[i]:
+            print(e.get_profile(i).df.to_string())
+            print(profile_list[i].df.to_string())
+            print()
     assert [e.get_profile(i) for i in range(len(e.election_states))] == profile_list
 
 
@@ -290,7 +296,7 @@ def test_get_status_df():
 
 def test_errors():
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        IRV(PreferenceProfile(ballots=(Ballot(ranking=({"A"},)),)), quota="Drip")
+        IRV(RankProfile(ballots=(RankBallot(ranking=({"A"},)),)), quota="Drip")
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
-        IRV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+        IRV(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))

@@ -97,7 +97,9 @@ def pairwise_dict(
         dict[tuple[str, str], tuple[float, float]]: Pairwise comparison dictionary.
     """
     if not isinstance(profile, RankProfile):
-        raise ValueError("Profile must only contain rankings, not scores.")
+        raise ValueError("Profile must be of type RankProfile.")
+    elif not all(b.ranking is not None for b in profile.ballots):
+        raise ValueError("All ballots must have rankings.")
 
     candidates_lst = list(profile.candidates)
 

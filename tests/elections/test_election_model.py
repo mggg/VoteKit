@@ -1,5 +1,6 @@
 from votekit.elections import ElectionState, Election
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
 from votekit.utils import score_dict_to_ranking
 import pandas as pd
 import pytest
@@ -353,7 +354,7 @@ def test_score_sort():
 
 
 def test_print():
-    assert (
-        str(e)
-        == "       Status  Round\nA     Elected      1\nC     Elected      2\nF   Remaining      2\nE   Remaining      2\nD  Eliminated      2\nB  Eliminated      1"
+    assert str(e) == (
+        "       Status  Round\nA     Elected      1\nC     Elected      2\nF   Remaining      "
+        "2\nE   Remaining      2\nD  Eliminated      2\nB  Eliminated      1"
     )

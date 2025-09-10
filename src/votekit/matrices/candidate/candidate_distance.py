@@ -19,6 +19,8 @@ def candidate_distance(i: str, j: str, ballot: RankBallot) -> float:
     Returns:
       float: Distance r(j)-r(i) in ranking.
     """
+    if not isinstance(ballot, RankBallot):
+        raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
         raise TypeError("RankBallot must have a ranking.")
 

@@ -1,5 +1,6 @@
 from votekit.models import Election
 from votekit.pref_profile import ScoreProfile
+from votekit.ballot import ScoreBallot
 from votekit.elections.election_state import ElectionState
 from votekit.utils import (
     score_profile_from_ballot_scores,
@@ -71,7 +72,9 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("Not enough candidates received votes to be elected.")
 
         for b in profile.ballots:
-            if b.scores is None:
+            if not isinstance(b, ScoreBallot):
+                raise TypeError(f"Ballot {b} must be of type ScoreBallot")
+            elif b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
             elif any(score > self.L for score in b.scores.values()):
                 raise TypeError(
