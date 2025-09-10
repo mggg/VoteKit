@@ -479,10 +479,6 @@ class fastSTV:
             raise ValueError(
                 "Cannot elect correct number of candidates without breaking ties."
             )
-            # below is the code you could use if you wanted to implement a backup tiebreak
-            # otherwise, just specify the backup tiebreak method in the previous tiebreak_set call and replace the elif with an else
-            packaged_ranking = tiebreak_set(r_set=packaged_tie, profile=self.profile)
-            W = self.candidates.index(list(packaged_ranking[0])[0])
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
         return W, mutant_tiebreak_record
 
