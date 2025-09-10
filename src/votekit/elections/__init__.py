@@ -37,6 +37,7 @@ __all__ = [
     "SNTV",
     "Borda",
     "STV",
+    "fastSTV",
     "IRV",
     "SequentialRCV",
     "Alaska",
