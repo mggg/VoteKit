@@ -67,7 +67,7 @@ class fastSTV:
 
         self.candidates = list(profile.candidates)
 
-        self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df(profile)
+        self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df_to_numpy_arrays(profile.df)
         self._initial_fpv = self._make_initial_fpv()
         self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._run_STV(
             self._ballot_matrix,
@@ -113,8 +113,8 @@ class fastSTV:
         else:
             raise ValueError("Misspelled or unknown quota type.")
 
-    def _convert_df(
-        self, profile: PreferenceProfile
+    def _convert_df_to_numpy_arrays(
+        self, df: pd.DataFrame
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
@@ -125,7 +125,6 @@ class fastSTV:
         Returns:
             tuple[np.ndarray, np.ndarray, np.ndarray]: The ballot matrix, weights vector, and first-preference vector.
         """
-        df = profile.df
         candidate_to_index = {
             frozenset([name]): i for i, name in enumerate(self.candidates)
         }
