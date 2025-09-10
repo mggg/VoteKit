@@ -476,7 +476,7 @@ class fastSTV:
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
         return W, mutant_tiebreak_record
 
-    def __run_loser_tiebreak(self, tied_losers, turn, mutant_tiebreak_record):
+    def __run_loser_tiebreak(self, tied_losers: list[int], turn: int, mutant_tiebreak_record: dict[int, tuple[list[int], int, int]]) -> tuple[int, dict[int, tuple[list[int], int, int]]]:
         """
         Handle new loser tiebreaking logic.
 
