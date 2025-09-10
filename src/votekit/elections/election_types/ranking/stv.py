@@ -295,7 +295,6 @@ class fastSTV:
                     wt_vec=mutated_wt_vec,
                     winner=w,
                     surplus=surplus,
-                    rng=None,
                 )
                 new_weights += counts.astype(new_weights.dtype)
 
@@ -895,7 +894,7 @@ class fastSTV:
         return (self.get_profile(round_number), self.election_states[round_number])
 
     def _sample_to_transfer(
-        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, winner: int, surplus: int, rng=None
+        self, fpv_vec: np.ndarray, wt_vec: np.ndarray, winner: int, surplus: int
     ) -> np.ndarray:
         """
         Samples s row indices to transfer from an implicit pool,
@@ -908,11 +907,8 @@ class fastSTV:
             wt_vec (np.ndarray[np.float64]): Weights vector.
             w (int): Candidate code whose ballots are to be transferred.
             s (int): Number of surplus votes to transfer.
-            rng (np.random.Generator, optional): Random number generator. If None, a new default
-                generator is created. Defaults to None.
         """
-        if rng is None:
-            rng = np.random.default_rng()
+        rng = np.random.default_rng()
 
         #running example: assume that candidate 2 just won.
         #assume the fpv_vec looks like [2,5,3,2]
