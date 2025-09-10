@@ -77,7 +77,7 @@ class fastSTV:
         )
         self.election_states = self._make_election_states()
 
-    def _misc_validation(self, profile: PreferenceProfile, m: int, transfer: Optional[str]):
+    def _misc_validation(self, profile: PreferenceProfile, m: int, transfer:str):
         """
         Performs miscellaneous validation checks before running the STV algorithm.
 
