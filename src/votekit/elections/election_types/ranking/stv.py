@@ -63,7 +63,7 @@ class fastSTV:
         self._winner_tiebreak = tiebreak
         self._loser_tiebreak = (
             tiebreak if tiebreak is not None else "first_place"
-        )  # this is what legacy does
+        )
 
         self.candidates = list(profile.candidates)
 
@@ -107,9 +107,9 @@ class fastSTV:
             int: Value of the threshold.
         """
         if self.quota == "droop":
-            return int(total_ballot_wt / (self.m + 1) + 1)  # takes floor
+            return int(total_ballot_wt / (self.m + 1) + 1) 
         elif self.quota == "hare":
-            return int(total_ballot_wt / self.m)  # takes floor
+            return int(total_ballot_wt / self.m)
         else:
             raise ValueError("Misspelled or unknown quota type.")
 
@@ -157,7 +157,6 @@ class fastSTV:
         fpv_vec = ballot_matrix[:, 0].copy()
 
         # 4) Reject ballots that have no rankings at all (all -127)
-        # Chris thinks this can/should be replaced with pf.contains_rankings == True?
         empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
         if empty_rows.size:
             raise TypeError("Ballots must have rankings.")
@@ -216,12 +215,12 @@ class fastSTV:
         relevant = 0 if tiebreak_type == "winner" else -1
         target_cluster = clusters_containing_tied_cands[relevant]
 
-        if len(target_cluster) == 1:  # yay
+        if len(target_cluster) == 1:
             return target_cluster[0], packaged_ranking
 
         tiebroken_candidate = int(
             np.random.choice(target_cluster)
-        )  # ok my head is not that empty
+        )
         return tiebroken_candidate, packaged_ranking
 
     def __update_because_winner(
@@ -309,7 +308,6 @@ class fastSTV:
                 )
                 new_weights += counts.astype(new_weights.dtype)
 
-            # set the new weights for rows in play to exactly the transferred amount
             mutated_wt_vec[winner_row_indices] = new_weights[winner_row_indices]
             mutated_fpv_vec[rows_with_winner_fpv] = next_fpv_vec
         return (
@@ -404,7 +402,7 @@ class fastSTV:
         )  # we must do this because sometimes there are cands with 0 FPV who have yet to be eliminated
         if (
             np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
-        ):  # must run a tiebreak
+        ):
             potential_losers: list[int] = (
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
             )
@@ -624,9 +622,8 @@ class fastSTV:
             eliminated_or_exhausted,
             tiebreak_record,
         )
-        # below is the main loop of the algorithm
+        # main loop
         while len(winner_list) < m:
-            # force the bincount to count entries 0 through ncands-1, even if some candidates have no votes
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             fpv_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
@@ -651,7 +648,7 @@ class fastSTV:
                 turn += 1
                 fpv_by_round.append(
                     np.zeros(ncands, dtype=np.float64)
-                )  # this is needed for get_remaining to behave nicely
+                )
                 break
             L, mutant_record = self.__find_loser(tallies, turn, *mutant_record)
             mutant_engine = self.__update_because_loser(L, *mutant_engine)
@@ -768,7 +765,6 @@ class fastSTV:
         Returns:
             tuple[frozenset[str],...]: Ranking of candidates.
         """
-        # len condition handles empty remaining candidates
         return tuple(
             [
                 s
@@ -810,18 +806,17 @@ class fastSTV:
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
         for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
-            if turn_type == "elimination":  # loser
+            if turn_type == "elimination": 
                 status_df.at[self.candidates[birthday_list[0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[birthday_list[0]], "Round"] = turn_id + 1
-            elif turn_type == "election":  # winner
+            elif turn_type == "election":
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
-            elif turn_type == "default":  # winner by default
+            elif turn_type == "default":
                 for c in birthday_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
-        # iterating through the rows of status_df, change "Round" to round_number if "Status" is still "Remaining"
         for cand_string in self.candidates:
             if status_df.at[cand_string, "Status"] == "Remaining":
                 status_df.at[cand_string, "Round"] = round_number
@@ -897,7 +892,7 @@ class fastSTV:
         wt_vec = self._wt_vec.copy()
         if (
             self.m > 1
-        ):  # this loop could be avoided if we improved how wt_vec is recorded, but the loop is also quite small
+        ): 
             for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
                 if self._play_by_play[i][-1] == "election":
                     wt_vec = self._play_by_play[i][2]
