@@ -280,13 +280,13 @@ class FastSTV:
         # don't update fpv_vec yet because we need to know current fpv to transfer weights
 
         if self.transfer == "fractional":
-            get_transfer_value = np.frompyfunc(
+            get_transfer_value_vec = np.frompyfunc(
                 lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
             )
-            transfer_value_values = get_transfer_value(
+            transfer_value_vec = get_transfer_value_vec(
                 mutated_fpv_vec[rows_with_winner_fpv]
             ).astype(np.float64)
-            mutated_wt_vec[rows_with_winner_fpv] *= transfer_value_values
+            mutated_wt_vec[rows_with_winner_fpv] *= transfer_value_vec
             mutated_fpv_vec[rows_with_winner_fpv] = self._ballot_matrix[
                 winner_row_indices, next_fpv_pos_vec
             ]
@@ -946,6 +946,7 @@ class FastSTV:
         return condense_profile(
             PreferenceProfile(
                 contains_rankings=True,
+                contains_scores=False,
                 max_ranking_length=self.profile.max_ranking_length,
                 candidates=tuple([self.candidates[c] for c in remaining]),
                 df=df,
