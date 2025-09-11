@@ -24,7 +24,7 @@ from numpy.typing import NDArray
 from itertools import groupby
 
 
-class fastSTV:
+class FastSTV:
     """
     STV elections. All ballots must have no ties.
 

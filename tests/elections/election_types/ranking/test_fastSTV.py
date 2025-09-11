@@ -1,5 +1,5 @@
 from votekit.elections import ElectionState
-from votekit.elections import fastSTV as STV
+from votekit.elections import FastSTV as STV
 from votekit import Ballot, PreferenceProfile
 import pandas as pd
 import pytest
