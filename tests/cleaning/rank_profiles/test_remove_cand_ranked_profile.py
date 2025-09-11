@@ -1,6 +1,6 @@
 from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_cand_ranked_profile
+from votekit.cleaning import remove_cand_from_rank_profile
 
 profile_no_ties = PreferenceProfile(
     ballots=[
@@ -20,7 +20,7 @@ profile_with_ties = PreferenceProfile(
 
 
 def test_remove_cand():
-    cleaned_profile = remove_cand_ranked_profile("A", profile_no_ties)
+    cleaned_profile = remove_cand_from_rank_profile("A", profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
@@ -37,7 +37,7 @@ def test_remove_cand():
 
 
 def test_remove_mult_cands():
-    cleaned_profile = remove_cand_ranked_profile(["A", "B"], profile_no_ties)
+    cleaned_profile = remove_cand_from_rank_profile(["A", "B"], profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
@@ -58,7 +58,7 @@ def test_remove_mult_cands():
 
 def test_remove_cand_with_ties():
 
-    cleaned_profile = remove_cand_ranked_profile(["A", "B"], profile_with_ties)
+    cleaned_profile = remove_cand_from_rank_profile(["A", "B"], profile_with_ties)
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
 

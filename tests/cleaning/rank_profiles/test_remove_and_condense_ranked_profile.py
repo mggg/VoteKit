@@ -2,7 +2,7 @@ from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import (
     remove_and_condense_ranked_profile,
-    remove_cand_ranked_profile,
+    remove_cand_from_rank_profile,
     condense_ranked_profile,
 )
 
@@ -43,7 +43,7 @@ def test_remove_and_condense():
 def test_remove_then_condense_equivalence():
     cleaned_profile_1 = remove_and_condense_ranked_profile("A", profile_no_ties)
     cleaned_profile_2 = condense_ranked_profile(
-        remove_cand_ranked_profile("A", profile_no_ties)
+        remove_cand_from_rank_profile("A", profile_no_ties)
     )
 
     assert cleaned_profile_1 == cleaned_profile_2

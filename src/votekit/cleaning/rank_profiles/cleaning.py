@@ -228,7 +228,7 @@ def remove_cand_from_ranking_row(
     return tuple(out)
 
 
-def remove_cand_ranked_profile(
+def remove_cand_from_rank_profile(
     removed: Union[str, list],
     profile: RankProfile,
     remove_empty_ballots: bool = True,

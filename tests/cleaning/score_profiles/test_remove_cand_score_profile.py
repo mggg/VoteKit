@@ -1,6 +1,6 @@
 from votekit.pref_profile import ScoreProfile, CleanedScoreProfile
 from votekit.ballot import ScoreBallot
-from votekit.cleaning import remove_cand_score_profile
+from votekit.cleaning import remove_cand_from_score_profile
 
 profile = ScoreProfile(
     ballots=[
@@ -24,7 +24,7 @@ profile = ScoreProfile(
 
 
 def test_remove_cand():
-    cleaned_profile = remove_cand_score_profile("A", profile)
+    cleaned_profile = remove_cand_from_score_profile("A", profile)
 
     assert isinstance(cleaned_profile, CleanedScoreProfile)
     assert cleaned_profile.parent_profile == profile
@@ -53,7 +53,7 @@ def test_remove_cand():
 
 
 def test_remove_mult_cands():
-    cleaned_profile = remove_cand_score_profile(["A", "B"], profile)
+    cleaned_profile = remove_cand_from_score_profile(["A", "B"], profile)
 
     assert isinstance(cleaned_profile, CleanedScoreProfile)
     assert cleaned_profile.parent_profile == profile

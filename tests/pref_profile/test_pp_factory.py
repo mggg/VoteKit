@@ -27,8 +27,7 @@ def test_pp_factory_errors():
 
     with pytest.raises(
         ProfileError,
-        match="Profile cannot contain RankBallots and ScoreBallots. ScoreBallots"
-        r" appear at indices \[1\], RankBallots appear at indices"
-        r" \[0\].",
+        match="Profile cannot contain RankBallots and ScoreBallots. "
+        "There are 1 many ScoreBallots and 1 many RankBallots.",
     ):
         PreferenceProfile(ballots=[RankBallot(), ScoreBallot()])

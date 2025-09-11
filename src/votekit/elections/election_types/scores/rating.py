@@ -6,7 +6,7 @@ from votekit.utils import (
     score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
 )
-from votekit.cleaning import remove_cand_score_profile
+from votekit.cleaning import remove_cand_from_score_profile
 from typing import Optional
 
 
@@ -116,7 +116,7 @@ class GeneralRating(Election[ScoreProfile]):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_cand_score_profile(
+        new_profile = remove_cand_from_score_profile(
             [c for s in elected for c in s], profile
         )
 

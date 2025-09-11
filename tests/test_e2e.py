@@ -21,7 +21,7 @@ def test_load_clean_completion():
 
     # apply rules to get new PP
     cleaned_pp = clean.condense_ranked_profile(
-        clean.remove_cand_ranked_profile("Paul", pp)
+        clean.remove_cand_from_rank_profile("Paul", pp)
     )
 
     # write intermediate output for inspection

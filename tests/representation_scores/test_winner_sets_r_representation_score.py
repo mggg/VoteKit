@@ -2,7 +2,7 @@ from votekit.representation_scores import winner_sets_r_representation_scores
 from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_ranking_csv
-from votekit.cleaning import remove_cand_ranked_profile
+from votekit.cleaning import remove_cand_from_rank_profile
 from pathlib import Path
 import pytest
 
@@ -81,7 +81,7 @@ def test_winner_sets_r_rep_score_portland():
         rank_cols=[1, 2, 3, 4, 5, 6],
         header_row=0,
     )
-    clean_profile = remove_cand_ranked_profile("skipped", profile)
+    clean_profile = remove_cand_from_rank_profile("skipped", profile)
 
     score_dict = winner_sets_r_representation_scores(
         clean_profile,

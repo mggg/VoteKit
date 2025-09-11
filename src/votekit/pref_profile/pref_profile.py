@@ -111,9 +111,8 @@ class PreferenceProfile:
                 ]
 
                 raise ProfileError(
-                    "Profile cannot contain RankBallots and ScoreBallots. ScoreBallots"
-                    f" appear at indices {score_idxs}, RankBallots appear at indices"
-                    f" {rank_idxs}."
+                    f"Profile cannot contain RankBallots and ScoreBallots. There are "
+                    f"{len(score_idxs)} many ScoreBallots and {len(rank_idxs)} many RankBallots."
                 )
 
         if any(c.startswith("Ranking_") for c in df.columns):
@@ -158,10 +157,10 @@ class PreferenceProfile:
             float: total ballot weight.
         """
         total_weight = 0
-        try:
+
+        if not self.df.equals(pd.DataFrame()):
             total_weight = self.df["Weight"].sum()
-        except KeyError:
-            pass
+
         return total_weight
 
     def _validate_and_set_candidates(self) -> None:
