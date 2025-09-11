@@ -1,4 +1,4 @@
-from .rank_profiles import (
+from .rank_profiles_cleaning import (
     clean_ranked_profile,
     remove_repeat_cands_ranked_profile,
     remove_cand_from_rank_profile,
@@ -6,14 +6,14 @@ from .rank_profiles import (
     remove_and_condense_ranked_profile,
 )
 
-from .rank_ballots import (
+from .rank_ballots_cleaning import (
     remove_cand_from_rank_ballot,
     condense_rank_ballot,
     remove_repeated_cands_from_rank_ballot,
 )
 
-from .score_ballots import remove_cand_from_score_ballot
-from .score_profiles import clean_score_profile, remove_cand_from_score_profile
+from .score_ballots_cleaning import remove_cand_from_score_ballot
+from .score_profiles_cleaning import clean_score_profile, remove_cand_from_score_profile
 
 __all__ = [
     "clean_ranked_profile",

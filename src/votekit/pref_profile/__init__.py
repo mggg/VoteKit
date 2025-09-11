@@ -1,5 +1,4 @@
-from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
-from .profile_error import ProfileError
+from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile, ProfileError
 from .utils import (
     rank_profile_to_ballot_dict,
     score_profile_to_ballot_dict,

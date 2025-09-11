@@ -8,11 +8,7 @@ RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
 
 class Ballot:
     """
-    Ballot parent class,
-
-
-    contains ranking and assigned weight. Note that we trim trailing or
-    leading whitespace from candidate names.
+    Ballot parent class, contains voter set and assigned weight.
 
     Args:
         ranking (Optional[Sequence[Iterable[str]]]): Candidate ranking. Entry i of the

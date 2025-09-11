@@ -18,10 +18,14 @@ import numpy as np
 from typing import Optional, Tuple, Sequence, Union
 import warnings
 import pickle
-from votekit.pref_profile.profile_error import ProfileError
 from functools import cached_property
 from pathlib import Path
 from os import PathLike
+
+
+class ProfileError(ValueError):
+    def __init__(self, message: str):
+        super().__init__(message)
 
 
 class PreferenceProfile:
@@ -176,8 +180,8 @@ class PreferenceProfile:
             if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
                 raise ProfileError(
                     (
-                        f"Candidate {cand} must not share name with"
-                        " ranking columns: Ranking_i."
+                        f"{cand} is a name reserved for ranking columns, it cannot be used as a "
+                        "candidate name."
                     )
                 )
 
@@ -244,31 +248,31 @@ class PreferenceProfile:
 
     __repr__ = __str__
 
-    def to_pickle(self, fpath: str):
+    def to_pickle(self, fpath: Union[str, PathLike, Path]):
         """
         Saves profile to pickle file.
 
         Args:
-            fpath (str): File path to save profile to.
+            fpath (Union[str, os.PathLike, pathlib.Path]): File path to save profile to.
 
         Raises:
             ValueError: File path must be provided.
         """
         if fpath == "":
             raise ValueError("File path must be provided.")
-        with open(fpath, "wb") as f:
+        with open(str(fpath), "wb") as f:
             pickle.dump(self, f)
 
     @classmethod
-    def from_pickle(cls, fpath: str) -> PreferenceProfile:
+    def from_pickle(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
         """
         Reads profile from pickle file.
 
         Args:
-            fpath (str): File path to profile.
+            fpath (Union[str, os.PathLike, pathlib.Path]): File path to profile.
         """
 
-        with open(fpath, "rb") as f:
+        with open(str(fpath), "rb") as f:
             data = pickle.load(f)
         assert isinstance(data, PreferenceProfile)
         return data
@@ -828,7 +832,7 @@ class RankProfile(PreferenceProfile):
         rows = header + [data_col_names] + ballot_rows
 
         with open(
-            fpath,
+            str(fpath),
             "w",
             newline="",
             encoding="utf-8",
@@ -1378,7 +1382,7 @@ class ScoreProfile(PreferenceProfile):
         rows = header + [data_col_names] + ballot_rows
 
         with open(
-            fpath,
+            str(fpath),
             "w",
             newline="",
             encoding="utf-8",
