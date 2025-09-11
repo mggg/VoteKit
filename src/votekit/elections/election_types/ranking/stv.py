@@ -364,9 +364,7 @@ class FastSTV:
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: list[
-            dict[frozenset[str], tuple[frozenset[str], ...]]
-        ],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[
         int,
         tuple[
@@ -423,9 +421,7 @@ class FastSTV:
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: list[
-            dict[frozenset[str], tuple[frozenset[str], ...]]
-        ],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[
         list[int],
         tuple[
@@ -482,9 +478,7 @@ class FastSTV:
         self,
         tied_winners: list[int],
         turn: int,
-        mutant_tiebreak_record: list[
-            dict[frozenset[str], tuple[frozenset[str], ...]]
-        ],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
         Handle winner tiebreaking logic.
@@ -520,9 +514,7 @@ class FastSTV:
         self,
         tied_losers: list[int],
         turn: int,
-        mutant_tiebreak_record: list[
-            dict[frozenset[str], tuple[frozenset[str], ...]]
-        ],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
         Handle loser tiebreaking logic.
@@ -919,7 +911,7 @@ class FastSTV:
         out = out[row_keep_mask]
         wt_vec = wt_vec[row_keep_mask]
         n_rows = out.shape[0]
-        
+
         # --- 3.75) also drop out rows with weight 0 ---
         row_keep_mask = wt_vec != 0
         out = out[row_keep_mask]
@@ -950,12 +942,12 @@ class FastSTV:
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
         return PreferenceProfile(
-                contains_rankings=True,
-                contains_scores=False,
-                max_ranking_length=self.profile.max_ranking_length,
-                candidates=tuple([self.candidates[c] for c in remaining]),
-                df=df,
-            )
+            contains_rankings=True,
+            contains_scores=False,
+            max_ranking_length=self.profile.max_ranking_length,
+            candidates=tuple([self.candidates[c] for c in remaining]),
+            df=df,
+        )
 
     def get_step(
         self, round_number: int = -1
