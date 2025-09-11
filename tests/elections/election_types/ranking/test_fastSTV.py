@@ -6,84 +6,173 @@ import pytest
 
 # taken from STV wiki
 simult_same_as_one_by_one_profile = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-        Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-        Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-        Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-        Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-        Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-        Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-    ],
+    ballots=tuple(
+        [
+            Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
+            Ballot(
+                ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
+                weight=8,
+            ),
+            Ballot(
+                ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])),
+                weight=1,
+            ),
+            Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+            Ballot(
+                ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
+                weight=1,
+            ),
+            Ballot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+            Ballot(
+                ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
+                weight=3,
+            ),
+        ]
+    ),
     max_ranking_length=3,
 )
 
 profile_list = [
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-            Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
+                    weight=8,
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
+                    ),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
+                    ),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
+                    ),
+                    weight=3,
+                ),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=3),
-            Ballot(ranking=({"Strawberry"}, {"Cake"}), weight=2),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}), weight=1),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=3),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}])),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
+                    ),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
+                    ),
+                    weight=3,
+                ),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=3),
-            Ballot(ranking=({"Strawberry"}, {"Cake"}), weight=2),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}), weight=1),
-            Ballot(ranking=({"Cake"},), weight=3),
-            Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ],
+        ballots=tuple(
+            [
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Orange"}])),
+                    weight=3,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}])),
+                    weight=1,
+                ),
+                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=3),
+                Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
+                ),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-            Ballot(ranking=({"Cake"},), weight=5),
-            Ballot(ranking=({"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=5),
+                Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
+                ),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Burger"}), weight=3),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
+                ),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-            Ballot(ranking=({"Burger"},), weight=7),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                Ballot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=7),
+            ]
+        ),
         max_ranking_length=3,
     ),
     PreferenceProfile(
-        ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-        ],
+        ballots=tuple(
+            [
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+            ]
+        ),
         max_ranking_length=3,
     ),
 ]
@@ -126,39 +215,46 @@ states = [
     ),
     ElectionState(
         round_number=2,
-        remaining=({"Burger", "Cake"}, {"Orange", "Chicken", "Strawberry"}),
-        eliminated=({"Chocolate"},),
+        remaining=(
+            frozenset({"Burger", "Cake"}),
+            frozenset({"Orange", "Chicken", "Strawberry"}),
+        ),
+        eliminated=(frozenset({"Chocolate"}),),
         scores={"Burger": 4, "Orange": 3, "Cake": 4, "Chicken": 3, "Strawberry": 3},
     ),
     ElectionState(
         round_number=3,
-        remaining=({"Cake"}, {"Burger", "Orange"}, {"Chicken"}),
-        eliminated=({"Strawberry"},),
+        remaining=(
+            frozenset({"Cake"}),
+            frozenset({"Burger", "Orange"}),
+            frozenset({"Chicken"}),
+        ),
+        eliminated=(frozenset({"Strawberry"}),),
         scores={"Burger": 4, "Orange": 4, "Cake": 6, "Chicken": 3},
         tiebreaks={
             frozenset({"Chicken", "Strawberry", "Orange"}): (
-                {"Orange"},
-                {"Chicken"},
-                {"Strawberry"},
+                frozenset({"Orange"}),
+                frozenset({"Chicken"}),
+                frozenset({"Strawberry"}),
             )
         },
     ),
     ElectionState(
         round_number=4,
-        remaining=({"Burger", "Orange"}, {"Chicken"}),
-        elected=({"Cake"},),
+        remaining=(frozenset({"Burger", "Orange"}), frozenset({"Chicken"})),
+        elected=(frozenset({"Cake"}),),
         scores={"Burger": 4, "Orange": 4, "Chicken": 3},
     ),
     ElectionState(
         round_number=5,
-        remaining=({"Burger"}, {"Orange"}),
-        eliminated=({"Chicken"},),
+        remaining=(frozenset({"Burger"}), frozenset({"Orange"})),
+        eliminated=(frozenset({"Chicken"}),),
         scores={"Burger": 7, "Orange": 4},
     ),
     ElectionState(
         round_number=6,
-        remaining=({"Orange"},),
-        elected=({"Burger"},),
+        remaining=(frozenset({"Orange"}),),
+        elected=(frozenset({"Burger"}),),
         scores={"Orange": 4},
     ),
 ]
@@ -341,7 +437,11 @@ def test_errors():
         STV(profile, m=2, simultaneous=False)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        STV(PreferenceProfile(ballots=(Ballot(ranking=({"A"},)),)), m=1, quota="Drip")
+        STV(
+            PreferenceProfile(ballots=(Ballot(ranking=(frozenset({"A"}),)),)),
+            m=1,
+            quota="Drip",
+        )
 
     with pytest.raises(TypeError, match="Ballots must have rankings."):
         STV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
@@ -350,14 +450,117 @@ def test_errors():
 def test_stv_cands_cast():
     profile = PreferenceProfile(
         ballots=(
-            Ballot(ranking=({"A"},), weight=4),
-            Ballot(ranking=({"B"},), weight=2),
-            Ballot(ranking=({"C"},), weight=5),
+            Ballot(ranking=(frozenset({"A"}),), weight=4),
+            Ballot(ranking=(frozenset({"B"}),), weight=2),
+            Ballot(ranking=(frozenset({"C"}),), weight=5),
         ),
-        candidates=["A", "B", "C", "D", "E"],
+        candidates=("A", "B", "C", "D", "E"),
     )
 
     assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
+
+
+@pytest.mark.slow
+def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
+    for _ in range(100):
+        profile = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
+                    weight=8,
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
+                    ),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
+                    ),
+                    weight=2,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
+                    ),
+                    weight=4,
+                ),
+            ),
+            max_ranking_length=3,
+        )
+
+        # There is a tiebreak between Burger and Chicken that must be resolved
+        election = STV(profile, m=3)
+
+        # The following line will error if the tiebreaks are not resolved consistently
+        election.get_step(7)
+
+@pytest.mark.slow
+def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
+    for _ in range(100):
+        profile = PreferenceProfile(
+            ballots=(
+                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
+                    weight=10,
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
+                    ),
+                    weight=1,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
+                    ),
+                    weight=2,
+                ),
+                Ballot(
+                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
+                ),
+                Ballot(
+                    ranking=tuple(
+                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
+                    ),
+                    weight=4,
+                ),
+                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=2),
+                Ballot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=6),
+            ),
+            max_ranking_length=3,
+        )
+
+        # There is a tiebreak between Burger and Chicken that must be resolved
+        election = STV(profile, m=3, simultaneous=False, tiebreak="random")
+
+        # The following line will error if the tiebreaks are not resolved consistently
+        election_order = []
+        for state in election.election_states:
+            if state.elected != (frozenset(),):
+                election_order.append(state.elected[0])
+        new_election_order = []
+        round_number = 0
+        while len(new_election_order) < len(election_order):
+            state = election.get_step(round_number)[1]
+            if state.elected != (frozenset(),):
+                new_election_order.append(state.elected[0])
+            round_number += 1
+
+        assert election_order == new_election_order
 
 
 def test_random_transfers():
@@ -375,59 +578,59 @@ def test_random_transfers():
     assert STV(
         why_cambridge_is_evil, m=2, transfer="cambridge_random"
     ).get_elected() == (
-        {"A"},
-        {"B"},
+        frozenset({"A"}),
+        frozenset({"B"}),
     )
     assert STV(
         why_cambridge_is_evil, m=2, transfer="fractional_random"
     ).get_elected() == (
-        {"A"},
-        {"C"},
+        frozenset({"A"}),
+        frozenset({"C"}),
     )
     assert STV(why_cambridge_is_evil, m=2, transfer="fractional").get_elected() == (
-        {"A"},
-        {"C"},
+        frozenset({"A"}),
+        frozenset({"C"}),
     )
 
 
 def test_simult_not_same_as_1b1():
     profile = PreferenceProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"C"}),), weight=73),
-            Ballot(ranking=(frozenset({"B"}), frozenset({"C"})), weight=100),
+            Ballot(ranking=(frozenset(["C"]),), weight=73),
+            Ballot(ranking=(frozenset(["B"]), frozenset(["C"])), weight=100),
             Ballot(
-                ranking=(frozenset({"A"}), frozenset({"B"}), frozenset({"D"})),
+                ranking=(frozenset(["A"]), frozenset(["B"]), frozenset(["D"])),
                 weight=150,
             ),
-            Ballot(ranking=(frozenset({"D"}),), weight=73),
+            Ballot(ranking=(frozenset(["D"]),), weight=73),
         ),
         candidates=("A", "B", "C", "D"),
     )
-    assert STV(profile, m=3, simultaneous=True).get_elected() == ({"A"}, {"B"}, {"D"})
-    assert STV(profile, m=3, simultaneous=False).get_elected() == ({"A"}, {"B"}, {"C"})
+    assert STV(profile, m=3, simultaneous=True).get_elected() == (frozenset({"A"}), frozenset({"B"}), frozenset({"D"}))
+    assert STV(profile, m=3, simultaneous=False).get_elected() == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_borda_tiebreak():
     winning_earlier_is_not_better = PreferenceProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"C"}),), weight=48),
+            Ballot(ranking=(frozenset(["C"]),), weight=48),
             Ballot(
-                ranking=(frozenset({"B"}), frozenset({"A"}), frozenset({"D"})),
+                ranking=(frozenset(["B"]), frozenset(["A"]), frozenset(["D"])),
                 weight=150,
             ),
             Ballot(
-                ranking=(frozenset({"A"}), frozenset({"B"}), frozenset({"C"})),
+                ranking=(frozenset(["A"]), frozenset(["B"]), frozenset(["C"])),
                 weight=150,
             ),
-            Ballot(ranking=(frozenset({"D"}), frozenset({"B"})), weight=48),
+            Ballot(ranking=(frozenset(["D"]), frozenset(["B"])), weight=48),
         ),
         candidates=("A", "B", "C", "D"),
     )
     e = STV(winning_earlier_is_not_better, m=3, simultaneous=False, tiebreak="borda")
     assert e.get_elected() == (
-        {"B"},
-        {"A"},
-        {"C"},
+        frozenset({"B"}),
+        frozenset({"A"}),
+        frozenset({"C"}),
     )  # weirdge b/c C gets rewarded for listing fewer preferences
     winner_record = set()
     for _ in range(50):
