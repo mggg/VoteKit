@@ -7,7 +7,6 @@ from ....cleaning import (
     remove_and_condense_ranked_profile,
     remove_cand_from_ballot,
     condense_ballot_ranking,
-    condense_profile,
 )
 from ....utils import (
     _first_place_votes_from_df_no_ties,
