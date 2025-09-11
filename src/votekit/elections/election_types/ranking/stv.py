@@ -180,8 +180,8 @@ class fastSTV:
             winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or loser tiebreak (False).
 
         Returns:
-            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won/lost the tiebreak,
-                and the packaged tuple of frozensets representing the outcome of the tiebreak.
+            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won the winner tiebreak,
+                or lost the loser tiebreak, and the packaged tuple of frozensets representing the outcome of the tiebreak.
         """
 
         tied_cands_set = set(tied_cands)
