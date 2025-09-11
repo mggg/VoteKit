@@ -617,7 +617,6 @@ class fastSTV:
             eliminated_or_exhausted,
             tiebreak_record,
         )
-        # main loop
         while len(winner_list) < m:
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             fpv_by_round.append(tallies.copy())
