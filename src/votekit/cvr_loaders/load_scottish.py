@@ -16,7 +16,7 @@ def load_scottish(
     in (this repo)[https://github.com/mggg/scot-elex].
 
     Args:
-        fpath (str): Path to Scottish election csv file.
+        fpath (Union[str, os.PathLike, pathlib.Path]): Path to Scottish election csv file.
 
     Raises:
         FileNotFoundError: If fpath is invalid.

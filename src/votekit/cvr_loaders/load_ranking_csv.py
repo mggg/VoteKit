@@ -282,7 +282,7 @@ def load_ranking_csv(
     voters as rows.
 
     Args:
-        path_or_url (str): Path or url to cvr file.
+        path_or_url (Union[str, os.PathLike, pathlib.Path]): Path or url to cvr file.
         rank_cols (list[int]): List of column indices that contain rankings. Column indexing
             starts from 0, in order from top to bottom rank.
         weight_col (Optional[int]): The column position for ballot weights. Defaults to None, which
