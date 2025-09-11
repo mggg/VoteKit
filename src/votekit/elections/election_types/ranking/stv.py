@@ -365,8 +365,8 @@ class FastSTV:
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: dict[
-            int, dict[frozenset[str], tuple[frozenset[str], ...]]
+        mutant_tiebreak_record: list[
+            dict[frozenset[str], tuple[frozenset[str], ...]]
         ],
     ) -> tuple[
         int,
@@ -387,7 +387,7 @@ class FastSTV:
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
-            mutant_tiebreak_record (dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
 
         Returns:
             tuple: (index of eliminated candidate, updated state tuple containing the boolean ballot matrix,
@@ -407,6 +407,7 @@ class FastSTV:
             )
         else:
             loser_idx = int(np.argmin(masked_tallies))
+            mutant_tiebreak_record.append({})
         mutant_eliminated_or_exhausted.append(loser_idx)
         self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, [loser_idx])
         return loser_idx, (
@@ -423,8 +424,8 @@ class FastSTV:
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: dict[
-            int, dict[frozenset[str], tuple[frozenset[str], ...]]
+        mutant_tiebreak_record: list[
+            dict[frozenset[str], tuple[frozenset[str], ...]]
         ],
     ) -> tuple[
         list[int],
@@ -444,7 +445,7 @@ class FastSTV:
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated/elected candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate indices so far.
-            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
 
         Returns:
             tuple: (list of elected candidate indices, updated state tuple containing the boolean ballot matrix,
@@ -454,6 +455,7 @@ class FastSTV:
             winners_temp = np.where(tallies >= self.threshold)[0]
             winners_temp = winners_temp[np.argsort(-tallies[winners_temp])]
             winners = winners_temp.tolist()
+            mutant_tiebreak_record.append({})
         else:
             if np.count_nonzero(tallies == np.max(tallies)) > 1:
                 potential_winners: list[int] = (
@@ -464,6 +466,7 @@ class FastSTV:
                 )
             else:
                 winner_idx = int(np.argmax(tallies))
+                mutant_tiebreak_record.append({})
             winners = [winner_idx]
         for winner_idx in winners:
             mutant_winner_list.append(int(winner_idx))
@@ -480,17 +483,17 @@ class FastSTV:
         self,
         tied_winners: list[int],
         turn: int,
-        mutant_tiebreak_record: dict[
-            int, dict[frozenset[str], tuple[frozenset[str], ...]]
+        mutant_tiebreak_record: list[
+            dict[frozenset[str], tuple[frozenset[str], ...]]
         ],
-    ) -> tuple[int, dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+    ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
         Handle winner tiebreaking logic.
 
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
 
         Returns:
             tuple: (index of new winner, updated tiebreak record)
@@ -511,24 +514,24 @@ class FastSTV:
             raise ValueError(
                 "Cannot elect correct number of candidates without breaking ties."
             )
-        mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
+        mutant_tiebreak_record.append({packaged_tie: packaged_ranking})
         return winner_idx, mutant_tiebreak_record
 
     def __run_loser_tiebreak(
         self,
         tied_losers: list[int],
         turn: int,
-        mutant_tiebreak_record: dict[
-            int, dict[frozenset[str], tuple[frozenset[str], ...]]
+        mutant_tiebreak_record: list[
+            dict[frozenset[str], tuple[frozenset[str], ...]]
         ],
-    ) -> tuple[int, dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+    ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
         Handle loser tiebreaking logic.
 
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
 
         Returns:
             tuple: (index of new loser, updated tiebreak record)
@@ -545,7 +548,7 @@ class FastSTV:
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak
             )
             loser_idx = self.candidates.index(list(packaged_ranking[-1])[0])
-        mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
+        mutant_tiebreak_record.append({packaged_tie: packaged_ranking})
         return loser_idx, mutant_tiebreak_record
 
     def __update_bool_ballot_matrix(
@@ -606,9 +609,7 @@ class FastSTV:
         quota = self.threshold
         winner_list: list[int] = []
         eliminated_or_exhausted: list[int] = []
-        tiebreak_record: dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]] = (
-            dict()
-        )
+        tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
         pos_vec: NDArray = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
         # this contains 1s in positions where the candidate has not been eliminated/exhausted
         mutant_bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
@@ -651,6 +652,7 @@ class FastSTV:
                 play_by_play.append((turn, still_standing, np.array([]), "default"))
                 turn += 1
                 fpv_by_round.append(np.zeros(ncands, dtype=np.float64))
+                tiebreak_record.append({})
                 break
             loser_idx, mutant_record = self.__find_loser(tallies, turn, *mutant_record)
             mutant_engine = self.__update_because_loser(loser_idx, *mutant_engine)
@@ -848,7 +850,7 @@ class FastSTV:
             )
         ]
         for i, play in enumerate(self._play_by_play):
-            packaged_tiebreak = self._tiebreak_record.get(i, dict())
+            packaged_tiebreak = self._tiebreak_record[i]
             packaged_elected = (
                 tuple([frozenset([self.candidates[c]]) for c in play[1]])
                 if play[-1] != "elimination"
@@ -918,7 +920,12 @@ class FastSTV:
         out = out[row_keep_mask]
         wt_vec = wt_vec[row_keep_mask]
         n_rows = out.shape[0]
-        n_cols = out.shape[1]  # unchanged, but keep this consistent
+        
+        # --- 3.75) also drop out rows with weight 0 ---
+        row_keep_mask = wt_vec != 0
+        out = out[row_keep_mask]
+        wt_vec = wt_vec[row_keep_mask]
+        n_rows = out.shape[0]
 
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
@@ -943,15 +950,13 @@ class FastSTV:
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
-        return condense_profile(
-            PreferenceProfile(
+        return PreferenceProfile(
                 contains_rankings=True,
                 contains_scores=False,
                 max_ranking_length=self.profile.max_ranking_length,
                 candidates=tuple([self.candidates[c] for c in remaining]),
                 df=df,
             )
-        )
 
     def get_step(
         self, round_number: int = -1
