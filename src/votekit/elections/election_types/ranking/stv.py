@@ -63,13 +63,13 @@ class FastSTV:
         self.threshold = self._get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self._winner_tiebreak = tiebreak
-        self._loser_tiebreak = (
-            tiebreak if tiebreak is not None else "first_place"
-        )
+        self._loser_tiebreak = tiebreak if tiebreak is not None else "first_place"
 
         self.candidates = list(profile.candidates)
 
-        self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df_to_numpy_arrays(profile.df)
+        self._ballot_matrix, self._wt_vec, self._fpv_vec = (
+            self._convert_df_to_numpy_arrays(profile.df)
+        )
         self._initial_fpv_vec = self._make_initial_fpv()
         self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._run_STV(
             self._ballot_matrix,
@@ -80,7 +80,9 @@ class FastSTV:
         )
         self.election_states = self._make_election_states()
 
-    def __check_seats_and_candidates_and_transfer(self, profile: PreferenceProfile, m: int, transfer: str):
+    def __check_seats_and_candidates_and_transfer(
+        self, profile: PreferenceProfile, m: int, transfer: str
+    ):
         """
         Checks if the number of seats is positive, if there are enough candidates to fill the seats,
             and if the transfer method is implemented.
@@ -109,7 +111,7 @@ class FastSTV:
             int: Value of the threshold.
         """
         if self.quota == "droop":
-            return int(total_ballot_wt / (self.m + 1) + 1) 
+            return int(total_ballot_wt / (self.m + 1) + 1)
         elif self.quota == "hare":
             return int(total_ballot_wt / self.m)
         else:
@@ -136,6 +138,7 @@ class FastSTV:
         num_rows = len(df)
         num_cols = len(ranking_columns)
         cells = df[ranking_columns].to_numpy()
+
         def map_cell(cell):
             try:
                 return candidate_to_index[cell]
@@ -214,9 +217,7 @@ class FastSTV:
         if len(target_cluster) == 1:
             return target_cluster[0], packaged_ranking
 
-        tiebroken_candidate = int(
-            np.random.choice(target_cluster)
-        )
+        tiebroken_candidate = int(np.random.choice(target_cluster))
         return tiebroken_candidate, packaged_ranking
 
     def __update_because_winner(
@@ -397,9 +398,7 @@ class FastSTV:
             np.inf,
             tallies,
         )  # we must do this because sometimes there are cands with 0 FPV who have yet to be eliminated
-        if (
-            np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1
-        ):
+        if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
             potential_losers: list[int] = (
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
             )
@@ -496,9 +495,13 @@ class FastSTV:
         Returns:
             tuple: (index of new winner, updated tiebreak record)
         """
-        packaged_tie = frozenset([self.candidates[winner_idx] for winner_idx in tied_winners])
+        packaged_tie = frozenset(
+            [self.candidates[winner_idx] for winner_idx in tied_winners]
+        )
         if self._winner_tiebreak == "first_place":
-            winner_idx, packaged_ranking = self.__fpv_tiebreak(tied_winners, winner_tiebreak_bool=True)
+            winner_idx, packaged_ranking = self.__fpv_tiebreak(
+                tied_winners, winner_tiebreak_bool=True
+            )
         elif self._winner_tiebreak is not None:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._winner_tiebreak
@@ -530,9 +533,13 @@ class FastSTV:
         Returns:
             tuple: (index of new loser, updated tiebreak record)
         """
-        packaged_tie = frozenset([self.candidates[winner_idx] for winner_idx in tied_losers])
+        packaged_tie = frozenset(
+            [self.candidates[winner_idx] for winner_idx in tied_losers]
+        )
         if self._loser_tiebreak == "first_place":
-            loser_idx, packaged_ranking = self.__fpv_tiebreak(tied_losers, winner_tiebreak_bool=False)
+            loser_idx, packaged_ranking = self.__fpv_tiebreak(
+                tied_losers, winner_tiebreak_bool=False
+            )
         else:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak
@@ -643,9 +650,7 @@ class FastSTV:
                 winner_list += still_standing
                 play_by_play.append((turn, still_standing, np.array([]), "default"))
                 turn += 1
-                fpv_by_round.append(
-                    np.zeros(ncands, dtype=np.float64)
-                )
+                fpv_by_round.append(np.zeros(ncands, dtype=np.float64))
                 break
             loser_idx, mutant_record = self.__find_loser(tallies, turn, *mutant_record)
             mutant_engine = self.__update_because_loser(loser_idx, *mutant_engine)
@@ -802,10 +807,16 @@ class FastSTV:
         round_number = round_number % len(self._fpv_by_round)
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
-        for turn_id, relevant_cand_list, _, turn_type in self._play_by_play[:round_number]:
-            if turn_type == "elimination": 
-                status_df.at[self.candidates[relevant_cand_list[0]], "Status"] = "Eliminated"
-                status_df.at[self.candidates[relevant_cand_list[0]], "Round"] = turn_id + 1
+        for turn_id, relevant_cand_list, _, turn_type in self._play_by_play[
+            :round_number
+        ]:
+            if turn_type == "elimination":
+                status_df.at[self.candidates[relevant_cand_list[0]], "Status"] = (
+                    "Eliminated"
+                )
+                status_df.at[self.candidates[relevant_cand_list[0]], "Round"] = (
+                    turn_id + 1
+                )
             elif turn_type == "election":
                 for c in relevant_cand_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
@@ -902,12 +913,12 @@ class FastSTV:
         r_idx, c_idx = np.nonzero(keep_mask)
         out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
 
-#        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
-#        row_keep_mask = ~(out == -127).all(axis=1)
-#        out = out[row_keep_mask]
-#        wt_vec = wt_vec[row_keep_mask]
-#        n_rows = out.shape[0]
-#        n_cols = out.shape[1]  # unchanged, but keep this consistent
+        #        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
+        #        row_keep_mask = ~(out == -127).all(axis=1)
+        #        out = out[row_keep_mask]
+        #        wt_vec = wt_vec[row_keep_mask]
+        #        n_rows = out.shape[0]
+        #        n_cols = out.shape[1]  # unchanged, but keep this consistent
 
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
@@ -932,13 +943,14 @@ class FastSTV:
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
-        return condense_profile(PreferenceProfile(
-            contains_rankings=True,
-            max_ranking_length=self.profile.max_ranking_length,
-            candidates=tuple([self.candidates[c] for c in remaining]),
-            df=df,
-        ))
-
+        return condense_profile(
+            PreferenceProfile(
+                contains_rankings=True,
+                max_ranking_length=self.profile.max_ranking_length,
+                candidates=tuple([self.candidates[c] for c in remaining]),
+                df=df,
+            )
+        )
 
     def get_step(
         self, round_number: int = -1

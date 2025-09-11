@@ -504,6 +504,7 @@ def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
         # The following line will error if the tiebreaks are not resolved consistently
         election.get_step(7)
 
+
 @pytest.mark.slow
 def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
     for _ in range(100):
@@ -575,9 +576,7 @@ def test_random_transfers():
         ),
         candidates=("A", "B", "C"),
     )
-    assert STV(
-        reducto_ad_absurdum, m=2, transfer="cambridge_random"
-    ).get_elected() == (
+    assert STV(reducto_ad_absurdum, m=2, transfer="cambridge_random").get_elected() == (
         frozenset({"A"}),
         frozenset({"B"}),
     )
@@ -606,8 +605,16 @@ def test_simult_not_same_as_1b1():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    assert STV(profile, m=3, simultaneous=True).get_elected() == (frozenset({"A"}), frozenset({"B"}), frozenset({"D"}))
-    assert STV(profile, m=3, simultaneous=False).get_elected() == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
+    assert STV(profile, m=3, simultaneous=True).get_elected() == (
+        frozenset({"A"}),
+        frozenset({"B"}),
+        frozenset({"D"}),
+    )
+    assert STV(profile, m=3, simultaneous=False).get_elected() == (
+        frozenset({"A"}),
+        frozenset({"B"}),
+        frozenset({"C"}),
+    )
 
 
 def test_borda_tiebreak():
@@ -626,7 +633,12 @@ def test_borda_tiebreak():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    e = STV(profile_with_different_outcome_under_borda_tiebreak, m=3, simultaneous=False, tiebreak="borda")
+    e = STV(
+        profile_with_different_outcome_under_borda_tiebreak,
+        m=3,
+        simultaneous=False,
+        tiebreak="borda",
+    )
     assert e.get_elected() == (
         frozenset({"B"}),
         frozenset({"A"}),
@@ -635,7 +647,10 @@ def test_borda_tiebreak():
     winner_record = set()
     for _ in range(50):
         e = STV(
-            profile_with_different_outcome_under_borda_tiebreak, m=3, simultaneous=False, tiebreak="random"
+            profile_with_different_outcome_under_borda_tiebreak,
+            m=3,
+            simultaneous=False,
+            tiebreak="random",
         )
         for c in e.get_elected():
             winner_record.add(list(c)[0])
