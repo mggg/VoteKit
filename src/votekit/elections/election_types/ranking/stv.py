@@ -374,7 +374,7 @@ class FastSTV:
             NDArray,
             list[int],
             list[int],
-            dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]],
+            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
         ],
     ]:
         """
@@ -433,7 +433,7 @@ class FastSTV:
             NDArray,
             list[int],
             list[int],
-            dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]],
+            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
         ],
     ]:
         """
@@ -577,7 +577,7 @@ class FastSTV:
     ) -> tuple[
         list[NDArray],
         list[tuple[int, list[int], NDArray, str]],
-        dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]],
+        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
         This runs the STV algorithm.
