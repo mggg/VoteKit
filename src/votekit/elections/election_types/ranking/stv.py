@@ -570,10 +570,10 @@ class fastSTV:
         This runs the STV algorithm.
 
         Args:
-            ballot_matrix (np.ndarray[np.int8]): Matrix where each row is a ballot, each column is a ranking.
-            wt_vec (np.ndarray[np.float64]): Each entry is the weight of the corresponding row in the ballot matrix.
+            ballot_matrix (np.ndarray): Matrix where each row is a ballot, each column is a ranking.
+            wt_vec (np.ndarray): Each entry is the weight of the corresponding row in the ballot matrix.
                 This vector is modified in place.
-            fpv_vec (np.ndarray[np.int8]): Each entry is the first preference vote of the corresponding row in the ballot matrix.
+            fpv_vec (np.ndarray): Each entry is the first preference vote of the corresponding row in the ballot matrix.
                 This vector is modified in place.
             m (int): The number of seats in the election.
             ncands (int): The number of candidates in the election.
@@ -968,8 +968,8 @@ class fastSTV:
         Ensures sum(counts) == s and counts[i] <= wt_vec[i].
 
         Args:
-            fpv_vec (np.ndarray[np.int8]): First-preference vector.
-            wt_vec (np.ndarray[np.float64]): Weights vector.
+            fpv_vec (np.ndarray): First-preference vector.
+            wt_vec (np.ndarray): Weights vector.
             winner (int): Candidate code whose ballots are to be transferred.
             surplus (int): Number of surplus votes to transfer.
         """
