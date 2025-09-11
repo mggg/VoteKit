@@ -913,12 +913,12 @@ class FastSTV:
         r_idx, c_idx = np.nonzero(keep_mask)
         out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
 
-        #        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
-        #        row_keep_mask = ~(out == -127).all(axis=1)
-        #        out = out[row_keep_mask]
-        #        wt_vec = wt_vec[row_keep_mask]
-        #        n_rows = out.shape[0]
-        #        n_cols = out.shape[1]  # unchanged, but keep this consistent
+        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
+        row_keep_mask = ~(out == -127).all(axis=1)
+        out = out[row_keep_mask]
+        wt_vec = wt_vec[row_keep_mask]
+        n_rows = out.shape[0]
+        n_cols = out.shape[1]  # unchanged, but keep this consistent
 
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
