@@ -445,7 +445,8 @@ class fastSTV:
             mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
 
         Returns:
-            tuple: (list of elected candidate indices, updated state tuple)
+            tuple: (list of elected candidate indices, updated state tuple containing the boolean ballot matrix,
+                winner list, eliminated list, and tiebreak record).
         """
         if self.simultaneous:
             winners_temp = np.where(tallies >= self.threshold)[0]
