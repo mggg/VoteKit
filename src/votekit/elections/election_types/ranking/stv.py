@@ -170,7 +170,7 @@ class fastSTV:
         )
 
     def __fpv_tiebreak(
-        self, tied_cands, tiebreak_type
+        self, tied_cands: list[int], tiebreak_type: str
     ) -> tuple[int, tuple[frozenset[str], ...]]:
         """
         Break ties among tied_cands using initial_fpv tallies.
