@@ -92,7 +92,6 @@ class fastSTV:
             raise ValueError("m must be positive.")
         elif len(profile.candidates_cast) < m:
             raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
         if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
             raise ValueError(
                 "Transfer method must be either 'fractional', 'cambridge_random', or 'fractional_random'."
