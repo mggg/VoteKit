@@ -119,7 +119,24 @@ class Ballot:
 
 
 class RankBallot(Ballot):
-    """ """
+    """
+    Class to handle ballots with rankings. Strips whitespace from candidate names.
+
+    Args:
+        ranking (RankingLike): Ranking of candidates, defaults to None.
+        weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
+        voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
+            defaults to frozenset().
+
+    Attributes:
+        ranking (RankingLike): Ranking of candidates.
+        weight (float): Weight of the ballot.
+        voter_set (frozenset[str]): Voter set of the ballot.
+
+    Raises:
+        ValueError: Candidate '~' found in ballot ranking.
+        ValueError: Ballot weight cannot be negative.
+    """
 
     def __init__(
         self,
@@ -180,7 +197,25 @@ class RankBallot(Ballot):
 
 
 class ScoreBallot(Ballot):
-    """ """
+    """
+    Class to handle ballots with scores. Strips whitespace from candidate names.
+
+    Args:
+        scores (Optional[dict[str, Union[int, float]]]): Scores of candidates, defaults to None.
+        weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
+        voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
+            defaults to frozenset().
+
+    Attributes:
+        scores (Optional[dict[str, float]]): Scores of candidates.
+        weight (float): Weight of the ballot.
+        voter_set (frozenset[str]): Voter set of the ballot.
+
+    Raises:
+        ValueError: Candidate '~' found in ballot scores.
+        ValueError: Ballot weight cannot be negative.
+        TypeError: Score values must be numeric.
+    """
 
     def __init__(
         self,

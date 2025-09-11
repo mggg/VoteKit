@@ -70,7 +70,7 @@ def clean_score_profile(
 
 
     Args:
-        profile (RankProfile): A RankProfile to clean.
+        profile (ScoreProfile): A ScoreProfile to clean.
         clean_score_func (Callable[[tuple], tuple]): Function that
             takes the score portion of a row of the profile df and returns an altered score.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
