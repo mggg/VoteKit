@@ -400,14 +400,14 @@ class fastSTV:
             potential_losers: list[int] = (
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
             )
-            L, mutant_tiebreak_record = self.__run_loser_tiebreak(
+            loser_idx, mutant_tiebreak_record = self.__run_loser_tiebreak(
                 potential_losers, turn, mutant_tiebreak_record
             )
         else:
-            L = int(np.argmin(masked_tallies))
-        mutant_eliminated_or_exhausted.append(L)
-        self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, [L])
-        return L, (
+            loser_idx = int(np.argmin(masked_tallies))
+        mutant_eliminated_or_exhausted.append(loser_idx)
+        self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, [loser_idx])
+        return loser_idx, (
             mutant_bool_ballot_matrix,
             mutant_winner_list,
             mutant_eliminated_or_exhausted,
@@ -528,14 +528,14 @@ class fastSTV:
         """
         packaged_tie = frozenset([self.candidates[w] for w in tied_losers])
         if self._loser_tiebreak == "first_place":
-            L, packaged_ranking = self.__fpv_tiebreak(tied_losers, winner_tiebreak_bool=False)
+            loser_idx, packaged_ranking = self.__fpv_tiebreak(tied_losers, winner_tiebreak_bool=False)
         else:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak
             )
-            L = self.candidates.index(list(packaged_ranking[-1])[0])
+            loser_idx = self.candidates.index(list(packaged_ranking[-1])[0])
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
-        return L, mutant_tiebreak_record
+        return loser_idx, mutant_tiebreak_record
 
     def __update_bool_ballot_matrix(
         self, _mutant_bool_ballot_matrix: np.ndarray, newly_gone: list[int]
@@ -644,9 +644,9 @@ class fastSTV:
                     np.zeros(ncands, dtype=np.float64)
                 )
                 break
-            L, mutant_record = self.__find_loser(tallies, turn, *mutant_record)
-            mutant_engine = self.__update_because_loser(L, *mutant_engine)
-            play_by_play.append((turn, [L], np.array([]), "elimination"))
+            loser_idx, mutant_record = self.__find_loser(tallies, turn, *mutant_record)
+            mutant_engine = self.__update_because_loser(loser_idx, *mutant_engine)
+            play_by_play.append((turn, [loser_idx], np.array([]), "elimination"))
             turn += 1
         return fpv_by_round, play_by_play, tiebreak_record
 
