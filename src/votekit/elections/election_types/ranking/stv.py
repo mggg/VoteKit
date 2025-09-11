@@ -288,15 +288,15 @@ class fastSTV:
             ]
         elif self.transfer is not None and "random" in self.transfer:
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
-            for w in winners:
+            for winner_idx in winners:
                 if self.transfer == "cambridge_random":
                     # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
                     mutated_fpv_vec[winner_row_indices[next_fpv_vec == -127]] = -127
-                surplus = int(tallies[w] - self.threshold)
+                surplus = int(tallies[winner_idx] - self.threshold)
                 counts = self._sample_to_transfer(
                     fpv_vec=mutated_fpv_vec,
                     wt_vec=mutated_wt_vec,
-                    winner=w,
+                    winner=winner_idx,
                     surplus=surplus,
                 )
                 new_weights += counts.astype(new_weights.dtype)
@@ -457,15 +457,15 @@ class fastSTV:
                 potential_winners: list[int] = (
                     np.where(tallies == tallies.max())[0].astype(int).tolist()
                 )
-                w, mutant_tiebreak_record = self.__run_winner_tiebreak(
+                winner_idx, mutant_tiebreak_record = self.__run_winner_tiebreak(
                     potential_winners, turn, mutant_tiebreak_record
                 )
             else:
-                w = int(np.argmax(tallies))
-            winners = [w]
-        for w in winners:
-            mutant_winner_list.append(int(w))
-            mutant_eliminated_or_exhausted.append(w)
+                winner_idx = int(np.argmax(tallies))
+            winners = [winner_idx]
+        for winner_idx in winners:
+            mutant_winner_list.append(int(winner_idx))
+            mutant_eliminated_or_exhausted.append(winner_idx)
         self.__update_bool_ballot_matrix(mutant_bool_ballot_matrix, winners)
         return winners, (
             mutant_bool_ballot_matrix,
@@ -493,20 +493,20 @@ class fastSTV:
         Returns:
             tuple: (index of new winner, updated tiebreak record)
         """
-        packaged_tie = frozenset([self.candidates[w] for w in tied_winners])
+        packaged_tie = frozenset([self.candidates[winner_idx] for winner_idx in tied_winners])
         if self._winner_tiebreak == "first_place":
-            W, packaged_ranking = self.__fpv_tiebreak(tied_winners, winner_tiebreak_bool=True)
+            winner_idx, packaged_ranking = self.__fpv_tiebreak(tied_winners, winner_tiebreak_bool=True)
         elif self._winner_tiebreak is not None:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._winner_tiebreak
             )
-            W = self.candidates.index(list(packaged_ranking[0])[0])
+            winner_idx = self.candidates.index(list(packaged_ranking[0])[0])
         else:
             raise ValueError(
                 "Cannot elect correct number of candidates without breaking ties."
             )
         mutant_tiebreak_record[turn] = {packaged_tie: packaged_ranking}
-        return W, mutant_tiebreak_record
+        return winner_idx, mutant_tiebreak_record
 
     def __run_loser_tiebreak(
         self,
@@ -527,7 +527,7 @@ class fastSTV:
         Returns:
             tuple: (index of new loser, updated tiebreak record)
         """
-        packaged_tie = frozenset([self.candidates[w] for w in tied_losers])
+        packaged_tie = frozenset([self.candidates[winner_idx] for winner_idx in tied_losers])
         if self._loser_tiebreak == "first_place":
             loser_idx, packaged_ranking = self.__fpv_tiebreak(tied_losers, winner_tiebreak_bool=False)
         else:
@@ -970,8 +970,8 @@ class fastSTV:
         Args:
             fpv_vec (np.ndarray[np.int8]): First-preference vector.
             wt_vec (np.ndarray[np.float64]): Weights vector.
-            w (int): Candidate code whose ballots are to be transferred.
-            s (int): Number of surplus votes to transfer.
+            winner (int): Candidate code whose ballots are to be transferred.
+            surplus (int): Number of surplus votes to transfer.
         """
         rng = np.random.default_rng()
 
