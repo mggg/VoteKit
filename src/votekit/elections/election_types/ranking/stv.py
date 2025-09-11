@@ -133,36 +133,30 @@ class fastSTV:
         ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
         num_rows = len(df)
         num_cols = len(ranking_columns)
-
-        # np matrix of frozensets from the DataFrame
         cells = df[ranking_columns].to_numpy()
-
-        # 1) Convert cells -> np.int8 indices, raising an error if entry not in dict
         def map_cell(cell):
             try:
                 return candidate_to_index[cell]
             except KeyError:
                 raise TypeError("Ballots must have rankings.")
 
-        # np matrix of indices -- we just need to add padding now
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # 2) Add padding
+        # Add padding
         ballot_matrix = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
-        # 3) Weights + first-preference vector
         wt_vec = df["Weight"].astype(np.float64).to_numpy()
         fpv_vec = ballot_matrix[:, 0].copy()
 
-        # 4) Reject ballots that have no rankings at all (all -127)
+        # Reject ballots that have no rankings at all (all -127)
         empty_rows = np.where(np.all(ballot_matrix == -127, axis=1))[0]
         if empty_rows.size:
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec, fpv_vec
 
-    def _make_initial_fpv(self):
+    def _make_initial_fpv(self) -> np.ndarray:
         """
         Creates the initial first-preference vote (FPV) vector.
 
