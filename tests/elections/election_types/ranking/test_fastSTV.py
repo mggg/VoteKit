@@ -566,7 +566,7 @@ def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
 def test_random_transfers():
     # in the below profile, B always wins with Cambridge-styled random transfers,
     # but C would always win with fractional transfers, and wins with probability P > 1 - (1/2)**49 with the "fractional_random" method
-    why_cambridge_is_evil = PreferenceProfile(
+    reducto_ad_absurdum = PreferenceProfile(
         ballots=(
             Ballot(ranking=(frozenset({"A"}), frozenset({"B"})), weight=50),
             Ballot(ranking=(frozenset({"A"}),), weight=150),
@@ -576,18 +576,18 @@ def test_random_transfers():
         candidates=("A", "B", "C"),
     )
     assert STV(
-        why_cambridge_is_evil, m=2, transfer="cambridge_random"
+        reducto_ad_absurdum, m=2, transfer="cambridge_random"
     ).get_elected() == (
         frozenset({"A"}),
         frozenset({"B"}),
     )
     assert STV(
-        why_cambridge_is_evil, m=2, transfer="fractional_random"
+        reducto_ad_absurdum, m=2, transfer="fractional_random"
     ).get_elected() == (
         frozenset({"A"}),
         frozenset({"C"}),
     )
-    assert STV(why_cambridge_is_evil, m=2, transfer="fractional").get_elected() == (
+    assert STV(reducto_ad_absurdum, m=2, transfer="fractional").get_elected() == (
         frozenset({"A"}),
         frozenset({"C"}),
     )
@@ -611,7 +611,7 @@ def test_simult_not_same_as_1b1():
 
 
 def test_borda_tiebreak():
-    winning_earlier_is_not_better = PreferenceProfile(
+    profile_with_different_outcome_under_borda_tiebreak = PreferenceProfile(
         ballots=(
             Ballot(ranking=(frozenset(["C"]),), weight=48),
             Ballot(
@@ -626,7 +626,7 @@ def test_borda_tiebreak():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    e = STV(winning_earlier_is_not_better, m=3, simultaneous=False, tiebreak="borda")
+    e = STV(profile_with_different_outcome_under_borda_tiebreak, m=3, simultaneous=False, tiebreak="borda")
     assert e.get_elected() == (
         frozenset({"B"}),
         frozenset({"A"}),
@@ -635,7 +635,7 @@ def test_borda_tiebreak():
     winner_record = set()
     for _ in range(50):
         e = STV(
-            winning_earlier_is_not_better, m=3, simultaneous=False, tiebreak="random"
+            profile_with_different_outcome_under_borda_tiebreak, m=3, simultaneous=False, tiebreak="random"
         )
         for c in e.get_elected():
             winner_record.add(list(c)[0])
