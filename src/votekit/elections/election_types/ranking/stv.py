@@ -383,10 +383,11 @@ class fastSTV:
             mutant_bool_ballot_matrix (np.ndarray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
-            mutant_tiebreak_record (dict[int, tuple[list[int], int, int]]): Tiebreak record for each round.
+            mutant_tiebreak_record (dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
 
         Returns:
-            tuple: (index of eliminated candidate, updated state tuple)
+            tuple: (index of eliminated candidate, updated state tuple containing the boolean ballot matrix,
+                winner list, eliminated list, and tiebreak record).
         """
         masked_tallies = np.where(
             np.isin(np.arange(len(tallies)), mutant_eliminated_or_exhausted),
