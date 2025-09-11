@@ -50,7 +50,7 @@ class fastSTV:
         simultaneous: bool = False,
         tiebreak: Optional[str] = None,
     ):
-        self._misc_validation(profile, m, transfer)
+        self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
         self.profile = profile
         self.m = m
         self.transfer = transfer
@@ -68,7 +68,7 @@ class fastSTV:
         self.candidates = list(profile.candidates)
 
         self._ballot_matrix, self._wt_vec, self._fpv_vec = self._convert_df_to_numpy_arrays(profile.df)
-        self._initial_fpv = self._make_initial_fpv()
+        self._initial_fpv_vec = self._make_initial_fpv()
         self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._run_STV(
             self._ballot_matrix,
             self._wt_vec.copy(),
@@ -78,9 +78,10 @@ class fastSTV:
         )
         self.election_states = self._make_election_states()
 
-    def _misc_validation(self, profile: PreferenceProfile, m: int, transfer: str):
+    def __check_seats_and_candidates_and_transfer(self, profile: PreferenceProfile, m: int, transfer: str):
         """
-        Performs miscellaneous validation checks before running the STV algorithm.
+        Checks if the number of seats is positive, if there are enough candidates to fill the seats,
+            and if the transfer method is implemented.
 
         Args:
             profile (PreferenceProfile): The preference profile to validate.
@@ -192,7 +193,7 @@ class fastSTV:
 
         tied_cands_set = set(tied_cands)
         if not hasattr(self, "__fpv_clusters"):
-            scores = np.asarray(self._initial_fpv)
+            scores = np.asarray(self._initial_fpv_vec)
             order = np.argsort(scores, kind="mergesort")[::-1]
             pairs = [(float(scores[i]), int(i)) for i in order]
             self.__fpv_clusters: list[list[int]] = [
