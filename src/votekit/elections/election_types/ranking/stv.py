@@ -185,28 +185,29 @@ class fastSTV:
         """
 
         tied_cands_set = set(tied_cands)
-        if not hasattr(self, "__fpv_clusters"):
+        if not hasattr(self, "__candidate_sets_by_fpv"):
             scores = np.asarray(self._initial_fpv_vec)
             order = np.argsort(scores, kind="mergesort")[::-1]
             pairs = [(float(scores[i]), int(i)) for i in order]
-            self.__fpv_clusters: list[list[int]] = [
-                [idx for _, idx in group]
+            # Now create a list of sets, not lists
+            self.__candidate_sets_by_fpv: list[set[int]] = [
+                set(idx for _, idx in group)
                 for _, group in groupby(pairs, key=lambda x: x[0])
             ]
 
-        clusters_containing_tied_cands: list[list[int]] = [
-            [c for c in cluster if c in tied_cands_set]
-            for cluster in self.__fpv_clusters
-            if any(i in tied_cands_set for i in cluster)
+        clusters_containing_tied_cands: list[set[int]] = [
+            cluster & tied_cands_set
+            for cluster in self.__candidate_sets_by_fpv
+            if cluster & tied_cands_set
         ]
-
+        
         packaged_ranking: tuple[frozenset[str], ...] = tuple(
             frozenset(self.candidates[i] for i in cluster)
             for cluster in clusters_containing_tied_cands
         )
 
         relevant = 0 if winner_tiebreak_bool else -1
-        target_cluster = clusters_containing_tied_cands[relevant]
+        target_cluster = list(clusters_containing_tied_cands[relevant])
 
         if len(target_cluster) == 1:
             return target_cluster[0], packaged_ranking
@@ -799,16 +800,16 @@ class fastSTV:
         round_number = round_number % len(self._fpv_by_round)
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
-        for turn_id, birthday_list, _, turn_type in self._play_by_play[:round_number]:
+        for turn_id, relevant_cand_list, _, turn_type in self._play_by_play[:round_number]:
             if turn_type == "elimination": 
-                status_df.at[self.candidates[birthday_list[0]], "Status"] = "Eliminated"
-                status_df.at[self.candidates[birthday_list[0]], "Round"] = turn_id + 1
+                status_df.at[self.candidates[relevant_cand_list[0]], "Status"] = "Eliminated"
+                status_df.at[self.candidates[relevant_cand_list[0]], "Round"] = turn_id + 1
             elif turn_type == "election":
-                for c in birthday_list:
+                for c in relevant_cand_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
             elif turn_type == "default":
-                for c in birthday_list:
+                for c in relevant_cand_list:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = turn_id + 1
         for cand_string in self.candidates:
@@ -865,14 +866,6 @@ class fastSTV:
     def get_profile(self, round_number: int = -1) -> PreferenceProfile:
         """
         Fetch the PreferenceProfile of the given round number.
-
-        Args:
-            round_number (int): The round number. Supports negative indexing. Defaults to
-                -1, which accesses the final profile.
-
-        Returns:
-            PreferenceProfile
-
         """
         if (
             round_number < -len(self.election_states)
@@ -884,13 +877,10 @@ class fastSTV:
 
         remaining = self._fpv_by_round[round_number].nonzero()[0]
         wt_vec = self._wt_vec.copy()
-        if (
-            self.m > 1
-        ): 
-            for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
-                if self._play_by_play[i][-1] == "election":
-                    wt_vec = self._play_by_play[i][2]
-                    break
+        for i in range(len(self._play_by_play[:round_number]) - 1, -1, -1):
+            if self._play_by_play[i][-1] == "election":
+                wt_vec = self._play_by_play[i][2]
+                break
 
         idx_to_fset = {c: frozenset([self.candidates[c]]) for c in remaining}
 
@@ -909,6 +899,13 @@ class fastSTV:
         pos = keep_mask.cumsum(axis=1) - 1  # target col for each kept entry
         r_idx, c_idx = np.nonzero(keep_mask)
         out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
+
+#        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
+#        row_keep_mask = ~(out == -127).all(axis=1)
+#        out = out[row_keep_mask]
+#        wt_vec = wt_vec[row_keep_mask]
+#        n_rows = out.shape[0]
+#        n_cols = out.shape[1]  # unchanged, but keep this consistent
 
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
@@ -933,14 +930,13 @@ class fastSTV:
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
-        return condense_profile(
-            PreferenceProfile(
-                contains_rankings=True,
-                max_ranking_length=self.profile.max_ranking_length,
-                candidates=tuple([self.candidates[c] for c in remaining]),
-                df=df,
-            )
-        )
+        return condense_profile(PreferenceProfile(
+            contains_rankings=True,
+            max_ranking_length=self.profile.max_ranking_length,
+            candidates=tuple([self.candidates[c] for c in remaining]),
+            df=df,
+        ))
+
 
     def get_step(
         self, round_number: int = -1
