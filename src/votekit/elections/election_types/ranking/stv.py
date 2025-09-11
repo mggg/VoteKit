@@ -170,14 +170,14 @@ class fastSTV:
         )
 
     def __fpv_tiebreak(
-        self, tied_cands: list[int], tiebreak_type: str
+        self, tied_cands: list[int], winner_tiebreak_bool: bool
     ) -> tuple[int, tuple[frozenset[str], ...]]:
         """
         Break ties among tied_cands using initial_fpv tallies.
 
         Args:
             tied_cands (list[int]): List of candidate indices that are tied.
-            tiebreak_type (str): Type of tiebreaking to perform ('winner' or 'loser').
+            winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or loser tiebreak (False).
 
         Returns:
             tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won/lost the tiebreak,
@@ -205,7 +205,7 @@ class fastSTV:
             for cluster in clusters_containing_tied_cands
         )
 
-        relevant = 0 if tiebreak_type == "winner" else -1
+        relevant = 0 if winner_tiebreak_bool else -1
         target_cluster = clusters_containing_tied_cands[relevant]
 
         if len(target_cluster) == 1:
@@ -493,7 +493,7 @@ class fastSTV:
         """
         packaged_tie = frozenset([self.candidates[w] for w in tied_winners])
         if self._winner_tiebreak == "first_place":
-            W, packaged_ranking = self.__fpv_tiebreak(tied_winners, "winner")
+            W, packaged_ranking = self.__fpv_tiebreak(tied_winners, winner_tiebreak_bool=True)
         elif self._winner_tiebreak is not None:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._winner_tiebreak
@@ -527,7 +527,7 @@ class fastSTV:
         """
         packaged_tie = frozenset([self.candidates[w] for w in tied_losers])
         if self._loser_tiebreak == "first_place":
-            L, packaged_ranking = self.__fpv_tiebreak(tied_losers, "loser")
+            L, packaged_ranking = self.__fpv_tiebreak(tied_losers, winner_tiebreak_bool=False)
         else:
             packaged_ranking = tiebreak_set(
                 r_set=packaged_tie, profile=self.profile, tiebreak=self._loser_tiebreak
