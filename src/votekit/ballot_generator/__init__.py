@@ -8,7 +8,12 @@ from votekit.ballot_generator.bloc_slate_generator import (
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
+    convert_cohesion_map_to_cohesion_df,
+    convert_preference_map_to_preference_df,
+    convert_bloc_proportion_map_to_series,
+    BlocSlateConfig,
 )
+
 from votekit.ballot_generator.std_generator import (
     ImpartialCulture,
     ImpartialAnonymousCulture,
@@ -35,4 +40,8 @@ __all__ = [
     "OneDimSpatial",
     "ClusteredSpatial",
     "AlternatingCrossover",
+    "convert_cohesion_map_to_cohesion_df",
+    "convert_preference_map_to_preference_df",
+    "convert_bloc_proportion_map_to_series",
+    "BlocSlateConfig",
 ]

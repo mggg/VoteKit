@@ -14,6 +14,12 @@ from votekit.ballot_generator.bloc_slate_generator.slate_bradley_terry import (
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
     slate_PlackettLuce,
 )
+from votekit.ballot_generator.bloc_slate_generator.model import (
+    convert_cohesion_map_to_cohesion_df,
+    convert_preference_map_to_preference_df,
+    convert_bloc_proportion_map_to_series,
+    BlocSlateConfig,
+)
 
 __all__ = [
     "slate_PlackettLuce",
@@ -25,4 +31,8 @@ __all__ = [
     "CambridgeSampler",
     "slate_PlackettLuce",
     "slate_BradleyTerry",
+    "convert_cohesion_map_to_cohesion_df",
+    "convert_preference_map_to_preference_df",
+    "convert_bloc_proportion_map_to_series",
+    "BlocSlateConfig",
 ]

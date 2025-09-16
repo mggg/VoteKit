@@ -279,7 +279,9 @@ def score_profile_from_rankings(
             if s == tilde:
                 continue
 
-            local_score_vector = score_vector[current_ind : current_ind + position_size]
+            local_score_vector: Sequence[float | int] = score_vector[
+                current_ind : current_ind + position_size
+            ]
 
             if tie_convention == "high":
                 allocation = max(local_score_vector)
