@@ -8,7 +8,7 @@ involving both voter blocs and slates of candidates.
 
 from collections.abc import Mapping, MutableMapping, MutableSequence
 from typing import Sequence, Optional, Union, cast, Any, overload, Iterable
-from votekit import PreferenceInterval
+from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
 from numbers import Real
 import weakref
 import math
@@ -1439,6 +1439,62 @@ class BlocSlateConfig:
                 raise AttributeError(
                     f"'BlocSlateConfig' object has no attribute '{name}'"
                 )
+
+    # ============
+    #   MAIN API
+    # ============
+
+    def get_preference_interval_for_bloc_and_slate(
+        self, bloc: str, slate: str
+    ) -> PreferenceInterval:
+        """
+        Get the preference interval for a given bloc.
+        """
+        # Check to make sure the slate preference intervals are set
+        for bloc in self.blocs:
+            if slate not in self.slate_to_candidates:
+                raise KeyError(
+                    f"Slate '{slate}' not found in slate_to_candidates. "
+                    f"Available slates: {self.slates}"
+                )
+            cand_list = list(self.slate_to_candidates[slate])
+            if bloc not in self.preference_df.index:
+                raise KeyError(
+                    f"Bloc '{bloc}' not found in preference_df index. "
+                    f"Available blocs: {list(self.preference_df.index)}"
+                )
+            if any(self.preference_df[cand_list].loc[bloc] < 0):
+                raise ValueError(
+                    f"Preference interval for bloc '{bloc}' and slate '{slate}' has "
+                    f"candidates {cand_list} that have not been set (indicated with "
+                    f"value of -1)."
+                )
+            if abs(self.preference_df[cand_list].loc[bloc].sum() - 1.0) > 1e-8:
+                raise ValueError(
+                    f"Preference interval for bloc '{bloc}' and slate '{slate}' must "
+                    f"sum to 1, got {self.preference_df[cand_list].loc[bloc].sum():.6f}"
+                )
+
+        return PreferenceInterval(
+            {
+                c: float(self.preference_df[c].loc[bloc])
+                for c in self.slate_to_candidates[slate]
+            }
+        )
+
+    def get_perference_intervals_by_bloc(self) -> dict[str, PreferenceInterval]:
+        return {
+            bloc: combine_preference_intervals(
+                [
+                    self.get_preference_interval_for_bloc_and_slate(
+                        bloc=bloc, slate=slate
+                    )
+                    for slate in self.slates
+                ],
+                [self.cohesion_df[slate].loc[bloc] for slate in self.slates],
+            )
+            for bloc in self.blocs
+        }
 
     def normalize_preference_intervals(self) -> None:
         """
