@@ -23,7 +23,7 @@ from pathlib import Path
 from os import PathLike
 
 
-class ProfileError(ValueError):
+class ProfileError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
 
@@ -116,7 +116,7 @@ class PreferenceProfile:
 
                 raise ProfileError(
                     f"Profile cannot contain RankBallots and ScoreBallots. There are "
-                    f"{len(score_idxs)} many ScoreBallots and {len(rank_idxs)} many RankBallots."
+                    f"{len(score_idxs)} ScoreBallots and {len(rank_idxs)} RankBallots."
                 )
 
         if any(c.startswith("Ranking_") for c in df.columns):
