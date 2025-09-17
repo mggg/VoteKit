@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile, ProfileError
+    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from typing import Optional
@@ -214,12 +214,12 @@ def rank_profile_to_ranking_dict(
             A dictionary with rankings (keys) and corresponding total weights (values).
 
     Raises:
-        ProfileError: Profile must be a RankProfile.
+        TypeError: Profile must be a RankProfile.
     """
     from .pref_profile import RankProfile
 
     if not isinstance(rank_profile, RankProfile):
-        raise ProfileError(("Profile must be a RankProfile."))
+        raise TypeError(("Profile must be a RankProfile."))
     tot_weight = rank_profile.total_ballot_wt
     di: dict = {}
     for ballot in rank_profile.ballots:
@@ -249,12 +249,12 @@ def score_profile_to_scores_dict(
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:
-        ProfileError: Profile must be a ScoreProfile.
+        TypeError: Profile must be a ScoreProfile.
     """
     from .pref_profile import ScoreProfile
 
     if not isinstance(score_profile, ScoreProfile):
-        raise ProfileError(("Profile must be a ScoreProfile."))
+        raise TypeError(("Profile must be a ScoreProfile."))
 
     tot_weight = score_profile.total_ballot_wt
     di: dict = {}
