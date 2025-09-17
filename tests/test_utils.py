@@ -1,5 +1,5 @@
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile, ProfileError
+from votekit.pref_profile import PreferenceProfile
 from votekit.utils import (
     ballots_by_first_cand,
     add_missing_cands,
@@ -97,7 +97,7 @@ def test_add_missing_cands():
 
 
 def test_add_missing_cands_errors():
-    with pytest.raises(ProfileError, match="Profile must be of type RankProfile"):
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         add_missing_cands(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),), candidates=("A", "B"))
         )
@@ -167,7 +167,7 @@ def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
         score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
 
-    with pytest.raises(ProfileError, match="Profile must only contain ranked ballots."):
+    with pytest.raises(TypeError, match="Profile must only contain ranked ballots."):
         score_profile_from_rankings(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
         )
@@ -195,7 +195,7 @@ def test_first_place_votes():
 
 
 def test_fpv_errors():
-    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
         first_place_votes(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
@@ -207,7 +207,7 @@ def test_mentions():
 
 
 def test_mentions_errors():
-    with pytest.raises(ProfileError, match="Profile must be of type RankProfile"):
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         mentions(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
@@ -303,7 +303,7 @@ def test_borda_mismatched_length():
 
 
 def test_borda_errors():
-    with pytest.raises(ProfileError, match="Profile must be of type RankProfile"):
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
 
 
@@ -575,7 +575,7 @@ def test_score_profile_from_ballot_scores_error():
     profile = PreferenceProfile(
         ballots=(Ballot(ranking=(frozenset({"A"}),), weight=2),)
     )
-    with pytest.raises(ProfileError, match="Profile must be of type ScoreProfile."):
+    with pytest.raises(TypeError, match="Profile must be of type ScoreProfile."):
         score_profile_from_ballot_scores(profile)
 
 
@@ -596,5 +596,5 @@ def test_ballot_lengths():
 
 def test_ballot_lengths_ranking_error():
     profile = PreferenceProfile(ballots=(Ballot(scores={"A": 3}),))
-    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
         ballot_lengths(profile)

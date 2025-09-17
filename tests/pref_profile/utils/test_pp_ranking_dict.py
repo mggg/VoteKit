@@ -1,5 +1,5 @@
 from votekit.ballot import RankBallot, ScoreBallot
-from votekit.pref_profile import RankProfile, ProfileError, ScoreProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.utils import rank_profile_to_ranking_dict
 import pytest
 
@@ -25,7 +25,7 @@ def test_ranking_dict_warn():
     profile = ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))
 
     with pytest.raises(
-        ProfileError,
+        TypeError,
         match=("Profile must be a RankProfile"),
     ):
         rank_profile_to_ranking_dict(profile)

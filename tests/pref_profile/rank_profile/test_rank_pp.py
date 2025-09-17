@@ -1,5 +1,5 @@
 from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ProfileError
 import pytest
 
 
@@ -14,7 +14,7 @@ def test_init():
 
 
 def test_unique_cands_validator():
-    with pytest.raises(ValueError, match="All candidates must be unique."):
+    with pytest.raises(ProfileError, match="All candidates must be unique."):
         RankProfile(candidates=("A", "A", "B"))
 
     RankProfile(candidates=("A", "B"))

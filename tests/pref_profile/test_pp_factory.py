@@ -28,6 +28,6 @@ def test_pp_factory_errors():
     with pytest.raises(
         ProfileError,
         match="Profile cannot contain RankBallots and ScoreBallots. "
-        "There are 1 many ScoreBallots and 1 many RankBallots.",
+        "There are 1 ScoreBallots and 1 RankBallots.",
     ):
         PreferenceProfile(ballots=[RankBallot(), ScoreBallot()])

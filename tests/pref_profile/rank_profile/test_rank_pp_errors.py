@@ -18,8 +18,8 @@ def test_pp_candidate_list():
 
     with pytest.raises(
         ProfileError,
-        match="Candidate Ranking_0 must not share name with"
-        " ranking columns: Ranking_i.",
+        match="Ranking_0 is a name reserved for ranking columns, it cannot be used as a candidate"
+        " name.",
     ):
         RankProfile(
             ballots=(RankBallot(ranking=(frozenset({"Ranking_0"}), frozenset())),),
