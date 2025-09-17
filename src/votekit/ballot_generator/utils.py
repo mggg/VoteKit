@@ -19,7 +19,8 @@ def sample_cohesion_ballot_types(
         cohesion_parameters_for_bloc (Mapping[str, Union[float, int]]):
 
     Returns:
-        list[list[str]]:
+        list[list[str]]: A list of lists, where each list contains the bloc names in the order
+            they appear on the ballot.
     """
     candidates = list(it.chain.from_iterable(slate_to_non_zero_candidates.values()))
 
