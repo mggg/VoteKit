@@ -29,8 +29,12 @@ _original_formatwarning = warnings.formatwarning
 
 
 def _config_warning_format(
-    message, category, filename, lineno, line=None
-):  # pragma: no cover
+    message: Union[Warning, str],
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    line: Optional[str] = None,
+) -> str:  # pragma: no cover
     if issubclass(category, ConfigurationWarning):
         return f"{category.__name__}: {message}\n"
     return _original_formatwarning(message, category, filename, lineno, line)
@@ -171,9 +175,9 @@ def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
     if isinstance(params, pd.DataFrame):
         df = params
         if not all(isinstance(c, str) for c in df.columns):
-            raise TypeError("cohesion_df index (blocs) must be a 'str'.")
+            raise TypeError("cohesion_df columns (blocs) must be a 'str'.")
         if not all(isinstance(i, str) for i in df.index):
-            raise TypeError("cohesion_df columns (slates) must be a 'str'.")
+            raise TypeError("cohesion_df index (slates) must be a 'str'.")
         if not all(pd.api.types.is_float_dtype(dt) for dt in df.dtypes):
             raise TypeError("cohesion_df must have float dtypes in every column.")
         if not np.isfinite(df.to_numpy()).all():
@@ -237,7 +241,7 @@ def convert_cohesion_map_to_cohesion_df(
     blocs_to_slate: MutableMapping[str, MutableMapping[str, float]] = {
         bloc: {} for bloc in cohesion_map
     }
-    # TODO: Allow for mutable mapping or series
+
     for bloc, slate_dict in cohesion_map.items():
         slate_series = pd.Series(slate_dict)
         blocs_to_slate[bloc].update(slate_series.to_dict())
@@ -261,9 +265,9 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
     if isinstance(pref_mapping, pd.DataFrame):
         df = pref_mapping
         if not all(isinstance(c, str) for c in df.columns):
-            raise TypeError("preference_df index (candidates) must be a 'str'.")
+            raise TypeError("preference_df columns (candidates) must be a 'str'.")
         if not all(isinstance(i, str) for i in df.index):
-            raise TypeError("preference_df columns (blocs) must be a 'str'.")
+            raise TypeError("preference_df index (blocs) must be a 'str'.")
         if not all(pd.api.types.is_numeric_dtype(dt) for dt in df.dtypes):
             raise TypeError("preference_df columns must be numeric.")
         if not np.isfinite(df.to_numpy()).all():
@@ -387,7 +391,7 @@ class _CandListProxy(MutableSequence[str]):
         self.__owner = owner
         self.__key = key
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__owner._data[self.__key])
 
     @overload
@@ -410,7 +414,12 @@ class _CandListProxy(MutableSequence[str]):
 
     def __setitem__(self, i: Union[int, slice], v: Union[str, Iterable[str]]) -> None:
         new = list(self.__owner._data[self.__key])
-        new[i] = str(v)
+        if isinstance(i, slice):  # pragma: no cover
+            if isinstance(v, (str, bytes)) or not isinstance(v, Iterable):
+                raise TypeError("Slice assignment requires an iterable of str")
+            new[i] = [str(x) for x in v]
+        else:
+            new[i] = str(v)
         self.__owner[self.__key] = new
 
     @overload
@@ -449,7 +458,7 @@ class _CandListProxy(MutableSequence[str]):
             self.__owner[self.__key] = rollback
             raise e
 
-    def __iadd__(self, it: Iterable[str]):
+    def __iadd__(self, it: Iterable[str]) -> "_CandListProxy":
         self.extend(it)
         return self
 
@@ -474,7 +483,7 @@ class _CandListProxy(MutableSequence[str]):
 
         return True
 
-    def __repr__(self):  # pragma: no cover
+    def __repr__(self) -> str:  # pragma: no cover
         return str(self._current())
 
 
@@ -499,7 +508,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         self,
         parent: "BlocSlateConfig",
         init: Optional[Mapping[str, Sequence[str]]] = None,
-    ):
+    ) -> None:
         try:
             self.__parent = weakref.proxy(parent)
         except TypeError:
@@ -521,7 +530,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
                     "does not implement the '.items()' method."
                 ) from e
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, list[str]]:
         """
         Return a deep copy of the internal slate to candidates mapping as a standard dict.
 
@@ -552,6 +561,9 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
             set(self._data.get(key, ()))
         ):
             rollback = self._data.get(key, None)
+            rollback_slate_dict = (
+                self.__parent._current_preference_df_slate_cand_mapping
+            )
             self._data[key] = val_list
             try:
                 self.__parent._update_preference_and_cohesion_slates()
@@ -560,6 +572,10 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
                     del self._data[key]
                 else:
                     self._data[key] = rollback
+
+                self.__parent._current_preference_df_slate_cand_mapping = (
+                    rollback_slate_dict
+                )
                 raise KeyError(
                     f"{e.args[0]}. "
                     "You may have tried to modify the candidate list directly. "
@@ -583,11 +599,14 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
     def __delitem__(self, key: str) -> None:
         del self._data[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[str]:
         return iter(self._data)
 
     def __len__(self) -> int:
         return len(self._data)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._data
 
     def update(self, other=(), /, **kw) -> None:
         items = (
@@ -598,23 +617,23 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         for k, v in items:
             self[k] = v  # route through __setitem__
 
-    def __or__(self, other: Mapping[str, Sequence[str]]):
+    def __or__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
         new = SlateCandMap(self.__parent, self._data)
         new.update(other)
         return new
 
-    def __ror__(self, other: Mapping[str, Sequence[str]]):
+    def __ror__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
         full_map = dict(other) | self._data.copy()
         return SlateCandMap(self.__parent, full_map)
 
-    def __ior__(self, other: Mapping[str, Sequence[str]]):
+    def __ior__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
         self.update(other)
         return self
 
-    def __repr__(self):  # pragma: no cover
+    def __repr__(self) -> str:  # pragma: no cover
         return pformat(self._data, indent=2, width=40, sort_dicts=False, compact=True)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, MutableMapping):
             return False
 
@@ -643,7 +662,6 @@ class BlocProportions(MutableMapping[str, float]):
     Mapping[str, float] that enforces bloc proportion rules:
     - Each bloc must have a non-negative proportion
     - The proportions must sum to 1
-    - Allows item assignment with warnings if proportions do not sum to 1
 
     Args:
         parent (BlocSlateConfig): The owning BlocSlateConfig.
@@ -657,7 +675,7 @@ class BlocProportions(MutableMapping[str, float]):
         self,
         parent: "BlocSlateConfig",
         init: Optional[BlocPropotionMapping] = None,
-    ):
+    ) -> None:
         self.__parent = weakref.proxy(parent)
         self.__data: dict[str, float] = {}
 
@@ -707,13 +725,13 @@ class BlocProportions(MutableMapping[str, float]):
             self.__data[key] = rollback
             raise e
 
-    def __iter__(self):  # pragma: no cover
+    def __iter__(self) -> Iterable[str]:  # pragma: no cover
         return iter(self.__data)
 
     def __len__(self) -> int:
         return len(self.__data)
 
-    def __repr__(self):  # pragma: no cover
+    def __repr__(self) -> str:  # pragma: no cover
         return pformat(self.__data, indent=2, width=40, sort_dicts=False, compact=True)
 
     def to_series(self) -> pd.Series:
@@ -756,7 +774,7 @@ class BlocSlateConfig:
             for every slate defined in slate_to_candidates, and no candidate may appear in more
             than one slate. The scores for each bloc and slate must be non-negative and sum to 1.
             If None, defaults to an empty mapping.
-        cohesion_parameters (Optional[CohesionMapping]): A mapping of voter bloc names to
+        cohesion_mapping (Optional[CohesionMapping]): A mapping of voter bloc names to
             mappings of slate names to their cohesion parameters. The cohesion parameters must be
             non-negative and sum to 1 for each bloc. If None, defaults to an empty mapping.
         silent (bool): If True, suppresses warnings about configuration issues. Defaults to False.
@@ -793,6 +811,7 @@ class BlocSlateConfig:
         "silent",
         "__alphas",
         "__clear_alpha_bool",
+        "_current_preference_df_slate_cand_mapping",
         "__weakref__",
     )
     n_voters: int
@@ -806,6 +825,10 @@ class BlocSlateConfig:
     # Similar to mutex so are warned about what is writing to preference_df
     __clear_alpha_bool: bool
 
+    # Something to help make sure that the preference_df is updated correctly when the candidates
+    # or slates change
+    _current_preference_df_slate_cand_mapping: Optional[dict[str, list[str]]]
+
     def __init__(
         self,
         *,
@@ -815,10 +838,12 @@ class BlocSlateConfig:
         preference_mapping: Optional[PreferenceMapping] = None,
         cohesion_mapping: Optional[CohesionMapping] = None,
         silent: bool = False,
-    ):
+    ) -> None:
         object.__setattr__(self, "silent", silent)
 
         object.__setattr__(self, "_BlocSlateConfig__clear_alpha_bool", True)
+
+        object.__setattr__(self, "_current_preference_df_slate_cand_mapping", None)
 
         self.__validate_voters(n_voters)
         object.__setattr__(self, "n_voters", n_voters)
@@ -842,8 +867,8 @@ class BlocSlateConfig:
         else:
             self.__validate_cohesion_df_mapping_keys_ok_in_config(cohesion_mapping)
             cohesion_df = convert_cohesion_map_to_cohesion_df(cohesion_mapping)
-
         object.__setattr__(self, "cohesion_df", cohesion_df)
+
         if preference_mapping is None or (
             isinstance(preference_mapping, pd.DataFrame) and preference_mapping.empty
         ):
@@ -1225,10 +1250,10 @@ class BlocSlateConfig:
         """
         Update the preference DataFrame when candidates change in slate_to_candidates.
         """
-        current_cands = set(self.preference_df.columns)
-        config_cands = set(self.candidates)
+        current_slate_cand_dict = self.slate_to_candidates.to_dict()
+        curr_pref_df_slate_cands_dict = self._current_preference_df_slate_cand_mapping
 
-        if current_cands == config_cands:
+        if current_slate_cand_dict == curr_pref_df_slate_cands_dict:
             return
 
         if self.preference_df.empty:
@@ -1241,15 +1266,33 @@ class BlocSlateConfig:
             )
             return
 
+        slate_cand_list_pairs: list[tuple[str, list[str]]]
+        if curr_pref_df_slate_cands_dict is None:
+            slate_cand_list_pairs = list()
+        else:
+            slate_cand_list_pairs = list(current_slate_cand_dict.items())
+
+        drop_set = set()
+        for slate, current_cand_list in slate_cand_list_pairs:
+            if slate not in current_slate_cand_dict:  # pragma: no cover
+                drop_set.update(set(current_cand_list))
+            else:
+                drop_set.update(
+                    set(current_cand_list) - set(current_slate_cand_dict.get(slate, []))
+                )
+
         # Remove candidates that are no longer in the config
-        drop_list = list(current_cands - config_cands)
-        if len(drop_list) > 0:
+        drop_list = list(drop_set)
+        if len(drop_list) > 0:  # pragma: no cover
             self.preference_df.drop(columns=drop_list, inplace=True)
 
+        pref_df_cands = set(self.preference_df.columns)
+        current_cands = set(self.candidates)
         # Add new candidates with default -1.0 values
-        for c in config_cands - current_cands:
+        for c in current_cands - pref_df_cands:
             self.preference_df[c] = -1.0
 
+        self._current_preference_df_slate_cand_mapping = current_slate_cand_dict
         # Reorder columns to match config order
         self.preference_df = self.preference_df[self.candidates]
 
@@ -1274,12 +1317,12 @@ class BlocSlateConfig:
             return
 
         # Remove slates that are no longer in the config
-        for s in current_slates - config_slates:
-            self.cohesion_df = self.cohesion_df.drop(columns=s)
+        self.cohesion_df.drop(
+            columns=list(current_slates - config_slates), inplace=True
+        )
 
         # Add new slates with default -1.0 values
-        for s in config_slates - current_slates:
-            self.cohesion_df[s] = -1.0
+        self.cohesion_df[list(config_slates - current_slates)] = -1.0
 
         # Reorder columns to match config order
         self.cohesion_df = self.cohesion_df[self.slates]
@@ -1305,12 +1348,10 @@ class BlocSlateConfig:
             return
 
         # Remove blocs that are no longer in the config
-        for b in current_blocs - config_blocs:
-            self.preference_df = self.preference_df.drop(index=b)
+        self.preference_df.drop(index=list(current_blocs - config_blocs), inplace=True)
 
         # Add new blocs with default -1.0 values
-        for b in config_blocs - current_blocs:
-            self.preference_df.loc[b] = -1.0
+        self.preference_df.loc[list(config_blocs - current_blocs)] = -1.0
 
         # Reorder rows to match config order
         self.preference_df = self.preference_df.loc[self.blocs]
@@ -1336,12 +1377,10 @@ class BlocSlateConfig:
             return
 
         # Remove blocs that are no longer in the config
-        for b in current_blocs - config_blocs:
-            self.cohesion_df = self.cohesion_df.drop(index=b)
+        self.cohesion_df.drop(index=list(current_blocs - config_blocs), inplace=True)
 
         # Add new blocs with default -1.0 values
-        for b in config_blocs - current_blocs:
-            self.cohesion_df.loc[b] = -1.0
+        self.cohesion_df.loc[list(config_blocs - current_blocs)] = -1.0
 
         # Reorder rows to match config order
         self.cohesion_df = self.cohesion_df.loc[self.blocs]
@@ -1392,17 +1431,16 @@ class BlocSlateConfig:
             case "preference_df":
                 self.__validate_pref_df_mapping_keys_ok_in_config(value)
                 value = convert_preference_map_to_preference_df(value)
-                if not value.empty:
-                    value = value[self.candidates]
                 object.__setattr__(self, name, value)
+
                 if self.__clear_alpha_bool:
                     self.__alphas = None
-
-                self.__clear_alpha_bool = True
-
                 if not value.empty:
                     self.__update_preference_df_on_candidate_change()
                     self.__update_preference_df_on_bloc_change()
+
+                # must come after update
+                self.__clear_alpha_bool = True
 
             case "cohesion_df":
                 self.__validate_cohesion_df_mapping_keys_ok_in_config(value)
@@ -1419,6 +1457,9 @@ class BlocSlateConfig:
                 object.__setattr__(self, name, value)
 
             case "_BlocSlateConfig__clear_alpha_bool":
+                object.__setattr__(self, name, value)
+
+            case "_current_preference_df_slate_cand_mapping":
                 object.__setattr__(self, name, value)
 
             case "silent":  # pragma: no cover
@@ -1445,19 +1486,26 @@ class BlocSlateConfig:
     # ============
 
     def get_preference_interval_for_bloc_and_slate(
-        self, bloc: str, slate: str
+        self, bloc_name: str, slate_name: str
     ) -> PreferenceInterval:
         """
-        Get the preference interval for a given bloc.
+        Get the preference interval for a given bloc and slate.
+
+        Args:
+            bloc (str): The name of the voter bloc.
+            slate (str): The name of the slate.
+
+        Returns:
+            PreferenceInterval: The preference interval for the given bloc and slate.
         """
         # Check to make sure the slate preference intervals are set
         for bloc in self.blocs:
-            if slate not in self.slate_to_candidates:
+            if slate_name not in self.slate_to_candidates:
                 raise KeyError(
-                    f"Slate '{slate}' not found in slate_to_candidates. "
+                    f"Slate '{slate_name}' not found in slate_to_candidates. "
                     f"Available slates: {self.slates}"
                 )
-            cand_list = list(self.slate_to_candidates[slate])
+            cand_list = list(self.slate_to_candidates[slate_name])
             if bloc not in self.preference_df.index:
                 raise KeyError(
                     f"Bloc '{bloc}' not found in preference_df index. "
@@ -1465,29 +1513,42 @@ class BlocSlateConfig:
                 )
             if any(self.preference_df[cand_list].loc[bloc] < 0):
                 raise ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate}' has "
+                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
                     f"candidates {cand_list} that have not been set (indicated with "
                     f"value of -1)."
                 )
             if abs(self.preference_df[cand_list].loc[bloc].sum() - 1.0) > 1e-8:
                 raise ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate}' must "
+                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
                     f"sum to 1, got {self.preference_df[cand_list].loc[bloc].sum():.6f}"
                 )
 
         return PreferenceInterval(
             {
-                c: float(self.preference_df[c].loc[bloc])
-                for c in self.slate_to_candidates[slate]
+                c: float(self.preference_df[c].loc[bloc_name])
+                for c in self.slate_to_candidates[slate_name]
             }
         )
 
-    def get_perference_intervals_by_bloc(self) -> dict[str, PreferenceInterval]:
+    def get_combined_preference_intervals_by_bloc(
+        self,
+    ) -> dict[str, PreferenceInterval]:
+        """
+        Get the combined preference intervals for each bloc across all slates.
+
+        The combined preference interval for a bloc is computed by combining the
+        preference intervals for each slate, weighted by the bloc's cohesion
+        parameters for each slate.
+
+        Returns:
+            dict[str, PreferenceInterval]: A mapping of bloc names to their combined
+                preference intervals.
+        """
         return {
             bloc: combine_preference_intervals(
                 [
                     self.get_preference_interval_for_bloc_and_slate(
-                        bloc=bloc, slate=slate
+                        bloc_name=bloc, slate_name=slate
                     )
                     for slate in self.slates
                 ],
@@ -1565,19 +1626,27 @@ class BlocSlateConfig:
         if slate in self.slates:
             raise ValueError(f"Slate '{slate}' already present in configuration.")
 
+        if not isinstance(cast(object, slate_candidate_list), Sequence):
+            raise TypeError("slate_candidate_list must be a sequence of str.")
+
         if set(slate_candidate_list).intersection(set(self.candidates)) != set():
             raise ValueError(
                 "Some candidates in the slate are already present in configuration."
             )
+
         if slate_candidate_list == []:
             raise ValueError("Slate candidate list cannot be empty.")
+
+        if len(slate_candidate_list) != len(set(slate_candidate_list)):
+            raise ValueError(
+                "slate_candidate_list cannot contain duplicate candidates."
+            )
 
         new_candidate_list = []
         for cand in slate_candidate_list:
             if not isinstance(cast(object, cand), str):
                 raise TypeError("Slate candidates must be a 'str'")
-            if cand not in new_candidate_list:
-                new_candidate_list.append(cand)
+            new_candidate_list.append(cand)
 
         self.slate_to_candidates[slate] = new_candidate_list
 
@@ -1595,7 +1664,7 @@ class BlocSlateConfig:
             slate (str): Name of the slate to remove.
         """
         if slate not in self.slates:
-            return
+            raise KeyError(f"Slate '{slate}' not found in configuration.")
 
         del self.slate_to_candidates[slate]
 
@@ -1673,7 +1742,6 @@ class BlocSlateConfig:
                     f"Candidate mapping key '{old_cand}' not present in configuration."
                 )
 
-        self.preference_df.rename(columns=candidate_mapping, inplace=True)
         new_slate_to_candidates: dict[str, list[str]] = {}
         full_new_candidate_list: list[str] = []
         for slate, clist in self.slate_to_candidates.items():
@@ -1686,6 +1754,7 @@ class BlocSlateConfig:
         if len(full_new_candidate_list) != len(set(full_new_candidate_list)):
             raise ValueError("Candidate mapping results in duplicate candidate names.")
 
+        self.preference_df.rename(columns=candidate_mapping, inplace=True)
         self.slate_to_candidates = SlateCandMap(self, new_slate_to_candidates)
 
     # ===================
@@ -1723,6 +1792,8 @@ class BlocSlateConfig:
                 )
             if not np.isfinite(df.to_numpy()).all():
                 raise ValueError("Dirichlet alphas contains non-finite values.")
+            if not (df.to_numpy() > 0).all():
+                raise ValueError("Dirichlet alphas must be positive finite reals.")
             if set(df.index) != all_blocs:
                 raise ValueError(
                     f"Dirichlet alphas must have exactly the blocs {all_blocs}, "
@@ -1775,18 +1846,17 @@ class BlocSlateConfig:
                         f"finite real, got '{v!r}'"
                     )
 
-    # block slate alpha values
     def set_dirichlet_alphas(
-        self, alphas: Mapping[str, Mapping[str, Union[float, int]]]
-    ):
+        self, alphas: Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame]
+    ) -> None:
         """
         Set the Dirichlet alphas for the configuration and resample the preference intervals.
 
         Args:
-            alphas (Mapping[str, Mapping[str, Union[float, int]]]): A mapping of bloc names
-                to mappings of slate names to their Dirichlet alpha values. Each bloc must
-                have a mapping for every slate defined in slate_to_candidates. All alpha values
-                must be positive finite reals.
+            alphas (Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame]): A mapping
+                of bloc names to mappings of slate names to their Dirichlet alpha values. Each bloc
+                must have a mapping for every slate defined in slate_to_candidates. All alpha
+                values must be positive finite reals.
 
         Raises:
             ConfigurationWarning: If preference intervals have already been set without
@@ -1805,11 +1875,14 @@ class BlocSlateConfig:
                 warn(warning_msg, ConfigurationWarning)
 
         self.__keycheck_dirichlet_alphas(alphas)
-        self.__alphas = pd.DataFrame(alphas).astype(float).T
+        if isinstance(alphas, Mapping):
+            self.__alphas = pd.DataFrame(alphas).astype(float).T
+        else:
+            self.__alphas = alphas.copy().astype(float)
         self.__clear_alpha_bool = False
         self.resample_preference_intervals_from_dirichlet_alphas()
 
-    def clear_dirichlet_alphas(self):
+    def clear_dirichlet_alphas(self) -> None:
         """
         Remove the Dirichlet alphas from the configuration.
         """
@@ -1828,7 +1901,7 @@ class BlocSlateConfig:
 
     def resample_preference_intervals_from_dirichlet_alphas(
         self,
-    ):
+    ) -> None:
         """
         Resample the preference intervals for each bloc from the current Dirichlet alphas.
 
@@ -1847,10 +1920,11 @@ class BlocSlateConfig:
                     alpha=float(self.__alphas[slate].loc[bloc]),
                 )
             preference_dict[bloc] = slate_intervals
-        self.preference_df = convert_preference_map_to_preference_df(preference_dict)
+        preference_df = convert_preference_map_to_preference_df(preference_dict)
+        self.preference_df = preference_df
         self.__clear_alpha_bool = True
 
-    def copy(self):
+    def copy(self) -> "BlocSlateConfig":
         """
         Create a deep copy of the current configuration.
 
@@ -1865,6 +1939,8 @@ class BlocSlateConfig:
             silent=self.silent,
         )
 
+        # Cannot put the preference_df in the constructor because there could
+        # be -1 value in it which will be overwritten by the constructor logic
         new_config.preference_df = self.preference_df.copy()
 
         new_config._BlocSlateConfig__alphas = (
@@ -1873,7 +1949,7 @@ class BlocSlateConfig:
         new_config._BlocSlateConfig__clear_alpha_bool = self.__clear_alpha_bool
         return new_config
 
-    def __repr__(self):  # pragma: no cover
+    def __repr__(self) -> str:  # pragma: no cover
         def _block(title: str, body: str) -> str:
             # indent non-empty lines
             return f"{title}:\n{indent(body, '    ', lambda message: message.strip() != '')}"

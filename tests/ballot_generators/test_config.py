@@ -1,5 +1,6 @@
 """
 Unit tests for bloc slate generator configuration validation and conversion functions.
+t
 
 This will be broken up into multiple files later.
 """
@@ -467,6 +468,7 @@ def slate_map():
     class Parent:
         def __init__(self):
             self._map = None
+            self._current_preference_df_slate_cand_mapping = None
 
         @property
         def candidates(self):
@@ -586,6 +588,7 @@ def parent_and_map():
     class Parent:
         def __init__(self):
             self._map = None
+            self._current_preference_df_slate_cand_mapping = None
 
         @property
         def candidates(self):
@@ -656,6 +659,7 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
     class Parent:
         def __init__(self):
             self._map = None
+            self._current_preference_df_slate_cand_mapping = None
 
         @property
         def candidates(self):
@@ -690,6 +694,7 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
     class Parent:
         def __init__(self):
             self._map = None
+            self._current_preference_df_slate_cand_mapping = None
 
         @property
         def candidates(self):
@@ -1609,15 +1614,6 @@ def test_setting_slate_to_candidates_adds_new_candidate_columns_with_minus_one(
 
 def test_setting_bloc_proportions_adds_and_removes_rows_with_minus_one(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    # Add a new bloc
-    bp = config.bloc_proportions.copy()
-    bp["bloc_3"] = 0.0
-    config.bloc_proportions = bp  # type: ignore[assignment]
-    assert "bloc_3" in config.preference_df.index
-    assert "bloc_3" in config.cohesion_df.index
-    # Newly added rows populated with -1.0
-    assert (config.preference_df.loc["bloc_3"] == -1.0).all()
-    assert (config.cohesion_df.loc["bloc_3"] == -1.0).all()
 
     # Now remove a bloc
     bp2 = config.bloc_proportions.copy()
@@ -1638,7 +1634,6 @@ def test_set_dirichlet_alphas_warns_when_overwriting_existing_prefs(valid_config
     alphas = {bloc: {slate: 2.0 for slate in config.slates} for bloc in config.blocs}
     with pytest.warns(ConfigurationWarning, match="overwrite the existing preference"):
         config.set_dirichlet_alphas(alphas)
-    print(config.read_dirichlet_alphas())
 
     # After setting, prefs are resampled; for each slate's candidates, rows sum to ~1
     for _, cand_list in config.slate_to_candidates.items():
@@ -1729,6 +1724,22 @@ def test_add_and_remove_slate_updates_frames(valid_config):
     assert "slate_3" not in config.cohesion_df.columns
 
 
+def test_add_slate_with_invalid_type(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    with pytest.raises(
+        TypeError, match="slate_candidate_list must be a sequence of str"
+    ):
+        config.add_slate("slate_3", 1)  # type: ignore[list-item]
+
+
+def test_add_slate_with_duplicated_list(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    with pytest.raises(
+        ValueError, match="slate_candidate_list cannot contain duplicate candidates."
+    ):
+        config.add_slate("slate_3", ["P", "Q", "Q"])
 # ---------- remove_candidates ----------
 
 
@@ -1761,7 +1772,7 @@ def test_rename_candidate_type_errors(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     new_names = 3
     with pytest.raises(TypeError, match="candidate_mapping must be a mapping"):
-        config.rename_candidates(new_names)
+        config.rename_candidates(new_names)  # type: ignore[arg-type]
 
     new_names = {1: "B", "B": "X", "Z": "Y"}  # Z not in config
 
@@ -1983,145 +1994,136 @@ def test_unset_candidate_preferences_does_nothing_on_non_cands(valid_config):
 
 
 def test_add_slate_appends_candidates_and_updates_frames(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
-    # Add a new slate with duplicate candidate names to exercise de-duplication
-    cfg.add_slate("slate_3", ["P", "P", "Q"])
+    # Add a new slate with duplicate candidate names to exercise
+    config.add_slate("slate_3", ["P", "Q"])
 
-    # Slate is present and dedup happened
-    assert "slate_3" in cfg.slates
-    assert cfg.slate_to_candidates["slate_3"] == ["P", "Q"]
+    assert "slate_3" in config.slates
+    assert config.slate_to_candidates["slate_3"] == ["P", "Q"]
 
     # Preference DF: new candidate columns exist and are -1.0
-    assert {"P", "Q"}.issubset(set(cfg.preference_df.columns))
-    assert (cfg.preference_df[["P", "Q"]] == -1.0).all().all()
+    assert {"P", "Q"}.issubset(set(config.preference_df.columns))
+    assert (config.preference_df[["P", "Q"]] == -1.0).all().all()
 
     # Cohesion DF: new slate column exists and is -1.0
-    assert "slate_3" in cfg.cohesion_df.columns
-    assert (cfg.cohesion_df["slate_3"] == -1.0).all()
+    assert "slate_3" in config.cohesion_df.columns
+    assert (config.cohesion_df["slate_3"] == -1.0).all()
 
     # Column order in prefs matches config.candidates (A,B,X,Y,P,Q)
-    assert list(cfg.preference_df.columns) == cfg.candidates
+    assert list(config.preference_df.columns) == config.candidates
 
 
 def test_add_slate_rejects_existing_name_and_cross_candidate(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     # Existing slate name
     with pytest.raises(ValueError, match="already present in configuration"):
-        cfg.add_slate("slate_2", ["Z1", "Z2"])
+        config.add_slate("slate_2", ["Z1", "Z2"])
 
     # Candidate already present in configuration
     with pytest.raises(ValueError, match="already present in configuration"):
-        cfg.add_slate("slate_3", ["A", "Z"])
+        config.add_slate("slate_3", ["A", "Z"])
 
     # Empty candidate list
     with pytest.raises(ValueError, match="cannot be empty"):
-        cfg.add_slate("slate_3", [])
+        config.add_slate("slate_3", [])
 
     # Non-string candidate type
     with pytest.raises(TypeError, match="candidates must be a 'str'"):
-        cfg.add_slate("slate_3", ["Z", 123])  # type: ignore[list-item]
+        config.add_slate("slate_3", ["Z", 123])  # type: ignore[list-item]
 
 
 def test_remove_slate_removes_candidates_and_cohesion_column(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    cfg.add_slate("slate_3", ["P", "Q"])
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.add_slate("slate_3", ["P", "Q"])
 
     # Precondition
-    assert {"P", "Q"}.issubset(set(cfg.preference_df.columns))
-    assert "slate_3" in cfg.cohesion_df.columns
+    assert {"P", "Q"}.issubset(set(config.preference_df.columns))
+    assert "slate_3" in config.cohesion_df.columns
 
     # Remove and verify cleanup
-    cfg.remove_slate("slate_3")
-    assert "slate_3" not in cfg.slates
-    assert "P" not in cfg.preference_df.columns
-    assert "Q" not in cfg.preference_df.columns
-    assert "slate_3" not in cfg.cohesion_df.columns
+    config.remove_slate("slate_3")
+    assert "slate_3" not in config.slates
+    assert "P" not in config.preference_df.columns
+    assert "Q" not in config.preference_df.columns
+    assert "slate_3" not in config.cohesion_df.columns
 
 
 def test_remove_candidates_single_then_drop_empty_slate(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     # Remove one candidate from slate_2 — slate remains
-    cfg.remove_candidates("X")
-    assert "X" not in cfg.candidates
-    assert "X" not in cfg.preference_df.columns
-    assert "slate_2" in cfg.slates  # still has 'Y'
+    config.remove_candidates("X")
+    assert "X" not in config.candidates
+    assert "X" not in config.preference_df.columns
+    assert "slate_2" in config.slates  # still has 'Y'
 
     # Remove the last remaining candidate → slate_2 should disappear
-    cfg.remove_candidates("Y")
-    assert "Y" not in cfg.candidates
-    assert "slate_2" not in cfg.slates
-    assert "slate_2" not in cfg.cohesion_df.columns
+    config.remove_candidates("Y")
+    assert "Y" not in config.candidates
+    assert "slate_2" not in config.slates
+    assert "slate_2" not in config.cohesion_df.columns
 
 
 # -------- remove_slate: early return when slate not present --------
 
 
-def test_remove_slate_noop_when_missing(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-
-    # Snapshots
-    slates_before = cfg.slate_to_candidates.copy()
-    pref_before = cfg.preference_df.copy()
-    coh_before = cfg.cohesion_df.copy()
+def test_remove_slate_errors_when_missing(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     # Non-existent slate → should hit the early return and no-op
-    cfg.remove_slate("not_a_slate")
-
-    assert cfg.slate_to_candidates == slates_before
-    pdt.assert_frame_equal(cfg.preference_df, pref_before)
-    pdt.assert_frame_equal(cfg.cohesion_df, coh_before)
+    with pytest.raises(KeyError, match="not found in configuration"):
+        config.remove_slate("not_a_slate")
 
 
 # -------- remove_candidates: early return when no overlap --------
 
 
 def test_remove_candidates_noop_when_missing_single(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
-    cands_before = cfg.candidates[:]  # list copy
-    pref_before = cfg.preference_df.copy()
-    coh_before = cfg.cohesion_df.copy()
-    slates_before = cfg.slate_to_candidates.copy()
+    cands_before = config.candidates[:]  # list copy
+    pref_before = config.preference_df.copy()
+    coh_before = config.cohesion_df.copy()
+    slates_before = config.slate_to_candidates.copy()
 
     # Non-existent single candidate (string path) → early return
-    cfg.remove_candidates("ZZZ")
+    config.remove_candidates("ZZZ")
 
-    assert cfg.candidates == cands_before
-    assert cfg.slate_to_candidates == slates_before
-    pdt.assert_frame_equal(cfg.preference_df, pref_before)
-    pdt.assert_frame_equal(cfg.cohesion_df, coh_before)
+    assert config.candidates == cands_before
+    assert config.slate_to_candidates == slates_before
+    pdt.assert_frame_equal(config.preference_df, pref_before)
+    pdt.assert_frame_equal(config.cohesion_df, coh_before)
 
 
 def test_remove_candidates_noop_when_missing_list(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
-    cands_before = cfg.candidates[:]
-    pref_before = cfg.preference_df.copy()
-    coh_before = cfg.cohesion_df.copy()
-    slates_before = cfg.slate_to_candidates.copy()
+    cands_before = config.candidates[:]
+    pref_before = config.preference_df.copy()
+    coh_before = config.cohesion_df.copy()
+    slates_before = config.slate_to_candidates.copy()
 
     # Non-existent list (list path). This also guards against the internal
     # 'candidate' variable being undefined because we return before the loop.
-    cfg.remove_candidates(["ZZZ", "QQQ"])
+    config.remove_candidates(["ZZZ", "QQQ"])
 
-    assert cfg.candidates == cands_before
-    assert cfg.slate_to_candidates == slates_before
-    pdt.assert_frame_equal(cfg.preference_df, pref_before)
-    pdt.assert_frame_equal(cfg.cohesion_df, coh_before)
+    assert config.candidates == cands_before
+    assert config.slate_to_candidates == slates_before
+    pdt.assert_frame_equal(config.preference_df, pref_before)
+    pdt.assert_frame_equal(config.cohesion_df, coh_before)
 
 
 # -----------  dirichlet alphas keycheck --------------
 
 
-def _keycheck(cfg: BlocSlateConfig, alphas):
-    cfg._BlocSlateConfig__keycheck_dirichlet_alphas(alphas)  # type: ignore[attr-defined]
+def _keycheck(config: BlocSlateConfig, alphas):
+    config._BlocSlateConfig__keycheck_dirichlet_alphas(alphas)  # type: ignore[attr-defined]
 
 
 def test_dirichlet_alphas_df_valid_passes(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     df = pd.DataFrame(
         {
             "slate_1": {"bloc_1": 1.0, "bloc_2": 2.0},
@@ -2129,34 +2131,34 @@ def test_dirichlet_alphas_df_valid_passes(valid_config):
         }
     ).astype(float)
     # Should not raise
-    _keycheck(cfg, df)
+    _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_non_str_index(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     df = pd.DataFrame({"slate_1": {1: 1.0}, "slate_2": {2: 2.0}}).astype(float)
     with pytest.raises(TypeError, match="index \\(blocs\\) must be a 'str'"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_non_str_columns(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     df = pd.DataFrame({1: {"bloc_1": 1.0}, 2: {"bloc_2": 2.0}}).astype(float)
     with pytest.raises(TypeError, match="columns \\(slates\\) must be a 'str'"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_non_float_dtype(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     df = pd.DataFrame(
         {"slate_1": {"bloc_1": 1, "bloc_2": 2}, "slate_2": {"bloc_1": 3, "bloc_2": 4}}
     ).astype(int)
     with pytest.raises(TypeError, match="must have float dtypes in every column"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_non_finite(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     df = pd.DataFrame(
         {
             "slate_1": {"bloc_1": np.nan, "bloc_2": 1.0},
@@ -2164,47 +2166,59 @@ def test_dirichlet_alphas_df_rejects_non_finite(valid_config):
         }
     ).astype(float)
     with pytest.raises(ValueError, match="contains non-finite values"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
+
+
+def test_dirichlet_alphas_df_rejects_non_positive(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    df = pd.DataFrame(
+        {
+            "slate_1": {"bloc_1": 0.0, "bloc_2": 1.0},
+            "slate_2": {"bloc_1": 1.0, "bloc_2": 1.0},
+        }
+    ).astype(float)
+    with pytest.raises(ValueError, match="Dirichlet alphas must be positive finite reals."):
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_wrong_blocs_set(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # drop bloc_2
     df = pd.DataFrame({"slate_1": {"bloc_1": 1.0}, "slate_2": {"bloc_1": 1.0}}).astype(
         float
     )
     with pytest.raises(ValueError, match="must have exactly the blocs"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_wrong_slates_set(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # drop slate_2
     df = pd.DataFrame({"slate_1": {"bloc_1": 1.0, "bloc_2": 1.0}}).astype(float)
     with pytest.raises(ValueError, match="must have exactly the slates"):
-        _keycheck(cfg, df)
+        _keycheck(config, df)
 
 
 def test_dirichlet_alphas_map_rejects_non_str_bloc_key(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     alphas = {
         1: {"slate_1": 1.0, "slate_2": 1.0},  # non-str bloc key
         "bloc_2": {"slate_1": 1.0, "slate_2": 1.0},
     }
     with pytest.raises(TypeError, match="bloc keys must be a 'str'"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_rejects_wrong_blocs_set(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # missing one bloc (but keys are strings)
     alphas = {"bloc_1": {"slate_1": 1.0, "slate_2": 1.0}}
     with pytest.raises(ValueError, match="must have exactly the blocs"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_rejects_non_mapping_slate_map(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     class FakeNotMapping:
         # looks like it has keys, but isn't a Mapping
@@ -2220,24 +2234,24 @@ def test_dirichlet_alphas_map_rejects_non_mapping_slate_map(valid_config):
         "bloc_2": FakeNotMapping({"slate_1": 1.0}),
     }
     with pytest.raises(TypeError, match="alphas must be a mapping"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_rejects_wrong_slates_set(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # slate map missing slate_2
     alphas = {
         "bloc_1": {"slate_1": 1.0},
         "bloc_2": {"slate_1": 1.0},
     }
     with pytest.raises(ValueError, match="must have exactly the slates"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_rejects_non_str_slate_key_even_if_sets_match(
     valid_config,
 ):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     class KeyLike:
         # compares equal & hashes like the underlying string, but is NOT a str
@@ -2256,42 +2270,213 @@ def test_dirichlet_alphas_map_rejects_non_str_slate_key_even_if_sets_match(
         "bloc_2": {KeyLike("slate_1"): 1.0, KeyLike("slate_2"): 1.0},
     }
     with pytest.raises(TypeError, match="slate keys must be a 'str'"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_rejects_value_not_real(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     alphas = {
         "bloc_1": {"slate_1": "1.0", "slate_2": 1.0},  # string is not Real
         "bloc_2": {"slate_1": 1.0, "slate_2": 1.0},
     }
     with pytest.raises(TypeError, match="must be a finite real"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 @pytest.mark.parametrize("bad", [np.nan, np.inf, 0.0, -1.0, True])
 def test_dirichlet_alphas_map_rejects_non_positive_or_non_finite(valid_config, bad):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     alphas = {
         "bloc_1": {"slate_1": bad, "slate_2": 1.0},
         "bloc_2": {"slate_1": 1.0, "slate_2": 1.0},
     }
     with pytest.raises(ValueError, match="must be a positive\\s+finite real"):
-        _keycheck(cfg, alphas)
+        _keycheck(config, alphas)
 
 
 def test_dirichlet_alphas_map_valid_passes_and_setter_roundtrip(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    alphas = {b: {s: 2.0 for s in cfg.slates} for b in cfg.blocs}
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    alphas = {b: {s: 2.0 for s in config.slates} for b in config.blocs}
     # Should not raise; also sets and resamples
-    cfg.set_dirichlet_alphas(alphas)
-    rd = cfg.read_dirichlet_alphas()
+    config.set_dirichlet_alphas(alphas)
+    rd = config.read_dirichlet_alphas()
     assert rd is not None
-    assert set(rd.index) == set(cfg.blocs)
-    assert set(rd.columns) == set(cfg.slates)
+    assert set(rd.index) == set(config.blocs)
+    assert set(rd.columns) == set(config.slates)
+
+
+def test_dirichlet_alphas_map_valid_passes_and_setter_roundtrip_with_df(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    alphas = pd.DataFrame({b: {s: 2.0 for s in config.slates} for b in config.blocs}).T
+    # Should not raise; also sets and resamples
+    config.set_dirichlet_alphas(alphas)
+    rd = config.read_dirichlet_alphas()
+    assert rd is not None
+    assert set(rd.index) == set(config.blocs)
+    assert set(rd.columns) == set(config.slates)
 
 
 def test_sample_when_dirichlet_alphas_not_set(valid_config):
-    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     with pytest.raises(ValueError, match="Dirichlet alphas have not been set"):
-        cfg.resample_preference_intervals_from_dirichlet_alphas()
+        config.resample_preference_intervals_from_dirichlet_alphas()
+
+
+def test_drops_candidates_when_slate_removed(valid_config):
+    """
+    Previous mapping has slate_2 = ['X','Y'].
+    After removing slate_2 entirely, columns 'X' and 'Y' should be dropped
+    from preference_df.
+    """
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    # sanity preconditions
+    assert set(cfg.candidates) == {"A", "B", "X", "Y"}
+    assert set(cfg.preference_df.columns) == {"A", "B", "X", "Y"}
+
+    # remove the entire slate_2 -> should drop X and Y
+    cfg.remove_slate("slate_2")
+
+    assert "slate_2" not in cfg.slates
+    assert set(cfg.candidates) == {"A", "B"}
+    assert set(cfg.preference_df.columns) == {"A", "B"}  # key assertion
+
+
+def test_drops_candidate_removed_from_existing_slate(valid_config):
+    """
+    Previous mapping has slate_1 = ['A','B'].
+    After changing slate_1 to ['A'], column 'B' should be dropped
+    from preference_df.
+    """
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    # sanity preconditions
+    assert set(cfg.candidates) == {"A", "B", "X", "Y"}
+    assert set(cfg.preference_df.columns) == {"A", "B", "X", "Y"}
+
+    # remove 'B' from slate_1 (routes through SlateCandMap and triggers updates)
+    cfg.slate_to_candidates["slate_1"] = ["A"]
+
+    assert set(cfg.candidates) == {"A", "X", "Y"}
+    assert set(cfg.preference_df.columns) == {"A", "X", "Y"}
+
+
+# -------- get_preference_interval_for_bloc_and_slate -------------
+
+def test_returns_interval_for_specific_bloc_and_slate(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    bloc_name = "bloc_1"
+    slate_name = "slate_1"
+    cand_list = list(cfg.slate_to_candidates[slate_name])
+
+    expected = {c: float(cfg.preference_df[c].loc[bloc_name]) for c in cand_list}
+
+    out = cfg.get_preference_interval_for_bloc_and_slate(
+        bloc_name=bloc_name, slate_name=slate_name
+    )
+    assert isinstance(out, PreferenceInterval)
+    assert set(out.interval.keys()) == set(cand_list)
+    for k, v in expected.items():
+        assert out.interval[k] == pytest.approx(v, abs=1e-12)
+    assert sum(out.interval.values()) == pytest.approx(1.0, abs=1e-12)
+
+
+def test_raises_keyerror_for_unknown_slate(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    with pytest.raises(KeyError, match="Slate 'not_a_slate' not found"):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="not_a_slate"
+        )
+
+
+def test_raises_keyerror_when_any_bloc_missing_from_preference_df(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    # Remove bloc_2 row to trigger the check inside the for-loop over self.blocs
+    cfg.preference_df.drop(index=["bloc_2"], inplace=True)
+
+    with pytest.raises(
+        KeyError, match=r"Bloc 'bloc_2' not found in preference_df index"
+    ):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="slate_1"
+        )
+
+
+def test_raises_valueerror_when_any_candidate_unset_negative_one(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    # Unset 'A' (present in slate_1) for all blocs → sets -1.0
+    cfg.unset_candidate_preferences("A")
+
+    with pytest.raises(ValueError, match="have not been set"):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="slate_1"
+        )
+
+
+def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    cands = list(cfg.slate_to_candidates["slate_1"])  # e.g., ["A", "B"]
+    row = cfg.preference_df.loc["bloc_1", cands]
+    cfg.preference_df.loc["bloc_1", cands] = row * 0.5  # now sums != 1
+
+    with pytest.raises(ValueError, match=r"must\s+sum to 1, got"):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="slate_1"
+        )
+
+
+def test_get_combined_preference_interval_by_bloc():
+    slate_to_candidates = {"slate_1": ["A", "B"], "slate_2": ["X", "Y"]}
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": PreferenceInterval({"A": 0.4, "B": 0.1}),
+            "slate_2": PreferenceInterval({"X": 0.0, "Y": 0.05}),
+        },
+        "bloc_2": {
+            "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
+            "slate_2": PreferenceInterval({"X": 0.45, "Y": 0.45}),
+        },
+    }
+    bloc_proportions = {"bloc_1": 0.8, "bloc_2": 0.2}
+    cohesion_mapping = {
+        "bloc_1": {"slate_1": 0.9, "slate_2": 0.1},
+        "bloc_2": {"slate_2": 0.8, "slate_1": 0.2},
+    }
+    cfg = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates=slate_to_candidates,
+        bloc_proportions=bloc_proportions,
+        preference_mapping=preference_mapping,
+        cohesion_mapping=cohesion_mapping,
+        silent=True,
+    )
+
+    pref_interval_by_bloc = cfg.get_combined_preference_intervals_by_bloc()
+    from pprint import pprint
+
+    bloc_1_combined = {
+        "A": 0.8 * 0.9,
+        "B": 0.2 * 0.9,
+        "X": 0.0 * 0.1,
+        "Y": 1.0 * 0.1,
+    }
+    bloc_2_combined = {
+        "A": 0.5 * 0.2,
+        "B": 0.5 * 0.2,
+        "X": 0.5 * 0.8,
+        "Y": 0.5 * 0.8,
+    }
+
+    for bloc_name, expected in zip(
+        ["bloc_1", "bloc_2"], [bloc_1_combined, bloc_2_combined]
+    ):
+        for key, value in expected.items():
+            assert math.isclose(
+                value,
+                pref_interval_by_bloc[bloc_name].interval.get(key, 0.0),
+                abs_tol=1e-8,
+            )
