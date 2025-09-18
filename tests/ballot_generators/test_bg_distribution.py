@@ -10,12 +10,19 @@ from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
     name_PlackettLuce,
-    name_BradleyTerry,
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
     name_Cumulative,
     sample_cohesion_ballot_types,
+    BlocSlateConfig,
+)
+from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
+    generate_name_bt_profile,
+    generate_name_bt_profiles_by_bloc,
+    generate_name_bt_profile_using_mcmc,
+    generate_name_bt_profiles_by_bloc_using_mcmc,
+    _calc_prob as bt_prob,
 )
 from votekit.pref_profile import PreferenceProfile
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
@@ -303,23 +310,32 @@ def test_NBT_distribution():
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
     # Generate ballots
-    bt = name_BradleyTerry(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
+    config = BlocSlateConfig(
+        n_voters=number_of_ballots,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
     )
-    generated_profile = bt.generate_profile(number_of_ballots=number_of_ballots)
+
+    generated_profile = generate_name_bt_profile(config)
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, len(candidates)))
 
     final_ballot_prob_dict = {b: 0.0 for b in possible_rankings}
+    pref_interval_by_bloc = {
+        bloc: combine_preference_intervals(
+            [pref_intervals_by_bloc[bloc][slate] for slate in ["W", "C"]],
+            [cohesion_parameters[bloc][slate] for slate in ["W", "C"]],
+        )
+        for bloc in ["W", "C"]
+    }
 
     for bloc in bloc_voter_prop.keys():
         ballot_prob_dict = {b: 0.0 for b in possible_rankings}
         for ranking in possible_rankings:
-            support_for_cands = bt.pref_interval_by_bloc[bloc].interval
+            support_for_cands = pref_interval_by_bloc[bloc].interval
             prob = bloc_voter_prop[bloc]
             for i in range(len(ranking)):
                 greater_cand = support_for_cands[ranking[i]]
@@ -341,8 +357,6 @@ def test_NBT_distribution():
 
 def test_NBT_3_bloc():
     slate_to_candidates = {"A": ["A1"], "B": ["B1"], "C": ["C1"]}
-
-    candidates = [c for c_list in slate_to_candidates.values() for c in c_list]
 
     cohesion_parameters = {
         "A": {"A": 0.7, "B": 0.2, "C": 0.1},
@@ -368,17 +382,19 @@ def test_NBT_3_bloc():
         },
     }
 
-    bloc_voter_prop = {"A": 1, "B": 0, "C": 0}
+    bloc_voter_prop = {"A": 0.9998, "B": 0.0001, "C": 0.0001}
 
-    bt = name_BradleyTerry(
+    # Generate ballots
+    config = BlocSlateConfig(
+        n_voters=500,
         slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        candidates=candidates,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
+        silent=True,
     )
 
-    profile = bt.generate_profile(500)
+    profile = generate_name_bt_profile(config)
 
     summ = 98 + 28 + 7 + 49 + 4 + 2
 
@@ -401,18 +417,9 @@ def test_NBT_3_bloc():
         "C": {"A": 1, "B": 1, "C": 1},
     }
 
-    bt = name_BradleyTerry.from_params(
-        slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-        alphas=alphas,
-        bloc_voter_prop=bloc_voter_prop,
-        candidates=candidates,
-    )
+    config.set_dirichlet_alphas(alphas)
 
-    assert len(bt.pref_intervals_by_bloc["A"]) == 3
-    assert isinstance(bt.pref_intervals_by_bloc["A"]["A"], PreferenceInterval)
-
-    profile = bt.generate_profile(3)
+    profile = generate_name_bt_profile(config)
     assert isinstance(profile, PreferenceProfile)
 
 
@@ -510,7 +517,7 @@ def test_SPL_3_bloc():
 
 def test_NBT_probability_calculation():
     # Set-up
-    candidates = ["W1", "W2", "C1", "C2"]
+    slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_intervals_by_bloc = {
         "W": {
             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
@@ -524,34 +531,37 @@ def test_NBT_probability_calculation():
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
 
-    model = name_BradleyTerry(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates=slate_to_candidate,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
+        silent=True,
     )
 
     permutation = ("W1", "W2")
 
-    w_pref_interval = model.pref_interval_by_bloc["W"].interval
-    c_pref_interval = model.pref_interval_by_bloc["C"].interval
+    pref_interval_by_bloc = config.get_combined_preference_intervals_by_bloc()
+    ww_pref_interval = pref_interval_by_bloc["W"].interval
+    cc_pref_interval = pref_interval_by_bloc["C"].interval
 
-    assert model._calc_prob(
-        permutations=[permutation], cand_support_dict=dict(c_pref_interval)
+    assert bt_prob(
+        permutations=[permutation], cand_support_dict=dict(cc_pref_interval)
     )[permutation] == (
-        c_pref_interval["W1"] / (c_pref_interval["W1"] + c_pref_interval["W2"])
+        cc_pref_interval["W1"] / (cc_pref_interval["W1"] + cc_pref_interval["W2"])
     )
 
     permutation = ("W1", "W2", "C2")
     prob = (
-        (w_pref_interval["W1"] / (w_pref_interval["W1"] + w_pref_interval["W2"]))
-        * (w_pref_interval["W1"] / (w_pref_interval["W1"] + w_pref_interval["C2"]))
-        * (w_pref_interval["W2"] / (w_pref_interval["W2"] + w_pref_interval["C2"]))
+        (ww_pref_interval["W1"] / (ww_pref_interval["W1"] + ww_pref_interval["W2"]))
+        * (ww_pref_interval["W1"] / (ww_pref_interval["W1"] + ww_pref_interval["C2"]))
+        * (ww_pref_interval["W2"] / (ww_pref_interval["W2"] + ww_pref_interval["C2"]))
     )
     assert (
-        model._calc_prob(
-            permutations=[permutation], cand_support_dict=dict(w_pref_interval)
-        )[permutation]
+        bt_prob(permutations=[permutation], cand_support_dict=dict(ww_pref_interval))[
+            permutation
+        ]
         == prob
     )
 

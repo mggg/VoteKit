@@ -1,7 +1,10 @@
 from votekit.ballot_generator.ballot_generator import BallotGenerator
 from votekit.ballot_generator.utils import sample_cohesion_ballot_types
 from votekit.ballot_generator.bloc_slate_generator import (
-    name_BradleyTerry,
+    generate_name_bt_profile,
+    generate_name_bt_profiles_by_bloc,
+    generate_name_bt_profile_using_mcmc,
+    generate_name_bt_profiles_by_bloc_using_mcmc,
     name_PlackettLuce,
     short_name_PlackettLuce,
     name_Cumulative,
@@ -27,7 +30,10 @@ from votekit.ballot_generator.std_generator import (
 __all__ = [
     "BallotGenerator",
     "sample_cohesion_ballot_types",
-    "name_BradleyTerry",
+    "generate_name_bt_profile",
+    "generate_name_bt_profiles_by_bloc",
+    "generate_name_bt_profile_using_mcmc",
+    "generate_name_bt_profiles_by_bloc_using_mcmc",
     "name_PlackettLuce",
     "short_name_PlackettLuce",
     "name_Cumulative",

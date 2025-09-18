@@ -2,7 +2,6 @@ import math
 
 from votekit.ballot_generator import (
     name_PlackettLuce,
-    name_BradleyTerry,
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
@@ -32,29 +31,6 @@ def test_NPL_fron_params():
     )
 
     profile = pl.generate_profile(3)
-    assert type(profile) is PreferenceProfile
-
-
-def test_NBT_from_params():
-    blocs = {"R": 0.6, "D": 0.4}
-    cohesion = {"R": {"R": 0.7, "D": 0.3}, "D": {"D": 0.6, "R": 0.4}}
-    alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
-    slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
-
-    gen = name_BradleyTerry.from_params(
-        slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=blocs,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
-    )
-
-    # check if intervals add up to one
-    assert all(
-        math.isclose(sum(gen.pref_interval_by_bloc[curr_bloc].interval.values()), 1)
-        for curr_bloc in blocs.keys()
-    )
-
-    profile = gen.generate_profile(3)
     assert type(profile) is PreferenceProfile
 
 

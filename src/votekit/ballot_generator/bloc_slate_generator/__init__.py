@@ -1,5 +1,8 @@
-from votekit.ballot_generator.bloc_slate_generator.bradley_terry import (
-    name_BradleyTerry,
+from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
+    generate_name_bt_profile,
+    generate_name_bt_profiles_by_bloc,
+    generate_name_bt_profile_using_mcmc,
+    generate_name_bt_profiles_by_bloc_using_mcmc,
 )
 from votekit.ballot_generator.bloc_slate_generator.cambridj import CambridgeSampler
 from votekit.ballot_generator.bloc_slate_generator.plackett_luce import (
@@ -24,7 +27,10 @@ from votekit.ballot_generator.bloc_slate_generator.model import (
 __all__ = [
     "slate_PlackettLuce",
     "slate_BradleyTerry",
-    "name_BradleyTerry",
+    "generate_name_bt_profile",
+    "generate_name_bt_profiles_by_bloc",
+    "generate_name_bt_profile_using_mcmc",
+    "generate_name_bt_profiles_by_bloc_using_mcmc",
     "name_PlackettLuce",
     "short_name_PlackettLuce",
     "name_Cumulative",
