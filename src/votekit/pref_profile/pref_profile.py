@@ -1,5 +1,7 @@
 from __future__ import annotations
 import csv
+import os
+import urllib.request
 import pandas as pd
 from votekit.ballot import Ballot, ScoreBallot, RankBallot
 from votekit.pref_profile.utils import (
@@ -269,11 +271,15 @@ class PreferenceProfile:
         Reads profile from pickle file.
 
         Args:
-            fpath (Union[str, os.PathLike, pathlib.Path]): File path to profile.
+            fpath (Union[str, os.PathLike, pathlib.Path]): File path to profile. Can be a url.
         """
-
-        with open(str(fpath), "rb") as f:
-            data = pickle.load(f)
+        fpath = str(fpath)
+        if not os.path.isfile(fpath):
+            with urllib.request.urlopen(fpath) as response:
+                data = pickle.loads(response.read())
+        else:
+            with open(str(fpath), "rb") as f:
+                data = pickle.load(f)
         assert isinstance(data, PreferenceProfile)
         return data
 

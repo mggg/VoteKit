@@ -1,5 +1,7 @@
 import os
 import csv
+import io
+import urllib.request
 from pathlib import Path
 from pandas.errors import EmptyDataError, DataError
 from typing import Union
@@ -17,6 +19,7 @@ def load_scottish(
 
     Args:
         fpath (Union[str, os.PathLike, pathlib.Path]): Path to Scottish election csv file.
+            Can be a url.
 
     Raises:
         FileNotFoundError: If fpath is invalid.
@@ -31,20 +34,12 @@ def load_scottish(
             candidate names are also stored in the PreferenceProfile object.
     """
 
-    fpath = str(fpath)
-
-    if not os.path.isfile(fpath):
-        raise FileNotFoundError(f"File with path {fpath} cannot be found")
-    if os.path.getsize(fpath) == 0:
-        raise EmptyDataError(f"CSV at {fpath} is empty.")
-
     # Convert the ballot rows to ints while leaving the candidates as strings
     def convert_row(row):
         return [int(item) if item.isdigit() else item for item in row]
 
-    data = []
-    with open(fpath, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
+    def parse_csv_reader(reader):
+        data = []
         for row in reader:
             # This just removes any empty strings that are hanging out since
             # we don't need to preserve columns
@@ -53,6 +48,22 @@ def load_scottish(
             # only save non-empty rows
             if len(filtered_row) > 0:
                 data.append(convert_row(filtered_row))
+        return data
+
+    fpath = str(fpath)
+
+    if not os.path.isfile(fpath):
+        with urllib.request.urlopen(fpath) as response:
+            data = response.read().decode("utf-8")
+        reader = csv.reader(io.StringIO(data))
+        data = parse_csv_reader(reader)
+
+    else:
+        if os.path.getsize(fpath) == 0:
+            raise EmptyDataError(f"CSV at {fpath} is empty.")
+        with open(fpath, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            data = parse_csv_reader(reader)
 
     if len(data[0]) != 2:
         raise DataError(

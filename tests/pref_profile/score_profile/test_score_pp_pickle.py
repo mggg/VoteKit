@@ -1,3 +1,4 @@
+import urllib
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
 import pytest
@@ -25,3 +26,14 @@ def test_pkl_bijection_scores():
 def test_pkl_error():
     with pytest.raises(ValueError, match="File path must be provided."):
         ScoreProfile().to_pickle("")
+
+
+def test_pkl_url():
+    profile = ScoreProfile.from_pickle(
+        "https://github.com/mggg/VoteKit/raw/refs/heads/main/examples/data/test_pkl_pp_scores.pkl"
+    )
+
+    assert isinstance(profile, ScoreProfile)
+
+    with pytest.raises(urllib.error.URLError):
+        ScoreProfile.from_pickle("https://www.fail.com")
