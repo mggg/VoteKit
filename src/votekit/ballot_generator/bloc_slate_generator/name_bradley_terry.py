@@ -143,7 +143,6 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
     """
-    config.is_valid(raise_errors=True)
     n_candidates = len(config.candidates)
 
     bloc_lst = config.blocs
@@ -361,8 +360,6 @@ def _inner_name_bradley_terry_mcmc(
     Returns:
         Union[RankProfile, Tuple]
     """
-    config.is_valid(raise_errors=True)
-
     bloc_lst = config.blocs
 
     bloc_counts = apportion.compute(
@@ -421,11 +418,14 @@ def generate_name_bt_profiles_by_bloc(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        group_ballots (bool): if True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     _check_name_bt_memory(config)
+    config.is_valid(raise_errors=True)
     pp_by_bloc = _inner_name_bradley_terry(config)
     if group_ballots:
         for bloc in pp_by_bloc:
@@ -446,11 +446,14 @@ def generate_name_bt_profile(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        group_ballots (bool): if True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
 
     Returns:
         RankProfile: Generated preference profile.
     """
     _check_name_bt_memory(config)
+    config.is_valid(raise_errors=True)
     pp_by_bloc = _inner_name_bradley_terry(config)
 
     # combine the profiles
@@ -491,6 +494,7 @@ def generate_name_bt_profile_using_mcmc(
     Returns:
         RankProfile: Generated preference profile.
     """
+    config.is_valid(raise_errors=True)
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config, verbose=verbose, burn_in_time=burn_in_time, chain_length=chain_length
     )
@@ -533,6 +537,7 @@ def generate_name_bt_profiles_by_bloc_using_mcmc(
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
     """
+    config.is_valid(raise_errors=True)
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config, verbose=verbose, burn_in_time=burn_in_time, chain_length=chain_length
     )

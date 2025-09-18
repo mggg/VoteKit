@@ -9,19 +9,20 @@ from collections import Counter
 from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
-    name_PlackettLuce,
     CambridgeSampler,
     slate_PlackettLuce,
     slate_BradleyTerry,
     name_Cumulative,
     sample_cohesion_ballot_types,
     BlocSlateConfig,
-)
-from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     generate_name_bt_profile,
     # generate_name_bt_profiles_by_bloc,
     # generate_name_bt_profile_using_mcmc,
     # generate_name_bt_profiles_by_bloc_using_mcmc,
+    generate_name_pl_profile,
+    # generate_name_pl_profiles_by_bloc,
+)
+from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     _calc_prob as bt_prob,
 )
 from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
@@ -211,24 +212,27 @@ def test_NPL_distribution():
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
 
-    # Generate ballots
-    pl = name_PlackettLuce(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
+    config = BlocSlateConfig(
+        n_voters=number_of_ballots,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
     )
 
-    generated_profile = pl.generate_profile(number_of_ballots=number_of_ballots)
+    # Generate ballots
+    generated_profile = generate_name_pl_profile(config)
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, len(candidates)))
     ballot_prob_dict = {b: 0.0 for b in possible_rankings}
 
+    pref_interval_by_bloc = config.get_combined_preference_intervals_by_bloc()
+
     for ranking in possible_rankings:
         # ranking = b.ranking
         for bloc in bloc_voter_prop.keys():
-            support_for_cands = pl.pref_interval_by_bloc[bloc].interval
+            support_for_cands = pref_interval_by_bloc[bloc].interval
             total_prob = 1
             prob = bloc_voter_prop[bloc]
             for cand in ranking:
@@ -854,7 +858,7 @@ def test_sample_ballot_types():
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )
 
-    ballots = [Ballot(ranking = [{str(c)} for c in b]) for b in sampled]  # type: ignore
+    ballots = [Ballot(ranking=[{str(c)} for c in b]) for b in sampled]  # type: ignore
     pp = PreferenceProfile(ballots=ballots)
 
     ballot_prob_dict = {

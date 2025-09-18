@@ -1,5 +1,5 @@
 from votekit.plots import compute_MDS, plot_MDS  # , plot_summary_stats
-from votekit.ballot_generator import name_PlackettLuce
+from votekit.ballot_generator import BlocSlateConfig, generate_name_pl_profile
 from votekit.metrics import lp_dist
 import numpy as np
 from matplotlib.axes import Axes
@@ -12,14 +12,21 @@ def test_compute_MDS():
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-    pl = name_PlackettLuce.from_params(
+    config = BlocSlateConfig(
+        n_voters=10,
         slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=bloc_prop,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
+        bloc_proportions=bloc_prop,
+        cohesion_mapping=cohesion,
     )
 
-    data = {"PL": [pl.generate_profile(number_of_ballots=10) for _ in range(10)]}
+    config.set_dirichlet_alphas(alphas)
+
+    pl_data = []
+    for _ in range(10):
+        config.resample_preference_intervals_from_dirichlet_alphas()
+        pl_data.append(generate_name_pl_profile(config))
+
+    data = {"PL": pl_data}
 
     coord_dict = compute_MDS(data, lp_dist)
 
@@ -35,14 +42,21 @@ def test_plot_MDS():
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-    pl = name_PlackettLuce.from_params(
+    config = BlocSlateConfig(
+        n_voters=10,
         slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=bloc_prop,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
+        bloc_proportions=bloc_prop,
+        cohesion_mapping=cohesion,
     )
 
-    data = {"PL": [pl.generate_profile(number_of_ballots=10) for _ in range(10)]}
+    config.set_dirichlet_alphas(alphas)
+
+    pl_data = []
+    for _ in range(10):
+        config.resample_preference_intervals_from_dirichlet_alphas()
+        pl_data.append(generate_name_pl_profile(config))
+
+    data = {"PL": pl_data}
 
     coord_dict = compute_MDS(data, lp_dist)
 
@@ -58,14 +72,21 @@ def test_seed_MDS():
     alphas = {"R": {"R": 0.5, "D": 1}, "D": {"R": 1, "D": 0.5}}
     slate_to_cands = {"R": ["A1", "B1", "C1"], "D": ["A2", "B2"]}
 
-    pl = name_PlackettLuce.from_params(
+    config = BlocSlateConfig(
+        n_voters=10,
         slate_to_candidates=slate_to_cands,
-        bloc_voter_prop=bloc_prop,
-        cohesion_parameters=cohesion,
-        alphas=alphas,
+        bloc_proportions=bloc_prop,
+        cohesion_mapping=cohesion,
     )
 
-    data = {"PL": [pl.generate_profile(number_of_ballots=10) for _ in range(10)]}
+    config.set_dirichlet_alphas(alphas)
+
+    pl_data = []
+    for _ in range(10):
+        config.resample_preference_intervals_from_dirichlet_alphas()
+        pl_data.append(generate_name_pl_profile(config))
+
+    data = {"PL": pl_data}
 
     coord_dict_1 = compute_MDS(data, lp_dist, random_seed=10)
     coord_dict_2 = compute_MDS(data, lp_dist, random_seed=10)
