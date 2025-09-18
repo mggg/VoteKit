@@ -28,9 +28,10 @@ class FastSTV:
     STV elections. All ballots must have no ties.
 
     Args:
-        profile (PreferenceProfile): PreferenceProfile to run election on.
+        profile (RankProfile): RankProfile to run election on.
         m (int): Number of seats to be elected. Defaults to 1.
-        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
+        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+            'fractional'.
         quota (str): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
@@ -44,7 +45,7 @@ class FastSTV:
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         transfer: str = "fractional",
         quota: str = "droop",
@@ -80,14 +81,14 @@ class FastSTV:
         self.election_states = self._make_election_states()
 
     def __check_seats_and_candidates_and_transfer(
-        self, profile: PreferenceProfile, m: int, transfer: str
+        self, profile: RankProfile, m: int, transfer: str
     ):
         """
         Checks if the number of seats is positive, if there are enough candidates to fill the seats,
             and if the transfer method is implemented.
 
         Args:
-            profile (PreferenceProfile): The preference profile to validate.
+            profile (RankProfile): The preference profile to validate.
             m (int): The number of seats to be elected.
             transfer (str): The transfer method to be used.
         """
@@ -97,7 +98,8 @@ class FastSTV:
             raise ValueError("Not enough candidates received votes to be elected.")
         if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
             raise ValueError(
-                "Transfer method must be either 'fractional', 'cambridge_random', or 'fractional_random'."
+                "Transfer method must be either 'fractional', 'cambridge_random', or "
+                "'fractional_random'."
             )
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
@@ -123,10 +125,11 @@ class FastSTV:
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
         Args:
-            profile (PreferenceProfile): The preference profile to convert.
+            profile (RankProfile): The preference profile to convert.
 
         Returns:
-            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and first-preference vector.
+            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and
+                first-preference vector.
         """
         candidate_to_index = {
             frozenset([name]): i for i, name in enumerate(self.candidates)
@@ -181,11 +184,14 @@ class FastSTV:
 
         Args:
             tied_cands (list[int]): List of candidate indices that are tied.
-            winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or loser tiebreak (False).
+            winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or
+                loser tiebreak (False).
 
         Returns:
-            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won the winner tiebreak,
-                or lost the loser tiebreak, and the packaged tuple of frozensets representing the outcome of the tiebreak.
+            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won the
+                winner tiebreak,
+                or lost the loser tiebreak, and the packaged tuple of frozensets representing the
+                outcome of the tiebreak.
         """
 
         tied_cands_set = set(tied_cands)
@@ -240,7 +246,8 @@ class FastSTV:
             tallies (NDArray): Current vote tallies for all candidates.
             mutated_fpv_vec (NDArray): First preference vector (modified in place).
             mutated_wt_vec (NDArray): Weight vector for ballots (modified in place).
-            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in eliminated_or_exhausted.
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in
+                eliminated_or_exhausted.
                 (This has been already updated in find_winners.)
             mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
             mutated_eliminated_or_exhausted (list[int]): List of all eliminated/elected candidates.
@@ -255,7 +262,8 @@ class FastSTV:
         #  [2, -127, -127, -127]]
 
         # say that candidate 2 and 3 was already eliminated, and say that 1 just got elected.
-        # in this case the fpv_vec looks like [1,0,1,-127] before update, and the bool_ballot_matrix looks like:
+        # in this case the fpv_vec looks like [1,0,1,-127] before update, and the
+        # bool_ballot_matrix looks like:
         # [[0, 1, 0, 1],
         #  [1, 0, 1, 1],
         #  [0, 0, 1, 1],
@@ -264,7 +272,8 @@ class FastSTV:
         # rows_with_winner_fpv would look like [True, False, True, False] in the running example
         rows_with_winner_fpv = np.isin(mutated_fpv_vec, winners)
 
-        # the winner_row_indices would look like [0, 2] in the running example, and the allowed_pos_matrix looks like
+        # the winner_row_indices would look like [0, 2] in the running example,
+        # and the allowed_pos_matrix looks like
         # [[0, 1, 0, 1], #row 0 of the original matrix
         #  [0, 0, 1, 1]] #row 2 of the original matrix
         winner_row_indices = np.where(rows_with_winner_fpv)[0]
@@ -293,7 +302,8 @@ class FastSTV:
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
-                    # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
+                    # pre-emptively exhaust ballots that will be exhausted --
+                    # this is what Cambridge does
                     mutated_fpv_vec[winner_row_indices[next_fpv_vec == -127]] = -127
                 surplus = int(tallies[winner_idx] - self.threshold)
                 counts = self._sample_to_transfer(
@@ -322,7 +332,8 @@ class FastSTV:
         mutated_pos_vec: NDArray,
     ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         """
-        Updates helper arrays after a single candidate has been eliminated, transferring surplus votes.
+        Updates helper arrays after a single candidate has been eliminated, transferring surplus
+        votes.
 
         There's not a lot to do here -- find_loser already updates the mutant stencil,
         so we just need to move the pos and fpv vecs to their pre-calculated new positions.
@@ -332,7 +343,8 @@ class FastSTV:
             tallies (NDArray): Current vote tallies for all candidates.
             mutated_fpv_vec (NDArray): First preference vector (modified in place).
             mutated_wt_vec (NDArray): Weight vector for ballots (modified in place).
-            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in eliminated_or_exhausted.
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in
+                eliminated_or_exhausted.
                 (This has been already updated in find_loser).
             mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
             mutated_eliminated_or_exhausted (list[int]): List of all eliminated/elected candidates.
@@ -384,17 +396,20 @@ class FastSTV:
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
-            tuple: (index of eliminated candidate, updated state tuple containing the boolean ballot matrix,
+            tuple: (index of eliminated candidate, updated state tuple containing the boolean
+                ballot matrix,
                 winner list, eliminated list, and tiebreak record).
         """
         masked_tallies: NDArray = np.where(
             np.isin(np.arange(len(tallies)), mutant_eliminated_or_exhausted),
             np.inf,
             tallies,
-        )  # we must do this because sometimes there are cands with 0 FPV who have yet to be eliminated
+        )  # we must do this because sometimes there are cands with 0 FPV who
+        # have yet to be eliminated
         if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
             potential_losers: list[int] = (
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
@@ -439,11 +454,14 @@ class FastSTV:
             turn (int): The current round number.
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated/elected candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
-            mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate
+                indices so far.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
-            tuple: (list of elected candidate indices, updated state tuple containing the boolean ballot matrix,
+            tuple: (list of elected candidate indices, updated state tuple containing the boolean
+                ballot matrix,
                 winner list, eliminated list, and tiebreak record).
         """
         if self.simultaneous:
@@ -486,7 +504,8 @@ class FastSTV:
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
             tuple: (index of new winner, updated tiebreak record)
@@ -522,7 +541,8 @@ class FastSTV:
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
             tuple: (index of new loser, updated tiebreak record)
@@ -575,15 +595,18 @@ class FastSTV:
 
         Args:
             ballot_matrix (NDArray): Matrix where each row is a ballot, each column is a ranking.
-            wt_vec (NDArray): Each entry is the weight of the corresponding row in the ballot matrix.
+            wt_vec (NDArray): Each entry is the weight of the corresponding row in the ballot
+                matrix.
                 This vector is modified in place.
-            fpv_vec (NDArray): Each entry is the first preference vote of the corresponding row in the ballot matrix.
+            fpv_vec (NDArray): Each entry is the first preference vote of the corresponding
+                row in the ballot matrix.
                 This vector is modified in place.
             m (int): The number of seats in the election.
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[list[NDArray], list[tuple[int, list[int], NDArray, str]], dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+            tuple[list[NDArray], list[tuple[int, list[int], NDArray, str]], dict[int,
+            dict[frozenset[str], tuple[frozenset[str], ...]]]]:
                 The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
@@ -828,7 +851,8 @@ class FastSTV:
         """
         Creates the list of election states after the main loop has run.
         Returns:
-            list[ElectionState]: List of ElectionState objects representing each round in chronological order.
+            list[ElectionState]: List of ElectionState objects representing each round in
+                chronological order.
         """
         e_states = [
             ElectionState(
@@ -869,9 +893,9 @@ class FastSTV:
 
         return e_states
 
-    def get_profile(self, round_number: int = -1) -> PreferenceProfile:
+    def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Fetch the PreferenceProfile of the given round number.
+        Fetch the RankProfile of the given round number.
         """
         if (
             round_number < -len(self.election_states)
@@ -941,17 +965,13 @@ class FastSTV:
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
-        return PreferenceProfile(
-            contains_rankings=True,
-            contains_scores=False,
+        return RankProfile(
             max_ranking_length=self.profile.max_ranking_length,
             candidates=tuple([self.candidates[c] for c in remaining]),
             df=df,
         )
 
-    def get_step(
-        self, round_number: int = -1
-    ) -> tuple[PreferenceProfile, ElectionState]:
+    def get_step(self, round_number: int = -1) -> tuple[RankProfile, ElectionState]:
         """
         Fetches the profile and ElectionState of the given round number.
 
@@ -960,7 +980,7 @@ class FastSTV:
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[PreferenceProfile, ElectionState]
+            tuple[RankProfile, ElectionState]
         """
         return (self.get_profile(round_number), self.election_states[round_number])
 
@@ -995,7 +1015,8 @@ class FastSTV:
         # assume that quota was 220, so winner 2 had 5 surplus votes and 225 transferable votes
         transferable = int(wts.sum())
 
-        # this deals with cases where there are fewer than surplus votes to transfer (lots of exhausted ballots)
+        # this deals with cases where there are fewer than surplus votes to transfer
+        # (lots of exhausted ballots)
         surplus = min(surplus, transferable)
 
         # Sample surplus distinct positions in the implicit pool [0, transferable)
@@ -1004,8 +1025,10 @@ class FastSTV:
         positions_to_transfer.sort()
 
         # Say we sampled the numbers 12, 50, 178, 200, and 201
-        # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled votes go to winner_row_index[0]
-        # numbers 200 and 201 get mapped to the second bin, so they go to our second winner_row_index[1]
+        # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled
+        # votes go to winner_row_index[0]
+        # numbers 200 and 201 get mapped to the second bin, so they go to our second
+        #  winner_row_index[1]
         bins = np.cumsum(wts)  # len = len(idx)
         owners = np.searchsorted(
             bins, positions_to_transfer, side="right"
@@ -1015,7 +1038,8 @@ class FastSTV:
         counts_local = np.bincount(owners, minlength=winner_row_indices.size)
         counts = np.zeros(fpv_vec.shape[0], dtype=np.int64)
         counts[winner_row_indices] = (
-            counts_local  # this tells us how many times each row was sampled as indexed in the global ballot_matrix
+            counts_local  # this tells us how many times each row was sampled as indexed in the
+            # global ballot_matrix
         )
         return counts
 
