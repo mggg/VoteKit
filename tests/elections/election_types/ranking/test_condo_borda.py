@@ -1,5 +1,9 @@
 from votekit.elections import CondoBorda, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 import pandas as pd
 
@@ -157,5 +161,5 @@ def test_errors():
     ):
         CondoBorda(profile_tied_set, m=4)
 
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         CondoBorda(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

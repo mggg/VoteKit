@@ -1,9 +1,9 @@
 from typing import Callable, Optional, Union, Any
-from ...pref_profile import PreferenceProfile
-from .multi_profile_bar_plot import multi_profile_bar_plot
-from ..bar_plot import bar_plot
+from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.plots.profiles.multi_profile_bar_plot import multi_profile_bar_plot
+from votekit.plots.bar_plot import bar_plot
 from matplotlib.axes import Axes
-from ...utils import (
+from votekit.utils import (
     first_place_votes,
     borda_scores,
     mentions,
@@ -13,8 +13,8 @@ from ...utils import (
 
 
 def profile_bar_plot(
-    profile: PreferenceProfile,
-    stat_function: Callable[[PreferenceProfile], dict[str, float]],
+    profile: RankProfile | ScoreProfile,
+    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
     *,
     profile_label: str = "Profile",
     normalize: bool = False,
@@ -35,8 +35,8 @@ def profile_bar_plot(
     Plots bar plot of single profile. Wrapper for ``multi_profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
-        stat_function (Callable[[PreferenceProfile], dict[str, float]]): Which stat
+        profile (RankProfile): Profile to plot statistics for.
+        stat_function (Callable[[RankProfile], dict[str, float]]): Which stat
             to use for the bar plot. Must be a callable that takes a profile and returns
             a dict with str keys and float values.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
@@ -96,7 +96,7 @@ def profile_bar_plot(
 
 
 def profile_borda_plot(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     *,
     profile_label: str = "Profile",
     borda_kwds: Optional[dict[str, Any]] = None,
@@ -119,7 +119,7 @@ def profile_borda_plot(
     Plots borda points of candidates in profile. Wrapper for ``profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
+        profile (RankProfile): Profile to plot statistics for.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
         borda_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``borda_scores``. Defaults to None, in which case default values for ``borda_scores``
@@ -192,7 +192,7 @@ def profile_borda_plot(
 
 
 def profile_mentions_plot(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     *,
     profile_label: str = "Profile",
     mentions_kwds: Optional[dict[str, Any]] = None,
@@ -215,7 +215,7 @@ def profile_mentions_plot(
     Plots mentions of candidates in profile. Wrapper for ``profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
+        profile (RankProfile): Profile to plot statistics for.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
         mentions_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``mentions``. Defaults to None, in which case default values for ``mentions``
@@ -288,7 +288,7 @@ def profile_mentions_plot(
 
 
 def profile_fpv_plot(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     *,
     profile_label: str = "Profile",
     fpv_kwds: Optional[dict[str, Any]] = None,
@@ -311,7 +311,7 @@ def profile_fpv_plot(
     Plots first place votes of candidates in profile. Wrapper for ``profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
+        profile (RankProfile): Profile to plot statistics for.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
         fpv_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``first_place_votes``. Defaults to None, in which case default values for
@@ -386,7 +386,7 @@ def profile_fpv_plot(
 
 
 def profile_ballot_lengths_plot(
-    profile: PreferenceProfile,
+    profile: RankProfile,
     *,
     profile_label: str = "Profile",
     ballot_lengths_kwds: Optional[dict[str, Any]] = None,
@@ -408,7 +408,7 @@ def profile_ballot_lengths_plot(
     Plots ballot lengths in profile. Wrapper for ``profile_bar_plot``.
 
     Args:
-        profile (PreferenceProfile): Profile to plot statistics for.
+        profile (RankProfile): Profile to plot statistics for.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
         ballot_lengths_kwds (dict[str, Any], optional): Keyword arguments to pass to
             ``ballot_lengths``. Defaults to None, in which case default values for

@@ -1,39 +1,40 @@
 from votekit.elections import Alaska, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.ballot import ScoreBallot, RankBallot
+from votekit.pref_profile import ScoreProfile, RankProfile, ProfileError
 import pytest
 
-test_profile = PreferenceProfile(
+test_profile = RankProfile(
     ballots=(
-        Ballot(ranking=({"A"}, {"B"}, {"C"}, {"D"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}, {"D"}), weight=2),
-        Ballot(ranking=({"C"}, {"A"}, {"B"}, {"D"}), weight=2),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"}, {"D"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"}, {"D"}), weight=2),
+        RankBallot(ranking=({"C"}, {"A"}, {"B"}, {"D"}), weight=2),
     ),
     max_ranking_length=4,
 )
 
 
-test_profile_ties = PreferenceProfile(
+test_profile_ties = RankProfile(
     ballots=(
-        Ballot(ranking=({"A"}, {"B"}, {"C"}, {"D"}, {"E"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}, {"D"}, {"E"})),
-        Ballot(ranking=({"C"}, {"B"}, {"A"}, {"D"}, {"E"})),
-        Ballot(ranking=({"D"}, {"A"}, {"B"}, {"C"}, {"E"})),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"}, {"D"}, {"E"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"}, {"D"}, {"E"})),
+        RankBallot(ranking=({"C"}, {"B"}, {"A"}, {"D"}, {"E"})),
+        RankBallot(ranking=({"D"}, {"A"}, {"B"}, {"C"}, {"E"})),
     ),
     max_ranking_length=5,
 )
 
 profiles = [
     test_profile,
-    PreferenceProfile(
+    RankProfile(
         ballots=(
-            Ballot(ranking=({"A"}, {"B"}, {"C"})),
-            Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-            Ballot(ranking=({"C"}, {"A"}, {"B"}), weight=2),
+            RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+            RankBallot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
+            RankBallot(ranking=({"C"}, {"A"}, {"B"}), weight=2),
         ),
         max_ranking_length=4,
     ),
-    PreferenceProfile(
-        ballots=(Ballot(ranking=({"A"},)),),
+    RankProfile(
+        ballots=(RankBallot(ranking=({"A"},)),),
         max_ranking_length=4,
     ),
 ]
@@ -155,5 +156,8 @@ def test_errors():
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
         Alaska(test_profile, quota="drip")
 
-    with pytest.raises(TypeError, match="has no ranking."):
-        Alaska(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+    with pytest.raises(TypeError, match="has no ranking"):
+        Alaska(RankProfile(ballots=(RankBallot(),)))
+
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+        Alaska(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))

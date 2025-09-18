@@ -4,7 +4,7 @@ import pytest
 
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_scottish
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,7 +17,7 @@ def test_scot_csv_parse():
     )
 
     assert seats == 1
-    assert isinstance(pp, PreferenceProfile)
+    assert isinstance(pp, RankProfile)
     assert set(["Paul", "George", "Ringo"]) == set(pp.candidates)
     assert len(pp.candidates) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
@@ -46,7 +46,7 @@ def test_scot_csv_blank_rows():
     )
 
     assert seats == 1
-    assert isinstance(pp, PreferenceProfile)
+    assert isinstance(pp, RankProfile)
     assert set(["Paul", "George", "Ringo"]) == set(pp.candidates)
     assert len(pp.candidates) == 3
     assert cand_list == ["Paul", "George", "Ringo"]
@@ -70,7 +70,7 @@ def test_scot_csv_blank_rows():
 
 
 def test_bad_file_path_scot_csv():
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError, match="unknown url type:"):
         load_scottish("")
 
 
@@ -90,3 +90,26 @@ def test_incorrect_metadata_scot_csv():
 
     with pytest.raises(DataError):
         load_scottish(CSV_DIR / "scot_candidate_undercount.csv")
+
+
+def test_scot_csv_url():
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(
+        "https://github.com/mggg/scot-elex/raw/refs/heads/main/10_cands/aberdeen_2017_ward12.csv"
+    )
+    true_cand_to_party = {
+        "Yvonne Allan": "Labour (Lab)",
+        "Christian Guy Allard": "Scottish National Party (SNP)",
+        "Alan Donnelly": "Conservative and Unionist Party (Con)",
+        "David Fryer": "Independent (Ind)",
+        "Catriona Mackenzie": "Scottish National Party (SNP)",
+        "Gregor Mcabery": "Liberal Democrat (LD)",
+        "William Allan Mcintosh": "UK Independence Party (UKIP)",
+        "Ren": "Green (Gr)",
+        "Piotr Teodorowski": "Labour (Lab)",
+        "Billy Watson": "National Front (NF)",
+    }
+    assert isinstance(pp, RankProfile)
+    assert seats == 4
+    assert ward == "Torry/Ferryhill Ward"
+    assert cand_to_party == true_cand_to_party
+    assert set(cand_list) == set(true_cand_to_party.keys())

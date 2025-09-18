@@ -1,5 +1,9 @@
 from votekit.elections import RankedPairs, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 import pandas as pd
 import numpy as np
@@ -46,7 +50,6 @@ electowiki_profile = PreferenceProfile(
         ),
     ),
     max_ranking_length=4,
-    contains_rankings=True,
 )
 
 profile_with_skips = PreferenceProfile(
@@ -69,7 +72,6 @@ profile_with_skips = PreferenceProfile(
         ),
     ),
     max_ranking_length=4,
-    contains_rankings=True,
 )
 
 test_profile_limit_case = PreferenceProfile(
@@ -88,7 +90,6 @@ test_profile_limit_case = PreferenceProfile(
         ),
     ),
     max_ranking_length=3,
-    contains_rankings=True,
 )
 
 borda_ambiguous_profile = PreferenceProfile(
@@ -107,7 +108,6 @@ borda_ambiguous_profile = PreferenceProfile(
         ),
     ),
     max_ranking_length=3,
-    contains_rankings=True,
 )
 
 dominating_ambiguous_profile = PreferenceProfile(
@@ -121,7 +121,6 @@ dominating_ambiguous_profile = PreferenceProfile(
             weight=1,
         ),
     ),
-    contains_rankings=True,
 )
 
 profile_tied_set = PreferenceProfile(
@@ -237,7 +236,7 @@ def test_errors():
     ):
         RankedPairs(profile_tied_set, m=4)
 
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         RankedPairs(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
 
 

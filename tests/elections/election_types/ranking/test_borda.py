@@ -1,5 +1,9 @@
 from votekit.elections import Borda, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 import pandas as pd
 
@@ -151,5 +155,5 @@ def test_errors():
     ):
         Borda(profile_with_tied_borda, m=2)
 
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         Borda(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

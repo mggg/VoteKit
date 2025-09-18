@@ -4,7 +4,8 @@ from votekit.plots import (
     profile_mentions_plot,
     profile_ballot_lengths_plot,
 )
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 

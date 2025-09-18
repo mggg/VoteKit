@@ -1,6 +1,6 @@
 from votekit.graphs import pairwise_dict, restrict_pairwise_dict_to_subset
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
+from votekit.pref_profile import PreferenceProfile, RankProfile
+from votekit.ballot import Ballot, RankBallot
 import pytest
 
 ballots = (
@@ -58,14 +58,13 @@ def test_restrict_pairwise_cand_error():
 
 
 def test_pairwise_contains_rankings_errors():
-    with pytest.raises(
-        ValueError, match="Profile must only contain rankings, not scores."
-    ):
+    with pytest.raises(ValueError, match="Profile must be of type RankProfile."):
+
         pairwise_dict(
             PreferenceProfile(
-                ballots=(Ballot(scores={"Chris": 4}),), contains_scores=True
+                ballots=(Ballot(scores={"Chris": 4}),),
             )
         )
 
-    with pytest.raises(ValueError, match="Profile must contain rankings."):
-        pairwise_dict(PreferenceProfile())
+    with pytest.raises(ValueError, match="All ballots must have rankings."):
+        pairwise_dict(RankProfile(ballots=[RankBallot()]))

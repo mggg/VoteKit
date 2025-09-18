@@ -1,4 +1,5 @@
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
 import numpy as np
 import pytest
 from scipy.stats import wasserstein_distance

@@ -1,9 +1,9 @@
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
 from matplotlib.axes import Axes
 import pytest
@@ -12,36 +12,36 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
-portland_profile = PreferenceProfile.from_csv(
+portland_profile = RankProfile.from_csv(
     CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv"
 )
 
 ballot_list = (
-    Ballot(
+    RankBallot(
         ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10
     ),
-    Ballot(
+    RankBallot(
         ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}, {"E"}])), weight=10
     ),
-    Ballot(
+    RankBallot(
         ranking=tuple(map(frozenset, [{"D"}, {"A"}, {"E"}, {"B"}, {"C"}])), weight=10
     ),
-    Ballot(ranking=tuple(map(frozenset, [{"A"}])), weight=24),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=24),
 )
-TEST_PROFILE = PreferenceProfile(ballots=ballot_list)
+TEST_PROFILE = RankProfile(ballots=ballot_list)
 
 simple_ballot_list = (
-    Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=10),
-    Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=10),
-    Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=10),
 )
-SIMPLE_TEST_PROFILE = PreferenceProfile(ballots=simple_ballot_list)
+SIMPLE_TEST_PROFILE = RankProfile(ballots=simple_ballot_list)
 
-EDGE_WEIGHT_0_PROFILE = PreferenceProfile(
+EDGE_WEIGHT_0_PROFILE = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"}))), weight=2),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"}))), weight=2),
     )
 )
 

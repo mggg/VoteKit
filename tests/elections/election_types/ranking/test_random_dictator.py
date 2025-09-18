@@ -1,4 +1,7 @@
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+)
+from votekit.ballot import Ballot
 from votekit.elections import RandomDictator
 import numpy as np
 import random

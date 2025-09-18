@@ -1,5 +1,9 @@
 from votekit.elections import Plurality, ElectionState, SNTV
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 import pandas as pd
 
@@ -142,7 +146,7 @@ def test_errors():
     ):
         Plurality(profile_with_tied_fpv, m=3)
 
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         Plurality(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
 
 

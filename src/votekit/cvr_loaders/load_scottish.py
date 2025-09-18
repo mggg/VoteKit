@@ -1,22 +1,25 @@
 import os
 import csv
+import io
+import urllib.request
 from pathlib import Path
 from pandas.errors import EmptyDataError, DataError
 from typing import Union
 
-from ..pref_profile import PreferenceProfile
-from ..ballot import Ballot
+from votekit.pref_profile import RankProfile
+from votekit.ballot import RankBallot
 
 
 def load_scottish(
     fpath: Union[str, os.PathLike, Path],
-) -> tuple[PreferenceProfile, int, list[str], dict[str, str], str]:
+) -> tuple[RankProfile, int, list[str], dict[str, str], str]:
     """
     Given a file path, loads cast vote record from format used for Scottish election data
     in (this repo)[https://github.com/mggg/scot-elex].
 
     Args:
-        fpath (str): Path to Scottish election csv file.
+        fpath (Union[str, os.PathLike, pathlib.Path]): Path to Scottish election csv file.
+            Can be a url.
 
     Raises:
         FileNotFoundError: If fpath is invalid.
@@ -25,26 +28,18 @@ def load_scottish(
 
     Returns:
         tuple:
-            A tuple ``(PreferenceProfile, seats, cand_list, cand_to_party, ward)``
+            A tuple ``(RankProfile, seats, cand_list, cand_to_party, ward)``
             representing the election, the number of seats in the election, the candidate
             names, a dictionary mapping candidates to their party, and the ward. The
             candidate names are also stored in the PreferenceProfile object.
     """
 
-    fpath = str(fpath)
-
-    if not os.path.isfile(fpath):
-        raise FileNotFoundError(f"File with path {fpath} cannot be found")
-    if os.path.getsize(fpath) == 0:
-        raise EmptyDataError(f"CSV at {fpath} is empty.")
-
     # Convert the ballot rows to ints while leaving the candidates as strings
     def convert_row(row):
         return [int(item) if item.isdigit() else item for item in row]
 
-    data = []
-    with open(fpath, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
+    def parse_csv_reader(reader):
+        data = []
         for row in reader:
             # This just removes any empty strings that are hanging out since
             # we don't need to preserve columns
@@ -53,6 +48,22 @@ def load_scottish(
             # only save non-empty rows
             if len(filtered_row) > 0:
                 data.append(convert_row(filtered_row))
+        return data
+
+    fpath = str(fpath)
+
+    if not os.path.isfile(fpath):
+        with urllib.request.urlopen(fpath) as response:
+            data = response.read().decode("utf-8")
+        reader = csv.reader(io.StringIO(data))
+        data = parse_csv_reader(reader)
+
+    else:
+        if os.path.getsize(fpath) == 0:
+            raise EmptyDataError(f"CSV at {fpath} is empty.")
+        with open(fpath, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            data = parse_csv_reader(reader)
 
     if len(data[0]) != 2:
         raise DataError(
@@ -89,16 +100,16 @@ def load_scottish(
 
     cand_list = list(cand_to_party.keys())
 
-    ballots = [Ballot()] * len(data[1 : len(data) - (cand_num + 1)])
+    ballots = [RankBallot()] * len(data[1 : len(data) - (cand_num + 1)])
 
     for i, line in enumerate(data[1 : len(data) - (cand_num + 1)]):
         ballot_weight = line[0]
         cand_ordering = line[1:]
         ranking = tuple([frozenset({num_to_cand[n]}) for n in cand_ordering])
 
-        ballots[i] = Ballot(ranking=ranking, weight=ballot_weight)
+        ballots[i] = RankBallot(ranking=ranking, weight=ballot_weight)
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=tuple(ballots), candidates=tuple(cand_list)
     ).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

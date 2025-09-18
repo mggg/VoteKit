@@ -1,14 +1,14 @@
-from .abstract_ranking import RankingElection
-from ...transfers import fractional_transfer
-from ....pref_profile import PreferenceProfile
-from ...election_state import ElectionState
-from ....ballot import Ballot
-from ....cleaning import (
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections.transfers import fractional_transfer
+from votekit.pref_profile import RankProfile, ProfileError
+from votekit.elections.election_state import ElectionState
+from votekit.ballot import RankBallot
+from votekit.cleaning import (
     remove_and_condense_ranked_profile,
-    remove_cand_from_ballot,
-    condense_ballot_ranking,
+    remove_cand_from_rank_ballot,
+    condense_rank_ballot,
 )
-from ....utils import (
+from votekit.utils import (
     _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
     tiebreak_set,
@@ -28,9 +28,10 @@ class FastSTV:
     STV elections. All ballots must have no ties.
 
     Args:
-        profile (PreferenceProfile): PreferenceProfile to run election on.
+        profile (RankProfile): RankProfile to run election on.
         m (int): Number of seats to be elected. Defaults to 1.
-        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to 'fractional'.
+        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+            'fractional'.
         quota (str): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
@@ -44,7 +45,7 @@ class FastSTV:
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         transfer: str = "fractional",
         quota: str = "droop",
@@ -80,14 +81,14 @@ class FastSTV:
         self.election_states = self._make_election_states()
 
     def __check_seats_and_candidates_and_transfer(
-        self, profile: PreferenceProfile, m: int, transfer: str
+        self, profile: RankProfile, m: int, transfer: str
     ):
         """
         Checks if the number of seats is positive, if there are enough candidates to fill the seats,
             and if the transfer method is implemented.
 
         Args:
-            profile (PreferenceProfile): The preference profile to validate.
+            profile (RankProfile): The preference profile to validate.
             m (int): The number of seats to be elected.
             transfer (str): The transfer method to be used.
         """
@@ -97,7 +98,8 @@ class FastSTV:
             raise ValueError("Not enough candidates received votes to be elected.")
         if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
             raise ValueError(
-                "Transfer method must be either 'fractional', 'cambridge_random', or 'fractional_random'."
+                "Transfer method must be either 'fractional', 'cambridge_random', or "
+                "'fractional_random'."
             )
 
     def _get_threshold(self, total_ballot_wt: float) -> int:
@@ -123,10 +125,11 @@ class FastSTV:
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
         Args:
-            profile (PreferenceProfile): The preference profile to convert.
+            profile (RankProfile): The preference profile to convert.
 
         Returns:
-            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and first-preference vector.
+            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and
+                first-preference vector.
         """
         candidate_to_index = {
             frozenset([name]): i for i, name in enumerate(self.candidates)
@@ -181,11 +184,14 @@ class FastSTV:
 
         Args:
             tied_cands (list[int]): List of candidate indices that are tied.
-            winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or loser tiebreak (False).
+            winner_tiebreak_bool (bool): Whether we are looking for a winner tiebreak (True) or
+                loser tiebreak (False).
 
         Returns:
-            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won the winner tiebreak,
-                or lost the loser tiebreak, and the packaged tuple of frozensets representing the outcome of the tiebreak.
+            tuple: (chosen_candidate_index, packaged_ranking): the candidate index that won the
+                winner tiebreak,
+                or lost the loser tiebreak, and the packaged tuple of frozensets representing the
+                outcome of the tiebreak.
         """
 
         tied_cands_set = set(tied_cands)
@@ -240,7 +246,8 @@ class FastSTV:
             tallies (NDArray): Current vote tallies for all candidates.
             mutated_fpv_vec (NDArray): First preference vector (modified in place).
             mutated_wt_vec (NDArray): Weight vector for ballots (modified in place).
-            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in eliminated_or_exhausted.
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in
+                eliminated_or_exhausted.
                 (This has been already updated in find_winners.)
             mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
             mutated_eliminated_or_exhausted (list[int]): List of all eliminated/elected candidates.
@@ -255,7 +262,8 @@ class FastSTV:
         #  [2, -127, -127, -127]]
 
         # say that candidate 2 and 3 was already eliminated, and say that 1 just got elected.
-        # in this case the fpv_vec looks like [1,0,1,-127] before update, and the bool_ballot_matrix looks like:
+        # in this case the fpv_vec looks like [1,0,1,-127] before update, and the
+        # bool_ballot_matrix looks like:
         # [[0, 1, 0, 1],
         #  [1, 0, 1, 1],
         #  [0, 0, 1, 1],
@@ -264,7 +272,8 @@ class FastSTV:
         # rows_with_winner_fpv would look like [True, False, True, False] in the running example
         rows_with_winner_fpv = np.isin(mutated_fpv_vec, winners)
 
-        # the winner_row_indices would look like [0, 2] in the running example, and the allowed_pos_matrix looks like
+        # the winner_row_indices would look like [0, 2] in the running example,
+        # and the allowed_pos_matrix looks like
         # [[0, 1, 0, 1], #row 0 of the original matrix
         #  [0, 0, 1, 1]] #row 2 of the original matrix
         winner_row_indices = np.where(rows_with_winner_fpv)[0]
@@ -293,7 +302,8 @@ class FastSTV:
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
-                    # pre-emptively exhaust ballots that will be exhausted -- this is what Cambridge does
+                    # pre-emptively exhaust ballots that will be exhausted --
+                    # this is what Cambridge does
                     mutated_fpv_vec[winner_row_indices[next_fpv_vec == -127]] = -127
                 surplus = int(tallies[winner_idx] - self.threshold)
                 counts = self._sample_to_transfer(
@@ -322,7 +332,8 @@ class FastSTV:
         mutated_pos_vec: NDArray,
     ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         """
-        Updates helper arrays after a single candidate has been eliminated, transferring surplus votes.
+        Updates helper arrays after a single candidate has been eliminated, transferring surplus
+        votes.
 
         There's not a lot to do here -- find_loser already updates the mutant stencil,
         so we just need to move the pos and fpv vecs to their pre-calculated new positions.
@@ -332,7 +343,8 @@ class FastSTV:
             tallies (NDArray): Current vote tallies for all candidates.
             mutated_fpv_vec (NDArray): First preference vector (modified in place).
             mutated_wt_vec (NDArray): Weight vector for ballots (modified in place).
-            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in eliminated_or_exhausted.
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix in
+                eliminated_or_exhausted.
                 (This has been already updated in find_loser).
             mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
             mutated_eliminated_or_exhausted (list[int]): List of all eliminated/elected candidates.
@@ -384,17 +396,20 @@ class FastSTV:
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
-            tuple: (index of eliminated candidate, updated state tuple containing the boolean ballot matrix,
+            tuple: (index of eliminated candidate, updated state tuple containing the boolean
+                ballot matrix,
                 winner list, eliminated list, and tiebreak record).
         """
         masked_tallies: NDArray = np.where(
             np.isin(np.arange(len(tallies)), mutant_eliminated_or_exhausted),
             np.inf,
             tallies,
-        )  # we must do this because sometimes there are cands with 0 FPV who have yet to be eliminated
+        )  # we must do this because sometimes there are cands with 0 FPV who
+        # have yet to be eliminated
         if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
             potential_losers: list[int] = (
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
@@ -439,11 +454,14 @@ class FastSTV:
             turn (int): The current round number.
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated/elected candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
-            mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate
+                indices so far.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
-            tuple: (list of elected candidate indices, updated state tuple containing the boolean ballot matrix,
+            tuple: (list of elected candidate indices, updated state tuple containing the boolean
+                ballot matrix,
                 winner list, eliminated list, and tiebreak record).
         """
         if self.simultaneous:
@@ -486,7 +504,8 @@ class FastSTV:
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
             tuple: (index of new winner, updated tiebreak record)
@@ -522,7 +541,8 @@ class FastSTV:
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
             turn (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
 
         Returns:
             tuple: (index of new loser, updated tiebreak record)
@@ -575,15 +595,18 @@ class FastSTV:
 
         Args:
             ballot_matrix (NDArray): Matrix where each row is a ballot, each column is a ranking.
-            wt_vec (NDArray): Each entry is the weight of the corresponding row in the ballot matrix.
+            wt_vec (NDArray): Each entry is the weight of the corresponding row in the ballot
+                matrix.
                 This vector is modified in place.
-            fpv_vec (NDArray): Each entry is the first preference vote of the corresponding row in the ballot matrix.
+            fpv_vec (NDArray): Each entry is the first preference vote of the corresponding
+                row in the ballot matrix.
                 This vector is modified in place.
             m (int): The number of seats in the election.
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[list[NDArray], list[tuple[int, list[int], NDArray, str]], dict[int, dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+            tuple[list[NDArray], list[tuple[int, list[int], NDArray, str]], dict[int,
+            dict[frozenset[str], tuple[frozenset[str], ...]]]]:
                 The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
@@ -828,7 +851,8 @@ class FastSTV:
         """
         Creates the list of election states after the main loop has run.
         Returns:
-            list[ElectionState]: List of ElectionState objects representing each round in chronological order.
+            list[ElectionState]: List of ElectionState objects representing each round in
+                chronological order.
         """
         e_states = [
             ElectionState(
@@ -869,9 +893,9 @@ class FastSTV:
 
         return e_states
 
-    def get_profile(self, round_number: int = -1) -> PreferenceProfile:
+    def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Fetch the PreferenceProfile of the given round number.
+        Fetch the RankProfile of the given round number.
         """
         if (
             round_number < -len(self.election_states)
@@ -941,17 +965,13 @@ class FastSTV:
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
 
-        return PreferenceProfile(
-            contains_rankings=True,
-            contains_scores=False,
+        return RankProfile(
             max_ranking_length=self.profile.max_ranking_length,
             candidates=tuple([self.candidates[c] for c in remaining]),
             df=df,
         )
 
-    def get_step(
-        self, round_number: int = -1
-    ) -> tuple[PreferenceProfile, ElectionState]:
+    def get_step(self, round_number: int = -1) -> tuple[RankProfile, ElectionState]:
         """
         Fetches the profile and ElectionState of the given round number.
 
@@ -960,7 +980,7 @@ class FastSTV:
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[PreferenceProfile, ElectionState]
+            tuple[RankProfile, ElectionState]
         """
         return (self.get_profile(round_number), self.election_states[round_number])
 
@@ -995,7 +1015,8 @@ class FastSTV:
         # assume that quota was 220, so winner 2 had 5 surplus votes and 225 transferable votes
         transferable = int(wts.sum())
 
-        # this deals with cases where there are fewer than surplus votes to transfer (lots of exhausted ballots)
+        # this deals with cases where there are fewer than surplus votes to transfer
+        # (lots of exhausted ballots)
         surplus = min(surplus, transferable)
 
         # Sample surplus distinct positions in the implicit pool [0, transferable)
@@ -1004,8 +1025,10 @@ class FastSTV:
         positions_to_transfer.sort()
 
         # Say we sampled the numbers 12, 50, 178, 200, and 201
-        # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled votes go to winner_row_index[0]
-        # numbers 200 and 201 get mapped to the second bin, so they go to our second winner_row_index[1]
+        # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled
+        # votes go to winner_row_index[0]
+        # numbers 200 and 201 get mapped to the second bin, so they go to our second
+        #  winner_row_index[1]
         bins = np.cumsum(wts)  # len = len(idx)
         owners = np.searchsorted(
             bins, positions_to_transfer, side="right"
@@ -1015,7 +1038,8 @@ class FastSTV:
         counts_local = np.bincount(owners, minlength=winner_row_indices.size)
         counts = np.zeros(fpv_vec.shape[0], dtype=np.int64)
         counts[winner_row_indices] = (
-            counts_local  # this tells us how many times each row was sampled as indexed in the global ballot_matrix
+            counts_local  # this tells us how many times each row was sampled as indexed in the
+            # global ballot_matrix
         )
         return counts
 
@@ -1030,10 +1054,10 @@ class STV(RankingElection):
     STV elections. All ballots must have no ties.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         m (int): Number of seats to be elected. Defaults to 1.
-        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]]):
-        Transfer method. Defaults to fractional transfer.
+        transfer (Callable[[str, float, Union[tuple[Ballot], list[Ballot]], int],
+            tuple[Ballot,...]], optional): Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
             after transfer.
@@ -1050,11 +1074,11 @@ class STV(RankingElection):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         transfer: Callable[
-            [str, float, Union[tuple[Ballot], list[Ballot]], int],
-            tuple[Ballot, ...],
+            [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: str = "droop",
         simultaneous: bool = True,
@@ -1080,10 +1104,13 @@ class STV(RankingElection):
             sort_high_low=True,
         )
 
-    def _stv_validate_profile(self, profile: PreferenceProfile):
+    def _stv_validate_profile(self, profile: RankProfile):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
         """
+        if not isinstance(profile, RankProfile):
+            raise ProfileError("Profile must be of type RankProfile.")
+        assert profile.max_ranking_length is not None
         ranking_rows = [
             f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
@@ -1097,7 +1124,7 @@ class STV(RankingElection):
         for idx, row in enumerate(np_arr):
             if any(len(s) > 1 for s in row):
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
+                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
                     "contains a tied ranking."
                 )
             if (row == tilde).all():
@@ -1131,18 +1158,18 @@ class STV(RankingElection):
         return False
 
     def _simultaneous_elect_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState
-    ) -> tuple[tuple[frozenset[str], ...], PreferenceProfile]:
+        self, profile: RankProfile, prev_state: ElectionState
+    ) -> tuple[tuple[frozenset[str], ...], RankProfile]:
         """
         Run one step of an election from the given profile and previous state.
         Used for simultaneous STV election if candidates cross threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
-            tuple[tuple[frozenset[str],...], PreferenceProfile]:
+            tuple[tuple[frozenset[str],...], RankProfile]:
                 A tuple whose first entry is the elected candidates, ranked by first-place votes,
                 and whose second entry is the profile of ballots after transfers.
         """
@@ -1163,7 +1190,7 @@ class STV(RankingElection):
                     break
 
         ballots_by_fpv = ballots_by_first_cand(profile)
-        new_ballots = [Ballot()] * profile.num_ballots
+        new_ballots = [RankBallot()] * profile.num_ballots
         ballot_index = 0
 
         for s in elected:
@@ -1189,8 +1216,8 @@ class STV(RankingElection):
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_ballot_ranking(
-                remove_cand_from_ballot([c for s in elected for c in s], b)
+            condense_rank_ballot(
+                remove_cand_from_rank_ballot([c for s in elected for c in s], b)
             )
             for b in new_ballots
             if b.ranking
@@ -1200,7 +1227,7 @@ class STV(RankingElection):
             [c for s in elected for c in s]
         )
 
-        new_profile = PreferenceProfile(
+        new_profile = RankProfile(
             ballots=cleaned_ballots,
             candidates=tuple(remaining_cands),
             max_ranking_length=profile.max_ranking_length,
@@ -1208,23 +1235,23 @@ class STV(RankingElection):
         return (tuple(elected), new_profile)
 
     def _single_elect_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState
+        self, profile: RankProfile, prev_state: ElectionState
     ) -> tuple[
         tuple[frozenset[str], ...],
         dict[frozenset[str], tuple[frozenset[str], ...]],
-        PreferenceProfile,
+        RankProfile,
     ]:
         """
         Run one step of an election from the given profile and previous state.
         Used for one-by-one STV election if candidates cross threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
             tuple[tuple[frozenset[str],...], dict[frozenset[str], tuple[frozenset[str],...]],
-            PreferenceProfile]:
+            RankProfile]:
                 A tuple whose first entry is the elected candidate, second is the tiebreak dict,
                 and whose third entry is the profile of ballots after transfers.
         """
@@ -1245,7 +1272,7 @@ class STV(RankingElection):
                 tiebreaks = {}
 
         ballots_by_fpv = ballots_by_first_cand(profile)
-        new_ballots = [Ballot()] * profile.num_ballots
+        new_ballots = [RankBallot()] * profile.num_ballots
         ballot_index = 0
 
         elected_c = list(elected[0])[0]
@@ -1270,7 +1297,7 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_ballot_ranking(remove_cand_from_ballot(elected_c, b))
+            condense_rank_ballot(remove_cand_from_rank_ballot(elected_c, b))
             for b in new_ballots
             if b.ranking
         )
@@ -1278,7 +1305,7 @@ class STV(RankingElection):
         remaining_cands = set(profile.candidates_cast).difference(
             [c for s in elected for c in s]
         )
-        new_profile = PreferenceProfile(
+        new_profile = RankProfile(
             ballots=cleaned_ballots,
             candidates=tuple(remaining_cands),
             max_ranking_length=profile.max_ranking_length,
@@ -1286,8 +1313,8 @@ class STV(RankingElection):
         return elected, tiebreaks, new_profile
 
     def _run_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
-    ) -> PreferenceProfile:
+        self, profile: RankProfile, prev_state: ElectionState, store_states=False
+    ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
         STV sets a threshold for first-place votes. If a candidate passes it, they are elected.
@@ -1298,14 +1325,14 @@ class STV(RankingElection):
         threshold.
 
         Args:
-            profile (PreferenceProfile): Profile of ballots.
+            profile (RankProfile): Profile of ballots.
             prev_state (ElectionState): The previous ElectionState.
             store_states (bool, optional): True if `self.election_states` should be updated with the
                 ElectionState generated by this round. This should only be True when used by
                 `self._run_election()`. Defaults to False.
 
         Returns:
-            PreferenceProfile: The profile of ballots after the round is completed.
+            RankProfile: The profile of ballots after the round is completed.
         """
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
@@ -1335,7 +1362,7 @@ class STV(RankingElection):
         ):
             elected = prev_state.remaining
             eliminated = (frozenset(),)
-            new_profile = PreferenceProfile()
+            new_profile = RankProfile()
 
         else:
             lowest_fpv_cands = prev_state.remaining[-1]
@@ -1397,7 +1424,7 @@ class IRV(STV):
     Equivalent to STV for m = 1.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
@@ -1408,7 +1435,7 @@ class IRV(STV):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         quota: str = "droop",
         tiebreak: Optional[str] = None,
     ):
@@ -1421,7 +1448,7 @@ class SequentialRCV(STV):
     been elected. This system is actually used in parts of Utah.
 
     Args:
-        profile (PreferenceProfile):   PreferenceProfile to run election on.
+        profile (RankProfile):   RankProfile to run election on.
         m (int, optional): Number of seats to be elected. Defaults to 1.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
@@ -1436,7 +1463,7 @@ class SequentialRCV(STV):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
+        profile: RankProfile,
         m: int = 1,
         quota: str = "droop",
         simultaneous: bool = True,
@@ -1445,12 +1472,12 @@ class SequentialRCV(STV):
         def _transfer(
             winner: str,
             _fpv: float,
-            ballots: Union[tuple[Ballot], list[Ballot]],
+            ballots: Union[tuple[RankBallot], list[RankBallot]],
             _threshold: int,
-        ) -> tuple[Ballot, ...]:
+        ) -> tuple[RankBallot, ...]:
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(
-                condense_ballot_ranking(remove_cand_from_ballot(winner, b))
+                condense_rank_ballot(remove_cand_from_rank_ballot(winner, b))
                 for b in ballots
             )
 

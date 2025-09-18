@@ -1,4 +1,4 @@
-from votekit.pref_profile import PreferenceProfile, profile_to_ranking_dict
+from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
 import numpy as np
 from typing import Union, Optional, Sequence
 from scipy.optimize import linprog
@@ -144,11 +144,13 @@ def __vaildate_ranking_distance_inputs(
 
     if len(ranked1_set) != len(ranking1):
         raise ValueError(
-            f"The ranking {ranking1} contains duplicates and is not suitable for distance computation."
+            f"The ranking {ranking1} contains duplicates and is not suitable for distance "
+            "computation."
         )
     if len(ranked2_set) != len(ranking2):
         raise ValueError(
-            f"The ranking {ranking2} contains duplicates and is not suitable for distance computation."
+            f"The ranking {ranking2} contains duplicates and is not suitable for distance "
+            "computation."
         )
     if len(full_ranking_set) > n_candidates:
         raise ValueError(
@@ -265,7 +267,7 @@ def compute_ranking_distance_on_ballot_graph(
 
 
 def __build_simultaneous_profile_distribution(
-    pp1: PreferenceProfile, pp2: PreferenceProfile
+    pp1: RankProfile, pp2: RankProfile
 ) -> dict[tuple[int, ...], tuple[float, float]]:
     """
     Builds a simultaneous distribution of two preference profiles, where each key is a tuple
@@ -274,8 +276,8 @@ def __build_simultaneous_profile_distribution(
     0.0.
 
     Args:
-        pp1 (PreferenceProfile): PreferenceProfile for first profile.
-        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+        pp1 (RankProfile): RankProfile for first profile.
+        pp2 (RankProfile): RankProfile for second profile.
 
     Returns:
         dict[tuple[int, ...], tuple[float, float]]: A dictionary where keys are tuples of candidate
@@ -291,6 +293,7 @@ def __build_simultaneous_profile_distribution(
 
     profile_distribution_dict = dict()
 
+    assert profile1.max_ranking_length is not None
     profile1_ranking_array = profile1.df[
         [f"Ranking_{i}" for i in range(1, profile1.max_ranking_length + 1)]
     ].to_numpy()
@@ -314,6 +317,7 @@ def __build_simultaneous_profile_distribution(
 
         profile_distribution_dict[tup] = (float(profile1_wt_vector[idx]), 0.0)
 
+    assert profile2.max_ranking_length is not None
     profile2_ranking_array = profile2.df[
         [f"Ranking_{i}" for i in range(1, profile2.max_ranking_length + 1)]
     ].to_numpy()
@@ -343,14 +347,14 @@ def __build_simultaneous_profile_distribution(
     return profile_distribution_dict
 
 
-def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
+def earth_mover_dist(pp1: RankProfile, pp2: RankProfile) -> float:
     """
     Computes the Earth Mover's Distance (EMD) between two preference profiles.
     Assumes both elections share the same candidates.
 
     Args:
-        pp1 (PreferenceProfile): PreferenceProfile for first profile.
-        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+        pp1 (RankProfile): RankProfile for first profile.
+        pp2 (RankProfile): RankProfile for second profile.
 
     Returns:
         float: Earth Mover's Distance between two profiles.
@@ -358,13 +362,14 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
     if set(pp1.candidates) != set(pp2.candidates):
         raise ValueError("The two profiles must have the same candidates.")
 
-    if not pp1.contains_rankings or not pp2.contains_rankings:
+    if not isinstance(pp1, RankProfile) or not isinstance(pp2, RankProfile):
         raise ValueError(
             "Both profiles must contain rankings to compute the Earth Mover's Distance."
         )
     if pp1.max_ranking_length != pp2.max_ranking_length:
         raise ValueError(
-            "Both profiles must have the same maximum ranking length to compute the Earth Mover's Distance."
+            "Both profiles must have the same maximum ranking length to compute the Earth Mover's "
+            "Distance."
         )
 
     profile_distribution_dict = __build_simultaneous_profile_distribution(pp1, pp2)
@@ -396,8 +401,8 @@ def earth_mover_dist(pp1: PreferenceProfile, pp2: PreferenceProfile) -> float:
 
 
 def lp_dist(
-    pp1: PreferenceProfile,
-    pp2: PreferenceProfile,
+    pp1: RankProfile,
+    pp2: RankProfile,
     p_value: Optional[Union[int, str]] = 1,
 ) -> int:
     r"""
@@ -406,8 +411,8 @@ def lp_dist(
     Assumes both elections share the same candidates.
 
     Args:
-        pp1 (PreferenceProfile): PreferenceProfile for first profile.
-        pp2 (PreferenceProfile): PreferenceProfile for second profile.
+        pp1 (RankProfile): RankProfile for first profile.
+        pp2 (RankProfile): RankProfile for second profile.
         p_value (Union[int, str], optional): :math:`L_p` distance parameter. Use "inf" for
             :math:`\infty`.
 
@@ -435,16 +440,16 @@ def lp_dist(
         raise ValueError("Unsupported input type")
 
 
-def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
+def profiles_to_ndarrys(profiles: list[RankProfile]):
     """
     Converts a list of preference profiles into an ndarray. The columns
     represent each profile, rows are the cast ballots, and each element represents
-    the frequency a ballot type occurs for a ``PreferenceProfile``. Each column will sum to one
+    the frequency a ballot type occurs for a ``RankProfile``. Each column will sum to one
     since weights are standardized. This is useful for computing election :math:`L_p` distances
     between profiles.
 
     Args:
-        profiles (list[PreferenceProfile]): A list of PreferenceProfiles.
+        profiles (list[RankProfile]): A list of PreferenceProfiles.
 
     Returns:
         numpy.ndarray: computed matrix of ballot frequencies.
@@ -452,7 +457,7 @@ def profiles_to_ndarrys(profiles: list[PreferenceProfile]):
     cast_ballots: list = []
     profile_dicts: list[dict] = []
     for pp in profiles:
-        election_dict = profile_to_ranking_dict(pp, standardize=True)
+        election_dict = rank_profile_to_ranking_dict(pp, standardize=True)
         profile_dicts.append(election_dict)
         for key in election_dict.keys():
             if key not in cast_ballots:

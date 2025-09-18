@@ -1,14 +1,16 @@
-from abc import ABC, abstractmethod
-from .elections import ElectionState
-from .pref_profile import PreferenceProfile
+from abc import abstractmethod
+from votekit.elections import ElectionState
+from votekit.pref_profile import PreferenceProfile
 import pandas as pd
-from .utils import (
+from votekit.utils import (
     score_dict_to_ranking,
 )
-from typing import Callable, Optional
+from typing import Callable, Optional, Generic, TypeVar
+
+P = TypeVar("P", bound=PreferenceProfile)
 
 
-class Election(ABC):
+class Election(Generic[P]):
     """
     Abstract base class for election types.
 
@@ -34,10 +36,8 @@ class Election(ABC):
 
     def __init__(
         self,
-        profile: PreferenceProfile,
-        score_function: Optional[
-            Callable[[PreferenceProfile], dict[str, float]]
-        ] = None,
+        profile: P,
+        score_function: Optional[Callable[[P], dict[str, float]]] = None,
         sort_high_low: bool = True,
     ):
         self._validate_profile(profile)
@@ -48,7 +48,7 @@ class Election(ABC):
         self._run_election()
         self.length = len(self.election_states) - 1
 
-    def get_profile(self, round_number: int = -1) -> PreferenceProfile:
+    def get_profile(self, round_number: int = -1) -> P:
         """
         Fetch the PreferenceProfile of the given round number.
 
@@ -75,9 +75,7 @@ class Election(ABC):
 
         return profile
 
-    def get_step(
-        self, round_number: int = -1
-    ) -> tuple[PreferenceProfile, ElectionState]:
+    def get_step(self, round_number: int = -1) -> tuple[P, ElectionState]:
         """
         Fetches the profile and ElectionState of the given round number.
 
@@ -221,7 +219,7 @@ class Election(ABC):
 
         status_df = pd.DataFrame(
             {"Status": ["Remaining"] * len(candidates), "Round": [0] * len(candidates)},
-            index=candidates,
+            index=tuple(candidates),
         )
 
         for i in range(round_number):
@@ -245,7 +243,7 @@ class Election(ABC):
         return status_df
 
     @abstractmethod
-    def _validate_profile(self, profile: PreferenceProfile):
+    def _validate_profile(self, profile: P):
         """
         Validate that a profile contains appropriate ballots for election. Raises
         TypeError if not.
@@ -256,9 +254,7 @@ class Election(ABC):
         pass
 
     @abstractmethod
-    def _run_step(
-        self, profile: PreferenceProfile, prev_state: ElectionState, store_states=False
-    ) -> PreferenceProfile:
+    def _run_step(self, profile: P, prev_state: ElectionState, store_states=False) -> P:
         """
         Run one step of an election from the given profile and previous state.
 

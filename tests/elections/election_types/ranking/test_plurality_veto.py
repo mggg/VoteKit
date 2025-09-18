@@ -1,4 +1,5 @@
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile
+from votekit.ballot import Ballot
 from votekit.elections import PluralityVeto
 import random
 import numpy as np
@@ -17,7 +18,7 @@ def test_plurality_veto_error():
     with pytest.raises(
         ValueError, match="Not enough candidates received votes to be elected."
     ):
-        PluralityVeto(PreferenceProfile(), m=1)
+        PluralityVeto(RankProfile(), m=1)
 
 
 @pytest.mark.slow

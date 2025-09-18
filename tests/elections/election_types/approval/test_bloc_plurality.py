@@ -1,28 +1,29 @@
 from votekit.elections import BlocPlurality, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.pref_profile import RankProfile, ScoreProfile
 import pytest
 import pandas as pd
 
-profile_no_tied_bloc_plurality = PreferenceProfile(
+profile_no_tied_bloc_plurality = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 1, "B": 1}, weight=3),
-        Ballot(scores={"A": 1, "C": 1}, weight=2),
+        ScoreBallot(scores={"A": 1, "B": 1}, weight=3),
+        ScoreBallot(scores={"A": 1, "C": 1}, weight=2),
     ],
     candidates=("A", "B", "C", "D"),
 )
 
 
-profile_no_tied_bloc_plurality_round_1 = PreferenceProfile(
+profile_no_tied_bloc_plurality_round_1 = ScoreProfile(
     ballots=[
-        Ballot(scores={"C": 1}, weight=2),
+        ScoreBallot(scores={"C": 1}, weight=2),
     ],
     candidates=("C", "D"),
 )
 
-profile_tied_bloc_plurality = PreferenceProfile(
+profile_tied_bloc_plurality = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 1}),
-        Ballot(scores={"B": 1}),
+        ScoreBallot(scores={"A": 1}),
+        ScoreBallot(scores={"B": 1}),
     ],
     candidates=("A", "B", "C"),
 )
@@ -146,13 +147,17 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3})])
         BlocPlurality(profile, m=1)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
+        BlocPlurality(profile, m=1)
+
+    with pytest.raises(TypeError, match="must be of type ScoreBallot"):
+        profile = RankProfile(ballots=[RankBallot(ranking=({"A"},))])
         BlocPlurality(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot(ranking=({"A"},))])
+        profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1})])
         BlocPlurality(profile, m=1)

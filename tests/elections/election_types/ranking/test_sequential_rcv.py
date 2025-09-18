@@ -1,5 +1,6 @@
 from votekit.elections import SequentialRCV, ElectionState
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
+from votekit.ballot import Ballot
 import pytest
 
 # taken from STV wiki
@@ -265,5 +266,5 @@ def test_errors():
             PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip"
         )
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

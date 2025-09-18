@@ -1,23 +1,23 @@
 import random
 import math
-from ..ballot import Ballot
+from votekit.ballot import RankBallot
 from typing import Union
-from ..pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
 
 def fractional_transfer(
     winner: str,
     fpv: float,
-    ballots: Union[tuple[Ballot], list[Ballot]],
+    ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
-) -> tuple[Ballot, ...]:
+) -> tuple[RankBallot, ...]:
     """
     Calculates fractional transfer from winner, then removes winner from the list of ballots.
 
     Args:
         winner (str): Candidate to transfer votes from.
         fpv (float): Number of first place votes for winning candidate.
-        ballots (Union[tuple[Ballot], list[Ballot]]): List of Ballot objects.
+        ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
     Returns:
@@ -26,9 +26,9 @@ def fractional_transfer(
     """
     transfer_value = (fpv - threshold) / fpv
 
-    transfered_ballots = [Ballot()] * len(ballots)
+    transfered_ballots = [RankBallot()] * len(ballots)
     for i, ballot in enumerate(ballots):
-        if ballot.ranking:
+        if ballot.ranking is not None:
             # if winner is first place, transfer ballot with fractional weight
             if ballot.ranking[0] == {winner}:
                 transfered_weight = ballot.weight * transfer_value
@@ -40,7 +40,7 @@ def fractional_transfer(
             )
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
-            transfered_ballots[i] = Ballot(
+            transfered_ballots[i] = RankBallot(
                 ranking=new_ranking,
                 weight=transfered_weight,
                 voter_set=ballot.voter_set,
@@ -48,7 +48,7 @@ def fractional_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    return PreferenceProfile(
+    return RankProfile(
         ballots=tuple([b for b in transfered_ballots if b.ranking and b.weight > 0])
     ).ballots
 
@@ -56,9 +56,9 @@ def fractional_transfer(
 def random_transfer(
     winner: str,
     fpv: float,
-    ballots: Union[tuple[Ballot], list[Ballot]],
+    ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
-) -> tuple[Ballot, ...]:
+) -> tuple[RankBallot, ...]:
     """
     Cambridge-style transfer where transfer ballots are selected randomly.
     All ballots must have integer weights.
@@ -66,17 +66,17 @@ def random_transfer(
     Args:
         winner (str): Candidate to transfer votes from.
         fpv (float): Number of first place votes for winning candidate.
-        ballots (Union[tuple[Ballot], list[Ballot]]): List of Ballot objects.
+        ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
     Returns:
-        tuple[Ballot,...]:
+        tuple[RankBallot,...]:
             Modified ballots with transferred weights and the winning candidate removed.
     """
 
     # turn all of winner's ballots into (multiple) ballots of weight 1
-    winner_ballots = [Ballot()] * len(ballots)
-    updated_ballots = [Ballot()] * len(ballots)
+    winner_ballots = [RankBallot()] * len(ballots)
+    updated_ballots = [RankBallot()] * len(ballots)
 
     winner_index = 0
     for i, ballot in enumerate(ballots):
@@ -84,7 +84,7 @@ def random_transfer(
         if not math.isclose(int(ballot.weight) - ballot.weight, 0):
             raise TypeError(f"Ballot {ballot} does not have integer weight.")
 
-        if ballot.ranking:
+        if ballot.ranking is not None:
             # remove winner from ballot
             new_ranking = tuple(
                 [frozenset([c for c in s if c != winner]) for s in ballot.ranking]
@@ -93,7 +93,7 @@ def random_transfer(
 
             if ballot.ranking[0] == frozenset({winner}):
                 new_ballots = [
-                    Ballot(
+                    RankBallot(
                         ranking=new_ranking,
                         weight=1,
                         voter_set=ballot.voter_set,
@@ -105,7 +105,7 @@ def random_transfer(
                 winner_index += len(new_ballots)
 
             else:
-                updated_ballots[i] = Ballot(
+                updated_ballots[i] = RankBallot(
                     ranking=new_ranking,
                     weight=ballot.weight,
                     voter_set=ballot.voter_set,
@@ -118,6 +118,6 @@ def random_transfer(
     )
     updated_ballots += surplus_ballots
 
-    return PreferenceProfile(
+    return RankProfile(
         ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
     ).ballots

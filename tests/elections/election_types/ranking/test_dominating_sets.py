@@ -1,5 +1,9 @@
 from votekit.elections import DominatingSets, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 
 profile_no_tied_dominating_sets = PreferenceProfile(
@@ -113,5 +117,5 @@ def test_get_ranking():
 
 
 def test_errors():
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         DominatingSets(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
