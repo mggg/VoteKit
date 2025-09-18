@@ -4,7 +4,7 @@ from typing import Union, Tuple
 import apportionment.methods as apportion
 
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.ballot_generator import BallotGenerator, sample_cohesion_ballot_types
 
 
@@ -47,17 +47,17 @@ class slate_PlackettLuce(BallotGenerator):
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
+    ) -> Union[RankProfile, Tuple]:
         """
         Args:
             number_of_ballots (int): The number of ballots to generate.
             by_bloc (bool): True if you want the generated profiles returned as a tuple
                 ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
-                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                and values = ``RankProfile`` and ``pp`` is the aggregated profile. False if
                 you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Union[PreferenceProfile, Tuple]
+            Union[RankProfile, Tuple]
         """
         bloc_props = list(self.bloc_voter_prop.values())
         ballots_per_block = dict(
@@ -119,12 +119,12 @@ class slate_PlackettLuce(BallotGenerator):
                     ranking.append(frozenset(zero_cands))
                 ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
 
-            pp = PreferenceProfile(ballots=tuple(ballot_pool))
+            pp = RankProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
             pref_profile_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile()
+        pp = RankProfile()
         for profile in pref_profile_by_bloc.values():
             pp += profile
 

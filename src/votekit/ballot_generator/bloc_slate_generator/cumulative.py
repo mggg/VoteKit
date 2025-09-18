@@ -3,7 +3,7 @@ from typing import Union, Tuple
 import apportionment.methods as apportion
 
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import ScoreProfile
 from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.ballot_generator import BallotGenerator
 
@@ -67,17 +67,17 @@ class name_Cumulative(BallotGenerator):
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
+    ) -> Union[ScoreProfile, Tuple]:
         """
         Args:
             number_of_ballots (int): The number of ballots to generate.
             by_bloc (bool): True if you want the generated profiles returned as a tuple
                 ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
-                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                and values = ``ScoreProfile`` and ``pp`` is the aggregated profile. False if
                 you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Union[PreferenceProfile, Tuple]
+            Union[ScoreProfile, Tuple]
         """
         # the number of ballots per bloc is determined by Huntington-Hill apportionment
         bloc_props = list(self.bloc_voter_prop.values())
@@ -88,7 +88,7 @@ class name_Cumulative(BallotGenerator):
             )
         )
 
-        pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
+        pp_by_bloc = {b: ScoreProfile() for b in self.blocs}
 
         for bloc in self.bloc_voter_prop.keys():
             ballot_pool = []
@@ -118,12 +118,12 @@ class name_Cumulative(BallotGenerator):
 
                 ballot_pool.append(Ballot(scores=scores, weight=1))
 
-            pp = PreferenceProfile(ballots=tuple(ballot_pool))
+            pp = ScoreProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile()
+        pp = ScoreProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 

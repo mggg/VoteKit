@@ -4,7 +4,7 @@ import random
 from typing import Dict
 from collections import Counter
 
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
@@ -38,7 +38,7 @@ class ImpartialAnonymousCulture:
         self,
         number_of_ballots,
         max_ballot_length=None,
-    ) -> PreferenceProfile | Dict:
+    ) -> RankProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
 
@@ -46,7 +46,7 @@ class ImpartialAnonymousCulture:
 
     def _generate_profile_optimized(
         self, num_ballots: int, max_ballot_length: int
-    ) -> PreferenceProfile | Dict:
+    ) -> RankProfile | Dict:
         # choose index as sampled 0 to N, do this n! times
         num_cands = len(self.candidates)
         num_gaps = num_ballots  # + 1
@@ -77,9 +77,8 @@ class ImpartialAnonymousCulture:
         ballots_as_counter = Counter(ballots_as_cand_ind)
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
-        return PreferenceProfile(
+        return RankProfile(
             df=pp_df,
-            contains_rankings=True,
             max_ranking_length=len(self.candidates),
             candidates=self.candidates,
         )

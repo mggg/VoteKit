@@ -1,4 +1,5 @@
 import math
+from re import S
 
 from votekit.ballot_generator import (
     name_PlackettLuce,
@@ -7,7 +8,7 @@ from votekit.ballot_generator import (
     slate_BradleyTerry,
     name_Cumulative,
 )
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 
 def test_NPL_fron_params():
@@ -31,7 +32,7 @@ def test_NPL_fron_params():
     )
 
     profile = pl.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
 
 def test_SPL_from_params():
@@ -54,7 +55,7 @@ def test_SPL_from_params():
     )
 
     profile = gen.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
 
 def test_SPL_from_params_zero_support():
@@ -81,7 +82,7 @@ def test_SPL_from_params_zero_support():
     )
 
     profile = gen.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
 
 def test_SBT_from_params():
@@ -104,7 +105,7 @@ def test_SBT_from_params():
     )
 
     profile = gen.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
 
 def test_name_Cumulative_from_params():
@@ -128,7 +129,7 @@ def test_name_Cumulative_from_params():
     )
 
     profile = gen.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is ScoreProfile
 
 
 def test_CS_from_params():
@@ -151,7 +152,7 @@ def test_CS_from_params():
     )
 
     profile = cs.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     # chekc that W,C bloc assignments work
     cs = CambridgeSampler.from_params(
@@ -171,7 +172,7 @@ def test_CS_from_params():
     )
 
     profile = cs.generate_profile(3)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
 
 def test_interval_sum_from_params():

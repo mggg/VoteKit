@@ -17,13 +17,12 @@ import numpy as np
 import random
 from typing import Mapping, Optional
 import apportionment.methods as apportion
-from functools import lru_cache
 import math
 import pandas as pd
 import sys
 
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 
@@ -79,7 +78,7 @@ def _make_bradley_terry_numerator(vals):
     return ret
 
 
-def _bradley_terry_pdf(dct: dict[str, float]) -> dict[tuple[str, ...], float]:
+def _bradley_terry_pdf(dct: Mapping[str, float]) -> dict[tuple[str, ...], float]:
     """
     Given a dictionary of candidates and their support, returns the probability mass function
     over all possible rankings.
@@ -130,7 +129,7 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
 # ===========================================================
 
 
-def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, PreferenceProfile]:
+def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using direct sampling.
 
@@ -142,7 +141,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, PreferencePr
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
 
     Returns:
-        dict[str, PreferenceProfile]: Generated preference profiles by bloc.
+        dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     config.is_valid(raise_errors=True)
     n_candidates = len(config.candidates)
@@ -162,7 +161,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, PreferencePr
 
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-    pp_by_bloc = {b: PreferenceProfile() for b in bloc_lst}
+    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
 
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
 
@@ -203,10 +202,9 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, PreferencePr
         df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
         df["Weight"] = 1
         df["Voter Set"] = [frozenset()] * len(df)
-        pp = PreferenceProfile(
+        pp = RankProfile(
             candidates=config.candidates,
             df=df,
-            contains_rankings=True,
             max_ranking_length=n_candidates,
         )
         pp_by_bloc[bloc] = pp
@@ -334,7 +332,7 @@ def _bradley_terry_mcmc(
     if verbose:
         print(f"The number of ballots after is {len(ballots)}")
 
-    pp = PreferenceProfile(ballots=ballots)
+    pp = RankProfile(ballots=ballots)  # type: ignore
     return pp
 
 
@@ -344,7 +342,7 @@ def _inner_name_bradley_terry_mcmc(
     verbose: bool = False,
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
-) -> dict[str, PreferenceProfile]:
+) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
     be sufficiently large to allow for convergence of the chain.
@@ -361,7 +359,7 @@ def _inner_name_bradley_terry_mcmc(
             the chain until the desired number of ballots is reached. Defaults to None which
             sets it to n_ballots.
     Returns:
-        Union[PreferenceProfile, Tuple]
+        Union[RankProfile, Tuple]
     """
     config.is_valid(raise_errors=True)
 
@@ -380,7 +378,7 @@ def _inner_name_bradley_terry_mcmc(
 
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-    pp_by_bloc = {b: PreferenceProfile() for b in bloc_lst}
+    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
 
     for bloc in bloc_lst:
@@ -413,7 +411,7 @@ def _inner_name_bradley_terry_mcmc(
 
 def generate_name_bt_profiles_by_bloc(
     config: BlocSlateConfig, *, group_ballots=True
-) -> dict[str, PreferenceProfile]:
+) -> dict[str, RankProfile]:
     """
     Generate a preference profile using the name-BradleyTerry model. The probability of sampling
     the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
@@ -425,7 +423,7 @@ def generate_name_bt_profiles_by_bloc(
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
 
     Returns:
-        dict[str, PreferenceProfile]: Generated preference profiles by bloc.
+        dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     _check_name_bt_memory(config)
     pp_by_bloc = _inner_name_bradley_terry(config)
@@ -438,7 +436,7 @@ def generate_name_bt_profiles_by_bloc(
 
 def generate_name_bt_profile(
     config: BlocSlateConfig, *, group_ballots=True
-) -> PreferenceProfile:
+) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model. The probability of sampling
     the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
@@ -450,13 +448,13 @@ def generate_name_bt_profile(
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
 
     Returns:
-        PreferenceProfile: Generated preference profile.
+        RankProfile: Generated preference profile.
     """
     _check_name_bt_memory(config)
     pp_by_bloc = _inner_name_bradley_terry(config)
 
     # combine the profiles
-    pp = PreferenceProfile()
+    pp = RankProfile()
     for profile in pp_by_bloc.values():
         pp += profile
 
@@ -472,7 +470,7 @@ def generate_name_bt_profile_using_mcmc(
     verbose: bool = False,
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
-) -> PreferenceProfile:
+) -> RankProfile:
     """
     Generate a preference profile using MCMC sampling from the name-BradleyTerry model.
 
@@ -491,13 +489,13 @@ def generate_name_bt_profile_using_mcmc(
             sets it to n_ballots.
 
     Returns:
-        PreferenceProfile: Generated preference profile.
+        RankProfile: Generated preference profile.
     """
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config, verbose=verbose, burn_in_time=burn_in_time, chain_length=chain_length
     )
     # combine the profiles
-    pp = PreferenceProfile()
+    pp = RankProfile()
     for profile in pp_by_bloc.values():
         pp += profile
 
@@ -513,7 +511,7 @@ def generate_name_bt_profiles_by_bloc_using_mcmc(
     verbose: bool = False,
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
-) -> dict[str, PreferenceProfile]:
+) -> dict[str, RankProfile]:
     """
     Generate a preference profile dictionary by bloc using MCMC sampling from the
     name-BradleyTerry model.
@@ -533,7 +531,7 @@ def generate_name_bt_profiles_by_bloc_using_mcmc(
             sets it to n_ballots.
 
     Returns:
-        dict[str, PreferenceProfile]: Generated preference profiles by bloc.
+        dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config, verbose=verbose, burn_in_time=burn_in_time, chain_length=chain_length
@@ -655,7 +653,8 @@ def _bradley_terry_mcmc_shortcut(
 
     if verbose:
         print(
-            f"Acceptance ratio as number accepted / total steps: {accept/(n_ballots+BURN_IN_TIME):.2}"
+            f"Acceptance ratio as number accepted / total steps: "
+            f"{accept / (n_ballots + BURN_IN_TIME):.2}"
         )
 
     if -1 in ballots:
@@ -678,5 +677,5 @@ def _bradley_terry_mcmc_shortcut(
     if verbose:
         print(f"The number of ballots after is {len(ballots)}")
 
-    pp = PreferenceProfile(ballots=ballots)
+    pp = RankProfile(ballots=ballots)
     return pp

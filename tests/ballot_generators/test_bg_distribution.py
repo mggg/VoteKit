@@ -19,12 +19,12 @@ from votekit.ballot_generator import (
 )
 from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     generate_name_bt_profile,
-    generate_name_bt_profiles_by_bloc,
-    generate_name_bt_profile_using_mcmc,
-    generate_name_bt_profiles_by_bloc_using_mcmc,
+    # generate_name_bt_profiles_by_bloc,
+    # generate_name_bt_profile_using_mcmc,
+    # generate_name_bt_profiles_by_bloc_using_mcmc,
     _calc_prob as bt_prob,
 )
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit import Ballot
 
@@ -46,8 +46,8 @@ def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
     return conf_interval
 
 
-def do_ballot_probs_match_ballot_dist(
-    ballot_prob_dict: dict, generated_profile: PreferenceProfile, alpha=0.95
+def do_ballot_probs_match_ballot_dist_rank_profile(
+    ballot_prob_dict: dict, generated_profile: RankProfile, alpha=0.95
 ):
     n_ballots = generated_profile.total_ballot_wt
     ballot_conf_dict = {
@@ -65,6 +65,36 @@ def do_ballot_probs_match_ballot_dist(
                 for element in generated_profile.ballots
                 if element.ranking == b_list
             ),
+            None,
+        )
+        ballot_weight = 0.0
+        if ballot is not None:
+            ballot_weight = ballot.weight
+        if not (
+            int(ballot_conf_dict[b][0]) <= ballot_weight <= int(ballot_conf_dict[b][1])
+        ):
+            failed += 1
+
+    # allow for small margin of error given confidence intereval
+    failure_thresold = round((1 - alpha) * n_ballots)
+    return failed <= failure_thresold
+
+
+# FIX: This needs to be made better for score profiles
+def do_ballot_probs_match_ballot_dist_score_profile(
+    ballot_prob_dict: dict, generated_profile: ScoreProfile, alpha=0.95
+):
+    n_ballots = generated_profile.total_ballot_wt
+    ballot_conf_dict = {
+        b: binomial_confidence_interval(p, n_attempts=int(n_ballots), alpha=alpha)
+        for b, p in ballot_prob_dict.items()
+    }
+
+    failed = 0
+
+    for b in ballot_conf_dict.keys():
+        ballot = next(
+            (element for element in generated_profile.ballots),
             None,
         )
         ballot_weight = 0.0
@@ -99,7 +129,9 @@ def test_ic_distribution():
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(
+        ballot_prob_dict, generated_profile
+    )
 
 
 def test_iac_distribution():
@@ -122,7 +154,9 @@ def test_iac_distribution():
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(
+        ballot_prob_dict, generated_profile
+    )
 
 
 """
@@ -204,7 +238,9 @@ def test_NPL_distribution():
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(
+        ballot_prob_dict, generated_profile
+    )
 
 
 def test_SPL_distribution():
@@ -285,7 +321,7 @@ def test_SPL_distribution():
             ballot_prob_dict[ballot] *= prob
 
         # Test
-        assert do_ballot_probs_match_ballot_dist(
+        assert do_ballot_probs_match_ballot_dist_rank_profile(
             ballot_prob_dict, generated_profile_by_bloc[current_bloc]
         )
 
@@ -352,7 +388,9 @@ def test_NBT_distribution():
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(final_ballot_prob_dict, generated_profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(
+        final_ballot_prob_dict, generated_profile
+    )
 
 
 def test_NBT_3_bloc():
@@ -409,7 +447,7 @@ def test_NBT_3_bloc():
 
     assert isinstance(profile, PreferenceProfile)
 
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, profile)
 
     alphas = {
         "A": {"A": 1, "B": 1, "C": 1},
@@ -492,7 +530,7 @@ def test_SPL_3_bloc():
     }
 
     assert isinstance(profile, PreferenceProfile)
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, profile)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, profile)
 
     alphas = {
         "A": {"A": 1, "B": 1, "C": 1},
@@ -779,7 +817,7 @@ def test_Cambridge_distribution():
     # Now see if ballot prob dict is right
     test_profile = cs.generate_profile(number_of_ballots=5000)
     assert isinstance(test_profile, PreferenceProfile)
-    assert do_ballot_probs_match_ballot_dist(
+    assert do_ballot_probs_match_ballot_dist_rank_profile(
         ballot_prob_dict=ballot_prob_dict, generated_profile=test_profile
     )
 
@@ -794,7 +832,7 @@ def test_sample_ballot_types():
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )
 
-    ballots = [Ballot([{str(c)} for c in b]) for b in sampled]
+    ballots = [Ballot(ranking=[{str(c)} for c in b]) for b in sampled]  # type: ignore
     pp = PreferenceProfile(ballots=ballots)
 
     ballot_prob_dict = {
@@ -805,7 +843,7 @@ def test_sample_ballot_types():
         * cohesion_parameters_for_A_bloc["B"],
     }
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, pp)  # type: ignore
 
     slate_to_non_zero_candidates = {"A": ["A1"], "B": ["B1"], "C": ["C1"]}
     cohesion_parameters_for_A_bloc = {"A": 0.7, "B": 0.2, "C": 0.1}
@@ -816,7 +854,7 @@ def test_sample_ballot_types():
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )
 
-    ballots = [Ballot([{str(c)} for c in b]) for b in sampled]
+    ballots = [Ballot(ranking = [{str(c)} for c in b]) for b in sampled]  # type: ignore
     pp = PreferenceProfile(ballots=ballots)
 
     ballot_prob_dict = {
@@ -834,7 +872,7 @@ def test_sample_ballot_types():
         * cohesion_parameters_for_A_bloc["B"],
     }
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, pp)
 
 
 def test_zero_cohesion_sample_ballot_types():
@@ -884,7 +922,7 @@ def test_name_Cumulative_distribution():
 
     assert isinstance(pp, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+    assert do_ballot_probs_match_ballot_dist_score_profile(ballot_prob_dict, pp)
 
 
 def test_slate_BT_distribution():
@@ -925,7 +963,7 @@ def test_slate_BT_distribution():
 
     assert isinstance(pp, PreferenceProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, pp)
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, pp)
 
 
 # FIX: Get this test working

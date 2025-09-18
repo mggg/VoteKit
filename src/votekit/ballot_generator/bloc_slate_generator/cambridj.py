@@ -6,7 +6,7 @@ from typing import Optional, Union, Tuple
 import apportionment.methods as apportion
 
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.pref_interval import combine_preference_intervals
 from votekit.ballot_generator import BallotGenerator
 
@@ -123,17 +123,17 @@ class CambridgeSampler(BallotGenerator):
 
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
+    ) -> Union[RankProfile, Tuple]:
         """
         Args:
             number_of_ballots (int): The number of ballots to generate.
             by_bloc (bool): True if you want the generated profiles returned as a tuple
                 ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
-                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
+                and values = ``RankProfile`` and ``pp`` is the aggregated profile. False if
                 you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Union[PreferenceProfile, Tuple]
+            Union[RankProfile, Tuple]
         """
         with open(self.path, "rb") as pickle_file:
             ballot_frequencies = pickle.load(pickle_file)
@@ -161,7 +161,7 @@ class CambridgeSampler(BallotGenerator):
             )
         )
 
-        pp_by_bloc = {b: PreferenceProfile() for b in self.blocs}
+        pp_by_bloc = {b: RankProfile() for b in self.blocs}
 
         for i, bloc in enumerate(self.blocs):
             bloc_voters = ballots_per_type[(bloc, "bloc")]
@@ -259,12 +259,12 @@ class CambridgeSampler(BallotGenerator):
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
                 ballot_pool[i] = Ballot(ranking=ranking, weight=1)
 
-            pp = PreferenceProfile(ballots=tuple(ballot_pool))
+            pp = RankProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
             pp_by_bloc[bloc] = pp
 
         # combine the profiles
-        pp = PreferenceProfile()
+        pp = RankProfile()
         for profile in pp_by_bloc.values():
             pp += profile
 

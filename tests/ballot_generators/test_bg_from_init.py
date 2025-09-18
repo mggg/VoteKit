@@ -15,7 +15,7 @@ from votekit.ballot_generator import (
     generate_name_bt_profile,
     generate_name_bt_profiles_by_bloc,
 )
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 from votekit.pref_interval import PreferenceInterval
 
 # set seed for more consistent tests
@@ -25,7 +25,7 @@ np.random.seed(8675309)
 def test_IC_completion():
     ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = ic.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
 
@@ -45,11 +45,11 @@ def test_IC_optimized_completion():
         number_of_ballots=100, use_optimized=True, allow_short_ballots=False
     )
 
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
-    assert type(profile2) is PreferenceProfile
+    assert type(profile2) is RankProfile
     assert profile2.total_ballot_wt == 100
-    assert type(profile3) is PreferenceProfile
+    assert type(profile3) is RankProfile
     assert profile3.total_ballot_wt == 100
 """
 
@@ -57,7 +57,7 @@ def test_IC_optimized_completion():
 def test_IAC_completion():
     iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
     profile = iac.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
 
@@ -78,14 +78,14 @@ def test_NPL_completion():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = pl.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = pl.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -107,14 +107,14 @@ def test_name_Cumulative_completion():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = cumu.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is ScoreProfile
 
     result = cumu.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is ScoreProfile
+    assert type(agg_prof) is ScoreProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -137,11 +137,11 @@ def test_NBT_completion():
     )
 
     profile = generate_name_bt_profile(config)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     profile_dict = generate_name_bt_profiles_by_bloc(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_SPL_completion():
@@ -162,14 +162,14 @@ def test_SPL_completion():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -194,14 +194,14 @@ def test_SPL_completion_zero_cand():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -226,14 +226,14 @@ def test_SBT_completion_zero_cand():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -255,14 +255,14 @@ def test_SBT_completion():
         cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
     profile = sbt.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = sbt.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["W"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -290,7 +290,7 @@ def test_AC_completion():
 def test_1D_completion():
     ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"])
     profile = ods.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
 
@@ -312,14 +312,14 @@ def test_Cambridge_completion():
         cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
     )
     profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["A"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
 
@@ -344,14 +344,14 @@ def test_Cambridge_completion_W_C_bloc():
         C_bloc="B",
     )
     profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["A"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100
 
     # W as minority
@@ -374,12 +374,12 @@ def test_Cambridge_completion_W_C_bloc():
         C_bloc="A",
     )
     profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
 
     result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
     assert type(result) is tuple
     profile_dict, agg_prof = result
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
+    assert (type(profile_dict["A"])) is RankProfile
+    assert type(agg_prof) is RankProfile
     assert agg_prof.total_ballot_wt == 100

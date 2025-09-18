@@ -716,7 +716,7 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
         sm["s3"] = ["P", "Q"]  # add new slate; parent blows up
 
     # New key should have been removed
-    assert "s3" not in set(iter(sm))
+    assert "s3" not in set(iter(sm))  # type: ignore[union-attr]
     assert "s3" not in sm.to_dict()
 
 
@@ -2420,7 +2420,7 @@ def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     cands = list(cfg.slate_to_candidates["slate_1"])  # e.g., ["A", "B"]
-    row = cfg.preference_df.loc["bloc_1", cands]
+    row = cfg.preference_df.loc["bloc_1", cands]  # type: ignore[union-attr]
     cfg.preference_df.loc["bloc_1", cands] = row * 0.5  # now sums != 1
 
     with pytest.raises(ValueError, match=r"must\s+sum to 1, got"):
@@ -2456,7 +2456,6 @@ def test_get_combined_preference_interval_by_bloc():
     )
 
     pref_interval_by_bloc = cfg.get_combined_preference_intervals_by_bloc()
-    from pprint import pprint
 
     bloc_1_combined = {
         "A": 0.8 * 0.9,

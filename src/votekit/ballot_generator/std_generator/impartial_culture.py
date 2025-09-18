@@ -4,7 +4,7 @@ import random
 from typing import Dict
 from collections import Counter
 
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
@@ -41,7 +41,7 @@ class ImpartialCulture:
         number_of_ballots: int,
         max_ballot_length=None,
         allow_short_ballots=False,
-    ) -> PreferenceProfile | Dict:
+    ) -> RankProfile | Dict:
         if max_ballot_length is None:
             max_ballot_length = len(self.candidates)
         elif max_ballot_length > len(self.candidates):
@@ -67,7 +67,7 @@ class ImpartialCulture:
         args:
             number_of_ballots: int; the number of ballots to generate
         returns:
-            PreferenceProfile
+            RankProfile
         """
         num_cands = len(self.candidates)
         ballots_as_ind = [
@@ -77,16 +77,15 @@ class ImpartialCulture:
         ballots_as_counter = Counter(ballots_as_ind)
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
-        return PreferenceProfile(
+        return RankProfile(
             df=pp_df,
-            contains_rankings=True,
             max_ranking_length=len(self.candidates),
             candidates=self.candidates,
         )
 
     def _generate_profile_optimized_with_short(
         self, number_of_ballots: int, max_ballot_length: int = -1
-    ) -> PreferenceProfile | Dict:
+    ) -> RankProfile | Dict:
         """
         Generate an IC profile in the case where short ballots are
         allowed. Randomly sample indices between 0 and number_of_valid
@@ -99,7 +98,7 @@ class ImpartialCulture:
             max_ballot_length: the maximum length allowed in the
             profile
         returns:
-            PreferenceProfile
+            RankProfile
         """
         num_cands = len(self.candidates)
         if max_ballot_length == -1:
@@ -124,9 +123,8 @@ class ImpartialCulture:
         ballots_as_counter = Counter(ballots_as_cand_ind)
         pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), self.candidates)
         pp_df.index.name = "Ballot Index"
-        return PreferenceProfile(
+        return RankProfile(
             df=pp_df,
-            contains_rankings=True,
             max_ranking_length=len(self.candidates),
             candidates=self.candidates,
         )
