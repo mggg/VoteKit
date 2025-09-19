@@ -2,7 +2,7 @@ import numpy as np
 from typing import Union, Tuple
 import apportionment.methods as apportion
 
-from votekit.ballot import Ballot
+from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
 from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
 from votekit.ballot_generator import BallotGenerator
@@ -116,7 +116,7 @@ class name_Cumulative(BallotGenerator):
                 for c in list_ranking:
                     scores[c] += 1
 
-                ballot_pool.append(Ballot(scores=scores, weight=1))
+                ballot_pool.append(ScoreBallot(scores=scores, weight=1))
 
             pp = ScoreProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()

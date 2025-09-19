@@ -5,7 +5,7 @@ import random
 from typing import Optional, Union, Tuple
 import apportionment.methods as apportion
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 from votekit.pref_interval import combine_preference_intervals
 from votekit.ballot_generator import BallotGenerator
@@ -166,7 +166,7 @@ class CambridgeSampler(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             bloc_voters = ballots_per_type[(bloc, "bloc")]
             cross_voters = ballots_per_type[(bloc, "cross")]
-            ballot_pool = [Ballot()] * (bloc_voters + cross_voters)
+            ballot_pool = [RankBallot()] * (bloc_voters + cross_voters)
 
             # store the opposition bloc
             opp_bloc = self.blocs[(i + 1) % 2]
@@ -257,7 +257,7 @@ class CambridgeSampler(BallotGenerator):
                             full_ballot.append(ordered_opp_slate.pop(0))
 
                 ranking = tuple([frozenset({cand}) for cand in full_ballot])
-                ballot_pool[i] = Ballot(ranking=ranking, weight=1)
+                ballot_pool[i] = RankBallot(ranking=ranking, weight=1)
 
             pp = RankProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()

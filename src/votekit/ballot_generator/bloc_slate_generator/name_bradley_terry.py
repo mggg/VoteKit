@@ -21,7 +21,7 @@ import math
 import pandas as pd
 import sys
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
@@ -218,7 +218,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
 def _bradley_terry_mcmc(
     n_ballots: int,
     pref_interval: Mapping[str, float],
-    seed_ballot: Ballot,
+    seed_ballot: RankBallot,
     zero_cands: Optional[frozenset[str]] = None,
     verbose: bool = False,
     burn_in_time: int = 0,
@@ -232,7 +232,7 @@ def _bradley_terry_mcmc(
         n_ballots (int): the number of ballots to sample
         pref_interval (dict): the preference interval to determine BT distribution
         sub_sample_length (int): how many attempts at swaps to make before saving ballot
-        seed_ballot: Ballot, the seed ballot for the Markov chain
+        seed_ballot: RankBallot, the seed ballot for the Markov chain
         verbose: bool, if True, print the acceptance ratio of the chain
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
         chain_length (int): the length of the Markov Chain. Defaults to continuous,
@@ -251,7 +251,7 @@ def _bradley_terry_mcmc(
         if len(s) > 1:
             raise ValueError("Seed ballot contains ties")
 
-    ballots = [-1] * n_ballots
+    ballots = [RankBallot()] * n_ballots
     accept = 0
     current_ranking = list(seed_ballot.ranking)
     n_candidates = len(current_ranking)
@@ -301,9 +301,9 @@ def _bradley_terry_mcmc(
             accept += 1
 
         if len(zero_cands) > 0:
-            ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
+            ballots[i] = RankBallot(ranking=current_ranking + [zero_cands])
         else:
-            ballots[i] = Ballot(ranking=current_ranking)
+            ballots[i] = RankBallot(ranking=current_ranking)
 
     if verbose:
         print(
@@ -385,7 +385,9 @@ def _inner_name_bradley_terry_mcmc(
         non_zero_cands = pref_interval.non_zero_cands
         zero_cands = pref_interval.zero_cands
 
-        seed_ballot = Ballot(ranking=tuple([frozenset({c}) for c in non_zero_cands]))
+        seed_ballot = RankBallot(
+            ranking=tuple([frozenset({c}) for c in non_zero_cands])
+        )
         pp = _bradley_terry_mcmc(
             n_ballots,
             pref_interval_dict,
@@ -410,11 +412,11 @@ def generate_name_bt_profiles_by_bloc(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> dict[str, RankProfile]:
     """
-    Generate a preference profile using the name-BradleyTerry model. The probability of sampling
-    the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
-    These individual probabilities are based on the preference interval: :math: `P(X>Y) = x/(x+y)`.
-    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
-    the ``from_params`` method of ``BallotGenerator``.
+    Generate a preference profile using the name-BradleyTerry model.
+
+    The probability of sampling the ranking :math:`X>Y>Z` is proportional to
+    :math:`P(X>Y)*P(X>Z)*P(Y>Z)`. These individual probabilities are based on the preference
+    interval: :math: `P(X>Y) = x/(x+y)`.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
@@ -438,11 +440,11 @@ def generate_name_bt_profile(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> RankProfile:
     """
-    Generate a preference profile using the name-BradleyTerry model. The probability of sampling
-    the ranking :math:`X>Y>Z` is proportional to :math:`P(X>Y)*P(X>Z)*P(Y>Z)`.
-    These individual probabilities are based on the preference interval: :math: `P(X>Y) = x/(x+y)`.
-    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
-    the ``from_params`` method of ``BallotGenerator``.
+    Generate a preference profile using the name-BradleyTerry model.
+
+    The probability of sampling the ranking :math:`X>Y>Z` is proportional to
+    :math:`P(X>Y)*P(X>Z)*P(Y>Z)`. These individual probabilities are based on the preference
+    interval: :math: `P(X>Y) = x/(x+y)`.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
@@ -652,9 +654,9 @@ def _bradley_terry_mcmc_shortcut(
             accept += 1
 
         if len(zero_cands) > 0:
-            ballots[i] = Ballot(ranking=current_ranking + [zero_cands])
+            ballots[i] = RankBallot(ranking=current_ranking + [zero_cands])
         else:
-            ballots[i] = Ballot(ranking=current_ranking)
+            ballots[i] = RankBallot(ranking=current_ranking)
 
     if verbose:
         print(

@@ -6,7 +6,7 @@ parameters needed to generate a set of ballots using one of our ballot generatio
 involving both voter blocs and slates of candidates.
 """
 
-from collections.abc import Mapping, MutableMapping, MutableSequence
+from collections.abc import Mapping, MutableMapping, MutableSequence, Iterator
 from typing import Sequence, Optional, Union, cast, Any, overload, Iterable
 from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
 from numbers import Real
@@ -599,7 +599,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
     def __delitem__(self, key: str) -> None:
         del self._data[key]
 
-    def __iter__(self) -> Iterable[str]:
+    def __iter__(self) -> Iterator[str]:  # noqa
         return iter(self._data)
 
     def __len__(self) -> int:
@@ -725,7 +725,7 @@ class BlocProportions(MutableMapping[str, float]):
             self.__data[key] = rollback
             raise e
 
-    def __iter__(self) -> Iterable[str]:  # pragma: no cover
+    def __iter__(self) -> Iterator[str]:  # pragma: no cover  # noqa
         return iter(self.__data)
 
     def __len__(self) -> int:
@@ -1529,6 +1529,23 @@ class BlocSlateConfig:
                 for c in self.slate_to_candidates[slate_name]
             }
         )
+
+    def get_preference_intervals_for_bloc(
+        self, block_name
+    ) -> dict[str, PreferenceInterval]:
+        """
+        Get the preference intervals for each bloc and slate.
+
+        Returns:
+            dict[str, dict[str, PreferenceInterval]]: A nested mapping of bloc names to
+                slate names to their preference intervals.
+        """
+        return {
+            slate: self.get_preference_interval_for_bloc_and_slate(
+                bloc_name=block_name, slate_name=slate
+            )
+            for slate in self.slates
+        }
 
     def get_combined_preference_intervals_by_bloc(
         self,

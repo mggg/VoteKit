@@ -5,9 +5,138 @@ import warnings
 from typing import Union, Tuple
 import apportionment.methods as apportion
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 from votekit.ballot_generator import BallotGenerator
+
+# # ====================================================
+# # ================= Helper Functions =================
+# # ====================================================
+#
+#
+# def _compute_ballot_type_dist(config, bloc_a, slate_a, bloc_b):
+#     """
+#     Return a dictionary with keys ballot types and values equal to probability of sampling.
+#     """
+#     slates_to_sample = [
+#         slate
+#         for slate in config.slates_to_candidates.keys()
+#         for _ in range(
+#             len(
+#                 config.get_preference_interval_for_bloc_and_slate(
+#                     bloc_name=bloc_a, slate_name=slate
+#                 ).non_zero_cands
+#             )
+#         )
+#     ]
+#     total_comparisons = np.prod(
+#         [
+#             len(
+#                 config.get_preference_interval_for_bloc_and_slate(
+#                     bloc_name=bloc_a, slate_name=slate
+#                 ).non_zero_cands
+#             )
+#             for slate in config.slates_to_candidates.keys()
+#         ]
+#     )
+#
+#     cohesion = config.cohesion_df[slate_a].loc[bloc_a]
+#
+#     def prob_of_type(ballot_type):
+#         success = sum(
+#             ballot_type[i + 1 :].count(bloc_b)  # noqa
+#             for i, b in enumerate(ballot_type)
+#             if b == bloc_a
+#         )
+#         return pow(cohesion, success) * pow(1 - cohesion, total_comparisons - success)
+#
+#     pdf = {
+#         b: prob_of_type(b)
+#         for b in set(it.permutations(slates_to_sample, len(slates_to_sample)))
+#     }
+#
+#     summ = sum(pdf.values())
+#     return {b: v / summ for b, v in pdf.items()}
+#
+#
+# def _sample_ballot_types_deterministic(self, bloc: str, num_ballots: int):
+#     """
+#     Used to generate bloc orderings for deliberative.
+#
+#     Returns a list of lists, where each sublist contains the bloc names in order they appear
+#     on the ballot.
+#     """
+#     # pdf = self._compute_ballot_type_dist(bloc=bloc, opp_bloc=opp_bloc)
+#     pdf = self.ballot_type_pdf[bloc]
+#     b_types = list(pdf.keys())
+#     probs = list(pdf.values())
+#
+#     sampled_indices = np.random.choice(len(b_types), size=num_ballots, p=probs)
+#
+#     return [b_types[i] for i in sampled_indices]
+#
+#
+# def _sample_ballot_types_MCMC(self, bloc: str, num_ballots: int, verbose: bool = False):
+#     """
+#     Generate ballot types using MCMC that has desired stationary distribution.
+#     """
+#
+#     seed_ballot_type = [
+#         b
+#         for b in self.blocs
+#         for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
+#     ]
+#
+#     ballots = [[-1]] * num_ballots
+#     accept = 0
+#     current_ranking = seed_ballot_type
+#
+#     cohesion = self.cohesion_parameters[bloc][bloc]
+#
+#     # presample swap indices
+#     swap_indices = [
+#         (j1, j1 + 1)
+#         for j1 in np.random.choice(len(seed_ballot_type) - 1, size=num_ballots)
+#     ]
+#
+#     odds = (1 - cohesion) / cohesion
+#     # generate MCMC sample
+#     for i in range(num_ballots):
+#         # choose adjacent pair to propose a swap
+#         j1, j2 = swap_indices[i]
+#
+#         # if swap reduces number of voters bloc above opposing bloc
+#         if current_ranking[j1] != current_ranking[j2] and current_ranking[j1] == bloc:
+#             acceptance_prob = odds
+#
+#         # if swap increases number of voters bloc above opposing or swaps two of same bloc
+#         else:
+#             acceptance_prob = 1
+#
+#         # if you accept, make the swap
+#         if random.random() < acceptance_prob:
+#             current_ranking[j1], current_ranking[j2] = (
+#                 current_ranking[j2],
+#                 current_ranking[j1],
+#             )
+#             accept += 1
+#
+#         ballots[i] = current_ranking.copy()
+#
+#     if verbose:
+#         print(
+#             f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
+#         )
+#
+#     if -1 in ballots:
+#         raise ValueError("Some element of ballots list is not a ballot.")
+#
+#     return ballots
+#
+#
+# # ===========================================================
+# # ================= Interior Work Functions =================
+# # ===========================================================
 
 
 class slate_BradleyTerry(BallotGenerator):
@@ -225,7 +354,7 @@ class slate_BradleyTerry(BallotGenerator):
         for i, bloc in enumerate(self.blocs):
             # number of voters in this bloc
             num_ballots = ballots_per_block[bloc]
-            ballot_pool = [Ballot()] * num_ballots
+            ballot_pool = [RankBallot()] * num_ballots
             pref_intervals = self.pref_intervals_by_bloc[bloc]
             zero_cands = set(
                 it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
@@ -275,7 +404,7 @@ class slate_BradleyTerry(BallotGenerator):
 
                 if len(zero_cands) > 0:
                     ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
+                ballot_pool[j] = RankBallot(ranking=tuple(ranking), weight=1)
 
             pp = RankProfile(ballots=tuple(ballot_pool))
             pp = pp.group_ballots()
