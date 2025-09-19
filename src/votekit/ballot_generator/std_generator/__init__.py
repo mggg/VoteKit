@@ -1,6 +1,3 @@
-from votekit.ballot_generator.std_generator.alternating_crossover import (
-    AlternatingCrossover,
-)
 from votekit.ballot_generator.std_generator.impartial_culture import (
     ic_profile_generator,
 )
@@ -20,5 +17,4 @@ __all__ = [
     "spacial_profile_and_positions_generator",
     "onedim_spacial_profile_generator",
     "clustered_spacial_profile_and_positions_generator",
-    "AlternatingCrossover",
 ]

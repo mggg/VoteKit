@@ -1,10 +1,8 @@
 import numpy as np
-import pytest
 
 from votekit.ballot_generator import (
     iac_profile_generator,
     ic_profile_generator,
-    AlternatingCrossover,
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
     onedim_spacial_profile_generator,
@@ -230,27 +228,6 @@ def test_SBT_completion():
     profile_dict = slate_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
-
-
-def test_AC_completion():
-    with pytest.raises(NotImplementedError):
-        ac = AlternatingCrossover(
-            candidates=["W1", "W2", "C1", "C2"],
-            slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-            pref_intervals_by_bloc={
-                "W": {
-                    "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                    "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-                },
-                "C": {
-                    "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                    "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-                },
-            },
-            bloc_voter_prop={"W": 0.7, "C": 0.3},
-            cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-        )
-        ac.generate_profile(number_of_ballots=100)
 
 
 def test_1D_completion():
