@@ -9,7 +9,8 @@ from collections import Counter
 from votekit.ballot_generator import (
     iac_profile_generator,
     ic_profile_generator,
-    CambridgeSampler,
+    cambridge_profile_generator,
+    # cambridge_profiles_by_bloc_generator,
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
     slate_bt_profile_generator,
@@ -631,7 +632,6 @@ def test_Cambridge_distribution():
     DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
-    candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_intervals_by_bloc = {
         "W": {
@@ -647,16 +647,14 @@ def test_Cambridge_distribution():
     bloc_voter_prop = {"W": 0.5, "C": 0.5}
     cohesion_parameters = {"W": {"W": 1, "C": 0}, "C": {"C": 1, "W": 0}}
 
-    cs = CambridgeSampler(
-        candidates=candidates,
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates=slate_to_candidate,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
-        path=path,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
     )
 
-    candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_interval_by_bloc = {
         "W": {"W1": 0.4, "W2": 0.4, "C1": 0.1, "C2": 0.1},
@@ -813,10 +811,10 @@ def test_Cambridge_distribution():
                             )
 
     # Now see if ballot prob dict is right
-    test_profile = cs.generate_profile(number_of_ballots=5000)
+    test_profile = cambridge_profile_generator(config, path=path)
     assert isinstance(test_profile, PreferenceProfile)
     assert do_ballot_probs_match_ballot_dist_rank_profile(
-        ballot_prob_dict=ballot_prob_dict, generated_profile=test_profile
+        ballot_prob_dict=ballot_prob_dict, generated_profile=test_profile  # type: ignore
     )
 
 

@@ -5,7 +5,8 @@ from votekit.ballot_generator import (
     iac_profile_generator,
     ic_profile_generator,
     AlternatingCrossover,
-    CambridgeSampler,
+    cambridge_profile_generator,
+    cambridge_profiles_by_bloc_generator,
     onedim_spacial_profile_generator,
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
@@ -261,10 +262,11 @@ def test_1D_completion():
 
 
 def test_Cambridge_completion():
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"A": 0.7, "B": 0.3},
+        preference_mapping={
             "A": {
                 "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -274,27 +276,24 @@ def test_Cambridge_completion():
                 "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+        cohesion_mapping={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
     )
-    profile = cs.generate_profile(number_of_ballots=100)
+    profile = cambridge_profile_generator(config)
     assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
-    assert type(agg_prof) is RankProfile
-    assert agg_prof.total_ballot_wt == 100
 
 
 def test_Cambridge_completion_W_C_bloc():
     # W as majority
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"A": 0.7, "B": 0.3},
+        preference_mapping={
             "A": {
                 "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -304,49 +303,37 @@ def test_Cambridge_completion_W_C_bloc():
                 "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
-        W_bloc="A",
-        C_bloc="B",
+        cohesion_mapping={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
     )
-    profile = cs.generate_profile(number_of_ballots=100)
+    profile = cambridge_profile_generator(
+        config,
+        majority_bloc="A",
+        minority_bloc="B",
+    )
     assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(
+        config,
+        majority_bloc="A",
+        minority_bloc="B",
+    )
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
-    assert type(agg_prof) is RankProfile
-    assert agg_prof.total_ballot_wt == 100
 
     # W as minority
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
-        slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "A": {
-                "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "B": {
-                "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
-        W_bloc="B",
-        C_bloc="A",
+    profile = cambridge_profile_generator(
+        config,
+        majority_bloc="B",
+        minority_bloc="A",
     )
-    profile = cs.generate_profile(number_of_ballots=100)
     assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(
+        config,
+        majority_bloc="B",
+        minority_bloc="A",
+    )
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
-    assert type(agg_prof) is RankProfile
-    assert agg_prof.total_ballot_wt == 100
-    assert agg_prof.total_ballot_wt == 100
