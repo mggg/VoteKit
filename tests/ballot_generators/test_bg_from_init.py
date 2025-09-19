@@ -1,19 +1,24 @@
 import numpy as np
-import pytest
 
 from votekit.ballot_generator import (
-    ImpartialAnonymousCulture,
-    ImpartialCulture,
-    name_PlackettLuce,
-    name_BradleyTerry,
-    AlternatingCrossover,
-    CambridgeSampler,
-    OneDimSpatial,
-    slate_PlackettLuce,
-    slate_BradleyTerry,
-    name_Cumulative,
+    iac_profile_generator,
+    ic_profile_generator,
+    cambridge_profile_generator,
+    cambridge_profiles_by_bloc_generator,
+    onedim_spacial_profile_generator,
+    slate_pl_profile_generator,
+    slate_pl_profiles_by_bloc_generator,
+    slate_bt_profile_generator,
+    slate_bt_profiles_by_bloc_generator,
+    name_cumulative_profile_generator,
+    name_cumulative_ballot_generator_by_bloc,
+    BlocSlateConfig,
+    name_bt_profile_generator,
+    name_bt_profiles_by_bloc_generator,
+    name_pl_profile_generator,
+    name_pl_profiles_by_bloc_generator,
 )
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_interval import PreferenceInterval
 
 # set seed for more consistent tests
@@ -21,48 +26,27 @@ np.random.seed(8675309)
 
 
 def test_IC_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = ic_profile_generator(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
-
-
-"""
-def test_IC_optimized_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile(
-        number_of_ballots=100, use_optimized=True, allow_short_ballots=True
-    )
-    profile2 = ic.generate_profile(
-        number_of_ballots=100,
-        use_optimized=True,
-        allow_short_ballots=True,
-        max_ballot_length=2,
-    )
-    profile3 = ic.generate_profile(
-        number_of_ballots=100, use_optimized=True, allow_short_ballots=False
-    )
-
-    assert type(profile) is PreferenceProfile
-    assert profile.total_ballot_wt == 100
-    assert type(profile2) is PreferenceProfile
-    assert profile2.total_ballot_wt == 100
-    assert type(profile3) is PreferenceProfile
-    assert profile3.total_ballot_wt == 100
-"""
 
 
 def test_IAC_completion():
-    iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = iac.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = iac_profile_generator(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
 
 def test_NPL_completion():
-    pl = name_PlackettLuce(
-        candidates=["W1", "W2", "C1", "C2"],
-        pref_intervals_by_bloc={
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -72,25 +56,23 @@ def test_NPL_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = pl.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = name_pl_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = pl.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = name_pl_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is RankProfile  # type: ignore
 
 
-def test_name_Cumulative_completion():
-    cumu = name_Cumulative(
-        candidates=["W1", "W2", "C1", "C2"],
-        pref_intervals_by_bloc={
+def test_name_cumulative_completion():
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -100,26 +82,23 @@ def test_name_Cumulative_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        num_votes=3,
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = cumu.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = name_cumulative_profile_generator(config)
+    assert type(profile) is ScoreProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cumu.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = name_cumulative_ballot_generator_by_bloc(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is ScoreProfile
 
 
 def test_NBT_completion():
-    bt = name_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
-        pref_intervals_by_bloc={
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -129,26 +108,23 @@ def test_NBT_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = bt.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
 
-    result = bt.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile = name_bt_profile_generator(config)
+    assert type(profile) is RankProfile
+
+    profile_dict = name_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_SPL_completion():
-    sp = slate_PlackettLuce(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -158,29 +134,27 @@ def test_SPL_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = slate_pl_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_pl_profiles_by_bloc_generator(config)
+
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_SPL_completion_zero_cand():
     """
     Ensure that SPL can handle candidates with 0 support.
     """
-    sp = slate_PlackettLuce(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0}),
@@ -190,29 +164,26 @@ def test_SPL_completion_zero_cand():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = slate_pl_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_pl_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_SBT_completion_zero_cand():
     """
     Ensure that SBT can handle candidates with 0 support.
     """
-    sp = slate_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0}),
@@ -222,26 +193,23 @@ def test_SBT_completion_zero_cand():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sp.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = slate_bt_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_SBT_completion():
-    sbt = slate_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -251,54 +219,31 @@ def test_SBT_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sbt.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = slate_bt_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sbt.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
-
-
-def test_AC_completion():
-    with pytest.raises(NotImplementedError):
-        ac = AlternatingCrossover(
-            candidates=["W1", "W2", "C1", "C2"],
-            slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-            pref_intervals_by_bloc={
-                "W": {
-                    "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                    "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-                },
-                "C": {
-                    "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                    "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-                },
-            },
-            bloc_voter_prop={"W": 0.7, "C": 0.3},
-            cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
-        )
-        ac.generate_profile(number_of_ballots=100)
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_1D_completion():
-    ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"])
-    profile = ods.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = onedim_spacial_profile_generator(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
+    assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
 
 def test_Cambridge_completion():
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"A": 0.7, "B": 0.3},
+        preference_mapping={
             "A": {
                 "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -308,27 +253,24 @@ def test_Cambridge_completion():
                 "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
+        cohesion_mapping={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
     )
-    profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = cambridge_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["A"])) is RankProfile
 
 
 def test_Cambridge_completion_W_C_bloc():
     # W as majority
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"A": 0.7, "B": 0.3},
+        preference_mapping={
             "A": {
                 "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -338,48 +280,37 @@ def test_Cambridge_completion_W_C_bloc():
                 "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
-        W_bloc="A",
-        C_bloc="B",
+        cohesion_mapping={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
     )
-    profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    profile = cambridge_profile_generator(
+        config,
+        majority_bloc="A",
+        minority_bloc="B",
+    )
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(
+        config,
+        majority_bloc="A",
+        minority_bloc="B",
+    )
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["A"])) is RankProfile
 
     # W as minority
-    cs = CambridgeSampler(
-        candidates=["W1", "W2", "C1", "C2"],
-        slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-        pref_intervals_by_bloc={
-            "A": {
-                "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-            },
-            "B": {
-                "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            },
-        },
-        bloc_voter_prop={"A": 0.7, "B": 0.3},
-        cohesion_parameters={"A": {"A": 0.7, "B": 0.3}, "B": {"B": 0.9, "A": 0.1}},
-        W_bloc="B",
-        C_bloc="A",
+    profile = cambridge_profile_generator(
+        config,
+        majority_bloc="B",
+        minority_bloc="A",
     )
-    profile = cs.generate_profile(number_of_ballots=100)
-    assert type(profile) is PreferenceProfile
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cs.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = cambridge_profiles_by_bloc_generator(
+        config,
+        majority_bloc="B",
+        minority_bloc="A",
+    )
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["A"])) is PreferenceProfile
-    assert type(agg_prof) is PreferenceProfile
-    assert agg_prof.total_ballot_wt == 100
+    assert (type(profile_dict["A"])) is RankProfile

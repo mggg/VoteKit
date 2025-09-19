@@ -112,8 +112,9 @@ class GeneralRating(Election[ScoreProfile]):
         # since score_profile_from_ballot_scores is the score function, the remaining cands from
         # round 0 are ranked by score
         # raises a ValueError is tiebreak is None and a tie occurs.
+        # BUG: Need something to handle this for score profiles
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
+            prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak  # type: ignore
         )
 
         new_profile = remove_cand_from_score_profile(

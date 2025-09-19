@@ -114,7 +114,12 @@ def emd_via_scipy_linear_program(
     if not result.success:
         raise RuntimeError(f"linprog failed: {result.message}")
 
-    return result.fun
+    ret = result.fun
+    if ret is None:
+        raise RuntimeError("linprog returned None as the optimal value.")
+
+    assert ret is not None
+    return ret
 
 
 def __vaildate_ranking_distance_inputs(

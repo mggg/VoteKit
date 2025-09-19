@@ -2,6 +2,17 @@ import itertools as it
 import random
 import numpy as np
 from typing import Union, Mapping
+import psutil
+
+
+def system_memory():
+    vm = psutil.virtual_memory()
+    return {
+        "total_gib": vm.total / 2**30,
+        "available_gib": vm.available / 2**30,
+        "used_gib": vm.used / 2**30,
+        "percent": vm.percent,
+    }
 
 
 def sample_cohesion_ballot_types(

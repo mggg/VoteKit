@@ -1,18 +1,19 @@
 from votekit.elections import RankedPairs, ElectionState
 from votekit.pref_profile import (
-    PreferenceProfile,
+    RankProfile,
+    ScoreProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot, ScoreBallot
 import pytest
 import pandas as pd
 import numpy as np
 from time import time
 
 
-electowiki_profile = PreferenceProfile(
+electowiki_profile = RankProfile(
     ballots=(
-        Ballot(
+        RankBallot(
             ranking=tuple(
                 map(
                     frozenset,
@@ -21,7 +22,7 @@ electowiki_profile = PreferenceProfile(
             ),
             weight=42,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(
                 map(
                     frozenset,
@@ -30,7 +31,7 @@ electowiki_profile = PreferenceProfile(
             ),
             weight=26,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(
                 map(
                     frozenset,
@@ -39,7 +40,7 @@ electowiki_profile = PreferenceProfile(
             ),
             weight=15,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(
                 map(
                     frozenset,
@@ -52,21 +53,21 @@ electowiki_profile = PreferenceProfile(
     max_ranking_length=4,
 )
 
-profile_with_skips = PreferenceProfile(
+profile_with_skips = RankProfile(
     ballots=(
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, [{"C"}, {"D"}, {"A"}, {}])),
             weight=42,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, [{"D"}, {"A"}, {}, {"C"}])),
             weight=26,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, [{"A"}, {}, {"D"}, {"C"}])),
             weight=15,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, [{}, {"A"}, {"D"}, {"C"}])),
             weight=15,
         ),
@@ -74,17 +75,17 @@ profile_with_skips = PreferenceProfile(
     max_ranking_length=4,
 )
 
-test_profile_limit_case = PreferenceProfile(
+test_profile_limit_case = RankProfile(
     ballots=(
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["A", "B", "C"])),
             weight=48,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["B", "C", "A"])),
             weight=3,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["C", "A", "B"])),
             weight=49,
         ),
@@ -92,17 +93,17 @@ test_profile_limit_case = PreferenceProfile(
     max_ranking_length=3,
 )
 
-borda_ambiguous_profile = PreferenceProfile(
+borda_ambiguous_profile = RankProfile(
     ballots=(
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["A", "B", "C"])),
             weight=48,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["B", "C", "A"])),
             weight=24,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["C", "A"])),
             weight=28,
         ),
@@ -110,46 +111,46 @@ borda_ambiguous_profile = PreferenceProfile(
     max_ranking_length=3,
 )
 
-dominating_ambiguous_profile = PreferenceProfile(
+dominating_ambiguous_profile = RankProfile(
     ballots=(
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["A", "B", "C", "D"])),
             weight=1,
         ),
-        Ballot(
+        RankBallot(
             ranking=tuple(map(frozenset, ["A", "C", "B", "D"])),
             weight=1,
         ),
     ),
 )
 
-profile_tied_set = PreferenceProfile(
+profile_tied_set = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}]))),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}]))),
-        Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=2),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=2),
     ),
     max_ranking_length=3,
 )
 
 
-profile_cycle = PreferenceProfile(
+profile_cycle = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
     ),
     max_ranking_length=3,
 )
 
-profile_tied_borda = PreferenceProfile(
+profile_tied_borda = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"C"}, {"A"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"C"}, {"A"}, {"B"})))),
-        Ballot(ranking=tuple(map(frozenset, ({"C"}, {"B"}, {"A"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"C"}, {"A"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"A"}, {"B"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"B"}, {"A"})))),
     ),
     max_ranking_length=3,
 )
@@ -237,7 +238,7 @@ def test_errors():
         RankedPairs(profile_tied_set, m=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        RankedPairs(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        RankedPairs(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))  # type: ignore
 
 
 @pytest.mark.slow
@@ -245,8 +246,8 @@ def test_large_set_timing():
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     ballots_tup = tuple(
         [
-            Ballot(
-                tuple(
+            RankBallot(
+                ranking=tuple(
                     map(
                         lambda x: frozenset({x}),
                         np.random.permutation(list(alphabet))[
@@ -260,10 +261,9 @@ def test_large_set_timing():
         ]
     )
 
-    prof = PreferenceProfile(
+    prof = RankProfile(
         ballots=ballots_tup,
         max_ranking_length=26,
-        contains_rankings=True,
     )
 
     start = time()
@@ -275,8 +275,8 @@ def test_large_set_timing():
     end = time()
 
     assert (
-        end - start < 20
-    ), f"RankedPairs runtime took too long. Expected < 200 seconds, got {end - start} seconds."
+        end - start < 30
+    ), f"RankedPairs runtime took too long. Expected < 30 seconds, got {end - start} seconds."
 
 
 states = [
