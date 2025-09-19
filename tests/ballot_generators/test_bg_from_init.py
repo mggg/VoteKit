@@ -9,7 +9,8 @@ from votekit.ballot_generator import (
     onedim_spacial_profile_generator,
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
-    slate_BradleyTerry,
+    slate_bt_profile_generator,
+    slate_bt_profiles_by_bloc_generator,
     name_Cumulative,
     BlocSlateConfig,
     name_bt_profile_generator,
@@ -181,10 +182,11 @@ def test_SBT_completion_zero_cand():
     """
     Ensure that SBT can handle candidates with 0 support.
     """
-    sp = slate_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0}),
@@ -194,26 +196,23 @@ def test_SBT_completion_zero_cand():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sp.generate_profile(number_of_ballots=100)
+    profile = slate_bt_profile_generator(config)
     assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sp.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
-    assert type(agg_prof) is RankProfile
-    assert agg_prof.total_ballot_wt == 100
 
 
 def test_SBT_completion():
-    sbt = slate_BradleyTerry(
-        candidates=["W1", "W2", "C1", "C2"],
+    config = BlocSlateConfig(
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        pref_intervals_by_bloc={
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -223,19 +222,15 @@ def test_SBT_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = sbt.generate_profile(number_of_ballots=100)
+    profile = slate_bt_profile_generator(config)
     assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
 
-    result = sbt.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = slate_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
-    assert type(agg_prof) is RankProfile
-    assert agg_prof.total_ballot_wt == 100
 
 
 def test_AC_completion():
@@ -355,4 +350,5 @@ def test_Cambridge_completion_W_C_bloc():
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
     assert type(agg_prof) is RankProfile
+    assert agg_prof.total_ballot_wt == 100
     assert agg_prof.total_ballot_wt == 100

@@ -12,7 +12,8 @@ from votekit.ballot_generator import (
     CambridgeSampler,
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
-    slate_BradleyTerry,
+    slate_bt_profile_generator,
+    # slate_bt_profiles_by_bloc_generator,
     name_Cumulative,
     sample_cohesion_ballot_types,
     BlocSlateConfig,
@@ -922,11 +923,12 @@ def test_name_Cumulative_distribution():
 
 
 def test_slate_BT_distribution():
-    sbt = slate_BradleyTerry(
+    config = BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions={"A": 0.99999, "B": 0.00001},
         slate_to_candidates={"A": ["X", "Y"], "B": ["Z"]},
-        cohesion_parameters={"A": {"A": 0.8, "B": 0.2}, "B": {"A": 0.2, "B": 0.8}},
-        bloc_voter_prop={"A": 1, "B": 0},
-        pref_intervals_by_bloc={
+        cohesion_mapping={"A": {"A": 0.8, "B": 0.2}, "B": {"A": 0.2, "B": 0.8}},
+        preference_mapping={
             "A": {
                 "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
                 "B": PreferenceInterval({"Z": 1}),
@@ -938,23 +940,35 @@ def test_slate_BT_distribution():
         },
     )
 
-    pp = sbt.generate_profile(number_of_ballots=100)
+    pp = slate_bt_profile_generator(config)
 
     ballot_prob_dict = {
-        "XYZ": sbt.cohesion_parameters["A"]["A"] ** 2
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-        "YXZ": sbt.cohesion_parameters["A"]["A"] ** 2
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
-        "XZY": sbt.cohesion_parameters["A"]["A"]
-        * sbt.cohesion_parameters["A"]["B"]
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-        "YZX": sbt.cohesion_parameters["A"]["A"]
-        * sbt.cohesion_parameters["A"]["B"]
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["Y"],
-        "ZXY": sbt.cohesion_parameters["A"]["B"] ** 2
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
-        "ZYX": sbt.cohesion_parameters["A"]["B"] ** 2
-        * sbt.pref_intervals_by_bloc["A"]["A"].interval["X"],
+        "XYZ": config.cohesion_df["A"].loc["A"] ** 2
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["X"],
+        "YXZ": config.cohesion_df["A"].loc["A"] ** 2
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["Y"],
+        "XZY": config.cohesion_df["A"].loc["A"]
+        * config.cohesion_df["A"].loc["B"]
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["X"],
+        "YZX": config.cohesion_df["A"].loc["A"]
+        * config.cohesion_df["A"].loc["B"]
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["Y"],
+        "ZXY": config.cohesion_df["A"].loc["B"] ** 2
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["X"],
+        "ZYX": config.cohesion_df["A"].loc["B"] ** 2
+        * config.get_preference_interval_for_bloc_and_slate(
+            bloc_name="A", slate_name="A"
+        ).interval["X"],
     }
 
     assert isinstance(pp, PreferenceProfile)
