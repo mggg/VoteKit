@@ -10,7 +10,8 @@ from votekit.ballot_generator import (
     ImpartialAnonymousCulture,
     ImpartialCulture,
     CambridgeSampler,
-    slate_PlackettLuce,
+    generate_slate_pl_profile,
+    generate_slate_pl_profiles_by_bloc,
     slate_BradleyTerry,
     name_Cumulative,
     sample_cohesion_ballot_types,
@@ -265,16 +266,15 @@ def test_SPL_distribution():
     cohesion_parameters = {"W": {"W": 0.9, "C": 0.1}, "C": {"C": 0.8, "W": 0.2}}
     slate_to_candidates = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
 
-    # Generate ballots
-    generated_profile_by_bloc, _ = slate_PlackettLuce(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        cohesion_parameters=cohesion_parameters,
+    config = BlocSlateConfig(
+        n_voters=number_of_ballots,
         slate_to_candidates=slate_to_candidates,
-    ).generate_profile(
-        number_of_ballots=number_of_ballots, by_bloc=True
-    )  # type: ignore
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
+    )
+
+    generated_profile_by_bloc = generate_slate_pl_profiles_by_bloc(config)
 
     blocs = list(bloc_voter_prop.keys())
 
@@ -468,8 +468,6 @@ def test_NBT_3_bloc():
 def test_SPL_3_bloc():
     slate_to_candidates = {"A": ["A1", "A2"], "B": ["B1"], "C": ["C1"]}
 
-    candidates = [c for c_list in slate_to_candidates.values() for c in c_list]
-
     cohesion_parameters = {
         "A": {"A": 0.7, "B": 0.2, "C": 0.1},
         "B": {"A": 0.7, "B": 0.2, "C": 0.1},
@@ -494,17 +492,18 @@ def test_SPL_3_bloc():
         },
     }
 
-    bloc_voter_prop = {"A": 1, "B": 0, "C": 0}
+    bloc_voter_prop = {"A": 0.999998, "B": 0.000001, "C": 0.000001}
 
-    sp = slate_PlackettLuce(
+    config = BlocSlateConfig(
+        n_voters=500,
         slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        candidates=candidates,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
+        silent=True,
     )
 
-    profile = sp.generate_profile(500)
+    profile = generate_slate_pl_profile(config)
 
     ballot_prob_dict = {
         ("A1", "A2", "B1", "C1"): 1 / 2 * 49 / 100 * 2 / 3,
@@ -536,24 +535,17 @@ def test_SPL_3_bloc():
     assert isinstance(profile, PreferenceProfile)
     assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, profile)
 
-    alphas = {
-        "A": {"A": 1, "B": 1, "C": 1},
-        "B": {"A": 1, "B": 1, "C": 1},
-        "C": {"A": 1, "B": 1, "C": 1},
-    }
-
-    sp = slate_PlackettLuce.from_params(
+    config = BlocSlateConfig(
+        n_voters=500,
         slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-        alphas=alphas,
-        bloc_voter_prop=bloc_voter_prop,
-        candidates=candidates,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_intervals_by_bloc,
+        cohesion_mapping=cohesion_parameters,
+        silent=True,
     )
 
-    assert len(sp.pref_intervals_by_bloc["A"]) == 3
-    assert isinstance(sp.pref_intervals_by_bloc["A"]["A"], PreferenceInterval)
+    profile = generate_slate_pl_profile(config)
 
-    profile = sp.generate_profile(3)
     assert isinstance(profile, PreferenceProfile)
 
 
