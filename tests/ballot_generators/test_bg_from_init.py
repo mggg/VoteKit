@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 
 from votekit.ballot_generator import (
-    ImpartialAnonymousCulture,
-    ImpartialCulture,
+    generate_iac_profile,
+    generate_ic_profile,
     AlternatingCrossover,
     CambridgeSampler,
-    OneDimSpatial,
+    generate_1d_spacial_profile,
     generate_slate_pl_profile,
     generate_slate_pl_profiles_by_bloc,
     slate_BradleyTerry,
@@ -25,40 +25,17 @@ np.random.seed(8675309)
 
 
 def test_IC_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile(number_of_ballots=100)
+    profile = generate_ic_profile(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
-
-
-"""
-def test_IC_optimized_completion():
-    ic = ImpartialCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = ic.generate_profile(
-        number_of_ballots=100, use_optimized=True, allow_short_ballots=True
-    )
-    profile2 = ic.generate_profile(
-        number_of_ballots=100,
-        use_optimized=True,
-        allow_short_ballots=True,
-        max_ballot_length=2,
-    )
-    profile3 = ic.generate_profile(
-        number_of_ballots=100, use_optimized=True, allow_short_ballots=False
-    )
-
-    assert type(profile) is RankProfile
-    assert profile.total_ballot_wt == 100
-    assert type(profile2) is RankProfile
-    assert profile2.total_ballot_wt == 100
-    assert type(profile3) is RankProfile
-    assert profile3.total_ballot_wt == 100
-"""
 
 
 def test_IAC_completion():
-    iac = ImpartialAnonymousCulture(candidates=["W1", "W2", "C1", "C2"])
-    profile = iac.generate_profile(number_of_ballots=100)
+    profile = generate_iac_profile(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
@@ -283,8 +260,9 @@ def test_AC_completion():
 
 
 def test_1D_completion():
-    ods = OneDimSpatial(candidates=["W1", "W2", "C1", "C2"])
-    profile = ods.generate_profile(number_of_ballots=100)
+    profile = generate_1d_spacial_profile(
+        candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 

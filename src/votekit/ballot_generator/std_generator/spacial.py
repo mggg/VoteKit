@@ -1,350 +1,259 @@
 import numpy as np
-from typing import Optional, Union, Tuple, Callable, Dict, Any
+from numpy.typing import NDArray
+import pandas as pd
+from typing import Optional, Tuple, Callable, Dict, Any, Sequence
 
 from votekit.pref_profile import PreferenceProfile
 from votekit.metrics import euclidean_dist
-from votekit.ballot_generator import BallotGenerator
+from votekit.pref_profile.pref_profile import RankProfile
 
 
-class OneDimSpatial(BallotGenerator):
+def generate_1d_spacial_profile(
+    candidates: Sequence[str],
+    number_of_ballots: int,
+) -> RankProfile:
     """
-    1-D spatial model for ballot generation. Assumes the candidates are normally distributed on
-    the real line. Then voters are also normally distributed, and vote based on Euclidean distance
-    to the candidates.
-
     Args:
-        candidates (list): List of candidate strings.
+        number_of_ballots (int): The number of ballots to generate.
 
-    Attributes:
-        candidates (list): List of candidate strings.
-
+    Returns:
+        Union[PreferenceProfile, Tuple]
     """
+    n_candidates = len(candidates)
 
-    def generate_profile(
-        self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple]:
-        """
-        Args:
-            number_of_ballots (int): The number of ballots to generate.
+    candidate_position_dict = {c: np.random.normal(0, 1) for c in candidates}
+    voter_positions = np.random.normal(0, 1, number_of_ballots)
 
-        Returns:
-            Union[PreferenceProfile, Tuple]
-        """
-        candidate_position_dict = {c: np.random.normal(0, 1) for c in self.candidates}
-        voter_positions = np.random.normal(0, 1, number_of_ballots)
+    ballot_pool = np.full(
+        (number_of_ballots, n_candidates), frozenset("~"), dtype=object
+    )
 
-        ballot_pool = []
-
-        for vp in voter_positions:
-            distance_dict = {
-                c: abs(v - vp) for c, v, in candidate_position_dict.items()
-            }
-            candidate_order = sorted(
-                distance_dict, key=lambda x: float(distance_dict.__getitem__(x))
-            )
-            ballot_pool.append(candidate_order)
-
-        return self.ballot_pool_to_profile(ballot_pool, self.candidates)
-
-
-class Spatial(BallotGenerator):
-    """
-    Spatial model for ballot generation. In some metric space determined
-    by an input distance function, randomly sample each voter's and
-    each candidate's positions from input voter and candidate distributions.
-    Using generate_profile() outputs a ranked profile which is consistent
-    with the sampled positions (respects distances).
-
-    Args:
-        candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
-            voter's position from, defaults to uniform distribution.
-        voter_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed to
-            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
-            single candidate's position from, defaults to uniform distribution.
-        candidate_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed
-            to candidate_dist, defaults to None, which creates the unif(0,1)
-            distribution in 2 dimensions.
-        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-            Computes distance between a voter and a candidate,
-            defaults to euclidean distance.
-    Attributes:
-        candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
-            voter's position from, defaults to uniform distribution.
-        voter_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed to
-            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
-            single candidate's position from, defaults to uniform distribution.
-        candidate_dist_kwargs: (Optional[Dict[str, Any]], optional): Keyword args to be passed
-            to candidate_dist, defaults to None, which creates the unif(0,1)
-            distribution in 2 dimensions.
-        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-            Computes distance between a voter and a candidate,
-            defaults to euclidean distance.
-    """
-
-    def __init__(
-        self,
-        candidates: list[str],
-        voter_dist: Callable[..., np.ndarray] = np.random.uniform,
-        voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-        candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
-        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-    ):
-        super().__init__(candidates=candidates)
-        self.voter_dist = voter_dist
-        self.candidate_dist = candidate_dist
-
-        if voter_dist_kwargs is None:
-            if voter_dist is np.random.uniform:
-                voter_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
-            else:
-                voter_dist_kwargs = {}
-
-        try:
-            self.voter_dist(**voter_dist_kwargs)
-        except TypeError:
-            raise TypeError("Invalid kwargs for the voter distribution.")
-
-        self.voter_dist_kwargs = voter_dist_kwargs
-
-        if candidate_dist_kwargs is None:
-            if candidate_dist is np.random.uniform:
-                candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
-            else:
-                candidate_dist_kwargs = {}
-
-        try:
-            self.candidate_dist(**candidate_dist_kwargs)
-        except TypeError:
-            raise TypeError("Invalid kwargs for the candidate distribution.")
-
-        self.candidate_dist_kwargs = candidate_dist_kwargs
-
-        try:
-            v = self.voter_dist(**self.voter_dist_kwargs)
-            c = self.candidate_dist(**self.candidate_dist_kwargs)
-            distance(v, c)
-        except TypeError:
-            raise TypeError(
-                "Distance function is invalid or incompatible "
-                "with voter/candidate distributions."
-            )
-
-        self.distance = distance
-
-    def generate_profile(
-        self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
-        """
-        Samples a metric position for number_of_ballots voters from
-        the voter distribution. Samples a metric position for each candidate
-        from the input candidate distribution. With sampled
-        positions, this method then creates a ranked PreferenceProfile in which
-        voter's preferences are consistent with their distances to the candidates
-        in the metric space.
-
-        Args:
-            number_of_ballots (int): The number of ballots to generate.
-            by_bloc (bool): Dummy variable from parent class.
-
-        Returns:
-            Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
-                A tuple containing the preference profile object,
-                a dictionary with each candidate's position in the metric
-                space, and a matrix where each row is a single voter's position
-                in the metric space.
-        """
-
-        candidate_position_dict = {
-            c: self.candidate_dist(**self.candidate_dist_kwargs)
-            for c in self.candidates
-        }
-        voter_positions = np.array(
-            [
-                self.voter_dist(**self.voter_dist_kwargs)
-                for v in range(number_of_ballots)
-            ]
-        )
-
-        ballot_pool = [["c"] * len(self.candidates) for _ in range(number_of_ballots)]
-        for v in range(number_of_ballots):
-            distance_dict = {
-                c: self.distance(voter_positions[v], c_position)
-                for c, c_position in candidate_position_dict.items()
-            }
-            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
-            ballot_pool[v] = candidate_order
-
-        return (
-            self.ballot_pool_to_profile(ballot_pool, self.candidates),
-            candidate_position_dict,
-            voter_positions,
-        )
-
-
-class ClusteredSpatial(BallotGenerator):
-    """
-    Clustered spatial model for ballot generation. In some metric space
-    determined by an input distance function, randomly sample
-    each candidate's positions from input candidate distribution. Then
-    sample voters's positions from a distribution centered around each
-    of the candidate's positions.
-
-    NOTE: We currently only support the following list of voter distributions:
-    [np.random.normal, np.random.laplace, np.random.logistic, np.random.gumbel],
-    which is the complete list of numpy distributions that accept a 'loc' parameter allowing
-    us to center the distribution around each candidate. For more
-    information on numpy supported distributions and their parameters, please visit:
-    https://numpy.org/doc/1.16/reference/routines.random.html.
-
-    Args:
-        candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
-            voter's position from, defaults to normal(0,1) distribution.
-        voter_dist_kwargs: (Optional[dict[str, Any]], optional): Keyword args to be passed to
-            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
-            single candidate's position from, defaults to uniform distribution.
-        candidate_dist_kwargs: (Optional[Dict[str, float]], optional): Keyword args to be passed
-            to candidate_dist, defaults None which creates the unif(0,1)
-            distribution in 2 dimensions.
-        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-            Computes distance between a voter and a candidate,
-            defaults to euclidean distance.
-    Attributes:
-        candidates (list[str]): List of candidate strings.
-        voter_dist (Callable[..., np.ndarray], optional): Distribution to sample a single
-            voter's position from, defaults to uniform distribution.
-        voter_dist_kwargs: (Optional[dict[str, Any]], optional): Keyword args to be passed to
-            voter_dist, defaults to None, which creates the unif(0,1) distribution in 2 dimensions.
-        candidate_dist: (Callable[..., np.ndarray], optional): Distribution to sample a
-            single candidate's position from, defaults to uniform distribution.
-        candidate_dist_kwargs: (Optional[Dict[str, float]], optional): Keyword args to be passed
-            to candidate_dist, defaults None which creates the unif(0,1)
-            distribution in 2 dimensions.
-        distance: (Callable[[np.ndarray, np.ndarray], float]], optional):
-            Computes distance between a voter and a candidate,
-            defaults to euclidean distance.
-    """
-
-    def __init__(
-        self,
-        candidates: list[str],
-        voter_dist: Callable[..., np.ndarray] = np.random.normal,
-        voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-        candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
-        candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
-        distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-    ):
-        super().__init__(candidates=candidates)
-        self.candidate_dist = candidate_dist
-        self.voter_dist = voter_dist
-
-        if voter_dist_kwargs is None:
-            if self.voter_dist is np.random.normal:
-                voter_dist_kwargs = {
-                    "loc": 0,
-                    "std": np.array(1.0),
-                    "size": np.array(2.0),
-                }
-            else:
-                voter_dist_kwargs = {}
-
-        if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
-            raise ValueError("Input voter distribution not supported.")
-
-        try:
-            voter_dist_kwargs["loc"] = 0
-            self.voter_dist(**voter_dist_kwargs)
-        except TypeError:
-            raise TypeError("Invalid kwargs for the voter distribution.")
-
-        self.voter_dist_kwargs = voter_dist_kwargs
-
-        if candidate_dist_kwargs is None:
-            if self.candidate_dist is np.random.uniform:
-                candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
-            else:
-                candidate_dist_kwargs = {}
-
-        try:
-            self.candidate_dist(**candidate_dist_kwargs)
-        except TypeError:
-            raise TypeError("Invalid kwargs for the candidate distribution.")
-
-        self.candidate_dist_kwargs = candidate_dist_kwargs
-
-        try:
-            v = self.voter_dist(**self.voter_dist_kwargs)
-            c = self.candidate_dist(**self.candidate_dist_kwargs)
-            distance(v, c)
-        except TypeError:
-            raise TypeError(
-                "Distance function is invalid or incompatible "
-                "with voter/candidate distributions."
-            )
-
-        self.distance = distance
-
-    def generate_profile_with_dict(
-        self, number_of_ballots: dict[str, int], by_bloc: bool = False
-    ) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
-        """
-        Samples a metric position for each candidate
-        from the input candidate distribution. For each candidate, then sample
-        number_of_ballots[candidate] metric positions for voters
-        which will be centered around the candidate.
-        With sampled positions, this method then creates a ranked PreferenceProfile in which
-        voter's preferences are consistent with their distances to the candidates
-        in the metric space.
-
-        Args:
-            number_of_ballots (dict[str, int]): The number of voters attributed
-                        to each candidate {candidate string: # voters}.
-            by_bloc (bool): Dummy variable from parent class.
-
-        Returns:
-            Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
-                A tuple containing the preference profile object,
-                a dictionary with each candidate's position in the metric
-                space, and a matrix where each row is a single voter's position
-                in the metric space.
-        """
-
-        candidate_position_dict = {
-            c: self.candidate_dist(**self.candidate_dist_kwargs)
-            for c in self.candidates
-        }
-
-        n_voters = sum(number_of_ballots.values())
-        voter_positions = [np.zeros(2) for _ in range(n_voters)]
-        vidx = 0
-        for c, c_position in candidate_position_dict.items():
-            for v in range(number_of_ballots[c]):
-                self.voter_dist_kwargs["loc"] = c_position
-                voter_positions[vidx] = self.voter_dist(**self.voter_dist_kwargs)
-                vidx += 1
-
-        ballot_pool = [
-            ["c"] * len(self.candidates) for _ in range(len(voter_positions))
+    for i, vp in enumerate(voter_positions):
+        distance_tuples = [
+            (c, abs(v - vp)) for c, v, in candidate_position_dict.items()
         ]
-        for v in range(len(voter_positions)):
-            v_position = voter_positions[v]
-            distance_dict = {
-                c: self.distance(v_position, c_position)
-                for c, c_position, in candidate_position_dict.items()
-            }
-            candidate_order = sorted(distance_dict, key=distance_dict.__getitem__)
-            ballot_pool[v] = candidate_order
-
-        voter_positions_array = np.vstack(voter_positions)
-
-        return (
-            self.ballot_pool_to_profile(ballot_pool, self.candidates),
-            candidate_position_dict,
-            voter_positions_array,
+        candidate_ranking = np.array(
+            [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
         )
+        ballot_pool[i] = candidate_ranking
+
+    df = pd.DataFrame(ballot_pool)
+    df.index.name = "Ballot Index"
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+    df["Weight"] = 1
+    df["Voter Set"] = [frozenset()] * len(df)
+    return RankProfile(
+        candidates=candidates,
+        df=df,
+        max_ranking_length=n_candidates,
+    )
+
+
+def generate_spacial_profile_candposdict_and_voterposmat(
+    number_of_ballots: int,
+    candidates: list[str],
+    voter_dist: Callable[..., np.ndarray] = np.random.uniform,
+    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
+    candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
+    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
+) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
+    """
+    Samples a metric position for number_of_ballots voters from
+    the voter distribution. Samples a metric position for each candidate
+    from the input candidate distribution. With sampled
+    positions, this method then creates a ranked PreferenceProfile in which
+    voter's preferences are consistent with their distances to the candidates
+    in the metric space.
+
+    Args:
+        number_of_ballots (int): The number of ballots to generate.
+        by_bloc (bool): Dummy variable from parent class.
+
+    Returns:
+        Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+            A tuple containing the preference profile object,
+            a dictionary with each candidate's position in the metric
+            space, and a matrix where each row is a single voter's position
+            in the metric space.
+    """
+    if voter_dist_kwargs is None:
+        if voter_dist is np.random.uniform:
+            voter_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+        else:
+            voter_dist_kwargs = {}
+
+    try:
+        voter_dist(**voter_dist_kwargs)
+    except TypeError:
+        raise TypeError("Invalid kwargs for the voter distribution.")
+
+    if candidate_dist_kwargs is None:
+        if candidate_dist is np.random.uniform:
+            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+        else:
+            candidate_dist_kwargs = {}
+
+    try:
+        candidate_dist(**candidate_dist_kwargs)
+    except TypeError:
+        raise TypeError("Invalid kwargs for the candidate distribution.")
+
+    try:
+        v = voter_dist(**voter_dist_kwargs)
+        c = candidate_dist(**candidate_dist_kwargs)
+        distance(v, c)
+    except TypeError:
+        raise TypeError(
+            "Distance function is invalid or incompatible "
+            "with voter/candidate distributions."
+        )
+
+    candidate_position_dict = {
+        c: candidate_dist(**candidate_dist_kwargs) for c in candidates
+    }
+    voter_positions = np.array(
+        [voter_dist(**voter_dist_kwargs) for _ in range(number_of_ballots)]
+    )
+
+    ballot_pool = np.full((number_of_ballots, len(candidates)), frozenset("~"))
+
+    for i in range(number_of_ballots):
+        distance_tuples = [
+            (c, distance(voter_positions[i], c_position))
+            for c, c_position, in candidate_position_dict.items()
+        ]
+        candidate_ranking = np.array(
+            [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
+        )
+        ballot_pool[i] = candidate_ranking
+
+    n_candidates = len(candidates)
+    df = pd.DataFrame(ballot_pool)
+    df.index.name = "Ballot Index"
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+    df["Weight"] = 1
+    df["Voter Set"] = [frozenset()] * len(df)
+    return (
+        RankProfile(
+            candidates=candidates,
+            df=df,
+            max_ranking_length=n_candidates,
+        ),
+        candidate_position_dict,
+        voter_positions,
+    )
+
+
+def generate_clustered_spacial_profile_candposdict_and_voterposmat(
+    number_of_ballots: dict[str, int],
+    candidates: list[str],
+    voter_dist: Callable[..., np.ndarray] = np.random.normal,
+    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
+    candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
+    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
+) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
+    """
+    Samples a metric position for each candidate
+    from the input candidate distribution. For each candidate, then sample
+    number_of_ballots[candidate] metric positions for voters
+    which will be centered around the candidate.
+    With sampled positions, this method then creates a ranked PreferenceProfile in which
+    voter's preferences are consistent with their distances to the candidates
+    in the metric space.
+
+    Args:
+        number_of_ballots (dict[str, int]): The number of voters attributed
+                    to each candidate {candidate string: # voters}.
+        by_bloc (bool): Dummy variable from parent class.
+
+    Returns:
+        Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+            A tuple containing the preference profile object,
+            a dictionary with each candidate's position in the metric
+            space, and a matrix where each row is a single voter's position
+            in the metric space.
+    """
+    if voter_dist_kwargs is None:
+        if voter_dist is np.random.normal:
+            voter_dist_kwargs = {
+                "loc": 0,
+                "std": np.array(1.0),
+                "size": np.array(2.0),
+            }
+        else:
+            voter_dist_kwargs = {}
+
+    if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
+        raise ValueError("Input voter distribution not supported.")
+
+    try:
+        voter_dist_kwargs["loc"] = 0
+        voter_dist(**voter_dist_kwargs)
+    except TypeError:
+        raise TypeError("Invalid kwargs for the voter distribution.")
+
+    if candidate_dist_kwargs is None:
+        if candidate_dist is np.random.uniform:
+            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+        else:
+            candidate_dist_kwargs = {}
+
+    try:
+        candidate_dist(**candidate_dist_kwargs)
+    except TypeError:
+        raise TypeError("Invalid kwargs for the candidate distribution.")
+
+    try:
+        v = voter_dist(**voter_dist_kwargs)
+        c = candidate_dist(**candidate_dist_kwargs)
+        distance(v, c)
+    except TypeError:
+        raise TypeError(
+            "Distance function is invalid or incompatible "
+            "with voter/candidate distributions."
+        )
+
+    candidate_position_dict: dict[str, NDArray] = {
+        c: candidate_dist(**candidate_dist_kwargs) for c in candidates
+    }
+
+    n_voters = sum(number_of_ballots.values())
+    voter_positions = [np.zeros(2) for _ in range(n_voters)]
+    vidx = 0
+    for c, c_position in candidate_position_dict.items():  # type: ignore
+        for _ in range(number_of_ballots[c]):  # type: ignore
+            voter_dist_kwargs["loc"] = c_position
+            voter_positions[vidx] = voter_dist(**voter_dist_kwargs)
+            vidx += 1
+
+    n_candidates = len(candidates)
+    ballot_pool = np.full((n_voters, n_candidates), frozenset("~"), dtype=object)
+    for i in range(len(voter_positions)):
+        v_position = voter_positions[i]
+        distance_tuples = [
+            (c, distance(v_position, c_position))
+            for c, c_position, in candidate_position_dict.items()
+        ]
+        candidate_ranking = np.array(
+            [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
+        )
+        ballot_pool[i] = candidate_ranking
+
+    voter_positions_array = np.vstack(voter_positions)
+
+    df = pd.DataFrame(ballot_pool)
+    df.index.name = "Ballot Index"
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+    df["Weight"] = 1
+    df["Voter Set"] = [frozenset()] * len(df)
+    return (
+        RankProfile(
+            candidates=candidates,
+            df=df,
+            max_ranking_length=n_candidates,
+        ),
+        candidate_position_dict,
+        voter_positions_array,
+    )

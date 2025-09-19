@@ -19,11 +19,11 @@ from votekit.ballot_generator.bloc_slate_generator import (
 )
 
 from votekit.ballot_generator.std_generator import (
-    ImpartialCulture,
-    ImpartialAnonymousCulture,
-    Spatial,
-    OneDimSpatial,
-    ClusteredSpatial,
+    generate_ic_profile,
+    generate_iac_profile,
+    generate_1d_spacial_profile,
+    generate_spacial_profile_candposdict_and_voterposmat,
+    generate_clustered_spacial_profile_candposdict_and_voterposmat,
     AlternatingCrossover,
 )
 
@@ -42,11 +42,11 @@ __all__ = [
     "generate_slate_pl_profile",
     "generate_slate_pl_profiles_by_bloc",
     "slate_BradleyTerry",
-    "ImpartialCulture",
-    "ImpartialAnonymousCulture",
-    "Spatial",
-    "OneDimSpatial",
-    "ClusteredSpatial",
+    "generate_ic_profile",
+    "generate_iac_profile",
+    "generate_1d_spacial_profile",
+    "generate_spacial_profile_candposdict_and_voterposmat",
+    "generate_clustered_spacial_profile_candposdict_and_voterposmat",
     "AlternatingCrossover",
     "convert_cohesion_map_to_cohesion_df",
     "convert_preference_map_to_preference_df",

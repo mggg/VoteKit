@@ -7,8 +7,8 @@ import numpy as np
 from collections import Counter
 
 from votekit.ballot_generator import (
-    ImpartialAnonymousCulture,
-    ImpartialCulture,
+    generate_iac_profile,
+    generate_ic_profile,
     CambridgeSampler,
     generate_slate_pl_profile,
     generate_slate_pl_profiles_by_bloc,
@@ -28,7 +28,7 @@ from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
 )
 from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
-from votekit import Ballot
+from votekit import Ballot, RankBallot
 
 
 # set seed for more consistent tests
@@ -125,9 +125,9 @@ def test_ic_distribution():
     }
 
     # Generate ballots
-    generated_profile = ImpartialCulture(
-        candidates=candidates,
-    ).generate_profile(number_of_ballots=number_of_ballots)
+    generated_profile = generate_ic_profile(
+        candidates=candidates, number_of_ballots=number_of_ballots
+    )
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
@@ -149,10 +149,10 @@ def test_iac_distribution():
         possible_rankings[b_ind]: probabilities[b_ind]
         for b_ind in range(len(possible_rankings))
     }
-    generated_profile = ImpartialAnonymousCulture(
+    generated_profile = generate_iac_profile(
         number_of_ballots=number_of_ballots,
         candidates=candidates,
-    ).generate_profile(number_of_ballots=500)
+    )
 
     assert isinstance(generated_profile, PreferenceProfile)
     # Test
@@ -850,8 +850,8 @@ def test_sample_ballot_types():
         cohesion_parameters_for_bloc=cohesion_parameters_for_A_bloc,
     )
 
-    ballots = [Ballot(ranking=[{str(c)} for c in b]) for b in sampled]  # type: ignore
-    pp = PreferenceProfile(ballots=ballots)
+    ballots = [RankBallot(ranking=[{str(c)} for c in b]) for b in sampled]  # type: ignore
+    pp = RankProfile(ballots=ballots)
 
     ballot_prob_dict = {
         "ABC": cohesion_parameters_for_A_bloc["A"]
