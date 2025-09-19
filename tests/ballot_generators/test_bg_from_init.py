@@ -11,7 +11,8 @@ from votekit.ballot_generator import (
     slate_pl_profiles_by_bloc_generator,
     slate_bt_profile_generator,
     slate_bt_profiles_by_bloc_generator,
-    name_Cumulative,
+    name_cumulative_profile_generator,
+    name_cumulative_ballot_generator_by_bloc,
     BlocSlateConfig,
     name_bt_profile_generator,
     name_bt_profiles_by_bloc_generator,
@@ -67,10 +68,12 @@ def test_NPL_completion():
     assert (type(profile_dict["W"])) is RankProfile  # type: ignore
 
 
-def test_name_Cumulative_completion():
-    cumu = name_Cumulative(
-        candidates=["W1", "W2", "C1", "C2"],
-        pref_intervals_by_bloc={
+def test_name_cumulative_completion():
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
             "W": {
                 "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
                 "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
@@ -80,20 +83,15 @@ def test_name_Cumulative_completion():
                 "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             },
         },
-        bloc_voter_prop={"W": 0.7, "C": 0.3},
-        num_votes=3,
-        cohesion_parameters={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = cumu.generate_profile(number_of_ballots=100)
+    profile = name_cumulative_profile_generator(config)
     assert type(profile) is ScoreProfile
+    assert profile.total_ballot_wt == 100
 
-    result = cumu.generate_profile(number_of_ballots=100, by_bloc=True)
-    assert type(result) is tuple
-    profile_dict, agg_prof = result
+    profile_dict = name_cumulative_ballot_generator_by_bloc(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is ScoreProfile
-    assert type(agg_prof) is ScoreProfile
-    assert agg_prof.total_ballot_wt == 100
 
 
 def test_NBT_completion():

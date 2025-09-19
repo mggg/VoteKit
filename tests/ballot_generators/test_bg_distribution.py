@@ -14,7 +14,8 @@ from votekit.ballot_generator import (
     slate_pl_profiles_by_bloc_generator,
     slate_bt_profile_generator,
     # slate_bt_profiles_by_bloc_generator,
-    name_Cumulative,
+    name_cumulative_profile_generator,
+    # name_cumulative_ballot_generator_by_bloc,
     sample_cohesion_ballot_types,
     BlocSlateConfig,
     name_bt_profile_generator,
@@ -897,24 +898,26 @@ def test_zero_cohesion_sample_ballot_types():
     assert all(Counter(s) == expected_counts for s in sampled)
 
 
-def test_name_Cumulative_distribution():
-    cumu = name_Cumulative(
-        candidates=["A", "B"],
-        pref_intervals_by_bloc={"W": {"W": PreferenceInterval({"A": 0.4, "B": 0.6})}},
-        bloc_voter_prop={"W": 1},
-        num_votes=2,
-        cohesion_parameters={"W": {"W": 1}},
+def test_name_cumulative_distribution():
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["A", "B"]},
+        bloc_proportions={"W": 1},
+        preference_mapping={"W": {"W": PreferenceInterval({"A": 0.4, "B": 0.6})}},
+        cohesion_mapping={"W": {"W": 1}},
     )
 
-    pp = cumu.generate_profile(number_of_ballots=100)
+    pp = name_cumulative_profile_generator(config)
 
     ballot_prob_dict = {
-        "AA": cumu.pref_interval_by_bloc["W"].interval["A"] ** 2,
-        "AB": cumu.pref_interval_by_bloc["W"].interval["A"]
-        * cumu.pref_interval_by_bloc["W"].interval["B"],
-        "BA": cumu.pref_interval_by_bloc["W"].interval["A"]
-        * cumu.pref_interval_by_bloc["W"].interval["B"],
-        "BB": cumu.pref_interval_by_bloc["W"].interval["B"] ** 2,
+        "AA": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
+        ** 2,
+        "AB": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
+        * config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"],
+        "BA": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
+        * config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"],
+        "BB": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"]
+        ** 2,
     }
 
     assert isinstance(pp, PreferenceProfile)
