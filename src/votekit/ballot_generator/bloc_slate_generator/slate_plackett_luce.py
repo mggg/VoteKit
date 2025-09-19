@@ -120,7 +120,7 @@ def _inner_slate_plackett_luce(
 # =================================================
 
 
-def generate_slate_pl_profile(
+def slate_pl_profile_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,
@@ -154,7 +154,7 @@ def generate_slate_pl_profile(
     return pp
 
 
-def generate_slate_pl_profiles_by_bloc(
+def slate_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,

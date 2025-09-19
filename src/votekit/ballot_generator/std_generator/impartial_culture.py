@@ -104,7 +104,7 @@ def _generate_profile_optimized_with_short(
     )
 
 
-def generate_ic_profile(
+def ic_profile_generator(
     candidates: Sequence[str],
     number_of_ballots: int,
     max_ballot_length=None,

@@ -3,8 +3,8 @@ import numpy as np
 
 from votekit.ballot_generator import (
     CambridgeSampler,
-    generate_spacial_profile_candposdict_and_voterposmat,
-    generate_clustered_spacial_profile_candposdict_and_voterposmat,
+    spacial_profile_candposdict_and_voterposmat_generator,
+    clustered_spacial_profile_candposdict_and_voterposmat_generator,
 )
 
 
@@ -62,7 +62,7 @@ def test_spatial_generator():
         return x + y + z
 
     with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
-        generate_spacial_profile_candposdict_and_voterposmat(
+        spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -74,7 +74,7 @@ def test_spatial_generator():
     with pytest.raises(
         TypeError, match="Invalid kwargs for the candidate distribution."
     ):
-        generate_spacial_profile_candposdict_and_voterposmat(
+        spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -88,7 +88,7 @@ def test_spatial_generator():
         match="Distance function is invalid or "
         "incompatible with voter/candidate distributions.",
     ):
-        generate_spacial_profile_candposdict_and_voterposmat(
+        spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -108,7 +108,7 @@ def test_clustered_spatial_generator():
         return x + y + z
 
     with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
-        generate_clustered_spacial_profile_candposdict_and_voterposmat(
+        clustered_spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -120,7 +120,7 @@ def test_clustered_spatial_generator():
     with pytest.raises(
         TypeError, match="Invalid kwargs for the candidate distribution."
     ):
-        generate_clustered_spacial_profile_candposdict_and_voterposmat(
+        clustered_spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -134,7 +134,7 @@ def test_clustered_spatial_generator():
         match="Distance function is invalid or "
         "incompatible with voter/candidate distributions.",
     ):
-        generate_clustered_spacial_profile_candposdict_and_voterposmat(
+        clustered_spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.normal,
@@ -145,7 +145,7 @@ def test_clustered_spatial_generator():
         )
 
     with pytest.raises(ValueError, match="Input voter distribution not supported."):
-        generate_clustered_spacial_profile_candposdict_and_voterposmat(
+        clustered_spacial_profile_candposdict_and_voterposmat_generator(
             number_of_ballots=1,
             candidates=candidates,
             voter_dist=np.random.uniform,

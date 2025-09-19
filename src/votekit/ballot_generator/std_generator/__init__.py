@@ -1,22 +1,24 @@
 from votekit.ballot_generator.std_generator.alternating_crossover import (
     AlternatingCrossover,
 )
-from votekit.ballot_generator.std_generator.impartial_culture import generate_ic_profile
+from votekit.ballot_generator.std_generator.impartial_culture import (
+    ic_profile_generator,
+)
 from votekit.ballot_generator.std_generator.impartial_anon_culture import (
-    generate_iac_profile,
+    iac_profile_generator,
 )
 from votekit.ballot_generator.std_generator.spacial import (
-    generate_1d_spacial_profile,
-    generate_spacial_profile_candposdict_and_voterposmat,
-    generate_clustered_spacial_profile_candposdict_and_voterposmat,
+    onedim_spacial_profile_generator,
+    spacial_profile_candposdict_and_voterposmat_generator,
+    clustered_spacial_profile_candposdict_and_voterposmat_generator,
 )
 
 
 __all__ = [
-    "generate_ic_profile",
-    "generate_iac_profile",
-    "generate_spacial_profile_candposdict_and_voterposmat",
-    "generate_1d_spacial_profile",
-    "generate_clustered_spacial_profile_candposdict_and_voterposmat",
+    "ic_profile_generator",
+    "iac_profile_generator",
+    "spacial_profile_candposdict_and_voterposmat_generator",
+    "onedim_spacial_profile_generator",
+    "clustered_spacial_profile_candposdict_and_voterposmat_generator",
     "AlternatingCrossover",
 ]

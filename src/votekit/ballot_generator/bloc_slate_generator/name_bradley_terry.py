@@ -3,12 +3,12 @@ Generate preference profiles using the name-BradleyTerry model.
 
 The main API functions in this module are:
 
-- `generate_name_bt_profile`: Generates a single preference profile using the name-BradleyT
-- `generate_name_bt_profiles_by_bloc`: Generates preference profiles by bloc using the
+- `name_bt_profile_generator`: Generates a single preference profile using the name-BradleyT
+- `name_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
     name-BradleyTerry model.
-- `generate_name_bt_profile_using_mcmc`: Generates a single preference profile using MCMC
+- `name_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC
     sampling from the name-BradleyTerry model.
-- `generate_name_bt_profiles_by_bloc_using_mcmc`: Generates preference profiles by bloc using
+- `name_bt_profiles_by_bloc_generator_using_mcmc`: Generates preference profiles by bloc using
     MCMC sampling from the name-BradleyTerry model.
 """
 
@@ -408,7 +408,7 @@ def _inner_name_bradley_terry_mcmc(
 # =================================================
 
 
-def generate_name_bt_profiles_by_bloc(
+def name_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> dict[str, RankProfile]:
     """
@@ -436,7 +436,7 @@ def generate_name_bt_profiles_by_bloc(
     return pp_by_bloc
 
 
-def generate_name_bt_profile(
+def name_bt_profile_generator(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> RankProfile:
     """
@@ -468,7 +468,7 @@ def generate_name_bt_profile(
     return pp
 
 
-def generate_name_bt_profile_using_mcmc(
+def name_bt_profile_generator_using_mcmc(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
@@ -510,7 +510,7 @@ def generate_name_bt_profile_using_mcmc(
     return pp
 
 
-def generate_name_bt_profiles_by_bloc_using_mcmc(
+def name_bt_profiles_by_bloc_generator_using_mcmc(
     config: BlocSlateConfig,
     *,
     group_ballots=True,

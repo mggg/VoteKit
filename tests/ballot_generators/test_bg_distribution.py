@@ -7,21 +7,21 @@ import numpy as np
 from collections import Counter
 
 from votekit.ballot_generator import (
-    generate_iac_profile,
-    generate_ic_profile,
+    iac_profile_generator,
+    ic_profile_generator,
     CambridgeSampler,
-    generate_slate_pl_profile,
-    generate_slate_pl_profiles_by_bloc,
+    slate_pl_profile_generator,
+    slate_pl_profiles_by_bloc_generator,
     slate_BradleyTerry,
     name_Cumulative,
     sample_cohesion_ballot_types,
     BlocSlateConfig,
-    generate_name_bt_profile,
-    # generate_name_bt_profiles_by_bloc,
-    # generate_name_bt_profile_using_mcmc,
-    # generate_name_bt_profiles_by_bloc_using_mcmc,
-    generate_name_pl_profile,
-    # generate_name_pl_profiles_by_bloc,
+    name_bt_profile_generator,
+    # name_bt_profiles_by_bloc_generator,
+    # name_bt_profile_generator_using_mcmc,
+    # name_bt_profiles_by_bloc_generator_using_mcmc,
+    name_pl_profile_generator,
+    # name_pl_profiles_by_bloc_generator,
 )
 from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     _calc_prob as bt_prob,
@@ -125,7 +125,7 @@ def test_ic_distribution():
     }
 
     # Generate ballots
-    generated_profile = generate_ic_profile(
+    generated_profile = ic_profile_generator(
         candidates=candidates, number_of_ballots=number_of_ballots
     )
 
@@ -149,7 +149,7 @@ def test_iac_distribution():
         possible_rankings[b_ind]: probabilities[b_ind]
         for b_ind in range(len(possible_rankings))
     }
-    generated_profile = generate_iac_profile(
+    generated_profile = iac_profile_generator(
         number_of_ballots=number_of_ballots,
         candidates=candidates,
     )
@@ -222,7 +222,7 @@ def test_NPL_distribution():
     )
 
     # Generate ballots
-    generated_profile = generate_name_pl_profile(config)
+    generated_profile = name_pl_profile_generator(config)
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, len(candidates)))
@@ -274,7 +274,7 @@ def test_SPL_distribution():
         cohesion_mapping=cohesion_parameters,
     )
 
-    generated_profile_by_bloc = generate_slate_pl_profiles_by_bloc(config)
+    generated_profile_by_bloc = slate_pl_profiles_by_bloc_generator(config)
 
     blocs = list(bloc_voter_prop.keys())
 
@@ -358,7 +358,7 @@ def test_NBT_distribution():
         cohesion_mapping=cohesion_parameters,
     )
 
-    generated_profile = generate_name_bt_profile(config)
+    generated_profile = name_bt_profile_generator(config)
 
     # Find ballot probs
     possible_rankings = list(it.permutations(candidates, len(candidates)))
@@ -436,7 +436,7 @@ def test_NBT_3_bloc():
         silent=True,
     )
 
-    profile = generate_name_bt_profile(config)
+    profile = name_bt_profile_generator(config)
 
     summ = 98 + 28 + 7 + 49 + 4 + 2
 
@@ -461,7 +461,7 @@ def test_NBT_3_bloc():
 
     config.set_dirichlet_alphas(alphas)
 
-    profile = generate_name_bt_profile(config)
+    profile = name_bt_profile_generator(config)
     assert isinstance(profile, PreferenceProfile)
 
 
@@ -503,7 +503,7 @@ def test_SPL_3_bloc():
         silent=True,
     )
 
-    profile = generate_slate_pl_profile(config)
+    profile = slate_pl_profile_generator(config)
 
     ballot_prob_dict = {
         ("A1", "A2", "B1", "C1"): 1 / 2 * 49 / 100 * 2 / 3,
@@ -544,7 +544,7 @@ def test_SPL_3_bloc():
         silent=True,
     )
 
-    profile = generate_slate_pl_profile(config)
+    profile = slate_pl_profile_generator(config)
 
     assert isinstance(profile, PreferenceProfile)
 

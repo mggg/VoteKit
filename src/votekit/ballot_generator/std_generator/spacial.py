@@ -8,7 +8,7 @@ from votekit.metrics import euclidean_dist
 from votekit.pref_profile.pref_profile import RankProfile
 
 
-def generate_1d_spacial_profile(
+def onedim_spacial_profile_generator(
     candidates: Sequence[str],
     number_of_ballots: int,
 ) -> RankProfile:
@@ -49,7 +49,7 @@ def generate_1d_spacial_profile(
     )
 
 
-def generate_spacial_profile_candposdict_and_voterposmat(
+def spacial_profile_candposdict_and_voterposmat_generator(
     number_of_ballots: int,
     candidates: list[str],
     voter_dist: Callable[..., np.ndarray] = np.random.uniform,
@@ -145,7 +145,7 @@ def generate_spacial_profile_candposdict_and_voterposmat(
     )
 
 
-def generate_clustered_spacial_profile_candposdict_and_voterposmat(
+def clustered_spacial_profile_candposdict_and_voterposmat_generator(
     number_of_ballots: dict[str, int],
     candidates: list[str],
     voter_dist: Callable[..., np.ndarray] = np.random.normal,

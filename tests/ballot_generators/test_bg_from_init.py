@@ -2,20 +2,20 @@ import numpy as np
 import pytest
 
 from votekit.ballot_generator import (
-    generate_iac_profile,
-    generate_ic_profile,
+    iac_profile_generator,
+    ic_profile_generator,
     AlternatingCrossover,
     CambridgeSampler,
-    generate_1d_spacial_profile,
-    generate_slate_pl_profile,
-    generate_slate_pl_profiles_by_bloc,
+    onedim_spacial_profile_generator,
+    slate_pl_profile_generator,
+    slate_pl_profiles_by_bloc_generator,
     slate_BradleyTerry,
     name_Cumulative,
     BlocSlateConfig,
-    generate_name_bt_profile,
-    generate_name_bt_profiles_by_bloc,
-    generate_name_pl_profile,
-    generate_name_pl_profiles_by_bloc,
+    name_bt_profile_generator,
+    name_bt_profiles_by_bloc_generator,
+    name_pl_profile_generator,
+    name_pl_profiles_by_bloc_generator,
 )
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_interval import PreferenceInterval
@@ -25,7 +25,7 @@ np.random.seed(8675309)
 
 
 def test_IC_completion():
-    profile = generate_ic_profile(
+    profile = ic_profile_generator(
         candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
     )
     assert type(profile) is RankProfile
@@ -33,7 +33,7 @@ def test_IC_completion():
 
 
 def test_IAC_completion():
-    profile = generate_iac_profile(
+    profile = iac_profile_generator(
         candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
     )
     assert type(profile) is RankProfile
@@ -57,11 +57,11 @@ def test_NPL_completion():
         },
         cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = generate_name_pl_profile(config)
+    profile = name_pl_profile_generator(config)
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
-    profile_dict = generate_name_pl_profiles_by_bloc(config)
+    profile_dict = name_pl_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile  # type: ignore
 
@@ -113,10 +113,10 @@ def test_NBT_completion():
         cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
 
-    profile = generate_name_bt_profile(config)
+    profile = name_bt_profile_generator(config)
     assert type(profile) is RankProfile
 
-    profile_dict = generate_name_bt_profiles_by_bloc(config)
+    profile_dict = name_bt_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
 
@@ -138,11 +138,11 @@ def test_SPL_completion():
         },
         cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = generate_slate_pl_profile(config)
+    profile = slate_pl_profile_generator(config)
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
-    profile_dict = generate_slate_pl_profiles_by_bloc(config)
+    profile_dict = slate_pl_profiles_by_bloc_generator(config)
 
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
@@ -168,11 +168,11 @@ def test_SPL_completion_zero_cand():
         },
         cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
-    profile = generate_slate_pl_profile(config)
+    profile = slate_pl_profile_generator(config)
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
-    profile_dict = generate_slate_pl_profiles_by_bloc(config)
+    profile_dict = slate_pl_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["W"])) is RankProfile
 
@@ -260,7 +260,7 @@ def test_AC_completion():
 
 
 def test_1D_completion():
-    profile = generate_1d_spacial_profile(
+    profile = onedim_spacial_profile_generator(
         candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
     )
     assert type(profile) is RankProfile

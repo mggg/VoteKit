@@ -1,5 +1,5 @@
 from votekit.plots import compute_MDS, plot_MDS  # , plot_summary_stats
-from votekit.ballot_generator import BlocSlateConfig, generate_name_pl_profile
+from votekit.ballot_generator import BlocSlateConfig, name_pl_profile_generator
 from votekit.metrics import lp_dist
 import numpy as np
 from matplotlib.axes import Axes
@@ -24,7 +24,7 @@ def test_compute_MDS():
     pl_data = []
     for _ in range(10):
         config.resample_preference_intervals_from_dirichlet_alphas()
-        pl_data.append(generate_name_pl_profile(config))
+        pl_data.append(name_pl_profile_generator(config))
 
     data = {"PL": pl_data}
 
@@ -54,7 +54,7 @@ def test_plot_MDS():
     pl_data = []
     for _ in range(10):
         config.resample_preference_intervals_from_dirichlet_alphas()
-        pl_data.append(generate_name_pl_profile(config))
+        pl_data.append(name_pl_profile_generator(config))
 
     data = {"PL": pl_data}
 
@@ -84,7 +84,7 @@ def test_seed_MDS():
     pl_data = []
     for _ in range(10):
         config.resample_preference_intervals_from_dirichlet_alphas()
-        pl_data.append(generate_name_pl_profile(config))
+        pl_data.append(name_pl_profile_generator(config))
 
     data = {"PL": pl_data}
 

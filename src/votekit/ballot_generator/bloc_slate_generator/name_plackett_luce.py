@@ -119,7 +119,7 @@ def _inner_name_plackett_luce(
 # =================================================
 
 
-def generate_name_pl_profile(
+def name_pl_profile_generator(
     config: BlocSlateConfig,
     *,
     ballot_length: Optional[int] = None,
@@ -155,7 +155,7 @@ def generate_name_pl_profile(
     return pp
 
 
-def generate_name_pl_profiles_by_bloc(
+def name_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     ballot_length: Optional[int] = None,

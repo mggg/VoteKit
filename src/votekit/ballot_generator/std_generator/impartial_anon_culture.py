@@ -16,7 +16,7 @@ def _total_ballots(n_candidates, max_ballot_length):
     )
 
 
-def generate_iac_profile(
+def iac_profile_generator(
     candidates,
     number_of_ballots,
     max_ballot_length=None,
