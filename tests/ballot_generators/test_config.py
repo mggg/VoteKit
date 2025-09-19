@@ -1740,6 +1740,8 @@ def test_add_slate_with_duplicated_list(valid_config):
         ValueError, match="slate_candidate_list cannot contain duplicate candidates."
     ):
         config.add_slate("slate_3", ["P", "Q", "Q"])
+
+
 # ---------- remove_candidates ----------
 
 
@@ -2177,7 +2179,9 @@ def test_dirichlet_alphas_df_rejects_non_positive(valid_config):
             "slate_2": {"bloc_1": 1.0, "bloc_2": 1.0},
         }
     ).astype(float)
-    with pytest.raises(ValueError, match="Dirichlet alphas must be positive finite reals."):
+    with pytest.raises(
+        ValueError, match="Dirichlet alphas must be positive finite reals."
+    ):
         _keycheck(config, df)
 
 
@@ -2362,6 +2366,7 @@ def test_drops_candidate_removed_from_existing_slate(valid_config):
 
 
 # -------- get_preference_interval_for_bloc_and_slate -------------
+
 
 def test_returns_interval_for_specific_bloc_and_slate(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)

@@ -2,14 +2,26 @@ import math
 import numpy as np
 import random
 from collections import Counter
-from functools import cache
+from functools import lru_cache
+from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
-@cache
-def _total_ballots(n_candidates, max_ballot_length):
+@lru_cache
+def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
+    """
+    Calculate the total number of possible ballots given the number of candidates and the maximum
+    ballot length.
+
+    Args:
+        n_candidates (int): Number of candidates.
+        max_ballot_length (int): Maximum length of each ballot.
+
+    Returns:
+        int: Total number of possible ballots.
+    """
     return sum(
         math.comb(n_candidates, i) * math.factorial(i)
         for i in range(1, max_ballot_length + 1)
@@ -17,18 +29,18 @@ def _total_ballots(n_candidates, max_ballot_length):
 
 
 def iac_profile_generator(
-    candidates,
-    number_of_ballots,
-    max_ballot_length=None,
+    candidates: Sequence[str],
+    number_of_ballots: int,
+    max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
     is equally likely. Equivalent to the ballot simplex with an alpha value of 1.
 
     Args:
-        candidates (list): List of candidate strings.
+        candidates (Sequence[str]): List of candidate strings.
         number_of_ballots (int): Number of ballots to generate.
-        max_ballot_length (int, optional): Maximum length of each ballot. If None, defaults to
+        max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.
 
     Returns:
@@ -45,7 +57,7 @@ def iac_profile_generator(
 
     # rather than iterate n! times, we perform multiple
     # multinomial experiments
-    num_valid_ballots = _total_ballots(num_cands, max_ballot_length)
+    num_valid_ballots = _total_num_ballots(num_cands, max_ballot_length)
     for _ in range(num_valid_ballots):
         gap_freq[random.randint(0, num_gaps) - 1] += 1
 
@@ -57,7 +69,7 @@ def iac_profile_generator(
                 ballot_ind,
                 num_cands,
                 max_ballot_length,
-                _total_ballots,
+                _total_num_ballots,
                 always_use_total_valid_ballots_method=False,
             )
         )

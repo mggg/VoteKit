@@ -1,16 +1,16 @@
 import math
 import numpy as np
 import random
-from typing import Sequence
-from functools import cache
+from typing import Sequence, Optional
+from functools import lru_cache
 from collections import Counter
 
 from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
 
 
-@cache
-def _total_ballots(n_candidates: int, max_ballot_length: int) -> int:
+@lru_cache
+def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
     """
     Calculate the total number of valid ballots given n_candidates and max_ballot_length.
 
@@ -28,7 +28,9 @@ def _total_ballots(n_candidates: int, max_ballot_length: int) -> int:
 
 
 def _generate_profile_optimized_non_short(
-    candidates: Sequence[str], number_of_ballots: int, ballot_length: int
+    candidates: Sequence[str],
+    number_of_ballots: int,
+    max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -36,14 +38,19 @@ def _generate_profile_optimized_non_short(
     short ballots are disallowed
 
     Args:
+        candidates (Sequence[str]): the list of candidates in the election
         number_of_ballots (int): the number of ballots to generate
+        max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
+            defaults to the number of candidates. Defaults to None.
 
     Returns:
         RankProfile
     """
     num_cands = len(candidates)
+    if max_ballot_length is None:
+        max_ballot_length = num_cands
     ballots_as_ind = [
-        tuple(np.random.choice(num_cands, size=ballot_length, replace=False))
+        tuple(np.random.choice(num_cands, size=max_ballot_length, replace=False))
         for _ in range(number_of_ballots)
     ]
     ballots_as_counter = Counter(ballots_as_ind)
@@ -57,7 +64,9 @@ def _generate_profile_optimized_non_short(
 
 
 def _generate_profile_optimized_with_short(
-    candidates: Sequence[str], number_of_ballots: int, max_ballot_length: int = -1
+    candidates: Sequence[str],
+    number_of_ballots: int,
+    max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate an IC profile in the case where short ballots are
@@ -69,15 +78,16 @@ def _generate_profile_optimized_with_short(
         candidates (Sequence[str]): the list of candidates in the election
         number_of_ballots (int): the number of ballots to generate for
             the profile
-        max_ballot_length (int): the maximum length allowed in the profile
+        max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
+            defaults to the number of candidates. Defaults to None.
 
     Returns:
         RankProfile
     """
     num_cands = len(candidates)
-    if max_ballot_length == -1:
+    if max_ballot_length is None:
         max_ballot_length = num_cands
-    total_ballots = _total_ballots(num_cands, max_ballot_length)
+    total_ballots = _total_num_ballots(num_cands, max_ballot_length)
 
     # sample indices (representing allowed ballots) uniformally at
     # random
@@ -87,7 +97,7 @@ def _generate_profile_optimized_with_short(
     ballots_as_cand_ind = [
         tuple(
             index_to_lexicographic_ballot(
-                ballot_ind, num_cands, max_ballot_length, _total_ballots
+                ballot_ind, num_cands, max_ballot_length, _total_num_ballots
             )
         )
         for ballot_ind in ballot_inds
@@ -107,8 +117,8 @@ def _generate_profile_optimized_with_short(
 def ic_profile_generator(
     candidates: Sequence[str],
     number_of_ballots: int,
-    max_ballot_length=None,
-    allow_short_ballots=False,
+    max_ballot_length: Optional[int] = None,
+    allow_short_ballots: bool = False,
 ) -> RankProfile:
     """
     Impartial Culture model where each ballot is equally likely.
@@ -117,8 +127,8 @@ def ic_profile_generator(
     Args:
         candidates (Sequence[str]): The list of candidates in the election.
         number_of_ballots (int): The number of ballots to generate for the profile.
-        max_ballot_length (int, optional): The maximum length allowed in the profile.
-            If None, defaults to the number of candidates. Defaults to None.
+        max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
+            the number of candidates.
         allow_short_ballots (bool, optional): Whether to allow short ballots.
             Defaults to False.
 

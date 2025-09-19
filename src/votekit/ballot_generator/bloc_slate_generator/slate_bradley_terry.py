@@ -323,7 +323,7 @@ def slate_bt_profile_generator(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:
@@ -355,7 +355,7 @@ def slate_bt_profiles_by_bloc_generator(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:

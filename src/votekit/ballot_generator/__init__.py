@@ -23,8 +23,8 @@ from votekit.ballot_generator.std_generator import (
     ic_profile_generator,
     iac_profile_generator,
     onedim_spacial_profile_generator,
-    spacial_profile_candposdict_and_voterposmat_generator,
-    clustered_spacial_profile_candposdict_and_voterposmat_generator,
+    spacial_profile_and_positions_generator,
+    clustered_spacial_profile_and_positions_generator,
     AlternatingCrossover,
 )
 
@@ -47,8 +47,8 @@ __all__ = [
     "ic_profile_generator",
     "iac_profile_generator",
     "onedim_spacial_profile_generator",
-    "spacial_profile_candposdict_and_voterposmat_generator",
-    "clustered_spacial_profile_candposdict_and_voterposmat_generator",
+    "spacial_profile_and_positions_generator",
+    "clustered_spacial_profile_and_positions_generator",
     "AlternatingCrossover",
     "convert_cohesion_map_to_cohesion_df",
     "convert_preference_map_to_preference_df",

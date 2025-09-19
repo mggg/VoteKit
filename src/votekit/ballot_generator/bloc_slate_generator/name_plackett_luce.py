@@ -25,8 +25,8 @@ def _inner_name_plackett_luce(
 
     Args:
         config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
-            set to the total number of candidates in the configuration. Defaults to None.
+        ballot_length (Optional[int]): Number of ranking positions allowed per ballot. If None,
+            this is set to the total number of candidates in the configuration. Defaults to None.
 
     Returns:
         dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
@@ -55,7 +55,6 @@ def _inner_name_plackett_luce(
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
 
     for bloc in config.blocs:
-        # number of voters in this bloc
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, ballot_length), frozenset("~"))
         non_zero_cands = list(pref_interval_by_bloc_dict[bloc].non_zero_cands)
@@ -74,8 +73,6 @@ def _inner_name_plackett_luce(
             number_to_sample = len(non_zero_cands)
 
         for i in range(n_ballots):
-            # generates ranking based on probability distribution of non candidate support
-            # samples ballot_length candidates
             non_zero_ranking = list(
                 np.random.choice(
                     non_zero_cands,
@@ -87,15 +84,8 @@ def _inner_name_plackett_luce(
 
             ranking = [frozenset({cand}) for cand in non_zero_ranking]
 
-            if number_tied:
-                tied_candidates = list(
-                    np.random.choice(
-                        zero_cands,
-                        number_tied,
-                        replace=False,
-                    )
-                )
-                ranking.append(frozenset(tied_candidates))
+            if number_tied is not None:
+                ranking.append(frozenset(zero_cands))
 
             ballot_pool[i] = np.array(ranking)
 
@@ -107,7 +97,7 @@ def _inner_name_plackett_luce(
         pp = RankProfile(
             candidates=config.candidates,
             df=df,
-            max_ranking_length=n_candidates,
+            max_ranking_length=ballot_length,
         )
         pp_by_bloc[bloc] = pp
 
@@ -118,24 +108,26 @@ def _inner_name_plackett_luce(
 # ================= API Functions =================
 # =================================================
 
+# NOTE: The 'ballot_length' parameter has been commented out
+# since we don't have good analogues in any of the other Bloc-Slate
+# generators. When we add this feature, we can just restore the functionality.
+
 
 def name_pl_profile_generator(
     config: BlocSlateConfig,
     *,
-    ballot_length: Optional[int] = None,
+    # ballot_length: Optional[int] = None,
     group_ballots: bool = True,
 ) -> RankProfile:
     """
-    Generates a merged preference profiles using the name-Plackett-Luce model.
+    Generates a merged preference profile using the name-Plackett-Luce model.
 
     The Plackett-Luce model samples without replacement from each preference interval
     for each bloc of voters. These profiles are then merged into a single profile.
 
     Args:
         config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
-            set to the total number of candidates in the configuration. Defaults to None.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:
@@ -143,7 +135,8 @@ def name_pl_profile_generator(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
+    # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
+    pp_by_bloc = _inner_name_plackett_luce(config)
 
     pp = RankProfile(ballots=tuple())
     for profile in pp_by_bloc.values():
@@ -158,20 +151,19 @@ def name_pl_profile_generator(
 def name_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    ballot_length: Optional[int] = None,
+    # ballot_length: Optional[int] = None,
     group_ballots: bool = True,
 ) -> dict[str, RankProfile]:
     """
-    Generates a dictionary of preference profiles by bloc using the name-Plackett-Luce model.
+    Generates a dictionary mapping bloc names to preference profiles by bloc using the
+    name-Plackett-Luce model.
 
     The Plackett-Luce model samples without replacement from each preference interval
     for each bloc of voters.
 
     Args:
         config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
-            set to the total number of candidates in the configuration. Defaults to None.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:
@@ -180,7 +172,8 @@ def name_pl_profiles_by_bloc_generator(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
+    # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
+    pp_by_bloc = _inner_name_plackett_luce(config)
 
     if group_ballots:
         for bloc, profile in pp_by_bloc.items():

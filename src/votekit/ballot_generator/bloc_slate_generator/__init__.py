@@ -4,7 +4,7 @@ from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     name_bt_profile_generator_using_mcmc,
     name_bt_profiles_by_bloc_generator_using_mcmc,
 )
-from votekit.ballot_generator.bloc_slate_generator.cambridj import CambridgeSampler
+from votekit.ballot_generator.bloc_slate_generator.cambridge import CambridgeSampler
 from votekit.ballot_generator.bloc_slate_generator.name_plackett_luce import (
     name_pl_profile_generator,
     name_pl_profiles_by_bloc_generator,

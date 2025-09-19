@@ -80,11 +80,11 @@ def _make_bradley_terry_numerator(vals):
 
 def _bradley_terry_pdf(dct: Mapping[str, float]) -> dict[tuple[str, ...], float]:
     """
-    Given a dictionary of candidates and their support, returns the probability mass function
+    Given a dictionary of candidates and their support, returns the probability density function
     over all possible rankings.
 
     Args:
-        dct (dict): a mapping from candidate to their support (preference interval)
+        dct (Mapping[str, float]): a mapping from candidate to their support
 
     Returns:
         dict: a mapping of the rankings to their probability
@@ -101,6 +101,10 @@ def _bradley_terry_pdf(dct: Mapping[str, float]) -> dict[tuple[str, ...], float]
 def _check_name_bt_memory(config: BlocSlateConfig) -> None:
     """
     Check if there is enough memory to generate the profile using the name-BradleyTerry model.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
 
     Raises:
         ValueError: If there are more than 12 candidates.
@@ -230,14 +234,15 @@ def _bradley_terry_mcmc(
 
     Args:
         n_ballots (int): the number of ballots to sample
-        pref_interval (dict): the preference interval to determine BT distribution
-        sub_sample_length (int): how many attempts at swaps to make before saving ballot
-        seed_ballot: RankBallot, the seed ballot for the Markov chain
-        verbose: bool, if True, print the acceptance ratio of the chain
+        pref_interval (Mapping[str, float]): the preference interval to determine BT distribution
+        seed_ballot (RankBallot):  the seed ballot for the Markov chain
+        zero_cands (frozenset[str], optional): candidates with zero support to be added as ties
+        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (int): the length of the Markov Chain. Defaults to continuous,
-            which is n_ballots. Ballots are subsampled every chain_length//n_ballots steps from
-            the chain until the desired number of ballots is reached.
+        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+            chain_length//n_ballots steps from the chain until the desired number of ballots is
+            reached. Defaults to None which sets the chain_length to the number of ballots in
+            the config.
     """
     if zero_cands is None:
         zero_cands = frozenset()
@@ -343,20 +348,20 @@ def _inner_name_bradley_terry_mcmc(
     chain_length: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
-    Sample from the BT distribution using Markov Chain Monte Carlo. `number_of_ballots` should
-    be sufficiently large to allow for convergence of the chain.
+    Sample from the BT distribution using Markov Chain Monte Carlo.
 
     Args:
         number_of_ballots (int): The number of ballots to generate.
 
     Kwargs:
-        verbose (bool): if True, print the acceptance ratio of the chain. Defaults to False.
+        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (int, optional): the length of the Markov Chain. Defaults to continuous,
-            which is n_ballots. Ballots are subsampled every chain_length//n_ballots steps from
-            the chain until the desired number of ballots is reached. Defaults to None which
-            sets it to n_ballots.
+        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+            chain_length//n_ballots steps from the chain until the desired number of ballots is
+            reached. Defaults to None which sets the chain_length to the number of ballots in
+            the config.
+
     Returns:
         Union[RankProfile, Tuple]
     """
@@ -412,7 +417,7 @@ def name_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> dict[str, RankProfile]:
     """
-    Generate a preference profile using the name-BradleyTerry model.
+    Generate preference profiles by bloc using the name-BradleyTerry model.
 
     The probability of sampling the ranking :math:`X>Y>Z` is proportional to
     :math:`P(X>Y)*P(X>Z)*P(Y>Z)`. These individual probabilities are based on the preference
@@ -420,7 +425,7 @@ def name_bt_profiles_by_bloc_generator(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:
@@ -448,7 +453,7 @@ def name_bt_profile_generator(
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
     Returns:
@@ -483,15 +488,15 @@ def name_bt_profile_generator_using_mcmc(
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
 
     Kwargs:
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
-        verbose (bool): if True, print the acceptance ratio of the chain. Defaults to False.
+        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (int, optional): the length of the Markov Chain. Defaults to continuous,
-            which is n_ballots. Ballots are subsampled every chain_length//n_ballots steps from
-            the chain until the desired number of ballots is reached. Defaults to None which
-            sets it to n_ballots.
+        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+            chain_length//n_ballots steps from the chain until the desired number of ballots is
+            reached. Defaults to None which sets the chain_length to the number of ballots in
+            the config.
 
     Returns:
         RankProfile: Generated preference profile.
@@ -526,15 +531,15 @@ def name_bt_profiles_by_bloc_generator_using_mcmc(
         config (BlocSlateConfig): Configuration object containing all necessary parameters.
 
     Kwargs:
-        group_ballots (bool): if True, group identical ballots in the returned profile and
+        group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
-        verbose (bool): if True, print the acceptance ratio of the chain. Defaults to False.
+        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (int, optional): the length of the Markov Chain. Defaults to continuous,
-            which is n_ballots. Ballots are subsampled every chain_length//n_ballots steps from
-            the chain until the desired number of ballots is reached. Defaults to None which
-            sets it to n_ballots.
+        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+            chain_length//n_ballots steps from the chain until the desired number of ballots is
+            reached. Defaults to None which sets the chain_length to the number of ballots in
+            the config.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
@@ -575,7 +580,10 @@ def _bradley_terry_mcmc_shortcut(
         sub_sample_length (int): how many attempts at swaps to make before saving ballot
         seed_ballot: Ballot, the seed ballot for the Markov chain
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (int): the length of the Markov Chain. Defaults to continuous, which is n_ballots
+        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+            chain_length//n_ballots steps from the chain until the desired number of ballots is
+            reached. Defaults to None which sets the chain_length to the number of ballots in
+            the config.
     """
     # NOTE: Most of this has been copied from `_bradley_terry_mcmc`
     # TODO: Abstract the overlapping steps into another helper

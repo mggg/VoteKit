@@ -3,9 +3,8 @@ from numpy.typing import NDArray
 import pandas as pd
 from typing import Optional, Tuple, Callable, Dict, Any, Sequence
 
-from votekit.pref_profile import PreferenceProfile
 from votekit.metrics import euclidean_dist
-from votekit.pref_profile.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile
 
 
 def onedim_spacial_profile_generator(
@@ -13,11 +12,16 @@ def onedim_spacial_profile_generator(
     number_of_ballots: int,
 ) -> RankProfile:
     """
+    Generates a ranked preference profile where voters and candidates
+    are positioned on a one-dimensional line according to a normal
+    distribution. Voter preferences are determined by their proximity
+    to candidates on this line.
+
     Args:
         number_of_ballots (int): The number of ballots to generate.
 
     Returns:
-        Union[PreferenceProfile, Tuple]
+        RankProfile: A ranked preference profile object.
     """
     n_candidates = len(candidates)
 
@@ -49,7 +53,7 @@ def onedim_spacial_profile_generator(
     )
 
 
-def spacial_profile_candposdict_and_voterposmat_generator(
+def spacial_profile_and_positions_generator(
     number_of_ballots: int,
     candidates: list[str],
     voter_dist: Callable[..., np.ndarray] = np.random.uniform,
@@ -57,12 +61,12 @@ def spacial_profile_candposdict_and_voterposmat_generator(
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
+) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
     """
     Samples a metric position for number_of_ballots voters from
     the voter distribution. Samples a metric position for each candidate
     from the input candidate distribution. With sampled
-    positions, this method then creates a ranked PreferenceProfile in which
+    positions, this method then creates a ranked RankProfile in which
     voter's preferences are consistent with their distances to the candidates
     in the metric space.
 
@@ -71,7 +75,7 @@ def spacial_profile_candposdict_and_voterposmat_generator(
         by_bloc (bool): Dummy variable from parent class.
 
     Returns:
-        Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+        Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
@@ -145,7 +149,7 @@ def spacial_profile_candposdict_and_voterposmat_generator(
     )
 
 
-def clustered_spacial_profile_candposdict_and_voterposmat_generator(
+def clustered_spacial_profile_and_positions_generator(
     number_of_ballots: dict[str, int],
     candidates: list[str],
     voter_dist: Callable[..., np.ndarray] = np.random.normal,
@@ -153,13 +157,13 @@ def clustered_spacial_profile_candposdict_and_voterposmat_generator(
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-) -> Tuple[PreferenceProfile, dict[str, np.ndarray], np.ndarray]:
+) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
     """
     Samples a metric position for each candidate
     from the input candidate distribution. For each candidate, then sample
     number_of_ballots[candidate] metric positions for voters
     which will be centered around the candidate.
-    With sampled positions, this method then creates a ranked PreferenceProfile in which
+    With sampled positions, this method then creates a ranked RankProfile in which
     voter's preferences are consistent with their distances to the candidates
     in the metric space.
 
@@ -169,7 +173,7 @@ def clustered_spacial_profile_candposdict_and_voterposmat_generator(
         by_bloc (bool): Dummy variable from parent class.
 
     Returns:
-        Tuple[PreferenceProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+        Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
