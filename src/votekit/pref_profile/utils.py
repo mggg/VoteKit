@@ -399,7 +399,9 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     from votekit.pref_profile import ScoreProfile
 
     validate_score_vector(score_vector)
+    score_vector = list(score_vector)
 
+    assert rank_profile.max_ranking_length is not None
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
