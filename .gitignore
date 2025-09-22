@@ -21,3 +21,6 @@ __pycache__
 tests/data/csv/test_csv_pp_mixed_no_voter_set.csv
 tests/data/csv/test_csv_pp_mixed.csv
 tests/data/csv/test_csv_pp_rankings.csv
+tests/data/pickle
+tests/pref_profile/data/pickle
+tests/pref_profile/data/rank_profile/test_csv_pp_rankings.csv

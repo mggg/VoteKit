@@ -2,15 +2,36 @@ import itertools as it
 import random
 import numpy as np
 from typing import Union, Mapping
+import psutil
 
 
+def system_memory() -> dict[str, float]:
+    """
+    Returns a dictionary with system memory information in GiB via psutil.
+
+    Returns:
+        dict[str, float]: A dictionary with keys 'total_gib', 'available_gib',
+            'used_gib', and 'percent' representing the total, available, and used
+            memory in GiB and the percentage of used memory.
+    """
+    vm = psutil.virtual_memory()
+    return {
+        "total_gib": vm.total / 2**30,
+        "available_gib": vm.available / 2**30,
+        "used_gib": vm.used / 2**30,
+        "percent": vm.percent,
+    }
+
+
+# TODO: Fix this up to be more readable. Also make sure to mention keys of
+# cohesion_parameters_for_bloc are slates now.
 def sample_cohesion_ballot_types(
     slate_to_non_zero_candidates: dict[str, list[str]],
     num_ballots: int,
     cohesion_parameters_for_bloc: Mapping[str, Union[float, int]],
 ) -> list[list[str]]:
     """
-    Returns a list of ballots; each ballot is a list of bloc names (strings)
+    Returns a list of ballots; each ballot is a list of slate names (strings)
     in the order they appear on that ballot.
 
     Args:

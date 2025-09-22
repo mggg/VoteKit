@@ -37,7 +37,6 @@ def test_load_clean_completion():
 
 def test_generate_election_completion():
     number_of_ballots = 100
-    candidates = ["W1", "W2", "C1", "C2"]
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
     pref_interval_by_bloc = {
@@ -56,16 +55,15 @@ def test_generate_election_completion():
 
     path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
 
-    ballot_model = bg.CambridgeSampler(
-        candidates=candidates,
-        pref_intervals_by_bloc=pref_interval_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        path=path,
-        cohesion_parameters=cohesion_parameters,
+    config = bg.BlocSlateConfig(
+        n_voters=number_of_ballots,
         slate_to_candidates=slate_to_candidate,
+        bloc_proportions=bloc_voter_prop,
+        preference_mapping=pref_interval_by_bloc,
+        cohesion_mapping=cohesion_parameters,
     )
 
-    pp = ballot_model.generate_profile(number_of_ballots=number_of_ballots)
+    pp = bg.cambridge_profile_generator(config, path=path)
 
     assert isinstance(pp, PreferenceProfile)
 
@@ -91,10 +89,10 @@ def test_generate_election_diff_res():
     b6 = make_ballot(ranking=["E", "C", "D", "B", "A"], weight=2)
     pp = PreferenceProfile(ballots=[b1, b2, b3, b4, b5, b6])
 
-    election_borda = elections.Borda(pp, 1, score_vector=None)
-    election_irv = elections.STV(pp)
-    election_plurality = elections.Plurality(pp)
-    election_seq = elections.SequentialRCV(pp)
+    election_borda = elections.Borda(pp, 1, score_vector=None)  # type: ignore
+    election_irv = elections.STV(pp)  # type: ignore
+    election_plurality = elections.Plurality(pp)  # type: ignore
+    election_seq = elections.SequentialRCV(pp)  # type: ignore
 
     outcome_borda = election_borda.get_elected()
     outcome_irv = election_irv.get_elected()
