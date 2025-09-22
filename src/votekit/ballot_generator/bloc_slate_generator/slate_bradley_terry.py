@@ -274,6 +274,7 @@ def _inner_slate_bradley_terry(
 
     # Save on repeated calls to computed property
     bloc_lst = config.blocs
+    slate_lst = config.slates
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
@@ -295,8 +296,10 @@ def _inner_slate_bradley_terry(
         # number of voters in this bloc
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
-        pref_intervals = config.get_preference_intervals_for_bloc(bloc)
-        zero_cands = set(it.chain(*[pi.zero_cands for pi in pref_intervals.values()]))
+        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
+        zero_cands = set(
+            it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
+        )
         non_zero_cands_set = set(candidates) - zero_cands
 
         if use_mcmc:
@@ -317,10 +320,10 @@ def _inner_slate_bradley_terry(
         for j, bt in enumerate(ballot_types):
             cand_ordering_by_bloc = {}
 
-            for b in bloc_lst:
+            for slate in slate_lst:
                 # create a pref interval dict of only this blocs candidates
-                bloc_cand_pref_interval = pref_intervals[b].interval
-                cands = pref_intervals[b].non_zero_cands
+                bloc_cand_pref_interval = pref_intervals_by_slate_dict[slate].interval
+                cands = pref_intervals_by_slate_dict[slate].non_zero_cands
 
                 # if there are no non-zero candidates, skip this bloc
                 if len(cands) == 0:
@@ -333,13 +336,13 @@ def _inner_slate_bradley_terry(
                     a=list(cands), size=len(cands), p=distribution, replace=False
                 )
 
-                cand_ordering_by_bloc[b] = list(cand_ordering)
+                cand_ordering_by_bloc[slate] = list(cand_ordering)
 
             ranking = [frozenset({"~"})] * len(bt)
-            for i, b in enumerate(bt):
+            for i, slate in enumerate(bt):
                 # append the current first candidate, then remove them from the ordering
-                ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
-                cand_ordering_by_bloc[b].pop(0)
+                ranking[i] = frozenset({cand_ordering_by_bloc[slate][0]})
+                cand_ordering_by_bloc[slate].pop(0)
 
             if len(zero_cands) > 0:
                 ranking.append(frozenset(zero_cands))

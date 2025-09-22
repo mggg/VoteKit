@@ -33,6 +33,7 @@ def _inner_slate_plackett_luce(
     """
     n_candidates = len(config.candidates)
     bloc_lst = config.blocs
+    slate_lst = config.slates
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
@@ -56,8 +57,10 @@ def _inner_slate_plackett_luce(
     for i, bloc in enumerate(bloc_lst):
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
-        pref_intervals = config.get_preference_intervals_for_bloc(bloc)
-        zero_cands = set(it.chain(*[pi.zero_cands for pi in pref_intervals.values()]))
+        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
+        zero_cands = set(
+            it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
+        )
 
         slate_to_non_zero_candidates = {
             s: [c for c in c_list if c not in zero_cands]
@@ -73,9 +76,9 @@ def _inner_slate_plackett_luce(
         for j, bt in enumerate(ballot_types):
             cand_ordering_by_bloc = {}
 
-            for b in bloc_lst:
-                bloc_cand_pref_interval = pref_intervals[b].interval
-                cands = pref_intervals[b].non_zero_cands
+            for slate in slate_lst:
+                bloc_cand_pref_interval = pref_intervals_by_slate_dict[slate].interval
+                cands = pref_intervals_by_slate_dict[slate].non_zero_cands
 
                 if len(cands) == 0:
                     continue
@@ -86,12 +89,12 @@ def _inner_slate_plackett_luce(
                 cand_ordering = np.random.choice(
                     a=list(cands), size=len(cands), p=distribution, replace=False
                 )
-                cand_ordering_by_bloc[b] = list(cand_ordering)
+                cand_ordering_by_bloc[slate] = list(cand_ordering)
 
             ranking = [frozenset({"-1"})] * len(bt)
-            for i, b in enumerate(bt):
-                ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
-                cand_ordering_by_bloc[b].pop(0)
+            for i, slate in enumerate(bt):
+                ranking[i] = frozenset({cand_ordering_by_bloc[slate][0]})
+                cand_ordering_by_bloc[slate].pop(0)
 
             if len(zero_cands) > 0:
                 ranking.append(frozenset(zero_cands))
