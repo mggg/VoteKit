@@ -108,7 +108,7 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
 
     Raises:
         ValueError: If there are more than 12 candidates.
-        MemoryError: If there is not enough memory to generate the profile.
+        MemoryError: If there is not enough memory to generate the pmf.
     """
     n_cands = len(config.candidates)
     if n_cands > 12:
@@ -118,9 +118,16 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
         )
 
     mem = system_memory()
-    # rough estimate of memory usage. gives a little bit of a buffer to account for overhead
-    largest_value = math.factorial(n_cands)
-    est_bytes = largest_value * sys.getsizeof(largest_value)
+    # rough estimate of memory usage. Gives a little bit of a buffer to account for overhead
+    pmf_size = math.factorial(n_cands)
+    candidate_with_longest_name = max(config.candidates, key=len)
+    est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
+    est_bytes_profile = (
+        config.n_voters
+        * n_cands
+        * sys.getsizeof(frozenset({candidate_with_longest_name}))
+    )
+    est_bytes = est_bytes_pmf + est_bytes_profile
     if est_bytes > mem["available_gib"] * 2**30:
         raise MemoryError(
             f"Not enough memory to generate the profile. Estimated memory usage is "
