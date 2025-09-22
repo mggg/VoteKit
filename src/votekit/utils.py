@@ -208,7 +208,7 @@ def _score_dict_from_rankings_df_no_ties(
     return {next(iter(k)): bucket_sums[idx] for idx, k in enumerate(cand_frznst)}
 
 
-def score_profile_from_rankings(
+def score_dict_from_score_vector(
     profile: RankProfile,
     score_vector: Sequence[float],
     tie_convention: Literal["high", "average", "low"] = "low",
@@ -337,7 +337,7 @@ def first_place_votes(
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     assert profile.max_ranking_length is not None
-    return score_profile_from_rankings(
+    return score_dict_from_score_vector(
         profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
     )
 
@@ -400,7 +400,7 @@ def borda_scores(
 
     score_vector = list(range(borda_max, 0, -1))
 
-    return score_profile_from_rankings(profile, score_vector, tie_convention)
+    return score_dict_from_score_vector(profile, score_vector, tie_convention)
 
 
 def tiebreak_set(

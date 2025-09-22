@@ -405,7 +405,7 @@ candidates based on order using a global score vector :math:`(r_1,r_2,..,r_n)`. 
 vector is :math:`(n, n-1, \dots, 1)`, where `n` is the number of candidates.
 A candidate in position 1 is given :math:`r_1` points, a candidate in position 2 is given 
 :math:`r_2`, and so on. If a ballot is incomplete, the remaining points of the score 
-vector are evenly distributed to the unlisted candidates (see ``score_profile_from_rankings`` 
+vector are evenly distributed to the unlisted candidates (see ``score_dict_from_score_vector`` 
 function in ``utils``). If a ballot has ties, the tied candidates are awarded an average of their 
 the scores over all possible completions of the tie.
 The default for a Borda election is one winner -- whoever has the highest point total -- but 

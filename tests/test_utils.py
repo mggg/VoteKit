@@ -4,7 +4,7 @@ from votekit.utils import (
     ballots_by_first_cand,
     add_missing_cands,
     validate_score_vector,
-    score_profile_from_rankings,
+    score_dict_from_score_vector,
     first_place_votes,
     mentions,
     borda_scores,
@@ -123,7 +123,7 @@ def test_score_profile_from_rankings_low():
         "E": 1,
     }
 
-    comp_scores = score_profile_from_rankings(profile_with_missing, [5, 4, 3, 2, 1])
+    comp_scores = score_dict_from_score_vector(profile_with_missing, [5, 4, 3, 2, 1])
     assert comp_scores == true_scores
     assert isinstance(comp_scores["A"], float)
 
@@ -137,7 +137,7 @@ def test_score_profile_from_rankings_high():
         "E": 1,
     }
 
-    comp_scores = score_profile_from_rankings(
+    comp_scores = score_dict_from_score_vector(
         profile_with_missing, [5, 4, 3, 2, 1], tie_convention="high"
     )
     assert comp_scores == true_scores
@@ -153,7 +153,7 @@ def test_score_profile_from_rankings_avg():
         "E": 1,
     }
 
-    comp_scores = score_profile_from_rankings(
+    comp_scores = score_dict_from_score_vector(
         profile_with_missing, [5, 4, 3, 2, 1], tie_convention="average"
     )
     assert comp_scores == true_scores
@@ -162,18 +162,18 @@ def test_score_profile_from_rankings_avg():
 
 def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
-        score_profile_from_rankings(PreferenceProfile(), [3, 2, -1])
+        score_dict_from_score_vector(PreferenceProfile(), [3, 2, -1])
 
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
-        score_profile_from_rankings(PreferenceProfile(), [3, 2, 3])
+        score_dict_from_score_vector(PreferenceProfile(), [3, 2, 3])
 
     with pytest.raises(TypeError, match="Profile must only contain ranked ballots."):
-        score_profile_from_rankings(
+        score_dict_from_score_vector(
             PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
         )
 
     with pytest.raises(TypeError, match="has an empty ranking position."):
-        score_profile_from_rankings(
+        score_dict_from_score_vector(
             PreferenceProfile(ballots=(Ballot(ranking=({"A"}, frozenset(), {"B"})),)),
             [3, 2, 1],
         )
@@ -181,7 +181,7 @@ def test_score_profile_from_rankings_errors():
         ValueError,
         match=("tie_convention must be one of 'high', 'low', 'average', " "not highlo"),
     ):
-        score_profile_from_rankings(
+        score_dict_from_score_vector(
             profile_no_ties, [5, 4, 3, 2, 1], tie_convention="highlo"  # type: ignore[arg-type]
         )
 
