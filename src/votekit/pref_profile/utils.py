@@ -5,9 +5,10 @@ if TYPE_CHECKING:
     from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
-from typing import Optional
+from typing import Optional, Sequence
 import pandas as pd
 from functools import partial
+import numpy as np
 
 
 def _convert_ranking_cols_to_ranking(
@@ -372,3 +373,64 @@ def profile_df_tail(
         df["Percent"] = df["Percent"].apply(lambda x: f"{float(x):.{n_decimals}%}")
 
     return df
+
+
+def convert_rank_profile_to_score_profile_via_score_vector(
+    rank_profile: RankProfile,
+    score_vector: Sequence[float],
+) -> ScoreProfile:
+    """
+    Convert a rank profile to a score profile using a score vector. Ballots must
+    not contain ties. Score vector
+    should be non-increasing and non-negative.
+
+    Args:
+        rank_profile (RankProfile): Rank profile to convert.
+        score_vector (Sequence[float]): Score vector to use.
+
+    Returns:
+        ScoreProfile: Score profile.
+
+    Raises:
+        ValueError: Ballots must not contain ties.
+        ValueError: Score vector must be non-increasing and non-negative.
+    """
+    from votekit.utils import validate_score_vector
+    from votekit.pref_profile import ScoreProfile
+
+    validate_score_vector(score_vector)
+
+    if len(score_vector) < rank_profile.max_ranking_length:
+        score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
+
+    ranking_cols = [
+        f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)
+    ]
+    rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).flatten()
+    if np.any(np.vectorize(len)(rankings_arr) > 1):
+        raise ValueError("Ballots must not contain ties.")
+
+    cand_to_score_list = {
+        c: [np.nan for _ in range(len(rank_profile.df))]
+        for c in rank_profile.candidates
+    }
+
+    for df_tuple in rank_profile.df[ranking_cols].itertuples():
+        ballot_idx, ranking = df_tuple[0], df_tuple[1:]
+        for ranking_pos, cand_set in enumerate(ranking):
+            if cand_set == frozenset({"~"}):
+                continue
+            cand = next(iter(cand_set))  # no ties so this is unique
+            cand_to_score_list[cand][ballot_idx] = (
+                score_vector[ranking_pos] if score_vector[ranking_pos] > 0 else np.nan
+            )
+
+    new_df = pd.DataFrame(cand_to_score_list)
+    new_df.index.name = "Ballot Index"
+    new_df["Voter Set"] = rank_profile.df["Voter Set"]
+    new_df["Weight"] = rank_profile.df["Weight"]
+
+    return ScoreProfile(
+        df=new_df,
+        candidates=rank_profile.candidates,
+    )
