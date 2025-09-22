@@ -1,7 +1,7 @@
 import pytest
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.ballot import RankBallot, ScoreBallot
-from votekit.pref_profile.utils import (
+from votekit.pref_profile import (
     convert_rank_profile_to_score_profile_via_score_vector,
 )
 
