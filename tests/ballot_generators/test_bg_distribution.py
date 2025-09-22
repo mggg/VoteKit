@@ -204,17 +204,17 @@ def test_NPL_distribution():
     candidates = ["W1", "W2", "C1", "C2"]
 
     pref_intervals_by_bloc = {
-        "W": {
+        "X": {
             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
         },
-        "C": {
+        "Y": {
             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
         },
     }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+    bloc_voter_prop = {"X": 0.7, "Y": 0.3}
+    cohesion_parameters = {"X": {"W": 0.7, "C": 0.3}, "Y": {"C": 0.6, "W": 0.4}}
 
     config = BlocSlateConfig(
         n_voters=number_of_ballots,
@@ -256,17 +256,17 @@ def test_SPL_distribution():
     number_of_ballots = 500
     candidates = ["W1", "W2", "C1", "C2"]
     pref_intervals_by_bloc = {
-        "W": {
+        "X": {
             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
         },
-        "C": {
+        "Y": {
             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
         },
     }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": {"W": 0.9, "C": 0.1}, "C": {"C": 0.8, "W": 0.2}}
+    bloc_voter_prop = {"X": 0.7, "Y": 0.3}
+    cohesion_parameters = {"X": {"W": 0.9, "C": 0.1}, "Y": {"C": 0.8, "W": 0.2}}
     slate_to_candidates = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
 
     config = BlocSlateConfig(
@@ -305,20 +305,20 @@ def test_SPL_distribution():
         # now compute unlabeled ballot probs and multiply by labeled ballot probs
         for ballot in ballot_prob_dict.keys():
             # relabel candidates by their bloc
-            ballot_by_bloc = [candidate_to_slate[c] for c in ballot]
+            ballot_by_slate = [candidate_to_slate[c] for c in ballot]
             prob = 1
-            bloc_counter = {b: 0.0 for b in bloc_voter_prop.keys()}
+            slate_counter = {s: 0.0 for s in slate_to_candidates.keys()}
             # compute prob of ballot type
 
             prob_mass = 1
             temp_cohesion = cohesion_parameters[current_bloc].copy()
-            for bloc in ballot_by_bloc:
-                prob *= temp_cohesion[bloc] / prob_mass
-                bloc_counter[bloc] += 1
+            for slate in ballot_by_slate:
+                prob *= temp_cohesion[slate] / prob_mass
+                slate_counter[slate] += 1
 
                 # if no more of current bloc, renormalize
-                if bloc_counter[bloc] == len(slate_to_candidates[bloc]):
-                    del temp_cohesion[bloc]
+                if slate_counter[slate] == len(slate_to_candidates[slate]):
+                    del temp_cohesion[slate]
                     prob_mass = sum(temp_cohesion.values())
 
                     # if only one bloc left, determined
@@ -339,18 +339,17 @@ def test_NBT_distribution():
 
     candidates = ["W1", "W2", "C1", "C2"]
     pref_intervals_by_bloc = {
-        "W": {
+        "X": {
             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
         },
-        "C": {
+        "Y": {
             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
         },
     }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
+    bloc_voter_prop = {"X": 0.7, "Y": 0.3}
+    cohesion_parameters = {"X": {"W": 0.7, "C": 0.3}, "Y": {"C": 0.6, "W": 0.4}}
 
     # Generate ballots
     config = BlocSlateConfig(
@@ -372,7 +371,7 @@ def test_NBT_distribution():
             [pref_intervals_by_bloc[bloc][slate] for slate in ["W", "C"]],
             [cohesion_parameters[bloc][slate] for slate in ["W", "C"]],
         )
-        for bloc in ["W", "C"]
+        for bloc in ["X", "Y"]
     }
 
     for bloc in bloc_voter_prop.keys():
@@ -404,30 +403,30 @@ def test_NBT_3_bloc():
     slate_to_candidates = {"A": ["A1"], "B": ["B1"], "C": ["C1"]}
 
     cohesion_parameters = {
-        "A": {"A": 0.7, "B": 0.2, "C": 0.1},
-        "B": {"A": 0.7, "B": 0.2, "C": 0.1},
-        "C": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "X": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "Y": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "Z": {"A": 0.7, "B": 0.2, "C": 0.1},
     }
 
     pref_intervals_by_bloc = {
-        "A": {
+        "X": {
             "A": PreferenceInterval({"A1": 1}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
-        "B": {
+        "Y": {
             "A": PreferenceInterval({"A1": 1}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
-        "C": {
+        "Z": {
             "A": PreferenceInterval({"A1": 1}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
     }
 
-    bloc_voter_prop = {"A": 0.9998, "B": 0.0001, "C": 0.0001}
+    bloc_voter_prop = {"X": 0.9998, "Y": 0.0001, "Z": 0.0001}
 
     # Generate ballots
     config = BlocSlateConfig(
@@ -457,9 +456,9 @@ def test_NBT_3_bloc():
     assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, profile)
 
     alphas = {
-        "A": {"A": 1, "B": 1, "C": 1},
-        "B": {"A": 1, "B": 1, "C": 1},
-        "C": {"A": 1, "B": 1, "C": 1},
+        "X": {"A": 1, "B": 1, "C": 1},
+        "Y": {"A": 1, "B": 1, "C": 1},
+        "Z": {"A": 1, "B": 1, "C": 1},
     }
 
     config.set_dirichlet_alphas(alphas)
@@ -472,30 +471,30 @@ def test_SPL_3_bloc():
     slate_to_candidates = {"A": ["A1", "A2"], "B": ["B1"], "C": ["C1"]}
 
     cohesion_parameters = {
-        "A": {"A": 0.7, "B": 0.2, "C": 0.1},
-        "B": {"A": 0.7, "B": 0.2, "C": 0.1},
-        "C": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "X": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "Y": {"A": 0.7, "B": 0.2, "C": 0.1},
+        "Z": {"A": 0.7, "B": 0.2, "C": 0.1},
     }
 
     pref_intervals_by_bloc = {
-        "A": {
+        "X": {
             "A": PreferenceInterval({"A1": 1 / 2, "A2": 1 / 2}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
-        "B": {
+        "Y": {
             "A": PreferenceInterval({"A1": 1, "A2": 1}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
-        "C": {
+        "Z": {
             "A": PreferenceInterval({"A1": 1, "A2": 1}),
             "B": PreferenceInterval({"B1": 1}),
             "C": PreferenceInterval({"C1": 1}),
         },
     }
 
-    bloc_voter_prop = {"A": 0.999998, "B": 0.000001, "C": 0.000001}
+    bloc_voter_prop = {"X": 0.999998, "Y": 0.000001, "Z": 0.000001}
 
     config = BlocSlateConfig(
         n_voters=500,
@@ -556,17 +555,17 @@ def test_NBT_probability_calculation():
     # Set-up
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     pref_intervals_by_bloc = {
-        "W": {
+        "X": {
             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
         },
-        "C": {
+        "Y": {
             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
         },
     }
-    bloc_voter_prop = {"W": 0.7, "C": 0.3}
-    cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+    bloc_voter_prop = {"X": 0.7, "Y": 0.3}
+    cohesion_parameters = {"X": {"W": 0.7, "C": 0.3}, "Y": {"C": 0.6, "W": 0.4}}
 
     config = BlocSlateConfig(
         n_voters=100,
@@ -580,23 +579,21 @@ def test_NBT_probability_calculation():
     permutation = ("W1", "W2")
 
     pref_interval_by_bloc = config.get_combined_preference_intervals_by_bloc()
-    ww_pref_interval = pref_interval_by_bloc["W"].interval
-    cc_pref_interval = pref_interval_by_bloc["C"].interval
+    x_pref_interval = pref_interval_by_bloc["X"].interval
+    y_pref_interval = pref_interval_by_bloc["Y"].interval
 
-    assert bt_prob(
-        permutations=[permutation], cand_support_dict=dict(cc_pref_interval)
-    )[permutation] == (
-        cc_pref_interval["W1"] / (cc_pref_interval["W1"] + cc_pref_interval["W2"])
-    )
+    assert bt_prob(permutations=[permutation], cand_support_dict=dict(y_pref_interval))[
+        permutation
+    ] == (y_pref_interval["W1"] / (y_pref_interval["W1"] + y_pref_interval["W2"]))
 
     permutation = ("W1", "W2", "C2")
     prob = (
-        (ww_pref_interval["W1"] / (ww_pref_interval["W1"] + ww_pref_interval["W2"]))
-        * (ww_pref_interval["W1"] / (ww_pref_interval["W1"] + ww_pref_interval["C2"]))
-        * (ww_pref_interval["W2"] / (ww_pref_interval["W2"] + ww_pref_interval["C2"]))
+        (x_pref_interval["W1"] / (x_pref_interval["W1"] + x_pref_interval["W2"]))
+        * (x_pref_interval["W1"] / (x_pref_interval["W1"] + x_pref_interval["C2"]))
+        * (x_pref_interval["W2"] / (x_pref_interval["W2"] + x_pref_interval["C2"]))
     )
     assert (
-        bt_prob(permutations=[permutation], cand_support_dict=dict(ww_pref_interval))[
+        bt_prob(permutations=[permutation], cand_support_dict=dict(x_pref_interval))[
             permutation
         ]
         == prob

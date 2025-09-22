@@ -23,13 +23,15 @@ def system_memory() -> dict[str, float]:
     }
 
 
+# TODO: Fix this up to be more readable. Also make sure to mention keys of
+# cohesion_parameters_for_bloc are slates now.
 def sample_cohesion_ballot_types(
     slate_to_non_zero_candidates: dict[str, list[str]],
     num_ballots: int,
     cohesion_parameters_for_bloc: Mapping[str, Union[float, int]],
 ) -> list[list[str]]:
     """
-    Returns a list of ballots; each ballot is a list of bloc names (strings)
+    Returns a list of ballots; each ballot is a list of slate names (strings)
     in the order they appear on that ballot.
 
     Args:
