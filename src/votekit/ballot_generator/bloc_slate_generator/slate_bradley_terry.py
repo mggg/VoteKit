@@ -1,294 +1,538 @@
+"""
+Generate ranked preference profiles using the slate-BradleyTerry model.
+
+The main API functions in this module are:
+
+- `slate_bt_profile_generator`: Generates a single preference profile using the slate-BradleyTerry
+    model.
+- `slate_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
+    slate-BradleyTerry model.
+- `slate_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC
+    sampling from the slate-BradleyTerry model.
+- `slate_bt_profiles_by_bloc_generator_using_mcmc`: Generates preference profiles by bloc using
+    MCMC sampling from the slate-BradleyTerry model.
+"""
+
 import itertools as it
 import numpy as np
+from numpy.typing import NDArray
+import pandas as pd
+import math
+import sys
+
 import random
-import warnings
-from typing import Union, Tuple
+
+from typing import Sequence, cast
 import apportionment.methods as apportion
 
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot_generator import BallotGenerator
+from votekit.pref_profile import RankProfile
+from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.utils import system_memory
+
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
-class slate_BradleyTerry(BallotGenerator):
+def _count_pairs_a_before_b(x_array: NDArray, a: str, b: str) -> int:
     """
-    Class for generating ballots using a slate-BradleyTerry model. It
-    presamples ballot types by checking all pairwise comparisons, then fills out candidate
-    ordering by sampling without replacement from preference intervals.
-
-    Only works with 2 blocs at the moment.
-
-    Can be initialized with an interval or can be constructed with the Dirichlet distribution using
-    the `from_params` method of `BallotGenerator`.
+    Count the number of times a appears before b in x_array.
 
     Args:
-        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
-            values are lists of candidate strings that make up the slate.
-        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
-                denoting population share.
-        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
-            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
-        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
-            keys are bloc strings and values are cohesion parameters,
-            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+        x_array (NDArray): 1D numpy array of strings.
+        a (str): The string to count before b.
+        b (str): The string to count after a.
 
-    Attributes:
-        candidates (list): List of candidate strings.
-        slate_to_candidates (dict): Dictionary whose keys are bloc names and whose
-            values are lists of candidate strings that make up the slate.
-        bloc_voter_prop (dict): Dictionary whose keys are bloc strings and values are floats
-                denoting population share.
-        pref_intervals_by_bloc (dict): Dictionary whose keys are bloc strings and values are
-            dictionaries whose keys are bloc strings and values are ``PreferenceInterval`` objects.
-        cohesion_parameters (dict): Dictionary mapping of bloc string to dictionary whose
-            keys are bloc strings and values are cohesion parameters,
-            eg. ``{'bloc_1': {'bloc_1': .7, 'bloc_2': .2, 'bloc_3':.1}}``
+    Returns:
+        int: The number of times a appears before b in x_array.
+    """
+    cumulative_a = np.cumsum(x_array == a)
+    ret = int(cumulative_a[x_array == b].sum())
+    return ret
+
+
+def _slate_bt_numerator_computation_single_bloc(
+    ballot_type: Sequence[str], slate_cohesion_dict_for_single_bloc: dict[str, float]
+):
+    """
+    Compute the numerator of the probability of a given ballot type for a single bloc.
+
+    Args:
+        ballot_type (Sequence[str]): A tuple of strings representing the ballot type.
+        slate_cohesion_dict_for_single_bloc (dict[str, float]): A dictionary mapping slate
+            names to their cohesion parameters for a single bloc.
+
+    Returns:
+        float: The numerator of the probability of the given ballot type.
+    """
+    # for each slate pair (i,j), count times slate i appears above slate j
+    # component is then (cohesion[i] / (cohesion[i] + cohesion[j])) ^ count(i above j)
+    all_slates = frozenset(slate_cohesion_dict_for_single_bloc.keys())
+    ballot_arr = np.array(ballot_type)
+    result = 1.0
+    for slate, other_slate in it.permutations(all_slates, 2):
+        result *= pow(
+            slate_cohesion_dict_for_single_bloc[slate]
+            / (
+                slate_cohesion_dict_for_single_bloc[slate]
+                + slate_cohesion_dict_for_single_bloc[other_slate]
+            ),
+            _count_pairs_a_before_b(ballot_arr, slate, other_slate),
+        )
+
+    return result
+
+
+def _compute_ballot_type_dist(
+    config: BlocSlateConfig, bloc: str, non_zero_candidate_set: set[str]
+) -> dict[tuple[str, ...], float]:
+    """
+    Compute the probability distribution for ballot types for a given voter bloc.
+
+    Args:
+        config (BlocSlateConfig): The configuration for the bloc-slate type model.
+        bloc (str): The voter bloc for which to compute the ballot type distribution.
+
+    Returns:
+        dict[tuple[str, ...], float]: A dictionary mapping ballot types (as tuples of
+            slate names) to their probabilities.
     """
 
-    def __init__(self, cohesion_parameters: dict, **data):
-        # Call the parent class's __init__ method to handle common parameters
-        super().__init__(cohesion_parameters=cohesion_parameters, **data)
+    # FIX: Do this for the non-zero support candidates
+    n_candidates = len(non_zero_candidate_set)
+    slate_list = [
+        s_name
+        for s_name in config.slate_to_candidates.keys()
+        for c_name in config.slate_to_candidates[s_name]
+        if c_name in non_zero_candidate_set
+    ]
 
-        if len(self.slate_to_candidates.keys()) > 2:
-            raise UserWarning(
-                f"This model currently only supports at most two blocs, but you \
-                              passed {len(self.slate_to_candidates.keys())}"
+    bloc_series = config.cohesion_df.loc[bloc]
+    bloc_series.index = bloc_series.index.astype(str)
+    bloc_series = bloc_series.astype(float)
+
+    slate_cohesion_dict_for_bloc: dict[str, float] = cast(
+        dict[str, float], bloc_series.to_dict()
+    )
+
+    pmf = {}
+    for ballot_type in it.permutations(slate_list, n_candidates):
+        ballot_type = tuple(ballot_type)
+        if ballot_type not in pmf:
+            pmf[ballot_type] = _slate_bt_numerator_computation_single_bloc(
+                ballot_type, slate_cohesion_dict_for_bloc
             )
 
-        if len(self.candidates) < 12 and len(self.blocs) == 2:
-            # precompute pdfs for sampling
-            self.ballot_type_pdf = {
-                b: self._compute_ballot_type_dist(b, self.blocs[(i + 1) % 2])
-                for i, b in enumerate(self.blocs)
-            }
+    summ = sum(pmf.values())
+    return {b: v / summ for b, v in pmf.items()}
 
-        elif len(self.blocs) == 1:
-            # precompute pdf for sampling
-            # uniform on ballot types
-            bloc = self.blocs[0]
-            bloc_to_sample = [
-                bloc
-                for _ in range(
-                    len(self.pref_intervals_by_bloc[bloc][bloc].non_zero_cands)
-                )
-            ]
-            pdf = {tuple(bloc_to_sample): 1}
-            self.ballot_type_pdf = {bloc: pdf}
 
-        else:
-            warnings.warn(
-                "For 12 or more candidates, exact sampling is computationally infeasible. \
-                    Please set deterministic = False when calling generate_profile."
-            )
+def _sample_ballot_types_deterministic(
+    config: BlocSlateConfig,
+    bloc_name: str,
+    n_ballots: int,
+    non_zero_candidate_set: set[str],
+) -> list[tuple[str, ...]]:
+    """
+    Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
 
-    def _compute_ballot_type_dist(self, bloc, opp_bloc):
-        """
-        Return a dictionary with keys ballot types and values equal to probability of sampling.
-        """
-        blocs_to_sample = [
-            b
-            for b in self.blocs
-            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
-        ]
-        total_comparisons = np.prod(
-            [
-                len(interval.non_zero_cands)
-                for interval in self.pref_intervals_by_bloc[bloc].values()
-            ]
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        bloc_name (str): The name of the voter bloc for which to generate ballot types.
+        n_ballots (int): The number of ballots to generate.
+        non_zero_candidate_set (set[str]): Set of candidates that have non-zero preference
+            intervals in the given bloc.
+
+    Returns:
+        list[tuple[str]]: A list of ballot types, where each ballot type is represented
+            as a tuple of slate names.
+    """
+    pdf = _compute_ballot_type_dist(config, bloc_name, non_zero_candidate_set)
+    b_types: list[tuple[str, ...]] = list(pdf.keys())
+    probs = list(pdf.values())
+
+    sampled_indices = np.random.choice(len(b_types), size=n_ballots, p=probs)
+
+    return [b_types[i] for i in sampled_indices]
+
+
+def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
+    """
+    Check if there is enough memory to generate the profile using the slate-BradleyTerry model.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+
+    Raises:
+        ValueError: If there are more than 12! possible ballot types.
+        MemoryError: If there is not enough memory to generate the pmf.
+    """
+    n_cands = len(config.candidates)
+    slate_counts = {
+        slate: len(cands) for slate, cands in config.slate_to_candidates.items()
+    }
+    total_arrangements = math.factorial(n_cands) / math.prod(
+        math.factorial(count) for count in slate_counts.values()
+    )
+    if total_arrangements > math.factorial(12):
+        raise ValueError(
+            "Given the number of candidates and slates you have entered, there appears to be "
+            f"{total_arrangements:.2e} possible ballot types. This is beyond the standard limit "
+            f"of 12! = {math.factorial(12)}. Please reduce the number of candidates or use the "
+            "MCMC version of this generator instead."
         )
 
-        cohesion = self.cohesion_parameters[bloc][bloc]
-
-        def prob_of_type(b_type):
-            success = sum(
-                b_type[i + 1 :].count(opp_bloc)
-                for i, b in enumerate(b_type)
-                if b == bloc
-            )
-            return pow(cohesion, success) * pow(
-                1 - cohesion, total_comparisons - success
-            )
-
-        pdf = {
-            b: prob_of_type(b)
-            for b in set(it.permutations(blocs_to_sample, len(blocs_to_sample)))
-        }
-
-        summ = sum(pdf.values())
-        return {b: v / summ for b, v in pdf.items()}
-
-    def _sample_ballot_types_deterministic(self, bloc: str, num_ballots: int):
-        """
-        Used to generate bloc orderings for deliberative.
-
-        Returns a list of lists, where each sublist contains the bloc names in order they appear
-        on the ballot.
-        """
-        # pdf = self._compute_ballot_type_dist(bloc=bloc, opp_bloc=opp_bloc)
-        pdf = self.ballot_type_pdf[bloc]
-        b_types = list(pdf.keys())
-        probs = list(pdf.values())
-
-        sampled_indices = np.random.choice(len(b_types), size=num_ballots, p=probs)
-
-        return [b_types[i] for i in sampled_indices]
-
-    def _sample_ballot_types_MCMC(
-        self, bloc: str, num_ballots: int, verbose: bool = False
-    ):
-        """
-        Generate ballot types using MCMC that has desired stationary distribution.
-        """
-
-        seed_ballot_type = [
-            b
-            for b in self.blocs
-            for _ in range(len(self.pref_intervals_by_bloc[bloc][b].non_zero_cands))
-        ]
-
-        ballots = [[-1]] * num_ballots
-        accept = 0
-        current_ranking = seed_ballot_type
-
-        cohesion = self.cohesion_parameters[bloc][bloc]
-
-        # presample swap indices
-        swap_indices = [
-            (j1, j1 + 1)
-            for j1 in np.random.choice(len(seed_ballot_type) - 1, size=num_ballots)
-        ]
-
-        odds = (1 - cohesion) / cohesion
-        # generate MCMC sample
-        for i in range(num_ballots):
-            # choose adjacent pair to propose a swap
-            j1, j2 = swap_indices[i]
-
-            # if swap reduces number of voters bloc above opposing bloc
-            if (
-                current_ranking[j1] != current_ranking[j2]
-                and current_ranking[j1] == bloc
-            ):
-                acceptance_prob = odds
-
-            # if swap increases number of voters bloc above opposing or swaps two of same bloc
-            else:
-                acceptance_prob = 1
-
-            # if you accept, make the swap
-            if random.random() < acceptance_prob:
-                current_ranking[j1], current_ranking[j2] = (
-                    current_ranking[j2],
-                    current_ranking[j1],
-                )
-                accept += 1
-
-            ballots[i] = current_ranking.copy()
-
-        if verbose:
-            print(
-                f"Acceptance ratio as number accepted / total steps: {accept/num_ballots:.2}"
-            )
-
-        if -1 in ballots:
-            raise ValueError("Some element of ballots list is not a ballot.")
-
-        return ballots
-
-    def generate_profile(
-        self, number_of_ballots: int, by_bloc: bool = False, deterministic: bool = True
-    ) -> Union[PreferenceProfile, Tuple]:
-        """
-        Args:
-            number_of_ballots (int): The number of ballots to generate.
-            by_bloc (bool): True if you want the generated profiles returned as a tuple
-                ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
-                and values = ``PreferenceProfile`` and ``pp`` is the aggregated profile. False if
-                you only want the aggregated profile. Defaults to False.
-            deterministic (bool): True if you want to use precise pdf, False to use MCMC sampling.
-                Defaults to True.
-
-        Returns:
-            Union[PreferenceProfile, Tuple]
-        """
-        # the number of ballots per bloc is determined by Huntington-Hill apportionment
-        bloc_props = list(self.bloc_voter_prop.values())
-        ballots_per_block = dict(
-            zip(
-                self.blocs,
-                apportion.compute("huntington", bloc_props, number_of_ballots),
-            )
+    mem = system_memory()
+    # rough estimate of memory usage. Gives a little bit of a buffer to account for overhead
+    pmf_size = total_arrangements
+    candidate_with_longest_name = max(config.candidates, key=len)
+    est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
+    est_bytes_profile = (
+        config.n_voters
+        * n_cands
+        * sys.getsizeof(frozenset({candidate_with_longest_name}))
+    )
+    est_bytes = est_bytes_pmf + est_bytes_profile
+    if est_bytes > mem["available_gib"] * 2**30:
+        raise MemoryError(
+            f"Not enough memory to generate the profile. Estimated memory usage is "
+            f"{est_bytes / 2**30:.1f} GiB, but only {mem['available_gib']:.1f} GiB is available."
         )
 
-        pref_profile_by_bloc = {}
 
-        for i, bloc in enumerate(self.blocs):
-            # number of voters in this bloc
-            num_ballots = ballots_per_block[bloc]
-            ballot_pool = [Ballot()] * num_ballots
-            pref_intervals = self.pref_intervals_by_bloc[bloc]
-            zero_cands = set(
-                it.chain(*[pi.zero_cands for pi in pref_intervals.values()])
+def _sample_ballot_types_mcmc(
+    config: BlocSlateConfig,
+    bloc_name: str,
+    n_ballots: int,
+    non_zero_candidate_set: set[str],
+) -> list[tuple[str, ...]]:
+    """
+    Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
+    estimation of the slate Bradley-Terry model.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        bloc_name (str): The name of the voter bloc for which to generate ballot types.
+        n_ballots (int): The number of ballots to generate.
+        non_zero_candidate_set (set[str]): Set of candidates that have non-zero preference
+            intervals in the given bloc.
+
+    Returns:
+        list[tuple[str]]: A list of ballot types, where each ballot type is represented
+            as a tuple of slate names.
+    """
+
+    # AABABB like
+    seed_ballot_type = [
+        slate
+        for slate in config.slates
+        for c in config.slate_to_candidates[slate]
+        if c in non_zero_candidate_set
+    ]
+    # randomly permute the seed ballot type
+    seed_ballot_type = random.sample(seed_ballot_type, k=len(seed_ballot_type))
+
+    ballots: list[tuple[str, ...]] = [("~",)] * n_ballots
+    current_ranking = seed_ballot_type
+
+    # presample swap indices
+    swap_indices = [
+        (j1, j1 + 1)
+        for j1 in np.random.choice(len(seed_ballot_type) - 1, size=n_ballots)
+    ]
+
+    for i in range(n_ballots):
+        j1, j2 = swap_indices[i]
+        current_slate, new_slate = current_ranking[j1], current_ranking[j2]
+
+        # swap probability is how much voters in given bloc tend to prefer current slate
+        # over how much they tend to prefer new slate
+        cohesion_j1 = config.cohesion_df[current_slate].loc[bloc_name]
+        cohesion_j2 = config.cohesion_df[new_slate].loc[bloc_name]
+        acceptance_prob = cohesion_j2 / cohesion_j1  # Doesn't matter if above 1
+
+        if random.random() < acceptance_prob:
+            current_ranking[j1], current_ranking[j2] = (
+                current_ranking[j2],
+                current_ranking[j1],
             )
 
-            if deterministic and len(self.candidates) >= 12:
-                raise UserWarning(
-                    "Deterministic sampling is only supported for 11 or fewer candidates.\n\
-                    Please set deterministic = False."
-                )
+        ballots[i] = tuple(current_ranking.copy())
 
-            elif deterministic:
-                ballot_types = self._sample_ballot_types_deterministic(
-                    bloc=bloc, num_ballots=num_ballots
-                )
-            else:
-                ballot_types = self._sample_ballot_types_MCMC(
-                    bloc=bloc, num_ballots=num_ballots
-                )
+    return ballots
 
-            for j, bt in enumerate(ballot_types):
-                cand_ordering_by_bloc = {}
 
-                for b in self.blocs:
-                    # create a pref interval dict of only this blocs candidates
-                    bloc_cand_pref_interval = pref_intervals[b].interval
-                    cands = pref_intervals[b].non_zero_cands
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
 
-                    # if there are no non-zero candidates, skip this bloc
-                    if len(cands) == 0:
-                        continue
 
-                    distribution = [bloc_cand_pref_interval[c] for c in cands]
+def _inner_slate_bradley_terry(
+    config: BlocSlateConfig,
+    use_mcmc: bool = False,
+) -> dict[str, RankProfile]:
+    """
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        use_mcmc (bool): If True, use MCMC to sample ballot types. Defaults to False.
 
-                    # sample
-                    cand_ordering = np.random.choice(
-                        a=list(cands), size=len(cands), p=distribution, replace=False
-                    )
+    Returns:
+        dict[str, RankProfile]: A dictionary mapping bloc names to their corresponding
+            generated preference profiles.
+    """
+    n_candidates = len(config.candidates)
 
-                    cand_ordering_by_bloc[b] = list(cand_ordering)
+    # Save on repeated calls to computed property
+    bloc_lst = config.blocs
+    slate_lst = config.slates
 
-                ranking = [frozenset({"-1"})] * len(bt)
-                for i, b in enumerate(bt):
-                    # append the current first candidate, then remove them from the ordering
-                    ranking[i] = frozenset({cand_ordering_by_bloc[b][0]})
-                    cand_ordering_by_bloc[b].pop(0)
+    bloc_counts = apportion.compute(
+        "huntington", list(config.bloc_proportions.values()), config.n_voters
+    )
+    if not isinstance(bloc_counts, list):
+        if not isinstance(bloc_counts, int):
+            raise TypeError(
+                f"Unexpected type from apportionment got {type(bloc_counts)}"
+            )
 
-                if len(zero_cands) > 0:
-                    ranking.append(frozenset(zero_cands))
-                ballot_pool[j] = Ballot(ranking=tuple(ranking), weight=1)
+        bloc_counts = [bloc_counts]
 
-            pp = PreferenceProfile(ballots=tuple(ballot_pool))
-            pp = pp.group_ballots()
-            pref_profile_by_bloc[bloc] = pp
+    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-        # combine the profiles
-        pp = PreferenceProfile()
-        for profile in pref_profile_by_bloc.values():
-            pp += profile
+    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
+    candidates = config.candidates
 
-        if by_bloc:
-            return (pref_profile_by_bloc, pp)
+    for i, bloc in enumerate(bloc_lst):
+        # number of voters in this bloc
+        n_ballots = ballots_per_bloc[bloc]
+        ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
+        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
+        zero_cands = set(
+            it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
+        )
+        non_zero_cands_set = set(candidates) - zero_cands
 
-        # else return the combined profiles
+        if use_mcmc:
+            ballot_types = _sample_ballot_types_mcmc(
+                config=config,
+                bloc_name=bloc,
+                n_ballots=n_ballots,
+                non_zero_candidate_set=non_zero_cands_set,
+            )
         else:
-            return pp
+            ballot_types = _sample_ballot_types_deterministic(
+                config=config,
+                bloc_name=bloc,
+                n_ballots=n_ballots,
+                non_zero_candidate_set=non_zero_cands_set,
+            )
+
+        for j, bt in enumerate(ballot_types):
+            cand_ordering_by_bloc = {}
+
+            for slate in slate_lst:
+                # create a pref interval dict of only this blocs candidates
+                bloc_cand_pref_interval = pref_intervals_by_slate_dict[slate].interval
+                cands = pref_intervals_by_slate_dict[slate].non_zero_cands
+
+                # if there are no non-zero candidates, skip this bloc
+                if len(cands) == 0:
+                    continue
+
+                distribution = [bloc_cand_pref_interval[c] for c in cands]
+
+                # sample by Plackett-Luce within the bloc
+                cand_ordering = np.random.choice(
+                    a=list(cands), size=len(cands), p=distribution, replace=False
+                )
+
+                cand_ordering_by_bloc[slate] = list(cand_ordering)
+
+            ranking = [frozenset({"~"})] * len(bt)
+            for i, slate in enumerate(bt):
+                # append the current first candidate, then remove them from the ordering
+                ranking[i] = frozenset({cand_ordering_by_bloc[slate][0]})
+                cand_ordering_by_bloc[slate].pop(0)
+
+            if len(zero_cands) > 0:
+                ranking.append(frozenset(zero_cands))
+            ballot_pool[j] = np.array(ranking)
+
+        df = pd.DataFrame(ballot_pool)
+        df.index.name = "Ballot Index"
+        df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+        df["Weight"] = 1
+        df["Voter Set"] = [frozenset()] * len(df)
+        pp = RankProfile(
+            candidates=config.candidates,
+            df=df,
+            max_ranking_length=n_candidates,
+        )
+        pref_profile_by_bloc[bloc] = pp
+
+    return pref_profile_by_bloc
+
+
+# =================================================
+# ================= API Functions =================
+# =================================================
+
+
+def slate_bt_profile_generator(
+    config: BlocSlateConfig, *, group_ballots=True
+) -> RankProfile:
+    """
+    Generate a preference profile using the name-BradleyTerry model.
+
+    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
+    using the cohesion parameters for each slate and the candidate counts of those slates (so
+    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        group_ballots (bool): If True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
+
+    Returns:
+        RankProfile: Generated preference profile.
+    """
+    _check_slate_bt_memory(config)
+
+    config.is_valid(raise_errors=True)
+    pp_by_bloc = _inner_slate_bradley_terry(config)
+
+    profile = RankProfile()
+    for prof in pp_by_bloc.values():
+        profile += prof
+
+    if group_ballots:
+        profile = profile.group_ballots()
+
+    return profile
+
+
+def slate_bt_profiles_by_bloc_generator(
+    config: BlocSlateConfig, *, group_ballots=True
+) -> dict[str, RankProfile]:
+    """
+    Generate a dictionary mapping bloc names to ranked preference profiles using the
+    slate-BradleyTerry model.
+
+    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
+    using the cohesion parameters for each slate and the candidate counts of those slates (so
+    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        group_ballots (bool): If True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
+
+    Returns:
+        dict[str, RankProfile]: Generated preference profiles by bloc.
+    """
+    _check_slate_bt_memory(config)
+    config.is_valid(raise_errors=True)
+
+    pp_by_bloc = _inner_slate_bradley_terry(config)
+    if group_ballots:
+        for bloc in pp_by_bloc:
+            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+
+    return pp_by_bloc
+
+
+def slate_bt_profile_generator_using_mcmc(
+    config: BlocSlateConfig, *, group_ballots=True
+) -> RankProfile:
+    """
+    Generate a ranked preference profile using the slate-BradleyTerry model.
+
+    This model is mainly useful when then number of possible ballot types is too large
+    to compute the full probability distribution on the present hardware (e.g. more than 12!
+    possible ballot types).
+
+    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
+    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
+    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
+    the swap according to the ratio of the cohesion parameters of the two slates being swapped
+    within a given block.
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        group_ballots (bool): If True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
+
+    Returns:
+        RankProfile: Generated preference profile.
+    """
+    config.is_valid(raise_errors=True)
+
+    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True)
+
+    profile = RankProfile()
+    for prof in pp_by_bloc.values():
+        profile += prof
+
+    if group_ballots:
+        profile = profile.group_ballots()
+
+    return profile
+
+
+def slate_bt_profiles_by_bloc_generator_using_mcmc(
+    config: BlocSlateConfig, *, group_ballots=True
+) -> dict[str, RankProfile]:
+    """
+    Generate a dictionary mapping bloc names to ranked preference profiles using the
+    slate-BradleyTerry model.
+
+    This model is mainly useful when then number of possible ballot types is too large
+    to compute the full probability distribution on the present hardware (e.g. more than 12!
+    possible ballot types).
+
+    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
+    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
+    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
+    the swap according to the ratio of the cohesion parameters of the two slates being swapped
+    within a given block.
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        group_ballots (bool): If True, group identical ballots in the returned profile and
+            set the weight accordingly. Defaults to True.
+
+    Returns:
+        dict[str, RankProfile]: Generated preference profiles by bloc.
+    """
+    config.is_valid(raise_errors=True)
+
+    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True)
+    if group_ballots:
+        for bloc in pp_by_bloc:
+            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+
+    return pp_by_bloc

@@ -21,6 +21,8 @@ dependencies = [
     "mypy-extensions (>=1.1.0)",
     "numba (>=0.61.2,<0.62.0)",
     "types-networkx (>=3.5.0.20250728,<4.0.0.0)",
+    "psutil (>=7.1.0,<8.0.0)",
+    "types-psutil (>=7.0.0.20250822,<8.0.0.0)",
 ]
 
 

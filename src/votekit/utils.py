@@ -279,7 +279,9 @@ def score_dict_from_score_vector(
             if s == tilde:
                 continue
 
-            local_score_vector = score_vector[current_ind : current_ind + position_size]
+            local_score_vector: Sequence[float | int] = score_vector[
+                current_ind : current_ind + position_size
+            ]
 
             if tie_convention == "high":
                 allocation = max(local_score_vector)
@@ -840,7 +842,7 @@ def index_to_lexicographic_ballot(
 
 
 def build_df_from_ballot_samples(
-    ballots_freq_dict: dict[tuple[int, ...], int], candidates: list[str]
+    ballots_freq_dict: dict[tuple[int, ...], int], candidates: Sequence[str]
 ):
     """
     Helper function which creates a pandas df to instantiate a
