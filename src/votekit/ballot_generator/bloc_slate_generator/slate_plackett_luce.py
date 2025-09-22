@@ -22,7 +22,8 @@ def _inner_slate_plackett_luce(
     (i.e. according to the name-Plackett-Luce model).
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
             set to the total number of candidates in the configuration. Defaults to None.
 
@@ -129,7 +130,8 @@ def slate_pl_profile_generator(
     (i.e. according to the name-Plackett-Luce model).
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
@@ -164,7 +166,8 @@ def slate_pl_profiles_by_bloc_generator(
     (i.e. according to the name-Plackett-Luce model).
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 

@@ -13,8 +13,8 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
     """
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters to
-            generate ballots when using a Bloc Slate model.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
 
     Returns:
         dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
@@ -84,8 +84,8 @@ def name_cumulative_profile_generator(
     Generates a cumulative profile using the provided configuration.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters to
-            generate ballots when using a Bloc Slate model.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
 
@@ -114,8 +114,8 @@ def name_cumulative_ballot_generator_by_bloc(
     Generates cumulative profiles for each bloc using the provided configuration.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters to
-            generate ballots when using a Bloc Slate model.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
 

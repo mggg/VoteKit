@@ -24,7 +24,8 @@ def _inner_name_plackett_luce(
     for each bloc of voters.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         ballot_length (Optional[int]): Number of ranking positions allowed per ballot. If None,
             this is set to the total number of candidates in the configuration. Defaults to None.
 
@@ -126,7 +127,8 @@ def name_pl_profile_generator(
     for each bloc of voters. These profiles are then merged into a single profile.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
@@ -162,7 +164,8 @@ def name_pl_profiles_by_bloc_generator(
     for each bloc of voters.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing parameters for ballot generation.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 

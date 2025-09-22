@@ -149,7 +149,8 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
     as it does not perform any memory checks or grouping of ballots.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
@@ -431,7 +432,8 @@ def name_bt_profiles_by_bloc_generator(
     interval: :math: `P(X>Y) = x/(x+y)`.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
@@ -459,7 +461,8 @@ def name_bt_profile_generator(
     interval: :math: `P(X>Y) = x/(x+y)`.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
 
@@ -492,7 +495,8 @@ def name_bt_profile_generator_using_mcmc(
     Generate a preference profile using MCMC sampling from the name-BradleyTerry model.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
 
     Kwargs:
         group_ballots (bool): If True, group identical ballots in the returned profile and
@@ -535,7 +539,8 @@ def name_bt_profiles_by_bloc_generator_using_mcmc(
     name-BradleyTerry model.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
 
     Kwargs:
         group_ballots (bool): If True, group identical ballots in the returned profile and
