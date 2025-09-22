@@ -3,10 +3,9 @@ Generate ranked preference profiles using the Cambridge model.
 
 The main API functions in this module are:
 
-- `slate_pl_profile_generator`: Generates a single preference profile using the slate-Plackett-Luce
-    model.
-- `slate_pl_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
-    slate-Plackett-Luce model.
+- `cambridge_profile_generator`: Generates a single preference profile using the Cambridge model.
+- `cambridge_profiles_by_bloc_generator`: Generates preference profiles for each bloc using the
+    Cambridge model.
 """
 
 import numpy as np
@@ -34,15 +33,22 @@ def _inner_cambridge_sampler(
     historical_minority: str,
 ) -> dict[str, RankProfile]:
     """
+    Inner function to generate profiles by bloc using Cambridge model.
+
     Args:
-        number_of_ballots (int): The number of ballots to generate.
-        by_bloc (bool): True if you want the generated profiles returned as a tuple
-            ``(pp_by_bloc, pp)``, where ``pp_by_bloc`` is a dictionary with keys = bloc strings
-            and values = ``RankProfile`` and ``pp`` is the aggregated profile. False if
-            you only want the aggregated profile. Defaults to False.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        path (Path): File path to an election data file to sample from.
+        majority_bloc (str): Name of the bloc corresponding to the majority bloc.
+        minority_bloc (str): Name of the bloc corresponding to the minority bloc.
+        historical_majority (str): Name of the bloc in the historical data corresponding to the majority
+            bloc in the current configuration.
+        historical_minority (str): Name of the bloc in the historical data corresponding to the minority
+            bloc in the current configuration.
 
     Returns:
-        Union[RankProfile, Tuple]
+        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
+            ``RankProfile`` objects representing the generated preference profiles for each bloc.
     """
 
     bloc_to_historical = {
@@ -192,7 +198,22 @@ def _validate_cambridge_blocs(
     config: BlocSlateConfig,
     majority_bloc: Optional[str] = None,
     minority_bloc: Optional[str] = None,
-):
+) -> tuple[str, str]:
+    """
+    Validates the parameters passed to the Cambridge model and determines the majority and minority
+    blocs.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        majority_bloc (Optional[str]): Name of the bloc corresponding to the majority bloc.
+            Defaults to whichever bloc has majority via ``bloc_voter_prop``.
+        minority_bloc (Optional[str]): Name of the bloc corresponding to the minority bloc.
+            Defaults to whichever bloc has minority via ``bloc_voter_prop``.
+
+    Returns:
+        tuple[str, str]: A tuple containing the names of the majority and minority blocs.
+    """
     if len(config.slates) > 2:
         raise UserWarning(
             f"This model currently only supports at two blocs, but you \
@@ -201,12 +222,12 @@ def _validate_cambridge_blocs(
 
     if (majority_bloc is None) != (minority_bloc is None):
         raise ValueError(
-            "Both W_bloc and C_bloc must be provided or not provided. \
-                         You have provided only one."
+            "Both 'majority_bloc' and 'minority' must be provided or not provided. "
+            "You have provided only one."
         )
 
     elif majority_bloc is not None and majority_bloc == minority_bloc:
-        raise ValueError("W and C bloc must be distinct.")
+        raise ValueError("majority and minority bloc must be distinct.")
 
     if majority_bloc is None:
         majority_bloc = [
@@ -250,8 +271,12 @@ def cambridge_profiles_by_bloc_generator(
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections occurring
     in Cambridge, MA.
 
-    Alternative election data can be used if specified. Assumes that there are two
-    blocs, a majority and a minorty bloc, which corresponds to the historical Cambridge data.
+    Alternative election data can be used if specified. The historical data must be contianed
+    at the path specified by the 'path' keyword argument, and the data must be a pickle file
+    containing a dictionary mapping ballot types with labels 'W' and 'C' (i.e. tuples of the
+    form ('W','C','W',...) and the like) to their frequencies. Here 'W' indicates the majority
+    bloc and slate and 'C' indicates the minority bloc and slate. Assumes that there are two
+    blocs which mimic the formatting of the historical Cambridge data.
 
     Based on cohesion parameters, decides if a voter casts their top choice within their bloc
     or in the opposing bloc. Then uses historical data; given their first choice, to choose a
@@ -313,8 +338,12 @@ def cambridge_profile_generator(
     """
     Generates a RankProfile using historical RCV elections occurring in Cambridge, MA.
 
-    Alternative election data can be used if specified. Assumes that there are two
-    blocs, a majority and a minorty bloc, which corresponds to the historical Cambridge data.
+    Alternative election data can be used if specified. The historical data must be contianed
+    at the path specified by the 'path' keyword argument, and the data must be a pickle file
+    containing a dictionary mapping ballot types with labels 'W' and 'C' (i.e. tuples of the
+    form ('W','C','W',...) and the like) to their frequencies. Here 'W' indicates the majority
+    bloc and slate and 'C' indicates the minority bloc and slate. Assumes that there are two
+    blocs which mimic the formatting of the historical Cambridge data.
 
     Based on cohesion parameters, decides if a voter casts their top choice within their bloc
     or in the opposing bloc. Then uses historical data; given their first choice, to choose a
@@ -336,8 +365,8 @@ def cambridge_profile_generator(
 
 
     Returns:
-        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects representing the generated preference profiles for each bloc.
+        RankProfile: A ``RankProfile`` objects representing the joint preference profile over all
+            blocs.
     """
     config.is_valid(raise_errors=True)
     majority_bloc, minority_bloc = _validate_cambridge_blocs(

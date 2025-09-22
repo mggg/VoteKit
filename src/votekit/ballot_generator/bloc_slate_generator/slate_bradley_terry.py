@@ -22,7 +22,6 @@ import sys
 
 import random
 
-# import warnings
 from typing import Sequence, cast
 import apportionment.methods as apportion
 
@@ -133,7 +132,7 @@ def _sample_ballot_types_deterministic(
     bloc_name: str,
     n_ballots: int,
     non_zero_candidate_set: set[str],
-) -> list[tuple[str]]:
+) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
 
@@ -150,7 +149,7 @@ def _sample_ballot_types_deterministic(
             as a tuple of slate names.
     """
     pdf = _compute_ballot_type_dist(config, bloc_name, non_zero_candidate_set)
-    b_types = list(pdf.keys())
+    b_types: list[tuple[str, ...]] = list(pdf.keys())
     probs = list(pdf.values())
 
     sampled_indices = np.random.choice(len(b_types), size=n_ballots, p=probs)
@@ -208,7 +207,7 @@ def _sample_ballot_types_mcmc(
     bloc_name: str,
     n_ballots: int,
     non_zero_candidate_set: set[str],
-):
+) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
     estimation of the slate Bradley-Terry model.
@@ -233,9 +232,10 @@ def _sample_ballot_types_mcmc(
         for c in config.slate_to_candidates[slate]
         if c in non_zero_candidate_set
     ]
+    # randomly permute the seed ballot type
+    seed_ballot_type = random.sample(seed_ballot_type, k=len(seed_ballot_type))
 
-    ballots = [["~"]] * n_ballots
-    accept = 0
+    ballots: list[tuple[str, ...]] = [("~",)] * n_ballots
     current_ranking = seed_ballot_type
 
     # presample swap indices
@@ -252,16 +252,15 @@ def _sample_ballot_types_mcmc(
         # over how much they tend to prefer new slate
         cohesion_j1 = config.cohesion_df[current_slate].loc[bloc_name]
         cohesion_j2 = config.cohesion_df[new_slate].loc[bloc_name]
-        acceptance_prob = min(1, cohesion_j1 / cohesion_j2)
+        acceptance_prob = cohesion_j2 / cohesion_j1  # Doesn't matter if above 1
 
         if random.random() < acceptance_prob:
             current_ranking[j1], current_ranking[j2] = (
                 current_ranking[j2],
                 current_ranking[j1],
             )
-            accept += 1
 
-        ballots[i] = current_ranking.copy()
+        ballots[i] = tuple(current_ranking.copy())
 
     return ballots
 
@@ -462,7 +461,7 @@ def slate_bt_profile_generator_using_mcmc(
     """
     Generate a ranked preference profile using the slate-BradleyTerry model.
 
-    This model is mainly useful when then number of possible ballot tyeps is too large
+    This model is mainly useful when then number of possible ballot types is too large
     to compute the full probability distribution on the present hardware (e.g. more than 12!
     possible ballot types).
 
@@ -506,7 +505,7 @@ def slate_bt_profiles_by_bloc_generator_using_mcmc(
     Generate a dictionary mapping bloc names to ranked preference profiles using the
     slate-BradleyTerry model.
 
-    This model is mainly useful when then number of possible ballot tyeps is too large
+    This model is mainly useful when then number of possible ballot types is too large
     to compute the full probability distribution on the present hardware (e.g. more than 12!
     possible ballot types).
 
