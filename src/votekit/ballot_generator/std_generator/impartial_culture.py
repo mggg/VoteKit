@@ -1,3 +1,11 @@
+"""
+Generate ranked preference profiles using the Impartial Culture (IC) model.
+
+The main API functions in this module are:
+
+- `ic_profile_generator`: Generates a single preference profile using the IC distribution.
+"""
+
 import math
 import numpy as np
 import random
@@ -7,6 +15,10 @@ from collections import Counter
 
 from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
+
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
 @lru_cache
@@ -25,6 +37,11 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
         math.comb(n_candidates, i) * math.factorial(i)
         for i in range(1, max_ballot_length + 1)
     )
+
+
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
 
 
 def _generate_profile_optimized_non_short(
@@ -112,6 +129,11 @@ def _generate_profile_optimized_with_short(
         max_ranking_length=len(candidates),
         candidates=candidates,
     )
+
+
+# =================================================
+# ================= API Functions =================
+# =================================================
 
 
 def ic_profile_generator(

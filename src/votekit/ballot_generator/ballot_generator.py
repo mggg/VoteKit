@@ -8,6 +8,10 @@ from votekit.pref_profile import PreferenceProfile
 from votekit.pref_interval import PreferenceInterval
 
 
+# TODO: Change the functionality of this class to allow for sweeping over parameters
+# or for generating multiple profiles using different generator models
+# maybe break out into `BlocSlateBallotGenerator` and `StdBallotGenerator`
+# to make the API clearer
 class BallotGenerator:
     """
     Base class for ballot generation models that use the candidate simplex

@@ -1,3 +1,14 @@
+"""
+Generate ranked preference profiles using the slate-Plackett-Luce model.
+
+The main API functions in this module are:
+
+- `slate_pl_profile_generator`: Generates a single preference profile using the slate-Plackett-Luce
+    model.
+- `slate_pl_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
+    slate-Plackett-Luce model.
+"""
+
 import itertools as it
 import numpy as np
 import pandas as pd
@@ -9,6 +20,10 @@ from votekit.ballot_generator import (
     sample_cohesion_ballot_types,
 )
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
 
 
 def _inner_slate_plackett_luce(
@@ -129,8 +144,8 @@ def slate_pl_profile_generator(
     Generates a merged preference profile using the slate-Plackett-Luce model.
 
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
-    It then fills out the ballot type via sampling without replacement from the interval
-    (i.e. according to the name-Plackett-Luce model).
+    It then fills out the ballot type via sampling without replacement from the preference
+    interval (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -165,8 +180,8 @@ def slate_pl_profiles_by_bloc_generator(
     model.
 
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
-    It then fills out the ballot type via sampling without replacement from the interval
-    (i.e. according to the name-Plackett-Luce model).
+    It then fills out the ballot type via sampling without replacement from the preference
+    interval (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for

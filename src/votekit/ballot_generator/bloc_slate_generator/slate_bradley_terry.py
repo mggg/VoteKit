@@ -1,3 +1,18 @@
+"""
+Generate ranked preference profiles using the slate-BradleyTerry model.
+
+The main API functions in this module are:
+
+- `slate_bt_profile_generator`: Generates a single preference profile using the slate-BradleyTerry
+    model.
+- `slate_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
+    slate-BradleyTerry model.
+- `slate_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC
+    sampling from the slate-BradleyTerry model.
+- `slate_bt_profiles_by_bloc_generator_using_mcmc`: Generates preference profiles by bloc using
+    MCMC sampling from the slate-BradleyTerry model.
+"""
+
 import itertools as it
 import numpy as np
 from numpy.typing import NDArray
@@ -374,7 +389,13 @@ def slate_bt_profile_generator(
     """
     Generate a preference profile using the name-BradleyTerry model.
 
-    MORE INFO HERE
+    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
+    using the cohesion parameters for each slate and the candidate counts of those slates (so
+    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -404,9 +425,16 @@ def slate_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> dict[str, RankProfile]:
     """
-    Generate a preference profile using the name-BradleyTerry model.
+    Generate a dictionary mapping bloc names to ranked preference profiles using the
+    slate-BradleyTerry model.
 
-    MORE INFO HERE
+    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
+    using the cohesion parameters for each slate and the candidate counts of those slates (so
+    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -432,9 +460,21 @@ def slate_bt_profile_generator_using_mcmc(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> RankProfile:
     """
-    Generate a preference profile using the name-BradleyTerry model.
+    Generate a ranked preference profile using the slate-BradleyTerry model.
 
-    MORE INFO HERE
+    This model is mainly useful when then number of possible ballot tyeps is too large
+    to compute the full probability distribution on the present hardware (e.g. more than 12!
+    possible ballot types).
+
+    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
+    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
+    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
+    the swap according to the ratio of the cohesion parameters of the two slates being swapped
+    within a given block.
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -463,9 +503,22 @@ def slate_bt_profiles_by_bloc_generator_using_mcmc(
     config: BlocSlateConfig, *, group_ballots=True
 ) -> dict[str, RankProfile]:
     """
-    Generate a preference profile using the name-BradleyTerry model.
+    Generate a dictionary mapping bloc names to ranked preference profiles using the
+    slate-BradleyTerry model.
 
-    MORE INFO HERE
+    This model is mainly useful when then number of possible ballot tyeps is too large
+    to compute the full probability distribution on the present hardware (e.g. more than 12!
+    possible ballot types).
+
+    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
+    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
+    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
+    the swap according to the ratio of the cohesion parameters of the two slates being swapped
+    within a given block.
+
+    Once the ballot type is sampled, the candidate names for each of the positions is filled
+    out by sampling without replacement within each slate according to the preference interval
+    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for

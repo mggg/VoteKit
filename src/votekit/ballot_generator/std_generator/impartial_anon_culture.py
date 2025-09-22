@@ -1,3 +1,11 @@
+"""
+Generate ranked preference profiles using the Impartial Anonymous Culture (IAC) model.
+
+The main API functions in this module are:
+
+- `iac_profile_generator`: Generates a single preference profile using the IAC distribution.
+"""
+
 import math
 import numpy as np
 import random
@@ -7,6 +15,10 @@ from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
 from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
+
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
 @lru_cache
@@ -28,6 +40,11 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
     )
 
 
+# =================================================
+# ================= API Functions =================
+# =================================================
+
+
 def iac_profile_generator(
     candidates: Sequence[str],
     number_of_ballots: int,
@@ -35,7 +52,7 @@ def iac_profile_generator(
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
-    is equally likely. Equivalent to the ballot simplex with an alpha value of 1.
+    is equally likely.
 
     Args:
         candidates (Sequence[str]): List of candidate strings.

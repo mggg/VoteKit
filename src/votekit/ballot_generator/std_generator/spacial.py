@@ -1,3 +1,17 @@
+"""
+Generate ranked preference profiles using the Spacial models
+
+The main API functions in this module are:
+
+- `onedim_spacial_profile_generator`: Generates a single preference profile using a one-dimensional
+    spacial model.
+- `spacial_profile_and_positions_generator`: Generates a single preference profile using a
+    multi-dimensional spacial model with voters and candidates distributed according to specified
+    distributions.
+- `clustered_spacial_profile_and_positions_generator`: Generates a single preference profile using a
+    clustered multi-dimensional spacial model where voters are clustered around candidates.
+"""
+
 import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
@@ -5,6 +19,10 @@ from typing import Optional, Tuple, Callable, Dict, Any, Sequence
 
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
+
+# =================================================
+# ================= API Functions =================
+# =================================================
 
 
 def onedim_spacial_profile_generator(

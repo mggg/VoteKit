@@ -1,9 +1,10 @@
 """
-Generate preference profiles using the name-BradleyTerry model.
+Generate ranked preference profiles using the name-BradleyTerry model.
 
 The main API functions in this module are:
 
-- `name_bt_profile_generator`: Generates a single preference profile using the name-BradleyT
+- `name_bt_profile_generator`: Generates a single preference profile using the name-BradleyTerry
+    model.
 - `name_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
     name-BradleyTerry model.
 - `name_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC

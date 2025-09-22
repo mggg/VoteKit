@@ -1,3 +1,14 @@
+"""
+Generate ranked preference profiles using the name-Plackett-Luce model.
+
+The main API functions in this module are:
+
+- `name_pl_profile_generator`: Generates a single preference profile using the name-Plackett-Luce
+    model.
+- `name_pl_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
+    name-Plackett-Luce model.
+"""
+
 import numpy as np
 from typing import Optional
 import pandas as pd
