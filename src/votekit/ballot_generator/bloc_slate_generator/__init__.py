@@ -20,6 +20,8 @@ from votekit.ballot_generator.bloc_slate_generator.cumulative import (
 from votekit.ballot_generator.bloc_slate_generator.slate_bradley_terry import (
     slate_bt_profile_generator,
     slate_bt_profiles_by_bloc_generator,
+    slate_bt_profile_generator_using_mcmc,
+    slate_bt_profiles_by_bloc_generator_using_mcmc,
 )
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
     slate_pl_profile_generator,
@@ -35,6 +37,8 @@ from votekit.ballot_generator.bloc_slate_generator.model import (
 __all__ = [
     "slate_bt_profile_generator",
     "slate_bt_profiles_by_bloc_generator",
+    "slate_bt_profile_generator_using_mcmc",
+    "slate_bt_profiles_by_bloc_generator_using_mcmc",
     "name_bt_profile_generator",
     "name_bt_profiles_by_bloc_generator",
     "name_bt_profile_generator_using_mcmc",

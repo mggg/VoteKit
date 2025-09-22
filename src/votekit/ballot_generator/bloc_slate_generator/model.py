@@ -884,21 +884,22 @@ class BlocSlateConfig:
     @property
     def candidates(self) -> list[str]:
         """
-        A flat list of all candidates in all slates.
+        Computed property: A flat list of all candidates in all slate. Derived from the values of
+        slate_to_candidates.
         """
         return [c for clist in self.slate_to_candidates.values() for c in clist]
 
     @property
     def slates(self) -> list[str]:
         """
-        A list of all slates.
+        Computed property: A list of all slates. Derived from the keys of slate_to_candidates.
         """
         return list(self.slate_to_candidates.keys())
 
     @property
     def blocs(self) -> list[str]:
         """
-        A list of all voter blocs.
+        Computed property: A list of all voter blocs. Derived from the keys of bloc_proportions.
         """
         return list(self.bloc_proportions.keys())
 
