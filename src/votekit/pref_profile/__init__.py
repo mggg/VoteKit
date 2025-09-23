@@ -7,6 +7,7 @@ from .utils import (
     profile_df_head,
     profile_df_tail,
     convert_row_to_rank_ballot,
+    convert_rank_profile_to_score_profile_via_score_vector,
 )
 from .cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
 
@@ -24,4 +25,5 @@ __all__ = [
     "CleanedRankProfile",
     "CleanedScoreProfile",
     "convert_row_to_rank_ballot",
+    "convert_rank_profile_to_score_profile_via_score_vector",
 ]

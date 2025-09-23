@@ -5,7 +5,7 @@ from votekit.cleaning import remove_and_condense_ranked_profile
 from votekit.utils import (
     elect_cands_from_set_ranking,
     validate_score_vector,
-    score_profile_from_rankings,
+    score_dict_from_score_vector,
 )
 from typing import Optional, Sequence, Literal
 from functools import partial
@@ -16,7 +16,7 @@ class Borda(RankingElection):
     Borda election. Positional voting system that assigns a decreasing number of points to
     candidates based on their ordering. The conventional score vector is :math:`(n, n-1, \dots, 1)`
     where :math:`n` is the ``max_ranking_length`` of the profile. Candidates with the highest scores
-    are elected. This class uses the ``utils.score_profile_from_rankings()`` to handle ballots with
+    are elected. This class uses the ``utils.score_dict_from_score_vector()`` to handle ballots with
     ties.
 
     Args:
@@ -57,7 +57,7 @@ class Borda(RankingElection):
         validate_score_vector(score_vector)
         self.score_vector = score_vector
         score_function = partial(
-            score_profile_from_rankings,
+            score_dict_from_score_vector,
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
