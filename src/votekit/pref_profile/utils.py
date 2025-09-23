@@ -409,8 +409,8 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     ranking_cols = [
         f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)
     ]
-    rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).flatten()
-    if np.any(np.vectorize(len)(rankings_arr) > 1):
+    rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
+    if any(len(x) > 1 for x in rankings_arr):
         raise ValueError("Ballots must not contain ties.")
 
     cand_to_score_list = {
