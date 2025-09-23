@@ -20,6 +20,10 @@ from votekit.ballot_generator import (
     sample_cohesion_ballot_types,
 )
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _make_cand_ordering_by_slate,
+    _convert_ballot_type_to_ranking,
+)
 
 # ===========================================================
 # ================= Interior Work Functions =================
@@ -69,7 +73,7 @@ def _inner_slate_plackett_luce(
 
     pref_profile_by_bloc = {}
 
-    for i, bloc in enumerate(bloc_lst):
+    for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
         pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
@@ -88,28 +92,18 @@ def _inner_slate_plackett_luce(
             cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
         )
 
+        cand_ordering_by_slate = _make_cand_ordering_by_slate(
+            config, pref_intervals_by_slate_dict
+        )
         for j, bt in enumerate(ballot_types):
-            cand_ordering_by_bloc = {}
-
-            for slate in slate_lst:
-                bloc_cand_pref_interval = pref_intervals_by_slate_dict[slate].interval
-                cands = pref_intervals_by_slate_dict[slate].non_zero_cands
-
-                if len(cands) == 0:
-                    continue
-
-                distribution = [bloc_cand_pref_interval[c] for c in cands]
-
-                # sample within bloc according to Plackett-Luce
-                cand_ordering = np.random.choice(
-                    a=list(cands), size=len(cands), p=distribution, replace=False
+            ranking = _convert_ballot_type_to_ranking(
+                ballot_type=bt, cand_ordering_by_slate=cand_ordering_by_slate
+            )
+            if ranking is None:
+                raise RuntimeError(
+                    "Unexpeceted None from internal function _convert_ballot_type_to_ranking "
+                    "Likely caused by an empty ballot type."
                 )
-                cand_ordering_by_bloc[slate] = list(cand_ordering)
-
-            ranking = [frozenset({"-1"})] * len(bt)
-            for i, slate in enumerate(bt):
-                ranking[i] = frozenset({cand_ordering_by_bloc[slate][0]})
-                cand_ordering_by_bloc[slate].pop(0)
 
             if len(zero_cands) > 0:
                 ranking.append(frozenset(zero_cands))
