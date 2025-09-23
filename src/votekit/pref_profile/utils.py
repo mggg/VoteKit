@@ -395,6 +395,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         ValueError: Ballots must not contain ties.
         ValueError: Score vector must be non-increasing and non-negative.
     """
+    # here to prevent circular import
     from votekit.utils import validate_score_vector
     from votekit.pref_profile import ScoreProfile
 
