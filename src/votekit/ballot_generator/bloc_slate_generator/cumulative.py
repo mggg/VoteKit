@@ -22,6 +22,17 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 
 
 def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
+    """
+    Inner function to generate cumulative profiles by bloc using the name-Cumulative model.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+
+    Returns:
+        dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
+            `ScoreProfile` objects representing the generated ballots for each bloc.
+    """
     bloc_lst = config.blocs
     n_voters = int(config.n_voters)
 
@@ -49,10 +60,10 @@ def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
             pp_by_bloc[bloc] = ScoreProfile()
             continue
 
+        # config.get_combined_preference_intervals_by_bloc() should ensure normalization
+        # for the non-zero candidates
         p = np.array([pref.interval[c] for c in non_zero_cands], dtype=float)
-        s = p.sum()
-        # Use instead of np.full because we make something of the same shape as p
-        p = (p / s) if s > 0 else np.full_like(p, 1.0 / len(p))
+        assert abs(p.sum() - 1.0) < 1e-10, "PreferenceInterval not normalized"
 
         # Vectorized: one multinomial per ballot -> shape (num_ballots, n_cands)
         # Each row sums to n_voters and the entries are counts for each candidate
