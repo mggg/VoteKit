@@ -197,7 +197,7 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
         * n_cands
         * sys.getsizeof(frozenset({candidate_with_longest_name}))
     )
-    est_bytes = est_bytes_pmf + est_bytes_profile
+    est_bytes = float(est_bytes_pmf + est_bytes_profile)
 
     # fudge factor for overhead. Just tuned to a couple of machines, but gives pretty close
     # upper bound on memory usage while leaving room for other processes

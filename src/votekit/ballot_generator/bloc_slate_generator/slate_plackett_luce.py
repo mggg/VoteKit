@@ -52,7 +52,6 @@ def _inner_slate_plackett_luce(
     """
     n_candidates = len(config.candidates)
     bloc_lst = config.blocs
-    slate_lst = config.slates
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
