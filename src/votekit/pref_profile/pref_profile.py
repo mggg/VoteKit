@@ -619,24 +619,41 @@ class RankProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        # TODO do with df ?
-        if isinstance(other, RankProfile):
-            ballots = self.ballots + other.ballots
-            assert (
-                self.max_ranking_length is not None
-                and other.max_ranking_length is not None
-            )
-            max_ranking_length = max(
-                [self.max_ranking_length, other.max_ranking_length]
-            )
-            candidates = list(set(self.candidates).union(other.candidates))
-            return RankProfile(
-                ballots=ballots,
-                max_ranking_length=max_ranking_length,
-                candidates=candidates,
+        if not isinstance(other, RankProfile):
+            raise TypeError(
+                "Unsupported operand type. Must be an instance of RankProfile."
             )
 
-        raise TypeError("Unsupported operand type. Must be an instance of RankProfile.")
+        assert (
+            self.max_ranking_length is not None and other.max_ranking_length is not None
+        )
+        max_ranking_length = max([self.max_ranking_length, other.max_ranking_length])
+        candidates = list(set(self.candidates).union(other.candidates))
+
+        df_1 = self.df.copy()
+        df_2 = other.df.copy()
+
+        if self.max_ranking_length < max_ranking_length:
+            for i in range(self.max_ranking_length, max_ranking_length):
+                df_1[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_1)
+        if other.max_ranking_length < max_ranking_length:
+            for i in range(other.max_ranking_length, max_ranking_length):
+                df_2[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_2)
+
+        new_df = pd.concat([df_1, df_2], ignore_index=True)
+        new_df.index.name = "Ballot Index"
+        ranking_cols = [c for c in new_df.columns if "Ranking_" in c]
+        new_df[ranking_cols] = new_df[ranking_cols].astype("object")
+        new_df = new_df[
+            [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
+            + ["Weight", "Voter Set"]
+        ]
+
+        return RankProfile(
+            candidates=candidates,
+            df=new_df,
+            max_ranking_length=max_ranking_length,
+        )
 
     def group_ballots(self) -> RankProfile:
         """
@@ -1199,17 +1216,30 @@ class ScoreProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        # TODO with df?
-        if isinstance(other, ScoreProfile):
-            ballots = self.ballots + other.ballots
-            candidates = set(self.candidates).union(other.candidates)
-            return ScoreProfile(
-                ballots=ballots,
-                candidates=candidates,
+        if not isinstance(other, ScoreProfile):
+            raise TypeError(
+                "Unsupported operand type. Must be an instance of ScoreProfile."
             )
 
-        raise TypeError(
-            "Unsupported operand type. Must be an instance of ScoreProfile."
+        df_1 = self.df.copy()
+        df_2 = other.df.copy()
+
+        cand1 = set(self.candidates)
+        cand2 = set(other.candidates)
+        for cand in cand2 - cand1:
+            df_1[cand] = [np.nan] * len(df_1)
+        for cand in cand1 - cand2:
+            df_2[cand] = [np.nan] * len(df_2)
+
+        new_df = pd.concat([df_1, df_2], ignore_index=True)
+        new_df.index.name = "Ballot Index"
+
+        new_candidates = sorted(set(self.candidates).union(other.candidates))
+        new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
+
+        return ScoreProfile(
+            candidates=new_candidates,
+            df=new_df,
         )
 
     def group_ballots(self) -> ScoreProfile:

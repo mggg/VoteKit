@@ -34,51 +34,46 @@ def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
             `ScoreProfile` objects representing the generated ballots for each bloc.
     """
     bloc_lst = config.blocs
+    n_voters = int(config.n_voters)
 
     bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
+        "huntington", list(config.bloc_proportions.values()), n_voters
     )
-
     if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+        bloc_counts = [int(bloc_counts)]
 
-        bloc_counts = [bloc_counts]
+    ballots_per_bloc = dict(zip(bloc_lst, bloc_counts))
+    pp_by_bloc: dict[str, ScoreProfile] = {}
 
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-
-    pp_by_bloc = {b: ScoreProfile() for b in bloc_lst}
-
-    pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
+    pref_by_bloc = config.get_combined_preference_intervals_by_bloc()
+    rng = np.random.default_rng()
 
     for bloc in bloc_lst:
-        ballot_pool = []
-        num_ballots = ballots_per_bloc[bloc]
-        pref_interval = pref_interval_by_bloc_dict[bloc]
+        num_ballots = int(ballots_per_bloc.get(bloc, 0))
+        if num_ballots <= 0:
+            pp_by_bloc[bloc] = ScoreProfile()
+            continue
 
-        non_zero_cands = list(pref_interval.non_zero_cands)
-        cand_support_vec = [pref_interval.interval[cand] for cand in non_zero_cands]
+        pref = pref_by_bloc[bloc]
+        non_zero_cands = list(pref.non_zero_cands)
+        if not non_zero_cands:
+            pp_by_bloc[bloc] = ScoreProfile()
+            continue
 
-        for _ in range(num_ballots):
-            list_ranking = list(
-                np.random.choice(
-                    non_zero_cands,
-                    config.n_voters,
-                    p=cand_support_vec,
-                    replace=True,
-                )
-            )
+        # config.get_combined_preference_intervals_by_bloc() should ensure normalization
+        # for the non-zero candidates
+        p = np.array([pref.interval[c] for c in non_zero_cands], dtype=float)
+        assert abs(p.sum() - 1.0) < 1e-10, "PreferenceInterval not normalized"
 
-            scores = {c: 0.0 for c in list_ranking}
-            for c in list_ranking:
-                scores[c] += 1
+        # Vectorized: one multinomial per ballot -> shape (num_ballots, n_cands)
+        # Each row sums to n_voters and the entries are counts for each candidate
+        counts = rng.multinomial(n=n_voters, pvals=p, size=num_ballots)
 
-            ballot_pool.append(ScoreBallot(scores=scores, weight=1))
-
-        pp = ScoreProfile(ballots=tuple(ballot_pool))
-        pp_by_bloc[bloc] = pp
+        ballots = [
+            ScoreBallot(scores=dict(zip(non_zero_cands, row.astype(float))), weight=1)
+            for row in counts
+        ]
+        pp_by_bloc[bloc] = ScoreProfile(ballots=tuple(ballots))
 
     return pp_by_bloc
 

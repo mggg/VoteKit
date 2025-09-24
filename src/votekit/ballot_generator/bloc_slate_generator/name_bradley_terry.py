@@ -119,7 +119,6 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
         )
 
     mem = system_memory()
-    # rough estimate of memory usage. Gives a little bit of a buffer to account for overhead
     pmf_size = math.factorial(n_cands)
     candidate_with_longest_name = max(config.candidates, key=len)
     est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
@@ -128,7 +127,11 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
         * n_cands
         * sys.getsizeof(frozenset({candidate_with_longest_name}))
     )
-    est_bytes = est_bytes_pmf + est_bytes_profile
+    est_bytes = float(est_bytes_pmf + est_bytes_profile)
+
+    # fudge factor for overhead. Just tuned to a couple of machines, but gives pretty close
+    # upper bound on memory usage while leaving room for other processes
+    est_bytes *= 1.5
     if est_bytes > mem["available_gib"] * 2**30:
         raise MemoryError(
             f"Not enough memory to generate the profile. Estimated memory usage is "

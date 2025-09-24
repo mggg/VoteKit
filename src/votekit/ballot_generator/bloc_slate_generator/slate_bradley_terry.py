@@ -28,6 +28,10 @@ import apportionment.methods as apportion
 from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
+from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _make_cand_ordering_by_slate,
+    _convert_ballot_type_to_ranking,
+)
 
 # ====================================================
 # ================= Helper Functions =================
@@ -185,7 +189,6 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
         )
 
     mem = system_memory()
-    # rough estimate of memory usage. Gives a little bit of a buffer to account for overhead
     pmf_size = total_arrangements
     candidate_with_longest_name = max(config.candidates, key=len)
     est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
@@ -194,7 +197,11 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
         * n_cands
         * sys.getsizeof(frozenset({candidate_with_longest_name}))
     )
-    est_bytes = est_bytes_pmf + est_bytes_profile
+    est_bytes = float(est_bytes_pmf + est_bytes_profile)
+
+    # fudge factor for overhead. Just tuned to a couple of machines, but gives pretty close
+    # upper bound on memory usage while leaving room for other processes
+    est_bytes *= 1.5
     if est_bytes > mem["available_gib"] * 2**30:
         raise MemoryError(
             f"Not enough memory to generate the profile. Estimated memory usage is "
@@ -288,7 +295,6 @@ def _inner_slate_bradley_terry(
 
     # Save on repeated calls to computed property
     bloc_lst = config.blocs
-    slate_lst = config.slates
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
@@ -306,7 +312,7 @@ def _inner_slate_bradley_terry(
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
     candidates = config.candidates
 
-    for i, bloc in enumerate(bloc_lst):
+    for bloc in bloc_lst:
         # number of voters in this bloc
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
@@ -331,32 +337,18 @@ def _inner_slate_bradley_terry(
                 non_zero_candidate_set=non_zero_cands_set,
             )
 
+        cand_ordering_by_slate = _make_cand_ordering_by_slate(
+            config, pref_intervals_by_slate_dict
+        )
         for j, bt in enumerate(ballot_types):
-            cand_ordering_by_bloc = {}
-
-            for slate in slate_lst:
-                # create a pref interval dict of only this blocs candidates
-                bloc_cand_pref_interval = pref_intervals_by_slate_dict[slate].interval
-                cands = pref_intervals_by_slate_dict[slate].non_zero_cands
-
-                # if there are no non-zero candidates, skip this bloc
-                if len(cands) == 0:
-                    continue
-
-                distribution = [bloc_cand_pref_interval[c] for c in cands]
-
-                # sample by Plackett-Luce within the bloc
-                cand_ordering = np.random.choice(
-                    a=list(cands), size=len(cands), p=distribution, replace=False
+            ranking = _convert_ballot_type_to_ranking(
+                ballot_type=bt, cand_ordering_by_slate=cand_ordering_by_slate
+            )
+            if ranking is None:
+                raise RuntimeError(
+                    "Unexpeceted None from internal function _convert_ballot_type_to_ranking "
+                    "Likely caused by an empty ballot type."
                 )
-
-                cand_ordering_by_bloc[slate] = list(cand_ordering)
-
-            ranking = [frozenset({"~"})] * len(bt)
-            for i, slate in enumerate(bt):
-                # append the current first candidate, then remove them from the ordering
-                ranking[i] = frozenset({cand_ordering_by_bloc[slate][0]})
-                cand_ordering_by_bloc[slate].pop(0)
 
             if len(zero_cands) > 0:
                 ranking.append(frozenset(zero_cands))
