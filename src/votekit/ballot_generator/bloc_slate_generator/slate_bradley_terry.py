@@ -29,6 +29,7 @@ from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _lexicographic_symbol_tuple_iterator,
     _make_cand_ordering_by_slate,
     _convert_ballot_type_to_ranking,
 )
@@ -103,7 +104,6 @@ def _compute_ballot_type_dist(
     """
 
     # FIX: Do this for the non-zero support candidates
-    n_candidates = len(non_zero_candidate_set)
     slate_list = [
         s_name
         for s_name in config.slate_to_candidates.keys()
@@ -120,8 +120,7 @@ def _compute_ballot_type_dist(
     )
 
     pmf = {}
-    for ballot_type in it.permutations(slate_list, n_candidates):
-        ballot_type = tuple(ballot_type)
+    for ballot_type in _lexicographic_symbol_tuple_iterator(slate_list):
         if ballot_type not in pmf:
             pmf[ballot_type] = _slate_bt_numerator_computation_single_bloc(
                 ballot_type, slate_cohesion_dict_for_bloc
