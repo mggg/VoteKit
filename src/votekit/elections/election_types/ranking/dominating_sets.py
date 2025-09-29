@@ -1,7 +1,7 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.graphs import PairwiseComparisonGraph
 
 
@@ -48,7 +48,7 @@ class DominatingSets(RankingElection):
 
         pwc_graph = PairwiseComparisonGraph(profile)
         dominating_tiers = pwc_graph.get_dominating_tiers()
-        new_profile = remove_and_condense_ranked_profile(
+        new_profile = remove_and_condense_rank_profile(
             list(dominating_tiers[0]), profile
         )
 

@@ -1,9 +1,9 @@
 from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import (
-    remove_and_condense_ranked_profile,
-    remove_cand_from_rank_profile,
-    condense_ranked_profile,
+    remove_and_condense_rank_profile,
+    remove_cand_rank_profile,
+    condense_rank_profile,
 )
 
 profile_no_ties = PreferenceProfile(
@@ -24,7 +24,7 @@ profile_with_ties = PreferenceProfile(
 
 
 def test_remove_and_condense():
-    cleaned_profile = remove_and_condense_ranked_profile("A", profile_no_ties)
+    cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
@@ -41,16 +41,16 @@ def test_remove_and_condense():
 
 
 def test_remove_then_condense_equivalence():
-    cleaned_profile_1 = remove_and_condense_ranked_profile("A", profile_no_ties)
-    cleaned_profile_2 = condense_ranked_profile(
-        remove_cand_from_rank_profile("A", profile_no_ties)
+    cleaned_profile_1 = remove_and_condense_rank_profile("A", profile_no_ties)
+    cleaned_profile_2 = condense_rank_profile(
+        remove_cand_rank_profile("A", profile_no_ties)
     )
 
     assert cleaned_profile_1 == cleaned_profile_2
 
 
 def test_remove_mult_cands():
-    cleaned_profile = remove_and_condense_ranked_profile(["A", "B"], profile_no_ties)
+    cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
@@ -69,7 +69,7 @@ def test_remove_mult_cands():
 
 def test_remove_and_condense_with_ties():
 
-    cleaned_profile = remove_and_condense_ranked_profile(["A", "B"], profile_with_ties)
+    cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_with_ties)
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
 

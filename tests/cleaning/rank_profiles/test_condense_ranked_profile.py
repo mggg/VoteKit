@@ -1,6 +1,6 @@
 from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import condense_ranked_profile
+from votekit.cleaning import condense_rank_profile
 
 
 def test_condense_profile():
@@ -13,7 +13,7 @@ def test_condense_profile():
             Ballot(ranking=(frozenset(),)),
         ]
     )
-    cleaned_profile = condense_ranked_profile(profile)
+    cleaned_profile = condense_rank_profile(profile)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
@@ -40,8 +40,8 @@ def test_condense_profile_idempotent():
         ]
     )
 
-    cleaned_profile = condense_ranked_profile(profile)
-    double_cleaned = condense_ranked_profile(cleaned_profile)
+    cleaned_profile = condense_rank_profile(profile)
+    double_cleaned = condense_rank_profile(cleaned_profile)
 
     assert cleaned_profile == double_cleaned
 
@@ -57,7 +57,7 @@ def test_condense_profile_equivalence():
         ]
     )
 
-    cleaned = condense_ranked_profile(profile)
+    cleaned = condense_rank_profile(profile)
 
     assert cleaned.nonempty_altr_idxs == {0}
     assert cleaned.no_rank_altr_idxs == {2}

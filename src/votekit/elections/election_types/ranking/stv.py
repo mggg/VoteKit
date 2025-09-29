@@ -4,8 +4,8 @@ from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
-    remove_and_condense_ranked_profile,
-    remove_cand_from_rank_ballot,
+    remove_and_condense_rank_profile,
+    remove_cand_rank_ballot,
     condense_rank_ballot,
 )
 from votekit.utils import (
@@ -1217,7 +1217,7 @@ class STV(RankingElection):
 
         cleaned_ballots = tuple(
             condense_rank_ballot(
-                remove_cand_from_rank_ballot([c for s in elected for c in s], b)
+                remove_cand_rank_ballot([c for s in elected for c in s], b)
             )
             for b in new_ballots
             if b.ranking
@@ -1297,7 +1297,7 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_rank_ballot(remove_cand_from_rank_ballot(elected_c, b))
+            condense_rank_ballot(remove_cand_rank_ballot(elected_c, b))
             for b in new_ballots
             if b.ranking
         )
@@ -1387,7 +1387,7 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = remove_and_condense_ranked_profile(
+            new_profile = remove_and_condense_rank_profile(
                 eliminated_cand,
                 profile,
                 retain_original_candidate_list=False,
@@ -1477,7 +1477,7 @@ class SequentialRCV(STV):
         ) -> tuple[RankBallot, ...]:
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(
-                condense_rank_ballot(remove_cand_from_rank_ballot(winner, b))
+                condense_rank_ballot(remove_cand_rank_ballot(winner, b))
                 for b in ballots
             )
 

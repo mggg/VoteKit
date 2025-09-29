@@ -30,7 +30,7 @@ def condense_rank_ballot(
     return new_ballot
 
 
-def remove_repeated_cands_from_rank_ballot(
+def remove_repeat_cands_rank_ballot(
     ballot: RankBallot,
 ) -> RankBallot:
     """
@@ -74,7 +74,7 @@ def remove_repeated_cands_from_rank_ballot(
     return new_ballot
 
 
-def remove_cand_from_rank_ballot(
+def remove_cand_rank_ballot(
     removed: Union[str, list],
     ballot: RankBallot,
 ) -> RankBallot:

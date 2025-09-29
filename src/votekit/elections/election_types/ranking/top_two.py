@@ -2,7 +2,7 @@ from votekit.elections.election_types.ranking.abstract_ranking import RankingEle
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
 from votekit.utils import first_place_votes
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections.election_types.ranking import Plurality
 from typing import Optional, Literal
 from functools import partial
@@ -69,7 +69,7 @@ class TopTwo(RankingElection):
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile: RankProfile = remove_and_condense_ranked_profile(
+            new_profile: RankProfile = remove_and_condense_rank_profile(
                 [c for s in eliminated for c in s], profile
             )
 
