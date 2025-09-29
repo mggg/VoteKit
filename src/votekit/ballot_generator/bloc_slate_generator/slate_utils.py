@@ -63,7 +63,7 @@ def _make_cand_ordering_by_slate(
     """
     Create a candidate ordering within each slate based on the preference intervals.
 
-    The candidate oridering is determined by sampling without replacement according to
+    The candidate ordering is determined by sampling without replacement according to
     the preference intervals using the Plackett-Luce model (i.e. throwing a dart and removing
     that part of the interval).
 

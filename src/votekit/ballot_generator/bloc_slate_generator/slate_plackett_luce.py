@@ -91,10 +91,10 @@ def _inner_slate_plackett_luce(
             cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
         )
 
-        cand_ordering_by_slate = _make_cand_ordering_by_slate(
-            config, pref_intervals_by_slate_dict
-        )
         for j, bt in enumerate(ballot_types):
+            cand_ordering_by_slate = _make_cand_ordering_by_slate(
+                config, pref_intervals_by_slate_dict
+            )
             ranking = _convert_ballot_type_to_ranking(
                 ballot_type=bt, cand_ordering_by_slate=cand_ordering_by_slate
             )

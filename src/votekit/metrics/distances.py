@@ -302,8 +302,8 @@ def __build_simultaneous_profile_distribution(
     profile1_ranking_array = profile1.df[
         [f"Ranking_{i}" for i in range(1, profile1.max_ranking_length + 1)]
     ].to_numpy()
-    profile1_wt_vector = profile1.df["Weight"].to_numpy()
-    profile1_wt_vector /= np.sum(profile1_wt_vector)
+    profile1_wt_vector = profile1.df["Weight"].astype(float).to_numpy()
+    profile1_wt_vector = profile1_wt_vector / np.sum(profile1_wt_vector)
 
     if (profile1_ranking_array == frozenset({})).any():
         raise ValueError(
@@ -326,8 +326,8 @@ def __build_simultaneous_profile_distribution(
     profile2_ranking_array = profile2.df[
         [f"Ranking_{i}" for i in range(1, profile2.max_ranking_length + 1)]
     ].to_numpy()
-    profile2_wt_vector = profile2.df["Weight"].to_numpy()
-    profile2_wt_vector /= np.sum(profile2_wt_vector)
+    profile2_wt_vector = profile2.df["Weight"].astype(float).to_numpy()
+    profile2_wt_vector = profile2_wt_vector / np.sum(profile2_wt_vector)
 
     if (profile2_ranking_array == frozenset({})).any():
         raise ValueError(
