@@ -337,10 +337,10 @@ def _inner_slate_bradley_terry(
                 non_zero_candidate_set=non_zero_cands_set,
             )
 
-        cand_ordering_by_slate = _make_cand_ordering_by_slate(
-            config, pref_intervals_by_slate_dict
-        )
         for j, bt in enumerate(ballot_types):
+            cand_ordering_by_slate = _make_cand_ordering_by_slate(
+                config, pref_intervals_by_slate_dict
+            )
             ranking = _convert_ballot_type_to_ranking(
                 ballot_type=bt, cand_ordering_by_slate=cand_ordering_by_slate
             )
