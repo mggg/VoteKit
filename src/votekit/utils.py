@@ -83,7 +83,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
         if len(first) > 1:
             raise ValueError(
                 f"Ballot "
-                f"{RankBallot(ranking=tuple(c_set for c_set in row if c_set != tilde), weight=w)} "
+                f"{RankBallot(ranking=tuple(c_set for c_set in row if c_set != tilde), weight=float(w))} "
                 "has a tie for first."
             )
 
@@ -94,7 +94,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=w))
+        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=float(w)))
 
     return cand_dict
 

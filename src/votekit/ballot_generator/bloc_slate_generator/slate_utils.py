@@ -1,8 +1,60 @@
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Iterator
 
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.pref_interval import PreferenceInterval
+
+
+def _lexicographic_symbol_tuple_iterator(
+    symbol_list: list[str],
+) -> Iterator[tuple[str, ...]]:
+    """
+    Given a set of symbols, generate all possible combinations of symbols.
+
+    Example:
+        symbol_list = ["A", "A", "B"]
+        returns {("A", "A", "B"), ("A", "B", "A"), ("B", "A", "A")}
+
+    Args:
+        symbol_list (list[str]): A list of symbols.
+
+    Returns:
+        set[tuple[str]]: A set of tuples of strings.
+    """
+    n = len(symbol_list)
+    if n == 0:
+        return
+
+    # sort lexicographically
+    current_symbol_perm = sorted(symbol_list)
+
+    # Idea here is to make the smallest possible change to the between steps that increases
+    # the lexicographic cost (so we will find the next thing in the lexicographic ordering)
+    while True:
+        yield tuple(current_symbol_perm)
+
+        # find the longest non-increasing suffix (fails when you have reverse lex order and returns)
+        # start from the right and stop when you find a[i] < a[i+1]
+        i = n - 2
+        while i >= 0 and current_symbol_perm[i] >= current_symbol_perm[i + 1]:
+            i -= 1
+        if i < 0:
+            return
+
+        # find rightmost element greater than a[i]. This may not be a[i+1] because of duplicates
+        j = n - 1
+        while current_symbol_perm[j] <= current_symbol_perm[i]:
+            j -= 1
+
+        # swap pivot with successor
+        current_symbol_perm[i], current_symbol_perm[j] = (
+            current_symbol_perm[j],
+            current_symbol_perm[i],
+        )
+
+        # reverse the suffix to get the next smallest lexicographic ordering (so the suffix should
+        # b in non-decreasing order now)
+        current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
 def _make_cand_ordering_by_slate(
@@ -11,7 +63,7 @@ def _make_cand_ordering_by_slate(
     """
     Create a candidate ordering within each slate based on the preference intervals.
 
-    The candidate oridering is determined by sampling without replacement according to
+    The candidate ordering is determined by sampling without replacement according to
     the preference intervals using the Plackett-Luce model (i.e. throwing a dart and removing
     that part of the interval).
 
