@@ -144,7 +144,7 @@ def remove_cand_from_score_tuple(
     )
 
 
-def remove_cand_from_score_profile(
+def remove_cand_score_profile(
     removed: Union[str, list],
     profile: ScoreProfile,
     remove_empty_ballots: bool = True,

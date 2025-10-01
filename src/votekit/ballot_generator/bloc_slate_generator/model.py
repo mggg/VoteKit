@@ -138,9 +138,9 @@ def convert_bloc_proportion_map_to_series(
             raise ValueError("Bloc proportions index (blocs) contains duplicates.")
         if bloc_prop.dtype != float:
             bloc_prop = bloc_prop.astype(float)
-        if any(bloc_prop < 0):
+        if any(bloc_prop < 0):  # type: ignore[operator]
             raise ValueError("Bloc proportions must be non-negative.")
-        if any(bloc_prop > 1):
+        if any(bloc_prop > 1):  # type: ignore[operator]
             raise ValueError("Bloc proportions cannot be greater than 1.")
         return bloc_prop
 
@@ -849,7 +849,7 @@ class BlocSlateConfig:
         object.__setattr__(self, "n_voters", n_voters)
 
         if bloc_proportions is None:
-            bloc_voter_series = pd.Series(dtype=float)
+            bloc_voter_series: pd.Series = pd.Series(dtype=float)
         else:
             bloc_voter_series = convert_bloc_proportion_map_to_series(bloc_proportions)
         object.__setattr__(

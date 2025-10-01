@@ -1,7 +1,7 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.utils import elect_cands_from_set_ranking, borda_scores
 from votekit.graphs import PairwiseComparisonGraph
 
@@ -60,7 +60,7 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_and_condense_ranked_profile(
+        new_profile = remove_and_condense_rank_profile(
             [c for s in elected for c in s], profile
         )
 

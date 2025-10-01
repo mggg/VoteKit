@@ -2,7 +2,7 @@ from votekit.ballot import ScoreBallot
 from typing import Union
 
 
-def remove_cand_from_score_ballot(
+def remove_cand_score_ballot(
     removed: Union[str, list],
     ballot: ScoreBallot,
 ) -> ScoreBallot:

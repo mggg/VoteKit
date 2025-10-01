@@ -7,7 +7,7 @@ from votekit.utils import (
     score_dict_to_ranking,
     tiebreak_set,
 )
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 import numpy as np
 from typing import Optional, Literal
 from functools import partial
@@ -222,7 +222,7 @@ class PluralityVeto(RankingElection):
             for c in eliminated_cands:
                 self.eliminated_dict[c] = True
 
-            new_profile = remove_and_condense_ranked_profile(
+            new_profile = remove_and_condense_rank_profile(
                 eliminated_cands,
                 profile,
                 remove_zero_weight_ballots=False,

@@ -58,7 +58,7 @@ def _iterate_and_clean_ranking_tuples(
     )
 
 
-def clean_ranked_profile(
+def clean_rank_profile(
     profile: RankProfile,
     clean_ranking_func: Callable[[tuple], tuple],
     remove_empty_ballots: bool = True,
@@ -161,7 +161,7 @@ def remove_repeat_cands_from_ranking_row(
     return tuple(dedup_ranking)
 
 
-def remove_repeat_cands_ranked_profile(
+def remove_repeat_cands_rank_profile(
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -172,7 +172,7 @@ def remove_repeat_cands_ranked_profile(
     remove any further instances. Does not condense any empty rankings as as result.
     Only works on ranking ballots, not score ballots.
 
-    Wrapper for clean_ranked_profile.
+    Wrapper for clean_rank_profile.
 
     Args:
         profile (RankProfile): Profile to remove repeated candidates from.
@@ -191,7 +191,7 @@ def remove_repeat_cands_ranked_profile(
         ProfileError: Profile must only contain ranked ballots.
     """
 
-    return clean_ranked_profile(
+    return clean_rank_profile(
         profile,
         remove_repeat_cands_from_ranking_row,
         remove_empty_ballots,
@@ -228,7 +228,7 @@ def remove_cand_from_ranking_row(
     return tuple(out)
 
 
-def remove_cand_from_rank_profile(
+def remove_cand_rank_profile(
     removed: Union[str, list],
     profile: RankProfile,
     remove_empty_ballots: bool = True,
@@ -239,7 +239,7 @@ def remove_cand_from_rank_profile(
     Given a ranked profile, remove the given candidate(s) from the ballots. Does not condense the
     resulting ballots.
 
-    Wrapper for clean_ranked_profile that does some extra processing to ensure the candidate list
+    Wrapper for clean_rank_profile that does some extra processing to ensure the candidate list
     is handled correctly.
 
     Args:
@@ -263,7 +263,7 @@ def remove_cand_from_rank_profile(
     if isinstance(removed, str):
         removed = [removed]
 
-    cleaned_profile = clean_ranked_profile(
+    cleaned_profile = clean_rank_profile(
         profile,
         partial(remove_cand_from_ranking_row, removed),
         remove_empty_ballots,
@@ -343,7 +343,7 @@ def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
     return True
 
 
-def condense_ranked_profile(
+def condense_rank_profile(
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -355,7 +355,7 @@ def condense_ranked_profile(
     considered equivalent. For example, (A,B,{},{}) is mapped to (A,B) but considered unaltered
     since the ranking did not change.
 
-    Wrapper for clean_ranked_profile that does some extra processing to ensure condensed ranking
+    Wrapper for clean_rank_profile that does some extra processing to ensure condensed ranking
     equivalence is handled correctly.
 
     Args:
@@ -372,7 +372,7 @@ def condense_ranked_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     """
-    condensed_profile = clean_ranked_profile(
+    condensed_profile = clean_rank_profile(
         profile,
         condense_ranking_row,
         remove_empty_ballots,
@@ -448,7 +448,7 @@ def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) ->
     return True
 
 
-def remove_and_condense_ranked_profile(
+def remove_and_condense_rank_profile(
     removed: Union[str, list],
     profile: RankProfile,
     remove_empty_ballots: bool = True,
@@ -465,7 +465,7 @@ def remove_and_condense_ranked_profile(
     and condensing happen frequently. Researches interested in the difference between
     removing and condensing should use ``remove_cand`` and ``condense_profile`` in series.
 
-    Wrapper for clean_ranked_profile that does some extra processing to ensure the candidate list
+    Wrapper for clean_rank_profile that does some extra processing to ensure the candidate list
     is handled correctly, and that ballot equivalence is checked.
 
     Args:
@@ -487,7 +487,7 @@ def remove_and_condense_ranked_profile(
     if isinstance(removed, str):
         removed = [removed]
 
-    cleaned_profile = clean_ranked_profile(
+    cleaned_profile = clean_rank_profile(
         profile,
         lambda b: condense_ranking_row(remove_cand_from_ranking_row(removed, b)),
         remove_empty_ballots,

@@ -1,6 +1,6 @@
 from votekit.pref_profile import RankProfile
 from votekit.ballot import RankBallot
-from votekit.cleaning import condense_ranked_profile, remove_cand_from_rank_profile
+from votekit.cleaning import condense_rank_profile, remove_cand_rank_profile
 
 
 def test_cleaning_series():
@@ -17,8 +17,8 @@ def test_cleaning_series():
         ]
     )
 
-    profile_no_A = remove_cand_from_rank_profile(["A"], profile)
-    condensed = condense_ranked_profile(profile_no_A)
+    profile_no_A = remove_cand_rank_profile(["A"], profile)
+    condensed = condense_rank_profile(profile_no_A)
     assert condensed.group_ballots().ballots == (
         RankBallot(ranking=[{"C"}, {"B"}], weight=3),
     )
