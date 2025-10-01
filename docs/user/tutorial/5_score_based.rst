@@ -18,17 +18,15 @@ First, let’s revisit how to define score ballots.
     
     score_ballot = Ballot(scores={"A": 4, "B": 3, "C": 4}, weight=3)
     print(score_ballot)
-    print("ranking:", score_ballot.ranking)
 
 
 .. parsed-literal::
 
-    Scores
+    ScoreBallot
     A: 4.00
     B: 3.00
     C: 4.00
     Weight: 3.0
-    ranking: None
 
 
 Notice that despite the scores inducing the ranking :math:`A,C>B`, the
@@ -42,16 +40,17 @@ ranking, you can use the ``score_dict_to_ranking`` function from the
     from votekit.utils import score_dict_to_ranking
     
     ranking = score_dict_to_ranking(score_ballot.scores)
-    print(ranking)
+    print("Ranking:", ranking)
     
     ranked_ballot = Ballot(ranking=ranking, weight=score_ballot.weight)
-    print(ranked_ballot)
+    print("\n", ranked_ballot)
 
 
 .. parsed-literal::
 
-    (frozenset({'A', 'C'}), frozenset({'B'}))
-    Ranking
+    Ranking: (frozenset({'A', 'C'}), frozenset({'B'}))
+    
+     RankBallot
     1.) A, C, (tie)
     2.) B, 
     Weight: 3.0
@@ -73,7 +72,7 @@ all to ranked, you could do so as follows.
         ]
     )
     
-    print("Score profile\n", score_profile)
+    print(score_profile)
     
     ranked_ballots = [
         Ballot(ranking=score_dict_to_ranking(b.scores), weight=b.weight)
@@ -88,9 +87,7 @@ all to ranked, you could do so as follows.
 
 .. parsed-literal::
 
-    Score profile
-     Profile contains rankings: False
-    Profile contains scores: True
+    ScoreProfile
     Candidates: ('A', 'B', 'C')
     Candidates who received votes: ('A', 'B', 'C')
     Total number of Ballot objects: 4
@@ -119,7 +116,7 @@ an invalid score is passed.
 
 .. parsed-literal::
 
-    Scores
+    ScoreBallot
     A: -1.00
     B: 3.14
     Weight: 3.0
@@ -189,7 +186,11 @@ running the election. All of these code blocks should raise
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: All ballots must have score dictionary.
+    	TypeError: Ballot RankBallot
+    1.) A, 
+    2.) B, 
+    3.) C, 
+    Weight: 1.0 must be of type ScoreBallot
 
 
 .. code:: ipython3
@@ -208,7 +209,7 @@ running the election. All of these code blocks should raise
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: Ballot Scores
+    	TypeError: Ballot ScoreBallot
     A: -1.00
     B: 3.14
     Weight: 1.0 must have non-negative scores.
@@ -228,7 +229,7 @@ running the election. All of these code blocks should raise
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: Ballot Scores
+    	TypeError: Ballot ScoreBallot
     B: 10.00
     C: 1.00
     Weight: 1.0 violates score limit 5 per candidate.
@@ -293,7 +294,7 @@ Again, the Cumulative class does validation for us.
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: Ballot Scores
+    	TypeError: Ballot ScoreBallot
     B: 2.00
     C: 1.00
     Weight: 1.0 violates total score budget 2.
@@ -313,41 +314,41 @@ known as “plumping”).
     from votekit import PreferenceInterval
     
     m = 2
-    bloc_voter_prop = {"all_voters": 1}
+    bloc_proportions = {"all_voters": 1}
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
     
     # the preference interval (80,15,5)
-    pref_intervals_by_bloc = {
+    preference_mapping = {
         "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
     
-    cohesion_parameters = {"all_voters": {"all_voters": 1}}
+    cohesion_mapping = {"all_voters": {"all_voters": 1}}
+    
+    config = bg.BlocSlateConfig(n_voters=100,
+                bloc_proportions=bloc_proportions,
+                slate_to_candidates=slate_to_candidates,
+                preference_mapping=preference_mapping,
+                cohesion_mapping=cohesion_mapping)
     
     # the num_votes parameter says how many total points the voter is given
     # for a cumulative election, this is m, the number of seats
     # in a limited election, this could be less than m
-    cumu = bg.name_Cumulative(
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-        num_votes=m,
-    )
     
-    profile = cumu.generate_profile(number_of_ballots=100)
+    profile = bg.name_cumulative_profile_generator(config, total_points=m)
+    
+    # profile = cumu.generate_profile(number_of_ballots=100)
     print(profile.df)
 
 
 .. parsed-literal::
 
-                    B    A    C Voter Set  Weight
+                    A    B    C  Weight Voter Set
     Ballot Index                                 
-    0             1.0  1.0  NaN        {}    22.0
-    1             NaN  1.0  1.0        {}     8.0
-    2             NaN  2.0  NaN        {}    63.0
-    3             1.0  NaN  1.0        {}     2.0
-    4             2.0  NaN  NaN        {}     3.0
-    5             NaN  NaN  2.0        {}     2.0
+    0             1.0  1.0  NaN    24.0        {}
+    1             1.0  NaN  1.0     7.0        {}
+    2             2.0  NaN  NaN    66.0        {}
+    3             NaN  1.0  1.0     2.0        {}
+    4             NaN  2.0  NaN     1.0        {}
 
 
 Verify that the ballots make sense given the interval. ``A`` should
