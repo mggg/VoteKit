@@ -31,6 +31,7 @@ def _inner_name_cumulative(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        total_points (int): The total number of points to distribute among candidates.
 
     Returns:
         dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
@@ -101,6 +102,10 @@ def name_cumulative_profile_generator(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+
+    Kwargs:
+        total_points (Optional[int]): The total number of points to distribute among candidates.
+            If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
 
@@ -141,7 +146,11 @@ def name_cumulative_ballot_generator_by_bloc(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, groups identical ballots in the resulting profiles.
+
+    Kwargs:
+        total_points (Optional[int]): The total number of points to distribute among candidates.
+            If None, defaults to the number of candidates in the configuration. Defaults to None.
+        group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
 
     Returns:
