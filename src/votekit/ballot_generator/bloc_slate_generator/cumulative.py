@@ -11,6 +11,7 @@ The main API functions in this module are:
 
 import numpy as np
 import apportionment.methods as apportion
+from typing import Optional
 
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
@@ -21,13 +22,16 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 # ===========================================================
 
 
-def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
+def _inner_name_cumulative(
+    config: BlocSlateConfig, total_points: int
+) -> dict[str, ScoreProfile]:
     """
     Inner function to generate cumulative profiles by bloc using the name-Cumulative model.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        total_points (int): The total number of points to distribute among candidates.
 
     Returns:
         dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
@@ -67,7 +71,7 @@ def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
 
         # Vectorized: one multinomial per ballot -> shape (num_ballots, n_cands)
         # Each row sums to n_voters and the entries are counts for each candidate
-        counts = rng.multinomial(n=n_voters, pvals=p, size=num_ballots)
+        counts = rng.multinomial(n=total_points, pvals=p, size=num_ballots)
 
         ballots = [
             ScoreBallot(scores=dict(zip(non_zero_cands, row.astype(float))), weight=1)
@@ -86,6 +90,7 @@ def _inner_name_cumulative(config: BlocSlateConfig) -> dict[str, ScoreProfile]:
 def name_cumulative_profile_generator(
     config: BlocSlateConfig,
     *,
+    total_points: Optional[int] = None,
     group_ballots: bool = True,
 ) -> ScoreProfile:
     """
@@ -97,6 +102,10 @@ def name_cumulative_profile_generator(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+
+    Kwargs:
+        total_points (Optional[int]): The total number of points to distribute among candidates.
+            If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
 
@@ -104,7 +113,13 @@ def name_cumulative_profile_generator(
         ScoreProfile: A `ScoreProfile` object representing the generated ballots.
     """
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_name_cumulative(config)
+
+    if total_points is None:
+        total_points = len(config.candidates)
+    if total_points <= 0:
+        raise ValueError("total_points must be a positive integer")
+
+    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points)
 
     pp = ScoreProfile()
     for profile in pp_by_bloc.values():
@@ -119,6 +134,7 @@ def name_cumulative_profile_generator(
 def name_cumulative_ballot_generator_by_bloc(
     config: BlocSlateConfig,
     *,
+    total_points: Optional[int] = None,
     group_ballots: bool = True,
 ) -> dict[str, ScoreProfile]:
     """
@@ -130,7 +146,11 @@ def name_cumulative_ballot_generator_by_bloc(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, groups identical ballots in the resulting profiles.
+
+    Kwargs:
+        total_points (Optional[int]): The total number of points to distribute among candidates.
+            If None, defaults to the number of candidates in the configuration. Defaults to None.
+        group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
 
     Returns:
@@ -138,7 +158,13 @@ def name_cumulative_ballot_generator_by_bloc(
             `ScoreProfile` objects representing the generated ballots for each bloc.
     """
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_name_cumulative(config)
+
+    if total_points is None:
+        total_points = len(config.candidates)
+    if total_points <= 0:
+        raise ValueError("'total_points' must be a positive integer")
+
+    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points)
 
     if group_ballots:
         for bloc in pp_by_bloc:
