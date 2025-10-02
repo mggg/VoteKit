@@ -85,7 +85,7 @@ listed is sometimes called an **undervote**.
 
 We might prefer for localities running ranked choice elections to be
 smart about the voter intent to communicate a tied preference – and we
-can do that in VoteKit. But we’ll get to running elections later.
+can do that in VoteKit.
 
 .. code:: ipython3
 
@@ -546,9 +546,9 @@ You can also do most of these with the pandas ``DataFrame`` methods.
     print(profile.df.iloc[10])
     print()
     
-    # condense and sort by by weight
-    condensed_profile = profile.group_ballots()
-    print(condensed_profile.df.head(8).sort_values(by="Weight", ascending=False))
+    # group and sort by by weight
+    grouped_profile = profile.group_ballots()
+    print(grouped_profile.df.head(8).sort_values(by="Weight", ascending=False))
 
 
 .. parsed-literal::
@@ -658,13 +658,12 @@ and
    {"A": 0.7, "B": 0.3}
 
 While both say there is no preference for candidate C, if the latter
-interval is fed into VoteKit, that third candidate will never appear on
-a generated ballot. If we feed it the former interval, the third
-candidate will appear at the bottom of the ballot.
+interval is fed into VoteKit, C will never appear on a generated ballot.
+If we feed it the former interval, C will appear at the bottom of the
+ballot.
 
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
-
 
 
 One of the generative models is called the **slate-Plackett-Luce
@@ -905,7 +904,9 @@ first-place support, the default tiebreaker in VoteKit is ``None``, and
 it will raise an error telling you to choose a tiebreak method. This can
 be done by setting ``tiebreak='random'`` or ``tiebreak='borda'`` in the
 ``Plurality`` init method. There is also a ``'first_place'`` option, but
-that won’t help in a plurality tie.
+that won’t help in a plurality tie. Alphabetical is also an option! Can
+be invoked with any of ``'lex'``, ``'lexicographic'``, ``'alph'``, or
+``'alphabetical'``.
 
 Conclusion
 ~~~~~~~~~~
@@ -928,3 +929,6 @@ understanding, try the following prompts:
 - Create a preference profile where candidates :math:`B,C` should be
   elected under a 2-seat plurality election. Run the election and
   confirm!
+- Generate ballots for two voter blocs W and POC, and three slates,
+  Republican, Democrat, and Independent. This is to show you that the
+  blocs and slates can be changed independently of each other.
