@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2025-10-02
+## Added
+- Created a `BlocSlateConfig` class for ballot generators. This validates that all of the inputs to a ballot generator are valid.
+- `FastSTV`, a new implementation of the `STV` class that relies more heavily on numpy and should be faster.
+- `RankBallot` and `RankProfile`, and `ScoreBallot` and `ScoreProfile`, now allowing us to distinguish between the two types of input. The old
+`PreferenceProfile` and `Ballot` constructors still work and create instances of `Rank` and `Score` for you.
+- `RankedPairs`, `StarVoting` and `OpenList`, all new election methods.
+
+## Changed 
+- refactored the codebase to use the new updates.
+- deprecated the ballot generator classes in favor of functions.
+- `PreferenceProfile` and cvr imports can now use urls.
+
+## Fixed
+- Issues 252, 229, 258, 248, 164, 205, 269, 233, 169, 285, 282, 238, 303, 302
+
+
 ## [3.2.2] - 2025-07-02
 ## Added
 
