@@ -61,7 +61,7 @@ def onedim_spacial_profile_generator(
 
     df = pd.DataFrame(ballot_pool)
     df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]  # type: ignore[misc]
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
     df["Voter Set"] = [frozenset()] * len(df)
     return RankProfile(
@@ -153,7 +153,7 @@ def spacial_profile_and_positions_generator(
     n_candidates = len(candidates)
     df = pd.DataFrame(ballot_pool)
     df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]  # type: ignore[misc]
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
     df["Voter Set"] = [frozenset()] * len(df)
     return (
@@ -267,7 +267,7 @@ def clustered_spacial_profile_and_positions_generator(
 
     df = pd.DataFrame(ballot_pool)
     df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]  # type: ignore[misc]
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
     df["Voter Set"] = [frozenset()] * len(df)
     return (
