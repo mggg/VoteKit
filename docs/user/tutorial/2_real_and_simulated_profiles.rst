@@ -419,7 +419,6 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
-   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -448,7 +447,6 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
