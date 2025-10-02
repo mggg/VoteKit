@@ -82,7 +82,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
     Downloading...
     From: https://drive.google.com/uc?id=1ly3IcjeQTpet-zvxd49DM_OmY_i4uftB
     To: /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/notebooks/Portland_D1_raw_from_city.csv
-    100%|██████████| 104M/104M [00:04<00:00, 20.9MB/s] 
+    100%|██████████| 104M/104M [00:04<00:00, 23.7MB/s] 
 
 
 
@@ -516,8 +516,8 @@ our cleaning using VoteKit’s built in cleaning tools.
 
     RankProfile
     Maximum ranking length: 6
-    Candidates: ('Write-in-120', 'overvote', 'Candace Avalos', 'Write-in-121', 'Steph Routh', 'Timur Ender', 'Deian Salazar', 'Terrence Hayes', 'Jamie Dunphy', 'Michael (Mike) Sands', 'Loretta Smith', 'Peggy Sue Owens', 'David Linn', 'Doug Clove', 'Thomas Shervey', 'Joe Allen', 'Cayle Tern', 'Joe Furi', 'Write-in-122', 'Uncertified Write In', 'Noah Ernst')
-    Candidates who received votes: ('Write-in-120', 'overvote', 'Candace Avalos', 'Write-in-121', 'Steph Routh', 'Timur Ender', 'Deian Salazar', 'Terrence Hayes', 'Jamie Dunphy', 'Michael (Mike) Sands', 'Loretta Smith', 'Peggy Sue Owens', 'David Linn', 'Doug Clove', 'Thomas Shervey', 'Joe Allen', 'Cayle Tern', 'Joe Furi', 'Write-in-122', 'Uncertified Write In', 'Noah Ernst')
+    Candidates: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
+    Candidates who received votes: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
     Total number of Ballot objects: 43669
     Total weight of Ballot objects: 43669.0
     
@@ -573,14 +573,14 @@ the percentage of ballots that are spoiled.
 
     from votekit.cleaning import remove_and_condense_rank_profile
     
-    profile = remove_and_condense_rank_profile("overvote", profile)
+    cleaned_profile_1 = remove_and_condense_rank_profile("overvote", profile)
     
-    num_ballots_spoiled_by_ov_skips = num_ballots_cast - profile.total_ballot_wt 
+    num_ballots_spoiled_by_ov_skips = num_ballots_cast - cleaned_profile_1.total_ballot_wt 
     print(f"{num_ballots_spoiled_by_ov_skips} ballots, or {num_ballots_spoiled_by_ov_skips/num_ballots_cast:.1%} of all ballots, were spoiled by overvotes or skips in D1.")
     
-    profile = remove_and_condense_rank_profile(['Write-in-120', 'Write-in-121', 'Write-in-122'], profile)
+    cleaned_profile_2 = remove_and_condense_rank_profile(['Write-in-120', 'Write-in-121', 'Write-in-122'], cleaned_profile_1)
     
-    num_ballots_scrubbed_by_wi = num_ballots_cast - num_ballots_spoiled_by_ov_skips-profile.total_ballot_wt 
+    num_ballots_scrubbed_by_wi = num_ballots_cast - num_ballots_spoiled_by_ov_skips-cleaned_profile_2.total_ballot_wt 
     print(f"{num_ballots_scrubbed_by_wi} ballots, or {num_ballots_scrubbed_by_wi/num_ballots_cast:.1%} of all ballots, were scrubbed by write ins in D1.")
 
 
@@ -600,7 +600,7 @@ left empty as a result.
 
     from votekit.cleaning import remove_repeat_cands_rank_profile, condense_rank_profile
     
-    profile = condense_rank_profile(remove_repeat_cands_rank_profile(profile))
+    cleaned_profile_3 = condense_rank_profile(remove_repeat_cands_rank_profile(cleaned_profile_2))
 
 Now to compute the adjusted and tabulated rate, which is the percentage
 of ballots that were touched by a cleaning rule but still used in the
@@ -633,13 +633,15 @@ which ballots were altered along the way.
         return sum(profile.df.loc[adj_and_tab_idxs, "Weight"])
     
     
-    num_adj_and_tabulated = adjusted_and_tabulated(profile)
+    num_adj_and_tabulated = adjusted_and_tabulated(cleaned_profile_3)
     print(f"{num_adj_and_tabulated} ballots, or {num_adj_and_tabulated/num_ballots_cast:.2%} of all ballots, were adjusted before tabulation in D1.")
+    
+
 
 
 .. parsed-literal::
 
-    22935.0 ballots, or 52.52% of all ballots, were adjusted before tabulation in D1.
+    2507.0 ballots, or 5.74% of all ballots, were adjusted before tabulation in D1.
 
 
 Finally, the profile is cleaned and we can save it for analysis. We save
@@ -647,8 +649,8 @@ it as a csv file.
 
 .. code:: ipython3
 
-    profile.to_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
-    print(f"After cleaning, there are now {profile.total_ballot_wt:,} ballots.")
+    cleaned_profile_3.to_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
+    print(f"After cleaning, there are now {cleaned_profile_3.total_ballot_wt:,} ballots.")
 
 
 .. parsed-literal::
@@ -1195,6 +1197,12 @@ was made?
 
 .. code:: ipython3
 
+    from votekit.elections import STV
+    from votekit.pref_profile import RankProfile, PreferenceProfile
+    profile = RankProfile.from_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
+
+.. code:: ipython3
+
     from votekit.ballot import Ballot
     
     deduplicated_ballots = [Ballot(ranking=b.ranking, weight=1) for b in profile.ballots for _ in range(int(b.weight))]
@@ -1214,7 +1222,7 @@ was made?
 
 .. parsed-literal::
 
-    The active rate is 0.0%.
+    The active rate is 77.0%.
 
 
 STV exhaustion rate: How many ballots ranked fewer than six candidates,
@@ -1366,29 +1374,29 @@ We can also see who the most representative winner set would have been.
 .. parsed-literal::
 
     1-representation winner sets, top 5 most representative
-    {'Jamie Dunphy', 'Candace Avalos', 'Loretta Smith'} 44.2%
-    {'Candace Avalos', 'Noah Ernst', 'Loretta Smith'} 41.8%
-    {'Candace Avalos', 'Terrence Hayes', 'Loretta Smith'} 41.7%
-    {'Steph Routh', 'Candace Avalos', 'Loretta Smith'} 41.5%
-    {'Timur Ender', 'Candace Avalos', 'Loretta Smith'} 40.7%
+    {'Loretta Smith', 'Candace Avalos', 'Jamie Dunphy'} 44.2%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 41.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 41.7%
+    {'Loretta Smith', 'Candace Avalos', 'Steph Routh'} 41.5%
+    {'Loretta Smith', 'Candace Avalos', 'Timur Ender'} 40.7%
     
     --------------------
     
     3-representation winner sets, top 5 most representative
-    {'Candace Avalos', 'Noah Ernst', 'Loretta Smith'} 74.8%
-    {'Candace Avalos', 'Terrence Hayes', 'Loretta Smith'} 72.9%
-    {'Steph Routh', 'Candace Avalos', 'Noah Ernst'} 71.4%
-    {'Candace Avalos', 'Noah Ernst', 'Terrence Hayes'} 71.3%
-    {'Steph Routh', 'Candace Avalos', 'Terrence Hayes'} 71.1%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 74.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 72.9%
+    {'Noah Ernst', 'Candace Avalos', 'Steph Routh'} 71.4%
+    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 71.3%
+    {'Terrence Hayes', 'Candace Avalos', 'Steph Routh'} 71.1%
     
     --------------------
     
     6-representation winner sets, top 5 most representative
-    {'Candace Avalos', 'Noah Ernst', 'Loretta Smith'} 82.8%
-    {'Candace Avalos', 'Terrence Hayes', 'Loretta Smith'} 81.0%
-    {'Candace Avalos', 'Doug Clove', 'Loretta Smith'} 80.3%
-    {'Candace Avalos', 'Noah Ernst', 'Terrence Hayes'} 80.3%
-    {'Steph Routh', 'Noah Ernst', 'Loretta Smith'} 79.9%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 82.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 81.0%
+    {'Loretta Smith', 'Candace Avalos', 'Doug Clove'} 80.3%
+    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 80.3%
+    {'Loretta Smith', 'Noah Ernst', 'Steph Routh'} 79.9%
     
     --------------------
     
