@@ -352,14 +352,16 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
     4                  (Y)       (X)       (A)       (B)    14.0        {}
 
 
-.. admonition:: A note on s-BT :class: note The probability distribution
-that s-BT samples from can be too cumbersome to compute for large
-numbers of candidates. The function ``slate_bt_profile_generator``
-computes the memory need based on your computer’s specs. If there is not
-enough memory, then we have implemented a Markov chain Monte Carlo
-(MCMC) sampling method to account for this. Simply use
-``slate_bt_profile_generator_using_mcmc``. The sample size should be
-increased to ensure mixing of the chain.
+.. admonition:: A note on s-BT 
+    :class: note 
+        The probability distribution
+        that s-BT samples from can be too cumbersome to compute for large
+        numbers of candidates. The function ``slate_bt_profile_generator``
+        computes the memory need based on your computer’s specs. If there is not
+        enough memory, then we have implemented a Markov chain Monte Carlo
+        (MCMC) sampling method to account for this. Simply use
+        ``slate_bt_profile_generator_using_mcmc``. The sample size should be
+        increased to ensure mixing of the chain.
 
 .. code:: ipython3
 
@@ -416,7 +418,7 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
-   
+   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -445,7 +447,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-
+   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
