@@ -146,11 +146,14 @@ def remove_repeat_cands_from_ranking_row(
     seen_cands = []
 
     for cand_set in ranking_tup:
-        new_position = []
+        if cand_set == frozenset({"~"}):
+            dedup_ranking.append(frozenset({"~"}))
+            continue
         if not isinstance(cand_set, frozenset):
             dedup_ranking.append(np.nan)
             continue
 
+        new_position = []
         for cand in cand_set:
             if cand not in seen_cands:
                 new_position.append(cand)
