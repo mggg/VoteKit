@@ -354,6 +354,7 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. admonition:: A note on s-BT 
     :class: note 
+
         The probability distribution
         that s-BT samples from can be too cumbersome to compute for large
         numbers of candidates. The function ``slate_bt_profile_generator``
