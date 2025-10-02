@@ -1,12 +1,13 @@
-from .election_state import ElectionState  # noqa
-from ..models import Election  # noqa
-from .transfers import fractional_transfer, random_transfer  # noqa
-from .election_types import (  # noqa
+from .election_state import ElectionState
+from ..models import Election
+from .transfers import fractional_transfer, random_transfer
+from .election_types import (
     RankingElection,
     Plurality,
     SNTV,
     Borda,
     STV,
+    FastSTV,
     IRV,
     SequentialRCV,
     Alaska,
@@ -22,4 +23,35 @@ from .election_types import (  # noqa
     PluralityVeto,
     RandomDictator,
     BoostedRandomDictator,
+    RankedPairs,
 )
+
+
+__all__ = [
+    "ElectionState",
+    "Election",
+    "fractional_transfer",
+    "random_transfer",
+    "RankingElection",
+    "Plurality",
+    "SNTV",
+    "Borda",
+    "STV",
+    "FastSTV",
+    "IRV",
+    "SequentialRCV",
+    "Alaska",
+    "DominatingSets",
+    "CondoBorda",
+    "TopTwo",
+    "GeneralRating",
+    "Rating",
+    "Cumulative",
+    "Limited",
+    "Approval",
+    "BlocPlurality",
+    "PluralityVeto",
+    "RandomDictator",
+    "BoostedRandomDictator",
+    "RankedPairs",
+]

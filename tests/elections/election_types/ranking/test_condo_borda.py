@@ -1,55 +1,51 @@
 from votekit.elections import CondoBorda, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+)
+from votekit.ballot import Ballot
 import pytest
 import pandas as pd
 
 profile_tied_set = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ],
+    ballots=(
+        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}]))),
+        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}]))),
+        Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=2),
+    ),
     max_ranking_length=3,
 )
 
 profile_tied_set_round_1 = PreferenceProfile(
-    ballots=[
+    ballots=(
         Ballot(
-            ranking=(
-                {"B"},
-                {"C"},
-            ),
+            ranking=tuple(map(frozenset, [{"B"}, {"C"}])),
             weight=3,
         ),
-        Ballot(
-            ranking=(
-                {"C"},
-                {"B"},
-            )
-        ),
-    ],
+        Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}]))),
+    ),
     max_ranking_length=3,
 )
 
 
 profile_no_tied_set = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
-    ],
+    ballots=(
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
+    ),
     max_ranking_length=3,
 )
 
 profile_tied_borda = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
-        Ballot(ranking=({"B"}, {"C"}, {"A"})),
-        Ballot(ranking=({"C"}, {"A"}, {"B"})),
-        Ballot(ranking=({"C"}, {"B"}, {"A"})),
-    ],
+    ballots=(
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"B"}, {"C"}, {"A"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"C"}, {"A"}, {"B"})))),
+        Ballot(ranking=tuple(map(frozenset, ({"C"}, {"B"}, {"A"})))),
+    ),
     max_ranking_length=3,
 )
 
@@ -165,5 +161,5 @@ def test_errors():
     ):
         CondoBorda(profile_tied_set, m=4)
 
-    with pytest.raises(TypeError, match="has no ranking."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         CondoBorda(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

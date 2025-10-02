@@ -31,23 +31,34 @@ import the necessary modules.
     ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3 / 2)
     print(ballot)
     
+    print("\n--------------------------------\n")
+    
     ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=32)
     print(ballot)
 
 
 .. parsed-literal::
 
-    Ranking
+    RankBallot
     1.) A, 
     2.) B, 
     3.) C, 
     Weight: 1.5
-    Ranking
+    
+    --------------------------------
+    
+    RankBallot
     1.) A, 
     2.) B, 
     3.) C, 
     Weight: 32.0
 
+
+For super users: notice that while we input a ``Ballot``, VoteKit
+creates a ``RankBallot`` type. In release 3.3.0, we made the decision to
+distinguish ``RankBallot`` types from ``ScoreBallot`` types. We kept the
+API the same so you can either shift to the new syntax, or keep using
+``Ballot`` as before. Under the hood, ``Ballot`` is the parent class.
 
 **Try it yourself**
 ^^^^^^^^^^^^^^^^^^^
@@ -60,25 +71,6 @@ sets, where the first set in the list indicates which candidates were
 ranked first, the second set is who was ranked second, etc. In the first
 example, we stored a **full linear ranking**. There was only one
 candidate listed in each position, and every candidate was listed.
-
-.. code:: ipython3
-
-    # the following code should raise an error
-    try:
-        ballot = Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3 / 2)
-        ballot.ranking = [{"C"}, {"B"}, {"A"}]
-    
-    except Exception as e:
-        print("You cannot change a ballot once it is created.")
-        print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
-
-
-.. parsed-literal::
-
-    You cannot change a ballot once it is created.
-    Found the following error:
-    	FrozenInstanceError: cannot assign to field 'ranking'
-
 
 Full linear rankings are not the only possible ballots. Real-world
 voters frequently list multiple candidates in the same position (even if
@@ -93,7 +85,7 @@ listed is sometimes called an **undervote**.
 
 We might prefer for localities running ranked choice elections to be
 smart about the voter intent to communicate a tied preference – and we
-can do that in VoteKit. But we’ll get to running elections later.
+can do that in VoteKit.
 
 .. code:: ipython3
 
@@ -103,10 +95,10 @@ can do that in VoteKit. But we’ll get to running elections later.
 
 .. parsed-literal::
 
-    A ballot with overvotes: Ranking
-    1.) D, A, (tie)
+    A ballot with overvotes: RankBallot
+    1.) A, D, (tie)
     2.) B, 
-    3.) E, B, C, F, (tie)
+    3.) F, E, B, C, (tie)
     Weight: 1.0
 
 
@@ -123,7 +115,7 @@ ranked first, :math:`B` second, and :math:`E,C,F` all in third.
 .. parsed-literal::
 
     A bullet vote:
-    Ranking
+    RankBallot
     1.) B, 
     Weight: 1.0
 
@@ -149,54 +141,44 @@ elections will behave strangely if you do not have the correct ballot
 types as input, but it is up to you to clean them to the level needed
 for your method of election.
 
-Scored Ballots
-~~~~~~~~~~~~~~
+Score Ballots
+~~~~~~~~~~~~~
 
-The other common ballot type is a scored ballot. In this type, each
+The other common ballot type is a score ballot. In this type, each
 candidate is given a score. Of course, a score induces a ranking, but we
-do not automatically generate the induced ranking to 1) make the
-conceptual distinction that ranked elections and scored elections are
-different and 2) to give users more flexibility in the ``Ballot`` class.
+do not automatically generate the induced ranking to make the conceptual
+distinction that ranked elections and scored elections are different.
 
 .. code:: ipython3
 
     ballot = Ballot(scores={"A": 4, "B": 3, "C": 4})
     print(ballot)
-    print("ranking:", ballot.ranking)
 
 
 .. parsed-literal::
 
-    Scores
+    ScoreBallot
     A: 4.00
     B: 3.00
     C: 4.00
     Weight: 1.0
-    ranking: None
 
 
-A ballot can actually have both a ranking and a scoring of candidates,
-but all of the election methods currently implemented in ``VoteKit``
-only use either the rank or score. As we see below, the ranking does not
-have to agree with the scoring.
+As of VoteKit 3.3.0, a ballot *cannot* have both a ranking and a scoring
+of candidates. The following code should raise an error.
 
 .. code:: ipython3
 
-    ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores={"A": 4, "B": 3, "C": 4})
-    print(ballot)
+    try:
+        ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores={"A": 4, "B": 3, "C": 4})
+    except Exception as e:
+        print(e)
+
 
 
 .. parsed-literal::
 
-    Ranking
-    1.) C, 
-    2.) B, 
-    3.) A, 
-    Scores
-    A: 4.00
-    B: 3.00
-    C: 4.00
-    Weight: 1.0
+    Only one of ranking or scores can be provided.
 
 
 For the remainder of this tutorial, we will use ranked ballots.
@@ -240,9 +222,8 @@ collection of ballots in a compact format.
 
 .. parsed-literal::
 
-    Profile contains rankings: True
+    RankProfile
     Maximum ranking length: 3
-    Profile contains scores: False
     Candidates: ('A', 'B', 'C')
     Candidates who received votes: ('A', 'B', 'C')
     Total number of Ballot objects: 6
@@ -258,6 +239,13 @@ collection of ballots in a compact format.
     4                  (A)       (B)       (C)        {}     1.0
     5                  (B)       (A)       (C)        {}     1.0
 
+
+For super users: notice that while we input a ``PreferenceProfile``,
+VoteKit creates a ``RankProfile`` type because the ballots had rankings.
+In release 3.3.0, we made the decision to distinguish ``RankProfile``
+types from ``ScoreProfile`` types. We kept the API the same so you can
+either shift to the new syntax, or keep using ``PreferenceProfile`` as
+before. Under the hood, ``PreferenceProfile`` is the parent class.
 
 The ``PreferenceProfile`` class takes a list of ``Ballot`` objects and a
 list of candidates. The candidate names must be distinct, and it will
@@ -282,11 +270,10 @@ profile, as follows.
 
 .. parsed-literal::
 
-    Profile contains rankings: True
+    RankProfile
     Maximum ranking length: 3
-    Profile contains scores: False
     Candidates: ('A', 'B', 'C')
-    Candidates who received votes: ('B', 'C', 'A')
+    Candidates who received votes: ('B', 'A', 'C')
     Total number of Ballot objects: 3
     Total weight of Ballot objects: 8.0
     
@@ -327,9 +314,8 @@ ballots by weight.
 
 .. parsed-literal::
 
-    Profile contains rankings: True
+    RankProfile
     Maximum ranking length: 3
-    Profile contains scores: False
     Candidates: ('A', 'B', 'C')
     Candidates who received votes: ('A', 'B', 'C')
     Total number of Ballot objects: 36
@@ -560,9 +546,9 @@ You can also do most of these with the pandas ``DataFrame`` methods.
     print(profile.df.iloc[10])
     print()
     
-    # condense and sort by by weight
-    condensed_profile = profile.group_ballots()
-    print(condensed_profile.df.head(8).sort_values(by="Weight", ascending=False))
+    # group and sort by by weight
+    grouped_profile = profile.group_ballots()
+    print(grouped_profile.df.head(8).sort_values(by="Weight", ascending=False))
 
 
 .. parsed-literal::
@@ -663,18 +649,22 @@ between the intervals
 
 ::
 
-   {"A": 0.7, "B": 0.3, "C": 0} and
+   {"A": 0.7, "B": 0.3, "C": 0}
+
+and
+
+::
+
    {"A": 0.7, "B": 0.3}
 
 While both say there is no preference for candidate C, if the latter
-interval is fed into VoteKit, that third candidate will never appear on
-a generated ballot. If we feed it the former interval, the third
-candidate will appear at the bottom of the ballot.
+interval is fed into VoteKit, C will never appear on a generated ballot.
+If we feed it the former interval, C will appear at the bottom of the
+ballot.
 
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
 
-   
 
 One of the generative models is called the **slate-Plackett-Luce
 model**, or s-PL. In s-PL, voters fill in their ballot from the top
@@ -684,8 +674,8 @@ model.
 
 You can read more about s-PL in our social choice documentation, but for
 now let’s use it to explore how intervals work. We will assume there is
-only one bloc of voters. This makes the syntax look a little strange,
-but bear with us.
+only one bloc of voters and one slate of candidates. You can ignore what
+all this syntax means for now; we will return to it in a later tutorial.
 
 .. code:: ipython3
 
@@ -693,39 +683,41 @@ but bear with us.
     from votekit import PreferenceInterval
     
     # the sPL model assumes there are blocs of voters,
-    # but we can just say that there is only one bloc
-    bloc_voter_prop = {"all_voters": 1}
-    slate_to_candidates = {"all_voters": ["A", "B", "C"]}
+    # but we can just say that there is only one bloc and slate
+    bloc_proportions = {"all_voters": 1}
+    slate_to_candidates = {"all_candidates": ["A", "B", "C"]}
     
     # the preference interval (80,15,5)
-    pref_intervals_by_bloc = {
-        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
+    preference_mapping = {
+        "all_voters": {"all_candidates": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
     
-    # the sPL model needs an estimate of cohesion between blocs,
-    # but there is only one bloc here
-    cohesion_parameters = {"all_voters": {"all_voters": 1}}
+    # the sPL model needs an estimate of cohesion between slates,
+    # but there is only one bloc and slate
+    cohesion_mapping = {"all_voters": {"all_candidates": 1}}
     
-    pl = bg.slate_PlackettLuce(
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-    )
+    config = bg.BlocSlateConfig(n_voters = 1000,
+                                preference_mapping = preference_mapping,
+                                bloc_proportions=bloc_proportions,
+                                slate_to_candidates=slate_to_candidates,
+                                cohesion_mapping=cohesion_mapping)
     
-    profile = pl.generate_profile(number_of_ballots=100)
-    print(profile.df)
+    
+    profile = bg.slate_pl_profile_generator(config)
+    print(profile_df_head(profile,10))
+
 
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
+                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
     Ballot Index                                                
-    0                  (A)       (B)       (C)        {}    67.0
-    1                  (A)       (C)       (B)        {}    21.0
-    2                  (B)       (C)       (A)        {}     2.0
-    3                  (B)       (A)       (C)        {}     9.0
-    4                  (C)       (B)       (A)        {}     1.0
+    0                  (A)       (B)       (C)   606.0        {}
+    1                  (A)       (C)       (B)   201.0        {}
+    3                  (B)       (A)       (C)   137.0        {}
+    5                  (C)       (A)       (B)    39.0        {}
+    2                  (B)       (C)       (A)    11.0        {}
+    4                  (C)       (B)       (A)     6.0        {}
 
 
 Re-run the above block several times to see that the elections will come
@@ -766,7 +758,7 @@ particular bloc stick to their slate.
     # note that we include candidates with 0 support,
     # and that our preference intervals will automatically rescale to sum to 1
     
-    pref_intervals_by_bloc = {
+    preference_mapping = {
         "Alpha": {
             "Alpha": PreferenceInterval({"A": 0.8, "B": 0.2}),
             "Xenon": PreferenceInterval({"X": 0, "Y": 1}),
@@ -778,29 +770,30 @@ particular bloc stick to their slate.
     }
     
     
-    bloc_voter_prop = {"Alpha": 0.8, "Xenon": 0.2}
+    bloc_proportions = {"Alpha": 0.8, "Xenon": 0.2}
     
     # assume that each bloc is 90% cohesive
     # we'll discuss exactly what that means later
-    cohesion_parameters = {
+    cohesion_mapping = {
         "Alpha": {"Alpha": 0.9, "Xenon": 0.1},
         "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
     }
     
-    pl = bg.slate_PlackettLuce(
-        pref_intervals_by_bloc=pref_intervals_by_bloc,
-        bloc_voter_prop=bloc_voter_prop,
-        slate_to_candidates=slate_to_candidates,
-        cohesion_parameters=cohesion_parameters,
-    )
+    config = bg.BlocSlateConfig(n_voters = 10000,
+                                preference_mapping = preference_mapping,
+                                bloc_proportions=bloc_proportions,
+                                slate_to_candidates=slate_to_candidates,
+                                cohesion_mapping=cohesion_mapping)
     
-    # the by_bloc parameter allows us to see which ballots came from which blocs of voters
-    profile_dict, agg_profile = pl.generate_profile(number_of_ballots=10000, by_bloc=True)
-    print("The ballots from Alpha voters\n", profile_dict["Alpha"].df)
+    # by using the by_bloc generator we can see which ballots came from which blocs of voters
+    profile_dict = bg.name_pl_profiles_by_bloc_generator(config)
+    print("The ballots from Alpha voters\n", profile_df_head(profile_dict["Alpha"],10))
     
-    print("The ballots from Xenon voters\n", profile_dict["Xenon"].df)
+    print("The ballots from Xenon voters\n", profile_df_head(profile_dict["Xenon"],10))
     
-    print("Aggregated ballots\n", agg_profile.df)
+    # to create the aggregate profile, we just sum the profiles in the dictionary
+    agg_profile = profile_dict["Alpha"] + profile_dict["Xenon"]
+    print("Aggregated ballots\n", profile_df_head(agg_profile,10))
 
 
 .. parsed-literal::
@@ -808,72 +801,38 @@ particular bloc stick to their slate.
     The ballots from Alpha voters
                   Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    0                  (A)       (B)       (Y)       (X)  5171.0        {}
-    1                  (A)       (Y)       (B)       (X)   562.0        {}
-    2                  (B)       (Y)       (A)       (X)   142.0        {}
-    3                  (B)       (A)       (Y)       (X)  1298.0        {}
-    4                  (Y)       (B)       (A)       (X)   159.0        {}
-    5                  (Y)       (A)       (B)       (X)   668.0        {}
+    2                  (A)       (B)       (Y)       (X)    3677        {}
+    3                  (A)       (Y)       (B)       (X)    2115        {}
+    0                  (B)       (A)       (Y)       (X)    1197        {}
+    4                  (Y)       (A)       (B)       (X)     666        {}
+    1                  (B)       (Y)       (A)       (X)     188        {}
+    5                  (Y)       (B)       (A)       (X)     157        {}
     The ballots from Xenon voters
                   Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    0                  (Y)       (X)       (A)       (B)   427.0        {}
-    1                  (Y)       (X)       (B)       (A)   416.0        {}
-    2                  (Y)       (A)       (B)       (X)     4.0        {}
-    3                  (Y)       (A)       (X)       (B)    39.0        {}
-    4                  (Y)       (B)       (A)       (X)     6.0        {}
-    5                  (Y)       (B)       (X)       (A)    37.0        {}
-    6                  (X)       (Y)       (A)       (B)   369.0        {}
-    7                  (X)       (Y)       (B)       (A)   406.0        {}
-    8                  (X)       (A)       (B)       (Y)     3.0        {}
-    9                  (X)       (A)       (Y)       (B)    57.0        {}
-    10                 (X)       (B)       (A)       (Y)     2.0        {}
-    11                 (X)       (B)       (Y)       (A)    45.0        {}
-    12                 (B)       (X)       (A)       (Y)     8.0        {}
-    13                 (B)       (X)       (Y)       (A)    39.0        {}
-    14                 (B)       (Y)       (A)       (X)     3.0        {}
-    15                 (B)       (Y)       (X)       (A)    35.0        {}
-    16                 (B)       (A)       (Y)       (X)     3.0        {}
-    17                 (B)       (A)       (X)       (Y)     5.0        {}
-    18                 (A)       (X)       (B)       (Y)     6.0        {}
-    19                 (A)       (X)       (Y)       (B)    39.0        {}
-    20                 (A)       (Y)       (B)       (X)     8.0        {}
-    21                 (A)       (Y)       (X)       (B)    32.0        {}
-    22                 (A)       (B)       (Y)       (X)     8.0        {}
-    23                 (A)       (B)       (X)       (Y)     3.0        {}
+    1                  (X)       (Y)       (B)       (A)     378        {}
+    12                 (Y)       (X)       (A)       (B)     369        {}
+    0                  (X)       (Y)       (A)       (B)     360        {}
+    13                 (Y)       (X)       (B)       (A)     332        {}
+    14                 (Y)       (A)       (X)       (B)      84        {}
+    17                 (Y)       (B)       (X)       (A)      77        {}
+    5                  (X)       (B)       (Y)       (A)      75        {}
+    3                  (X)       (A)       (Y)       (B)      66        {}
+    21                 (B)       (X)       (Y)       (A)      54        {}
+    9                  (A)       (X)       (Y)       (B)      52        {}
     Aggregated ballots
-                  Ranking_1 Ranking_2 Ranking_3 Ranking_4 Voter Set  Weight
+                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    0                  (A)       (B)       (Y)       (X)        {}  5171.0
-    1                  (A)       (Y)       (B)       (X)        {}   562.0
-    2                  (B)       (Y)       (A)       (X)        {}   142.0
-    3                  (B)       (A)       (Y)       (X)        {}  1298.0
-    4                  (Y)       (B)       (A)       (X)        {}   159.0
-    5                  (Y)       (A)       (B)       (X)        {}   668.0
-    6                  (Y)       (X)       (A)       (B)        {}   427.0
-    7                  (Y)       (X)       (B)       (A)        {}   416.0
-    8                  (Y)       (A)       (B)       (X)        {}     4.0
-    9                  (Y)       (A)       (X)       (B)        {}    39.0
-    10                 (Y)       (B)       (A)       (X)        {}     6.0
-    11                 (Y)       (B)       (X)       (A)        {}    37.0
-    12                 (X)       (Y)       (A)       (B)        {}   369.0
-    13                 (X)       (Y)       (B)       (A)        {}   406.0
-    14                 (X)       (A)       (B)       (Y)        {}     3.0
-    15                 (X)       (A)       (Y)       (B)        {}    57.0
-    16                 (X)       (B)       (A)       (Y)        {}     2.0
-    17                 (X)       (B)       (Y)       (A)        {}    45.0
-    18                 (B)       (X)       (A)       (Y)        {}     8.0
-    19                 (B)       (X)       (Y)       (A)        {}    39.0
-    20                 (B)       (Y)       (A)       (X)        {}     3.0
-    21                 (B)       (Y)       (X)       (A)        {}    35.0
-    22                 (B)       (A)       (Y)       (X)        {}     3.0
-    23                 (B)       (A)       (X)       (Y)        {}     5.0
-    24                 (A)       (X)       (B)       (Y)        {}     6.0
-    25                 (A)       (X)       (Y)       (B)        {}    39.0
-    26                 (A)       (Y)       (B)       (X)        {}     8.0
-    27                 (A)       (Y)       (X)       (B)        {}    32.0
-    28                 (A)       (B)       (Y)       (X)        {}     8.0
-    29                 (A)       (B)       (X)       (Y)        {}     3.0
+    2                  (A)       (B)       (Y)       (X)    3677        {}
+    3                  (A)       (Y)       (B)       (X)    2115        {}
+    0                  (B)       (A)       (Y)       (X)    1197        {}
+    4                  (Y)       (A)       (B)       (X)     666        {}
+    7                  (X)       (Y)       (B)       (A)     378        {}
+    18                 (Y)       (X)       (A)       (B)     369        {}
+    6                  (X)       (Y)       (A)       (B)     360        {}
+    19                 (Y)       (X)       (B)       (A)     332        {}
+    1                  (B)       (Y)       (A)       (X)     188        {}
+    5                  (Y)       (B)       (A)       (X)     157        {}
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
@@ -945,7 +904,9 @@ first-place support, the default tiebreaker in VoteKit is ``None``, and
 it will raise an error telling you to choose a tiebreak method. This can
 be done by setting ``tiebreak='random'`` or ``tiebreak='borda'`` in the
 ``Plurality`` init method. There is also a ``'first_place'`` option, but
-that won’t help in a plurality tie.
+that won’t help in a plurality tie. Alphabetical is also an option! Can
+be invoked with any of ``'lex'``, ``'lexicographic'``, ``'alph'``, or
+``'alphabetical'``.
 
 Conclusion
 ~~~~~~~~~~
@@ -968,3 +929,6 @@ understanding, try the following prompts:
 - Create a preference profile where candidates :math:`B,C` should be
   elected under a 2-seat plurality election. Run the election and
   confirm!
+- Generate ballots for two voter blocs W and POC, and three slates,
+  Republican, Democrat, and Independent. This is to show you that the
+  blocs and slates can be changed independently of each other.

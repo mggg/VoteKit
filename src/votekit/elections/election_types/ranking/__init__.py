@@ -1,17 +1,37 @@
-from .abstract_ranking import RankingElection  # noqa
+from .abstract_ranking import RankingElection
 
-from .plurality import (  # noqa
+from .plurality import (
     Plurality,
     SNTV,
 )
 
-from .borda import Borda  # noqa
-from .stv import STV, IRV, SequentialRCV  # noqa
-from .alaska import Alaska  # noqa
-from .top_two import TopTwo  # noqa
-from .dominating_sets import DominatingSets  # noqa
-from .condo_borda import CondoBorda  # noqa
-from .top_two import TopTwo  # noqa
-from .plurality_veto import PluralityVeto  # noqa
-from .random_dictator import RandomDictator  # noqa
-from .boosted_random_dictator import BoostedRandomDictator  # noqa
+from .borda import Borda
+from .stv import FastSTV, STV, IRV, SequentialRCV
+from .alaska import Alaska
+from .top_two import TopTwo
+from .dominating_sets import DominatingSets
+from .condo_borda import CondoBorda
+from .plurality_veto import PluralityVeto
+from .random_dictator import RandomDictator
+from .boosted_random_dictator import BoostedRandomDictator
+from .ranked_pairs import RankedPairs
+
+
+__all__ = [
+    "RankingElection",
+    "Plurality",
+    "SNTV",
+    "Borda",
+    "STV",
+    "FastSTV",
+    "IRV",
+    "SequentialRCV",
+    "Alaska",
+    "DominatingSets",
+    "CondoBorda",
+    "TopTwo",
+    "PluralityVeto",
+    "RandomDictator",
+    "BoostedRandomDictator",
+    "RankedPairs",
+]

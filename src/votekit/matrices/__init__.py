@@ -1,11 +1,23 @@
 from .candidate import (
-    comention,  # noqa
-    comention_above,  # noqa
-    comentions_matrix,  # noqa
-    boost_prob,  # noqa
-    boost_matrix,  # noqa
-    candidate_distance,  # noqa
-    candidate_distance_matrix,  # noqa
+    comention,
+    comention_above,
+    comentions_matrix,
+    boost_prob,
+    boost_matrix,
+    candidate_distance,
+    candidate_distance_matrix,
 )
 
-from .heatmap import matrix_heatmap  # noqa
+from .heatmap import matrix_heatmap
+
+
+__all__ = [
+    "comention",
+    "comention_above",
+    "comentions_matrix",
+    "boost_prob",
+    "boost_matrix",
+    "candidate_distance",
+    "candidate_distance_matrix",
+    "matrix_heatmap",
+]

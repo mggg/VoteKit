@@ -1,5 +1,6 @@
 from votekit.plots import profile_bar_plot
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
 from votekit.utils import borda_scores
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt

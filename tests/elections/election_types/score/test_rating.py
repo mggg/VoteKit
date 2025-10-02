@@ -1,29 +1,30 @@
 from votekit.elections import Rating, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import ScoreProfile
+from votekit.ballot import ScoreBallot
 import pytest
 import pandas as pd
 
-profile_no_tied_rating = PreferenceProfile(
+profile_no_tied_rating = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 2, "B": 1, "C": 1}, weight=2),
-        Ballot(scores={"A": 1, "B": 0, "C": 1}, weight=2),
-        Ballot(scores={"A": 2, "B": 1, "C": 1}),
+        ScoreBallot(scores={"A": 2, "B": 1, "C": 1}, weight=2),
+        ScoreBallot(scores={"A": 1, "B": 0, "C": 1}, weight=2),
+        ScoreBallot(scores={"A": 2, "B": 1, "C": 1}),
     ]
 )
 # 8, 3,5
 
 
-profile_no_tied_rating_round_1 = PreferenceProfile(
+profile_no_tied_rating_round_1 = ScoreProfile(
     ballots=[
-        Ballot(scores={"B": 1, "C": 1}, weight=3),
-        Ballot(scores={"B": 0, "C": 1}, weight=2),
+        ScoreBallot(scores={"B": 1, "C": 1}, weight=3),
+        ScoreBallot(scores={"B": 0, "C": 1}, weight=2),
     ]
 )
 
-profile_tied_rating = PreferenceProfile(
+profile_tied_rating = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 1, "B": 1, "C": 1}),
-        Ballot(scores={"A": 3, "B": 3, "C": 3}),
+        ScoreBallot(scores={"A": 1, "B": 1, "C": 1}),
+        ScoreBallot(scores={"A": 3, "B": 3, "C": 3}),
     ]
 )
 
@@ -51,13 +52,13 @@ def test_init():
 
 
 def test_ties():
-    e_random = Rating(profile_tied_rating, m=1, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=1, tiebreak="random", L=3)
     assert len([c for s in e_random.get_elected() for c in s]) == 1
 
-    e_random = Rating(profile_tied_rating, m=2, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=2, tiebreak="random", L=3)
     assert len([c for s in e_random.get_elected() for c in s]) == 2
 
-    e_random = Rating(profile_tied_rating, m=3, tiebreak="random", L=3)  # noqa
+    e_random = Rating(profile_tied_rating, m=3, tiebreak="random", L=3)
     assert e_random.get_elected() == (frozenset({"A", "C", "B"}),)
 
 
@@ -130,18 +131,18 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3})])
         Rating(profile, m=1, L=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
         Rating(profile, m=1, L=2)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 1})])
+        profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1})])
         Rating(profile, m=1, L=2)
 
     with pytest.raises(
         ValueError, match="Not enough candidates received votes to be elected."
     ):
-        Rating(PreferenceProfile(candidates=["A"]), m=1)
+        Rating(ScoreProfile(candidates=["A"]), m=1)

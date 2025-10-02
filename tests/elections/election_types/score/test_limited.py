@@ -1,27 +1,28 @@
 from votekit.elections import Limited, ElectionState
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import ScoreProfile
+from votekit.ballot import ScoreBallot
 import pytest
 import pandas as pd
 
-profile_no_tied_limited = PreferenceProfile(
+profile_no_tied_limited = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 1, "B": 1, "C": 0}),
-        Ballot(scores={"A": 2, "B": 0, "C": 0}),
-        Ballot(scores={"A": 0, "B": 1, "C": 1}),
+        ScoreBallot(scores={"A": 1, "B": 1, "C": 0}),
+        ScoreBallot(scores={"A": 2, "B": 0, "C": 0}),
+        ScoreBallot(scores={"A": 0, "B": 1, "C": 1}),
     ],
     candidates=["A", "B", "C", "D"],
 )
 # 3,2,1,0
 
 
-profile_no_tied_limited_round_1 = PreferenceProfile(candidates=["D"])
+profile_no_tied_limited_round_1 = ScoreProfile(candidates=["D"])
 
-profile_tied_limited = PreferenceProfile(
+profile_tied_limited = ScoreProfile(
     ballots=[
-        Ballot(scores={"A": 1, "B": 1, "C": 0}),
-        Ballot(scores={"A": 0, "B": 1, "C": 1}),
-        Ballot(scores={"A": 1, "B": 0, "C": 1}),
-        Ballot(scores={"D": 2}),
+        ScoreBallot(scores={"A": 1, "B": 1, "C": 0}),
+        ScoreBallot(scores={"A": 0, "B": 1, "C": 1}),
+        ScoreBallot(scores={"A": 1, "B": 0, "C": 1}),
+        ScoreBallot(scores={"D": 2}),
     ],
 )
 
@@ -63,6 +64,8 @@ def test_state_list():
 def test_get_profile():
     e = Limited(profile_no_tied_limited, m=3, k=2)
     assert e.get_profile(0) == profile_no_tied_limited
+    print(e.get_profile(1).df.to_string())
+    print(profile_no_tied_limited_round_1.df.to_string())
     assert e.get_profile(1) == profile_no_tied_limited_round_1
 
 
@@ -147,17 +150,19 @@ def test_errors():
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 3, "B": 2})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3, "B": 2})])
         Limited(profile, m=2, k=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": 1, "B": 1, "C": 1})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})])
         Limited(profile, m=2, k=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(ballots=[Ballot(scores={"A": -3})])
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
         Limited(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(ballots=[Ballot(), Ballot(scores={"A": 1, "B": 1})])
+        profile = ScoreProfile(
+            ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})]
+        )
         Limited(profile, m=2)

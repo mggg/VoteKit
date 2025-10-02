@@ -1,11 +1,9 @@
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
-from votekit.pref_profile import PreferenceProfile
-from votekit.cvr_loaders import load_csv
-from votekit.cleaning import remove_and_condense
+from votekit.pref_profile import RankProfile
 
 from matplotlib.axes import Axes
 import pytest
@@ -14,33 +12,37 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
-portland_profile = remove_and_condense(
-    "skipped",
-    load_csv(CSV_DIR / "Portland_D3_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6]),
+portland_profile = RankProfile.from_csv(
+    CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv"
 )
 
+ballot_list = (
+    RankBallot(
+        ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10
+    ),
+    RankBallot(
+        ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}, {"E"}])), weight=10
+    ),
+    RankBallot(
+        ranking=tuple(map(frozenset, [{"D"}, {"A"}, {"E"}, {"B"}, {"C"}])), weight=10
+    ),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=24),
+)
+TEST_PROFILE = RankProfile(ballots=ballot_list)
 
-ballot_list = [
-    Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}, {"E"}], weight=10),
-    Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=10),
-    Ballot(ranking=[{"D"}, {"A"}, {"E"}, {"B"}, {"C"}], weight=10),
-    Ballot(ranking=[{"A"}], weight=24),
-]
-TEST_PROFILE = PreferenceProfile(ballots=ballot_list)
+simple_ballot_list = (
+    RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=10),
+)
+SIMPLE_TEST_PROFILE = RankProfile(ballots=simple_ballot_list)
 
-simple_ballot_list = [
-    Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=10),
-    Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=10),
-    Ballot(ranking=[{"B"}, {"A"}, {"C"}], weight=10),
-]
-SIMPLE_TEST_PROFILE = PreferenceProfile(ballots=simple_ballot_list)
-
-EDGE_WEIGHT_0_PROFILE = PreferenceProfile(
-    ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
-    ]
+EDGE_WEIGHT_0_PROFILE = RankProfile(
+    ballots=(
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"C"}, {"B"})))),
+        RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"A"}, {"C"}))), weight=2),
+    )
 )
 
 
