@@ -91,7 +91,7 @@ Quick Start via Command Line
 3. **Configure the upstream repo** ``git remote add upstream https://github.com/mggg/VoteKit.git``
 4. **Create a new branch** for your contribution ``git checkout -b my-new-feature``.
 5. **Make your changes** and commit them ``git commit -am 'Add some feature'``.
-6. **Run tests and linters** with ``poetry run pytest --runslow``, ``poetry run ruff check src tests``, 
+6. **Run tests and linters** with ``poetry run pytest --runslow tests``, ``poetry run ruff check src tests``, 
     ``poetry run mypy src tests``, and ``black src tests``.
 7. **Pull the latest changes from upstream** and rebase your branch if necessary.
 8. **Push your branch** to GitHub ``git push origin my-new-feature``.
@@ -128,7 +128,7 @@ Publish the branch.
         :align: center
 
 5. **Run tests and linters** in the command line at the root of your VoteKit directory
-with ``poetry run pytest``, ``poetry run black src tests``, ``poetry run ruff check src tests``, and ``poetry run mypy src tests``.
+with ``poetry run pytest --runslow tests``, ``poetry run black src tests``, ``poetry run ruff check src tests``, and ``poetry run mypy src tests``.
 Make sure your virtual environment is activated.
 
     .. image:: ../_static/assets/github_desktop/run_tests.png
