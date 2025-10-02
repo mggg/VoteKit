@@ -4,8 +4,8 @@ from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
-    remove_and_condense_ranked_profile,
-    remove_cand_from_rank_ballot,
+    remove_and_condense_rank_profile,
+    remove_cand_rank_ballot,
     condense_rank_ballot,
 )
 from votekit.utils import (
@@ -36,7 +36,7 @@ class FastSTV:
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
-            who crosses the threshold is elected in a round. Defaults to False.
+            who crosses the threshold is elected in a round. Defaults to True.
         tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
@@ -49,7 +49,7 @@ class FastSTV:
         m: int = 1,
         transfer: str = "fractional",
         quota: str = "droop",
-        simultaneous: bool = False,
+        simultaneous: bool = True,
         tiebreak: Optional[str] = None,
     ):
         self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
@@ -1065,7 +1065,7 @@ class STV(RankingElection):
             Defaults to "droop".
         simultaneous (bool): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
-            who crosses the threshold is elected in a round. Defaults to False.
+            who crosses the threshold is elected in a round. Defaults to True.
         tiebreak (str): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
@@ -1098,6 +1098,7 @@ class STV(RankingElection):
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
+
         super().__init__(
             profile,
             score_function=_first_place_votes_from_df_no_ties,
@@ -1217,7 +1218,7 @@ class STV(RankingElection):
 
         cleaned_ballots = tuple(
             condense_rank_ballot(
-                remove_cand_from_rank_ballot([c for s in elected for c in s], b)
+                remove_cand_rank_ballot([c for s in elected for c in s], b)
             )
             for b in new_ballots
             if b.ranking
@@ -1297,7 +1298,7 @@ class STV(RankingElection):
                 ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_rank_ballot(remove_cand_from_rank_ballot(elected_c, b))
+            condense_rank_ballot(remove_cand_rank_ballot(elected_c, b))
             for b in new_ballots
             if b.ranking
         )
@@ -1334,6 +1335,7 @@ class STV(RankingElection):
         Returns:
             RankProfile: The profile of ballots after the round is completed.
         """
+
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
         current_round = prev_state.round_number + 1
@@ -1387,7 +1389,7 @@ class STV(RankingElection):
             else:
                 eliminated_cand = list(lowest_fpv_cands)[0]
 
-            new_profile = remove_and_condense_ranked_profile(
+            new_profile = remove_and_condense_rank_profile(
                 eliminated_cand,
                 profile,
                 retain_original_candidate_list=False,
@@ -1477,7 +1479,7 @@ class SequentialRCV(STV):
         ) -> tuple[RankBallot, ...]:
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(
-                condense_rank_ballot(remove_cand_from_rank_ballot(winner, b))
+                condense_rank_ballot(remove_cand_rank_ballot(winner, b))
                 for b in ballots
             )
 

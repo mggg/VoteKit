@@ -46,8 +46,8 @@ will have to scrub the voters that are from the other 3 districts.
 
 If you want to skip all of the cleaning steps below, you can download
 the prepared data
-`here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.pkl>`__.
-Save the pkl file in the same working directory as your Python notebook.
+`here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.csv>`__.
+Save the csv file in the same working directory as your Python notebook.
 
 Cleaning the data and analyzing voter errors
 --------------------------------------------
@@ -82,7 +82,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
     Downloading...
     From: https://drive.google.com/uc?id=1ly3IcjeQTpet-zvxd49DM_OmY_i4uftB
     To: /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/notebooks/Portland_D1_raw_from_city.csv
-    100%|██████████| 104M/104M [00:03<00:00, 27.6MB/s] 
+    100%|██████████| 104M/104M [00:04<00:00, 23.7MB/s] 
 
 
 
@@ -514,11 +514,10 @@ our cleaning using VoteKit’s built in cleaning tools.
 
 .. parsed-literal::
 
-    Profile contains rankings: True
+    RankProfile
     Maximum ranking length: 6
-    Profile contains scores: False
-    Candidates: ('Uncertified Write In', 'Write-in-122', 'overvote', 'Write-in-120', 'Write-in-121', 'Michael (Mike) Sands', 'Noah Ernst', 'Candace Avalos', 'Terrence Hayes', 'Timur Ender', 'Steph Routh', 'Jamie Dunphy', 'Joe Furi', 'David Linn', 'Deian Salazar', 'Peggy Sue Owens', 'Thomas Shervey', 'Doug Clove', 'Cayle Tern', 'Joe Allen', 'Loretta Smith')
-    Candidates who received votes: ('Uncertified Write In', 'Write-in-122', 'overvote', 'Write-in-120', 'Write-in-121', 'Michael (Mike) Sands', 'Noah Ernst', 'Candace Avalos', 'Terrence Hayes', 'Timur Ender', 'Steph Routh', 'Jamie Dunphy', 'Joe Furi', 'David Linn', 'Deian Salazar', 'Peggy Sue Owens', 'Thomas Shervey', 'Doug Clove', 'Cayle Tern', 'Joe Allen', 'Loretta Smith')
+    Candidates: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
+    Candidates who received votes: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
     Total number of Ballot objects: 43669
     Total weight of Ballot objects: 43669.0
     
@@ -552,17 +551,19 @@ place, as well as how many occurred anywhere on the ballot.
     There were 1474.0 ballots with overvotes in any place, or 3.4% of the ballots.
 
 
-In the rules of Portland’s election, which you can find `here <>`__, any
-skipped positions and overvotes are ignored by the STV algorithm, and
-any candidates that were ranked below the position are moved up. The
+In the rules of Portland’s election, which you can find
+`here <https://www.portland.gov/transition/portland-transition-election-code/ranked-choice-voting-election-code>`__,
+any skipped positions and overvotes are ignored by the STV algorithm,
+and any candidates that were ranked below the position are moved up. The
 same thing occurs to three of the write in categories, but oddly enough,
 not to the “Uncertified Write-in” category.
 
 While Portland did not alter the ballots themselves, but rather told the
 STV algorithm how to ignore ballot errors, this is mathematically
 equvalent to pre-processing the ballots. VoteKit’s
-``remove_and_condense`` function removes candidates and then condenses
-any ballot positions left empty after scrubbing the given candidates.
+``remove_and_condense_rank_profile`` function removes candidates and
+then condenses any ballot positions left empty after scrubbing the given
+candidates.
 
 We will take this moment to also analyze spoilage. We call a ballot
 “spoiled” if it is removed during the cleaning process. We will record
@@ -570,16 +571,16 @@ the percentage of ballots that are spoiled.
 
 .. code:: ipython3
 
-    from votekit.cleaning import remove_and_condense
+    from votekit.cleaning import remove_and_condense_rank_profile
     
-    profile = remove_and_condense("overvote", profile)
+    cleaned_profile_1 = remove_and_condense_rank_profile("overvote", profile)
     
-    num_ballots_spoiled_by_ov_skips = num_ballots_cast - profile.total_ballot_wt 
+    num_ballots_spoiled_by_ov_skips = num_ballots_cast - cleaned_profile_1.total_ballot_wt 
     print(f"{num_ballots_spoiled_by_ov_skips} ballots, or {num_ballots_spoiled_by_ov_skips/num_ballots_cast:.1%} of all ballots, were spoiled by overvotes or skips in D1.")
     
-    profile = remove_and_condense(['Write-in-120', 'Write-in-121', 'Write-in-122'], profile)
+    cleaned_profile_2 = remove_and_condense_rank_profile(['Write-in-120', 'Write-in-121', 'Write-in-122'], cleaned_profile_1)
     
-    num_ballots_scrubbed_by_wi = num_ballots_cast - num_ballots_spoiled_by_ov_skips-profile.total_ballot_wt 
+    num_ballots_scrubbed_by_wi = num_ballots_cast - num_ballots_spoiled_by_ov_skips-cleaned_profile_2.total_ballot_wt 
     print(f"{num_ballots_scrubbed_by_wi} ballots, or {num_ballots_scrubbed_by_wi/num_ballots_cast:.1%} of all ballots, were scrubbed by write ins in D1.")
 
 
@@ -597,9 +598,9 @@ left empty as a result.
 
 .. code:: ipython3
 
-    from votekit.cleaning import remove_repeated_candidates, condense_profile
+    from votekit.cleaning import remove_repeat_cands_rank_profile, condense_rank_profile
     
-    profile = condense_profile(remove_repeated_candidates(profile))
+    cleaned_profile_3 = condense_rank_profile(remove_repeat_cands_rank_profile(cleaned_profile_2))
 
 Now to compute the adjusted and tabulated rate, which is the percentage
 of ballots that were touched by a cleaning rule but still used in the
@@ -632,8 +633,10 @@ which ballots were altered along the way.
         return sum(profile.df.loc[adj_and_tab_idxs, "Weight"])
     
     
-    num_adj_and_tabulated = adjusted_and_tabulated(profile)
+    num_adj_and_tabulated = adjusted_and_tabulated(cleaned_profile_3)
     print(f"{num_adj_and_tabulated} ballots, or {num_adj_and_tabulated/num_ballots_cast:.2%} of all ballots, were adjusted before tabulation in D1.")
+    
+
 
 
 .. parsed-literal::
@@ -642,12 +645,12 @@ which ballots were altered along the way.
 
 
 Finally, the profile is cleaned and we can save it for analysis. We save
-it as a pickle file, which is a way of storing Python variables.
+it as a csv file.
 
 .. code:: ipython3
 
-    profile.to_pickle("Portland_D1_cleaned_votekit_pref_profile.pkl")
-    print(f"After cleaning, there are now {profile.total_ballot_wt:,} ballots.")
+    cleaned_profile_3.to_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
+    print(f"After cleaning, there are now {cleaned_profile_3.total_ballot_wt:,} ballots.")
 
 
 .. parsed-literal::
@@ -661,7 +664,7 @@ Analysis
 Finally, we have a CVR that is cleaned and ready to be analyzed. If you
 skipped all of the cleaning steps above, you can download the prepared
 data
-`here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.pkl>`__.
+`here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.csv>`__.
 Save the pkl file in the same working directory as your Python notebook.
 
 The first thing we should do is verify that our data and outcome matches
@@ -669,9 +672,8 @@ that of the official election.
 
 .. code:: ipython3
 
-    from votekit.pref_profile import PreferenceProfile
-    
-    profile = PreferenceProfile.from_pickle("Portland_D1_cleaned_votekit_pref_profile.pkl")
+    from votekit.pref_profile import RankProfile
+    profile = RankProfile.from_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
 
 Do we have the correct candidates? Do we have the same vote totals? Do
 we get the same STV winner set? In district 1, Avalos, Dunphy, and Smith
@@ -1195,6 +1197,12 @@ was made?
 
 .. code:: ipython3
 
+    from votekit.elections import STV
+    from votekit.pref_profile import RankProfile, PreferenceProfile
+    profile = RankProfile.from_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
+
+.. code:: ipython3
+
     from votekit.ballot import Ballot
     
     deduplicated_ballots = [Ballot(ranking=b.ranking, weight=1) for b in profile.ballots for _ in range(int(b.weight))]
@@ -1214,7 +1222,7 @@ was made?
 
 .. parsed-literal::
 
-    The active rate is 0.0%.
+    The active rate is 77.0%.
 
 
 STV exhaustion rate: How many ballots ranked fewer than six candidates,
@@ -1366,29 +1374,29 @@ We can also see who the most representative winner set would have been.
 .. parsed-literal::
 
     1-representation winner sets, top 5 most representative
-    {'Loretta Smith', 'Jamie Dunphy', 'Candace Avalos'} 44.2%
-    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 41.8%
-    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 41.7%
-    {'Loretta Smith', 'Steph Routh', 'Candace Avalos'} 41.5%
-    {'Loretta Smith', 'Timur Ender', 'Candace Avalos'} 40.7%
+    {'Loretta Smith', 'Candace Avalos', 'Jamie Dunphy'} 44.2%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 41.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 41.7%
+    {'Loretta Smith', 'Candace Avalos', 'Steph Routh'} 41.5%
+    {'Loretta Smith', 'Candace Avalos', 'Timur Ender'} 40.7%
     
     --------------------
     
     3-representation winner sets, top 5 most representative
-    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 74.8%
-    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 72.9%
-    {'Noah Ernst', 'Steph Routh', 'Candace Avalos'} 71.4%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 74.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 72.9%
+    {'Noah Ernst', 'Candace Avalos', 'Steph Routh'} 71.4%
     {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 71.3%
-    {'Terrence Hayes', 'Steph Routh', 'Candace Avalos'} 71.1%
+    {'Terrence Hayes', 'Candace Avalos', 'Steph Routh'} 71.1%
     
     --------------------
     
     6-representation winner sets, top 5 most representative
-    {'Noah Ernst', 'Loretta Smith', 'Candace Avalos'} 82.8%
-    {'Terrence Hayes', 'Loretta Smith', 'Candace Avalos'} 81.0%
-    {'Doug Clove', 'Loretta Smith', 'Candace Avalos'} 80.3%
+    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 82.8%
+    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 81.0%
+    {'Loretta Smith', 'Candace Avalos', 'Doug Clove'} 80.3%
     {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 80.3%
-    {'Noah Ernst', 'Steph Routh', 'Loretta Smith'} 79.9%
+    {'Loretta Smith', 'Noah Ernst', 'Steph Routh'} 79.9%
     
     --------------------
     

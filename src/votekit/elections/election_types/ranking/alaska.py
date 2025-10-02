@@ -1,7 +1,7 @@
 from .abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.utils import first_place_votes
 from votekit.elections.election_types.ranking import Plurality, STV
 from votekit.elections.transfers import fractional_transfer
@@ -21,7 +21,8 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int], tuple[Ballot,...]], optional):
+        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int],
+            tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
@@ -143,7 +144,7 @@ class Alaska(RankingElection):
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
-            new_profile: RankProfile = remove_and_condense_ranked_profile(
+            new_profile: RankProfile = remove_and_condense_rank_profile(
                 [c for s in eliminated for c in s],
                 profile,
             )

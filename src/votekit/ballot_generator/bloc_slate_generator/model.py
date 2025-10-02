@@ -849,7 +849,7 @@ class BlocSlateConfig:
         object.__setattr__(self, "n_voters", n_voters)
 
         if bloc_proportions is None:
-            bloc_voter_series = pd.Series(dtype=float)
+            bloc_voter_series: pd.Series = pd.Series(dtype=float)
         else:
             bloc_voter_series = convert_bloc_proportion_map_to_series(bloc_proportions)
         object.__setattr__(

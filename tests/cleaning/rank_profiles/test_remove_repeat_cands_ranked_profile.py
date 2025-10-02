@@ -1,13 +1,13 @@
 from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
-from votekit.cleaning import remove_repeat_cands_ranked_profile
+from votekit.cleaning import remove_repeat_cands_rank_profile
 
 
 def test_remove_repeated_candidates():
     ballot = Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)
     ballot_tuple = (ballot, ballot)
     profile = PreferenceProfile(ballots=ballot_tuple)
-    cleaned_profile = remove_repeat_cands_ranked_profile(profile)
+    cleaned_profile = remove_repeat_cands_rank_profile(profile)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
@@ -34,7 +34,7 @@ def test_remove_repeated_candidates_ties():
             ),
         ]
     )
-    cleaned_profile = remove_repeat_cands_ranked_profile(profile)
+    cleaned_profile = remove_repeat_cands_rank_profile(profile)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile

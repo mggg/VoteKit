@@ -1,7 +1,7 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_ranked_profile
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.utils import (
     elect_cands_from_set_ranking,
     validate_score_vector,
@@ -92,7 +92,7 @@ class Borda(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_and_condense_ranked_profile(
+        new_profile = remove_and_condense_rank_profile(
             [c for s in elected for c in s], profile
         )
 

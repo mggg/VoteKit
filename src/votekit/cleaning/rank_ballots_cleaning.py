@@ -30,7 +30,7 @@ def condense_rank_ballot(
     return new_ballot
 
 
-def remove_repeated_cands_from_rank_ballot(
+def remove_repeat_cands_rank_ballot(
     ballot: RankBallot,
 ) -> RankBallot:
     """
@@ -57,6 +57,10 @@ def remove_repeated_cands_from_rank_ballot(
     seen_cands = []
 
     for cand_set in ballot.ranking:
+        if cand_set == frozenset({"~"}):
+            dedup_ranking.append(frozenset({"~"}))
+            continue
+
         new_position = []
         for cand in cand_set:
             if cand not in seen_cands:
@@ -74,7 +78,7 @@ def remove_repeated_cands_from_rank_ballot(
     return new_ballot
 
 
-def remove_cand_from_rank_ballot(
+def remove_cand_rank_ballot(
     removed: Union[str, list],
     ballot: RankBallot,
 ) -> RankBallot:

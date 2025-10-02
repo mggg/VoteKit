@@ -73,11 +73,12 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
 
     rank_arr = df[ranking_cols].to_numpy()
     weights = df["Weight"].to_numpy()
+    voter_sets = df["Voter Set"].to_numpy().astype(object)
 
     cand_dict: dict[str, list[RankBallot]] = {c: [] for c in profile.candidates}
     tilde = frozenset({"~"})
 
-    for row, w in zip(rank_arr, weights):
+    for row, w, voter_set in zip(rank_arr, weights, voter_sets):
         first = row[0]
 
         if len(first) > 1:
@@ -94,7 +95,9 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=float(w)))
+        cand_dict[cand].append(
+            RankBallot(ranking=clean_ranking, weight=float(w), voter_set=voter_set)
+        )
 
     return cand_dict
 

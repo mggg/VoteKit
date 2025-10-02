@@ -20,9 +20,7 @@ def test_load_clean_completion():
     pp, _, _, _, _ = load_scottish(CSV_DIR / "scot_wardy_mc_ward.csv")
 
     # apply rules to get new PP
-    cleaned_pp = clean.condense_ranked_profile(
-        clean.remove_cand_from_rank_profile("Paul", pp)
-    )
+    cleaned_pp = clean.condense_rank_profile(clean.remove_cand_rank_profile("Paul", pp))
 
     # write intermediate output for inspection
     # cleaned_pp.save("cleaned.cvr")

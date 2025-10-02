@@ -1,5 +1,4 @@
 *.pyc
-poetry.lock
 .coverage
 htmlcov/
 .DS_Store
@@ -15,8 +14,11 @@ docs/_build
 .dev
 vote2
 .envrc
+.mypy_cache
+.ruff_cache
 dev_files
 __pycache__
+TODO.md
 
 tests/data/csv/test_csv_pp_mixed_no_voter_set.csv
 tests/data/csv/test_csv_pp_mixed.csv
