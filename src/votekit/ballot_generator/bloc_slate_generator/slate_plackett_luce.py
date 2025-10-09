@@ -21,7 +21,7 @@ from votekit.ballot_generator import (
 )
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _make_cand_ordering_by_slate,
+    _make_many_cand_orderings_by_slate,
     _convert_ballot_type_to_ranking,
 )
 
@@ -91,22 +91,26 @@ def _inner_slate_plackett_luce(
             cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
         )
 
-        for j, bt in enumerate(ballot_types):
-            cand_ordering_by_slate = _make_cand_ordering_by_slate(
-                config, pref_intervals_by_slate_dict
-            )
-            ranking = _convert_ballot_type_to_ranking(
-                ballot_type=bt, cand_ordering_by_slate=cand_ordering_by_slate
-            )
-            if ranking is None:
-                raise RuntimeError(
-                    "Unexpeceted None from internal function _convert_ballot_type_to_ranking "
-                    "Likely caused by an empty ballot type."
-                )
+        cand_orderings_by_slate = _make_many_cand_orderings_by_slate(
+            config, pref_intervals_by_slate_dict, n_ballots
+        )
 
-            if len(zero_cands) > 0:
-                ranking.append(frozenset(zero_cands))
+        for j, bt in enumerate(ballot_types):
+            ranking = _convert_ballot_type_to_ranking(
+                ballot_type=bt,
+                cand_ordering_by_slate={
+                    s: cand_ordering[j]
+                    for s, cand_ordering in cand_orderings_by_slate.items()
+                },
+            )
             ballot_pool[j] = np.array(ranking)
+
+        # TODO the zero cands appear to be dropped from the preference intervals
+        # by the config code.
+        if len(zero_cands) > 0:
+            ballot_pool = np.column_stack(
+                ballot_pool, np.full(n_ballots, frozenset(zero_cands))
+            )
 
         df = pd.DataFrame(ballot_pool)
         df.index.name = "Ballot Index"
