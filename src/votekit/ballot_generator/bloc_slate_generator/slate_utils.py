@@ -1,6 +1,5 @@
 import numpy as np
 from typing import Sequence, Iterator
-
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.pref_interval import PreferenceInterval
 
@@ -55,6 +54,67 @@ def _lexicographic_symbol_tuple_iterator(
         # reverse the suffix to get the next smallest lexicographic ordering (so the suffix should
         # b in non-decreasing order now)
         current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
+
+
+def _algorithm_a_sample_indices(weights: np.array, n_samples: int) -> np.ndarray:
+    """
+    Sample without replacement from a distribution given by the weights.
+    All weights must be non-zero, and the sample will be a sorted list of indices
+    corresponding to the weights.
+
+    Algorithm A from https://doi.org/10.1016/j.ipl.2005.11.003
+
+    Args:
+        weights (np.array): The weights of the distribution.
+        n_samples (int): Number of samples to generate.
+
+    Returns:
+        np.ndarray: The sampled indices, n_samples x n_cands.
+    """
+    n_cands = len(weights)
+    uniform = np.random.uniform(0, 1, size=(n_samples, n_cands))
+    uniform = uniform ** (1 / weights)
+    # want the largest values to be first
+    indices = np.flip(np.argsort(uniform, axis=1), axis=1)
+    return indices
+
+
+def _make_many_cand_orderings_by_slate(
+    config: BlocSlateConfig,
+    pref_intervals_by_slate_dict: dict[str, PreferenceInterval],
+    n_samples: int,
+) -> dict[str, np.ndarray]:
+    """
+    Create candidate orderings within each slate based on preference intervals.
+    Only orders non-zero candidates.
+
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        pref_intervals_by_slate_dict (dict[str, PreferenceInterval]): A dictionary mapping
+            slate names to their corresponding PreferenceInterval objects.
+        n_samples (int): Number of candidate orderings to generate.
+
+    Returns:
+        dict[str, np.ndarray]: A dictionary mapping slate names to an n_samples x n_cands matrix
+            of candidate orderings.
+    """
+    results: dict[str, np.ndarray] = {}
+
+    for slate in config.slates:
+        preference_interval = pref_intervals_by_slate_dict[slate].interval
+        cands = pref_intervals_by_slate_dict[slate].non_zero_cands
+
+        if len(cands) == 0:
+            continue
+
+        cands_list = list(cands)
+        distribution = np.array([preference_interval[c] for c in cands_list])
+
+        indices = _algorithm_a_sample_indices(distribution, n_samples)
+        results[slate] = np.vectorize(lambda i: cands_list[i])(indices)
+
+    return results
 
 
 def _make_cand_ordering_by_slate(
