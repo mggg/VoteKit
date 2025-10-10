@@ -128,7 +128,7 @@ def _compute_ballot_type_dist(
     return {b: v / summ for b, v in pmf.items()}
 
 
-def _sample_ballot_types_deterministic(
+def _sample_bt_slate_ballots_deterministic(
     config: BlocSlateConfig,
     bloc_name: str,
     n_ballots: int,
@@ -206,7 +206,7 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
         )
 
 
-def _sample_ballot_types_mcmc(
+def _sample_bt_slate_ballots_mcmc(
     config: BlocSlateConfig,
     bloc_name: str,
     n_ballots: int,
@@ -317,14 +317,14 @@ def _inner_slate_bradley_terry(
         non_zero_cands_set = set(candidates) - zero_cands
 
         if use_mcmc:
-            slate_ballots = _sample_ballot_types_mcmc(
+            slate_ballots = _sample_bt_slate_ballots_mcmc(
                 config=config,
                 bloc_name=bloc,
                 n_ballots=n_ballots,
                 non_zero_candidate_set=non_zero_cands_set,
             )
         else:
-            slate_ballots = _sample_ballot_types_deterministic(
+            slate_ballots = _sample_bt_slate_ballots_deterministic(
                 config=config,
                 bloc_name=bloc,
                 n_ballots=n_ballots,
