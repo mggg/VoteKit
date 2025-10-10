@@ -2,6 +2,9 @@ import numpy as np
 from typing import Sequence, Iterator
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.pref_interval import PreferenceInterval
+import pandas as pd
+
+from votekit.pref_profile import RankProfile
 
 
 def _lexicographic_symbol_tuple_iterator(
@@ -160,6 +163,7 @@ def _make_cand_ordering_by_slate(
 def _convert_ballot_type_to_ranking(
     ballot_type: Sequence[str],
     cand_ordering_by_slate: dict[str, list[str]],
+    final_max_ranking_length: int = 0,
 ) -> list[frozenset[str]]:
     """
     Given a ballot type and a candidate ordering by slate, convert the ballot type to a ranking.
@@ -170,23 +174,34 @@ def _convert_ballot_type_to_ranking(
     {"A": ["a3", "a1", "a2"], "B": ["b2", "b1"]}, the function will return
     [frozenset({"a3"}), frozenset({"a1"}), frozenset({"b2"}), frozenset({"b1"}), frozenset({"a2"})].
 
+    If there are not enough candidates to fill all positions, the ballot will be truncated.
+
     Args:
         ballot_type (Sequence[str]): A sequence of slate names representing the ballot type.
         cand_ordering_by_slate (dict[str, list[str]]): A dictionary mapping slate names to a list
-        of candidate names ordered according to the sampled preference intervals.
+            of candidate names ordered according to the sampled preference intervals.
+        final_max_ranking_length (int): The maximum length of the ranking. Defaults to 0, which
+            sets the final max ranking length to the length of the ballot type.
 
     Returns:
         list[frozenset[str]]: A list of frozensets, where each frozenset contains a single
             candidate name, representing the ranking derived from the ballot type and candidate
             ordering
     """
+    if final_max_ranking_length == 0:
+        final_max_ranking_length = len(ballot_type)
+
     positions = {s: 0 for s in cand_ordering_by_slate}
-    ranking: list[frozenset[str]] = [frozenset("~")] * len(ballot_type)
+    ranking: list[frozenset[str]] = [frozenset("~")] * final_max_ranking_length
 
     fset_cache: dict[str, frozenset[str]] = {}
 
-    for i, slate in enumerate(ballot_type):
+    for i, slate in enumerate(ballot_type[:final_max_ranking_length]):
         pos = positions[slate]
+
+        if pos >= len(cand_ordering_by_slate[slate]):
+            continue
+
         cand = cand_ordering_by_slate[slate][pos]
         positions[slate] = pos + 1
 
@@ -197,3 +212,39 @@ def _convert_ballot_type_to_ranking(
         ranking[i] = fset
 
     return ranking
+
+
+def _convert_slate_ballots_to_profile(
+    config, pref_intervals_by_slate_dict, slate_ballots
+):
+    # TODO handle zero cands
+    n_candidates = len(config.candidates)
+    n_ballots = len(slate_ballots)
+    cand_orderings_by_slate = _make_many_cand_orderings_by_slate(
+        config, pref_intervals_by_slate_dict, n_ballots
+    )
+
+    ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
+    for i, slate_ballot in enumerate(slate_ballots):
+        ranking = _convert_ballot_type_to_ranking(
+            ballot_type=slate_ballot,
+            cand_ordering_by_slate={
+                s: cand_ordering[i]
+                for s, cand_ordering in cand_orderings_by_slate.items()
+            },
+            final_max_ranking_length=n_candidates,
+        )
+        ballot_pool[i] = np.array(ranking)
+
+    df = pd.DataFrame(ballot_pool)
+    df.index.name = "Ballot Index"
+    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+    df["Weight"] = 1
+    df["Voter Set"] = [frozenset()] * len(df)
+    pp = RankProfile(
+        candidates=config.candidates,
+        df=df,
+        max_ranking_length=n_candidates,
+    )
+
+    return pp
