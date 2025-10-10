@@ -21,9 +21,10 @@ import random
 import numpy as np
 from typing import Union, Mapping
 
-# ===========================================================
-# ================= Interior Work Functions =================
-# ===========================================================
+
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
 # TODO: Fix this up to be more readable. Also make sure to mention keys of
@@ -105,6 +106,11 @@ def _sample_pl_slate_ballots(
     return ballots
 
 
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
+
+
 def _inner_slate_plackett_luce(
     config: BlocSlateConfig,
 ) -> dict[str, RankProfile]:
@@ -153,7 +159,6 @@ def _inner_slate_plackett_luce(
             s: pi.non_zero_cands for s, pi in pref_intervals_by_slate_dict.items()
         }
 
-        # TODO sample cohesion ballot types is a bad name in a bad place
         slate_ballots = _sample_pl_slate_ballots(
             slate_to_non_zero_candidates=slate_to_non_zero_candidates,
             num_ballots=n_ballots,

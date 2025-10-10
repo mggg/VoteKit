@@ -19,9 +19,9 @@ from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
 )
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 
-# ===========================================================
-# ================= Interior Work Functions =================
-# ===========================================================
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
 def _sample_historical_slate_ballots(
@@ -72,6 +72,11 @@ def _sample_historical_slate_ballots(
     ]
 
     return slate_ballots
+
+
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
 
 
 def _inner_cambridge_sampler(
@@ -163,18 +168,16 @@ def _validate_cambridge_slates(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        # majority_slate (str): Name of the slate in the config corresponding to the historical
-        #     majority slate.
-        # minority_slate (str): Name of the slate in the config corresponding to the historical
-        #     minority slate.
+        majority_slate (str): Name of the slate in the config corresponding to the historical
+            majority slate.
+        minority_slate (str): Name of the slate in the config corresponding to the historical
+            minority slate.
 
 
     Raises:
         ValueError: If the number of slates is not 2.
         ValueError: If the majority or minority slate is not found in the config.slates.
 
-    # Returns:
-    #     tuple[str, str]: A tuple containing the names of the majority and minority blocs.
     """
     if len(config.slates) > 2:
         raise ValueError(
