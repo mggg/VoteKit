@@ -9,10 +9,6 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
-import itertools as it
-import numpy as np
-import pandas as pd
-from typing import Mapping
 import apportionment.methods as apportion
 
 from votekit.pref_profile import RankProfile
@@ -21,8 +17,7 @@ from votekit.ballot_generator import (
 )
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _make_many_cand_orderings_by_slate,
-    _convert_ballot_type_to_ranking,
+    _convert_slate_ballots_to_profile,
 )
 
 # ===========================================================
@@ -50,7 +45,6 @@ def _inner_slate_plackett_luce(
         dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
             ``RankProfile`` objects.
     """
-    n_candidates = len(config.candidates)
     bloc_lst = config.blocs
 
     bloc_counts = apportion.compute(
@@ -66,63 +60,31 @@ def _inner_slate_plackett_luce(
 
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-    pref_profile_by_bloc: Mapping[str, RankProfile] = {
-        b: RankProfile() for b in bloc_lst
-    }
-
-    pref_profile_by_bloc = {}
+    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
 
     for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
-        ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
         pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
-        zero_cands = set(
-            it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
-        )
+        # zero_cands = set(
+        #     it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
+        # )
 
         slate_to_non_zero_candidates = {
-            s: [c for c in c_list if c not in zero_cands]
-            for s, c_list in config.slate_to_candidates.items()
+            s: pi.non_zero_cands for s, pi in pref_intervals_by_slate_dict.items()
         }
 
-        ballot_types = sample_cohesion_ballot_types(
+        # TODO sample cohesion ballot types is a bad name in a bad place
+        slate_ballots = sample_cohesion_ballot_types(
             slate_to_non_zero_candidates=slate_to_non_zero_candidates,
             num_ballots=n_ballots,
             cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
         )
 
-        cand_orderings_by_slate = _make_many_cand_orderings_by_slate(
-            config, pref_intervals_by_slate_dict, n_ballots
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+            config, pref_intervals_by_slate_dict, slate_ballots
         )
 
-        for j, bt in enumerate(ballot_types):
-            ranking = _convert_ballot_type_to_ranking(
-                ballot_type=bt,
-                cand_ordering_by_slate={
-                    s: cand_ordering[j]
-                    for s, cand_ordering in cand_orderings_by_slate.items()
-                },
-            )
-            ballot_pool[j] = np.array(ranking)
-
-        # TODO the zero cands appear to be dropped from the preference intervals
-        # by the config code.
-        if len(zero_cands) > 0:
-            ballot_pool = np.column_stack(
-                ballot_pool, np.full(n_ballots, frozenset(zero_cands))
-            )
-
-        df = pd.DataFrame(ballot_pool)
-        df.index.name = "Ballot Index"
-        df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-        df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
-        pp = RankProfile(
-            candidates=config.candidates,
-            df=df,
-            max_ranking_length=n_candidates,
-        )
-        pref_profile_by_bloc[bloc] = pp
+        # TODO handle zero cands
 
     return pref_profile_by_bloc
 
