@@ -16,7 +16,6 @@ The main API functions in this module are:
 import itertools as it
 import numpy as np
 from numpy.typing import NDArray
-import pandas as pd
 import math
 import sys
 
@@ -30,8 +29,7 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _lexicographic_symbol_tuple_iterator,
-    _make_many_cand_orderings_by_slate,
-    _convert_ballot_type_to_ranking,
+    _convert_slate_ballots_to_profile,
 )
 
 # ====================================================
@@ -290,8 +288,6 @@ def _inner_slate_bradley_terry(
         dict[str, RankProfile]: A dictionary mapping bloc names to their corresponding
             generated preference profiles.
     """
-    n_candidates = len(config.candidates)
-
     # Save on repeated calls to computed property
     bloc_lst = config.blocs
 
@@ -314,7 +310,6 @@ def _inner_slate_bradley_terry(
     for bloc in bloc_lst:
         # number of voters in this bloc
         n_ballots = ballots_per_bloc[bloc]
-        ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
         pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
         zero_cands = set(
             it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
@@ -322,52 +317,24 @@ def _inner_slate_bradley_terry(
         non_zero_cands_set = set(candidates) - zero_cands
 
         if use_mcmc:
-            ballot_types = _sample_ballot_types_mcmc(
+            slate_ballots = _sample_ballot_types_mcmc(
                 config=config,
                 bloc_name=bloc,
                 n_ballots=n_ballots,
                 non_zero_candidate_set=non_zero_cands_set,
             )
         else:
-            ballot_types = _sample_ballot_types_deterministic(
+            slate_ballots = _sample_ballot_types_deterministic(
                 config=config,
                 bloc_name=bloc,
                 n_ballots=n_ballots,
                 non_zero_candidate_set=non_zero_cands_set,
             )
 
-        cand_orderings_by_slate = _make_many_cand_orderings_by_slate(
-            config, pref_intervals_by_slate_dict, n_ballots
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+            config, pref_intervals_by_slate_dict, slate_ballots
         )
-
-        for j, bt in enumerate(ballot_types):
-            ranking = _convert_ballot_type_to_ranking(
-                ballot_type=bt,
-                cand_ordering_by_slate={
-                    s: cand_ordering[j]
-                    for s, cand_ordering in cand_orderings_by_slate.items()
-                },
-            )
-            ballot_pool[j] = np.array(ranking)
-
-        # TODO the zero cands appear to be dropped from the preference intervals
-        # by the config code.
-        if len(zero_cands) > 0:
-            ballot_pool = np.column_stack(
-                ballot_pool, np.full(n_ballots, frozenset(zero_cands))
-            )
-
-        df = pd.DataFrame(ballot_pool)
-        df.index.name = "Ballot Index"
-        df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-        df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
-        pp = RankProfile(
-            candidates=config.candidates,
-            df=df,
-            max_ranking_length=n_candidates,
-        )
-        pref_profile_by_bloc[bloc] = pp
+        # TODO handle zero cands
 
     return pref_profile_by_bloc
 
