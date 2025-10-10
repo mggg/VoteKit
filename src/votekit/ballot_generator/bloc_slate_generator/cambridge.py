@@ -11,12 +11,12 @@ The main API functions in this module are:
 import numpy as np
 from pathlib import Path
 import pickle
-import random
 from typing import Optional
 import apportionment.methods as apportion
-
-from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
+from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _convert_slate_ballots_to_profile,
+)
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 
 # ===========================================================
@@ -24,13 +24,64 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 # ===========================================================
 
 
+def _sample_historical_slate_ballots(
+    ballots_per_bloc,
+    bloc,
+    config,
+    historical_majority_ballot_frequencies,
+    historical_minority_ballot_frequencies,
+    majority_slate,
+    historical_slate_to_config_slate,
+):
+    n_ballots = ballots_per_bloc[bloc]
+
+    num_ballots_start_with_maj_slate = np.random.binomial(
+        n_ballots, p=config.cohesion_df[majority_slate].loc[bloc]
+    )
+
+    num_ballots_start_with_min_slate = n_ballots - num_ballots_start_with_maj_slate
+
+    hist_maj_ballots = list(historical_majority_ballot_frequencies.keys())
+    hist_min_ballots = list(historical_minority_ballot_frequencies.keys())
+
+    maj_slate_ballot_indices = np.random.choice(
+        len(hist_maj_ballots),
+        size=num_ballots_start_with_maj_slate,
+        p=list(historical_majority_ballot_frequencies.values()),
+    )
+
+    min_slate_ballot_indices = np.random.choice(
+        len(hist_min_ballots),
+        size=num_ballots_start_with_min_slate,
+        p=list(historical_minority_ballot_frequencies.values()),
+    )
+
+    slate_ballots = [
+        [
+            historical_slate_to_config_slate[historical_slate]
+            for historical_slate in hist_maj_ballots[slate_ballot_idx]
+        ]
+        for slate_ballot_idx in maj_slate_ballot_indices
+    ]
+    slate_ballots += [
+        [
+            historical_slate_to_config_slate[historical_slate]
+            for historical_slate in hist_min_ballots[slate_ballot_idx]
+        ]
+        for slate_ballot_idx in min_slate_ballot_indices
+    ]
+
+    return slate_ballots
+
+
 def _inner_cambridge_sampler(
     config: BlocSlateConfig,
-    path: Path,
-    majority_bloc: str,
-    minority_bloc: str,
-    historical_majority: str,
-    historical_minority: str,
+    historical_majority_ballot_data_path: Path,
+    historical_minority_ballot_data_path: Path,
+    majority_slate: str,
+    minority_slate: str,
+    historical_majority_slate: str,
+    historical_minority_slate: str,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate profiles by bloc using Cambridge model.
@@ -38,52 +89,34 @@ def _inner_cambridge_sampler(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        path (Path): File path to an election data file to sample from.
-        majority_bloc (str): Name of the bloc corresponding to the majority bloc.
-        minority_bloc (str): Name of the bloc corresponding to the minority bloc.
-        historical_majority (str): Name of the bloc in the historical data corresponding to the majority
-            bloc in the current configuration.
-        historical_minority (str): Name of the bloc in the historical data corresponding to the minority
-            bloc in the current configuration.
+        historical_majority_ballot_data_path (Path): File path to an election data file to sample
+            from. This should be a pickle file containing a dictionary mapping ballot types
+            that begin with the historical majority slate to their frequencies (i.e. probabilities).
+        historical_minority_ballot_data_path (Path): File path to an election data file to sample
+            from. This should be a pickle file containing a dictionary mapping ballot types
+            that begin with the historical minority slate to their frequencies (i.e. probabilities).
+        majority_slate (str): Name of the slate in the config corresponding to the historical
+            majority slate.
+        minority_slate (str): Name of the slate in the config corresponding to the historical
+            minority slate.
+        historical_majority_slate (str): Name of the slate in the historical data corresponding
+            to the majority slate.
+        historical_minority_slate (str): Name of the slate in the historical data corresponding
+            to the minority slate.
 
     Returns:
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
             ``RankProfile`` objects representing the generated preference profiles for each bloc.
     """
-
-    bloc_to_historical = {
-        majority_bloc: historical_majority,
-        minority_bloc: historical_minority,
+    historical_slate_to_config_slate = {
+        historical_majority_slate: majority_slate,
+        historical_minority_slate: minority_slate,
     }
 
-    with open(path, "rb") as pickle_file:
-        ballot_frequencies = pickle.load(pickle_file)
-
-    cohesion_parameters = {b: config.cohesion_df[b].loc[b] for b in config.blocs}
-
-    # compute the number of bloc and crossover voters in each bloc using Huntington Hill
-    voter_types = [
-        (b, t) for b in list(config.bloc_proportions.keys()) for t in ["bloc", "cross"]
-    ]
-
-    voter_props = [
-        (
-            cohesion_parameters[b] * config.bloc_proportions[b]
-            if t == "bloc"
-            else (1 - cohesion_parameters[b]) * config.bloc_proportions[b]
-        )
-        for b, t in voter_types
-    ]
-
-    ballots_per_type = {
-        k: int(v)
-        for k, v in zip(
-            voter_types,
-            apportion.compute("huntington", voter_props, config.n_voters),  # type: ignore
-        )
-    }
-
-    bloc_lst = config.blocs
+    with open(historical_majority_ballot_data_path, "rb") as pickle_file:
+        historical_majority_ballot_frequencies = pickle.load(pickle_file)
+    with open(historical_minority_ballot_data_path, "rb") as pickle_file:
+        historical_minority_ballot_frequencies = pickle.load(pickle_file)
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
@@ -96,160 +129,65 @@ def _inner_cambridge_sampler(
 
         bloc_counts = [bloc_counts]
 
-    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
+    bloc_lst = config.blocs
+    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
+    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
 
-    # FIX: Change this to use blocs and slates
-    for i, bloc in enumerate(bloc_lst):
-        bloc_voters = ballots_per_type[(bloc, "bloc")]
-        cross_voters = ballots_per_type[(bloc, "cross")]
-        ballot_pool = [RankBallot()] * (bloc_voters + cross_voters)
+    for bloc in bloc_lst:
+        slate_ballots = _sample_historical_slate_ballots(
+            ballots_per_bloc,
+            bloc,
+            config,
+            historical_majority_ballot_frequencies,
+            historical_minority_ballot_frequencies,
+            majority_slate,
+            historical_slate_to_config_slate,
+        )
+        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
 
-        opp_bloc = bloc_lst[(i + 1) % 2]
-
-        bloc_first_count = sum(
-            [
-                freq
-                for ballot, freq in ballot_frequencies.items()
-                if ballot[0] == bloc_to_historical[bloc]
-            ]
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+            config, pref_intervals_by_slate_dict, slate_ballots
         )
 
-        opp_bloc_first_count = sum(
-            [
-                freq
-                for ballot, freq in ballot_frequencies.items()
-                if ballot[0] == bloc_to_historical[opp_bloc]
-            ]
-        )
-
-        pref_interval_dict = config.get_combined_preference_intervals_by_bloc()[bloc]
-
-        # compute the relative probabilities of each ballot
-        # sorted by ones where the ballot lists the bloc first
-        # and those that list the opp first
-        prob_ballot_given_bloc_first = {
-            ballot: freq / bloc_first_count
-            for ballot, freq in ballot_frequencies.items()
-            if ballot[0] == bloc_to_historical[bloc]
-        }
-
-        prob_ballot_given_opp_first = {
-            ballot: freq / opp_bloc_first_count
-            for ballot, freq in ballot_frequencies.items()
-            if ballot[0] == bloc_to_historical[opp_bloc]
-        }
-
-        bloc_voter_ordering = random.choices(
-            list(prob_ballot_given_bloc_first.keys()),
-            weights=list(prob_ballot_given_bloc_first.values()),
-            k=bloc_voters,
-        )
-        cross_voter_ordering = random.choices(
-            list(prob_ballot_given_opp_first.keys()),
-            weights=list(prob_ballot_given_opp_first.values()),
-            k=cross_voters,
-        )
-
-        for i in range(bloc_voters + cross_voters):
-            # Based on first choice, randomly choose
-            # ballots weighted by Cambridge frequency
-            if i < bloc_voters:
-                bloc_ordering = bloc_voter_ordering[i]
-            else:
-                bloc_ordering = cross_voter_ordering[i - bloc_voters]
-
-            pl_ordering = list(
-                np.random.choice(
-                    list(pref_interval_dict.interval.keys()),
-                    len(pref_interval_dict.interval),
-                    p=list(pref_interval_dict.interval.values()),
-                    replace=False,
-                )
-            )
-            ordered_bloc_slate = [
-                c for c in pl_ordering if c in config.slate_to_candidates[bloc]
-            ]
-            ordered_opp_slate = [
-                c for c in pl_ordering if c in config.slate_to_candidates[opp_bloc]
-            ]
-
-            # Fill in the bloc slots as determined
-            # With the candidate ordering generated with PL
-            full_ballot = []
-            for b in bloc_ordering:
-                if b == bloc_to_historical[bloc]:
-                    if ordered_bloc_slate:
-                        full_ballot.append(ordered_bloc_slate.pop(0))
-                else:
-                    if ordered_opp_slate:
-                        full_ballot.append(ordered_opp_slate.pop(0))
-
-            ranking = tuple([frozenset({cand}) for cand in full_ballot])
-            ballot_pool[i] = RankBallot(ranking=ranking, weight=1)
-
-        pp = RankProfile(ballots=tuple(ballot_pool))
-        pp = pp.group_ballots()
-        pp_by_bloc[bloc] = pp
-
-    return pp_by_bloc
+    return pref_profile_by_bloc
 
 
-def _validate_cambridge_blocs(
+def _validate_cambridge_slates(
     config: BlocSlateConfig,
-    majority_bloc: Optional[str] = None,
-    minority_bloc: Optional[str] = None,
-) -> tuple[str, str]:
+    majority_slate: str,
+    minority_slate: str,
+) -> None:
     """
-    Validates the parameters passed to the Cambridge model and determines the majority and minority
-    blocs.
+    Validates the parameters passed to the Cambridge model.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        majority_bloc (Optional[str]): Name of the bloc corresponding to the majority bloc.
-            Defaults to whichever bloc has majority via ``bloc_voter_prop``.
-        minority_bloc (Optional[str]): Name of the bloc corresponding to the minority bloc.
-            Defaults to whichever bloc has minority via ``bloc_voter_prop``.
+        # majority_slate (str): Name of the slate in the config corresponding to the historical
+        #     majority slate.
+        # minority_slate (str): Name of the slate in the config corresponding to the historical
+        #     minority slate.
 
-    Returns:
-        tuple[str, str]: A tuple containing the names of the majority and minority blocs.
+
+    Raises:
+        ValueError: If the number of slates is not 2.
+        ValueError: If the majority or minority slate is not found in the config.slates.
+
+    # Returns:
+    #     tuple[str, str]: A tuple containing the names of the majority and minority blocs.
     """
     if len(config.slates) > 2:
-        raise UserWarning(
-            f"This model currently only supports at two blocs, but you \
+        raise ValueError(
+            f"This model currently only supports two slates, but you \
                           passed {len(config.slates)}"
         )
 
-    if (majority_bloc is None) != (minority_bloc is None):
-        raise ValueError(
-            "Both 'majority_bloc' and 'minority' must be provided or not provided. "
-            "You have provided only one."
-        )
+    if majority_slate not in config.slates:
+        raise ValueError(f"Majority slate {majority_slate} not found in config.slates")
+    if minority_slate not in config.slates:
+        raise ValueError(f"Minority slate {minority_slate} not found in config.slates")
 
-    elif majority_bloc is not None and majority_bloc == minority_bloc:
-        raise ValueError("majority and minority bloc must be distinct.")
-
-    if majority_bloc is None:
-        majority_bloc = [
-            bloc for bloc, prop in config.bloc_proportions.items() if prop >= 0.5
-        ][0]
-    else:
-        majority_bloc = majority_bloc
-
-    if minority_bloc is None:
-        minority_bloc = [
-            bloc for bloc in config.bloc_proportions.keys() if bloc != majority_bloc
-        ][0]
-    else:
-        minority_bloc = minority_bloc
-
-    if set(config.blocs) != set(config.slates):
-        raise ValueError(
-            "This model requires that a bloc and it's preferred slate have the same name. "
-            f"You passed blocs {config.blocs} and slates {config.slates}"
-        )
-
-    return majority_bloc, minority_bloc
+    # TODO validate that the historical slates are in the pickle files
 
 
 # =================================================
@@ -259,40 +197,52 @@ def _validate_cambridge_blocs(
 
 def cambridge_profiles_by_bloc_generator(
     config: BlocSlateConfig,
+    majority_slate: str,
+    minority_slate: str,
     *,
-    path: Optional[Path] = None,
-    majority_bloc: Optional[str] = None,
-    minority_bloc: Optional[str] = None,
-    # historical_majority: Optional[str] = "W",
-    # historical_minority: Optional[str] = "C",
+    historical_majority_ballot_data_path: Optional[Path] = None,
+    historical_minority_ballot_data_path: Optional[Path] = None,
+    historical_majority_slate: Optional[str] = "W",
+    historical_minority_slate: Optional[str] = "C",
     group_ballots: bool = False,
 ) -> dict[str, RankProfile]:
     """
-    Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections occurring
-    in Cambridge, MA.
+    Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
+    occurring in Cambridge, MA. The Cambridge data labels candidates with 'W' and 'C' which
+    correspond to the majority and minority slates, respectively. This model only works with
+    two slates.
 
-    Alternative election data can be used if specified. The historical data must be contianed
-    at the path specified by the 'path' keyword argument, and the data must be a pickle file
-    containing a dictionary mapping ballot types with labels 'W' and 'C' (i.e. tuples of the
-    form ('W','C','W',...) and the like) to their frequencies. Here 'W' indicates the majority
-    bloc and slate and 'C' indicates the minority bloc and slate. Assumes that there are two
-    blocs which mimic the formatting of the historical Cambridge data.
+    Alternative election data can be used if specified. The historical data must be contained
+    at the path specified by the 'path' keyword arguments, and the data must be a pickle file
+    containing a dictionary mapping ballot types with two slate labels to their frequencies.
 
-    Based on cohesion parameters, decides if a voter casts their top choice within their bloc
-    or in the opposing bloc. Then uses historical data; given their first choice, to choose a
+    Based on cohesion parameters, decides if a voter casts their top choice within a slate.
+    Then uses historical data; given their first choice, choose a
     ballot type from the historical distribution.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        majority_slate (str): Name of the slate in the config corresponding to the historical
+            majority slate.
+        minority_slate (str): Name of the slate in the config corresponding to the historical
+            minority slate.
 
     Kwargs:
-        path (Optional[Path]): File path to an election data file to sample from. If none, will
-            default to Cambridge election data that ships with VoteKit
-        majority_bloc (Optional[str]): Name of the bloc corresponding to the majority bloc. Defaults to
-            whichever bloc has majority via ``bloc_voter_prop``.
-        minority_bloc (Optional[str]): Name of the bloc corresponding to the minority bloc. Defaults to
-            whichever bloc has minority via ``bloc_voter_prop``.
+        historical_majority_ballot_data_path (Path, optional): File path to an election data file
+            to sample from. This should be a pickle file containing a dictionary mapping ballot
+            types that begin with the historical majority slate to their frequencies
+            (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
+            ships with VoteKit.
+        historical_minority_ballot_data_path (Path, optional): File path to an election data file
+            to sample from. This should be a pickle file containing a dictionary mapping ballot
+            types that begin with the historical minority slate to their frequencies
+            (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
+            ships with VoteKit.
+        historical_majority_slate (Optional[str]): Name of the slate in the historical data
+            corresponding to the majority slate. Defaults to "W" for Cambridge.
+        historical_minority_slate (Optional[str]): Name of the slate in the historical data
+            corresponding to the minority slate. Defaults to "C" for Cambridge.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to False.
 
@@ -301,22 +251,32 @@ def cambridge_profiles_by_bloc_generator(
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
             ``RankProfile`` objects representing the generated preference profiles for each bloc.
     """
-    majority_bloc, minority_bloc = _validate_cambridge_blocs(
-        config, majority_bloc=majority_bloc, minority_bloc=minority_bloc
-    )
+    config.is_valid(raise_errors=True)
+    _validate_cambridge_slates(config, majority_slate, minority_slate)
 
-    if path is None:
+    if historical_majority_ballot_data_path is None:
         BASE_DIR = Path(__file__).resolve().parent
         DATA_DIR = BASE_DIR / "data/"
-        path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
+        historical_majority_ballot_data_path = Path(
+            DATA_DIR,
+            "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.pkl",
+        )
+    if historical_minority_ballot_data_path is None:
+        BASE_DIR = Path(__file__).resolve().parent
+        DATA_DIR = BASE_DIR / "data/"
+        historical_minority_ballot_data_path = Path(
+            DATA_DIR,
+            "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.pkl",
+        )
 
     pp_by_bloc = _inner_cambridge_sampler(
         config,
-        path=path,
-        majority_bloc=majority_bloc,
-        minority_bloc=minority_bloc,
-        historical_majority="W",
-        historical_minority="C",
+        historical_majority_ballot_data_path=historical_majority_ballot_data_path,
+        historical_minority_ballot_data_path=historical_minority_ballot_data_path,
+        majority_slate=majority_slate,
+        minority_slate=minority_slate,
+        historical_majority_slate=historical_majority_slate,
+        historical_minority_slate=historical_minority_slate,
     )
 
     if group_ballots:
@@ -327,64 +287,86 @@ def cambridge_profiles_by_bloc_generator(
 
 def cambridge_profile_generator(
     config: BlocSlateConfig,
+    majority_slate: str,
+    minority_slate: str,
     *,
-    path: Optional[Path] = None,
-    majority_bloc: Optional[str] = None,
-    minority_bloc: Optional[str] = None,
-    # historical_majority: Optional[str] = "W",
-    # historical_minority: Optional[str] = "C",
+    historical_majority_ballot_data_path: Optional[Path] = None,
+    historical_minority_ballot_data_path: Optional[Path] = None,
+    historical_majority_slate: Optional[str] = "W",
+    historical_minority_slate: Optional[str] = "C",
     group_ballots: bool = False,
-) -> RankProfile:
+) -> dict[str, RankProfile]:
     """
-    Generates a RankProfile using historical RCV elections occurring in Cambridge, MA.
+    Generates a RankProfile using historical RCV elections
+    occurring in Cambridge, MA. The Cambridge data labels candidates with 'W' and 'C' which
+    correspond to the majority and minority slates, respectively. This model only works with
+    two slates.
 
-    Alternative election data can be used if specified. The historical data must be contianed
-    at the path specified by the 'path' keyword argument, and the data must be a pickle file
-    containing a dictionary mapping ballot types with labels 'W' and 'C' (i.e. tuples of the
-    form ('W','C','W',...) and the like) to their frequencies. Here 'W' indicates the majority
-    bloc and slate and 'C' indicates the minority bloc and slate. Assumes that there are two
-    blocs which mimic the formatting of the historical Cambridge data.
+    Alternative election data can be used if specified. The historical data must be contained
+    at the path specified by the 'path' keyword arguments, and the data must be a pickle file
+    containing a dictionary mapping ballot types with two slate labels to their frequencies.
 
-    Based on cohesion parameters, decides if a voter casts their top choice within their bloc
-    or in the opposing bloc. Then uses historical data; given their first choice, to choose a
+    Based on cohesion parameters, decides if a voter casts their top choice within a slate.
+    Then uses historical data; given their first choice, choose a
     ballot type from the historical distribution.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        majority_slate (str): Name of the slate in the config corresponding to the historical
+            majority slate.
+        minority_slate (str): Name of the slate in the config corresponding to the historical
+            minority slate.
 
     Kwargs:
-        path (Optional[Path]): File path to an election data file to sample from. If none, will
-            default to Cambridge election data that ships with VoteKit
-        majority_bloc (Optional[str]): Name of the bloc corresponding to the majority bloc. Defaults to
-            whichever bloc has majority via ``bloc_voter_prop``.
-        minority_bloc (Optional[str]): Name of the bloc corresponding to the minority bloc. Defaults to
-            whichever bloc has minority via ``bloc_voter_prop``.
+        historical_majority_ballot_data_path (Path, optional): File path to an election data file
+            to sample from. This should be a pickle file containing a dictionary mapping ballot
+            types that begin with the historical majority slate to their frequencies
+            (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
+            ships with VoteKit.
+        historical_minority_ballot_data_path (Path, optional): File path to an election data file
+            to sample from. This should be a pickle file containing a dictionary mapping ballot
+            types that begin with the historical minority slate to their frequencies
+            (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
+            ships with VoteKit.
+        historical_majority_slate (Optional[str]): Name of the slate in the historical data
+            corresponding to the majority slate. Defaults to "W" for Cambridge.
+        historical_minority_slate (Optional[str]): Name of the slate in the historical data
+            corresponding to the minority slate. Defaults to "C" for Cambridge.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to False.
 
 
     Returns:
-        RankProfile: A ``RankProfile`` objects representing the joint preference profile over all
-            blocs.
+        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
+            ``RankProfile`` objects representing the generated preference profiles for each bloc.
     """
     config.is_valid(raise_errors=True)
-    majority_bloc, minority_bloc = _validate_cambridge_blocs(
-        config, majority_bloc=majority_bloc, minority_bloc=minority_bloc
-    )
+    _validate_cambridge_slates(config, majority_slate, minority_slate)
 
-    if path is None:
+    if historical_majority_ballot_data_path is None:
         BASE_DIR = Path(__file__).resolve().parent
         DATA_DIR = BASE_DIR / "data/"
-        path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
+        historical_majority_ballot_data_path = Path(
+            DATA_DIR,
+            "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.pkl",
+        )
+    if historical_minority_ballot_data_path is None:
+        BASE_DIR = Path(__file__).resolve().parent
+        DATA_DIR = BASE_DIR / "data/"
+        historical_minority_ballot_data_path = Path(
+            DATA_DIR,
+            "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.pkl",
+        )
 
     pp_by_bloc = _inner_cambridge_sampler(
         config,
-        path=path,
-        majority_bloc=majority_bloc,
-        minority_bloc=minority_bloc,
-        historical_majority="W",
-        historical_minority="C",
+        historical_majority_ballot_data_path=historical_majority_ballot_data_path,
+        historical_minority_ballot_data_path=historical_minority_ballot_data_path,
+        majority_slate=majority_slate,
+        minority_slate=minority_slate,
+        historical_majority_slate=historical_majority_slate,
+        historical_minority_slate=historical_minority_slate,
     )
 
     profile = RankProfile()
