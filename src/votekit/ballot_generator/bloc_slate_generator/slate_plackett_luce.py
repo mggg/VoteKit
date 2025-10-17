@@ -9,6 +9,7 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
+from re import L
 import apportionment.methods as apportion
 
 from votekit.pref_profile import RankProfile
@@ -30,16 +31,18 @@ from typing import Union, Mapping
 # TODO: Fix this up to be more readable. Also make sure to mention keys of
 # cohesion_parameters_for_bloc are slates now.
 def _sample_pl_slate_ballots(
-    slate_to_non_zero_candidates: dict[str, list[str]],
+    config: BlocSlateConfig,
     num_ballots: int,
     cohesion_parameters_for_bloc: Mapping[str, Union[float, int]],
 ) -> list[list[str]]:
     """
-    Returns a list of ballots; each ballot is a list of slate names (strings)
+    Returns a list of slate ballots; each ballot is a list of slate names (strings)
     in the order they appear on that ballot.
+    Slates with 0 cohesion are randomly permuted and placed at the end of the ballot.
+
 
     Args:
-        slate_to_non_zero_candidates (dict[str, list[str]]):
+        config (BlocSlateConfig):
         num_ballots (int):
         cohesion_parameters_for_bloc (Mapping[str, Union[float, int]]):
 
@@ -47,11 +50,12 @@ def _sample_pl_slate_ballots(
         list[list[str]]: A list of lists, where each list contains the bloc names in the order
             they appear on the ballot.
     """
-    candidates = list(it.chain.from_iterable(slate_to_non_zero_candidates.values()))
+    num_candidates = len(config.candidates)
+    num_candidates_per_slate = {s: len(config.slate_to_candidates[s]) for s in config.slates}
 
     ballots: list[list[str]] = [[] for _ in range(num_ballots)]
 
-    coin_flips = list(np.random.uniform(size=len(candidates) * num_ballots))
+    coin_flips = list(np.random.uniform(size=num_candidates * num_ballots))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -68,18 +72,16 @@ def _sample_pl_slate_ballots(
         distribution_bins: list[float] = [0.0] + [
             sum(values[: i + 1]) for i in range(len(blocs))
         ]
-        ballot_type: list[str] = [""] * len(candidates)
+        ballot_type: list[str] = [""] * num_candidates
 
         for i, flip in enumerate(
-            coin_flips[j * len(candidates) : (j + 1) * len(candidates)]
+            coin_flips[j * num_candidates : (j + 1) * num_candidates]
         ):
             bloc_index = which_bin(distribution_bins, float(flip))
             bloc_type = blocs[bloc_index]
             ballot_type[i] = bloc_type
 
-            if ballot_type.count(bloc_type) == len(
-                slate_to_non_zero_candidates[bloc_type]
-            ):
+            if ballot_type.count(bloc_type) ==  num_candidates_per_slate[bloc_type]:
                 del blocs[bloc_index]
                 del values[bloc_index]
                 total_value_sum = sum(values)
@@ -89,7 +91,7 @@ def _sample_pl_slate_ballots(
                     remaining_blocs = [
                         b
                         for b in blocs
-                        for _ in range(len(slate_to_non_zero_candidates[b]))
+                        for _ in range(len(num_candidates_per_slate[b]))
                     ]
                     random.shuffle(remaining_blocs)
                     ballot_type[i + 1 :] = remaining_blocs
@@ -150,26 +152,16 @@ def _inner_slate_plackett_luce(
 
     for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
-        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
-        # zero_cands = set(
-        #     it.chain(*[pi.zero_cands for pi in pref_intervals_by_slate_dict.values()])
-        # )
-
-        slate_to_non_zero_candidates = {
-            s: pi.non_zero_cands for s, pi in pref_intervals_by_slate_dict.items()
-        }
 
         slate_ballots = _sample_pl_slate_ballots(
-            slate_to_non_zero_candidates=slate_to_non_zero_candidates,
+            config = config,
             num_ballots=n_ballots,
             cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
         )
-
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, pref_intervals_by_slate_dict, slate_ballots
+            config, bloc, slate_ballots
         )
 
-        # TODO handle zero cands
 
     return pref_profile_by_bloc
 

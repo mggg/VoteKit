@@ -101,7 +101,6 @@ def _compute_ballot_type_dist(
             slate names) to their probabilities.
     """
 
-    # FIX: Do this for the non-zero support candidates
     slate_list = [
         s_name
         for s_name in config.slate_to_candidates.keys()
@@ -332,7 +331,7 @@ def _inner_slate_bradley_terry(
             )
 
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, pref_intervals_by_slate_dict, slate_ballots
+            config, bloc, slate_ballots
         )
         # TODO handle zero cands
 

@@ -148,10 +148,9 @@ def _inner_cambridge_sampler(
             majority_slate,
             historical_slate_to_config_slate,
         )
-        pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
 
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, pref_intervals_by_slate_dict, slate_ballots
+            config, bloc, slate_ballots
         )
 
     return pref_profile_by_bloc
@@ -190,7 +189,6 @@ def _validate_cambridge_slates(
     if minority_slate not in config.slates:
         raise ValueError(f"Minority slate {minority_slate} not found in config.slates")
 
-    # TODO validate that the historical slates are in the pickle files
 
 
 # =================================================
