@@ -115,15 +115,12 @@ def _construct_slate_to_candidate_ordering_arrays(
         )
 
         if len(non_zero_support_cands) != 0:
-            cands_list = list(non_zero_support_cands)
+            cands_list = np.array(list(non_zero_support_cands))
             distribution = np.array(
-                [preference_interval[c] for c in list(non_zero_support_cands)]
+                [preference_interval[c] for c in non_zero_support_cands]
             )
-
             indices = _algorithm_a_sample_indices(distribution, n_samples)
-            cand_ordering[:, : len(non_zero_support_cands)] = np.vectorize(
-                lambda i: cands_list[i]
-            )(indices)
+            cand_ordering[:, : len(non_zero_support_cands)] = cands_list[indices]
 
         if len(zero_support_cands) != 0:
             noise = np.random.random(size=(n_samples, len(zero_support_cands)))
@@ -207,7 +204,7 @@ def _convert_slate_ballots_to_profile(
     n_candidates = len(config.candidates)
     n_ballots = len(slate_ballots)
 
-    # now full orderings of all candidates in each slate, zero or non-zero support
+    # full orderings of all candidates in each slate, zero or non-zero support
     cand_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(
         config, bloc, n_ballots
     )
