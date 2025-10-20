@@ -9,18 +9,15 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
-from re import L
 import apportionment.methods as apportion
 
 from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _convert_slate_ballots_to_profile,
+    _append_zero_slate_symbols,
 )
-import itertools as it
-import random
 import numpy as np
-from typing import Union, Mapping
 
 
 # ====================================================
@@ -28,34 +25,38 @@ from typing import Union, Mapping
 # ====================================================
 
 
-# TODO: Fix this up to be more readable. Also make sure to mention keys of
-# cohesion_parameters_for_bloc are slates now.
 def _sample_pl_slate_ballots(
     config: BlocSlateConfig,
     num_ballots: int,
-    cohesion_parameters_for_bloc: Mapping[str, Union[float, int]],
-) -> list[list[str]]:
+    bloc: str,
+    non_zero_slate_set: set[str],
+) -> list[tuple[str, ...]]:
     """
     Returns a list of slate ballots; each ballot is a list of slate names (strings)
-    in the order they appear on that ballot.
-    Slates with 0 cohesion are randomly permuted and placed at the end of the ballot.
+    in the order they appear on that ballot. Only generates ballots for slates
+    that have non-zero cohesion for the given bloc.
 
 
     Args:
-        config (BlocSlateConfig):
-        num_ballots (int):
-        cohesion_parameters_for_bloc (Mapping[str, Union[float, int]]):
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        num_ballots (int): The number of ballots to generate.
+        bloc (str): The name of the bloc for which to generate slate ballots.
+        non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
 
     Returns:
-        list[list[str]]: A list of lists, where each list contains the bloc names in the order
-            they appear on the ballot.
+        list[tuple[str, ...]]: A list of tuples, where each tuple contains the bloc names in the
+            order they appear on the ballot.
     """
-    num_candidates = len(config.candidates)
-    num_candidates_per_slate = {s: len(config.slate_to_candidates[s]) for s in config.slates}
+    num_candidates_per_slate = {
+        s: len(config.slate_to_candidates[s]) for s in non_zero_slate_set
+    }
 
-    ballots: list[list[str]] = [[] for _ in range(num_ballots)]
+    num_candidates = sum(num_candidates_per_slate.values())
 
-    coin_flips = list(np.random.uniform(size=num_candidates * num_ballots))
+    ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
+
+    rand_unif_seqs = list(np.random.uniform(size=(num_ballots, num_candidates)))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -63,47 +64,36 @@ def _sample_pl_slate_ballots(
                 return i
         return len(dist_bins) - 2
 
-    blocs_og, values_og = [list(x) for x in zip(*cohesion_parameters_for_bloc.items())]
+    slates_og = list(non_zero_slate_set)
+    cohesion_values_og = [
+        float(config.cohesion_df.loc[bloc][slate]) for slate in slates_og
+    ]
 
-    for j in range(num_ballots):
-        blocs = blocs_og.copy()
-        values = values_og.copy()
+    for i, rand_unif_seq in enumerate(rand_unif_seqs):
+        slates = slates_og.copy()
+        cohesion_values: list[float] = cohesion_values_og.copy()
 
         distribution_bins: list[float] = [0.0] + [
-            sum(values[: i + 1]) for i in range(len(blocs))
+            sum(cohesion_values[: k + 1]) for k in range(len(slates))
         ]
         ballot_type: list[str] = [""] * num_candidates
 
-        for i, flip in enumerate(
-            coin_flips[j * num_candidates : (j + 1) * num_candidates]
-        ):
-            bloc_index = which_bin(distribution_bins, float(flip))
-            bloc_type = blocs[bloc_index]
-            ballot_type[i] = bloc_type
+        for j, rand_float in enumerate(rand_unif_seq):
+            slate_index = which_bin(distribution_bins, float(rand_float))
+            slate_type = slates[slate_index]
+            ballot_type[j] = slate_type
 
-            if ballot_type.count(bloc_type) ==  num_candidates_per_slate[bloc_type]:
-                del blocs[bloc_index]
-                del values[bloc_index]
-                total_value_sum = sum(values)
+            if ballot_type.count(slate_type) == num_candidates_per_slate[slate_type]:
+                del slates[slate_index]
+                del cohesion_values[slate_index]
+                total_cohesion_sum = sum(cohesion_values)
 
-                if total_value_sum == 0 and len(values) > 0:
-                    # remaining blocs have zero cohesion → fill with random permutation
-                    remaining_blocs = [
-                        b
-                        for b in blocs
-                        for _ in range(len(num_candidates_per_slate[b]))
-                    ]
-                    random.shuffle(remaining_blocs)
-                    ballot_type[i + 1 :] = remaining_blocs
-                    break
-
-                # renormalize and recompute bins
-                values = [v / total_value_sum for v in values]
+                cohesion_values = [v / total_cohesion_sum for v in cohesion_values]
                 distribution_bins = [0.0] + [
-                    sum(values[: k + 1]) for k in range(len(blocs))
+                    sum(cohesion_values[: k + 1]) for k in range(len(slates))
                 ]
 
-        ballots[j] = ballot_type
+        ballots[i] = tuple(ballot_type)
 
     return ballots
 
@@ -122,6 +112,9 @@ def _inner_slate_plackett_luce(
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
     It then fills out the ballot type via sampling without replacement from the interval
     (i.e. according to the name-Plackett-Luce model).
+
+    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
+    Candidates with zero support are randomly permuted at the end of the candidate ordering.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -153,15 +146,26 @@ def _inner_slate_plackett_luce(
     for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
 
+        non_zero_slate_set = {
+            slate for slate in config.slates if config.cohesion_df.loc[bloc][slate] > 0
+        }
+
+        zero_slate_set = set(config.slates) - non_zero_slate_set
+
         slate_ballots = _sample_pl_slate_ballots(
-            config = config,
+            config=config,
             num_ballots=n_ballots,
-            cohesion_parameters_for_bloc=config.cohesion_df.loc[bloc].to_dict(),  # type: ignore
+            bloc=bloc,
+            non_zero_slate_set=non_zero_slate_set,
         )
+
+        if len(zero_slate_set) != 0:
+            slate_ballots = _append_zero_slate_symbols(
+                slate_ballots, zero_slate_set, n_ballots, config
+            )
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
             config, bloc, slate_ballots
         )
-
 
     return pref_profile_by_bloc
 
@@ -182,6 +186,9 @@ def slate_pl_profile_generator(
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
     It then fills out the ballot type via sampling without replacement from the preference
     interval (i.e. according to the name-Plackett-Luce model).
+
+    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
+    Candidates with zero support are randomly permuted at the end of the candidate ordering.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -218,6 +225,9 @@ def slate_pl_profiles_by_bloc_generator(
     This model first samples a ballot type by flipping a cohesion parameter weighted coin.
     It then fills out the ballot type via sampling without replacement from the preference
     interval (i.e. according to the name-Plackett-Luce model).
+
+    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
+    Candidates with zero support are randomly permuted at the end of the candidate ordering.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
