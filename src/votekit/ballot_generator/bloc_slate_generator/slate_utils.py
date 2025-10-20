@@ -1,9 +1,8 @@
 import numpy as np
 from typing import Sequence, Iterator
 from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
-from votekit.pref_interval import PreferenceInterval
 import pandas as pd
-
+from numpy.typing import NDArray
 from votekit.pref_profile import RankProfile
 
 
@@ -59,7 +58,7 @@ def _lexicographic_symbol_tuple_iterator(
         current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
-def _algorithm_a_sample_indices(weights: np.array, n_samples: int) -> np.ndarray:
+def _algorithm_a_sample_indices(weights: NDArray, n_samples: int) -> np.ndarray:
     """
     Sample without replacement from a distribution given by the weights.
     All weights must be non-zero, and the sample will be a sorted list of indices
@@ -68,7 +67,7 @@ def _algorithm_a_sample_indices(weights: np.array, n_samples: int) -> np.ndarray
     Algorithm A from https://doi.org/10.1016/j.ipl.2005.11.003
 
     Args:
-        weights (np.array): The weights of the distribution.
+        weights (np.NDArray): The weights of the distribution.
         n_samples (int): Number of samples to generate.
 
     Returns:
@@ -110,29 +109,38 @@ def _construct_slate_to_candidate_ordering_arrays(
         preference_interval = pref_intervals_by_slate_dict[slate].interval
         non_zero_support_cands = pref_intervals_by_slate_dict[slate].non_zero_cands
         zero_support_cands = pref_intervals_by_slate_dict[slate].zero_cands
-        cand_ordering = np.empty((n_samples, len(non_zero_support_cands) + len(zero_support_cands)), dtype=object)
-        
+        cand_ordering = np.empty(
+            (n_samples, len(non_zero_support_cands) + len(zero_support_cands)),
+            dtype=object,
+        )
+
         if len(non_zero_support_cands) != 0:
             cands_list = list(non_zero_support_cands)
-            distribution = np.array([preference_interval[c] for c in list(non_zero_support_cands)])
+            distribution = np.array(
+                [preference_interval[c] for c in list(non_zero_support_cands)]
+            )
 
             indices = _algorithm_a_sample_indices(distribution, n_samples)
+            cand_ordering[:, : len(non_zero_support_cands)] = np.vectorize(
+                lambda i: cands_list[i]
+            )(indices)
 
-            # TODO This is not the right size on the left 
-            cand_ordering[:][:len(non_zero_support_cands)] = np.vectorize(lambda i: cands_list[i])(indices)
-        
-        cand_ordering[len(non_zero_support_cands):] = np.random.permutation(list(zero_support_cands))
+        if len(zero_support_cands) != 0:
+            noise = np.random.random(size=(n_samples, len(zero_support_cands)))
+            permutation_indices = np.argsort(noise, axis=1)
+            cand_ordering[:, len(non_zero_support_cands) :] = np.array(
+                list(zero_support_cands), dtype=object
+            )[permutation_indices]
 
         results[slate] = cand_ordering
-        
+
     return results
 
 
-
-def _convert_ballot_type_to_ranking(
+def _convert_slate_ballot_type_to_ranking(
     ballot_type: Sequence[str],
     cand_ordering_by_slate: dict[str, list[str]],
-    #final_max_ranking_length: int = 0,
+    final_max_ranking_length,
 ) -> list[frozenset[str]]:
     """
     Given a ballot type and a candidate ordering by slate, convert the ballot type to a ranking.
@@ -149,25 +157,20 @@ def _convert_ballot_type_to_ranking(
         ballot_type (Sequence[str]): A sequence of slate names representing the ballot type.
         cand_ordering_by_slate (dict[str, list[str]]): A dictionary mapping slate names to a list
             of candidate names ordered according to the sampled preference intervals.
-        # final_max_ranking_length (int): The maximum length of the ranking. Defaults to 0, which
-        #     sets the final max ranking length to the length of the ballot type.
+        final_max_ranking_length (int): The maximum length of the ranking.
 
     Returns:
         list[frozenset[str]]: A list of frozensets, where each frozenset contains a single
             candidate name, representing the ranking derived from the ballot type and candidate
             ordering
     """
-    # if final_max_ranking_length == 0:
-    #     final_max_ranking_length = len(ballot_type)
 
     positions = {s: 0 for s in cand_ordering_by_slate}
     ranking: list[frozenset[str]] = [frozenset("~")] * final_max_ranking_length
 
     fset_cache: dict[str, frozenset[str]] = {}
 
-    # for i, slate in enumerate(ballot_type[:final_max_ranking_length]):
-    for i, slate in enumerate(ballot_type):
-
+    for i, slate in enumerate(ballot_type[:final_max_ranking_length]):
         pos = positions[slate]
 
         if pos >= len(cand_ordering_by_slate[slate]):
@@ -186,9 +189,21 @@ def _convert_ballot_type_to_ranking(
 
 
 def _convert_slate_ballots_to_profile(
-    config, bloc, slate_ballots
-):
+    config: BlocSlateConfig, bloc: str, slate_ballots: list[tuple[str, ...]]
+) -> RankProfile:
+    """
+    Convert slate ballot types to a preference profile, filling out
+    candidate orderings for each slate.
 
+    Args:
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        bloc (str): The name of the bloc.
+        slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
+
+    Returns:
+        RankProfile: A preference profile.
+    """
     n_candidates = len(config.candidates)
     n_ballots = len(slate_ballots)
 
@@ -199,14 +214,13 @@ def _convert_slate_ballots_to_profile(
 
     ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
     for i, slate_ballot in enumerate(slate_ballots):
-        ranking = _convert_ballot_type_to_ranking(
+        ranking = _convert_slate_ballot_type_to_ranking(
             ballot_type=slate_ballot,
             cand_ordering_by_slate={
                 s: cand_ordering[i]
                 for s, cand_ordering in cand_orderings_by_slate.items()
             },
-            # TODO is this going to play nicely with zero support candidates?
-            #final_max_ranking_length=n_candidates,
+            final_max_ranking_length=n_candidates,
         )
         ballot_pool[i] = np.array(ranking)
 
@@ -222,3 +236,38 @@ def _convert_slate_ballots_to_profile(
     )
 
     return pp
+
+
+def _append_zero_slate_symbols(
+    ballots: list[tuple[str, ...]],
+    zero_slate_set: set[str],
+    n_ballots: int,
+    config: BlocSlateConfig,
+) -> list[tuple[str, ...]]:
+    """
+    Append zero cohesion slate symbols to the end of slate ballot types.
+    Randomly permutes the zero cohesion slate symbols for each ballot.
+
+    Args:
+        ballots (list[tuple[str, ...]]): List of slate ballot types.
+        zero_slate_set (set[str]): Set of slates with zero cohesion for the given bloc.
+        n_ballots (int): The number of ballots to generate.
+        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+
+    Returns:
+        list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols appended.
+    """
+    zero_slate_symbols = [
+        slate for slate in zero_slate_set for c in config.slate_to_candidates[slate]
+    ]
+    noise = np.random.random(size=(n_ballots, len(zero_slate_symbols)))
+    permutation_indices = np.argsort(noise, axis=1)
+    zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[
+        permutation_indices
+    ]
+
+    ballots = [
+        ballot + tuple(zero_slate_orderings[i]) for i, ballot in enumerate(ballots)
+    ]
+    return ballots
