@@ -25,14 +25,37 @@ from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 
 
 def _sample_historical_slate_ballots(
-    ballots_per_bloc,
-    bloc,
-    config,
-    historical_majority_ballot_frequencies,
-    historical_minority_ballot_frequencies,
-    majority_slate,
-    historical_slate_to_config_slate,
+    ballots_per_bloc: dict[str, int],
+    bloc: str,
+    config: BlocSlateConfig,
+    historical_majority_ballot_frequencies: dict[tuple[str, ...], float],
+    historical_minority_ballot_frequencies: dict[tuple[str, ...], float],
+    majority_slate: str,
+    historical_slate_to_config_slate: dict[str, str],
 ):
+    """
+    Sample historical slate ballots for a given bloc using the Cambridge model.
+
+    Args:
+        ballots_per_bloc (dict[str, int]): A dictionary mapping bloc names to the number of ballots
+            to sample for that bloc.
+        bloc (str): The name of the bloc to sample ballots for.
+        config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
+        historical_majority_ballot_frequencies (dict[tuple[str, ...], float]): A dictionary mapping
+            ballot types that begin with the historical majority slate to their frequencies
+            (i.e. probabilities).
+        historical_minority_ballot_frequencies (dict[tuple[str, ...], float]): A dictionary mapping
+            ballot types that begin with the historical minority slate to their frequencies
+            (i.e. probabilities).
+        majority_slate (str): The name of the slate in the config corresponding to the historical
+            majority slate.
+        historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
+            historical data to slate names in the config.
+
+    Returns:
+        list[tuple[str, ...]]: A list of slate ballots, where each ballot is a tuple of slate names
+            in the order they appear on that ballot.
+    """
     n_ballots = ballots_per_bloc[bloc]
 
     num_ballots_start_with_maj_slate = np.random.binomial(
@@ -176,6 +199,7 @@ def _validate_cambridge_slates(
     Raises:
         ValueError: If the number of slates is not 2.
         ValueError: If the majority or minority slate is not found in the config.slates.
+        ValueError: If majority slate is the same as minority slate.
 
     """
     if len(config.slates) > 2:
@@ -189,6 +213,11 @@ def _validate_cambridge_slates(
     if minority_slate not in config.slates:
         raise ValueError(f"Minority slate {minority_slate} not found in config.slates")
 
+    if majority_slate == minority_slate:
+        raise ValueError(
+            f"Majority slate ({majority_slate}) must be distinct from minority slate "
+            f"({minority_slate})."
+        )
 
 
 # =================================================
@@ -203,9 +232,9 @@ def cambridge_profiles_by_bloc_generator(
     *,
     historical_majority_ballot_data_path: Optional[Path] = None,
     historical_minority_ballot_data_path: Optional[Path] = None,
-    historical_majority_slate: Optional[str] = "W",
-    historical_minority_slate: Optional[str] = "C",
-    group_ballots: bool = False,
+    historical_majority_slate: str = "W",
+    historical_minority_slate: str = "C",
+    group_ballots: bool = True,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
@@ -240,12 +269,12 @@ def cambridge_profiles_by_bloc_generator(
             types that begin with the historical minority slate to their frequencies
             (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
             ships with VoteKit.
-        historical_majority_slate (Optional[str]): Name of the slate in the historical data
+        historical_majority_slate (str): Name of the slate in the historical data
             corresponding to the majority slate. Defaults to "W" for Cambridge.
-        historical_minority_slate (Optional[str]): Name of the slate in the historical data
+        historical_minority_slate (str): Name of the slate in the historical data
             corresponding to the minority slate. Defaults to "C" for Cambridge.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
-            Defaults to False.
+            Defaults to True.
 
 
     Returns:
@@ -293,10 +322,10 @@ def cambridge_profile_generator(
     *,
     historical_majority_ballot_data_path: Optional[Path] = None,
     historical_minority_ballot_data_path: Optional[Path] = None,
-    historical_majority_slate: Optional[str] = "W",
-    historical_minority_slate: Optional[str] = "C",
-    group_ballots: bool = False,
-) -> dict[str, RankProfile]:
+    historical_majority_slate: str = "W",
+    historical_minority_slate: str = "C",
+    group_ballots: bool = True,
+) -> RankProfile:
     """
     Generates a RankProfile using historical RCV elections
     occurring in Cambridge, MA. The Cambridge data labels candidates with 'W' and 'C' which
@@ -330,17 +359,16 @@ def cambridge_profile_generator(
             types that begin with the historical minority slate to their frequencies
             (i.e. probabilities). Defaults to None. If None, will default to Cambridge data that
             ships with VoteKit.
-        historical_majority_slate (Optional[str]): Name of the slate in the historical data
+        historical_majority_slate (str): Name of the slate in the historical data
             corresponding to the majority slate. Defaults to "W" for Cambridge.
-        historical_minority_slate (Optional[str]): Name of the slate in the historical data
+        historical_minority_slate (str): Name of the slate in the historical data
             corresponding to the minority slate. Defaults to "C" for Cambridge.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
-            Defaults to False.
+            Defaults to True.
 
 
     Returns:
-        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects representing the generated preference profiles for each bloc.
+        RankProfile: A RankProfile object representing the aggregated generated preference profiles.
     """
     config.is_valid(raise_errors=True)
     _validate_cambridge_slates(config, majority_slate, minority_slate)
