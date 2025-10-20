@@ -56,7 +56,7 @@ def _sample_pl_slate_ballots(
 
     ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
 
-    rand_unif_seqs = list(np.random.uniform(size=(num_ballots, num_candidates)))
+    rand_unif_seqs = np.random.uniform(size=(num_ballots, num_candidates))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -64,34 +64,30 @@ def _sample_pl_slate_ballots(
                 return i
         return len(dist_bins) - 2
 
-    slates_og = list(non_zero_slate_set)
+    slates = list(non_zero_slate_set)
     cohesion_values_og = [
-        float(config.cohesion_df.loc[bloc][slate]) for slate in slates_og
+        float(config.cohesion_df.loc[bloc][slate]) for slate in slates
     ]
 
     for i, rand_unif_seq in enumerate(rand_unif_seqs):
-        slates = slates_og.copy()
-        cohesion_values: list[float] = cohesion_values_og.copy()
-
-        distribution_bins: list[float] = [0.0] + [
-            sum(cohesion_values[: k + 1]) for k in range(len(slates))
-        ]
+        cohesion_values = np.array(cohesion_values_og)
+        distribution_bins: list[float] = [0.0] + np.cumsum(cohesion_values).tolist()
         ballot_type: list[str] = [""] * num_candidates
+        slate_count = {s: 0 for s in slates}
 
         for j, rand_float in enumerate(rand_unif_seq):
             slate_index = which_bin(distribution_bins, float(rand_float))
             slate_type = slates[slate_index]
             ballot_type[j] = slate_type
+            slate_count[slate_type] += 1
 
-            if ballot_type.count(slate_type) == num_candidates_per_slate[slate_type]:
-                del slates[slate_index]
-                del cohesion_values[slate_index]
-                total_cohesion_sum = sum(cohesion_values)
-
-                cohesion_values = [v / total_cohesion_sum for v in cohesion_values]
-                distribution_bins = [0.0] + [
-                    sum(cohesion_values[: k + 1]) for k in range(len(slates))
-                ]
+            if (
+                j < num_candidates - 1
+                and slate_count[slate_type] == num_candidates_per_slate[slate_type]
+            ):
+                cohesion_values[slate_index] = 0
+                cohesion_values = cohesion_values / cohesion_values.sum()
+                distribution_bins = [0.0] + np.cumsum(cohesion_values).tolist()
 
         ballots[i] = tuple(ballot_type)
 
