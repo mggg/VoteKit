@@ -2,62 +2,9 @@ import pytest
 import numpy as np
 
 from votekit.ballot_generator import (
-    cambridge_profile_generator,
     spacial_profile_and_positions_generator,
     clustered_spacial_profile_and_positions_generator,
-    BlocSlateConfig,
 )
-
-
-from votekit.pref_interval import PreferenceInterval
-
-
-def test_Cambridge_maj_bloc_error():
-    # need to provide both W_bloc and C_bloc
-    with pytest.raises(ValueError):
-        config = BlocSlateConfig(
-            n_voters=100,
-            slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-            bloc_proportions={"A": 0.7, "B": 0.3},
-            preference_mapping={
-                "A": {
-                    "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                    "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-                },
-                "B": {
-                    "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                    "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-                },
-            },
-            cohesion_mapping={
-                "A": {"A": 0.7, "B": 0.3},
-                "B": {"B": 0.9, "A": 0.1},
-            },
-        )
-        cambridge_profile_generator(config, majority_bloc="A")
-
-    # must be distinct
-    with pytest.raises(ValueError):
-        config = BlocSlateConfig(
-            n_voters=100,
-            slate_to_candidates={"A": ["W1", "W2"], "B": ["C1", "C2"]},
-            bloc_proportions={"A": 0.7, "B": 0.3},
-            preference_mapping={
-                "A": {
-                    "A": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-                    "B": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-                },
-                "B": {
-                    "A": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-                    "B": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-                },
-            },
-            cohesion_mapping={
-                "A": {"A": 0.7, "B": 0.3},
-                "B": {"B": 0.9, "A": 0.1},
-            },
-        )
-        cambridge_profile_generator(config, majority_bloc="A", minority_bloc="A")
 
 
 def test_spatial_generator():

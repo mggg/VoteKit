@@ -4,6 +4,9 @@ import itertools
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
+from votekit.pref_profile import RankProfile, ScoreProfile
+from scipy import stats
 
 
 # NOTE: Lock down the rendering for snapshot tests
@@ -105,3 +108,124 @@ def all_possible_ranked_ballots():
         return results
 
     return inner
+
+
+@pytest.fixture
+def bloc_order_probs_slate_first():
+    def _bloc_order_probs_slate_first(slate, ballot_frequencies):
+        slate_first_count = sum(
+            [freq for ballot, freq in ballot_frequencies.items() if ballot[0] == slate]
+        )
+        prob_ballot_given_slate_first = {
+            ballot: freq / slate_first_count
+            for ballot, freq in ballot_frequencies.items()
+            if ballot[0] == slate
+        }
+        return prob_ballot_given_slate_first
+
+    return _bloc_order_probs_slate_first
+
+
+@pytest.fixture
+def compute_pl_prob():
+    def _compute_pl_prob(perm, interval):
+        pref_interval = interval.copy()
+        prob = 1
+        for c in perm:
+            if sum(pref_interval.values()) == 0:
+                prob *= 1 / math.factorial(len(pref_interval))
+            else:
+                prob *= pref_interval[c] / sum(pref_interval.values())
+            del pref_interval[c]
+        return prob
+
+    return _compute_pl_prob
+
+
+def binomial_confidence_interval(probability, n_attempts, alpha=0.95):
+    # Calculate the mean and standard deviation of the binomial distribution
+    mean = n_attempts * probability
+    std_dev = math.sqrt(n_attempts * probability * (1 - probability))
+
+    # Calculate the confidence interval
+    z_score = stats.norm.ppf((1 + alpha) / 2)  # Z-score for 99% confidence level
+    margin_of_error = z_score * (std_dev)
+    conf_interval = (mean - margin_of_error, mean + margin_of_error)
+
+    return conf_interval
+
+
+@pytest.fixture
+def do_ballot_probs_match_ballot_dist_rank_profile():
+    def _do_ballot_probs_match_ballot_dist_rank_profile(
+        ballot_prob_dict: dict, generated_profile: RankProfile, alpha=0.95
+    ):
+        n_ballots = generated_profile.total_ballot_wt
+        ballot_conf_dict = {
+            b: binomial_confidence_interval(p, n_attempts=int(n_ballots), alpha=alpha)
+            for b, p in ballot_prob_dict.items()
+        }
+
+        failed = 0
+
+        for b in ballot_conf_dict.keys():
+            b_list = [{c} for c in b]
+            ballot = next(
+                (
+                    element
+                    for element in generated_profile.ballots
+                    if element.ranking == b_list
+                ),
+                None,
+            )
+            ballot_weight = 0.0
+            if ballot is not None:
+                ballot_weight = ballot.weight
+            if not (
+                int(ballot_conf_dict[b][0])
+                <= ballot_weight
+                <= int(ballot_conf_dict[b][1])
+            ):
+                failed += 1
+
+        # allow for small margin of error given confidence intereval
+        failure_thresold = round((1 - alpha) * n_ballots)
+        return failed <= failure_thresold
+
+    return _do_ballot_probs_match_ballot_dist_rank_profile
+
+
+# FIX: This needs to be made better for score profiles
+@pytest.fixture
+def do_ballot_probs_match_ballot_dist_score_profile():
+    def _do_ballot_probs_match_ballot_dist_score_profile(
+        ballot_prob_dict: dict, generated_profile: ScoreProfile, alpha=0.95
+    ):
+        n_ballots = generated_profile.total_ballot_wt
+        ballot_conf_dict = {
+            b: binomial_confidence_interval(p, n_attempts=int(n_ballots), alpha=alpha)
+            for b, p in ballot_prob_dict.items()
+        }
+
+        failed = 0
+
+        for b in ballot_conf_dict.keys():
+            ballot = next(
+                (element for element in generated_profile.ballots),
+                None,
+            )
+            ballot_weight = 0.0
+            if ballot is not None:
+                ballot_weight = ballot.weight
+            if not (
+                int(ballot_conf_dict[b][0])
+                <= ballot_weight
+                <= int(ballot_conf_dict[b][1])
+            ):
+                failed += 1
+
+        # allow for small margin of error given confidence intereval
+        failure_thresold = round((1 - alpha) * n_ballots)
+        return failed <= failure_thresold
+
+    return _do_ballot_probs_match_ballot_dist_score_profile
