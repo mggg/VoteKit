@@ -253,26 +253,22 @@ def _determine_and_validate_majority_and_minority_groups(
             raise ValueError(
                 "The bloc proportions are equal. You must set a majority_group and minority_group."
             )
-
-    elif majority_group is not None and minority_group is not None:
-        if majority_group not in config.blocs:
-            raise ValueError(
-                f"Majority group {majority_group} not found in config.blocs."
-            )
-        if minority_group not in config.blocs:
-            raise ValueError(
-                f"Minority group {minority_group} not found in config.blocs."
-            )
-        if majority_group == minority_group:
-            raise ValueError(
-                f"Majority group {majority_group} and minority group {minority_group} must be "
-                "distinct."
-            )
-    elif majority_group is not None:
+    if majority_group == minority_group:
+        raise ValueError(
+            f"Majority group {majority_group} and minority group {minority_group} must be "
+            "distinct."
+        )
+    if minority_group is None:
         minority_group = [b for b in config.blocs if b != majority_group][0]
-    elif minority_group is not None:
+    elif majority_group is None:
         majority_group = [b for b in config.blocs if b != minority_group][0]
 
+    if majority_group not in config.blocs:
+        raise ValueError(f"Majority group {majority_group} not found in config.blocs.")
+    elif minority_group not in config.blocs:
+        raise ValueError(f"Minority group {minority_group} not found in config.blocs.")
+
+    assert majority_group is not None and minority_group is not None
     return majority_group, minority_group
 
 
