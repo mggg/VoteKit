@@ -166,8 +166,8 @@ def _convert_slate_ballot_type_to_ranking(
     ranking: list[frozenset[str]] = [frozenset("~")] * final_max_ranking_length
 
     fset_cache: dict[str, frozenset[str]] = {}
-
-    for i, slate in enumerate(ballot_type[:final_max_ranking_length]):
+    rank_position = 0
+    for slate in ballot_type[:final_max_ranking_length]:
         pos = positions[slate]
 
         if pos >= len(cand_ordering_by_slate[slate]):
@@ -180,7 +180,8 @@ def _convert_slate_ballot_type_to_ranking(
         if fset is None:
             fset = frozenset((cand,))
             fset_cache[cand] = fset
-        ranking[i] = fset
+        ranking[rank_position] = fset
+        rank_position += 1
 
     return ranking
 
