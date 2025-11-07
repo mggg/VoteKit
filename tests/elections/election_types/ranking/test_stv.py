@@ -562,3 +562,32 @@ def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
             round_number += 1
 
         assert election_order == new_election_order
+
+
+def test_stv_rounding_errors():
+    # from github issue #311
+    A = 52
+    N = 60
+    # B gets 8 votes
+    # Droop quote is 11, so 4 candidates from A should be elected and then
+    # the 5th candidate from A should tie with B's only candidate.
+
+    # Old issue: Rounding errors occur every time the droop quota of 11 is subtracted from A's votes.
+
+    ballotA = Ballot(
+        ranking=[{candidate} for candidate in [f"A{i+1}" for i in range(5)]]
+    )
+    ballotB = Ballot(ranking=[{"B1"}])
+    ballots = [ballotA] * A + [ballotB] * (N - A)
+    profile = PreferenceProfile(ballots=ballots)
+
+    stv_election = STV(profile=profile, m=5)
+    assert stv_election.get_elected() == ({"A1"}, {"A2"}, {"A3"}, {"A4"}, {"B1"})
+
+    assert [stv_election.election_states[i].scores[f"A{i+1}"] for i in range(5)] == [
+        52,
+        41,
+        30,
+        19,
+        8,
+    ]
