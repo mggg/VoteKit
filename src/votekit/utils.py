@@ -168,6 +168,26 @@ def _score_dict_from_rankings_df_no_ties(
     profile: RankProfile,
     score_vector: Sequence[float],
 ) -> dict[str, float]:
+    """
+    Score the candidates based on a score vector. For example, the vector (1,0,...) would
+    return the first place votes for each candidate. Vectors should be non-increasing and
+    non-negative. Vector should be as long as ``max_ranking_length`` in the profile.
+    If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
+    in the dictionary.
+
+    This function does not handle ties in ballots.
+
+
+    Args:
+        profile (RankProfile): Profile to score.
+        score_vector (Sequence[float]): Score vector. Should be
+            non-increasing and non-negative. Vector should be as long as ``max_ranking_length`` in
+            the profile. If it is shorter, we add 0s.
+
+    Returns:
+        dict[str, float]:
+            Dictionary mapping candidates to scores.
+    """
 
     validate_score_vector(score_vector)
 
@@ -208,7 +228,9 @@ def _score_dict_from_rankings_df_no_ties(
     weights_flat = weight_matrix.ravel()
     bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
 
-    return {next(iter(k)): bucket_sums[idx] for idx, k in enumerate(cand_frznst)}
+    return {
+        next(iter(k)): round(bucket_sums[idx], 10) for idx, k in enumerate(cand_frznst)
+    }
 
 
 def score_dict_from_score_vector(
@@ -294,7 +316,7 @@ def score_dict_from_score_vector(
                 allocation = sum(local_score_vector) / position_size
 
             for c in s:
-                scores[c] += allocation * wt
+                scores[c] += round(allocation * wt, 4)
             current_ind += position_size
 
     return scores
