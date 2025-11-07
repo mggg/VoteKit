@@ -1,163 +1,40 @@
-import itertools as it
-import math
-import numpy as np
-
 from votekit.ballot_generator import (
-    iac_profile_generator,
-    ic_profile_generator,
-    slate_bt_profile_generator,
-    BlocSlateConfig,
     name_bt_profile_generator,
-    # name_bt_profiles_by_bloc_generator,
-    # name_bt_profile_generator_using_mcmc,
-    # name_bt_profiles_by_bloc_generator_using_mcmc,
-    name_pl_profile_generator,
-    # name_pl_profiles_by_bloc_generator,
+    name_bt_profiles_by_bloc_generator,
+    BlocSlateConfig,
 )
+from votekit.pref_profile import RankProfile
+from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
     _calc_prob as bt_prob,
 )
-from votekit.pref_profile import PreferenceProfile
-from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
-
-# set seed for more consistent tests
-np.random.seed(8675309)
+import itertools as it
 
 
-def test_ic_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
-    # Set-up
-    number_of_ballots = 100
-
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    # Find ballot probs
-    possible_rankings = it.permutations(candidates, len(candidates))
-    ballot_prob_dict = {
-        b: 1 / math.factorial(len(candidates)) for b in possible_rankings
-    }
-
-    # Generate ballots
-    generated_profile = ic_profile_generator(
-        candidates=candidates, number_of_ballots=number_of_ballots
-    )
-
-    assert isinstance(generated_profile, PreferenceProfile)
-    # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        ballot_prob_dict, generated_profile
-    )
-
-
-def test_iac_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
-    number_of_ballots = 1000
-    ballot_length = 4
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, ballot_length))
-    probabilities = np.random.dirichlet([1] * len(possible_rankings))
-
-    ballot_prob_dict = {
-        possible_rankings[b_ind]: probabilities[b_ind]
-        for b_ind in range(len(possible_rankings))
-    }
-    generated_profile = iac_profile_generator(
-        number_of_ballots=number_of_ballots,
-        candidates=candidates,
-    )
-
-    assert isinstance(generated_profile, PreferenceProfile)
-    # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        ballot_prob_dict, generated_profile
-    )
-
-
-"""
-# NOTE: Enable this test once the optimized version is completed
-def test_iac_optimized_distribution():
-
-    number_of_ballots = 1000
-    ballot_length = 4
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, ballot_length))
-    probabilities = np.random.dirichlet([1] * len(possible_rankings))
-
-    ballot_prob_dict = {
-        possible_rankings[b_ind]: probabilities[b_ind]
-        for b_ind in range(len(possible_rankings))
-    }
-    iac_inst = ImpartialAnonymousCulture(
-        number_of_ballots=number_of_ballots,
-        candidates=candidates,
-    )
-    if not iac_inst._OPTIMIZED_ENABLED:
-        # NOTE: no test if performed if the optimized profile
-        # generation is not enabled
-        assert True
-        return
-
-    generated_profile = iac_inst.generate_profile(
-        number_of_ballots=500, use_optimized=True
-    )
-    # Test
-    assert do_ballot_probs_match_ballot_dist(ballot_prob_dict, generated_profile)
-"""
-
-
-def test_NPL_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
-    # Set-up
-    number_of_ballots = 100
-    candidates = ["W1", "W2", "C1", "C2"]
-
-    pref_intervals_by_bloc = {
-        "X": {
-            "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
-            "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
-        },
-        "Y": {
-            "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
-            "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
-        },
-    }
-    bloc_voter_prop = {"X": 0.7, "Y": 0.3}
-    cohesion_parameters = {"X": {"W": 0.7, "C": 0.3}, "Y": {"C": 0.6, "W": 0.4}}
-
+def test_NBT_completion():
     config = BlocSlateConfig(
-        n_voters=number_of_ballots,
+        n_voters=100,
         slate_to_candidates={"W": ["W1", "W2"], "C": ["C1", "C2"]},
-        bloc_proportions=bloc_voter_prop,
-        preference_mapping=pref_intervals_by_bloc,
-        cohesion_mapping=cohesion_parameters,
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
+            "W": {
+                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+            },
+            "C": {
+                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+            },
+        },
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
     )
 
-    # Generate ballots
-    generated_profile = name_pl_profile_generator(config)
+    profile = name_bt_profile_generator(config)
+    assert type(profile) is RankProfile
 
-    # Find ballot probs
-    possible_rankings = list(it.permutations(candidates, len(candidates)))
-    ballot_prob_dict = {b: 0.0 for b in possible_rankings}
-
-    pref_interval_by_bloc = config.get_combined_preference_intervals_by_bloc()
-
-    for ranking in possible_rankings:
-        # ranking = b.ranking
-        for bloc in bloc_voter_prop.keys():
-            support_for_cands = pref_interval_by_bloc[bloc].interval
-            total_prob = 1
-            prob = bloc_voter_prop[bloc]
-            for cand in ranking:
-                prob *= support_for_cands[cand] / total_prob
-                total_prob -= support_for_cands[cand]
-            ballot_prob_dict[ranking] += prob
-
-    assert isinstance(generated_profile, PreferenceProfile)
-    # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        ballot_prob_dict, generated_profile
-    )
+    profile_dict = name_bt_profiles_by_bloc_generator(config)
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_NBT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
@@ -219,7 +96,7 @@ def test_NBT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
             for k, v in final_ballot_prob_dict.items()
         }
 
-    assert isinstance(generated_profile, PreferenceProfile)
+    assert isinstance(generated_profile, RankProfile)
     # Test
     assert do_ballot_probs_match_ballot_dist_rank_profile(
         final_ballot_prob_dict, generated_profile
@@ -278,7 +155,7 @@ def test_NBT_3_bloc(do_ballot_probs_match_ballot_dist_rank_profile):
         ("C1", "B1", "A1"): 2 / summ,
     }
 
-    assert isinstance(profile, PreferenceProfile)
+    assert isinstance(profile, RankProfile)
 
     assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, profile)
 
@@ -291,7 +168,7 @@ def test_NBT_3_bloc(do_ballot_probs_match_ballot_dist_rank_profile):
     config.set_dirichlet_alphas(alphas)
 
     profile = name_bt_profile_generator(config)
-    assert isinstance(profile, PreferenceProfile)
+    assert isinstance(profile, RankProfile)
 
 
 def test_NBT_probability_calculation():
@@ -343,60 +220,6 @@ def test_NBT_probability_calculation():
     )
 
 
-def test_slate_BT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
-    config = BlocSlateConfig(
-        n_voters=100,
-        bloc_proportions={"A": 0.99999, "B": 0.00001},
-        slate_to_candidates={"A": ["X", "Y"], "B": ["Z"]},
-        cohesion_mapping={"A": {"A": 0.8, "B": 0.2}, "B": {"A": 0.2, "B": 0.8}},
-        preference_mapping={
-            "A": {
-                "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
-                "B": PreferenceInterval({"Z": 1}),
-            },
-            "B": {
-                "A": PreferenceInterval({"X": 0.9, "Y": 0.1}),
-                "B": PreferenceInterval({"Z": 1}),
-            },
-        },
-    )
-
-    pp = slate_bt_profile_generator(config)
-
-    ballot_prob_dict = {
-        "XYZ": config.cohesion_df["A"].loc["A"] ** 2
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["X"],
-        "YXZ": config.cohesion_df["A"].loc["A"] ** 2
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["Y"],
-        "XZY": config.cohesion_df["A"].loc["A"]
-        * config.cohesion_df["A"].loc["B"]
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["X"],
-        "YZX": config.cohesion_df["A"].loc["A"]
-        * config.cohesion_df["A"].loc["B"]
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["Y"],
-        "ZXY": config.cohesion_df["A"].loc["B"] ** 2
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["X"],
-        "ZYX": config.cohesion_df["A"].loc["B"] ** 2
-        * config.get_preference_interval_for_bloc_and_slate(
-            bloc_name="A", slate_name="A"
-        ).interval["X"],
-    }
-
-    assert isinstance(pp, PreferenceProfile)
-    # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, pp)
-
-
 # FIX: Get this test working
 # def test_NBT_MCMC_subsample_distribution():
 #     # Set-up
@@ -435,3 +258,52 @@ def test_slate_BT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
 #     # Continuous sampling should do worse than spaced out subsampling w.h.p.
 #
 #     # Acceptance ratio should be roughly be between two values
+
+# FIX: Get this method up and running again
+# def test_MCMC_subsample_chain_length_error():
+#     """
+#     Test to check chain_length < num_ballots to be sampled
+#     """
+#
+#     # Initialization of parameters; doesn't matter for this test
+#     candidates = ["W1", "W2", "C1", "C2"]
+#     pref_intervals_by_bloc = {
+#         "W": {
+#             "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+#             "C": PreferenceInterval({"C1": 0.2, "C2": 0.1}),
+#         },
+#         "C": {
+#             "C": PreferenceInterval({"C1": 0.3, "C2": 0.3}),
+#             "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+#         },
+#     }
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#     cohesion_parameters = {"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.6, "W": 0.4}}
+#     bloc_voter_prop = {"W": 0.7, "C": 0.3}
+#
+#     bt = name_BradleyTerry(
+#         candidates=candidates,
+#         pref_intervals_by_bloc=pref_intervals_by_bloc,
+#         bloc_voter_prop=bloc_voter_prop,
+#         cohesion_parameters=cohesion_parameters,
+#     )
+#
+#     number_of_ballots = 3001
+#
+#     # Error where minority bloc needs 0.3*10,000 = 3,000 number of ballots, where 10,000 is the preset chain_length
+#     with pytest.raises(
+#         ValueError,
+#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#     ):
+#         bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
+#
+#     chain_length = 100
+#     number_of_ballots = 101
+#
+#     with pytest.raises(
+#         ValueError,
+#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#     ):
+#         bt.generate_profile_MCMC_even_subsample(
+#             number_of_ballots=number_of_ballots, chain_length=chain_length
+#         )
