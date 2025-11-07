@@ -30,7 +30,7 @@ def _sample_historical_slate_ballots(
     config: BlocSlateConfig,
     historical_majority_ballot_frequencies: dict[tuple[str, ...], float],
     historical_minority_ballot_frequencies: dict[tuple[str, ...], float],
-    majority_group: str,
+    majority_bloc: str,
     historical_slate_to_config_slate: dict[str, str],
 ):
     """
@@ -47,7 +47,7 @@ def _sample_historical_slate_ballots(
         historical_minority_ballot_frequencies (dict[tuple[str, ...], float]): A dictionary mapping
             ballot types that begin with the historical minority slate to their frequencies
             (i.e. probabilities).
-        majority_group (str): The name of the group in the config corresponding to the historical
+        majority_bloc (str): The name of the group in the config corresponding to the historical
             majority slate.
         historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
             historical data to slate names in the config.
@@ -59,7 +59,7 @@ def _sample_historical_slate_ballots(
     n_ballots = ballots_per_bloc[bloc]
 
     num_ballots_start_with_maj_slate = np.random.binomial(
-        n_ballots, p=config.cohesion_df[majority_group].loc[bloc]
+        n_ballots, p=config.cohesion_df[majority_bloc].loc[bloc]
     )
 
     num_ballots_start_with_min_slate = n_ballots - num_ballots_start_with_maj_slate
@@ -104,8 +104,8 @@ def _sample_historical_slate_ballots(
 
 def _inner_cambridge_sampler(
     config: BlocSlateConfig,
-    majority_group: str,
-    minority_group: str,
+    majority_bloc: str,
+    minority_bloc: str,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate profiles by bloc using Cambridge model.
@@ -113,9 +113,9 @@ def _inner_cambridge_sampler(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        majority_group (str): Name of the group in the config corresponding to the historical
+        majority_bloc (str): Name of the group in the config corresponding to the historical
             majority group.
-        minority_group (str): Name of the group in the config corresponding to the historical
+        minority_bloc (str): Name of the group in the config corresponding to the historical
             minority group.
 
     Returns:
@@ -123,8 +123,8 @@ def _inner_cambridge_sampler(
             ``RankProfile`` objects representing the generated preference profiles for each bloc.
     """
     historical_slate_to_config_slate = {
-        "W": majority_group,
-        "C": minority_group,
+        "W": majority_bloc,
+        "C": minority_bloc,
     }
 
     BASE_DIR = Path(__file__).resolve().parent
@@ -165,7 +165,7 @@ def _inner_cambridge_sampler(
             config,
             historical_majority_ballot_frequencies,
             historical_minority_ballot_frequencies,
-            majority_group,
+            majority_bloc,
             historical_slate_to_config_slate,
         )
 
@@ -209,10 +209,10 @@ def _validate_slates_and_blocs(
         )
 
 
-def _determine_and_validate_majority_and_minority_groups(
+def _determine_and_validate_majority_and_minority_blocs(
     config: BlocSlateConfig,
-    majority_group: Optional[str],
-    minority_group: Optional[str],
+    majority_bloc: Optional[str],
+    minority_bloc: Optional[str],
 ) -> tuple[str, str]:
     """
     Determines the majority and minority groups for the Cambridge model.
@@ -223,10 +223,10 @@ def _determine_and_validate_majority_and_minority_groups(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        majority_group (Optional[str]): Name of the group in the config corresponding to the
+        majority_bloc (Optional[str]): Name of the group in the config corresponding to the
             historical majority group. Defaults to None, in which case the majority
             group is determined by the bloc proportions.
-        minority_group (Optional[str]): Name of the group in the config corresponding to the
+        minority_bloc (Optional[str]): Name of the group in the config corresponding to the
             historical minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
 
@@ -239,37 +239,37 @@ def _determine_and_validate_majority_and_minority_groups(
         ValueError: If the bloc proportions are equal and neither group is set.
     """
 
-    if majority_group is None and minority_group is None:
+    if majority_bloc is None and minority_bloc is None:
         blocs = list(config.bloc_proportions.keys())
         proportions = list(config.bloc_proportions.values())
 
         if proportions[0] > proportions[1]:
-            majority_group = blocs[0]
-            minority_group = blocs[1]
+            majority_bloc = blocs[0]
+            minority_bloc = blocs[1]
         elif proportions[1] > proportions[0]:
-            majority_group = blocs[1]
-            minority_group = blocs[0]
+            majority_bloc = blocs[1]
+            minority_bloc = blocs[0]
         else:
             raise ValueError(
-                "The bloc proportions are equal. You must set a majority_group and minority_group."
+                "The bloc proportions are equal. You must set a majority_bloc and minority_bloc."
             )
-    if majority_group == minority_group:
+    if majority_bloc == minority_bloc:
         raise ValueError(
-            f"Majority group {majority_group} and minority group {minority_group} must be "
+            f"Majority group {majority_bloc} and minority group {minority_bloc} must be "
             "distinct."
         )
-    if minority_group is None:
-        minority_group = [b for b in config.blocs if b != majority_group][0]
-    elif majority_group is None:
-        majority_group = [b for b in config.blocs if b != minority_group][0]
+    if minority_bloc is None:
+        minority_bloc = [b for b in config.blocs if b != majority_bloc][0]
+    elif majority_bloc is None:
+        majority_bloc = [b for b in config.blocs if b != minority_bloc][0]
 
-    if majority_group not in config.blocs:
-        raise ValueError(f"Majority group {majority_group} not found in config.blocs.")
-    elif minority_group not in config.blocs:
-        raise ValueError(f"Minority group {minority_group} not found in config.blocs.")
+    if majority_bloc not in config.blocs:
+        raise ValueError(f"Majority group {majority_bloc} not found in config.blocs.")
+    elif minority_bloc not in config.blocs:
+        raise ValueError(f"Minority group {minority_bloc} not found in config.blocs.")
 
-    assert majority_group is not None and minority_group is not None
-    return majority_group, minority_group
+    assert majority_bloc is not None and minority_bloc is not None
+    return majority_bloc, minority_bloc
 
 
 # =================================================
@@ -280,8 +280,8 @@ def _determine_and_validate_majority_and_minority_groups(
 def cambridge_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    majority_group: Optional[str] = None,
-    minority_group: Optional[str] = None,
+    majority_bloc: Optional[str] = None,
+    minority_bloc: Optional[str] = None,
     group_ballots: bool = True,
 ) -> dict[str, RankProfile]:
     """
@@ -301,10 +301,10 @@ def cambridge_profiles_by_bloc_generator(
 
 
     Kwargs:
-        majority_group (Optional[str]): Name of the group in the config corresponding to the
+        majority_bloc (Optional[str]): Name of the group in the config corresponding to the
                     historical majority group. Defaults to None, in which case the majority
                     group is determined by the bloc proportions.
-        minority_group (Optional[str]): Name of the group in the config corresponding to the
+        minority_bloc (Optional[str]): Name of the group in the config corresponding to the
             historical minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
@@ -316,16 +316,14 @@ def cambridge_profiles_by_bloc_generator(
     """
     config.is_valid(raise_errors=True)
     _validate_slates_and_blocs(config)
-    majority_group, minority_group = (
-        _determine_and_validate_majority_and_minority_groups(
-            config, majority_group, minority_group
-        )
+    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
+        config, majority_bloc, minority_bloc
     )
 
     pp_by_bloc = _inner_cambridge_sampler(
         config,
-        majority_group,
-        minority_group,
+        majority_bloc,
+        minority_bloc,
     )
 
     if group_ballots:
@@ -337,8 +335,8 @@ def cambridge_profiles_by_bloc_generator(
 def cambridge_profile_generator(
     config: BlocSlateConfig,
     *,
-    majority_group: Optional[str] = None,
-    minority_group: Optional[str] = None,
+    majority_bloc: Optional[str] = None,
+    minority_bloc: Optional[str] = None,
     group_ballots: bool = True,
 ) -> RankProfile:
     """
@@ -357,10 +355,10 @@ def cambridge_profile_generator(
             working with a bloc-slate ballot generator.
 
     Kwargs:
-        majority_group (str): Name of the group in the config corresponding to the historical
+        majority_bloc (str): Name of the group in the config corresponding to the historical
             majority group. Defaults to None, in which case the majority
             group is determined by the bloc proportions.
-        minority_group (str): Name of the group in the config corresponding to the historical
+        minority_bloc (str): Name of the group in the config corresponding to the historical
             minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
@@ -372,16 +370,14 @@ def cambridge_profile_generator(
     """
     config.is_valid(raise_errors=True)
     _validate_slates_and_blocs(config)
-    majority_group, minority_group = (
-        _determine_and_validate_majority_and_minority_groups(
-            config, majority_group, minority_group
-        )
+    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
+        config, majority_bloc, minority_bloc
     )
 
     pp_by_bloc = _inner_cambridge_sampler(
         config,
-        majority_group,
-        minority_group,
+        majority_bloc,
+        minority_bloc,
     )
 
     profile = RankProfile()

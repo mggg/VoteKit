@@ -210,7 +210,7 @@ def test_Cambridge_distribution(
 
     # Now see if ballot prob dict is right
     test_profile = cambridge_profile_generator(
-        config, majority_group="W", minority_group="C"
+        config, majority_bloc="W", minority_bloc="C"
     )
     assert isinstance(test_profile, RankProfile)
     assert do_ballot_probs_match_ballot_dist_rank_profile(
@@ -240,20 +240,20 @@ def test_Cambridge_majority_minority_errors():
     )
 
     with pytest.raises(ValueError, match="Majority group C not found in config.blocs."):
-        cambridge_profile_generator(config, majority_group="C")
+        cambridge_profile_generator(config, majority_bloc="C")
 
     with pytest.raises(
         ValueError, match="Majority group A and minority group A must be distinct."
     ):
-        cambridge_profile_generator(config, majority_group="A", minority_group="A")
+        cambridge_profile_generator(config, majority_bloc="A", minority_bloc="A")
 
     with pytest.raises(ValueError, match="Minority group C not found in config.blocs."):
-        cambridge_profile_generator(config, minority_group="C")
+        cambridge_profile_generator(config, minority_bloc="C")
 
     config.bloc_proportions = {"A": 0.5, "B": 0.5}
     with pytest.raises(
         ValueError,
-        match="The bloc proportions are equal. You must set a majority_group and minority_group.",
+        match="The bloc proportions are equal. You must set a majority_bloc and minority_bloc.",
     ):
         cambridge_profile_generator(config)
 
@@ -304,16 +304,16 @@ def test_Cambridge_completion_W_C_bloc():
     )
     profile = cambridge_profile_generator(
         config,
-        majority_group="A",
-        minority_group="B",
+        majority_bloc="A",
+        minority_bloc="B",
     )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
     profile_dict = cambridge_profiles_by_bloc_generator(
         config,
-        majority_group="A",
-        minority_group="B",
+        majority_bloc="A",
+        minority_bloc="B",
     )
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
@@ -321,16 +321,16 @@ def test_Cambridge_completion_W_C_bloc():
     # W as minority
     profile = cambridge_profile_generator(
         config,
-        majority_group="B",
-        minority_group="A",
+        majority_bloc="B",
+        minority_bloc="A",
     )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100
 
     profile_dict = cambridge_profiles_by_bloc_generator(
         config,
-        majority_group="B",
-        minority_group="A",
+        majority_bloc="B",
+        minority_bloc="A",
     )
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
