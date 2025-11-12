@@ -7,16 +7,20 @@ def combine_preference_intervals(
     intervals: list[PreferenceInterval], proportions: list[float]
 ):
     """
-        Combine a list of preference intervals given a list of proportions used to reweight each
-        interval.
+    Combine a list of preference intervals given a list of proportions used to reweight each
+    interval.
 
-    **Arguments**
-    `intervals`
-    : list.  A list of PreferenceInterval objects to combine.
+    Args:
+        intervals (list[PreferenceInterval]): A list of PreferenceInterval objects to combine.
+        proportions (list[float]): A list of floats used to reweight the PreferenceInterval objects.
+            Proportion $i$ will reweight interval $i$.
 
-    `proportions`
-    : list. A list of floats used to reweight the PreferenceInterval objects. Proportion $i$ will
-    reweight interval $i$.
+    Returns:
+        PreferenceInterval: A combined PreferenceInterval object.
+
+    Raises:
+        ValueError: If the intervals have disjoint candidate sets.
+        ValueError: If the proportions do not sum to 1.
     """
     if not (
         len(frozenset.union(*[pi.candidates for pi in intervals]))
@@ -27,20 +31,13 @@ def combine_preference_intervals(
     if round(sum(proportions), 8) != 1:
         raise ValueError("Proportions must sum to 1.")
 
-    sum_pi = PreferenceInterval(
+    return PreferenceInterval(
         interval={
             key: value * prop
             for pi, prop in zip(intervals, proportions)
             for key, value in pi.interval.items()
         }
     )
-
-    # carry along the candidates with zero support
-    zero_cands = frozenset.union(*[pi.zero_cands for pi in intervals])
-
-    # need to union to ensure that if one of the proportions is 0 those candidates are saved
-    sum_pi.zero_cands = sum_pi.zero_cands.union(zero_cands)
-    return sum_pi
 
 
 class PreferenceInterval:
@@ -59,18 +56,17 @@ class PreferenceInterval:
             The keys are candidate names, and the values are floats representing that candidates
             share of the interval. Does not have to sum to one, the init method will renormalize.
             Does not include candidates with zero support.
-        candidates (frozenset): A frozenset of candidates (with zero and non-zero support).
-        non_zero_cands (frozenset): A frozenset of candidates with non-zero support.
-        zero_cands (frozenset): A frozenset of candidates with zero support.
+        candidates (frozenset): A frozenset of candidates.
+
+    Raises:
+        ValueError: If there are candidates with zero support.
     """
 
     def __init__(self, interval: dict):
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
 
-        self.zero_cands: frozenset = frozenset()
-        self.non_zero_cands: frozenset = frozenset()
-        self._remove_zero_support_cands()
+        self._check_for_zero_support_cands()
         self._normalize()
 
     @classmethod
@@ -89,8 +85,21 @@ class PreferenceInterval:
             PreferenceInterval
         """
         probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
+        probs = [p + 10e-12 if p == 0 else p for p in probs]
 
         return cls({c: s for c, s in zip(candidates, probs)})
+
+    def _check_for_zero_support_cands(self):
+        """
+        Check for candidates with zero support in the interval.
+
+        Raises:
+            ValueError: If there are candidates with zero support.
+        """
+        if any(value == 0 for value in self.interval.values()):
+            for cand, value in self.interval.items():
+                if value == 0:
+                    raise ValueError(f"Candidate {cand} has zero support.")
 
     def _normalize(self):
         """
@@ -98,36 +107,12 @@ class PreferenceInterval:
         """
         summ = sum(self.interval.values())
 
-        if summ == 0:
-            raise ZeroDivisionError("There are no candidates with non-zero support.")
-
         self.interval = types.MappingProxyType(
             {c: s / summ for c, s in self.interval.items()}
         )
 
-    def _remove_zero_support_cands(self):
-        """
-        Remove candidates with zero support from the interval. Store candidates
-        with zero support as a set in the attribute `zero_cands`.
-
-        Should only be run once.
-        """
-
-        if self.zero_cands == frozenset() and self.non_zero_cands == frozenset():
-            self.zero_cands = frozenset([c for c, s in self.interval.items() if s == 0])
-            self.interval = types.MappingProxyType(
-                {c: s for c, s in self.interval.items() if s > 0}
-            )
-            self.non_zero_cands = frozenset(self.interval.keys())
-
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):
-            raise TypeError("Both types must be PreferenceInterval.")
-
-        if not self.zero_cands == other.zero_cands:
-            return False
-
-        if not self.non_zero_cands == other.non_zero_cands:
             return False
 
         if not len(self.interval) == len(other.interval):
