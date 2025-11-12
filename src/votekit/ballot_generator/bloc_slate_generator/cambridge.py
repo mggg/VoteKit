@@ -31,7 +31,10 @@ def _sample_historical_slate_ballots(
     historical_majority_ballot_frequencies: dict[tuple[str, ...], float],
     historical_minority_ballot_frequencies: dict[tuple[str, ...], float],
     majority_bloc: str,
-    historical_slate_to_config_slate: dict[str, str],
+    historical_slate_to_config_slate: dict[
+        str, str
+    ],  # TODO: in next major release, make sure this naming aligns with how the user sets the
+    # majority/minority groups
 ):
     """
     Sample historical slate ballots for a given bloc using the Cambridge model.
@@ -199,7 +202,7 @@ def _validate_slates_and_blocs(
 
     if len(config.blocs) != 2:
         raise ValueError(
-            f"This model currently only supports two slates, but you \
+            f"This model currently only supports two blocs, but you \
                           passed {len(config.slates)}"
         )
 
@@ -280,8 +283,12 @@ def _determine_and_validate_majority_and_minority_blocs(
 def cambridge_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    majority_bloc: Optional[str] = None,
-    minority_bloc: Optional[str] = None,
+    majority_bloc: Optional[
+        str
+    ] = None,  # TODO: in next major release, consider using majority_slate instead of majority_bloc
+    minority_bloc: Optional[
+        str
+    ] = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
     group_ballots: bool = True,
 ) -> dict[str, RankProfile]:
     """
@@ -302,8 +309,8 @@ def cambridge_profiles_by_bloc_generator(
 
     Kwargs:
         majority_bloc (Optional[str]): Name of the group in the config corresponding to the
-                    historical majority group. Defaults to None, in which case the majority
-                    group is determined by the bloc proportions.
+            historical majority group. Defaults to None, in which case the majority
+            group is determined by the bloc proportions.
         minority_bloc (Optional[str]): Name of the group in the config corresponding to the
             historical minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
