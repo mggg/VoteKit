@@ -7,6 +7,8 @@ import seaborn as sns
 import math
 from votekit.pref_profile import RankProfile, ScoreProfile
 from scipy import stats
+from votekit.ballot_generator import BlocSlateConfig
+from votekit.pref_interval import PreferenceInterval
 
 
 # NOTE: Lock down the rendering for snapshot tests
@@ -229,3 +231,42 @@ def do_ballot_probs_match_ballot_dist_score_profile():
         return failed <= failure_thresold
 
     return _do_ballot_probs_match_ballot_dist_score_profile
+
+
+@pytest.fixture
+def two_bloc_two_slate_config():
+    return BlocSlateConfig(
+        n_voters=100_000,
+        slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"]},
+        bloc_proportions={"X": 0.7, "Y": 0.3},
+        preference_mapping={
+            "X": {
+                "A": PreferenceInterval({"A1": 0.4, "A2": 0.3}),
+                "B": PreferenceInterval({"B1": 0.2, "B2": 0.1}),
+            },
+            "Y": {
+                "A": PreferenceInterval({"A1": 0.2, "A2": 0.2}),
+                "B": PreferenceInterval({"B1": 0.3, "B2": 0.3}),
+            },
+        },
+        cohesion_mapping={"X": {"A": 0.7, "B": 0.3}, "Y": {"B": 0.9, "A": 0.1}},
+    )
+
+
+@pytest.fixture
+def one_bloc_three_slate_config():
+    return BlocSlateConfig(
+        n_voters=100_000,
+        slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"], "C": ["C1", "C2"]},
+        bloc_proportions={"X": 1},
+        preference_mapping={
+            "X": {
+                "A": PreferenceInterval({"A1": 1 / 2, "A2": 1 / 2}),
+                "B": PreferenceInterval({"B1": 1 / 3, "B2": 2 / 3}),
+                "C": PreferenceInterval({"C1": 1 / 4, "C2": 3 / 4}),
+            }
+        },
+        cohesion_mapping={
+            "X": {"A": 0.7, "B": 0.2, "C": 0.1},
+        },
+    )
