@@ -107,27 +107,16 @@ def _construct_slate_to_candidate_ordering_arrays(
 
     for slate in config.slates:
         preference_interval = pref_intervals_by_slate_dict[slate].interval
-        non_zero_support_cands = pref_intervals_by_slate_dict[slate].non_zero_cands
-        zero_support_cands = pref_intervals_by_slate_dict[slate].zero_cands
+        candidates = config.slate_to_candidates[slate]
         cand_ordering = np.empty(
-            (n_samples, len(non_zero_support_cands) + len(zero_support_cands)),
+            (n_samples, len(candidates)),
             dtype=object,
         )
 
-        if len(non_zero_support_cands) != 0:
-            cands_list = np.array(list(non_zero_support_cands))
-            distribution = np.array(
-                [preference_interval[c] for c in non_zero_support_cands]
-            )
-            indices = _algorithm_a_sample_indices(distribution, n_samples)
-            cand_ordering[:, : len(non_zero_support_cands)] = cands_list[indices]
-
-        if len(zero_support_cands) != 0:
-            noise = np.random.random(size=(n_samples, len(zero_support_cands)))
-            permutation_indices = np.argsort(noise, axis=1)
-            cand_ordering[:, len(non_zero_support_cands) :] = np.array(
-                list(zero_support_cands), dtype=object
-            )[permutation_indices]
+        cands_list = np.array(list(candidates))
+        distribution = np.array([preference_interval[c] for c in candidates])
+        indices = _algorithm_a_sample_indices(distribution, n_samples)
+        cand_ordering[:, : len(candidates)] = cands_list[indices]
 
         results[slate] = cand_ordering
 
