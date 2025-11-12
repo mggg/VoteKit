@@ -175,7 +175,8 @@ def _score_dict_from_rankings_df_no_ties(
     If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
     in the dictionary.
 
-    This function does not handle ties in ballots.
+    This function does not handle ties in ballots. We round to 10 decimal places to avoid
+    floating point precision issues.
 
 
     Args:
@@ -244,6 +245,8 @@ def score_dict_from_score_vector(
     non-negative. Vector should be as long as ``max_ranking_length`` in the profile.
     If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
     in the dictionary.
+
+    We round to 10 decimal places to avoid floating point precision issues.
 
 
     Args:
@@ -316,7 +319,7 @@ def score_dict_from_score_vector(
                 allocation = sum(local_score_vector) / position_size
 
             for c in s:
-                scores[c] += round(allocation * wt, 4)
+                scores[c] += round(allocation * wt, 10)
             current_ind += position_size
 
     return scores
