@@ -881,7 +881,6 @@ class BlocSlateConfig:
             preference_df = pd.DataFrame()
         else:
             self.__validate_pref_df_mapping_keys_ok_in_config(preference_mapping)
-            print("preference_mapping", preference_mapping)
             preference_df = convert_preference_map_to_preference_df(preference_mapping)
             preference_df = preference_df[self.candidates]  # ensure column order
         object.__setattr__(self, "preference_df", preference_df)

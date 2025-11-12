@@ -17,7 +17,6 @@ def test_Cambridge_distribution(
     compute_pl_prob,
     bloc_order_probs_slate_first,
 ):
-    # BASE_DIR = Path(__file__).resolve().parent.parent
     DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
     maj_path = Path(
         DATA_DIR, "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.pkl"
