@@ -5,11 +5,34 @@ from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profiles_by_bloc_generator,
 )
 from votekit.pref_profile import RankProfile
-import pickle
+import json
 import itertools as it
 import numpy as np
 from pathlib import Path
 import pytest
+import hashlib
+
+
+def hash_json(file_path: str):
+    """
+    Hash a JSON file. Used to ensures that the keys and values of the JSON file are the same
+    across versions.
+
+    Args:
+        file_path (str): The path to the JSON file to hash.
+
+    Returns:
+        str: The SHA-256 hash of the JSON file.
+    """
+    with open(file_path, "r") as f:
+        data = json.load(f)
+    normalized_json = json.dumps(data, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(normalized_json.encode("utf-8")).hexdigest()
+
+
+# ground truth hashes of the JSON files
+START_WITH_C_HASH = "b238e9c898b85970021a5de8229608302620924a529f49247ee747f3588a8a71"
+START_WITH_W_HASH = "fcba9103dbea6a8e03ed159123e1f4ff61ad8ac012b6acaa0d0aa6240a6ad715"
 
 
 def test_Cambridge_distribution(
@@ -19,10 +42,10 @@ def test_Cambridge_distribution(
 ):
     DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
     maj_path = Path(
-        DATA_DIR, "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.pkl"
+        DATA_DIR, "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.json"
     )
     min_path = Path(
-        DATA_DIR, "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.pkl"
+        DATA_DIR, "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json"
     )
 
     slate_to_candidate = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
@@ -56,10 +79,10 @@ def test_Cambridge_distribution(
     bloc_voter_prop = {"W": 0.5, "C": 0.5}
     cohesion_parameters = {"W": 1, "C": 1}
 
-    with open(maj_path, "rb") as pickle_file:
-        w_ballot_frequencies = pickle.load(pickle_file)
-    with open(min_path, "rb") as pickle_file:
-        c_ballot_frequencies = pickle.load(pickle_file)
+    with open(maj_path, "r") as json_file:
+        w_ballot_frequencies = json.load(json_file)
+    with open(min_path, "r") as json_file:
+        c_ballot_frequencies = json.load(json_file)
 
     ballot_frequencies = {**w_ballot_frequencies, **c_ballot_frequencies}
     slates = list(slate_to_candidate.keys())
@@ -333,3 +356,25 @@ def test_Cambridge_completion_W_C_bloc():
     )
     assert isinstance(profile_dict, dict)
     assert (type(profile_dict["A"])) is RankProfile
+
+
+def test_Cambridge_json_files_are_the_same():
+    DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
+    assert (
+        hash_json(
+            Path(
+                DATA_DIR,
+                "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.json",
+            )
+        )
+        == START_WITH_W_HASH
+    )
+    assert (
+        hash_json(
+            Path(
+                DATA_DIR,
+                "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json",
+            )
+        )
+        == START_WITH_C_HASH
+    )

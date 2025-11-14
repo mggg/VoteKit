@@ -10,7 +10,7 @@ The main API functions in this module are:
 
 import numpy as np
 from pathlib import Path
-import pickle
+import json
 from typing import Optional
 import apportionment.methods as apportion
 from votekit.pref_profile import RankProfile
@@ -134,17 +134,17 @@ def _inner_cambridge_sampler(
     DATA_DIR = BASE_DIR / "data/"
     historical_majority_ballot_data_path = Path(
         DATA_DIR,
-        "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.pkl",
+        "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.json",
     )
 
     historical_minority_ballot_data_path = Path(
         DATA_DIR,
-        "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.pkl",
+        "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json",
     )
-    with open(historical_majority_ballot_data_path, "rb") as pickle_file:
-        historical_majority_ballot_frequencies = pickle.load(pickle_file)
-    with open(historical_minority_ballot_data_path, "rb") as pickle_file:
-        historical_minority_ballot_frequencies = pickle.load(pickle_file)
+    with open(historical_majority_ballot_data_path, "r") as json_file:
+        historical_majority_ballot_frequencies = json.load(json_file)
+    with open(historical_minority_ballot_data_path, "r") as json_file:
+        historical_minority_ballot_frequencies = json.load(json_file)
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
