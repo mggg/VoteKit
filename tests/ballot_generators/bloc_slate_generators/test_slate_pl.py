@@ -238,7 +238,7 @@ def test_one_bloc_three_slate_spl_distribution_matches_name_ballot_dist(
                 cand
                 for cand_set in ballot.ranking
                 for cand in cand_set
-                if cand[0] == slate
+                if cand[0] == slate and cand[-1] in ["1", "2"]
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
