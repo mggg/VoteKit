@@ -257,11 +257,15 @@ def two_bloc_two_slate_config():
 def one_bloc_three_slate_config():
     return BlocSlateConfig(
         n_voters=100_000,
-        slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"], "C": ["C1", "C2"]},
+        slate_to_candidates={
+            "A": ["A1", "A2", "A3"],
+            "B": ["B1", "B2"],
+            "C": ["C1", "C2"],
+        },
         bloc_proportions={"X": 1},
         preference_mapping={
             "X": {
-                "A": PreferenceInterval({"A1": 1 / 2, "A2": 1 / 2}),
+                "A": PreferenceInterval({"A1": 1 / 2, "A2": 1 / 2, "A3": 1 / 2}),
                 "B": PreferenceInterval({"B1": 1 / 3, "B2": 2 / 3}),
                 "C": PreferenceInterval({"C1": 1 / 4, "C2": 3 / 4}),
             }
