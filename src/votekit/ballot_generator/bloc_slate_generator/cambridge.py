@@ -196,14 +196,12 @@ def _validate_slates_and_blocs(
     """
     if len(config.slates) != 2:
         raise ValueError(
-            f"This model currently only supports two slates, but you \
-                          passed {len(config.slates)}"
+            f"This model currently only supports two slates, but you passed {len(config.slates)}"
         )
 
     if len(config.blocs) != 2:
         raise ValueError(
-            f"This model currently only supports two blocs, but you \
-                          passed {len(config.slates)}"
+            f"This model currently only supports two blocs, but you passed {len(config.blocs)}"
         )
 
     if set(config.slates) != set(config.blocs):
