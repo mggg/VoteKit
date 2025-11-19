@@ -159,9 +159,6 @@ def _convert_slate_ballot_type_to_ranking(
     for slate in ballot_type[:final_max_ranking_length]:
         pos = positions[slate]
 
-        if pos >= len(cand_ordering_by_slate[slate]):
-            continue
-
         cand = cand_ordering_by_slate[slate][pos]
         positions[slate] = pos + 1
 
@@ -194,7 +191,7 @@ def _convert_slate_ballots_to_profile(
     n_candidates = len(config.candidates)
     n_ballots = len(slate_ballots)
 
-    # full orderings of all candidates in each slate, zero or non-zero support
+    # full orderings of all candidates in each slate
     cand_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(
         config, bloc, n_ballots
     )

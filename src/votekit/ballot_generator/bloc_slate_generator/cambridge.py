@@ -28,8 +28,8 @@ def _sample_historical_slate_ballots(
     ballots_per_bloc: dict[str, int],
     bloc: str,
     config: BlocSlateConfig,
-    historical_majority_ballot_frequencies: dict[tuple[str, ...], float],
-    historical_minority_ballot_frequencies: dict[tuple[str, ...], float],
+    reduced_historical_majority_ballot_pmf: dict[tuple[str, ...], float],
+    reduced_historical_minority_ballot_pmf: dict[tuple[str, ...], float],
     majority_bloc: str,
     historical_slate_to_config_slate: dict[
         str, str
@@ -44,12 +44,14 @@ def _sample_historical_slate_ballots(
             to sample for that bloc.
         bloc (str): The name of the bloc to sample ballots for.
         config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
-        historical_majority_ballot_frequencies (dict[tuple[str, ...], float]): A dictionary mapping
+        reduced_historical_majority_ballot_pmf (dict[tuple[str, ...], float]): A dictionary mapping
             ballot types that begin with the historical majority slate to their frequencies
-            (i.e. probabilities).
-        historical_minority_ballot_frequencies (dict[tuple[str, ...], float]): A dictionary mapping
+            (i.e. probabilities). Ballots have been reduced to match the number of candidates in
+            the config.
+        reduced_historical_minority_ballot_pmf (dict[tuple[str, ...], float]): A dictionary mapping
             ballot types that begin with the historical minority slate to their frequencies
-            (i.e. probabilities).
+            (i.e. probabilities). Ballots have been reduced to match the number of candidates in
+            the config.
         majority_bloc (str): The name of the group in the config corresponding to the historical
             majority slate.
         historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
@@ -67,19 +69,19 @@ def _sample_historical_slate_ballots(
 
     num_ballots_start_with_min_slate = n_ballots - num_ballots_start_with_maj_slate
 
-    hist_maj_ballots = list(historical_majority_ballot_frequencies.keys())
-    hist_min_ballots = list(historical_minority_ballot_frequencies.keys())
+    hist_maj_ballots = list(reduced_historical_majority_ballot_pmf.keys())
+    hist_min_ballots = list(reduced_historical_minority_ballot_pmf.keys())
 
     maj_slate_ballot_indices = np.random.choice(
         len(hist_maj_ballots),
         size=num_ballots_start_with_maj_slate,
-        p=list(historical_majority_ballot_frequencies.values()),
+        p=list(reduced_historical_majority_ballot_pmf.values()),
     )
 
     min_slate_ballot_indices = np.random.choice(
         len(hist_min_ballots),
         size=num_ballots_start_with_min_slate,
-        p=list(historical_minority_ballot_frequencies.values()),
+        p=list(reduced_historical_minority_ballot_pmf.values()),
     )
 
     slate_ballots = [
@@ -98,6 +100,87 @@ def _sample_historical_slate_ballots(
     ]
 
     return slate_ballots
+
+
+def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int):
+    """
+    Takes a long ballot and reduces it to match the number of candidates in the config.
+
+    Args:
+        original_slate_ballot (str): The original ballot to reduce. Slate type.
+        w_count (int): The number of candidates in the majority bloc.
+        c_count (int): The number of candidates in the minority bloc.
+
+    Returns:
+        str: The reduced ballot.
+    """
+    new_ballot = ""
+    for char in original_slate_ballot:
+        if char == "W" and w_count > 0:
+            new_ballot += "W"
+            w_count -= 1
+        elif char == "C" and c_count > 0:
+            new_ballot += "C"
+            c_count -= 1
+    return new_ballot
+
+
+def _reduce_ballot_pmfs(
+    historical_majority_ballot_data_path: Path,
+    historical_minority_ballot_data_path: Path,
+    config: BlocSlateConfig,
+    majority_bloc: str,
+    minority_bloc: str,
+):
+    """
+    Reduces the ballot PMFs to match the number of candidates in the config.
+
+    Args:
+        historical_majority_ballot_data_path (Path): The path to the JSON file containing the historical majority ballot frequencies.
+        historical_minority_ballot_data_path (Path): The path to the JSON file containing the historical minority ballot frequencies.
+        config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
+        majority_bloc (str): The name of the group in the config corresponding to the historical
+            majority slate.
+        minority_bloc (str): The name of the group in the config corresponding to the historical
+            minority slate.
+
+    Returns:
+        tuple[dict[tuple[str, ...], float], dict[tuple[str, ...], float]]: A tuple containing the
+            reduced historical majority ballot PMF and the reduced historical minority ballot PMF.
+    """
+    w_count = len(config.slate_to_candidates[majority_bloc])
+    c_count = len(config.slate_to_candidates[minority_bloc])
+
+    with open(historical_majority_ballot_data_path, "r") as json_file:
+        historical_majority_ballot_frequencies = json.load(json_file)
+        reduced_historical_majority_ballot_pmf = {}
+        for ballot, freq in historical_majority_ballot_frequencies.items():
+            reduced_ballot = _reduce_ballot(
+                ballot,
+                w_count,
+                c_count,
+            )
+            reduced_historical_majority_ballot_pmf[reduced_ballot] = (
+                reduced_historical_majority_ballot_pmf.get(reduced_ballot, 0) + freq
+            )
+
+    with open(historical_minority_ballot_data_path, "r") as json_file:
+        historical_minority_ballot_frequencies = json.load(json_file)
+        reduced_historical_minority_ballot_pmf = {}
+        for ballot, freq in historical_minority_ballot_frequencies.items():
+            reduced_ballot = _reduce_ballot(
+                ballot,
+                w_count,
+                c_count,
+            )
+            reduced_historical_minority_ballot_pmf[reduced_ballot] = (
+                reduced_historical_minority_ballot_pmf.get(reduced_ballot, 0) + freq
+            )
+
+    return (
+        reduced_historical_majority_ballot_pmf,
+        reduced_historical_minority_ballot_pmf,
+    )
 
 
 # ===========================================================
@@ -141,10 +224,16 @@ def _inner_cambridge_sampler(
         DATA_DIR,
         "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json",
     )
-    with open(historical_majority_ballot_data_path, "r") as json_file:
-        historical_majority_ballot_frequencies = json.load(json_file)
-    with open(historical_minority_ballot_data_path, "r") as json_file:
-        historical_minority_ballot_frequencies = json.load(json_file)
+
+    reduced_historical_majority_ballot_pmf, reduced_historical_minority_ballot_pmf = (
+        _reduce_ballot_pmfs(
+            historical_majority_ballot_data_path,
+            historical_minority_ballot_data_path,
+            config,
+            majority_bloc,
+            minority_bloc,
+        )
+    )
 
     bloc_counts = apportion.compute(
         "huntington", list(config.bloc_proportions.values()), config.n_voters
@@ -166,8 +255,8 @@ def _inner_cambridge_sampler(
             ballots_per_bloc,
             bloc,
             config,
-            historical_majority_ballot_frequencies,
-            historical_minority_ballot_frequencies,
+            reduced_historical_majority_ballot_pmf,
+            reduced_historical_minority_ballot_pmf,
             majority_bloc,
             historical_slate_to_config_slate,
         )

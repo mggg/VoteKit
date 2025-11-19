@@ -63,7 +63,7 @@ def test_Cambridge_completion(two_bloc_two_slate_config_cambridge):
     config = two_bloc_two_slate_config_cambridge
     profile = cambridge_profile_generator(config)
     assert type(profile) is RankProfile
-    assert profile.total_ballot_wt == 100_000
+    assert profile.total_ballot_wt == config.n_voters
 
     profile_dict = cambridge_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
@@ -244,8 +244,8 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
         distribution_for_config_by_starting_slate[starting_slate] = (
             distribution_for_config
         )
-
     profile_dict = cambridge_profiles_by_bloc_generator(config)
+
     cand_to_slate_dict = {
         cand: slate
         for slate, cand_list in config.slate_to_candidates.items()
@@ -268,23 +268,19 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
             slate_ballot_counts[slate_ballot_type] = (
                 slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
             )
-        slate_ballot_dist = {
+        observed_ballot_dist = {
             ballot_type: prob / profile.total_ballot_wt
             for ballot_type, prob in slate_ballot_counts.items()
         }
-        print(slate_ballot_dist)
         joint_distribution = {
             ballot_type: prob * config.cohesion_df.loc[bloc][starts_with_slate]
             for starts_with_slate, distribution in distribution_for_config_by_starting_slate.items()
             for ballot_type, prob in distribution.items()
         }
-        print(("true"))
-        print(joint_distribution)
-        print(sum(joint_distribution.values()))
 
         assert all(
-            obs_freq - joint_distribution[ballot_type] < PROB_THRESHOLD
-            for ballot_type, obs_freq in slate_ballot_dist.items()
+            abs(obs_freq - joint_distribution[ballot_type]) < PROB_THRESHOLD
+            for ballot_type, obs_freq in observed_ballot_dist.items()
         )
 
 
@@ -298,64 +294,35 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
     for bloc in config.blocs:
         profile = profiles_by_bloc[bloc]
 
-        x_comparisons_profile = Counter(
-            [
-                tuple(
-                    cand
-                    for cand_set in ballot.ranking
-                    for cand in cand_set
-                    if cand[0] == "X"
-                )
-                for ballot in profile.ballots
-                for _ in range(int(ballot.weight))
-            ]
-        )
-
-        y_comparisons_profile = Counter(
-            [
-                tuple(
-                    cand
-                    for cand_set in ballot.ranking
-                    for cand in cand_set
-                    if cand[0] == "Y"
-                )
-                for ballot in profile.ballots
-                for _ in range(int(ballot.weight))
-            ]
-        )
-
-        # must be short ballot issue
-        # maybe need to use the empty set that is appearing in the counter somehow
-        print(x_comparisons_profile)
-        assert (
-            abs(
-                (x_comparisons_profile[("X1", "X2")] + x_comparisons_profile[("X1",)])
-                / (profile.total_ballot_wt - x_comparisons_profile[()])
-                - config.preference_df.loc[bloc]["X1"]
-                / (
-                    config.preference_df.loc[bloc]["X1"]
-                    + config.preference_df.loc[bloc]["X2"]
-                )
+        for slate in config.slates:
+            comparisons_profile = Counter(
+                [
+                    tuple(
+                        cand
+                        for cand_set in ballot.ranking
+                        for cand in cand_set
+                        if cand[0] == slate
+                    )
+                    for ballot in profile.ballots
+                    for _ in range(int(ballot.weight))
+                ]
             )
-            < PROB_THRESHOLD
-        )
 
-        assert (
-            abs(
+            obs_prob = float(
                 (
-                    y_comparisons_profile[("Y1", "Y2")]
-                    + y_comparisons_profile[("Y1",)]
-                    + y_comparisons_profile[()]
+                    comparisons_profile[(f"{slate}1", f"{slate}2")]
+                    + comparisons_profile[(f"{slate}1",)]
                 )
-                / profile.total_ballot_wt
-                - config.preference_df.loc[bloc]["Y1"]
+                / (profile.total_ballot_wt - comparisons_profile[()])
+            )
+            exp_prob = float(
+                config.preference_df.loc[bloc][f"{slate}1"]
                 / (
-                    config.preference_df.loc[bloc]["Y1"]
-                    + config.preference_df.loc[bloc]["Y2"]
+                    config.preference_df.loc[bloc][f"{slate}1"]
+                    + config.preference_df.loc[bloc][f"{slate}2"]
                 )
             )
-            < PROB_THRESHOLD
-        )
+            assert abs(obs_prob - exp_prob) < PROB_THRESHOLD
 
 
 def test_cambridge_zero_support_slates():

@@ -256,7 +256,7 @@ def two_bloc_two_slate_config():
 @pytest.fixture
 def two_bloc_two_slate_config_cambridge():
     return BlocSlateConfig(
-        n_voters=100_000,
+        n_voters=200_000,
         slate_to_candidates={"X": ["X1", "X2"], "Y": ["Y1", "Y2"]},
         bloc_proportions={"X": 0.6, "Y": 0.4},
         preference_mapping={
