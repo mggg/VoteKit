@@ -366,15 +366,8 @@ def convert_preference_map_to_preference_df(
                 if isinstance(cand_item, PreferenceInterval)
                 else cand_item
             )
-            zero_support_cands = (
-                cand_item.zero_cands
-                if isinstance(cand_item, PreferenceInterval)
-                else set()
-            )
-
             cand_series = pd.Series(cand_map)
             cand_dict = cand_series.to_dict()
-            cand_dict.update({c: 0 for c in zero_support_cands})
 
             blocs_to_cand[bloc].update(cand_dict)
 
@@ -1024,7 +1017,6 @@ class BlocSlateConfig:
         if not self.silent:
             for msg in messages:
                 warn(msg, ConfigurationWarning)
-
         return valid
 
     def __validate_cohesion_df_mapping_keys_ok_in_config(
@@ -1168,6 +1160,14 @@ class BlocSlateConfig:
                                 ValueError(
                                     f"preference_df row for bloc '{row[0]}' has values that have "
                                     f"not been set (indicated with value of -1)."
+                                )
+                            )
+                        # TODO test
+                        elif any(row[1] == 0):
+                            errors.append(
+                                ValueError(
+                                    f"preference_df row for bloc '{row[0]}' has values that are "
+                                    " zero. All candidates must have non-zero support."
                                 )
                             )
                         elif abs(row[1].sum() - 1.0) > 1e-8:
