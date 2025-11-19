@@ -254,6 +254,26 @@ def two_bloc_two_slate_config():
 
 
 @pytest.fixture
+def two_bloc_two_slate_config_cambridge():
+    return BlocSlateConfig(
+        n_voters=100_000,
+        slate_to_candidates={"X": ["X1", "X2"], "Y": ["Y1", "Y2"]},
+        bloc_proportions={"X": 0.6, "Y": 0.4},
+        preference_mapping={
+            "X": {
+                "X": PreferenceInterval({"X1": 0.4, "X2": 0.3}),
+                "Y": PreferenceInterval({"Y1": 0.2, "Y2": 0.1}),
+            },
+            "Y": {
+                "X": PreferenceInterval({"X1": 0.2, "X2": 0.2}),
+                "Y": PreferenceInterval({"Y1": 0.3, "Y2": 0.3}),
+            },
+        },
+        cohesion_mapping={"X": {"X": 0.7, "Y": 0.3}, "Y": {"Y": 0.9, "X": 0.1}},
+    )
+
+
+@pytest.fixture
 def one_bloc_three_slate_config():
     return BlocSlateConfig(
         n_voters=100_000,
