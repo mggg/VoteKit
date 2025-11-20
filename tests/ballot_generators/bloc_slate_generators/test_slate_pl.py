@@ -33,11 +33,11 @@ def compute_probability_of_ballot_by_slate(
     num_cands_per_slate = {
         slate: len(cand_list) for slate, cand_list in config.slate_to_candidates.items()
     }
-    prob_of_slate = {
-        slate: config.cohesion_df.loc[bloc][slate] for slate in config.slates
+    prob_of_slate: dict[str, float] = {
+        slate: float(config.cohesion_df.loc[bloc][slate]) for slate in config.slates
     }
 
-    ballot_prob = 1
+    ballot_prob = 1.0
     for i, slate in enumerate(slate_ballot_type):
         ballot_prob *= prob_of_slate[slate]
         num_cands_seen_per_slate[slate] += 1

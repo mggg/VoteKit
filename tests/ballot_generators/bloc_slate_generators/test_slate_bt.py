@@ -32,18 +32,19 @@ def compute_sbt_slate_ballot_distribution(config: BlocSlateConfig, bloc: str):
         for _ in range(len(config.slate_to_candidates[slate]))
     ]
     slate_ballot_dist = {
-        slate_ballot_type: 1
+        slate_ballot_type: 1.0
         for slate_ballot_type in it.permutations(slates_with_multiplicity)
     }
     for slate_ballot_type in slate_ballot_dist.keys():
         for idx, slate in enumerate(slate_ballot_type):
             for other_slate in slate_ballot_type[idx + 1 :]:
                 if slate != other_slate:
-                    slate_ballot_dist[slate_ballot_type] *= config.cohesion_df.loc[
-                        bloc
-                    ][slate] / (
+                    slate_ballot_dist[slate_ballot_type] *= float(
                         config.cohesion_df.loc[bloc][slate]
-                        + config.cohesion_df.loc[bloc][other_slate]
+                        / (
+                            config.cohesion_df.loc[bloc][slate]
+                            + config.cohesion_df.loc[bloc][other_slate]
+                        )
                     )
 
     return {

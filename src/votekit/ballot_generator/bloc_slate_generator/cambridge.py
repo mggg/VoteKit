@@ -28,8 +28,8 @@ def _sample_historical_slate_ballots(
     ballots_per_bloc: dict[str, int],
     bloc: str,
     config: BlocSlateConfig,
-    reduced_historical_majority_ballot_pmf: dict[tuple[str, ...], float],
-    reduced_historical_minority_ballot_pmf: dict[tuple[str, ...], float],
+    reduced_historical_majority_ballot_pmf: dict[str, float],
+    reduced_historical_minority_ballot_pmf: dict[str, float],
     majority_bloc: str,
     historical_slate_to_config_slate: dict[
         str, str
@@ -44,11 +44,11 @@ def _sample_historical_slate_ballots(
             to sample for that bloc.
         bloc (str): The name of the bloc to sample ballots for.
         config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
-        reduced_historical_majority_ballot_pmf (dict[tuple[str, ...], float]): A dictionary mapping
+        reduced_historical_majority_ballot_pmf (dict[str, float]): A dictionary mapping
             ballot types that begin with the historical majority slate to their frequencies
             (i.e. probabilities). Ballots have been reduced to match the number of candidates in
             the config.
-        reduced_historical_minority_ballot_pmf (dict[tuple[str, ...], float]): A dictionary mapping
+        reduced_historical_minority_ballot_pmf (dict[str, float]): A dictionary mapping
             ballot types that begin with the historical minority slate to their frequencies
             (i.e. probabilities). Ballots have been reduced to match the number of candidates in
             the config.
@@ -102,7 +102,7 @@ def _sample_historical_slate_ballots(
     return slate_ballots
 
 
-def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int):
+def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int) -> str:
     """
     Takes a long ballot and reduces it to match the number of candidates in the config.
 
@@ -131,7 +131,7 @@ def _reduce_ballot_pmfs(
     config: BlocSlateConfig,
     majority_bloc: str,
     minority_bloc: str,
-):
+) -> tuple[dict[str, float], dict[str, float]]:
     """
     Reduces the ballot PMFs to match the number of candidates in the config.
 
@@ -145,7 +145,7 @@ def _reduce_ballot_pmfs(
             minority slate.
 
     Returns:
-        tuple[dict[tuple[str, ...], float], dict[tuple[str, ...], float]]: A tuple containing the
+        tuple[dict[str, float], dict[str, float]]: A tuple containing the
             reduced historical majority ballot PMF and the reduced historical minority ballot PMF.
     """
     w_count = len(config.slate_to_candidates[majority_bloc])
@@ -153,7 +153,7 @@ def _reduce_ballot_pmfs(
 
     with open(historical_majority_ballot_data_path, "r") as json_file:
         historical_majority_ballot_frequencies = json.load(json_file)
-        reduced_historical_majority_ballot_pmf = {}
+        reduced_historical_majority_ballot_pmf: dict[str, float] = {}
         for ballot, freq in historical_majority_ballot_frequencies.items():
             reduced_ballot = _reduce_ballot(
                 ballot,
@@ -166,7 +166,7 @@ def _reduce_ballot_pmfs(
 
     with open(historical_minority_ballot_data_path, "r") as json_file:
         historical_minority_ballot_frequencies = json.load(json_file)
-        reduced_historical_minority_ballot_pmf = {}
+        reduced_historical_minority_ballot_pmf: dict[str, float] = {}
         for ballot, freq in historical_minority_ballot_frequencies.items():
             reduced_ballot = _reduce_ballot(
                 ballot,

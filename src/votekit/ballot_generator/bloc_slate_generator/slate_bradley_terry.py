@@ -113,7 +113,7 @@ def _compute_ballot_type_dist(
     bloc_series = config.cohesion_df.loc[bloc]
     bloc_series.index = bloc_series.index.astype(str)
     bloc_series = bloc_series.astype(float)
-    bloc_series = bloc_series[bloc_series != 0]
+    bloc_series = bloc_series[bloc_series != 0]  # type: ignore
 
     slate_cohesion_dict_for_bloc: dict[str, float] = cast(
         dict[str, float], bloc_series.to_dict()
