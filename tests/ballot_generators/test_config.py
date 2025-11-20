@@ -1501,7 +1501,9 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
         },
     }
     with pytest.raises(
-        KeyError, match="preference_df columns (candidates) must be exactly "
+        ValueError,
+        match="preference_df row for bloc 'bloc_2' has values that are "
+        " zero. All candidates must have non-zero support.",
     ):
         BlocSlateConfig(
             bloc_proportions=valid_config["bloc_proportions"],
@@ -1509,7 +1511,7 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
             preference_mapping=preference_mapping,
             cohesion_mapping=valid_config["cohesion_mapping"],
             n_voters=100,
-        )
+        ).is_valid(raise_errors=True)
 
     # should not be allowed to leave X our of bloc 1 slate 2
     preference_mapping = {
@@ -1522,14 +1524,18 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
             "slate_2": {"X": 0.5, "Y": 0.5},
         },
     }
-    assert False
-    # with pytest.raises(
-    #     KeyError,
-    #     match=f"preference_df columns (candidates) must be exactly "
-    #     f"{list(config.candidates)}, as defined in the 'slate_to_candidates' "
-    #     f"parameter. Got {list(config.preference_df.columns)}",
-    # ):
-    #     config.preference_df = preference_mapping  # type: ignore[assignment]
+    with pytest.raises(
+        ValueError,
+        match="preference_df row for bloc 'bloc_1' has values that are "
+        " zero. All candidates must have non-zero support.",
+    ):
+        BlocSlateConfig(
+            bloc_proportions=valid_config["bloc_proportions"],
+            slate_to_candidates=valid_config["slate_to_candidates"],
+            preference_mapping=preference_mapping,
+            cohesion_mapping=valid_config["cohesion_mapping"],
+            n_voters=100,
+        ).is_valid(raise_errors=True)
 
 
 def test_error_when_preference_row_has_zero_support_candidates(valid_config):
@@ -1552,6 +1558,7 @@ def test_error_when_preference_row_has_zero_support_candidates(valid_config):
         " zero. All candidates must have non-zero support.",
     ):
         config.preference_df = preference_mapping  # type: ignore[assignment]
+        config.is_valid(raise_errors=True)
 
 
 # --- cohesion_df structural/content errors --------------------------------

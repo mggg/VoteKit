@@ -1162,7 +1162,6 @@ class BlocSlateConfig:
                                     f"not been set (indicated with value of -1)."
                                 )
                             )
-                        # TODO test
                         elif any(row[1] == 0):
                             errors.append(
                                 ValueError(
@@ -1223,7 +1222,6 @@ class BlocSlateConfig:
                             f"got {row[1].sum():.6f}"
                         )
                     )
-
         return errors
 
     def is_valid(
@@ -1249,6 +1247,7 @@ class BlocSlateConfig:
             if raise_errors:
                 raise err
             if raise_warnings and not self.silent:
+
                 warn(str(err.args[0]), ConfigurationWarning)
 
         return False
