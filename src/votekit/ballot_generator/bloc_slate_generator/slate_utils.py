@@ -58,7 +58,7 @@ def _lexicographic_symbol_tuple_iterator(
         current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
-def _algorithm_a_sample_indices(weights: NDArray, n_samples: int) -> np.ndarray:
+def _fast_sample_without_replacement(weights: NDArray, n_samples: int) -> np.ndarray:
     """
     Sample without replacement from a distribution given by the weights.
     All weights must be non-zero, and the sample will be a sorted list of indices
@@ -115,7 +115,7 @@ def _construct_slate_to_candidate_ordering_arrays(
 
         cands_list = np.array(list(candidates))
         distribution = np.array([preference_interval[c] for c in candidates])
-        indices = _algorithm_a_sample_indices(distribution, n_samples)
+        indices = _fast_sample_without_replacement(distribution, n_samples)
         cand_ordering[:, : len(candidates)] = cands_list[indices]
 
         results[slate] = cand_ordering
@@ -159,7 +159,16 @@ def _convert_slate_ballot_type_to_ranking(
     for slate in ballot_type[:final_max_ranking_length]:
         pos = positions[slate]
 
-        cand = cand_ordering_by_slate[slate][pos]
+        try:
+            cand = cand_ordering_by_slate[slate][pos]
+        except IndexError:
+            raise IndexError(
+                f"There are insufficiently many candidates ({len(cand_ordering_by_slate[slate])}) "
+                "in slate "
+                f"{slate} to complete ballot of type {ballot_type[:final_max_ranking_length]}"
+            )
+        except Exception as e:
+            raise e
         positions[slate] = pos + 1
 
         fset = fset_cache.get(cand)

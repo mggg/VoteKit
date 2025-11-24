@@ -124,8 +124,12 @@ def test_two_bloc_two_slate_spl_distribution_matches_slate_ballot_dist(
             )
 
         assert all(
-            slate_ballot_weight / profile.total_ballot_wt
-            - compute_probability_of_ballot_by_slate(bloc, config, slate_ballot_type)
+            abs(
+                slate_ballot_weight / profile.total_ballot_wt
+                - compute_probability_of_ballot_by_slate(
+                    bloc, config, slate_ballot_type
+                )
+            )
             < PROB_THRESHOLD
             for slate_ballot_type, slate_ballot_weight in slate_ballot_counts.items()
         )
@@ -218,8 +222,10 @@ def test_one_bloc_three_slate_spl_distribution_matches_slate_ballot_dist(
         )
 
     assert all(
-        slate_ballot_weight / profile.total_ballot_wt
-        - compute_probability_of_ballot_by_slate(bloc, config, slate_ballot_type)
+        abs(
+            slate_ballot_weight / profile.total_ballot_wt
+            - compute_probability_of_ballot_by_slate(bloc, config, slate_ballot_type)
+        )
         < PROB_THRESHOLD
         for slate_ballot_type, slate_ballot_weight in slate_ballot_counts.items()
     )

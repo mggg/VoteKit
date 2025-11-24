@@ -1166,7 +1166,7 @@ class BlocSlateConfig:
                             errors.append(
                                 ValueError(
                                     f"preference_df row for bloc '{row[0]}' has values that are "
-                                    " zero. All candidates must have non-zero support."
+                                    "zero. All candidates must have non-zero support."
                                 )
                             )
                         elif abs(row[1].sum() - 1.0) > 1e-8:
@@ -1247,7 +1247,6 @@ class BlocSlateConfig:
             if raise_errors:
                 raise err
             if raise_warnings and not self.silent:
-
                 warn(str(err.args[0]), ConfigurationWarning)
 
         return False

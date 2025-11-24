@@ -96,10 +96,9 @@ class PreferenceInterval:
         Raises:
             ValueError: If there are candidates with zero support.
         """
-        if any(value == 0 for value in self.interval.values()):
-            for cand, value in self.interval.items():
-                if value == 0:
-                    raise ValueError(f"Candidate {cand} has zero support.")
+        for cand, value in self.interval.items():
+            if value == 0:
+                raise ValueError(f"Candidate {cand} has zero support.")
 
     def _normalize(self):
         """

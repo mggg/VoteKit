@@ -122,6 +122,10 @@ def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int) -> st
         elif char == "C" and c_count > 0:
             new_ballot += "C"
             c_count -= 1
+        elif char not in "WC":
+            raise ValueError(
+                f"Encountered unexpected character in ballot ranking:  '{char}'"
+            )
     return new_ballot
 
 
@@ -134,6 +138,13 @@ def _reduce_ballot_pmfs(
 ) -> tuple[dict[str, float], dict[str, float]]:
     """
     Reduces the ballot PMFs to match the number of candidates in the config.
+    Since the Cambridge data includes ballots that can be too long, i.e. have more
+    candidates than the given configuration, we need to "reduce" the ballots
+    to match the number of candidates in the config.
+
+    If a ballot is too long, we remove any further occurrences of the slate name.
+    Thus if we only have 2 W and 2 C candidates,"WWWCCWWCC" would be reduced to "WWCC".
+
 
     Args:
         historical_majority_ballot_data_path (Path): The path to the JSON file containing the historical majority ballot frequencies.
@@ -145,8 +156,8 @@ def _reduce_ballot_pmfs(
             minority slate.
 
     Returns:
-        tuple[dict[str, float], dict[str, float]]: A tuple containing the
-            reduced historical majority ballot PMF and the reduced historical minority ballot PMF.
+        tuple[dict[str, float], dict[str, float]]: A tuple containing the reduced
+            historical majority and minority ballot PMFs.
     """
     w_count = len(config.slate_to_candidates[majority_bloc])
     c_count = len(config.slate_to_candidates[minority_bloc])
@@ -155,11 +166,7 @@ def _reduce_ballot_pmfs(
         historical_majority_ballot_frequencies = json.load(json_file)
         reduced_historical_majority_ballot_pmf: dict[str, float] = {}
         for ballot, freq in historical_majority_ballot_frequencies.items():
-            reduced_ballot = _reduce_ballot(
-                ballot,
-                w_count,
-                c_count,
-            )
+            reduced_ballot = _reduce_ballot(ballot, w_count, c_count)
             reduced_historical_majority_ballot_pmf[reduced_ballot] = (
                 reduced_historical_majority_ballot_pmf.get(reduced_ballot, 0) + freq
             )
@@ -168,11 +175,7 @@ def _reduce_ballot_pmfs(
         historical_minority_ballot_frequencies = json.load(json_file)
         reduced_historical_minority_ballot_pmf: dict[str, float] = {}
         for ballot, freq in historical_minority_ballot_frequencies.items():
-            reduced_ballot = _reduce_ballot(
-                ballot,
-                w_count,
-                c_count,
-            )
+            reduced_ballot = _reduce_ballot(ballot, w_count, c_count)
             reduced_historical_minority_ballot_pmf[reduced_ballot] = (
                 reduced_historical_minority_ballot_pmf.get(reduced_ballot, 0) + freq
             )

@@ -32,7 +32,7 @@ def hash_json(file_path: str):
     return hashlib.sha256(normalized_json.encode("utf-8")).hexdigest()
 
 
-# ground truth hashes of the JSON files
+# ground truth hashes of the JSON files on 11/24/25
 START_WITH_C_HASH = "b238e9c898b85970021a5de8229608302620924a529f49247ee747f3588a8a71"
 START_WITH_W_HASH = "fcba9103dbea6a8e03ed159123e1f4ff61ad8ac012b6acaa0d0aa6240a6ad715"
 

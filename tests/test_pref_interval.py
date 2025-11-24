@@ -7,7 +7,7 @@ def test_from_dirichlet():
     for _ in range(10_000):
         for alpha in [0.001, 0.01, 1, 10, 100]:
             pi = PreferenceInterval.from_dirichlet(
-                candidates=["A", "B", "C"], alpha=0.01
+                candidates=["A", "B", "C"], alpha=alpha
             )
             assert isinstance(pi, PreferenceInterval)
 

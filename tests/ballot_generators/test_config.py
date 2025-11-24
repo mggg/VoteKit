@@ -1503,7 +1503,7 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
     with pytest.raises(
         ValueError,
         match="preference_df row for bloc 'bloc_2' has values that are "
-        " zero. All candidates must have non-zero support.",
+        "zero. All candidates must have non-zero support.",
     ):
         BlocSlateConfig(
             bloc_proportions=valid_config["bloc_proportions"],
@@ -1527,7 +1527,7 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
     with pytest.raises(
         ValueError,
         match="preference_df row for bloc 'bloc_1' has values that are "
-        " zero. All candidates must have non-zero support.",
+        "zero. All candidates must have non-zero support.",
     ):
         BlocSlateConfig(
             bloc_proportions=valid_config["bloc_proportions"],
@@ -1555,7 +1555,7 @@ def test_error_when_preference_row_has_zero_support_candidates(valid_config):
     with pytest.raises(
         ValueError,
         match="preference_df row for bloc 'bloc_1' has values that are "
-        " zero. All candidates must have non-zero support.",
+        "zero. All candidates must have non-zero support.",
     ):
         config.preference_df = preference_mapping  # type: ignore[assignment]
         config.is_valid(raise_errors=True)
