@@ -1,6 +1,6 @@
 [project]
 name = "votekit"
-version = "3.3.0"
+version = "3.3.1"
 description = "A Swiss army knife for computational social choice research."
 authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
