@@ -96,9 +96,9 @@ can do that in VoteKit.
 .. parsed-literal::
 
     A ballot with overvotes: RankBallot
-    1.) A, D, (tie)
+    1.) D, A, (tie)
     2.) B, 
-    3.) F, E, B, C, (tie)
+    3.) B, E, C, F, (tie)
     Weight: 1.0
 
 
@@ -273,7 +273,7 @@ profile, as follows.
     RankProfile
     Maximum ranking length: 3
     Candidates: ('A', 'B', 'C')
-    Candidates who received votes: ('B', 'A', 'C')
+    Candidates who received votes: ('B', 'C', 'A')
     Total number of Ballot objects: 3
     Total weight of Ballot objects: 8.0
     
@@ -594,17 +594,18 @@ You can also do most of these with the pandas ``DataFrame`` methods.
 A few other useful attributes/methods are listed here. Use
 ``profile.ATTR`` for each one.
 
-- ``candidates`` returns the list of candidates input to the profile.
+-  ``candidates`` returns the list of candidates input to the profile.
 
-- ``candidates_cast`` returns the list of candidates who received votes.
+-  ``candidates_cast`` returns the list of candidates who received
+   votes.
 
-- ``ballots`` returns the list of ballots (useful if you want to extract
-  the ballots to write custom code, say).
+-  ``ballots`` returns the list of ballots (useful if you want to
+   extract the ballots to write custom code, say).
 
-- ``num_ballots`` returns the number of ballots, which is the length of
-  ``ballots``.
+-  ``num_ballots`` returns the number of ballots, which is the length of
+   ``ballots``.
 
-- ``total_ballot_wt`` returns the sum of the ballot weights.
+-  ``total_ballot_wt`` returns the sum of the ballot weights.
 
 - ``to_pickle("name_of_file.pkl")`` saves the profile as a pkl
   (useful if you want to replicate runs of an experiment).
@@ -648,26 +649,11 @@ is preferred to B by a ratio of 7:2, etc.
 Later, the ballot generator models will pull from these preferences to
 create a ballot for each voter.
 
-It should be remarked that there is a difference, at least to VoteKit,
-between the intervals
-
-::
-
-   {"A": 0.7, "B": 0.3, "C": 0}
-
-and
-
-::
-
-   {"A": 0.7, "B": 0.3}
-
-While both say there is no preference for candidate C, if the latter
-interval is fed into VoteKit, C will never appear on a generated ballot.
-If we feed it the former interval, C will appear at the bottom of the
-ballot.
+We require that all candidates have non-zero support.
 
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
+
 
 
 One of the generative models is called the **slate-Plackett-Luce
@@ -716,12 +702,12 @@ all this syntax means for now; we will return to it in a later tutorial.
 
                  Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
     Ballot Index                                                
-    0                  (A)       (B)       (C)   606.0        {}
-    1                  (A)       (C)       (B)   201.0        {}
-    3                  (B)       (A)       (C)   137.0        {}
-    5                  (C)       (A)       (B)    39.0        {}
+    1                  (A)       (B)       (C)   619.0        {}
+    0                  (A)       (C)       (B)   175.0        {}
+    3                  (B)       (A)       (C)   140.0        {}
+    5                  (C)       (A)       (B)    48.0        {}
     2                  (B)       (C)       (A)    11.0        {}
-    4                  (C)       (B)       (A)     6.0        {}
+    4                  (C)       (B)       (A)     7.0        {}
 
 
 Re-run the above block several times to see that the elections will come
@@ -765,7 +751,7 @@ particular bloc stick to their slate.
     preference_mapping = {
         "Alpha": {
             "Alpha": PreferenceInterval({"A": 0.8, "B": 0.2}),
-            "Xenon": PreferenceInterval({"X": 0, "Y": 1}),
+            "Xenon": PreferenceInterval({"X": 0.3, "Y": 0.7}),
         },
         "Xenon": {
             "Alpha": PreferenceInterval({"A": 0.5, "B": 0.5}),
@@ -805,46 +791,49 @@ particular bloc stick to their slate.
     The ballots from Alpha voters
                   Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    2                  (A)       (B)       (Y)       (X)    3677        {}
-    3                  (A)       (Y)       (B)       (X)    2115        {}
-    0                  (B)       (A)       (Y)       (X)    1197        {}
-    4                  (Y)       (A)       (B)       (X)     666        {}
-    1                  (B)       (Y)       (A)       (X)     188        {}
-    5                  (Y)       (B)       (A)       (X)     157        {}
+    6                  (A)       (B)       (Y)       (X)    2628        {}
+    8                  (A)       (Y)       (B)       (X)    1234        {}
+    7                  (A)       (B)       (X)       (Y)    1041        {}
+    0                  (B)       (A)       (Y)       (X)     930        {}
+    11                 (A)       (X)       (B)       (Y)     437        {}
+    1                  (B)       (A)       (X)       (Y)     391        {}
+    12                 (Y)       (A)       (B)       (X)     390        {}
+    9                  (A)       (Y)       (X)       (B)     191        {}
+    10                 (A)       (X)       (Y)       (B)     188        {}
+    19                 (X)       (A)       (B)       (Y)     120        {}
     The ballots from Xenon voters
                   Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    1                  (X)       (Y)       (B)       (A)     378        {}
-    12                 (Y)       (X)       (A)       (B)     369        {}
-    0                  (X)       (Y)       (A)       (B)     360        {}
-    13                 (Y)       (X)       (B)       (A)     332        {}
-    14                 (Y)       (A)       (X)       (B)      84        {}
-    17                 (Y)       (B)       (X)       (A)      77        {}
-    5                  (X)       (B)       (Y)       (A)      75        {}
-    3                  (X)       (A)       (Y)       (B)      66        {}
-    21                 (B)       (X)       (Y)       (A)      54        {}
-    9                  (A)       (X)       (Y)       (B)      52        {}
+    7                  (X)       (Y)       (B)       (A)     385        {}
+    6                  (X)       (Y)       (A)       (B)     365        {}
+    0                  (Y)       (X)       (A)       (B)     357        {}
+    1                  (Y)       (X)       (B)       (A)     347        {}
+    3                  (Y)       (B)       (X)       (A)      82        {}
+    5                  (Y)       (A)       (X)       (B)      79        {}
+    11                 (X)       (A)       (Y)       (B)      76        {}
+    9                  (X)       (B)       (Y)       (A)      71        {}
+    13                 (A)       (X)       (Y)       (B)      54        {}
+    15                 (A)       (Y)       (X)       (B)      46        {}
     Aggregated ballots
                   Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
     Ballot Index                                                          
-    2                  (A)       (B)       (Y)       (X)    3677        {}
-    3                  (A)       (Y)       (B)       (X)    2115        {}
-    0                  (B)       (A)       (Y)       (X)    1197        {}
-    4                  (Y)       (A)       (B)       (X)     666        {}
-    7                  (X)       (Y)       (B)       (A)     378        {}
-    18                 (Y)       (X)       (A)       (B)     369        {}
-    6                  (X)       (Y)       (A)       (B)     360        {}
-    19                 (Y)       (X)       (B)       (A)     332        {}
-    1                  (B)       (Y)       (A)       (X)     188        {}
-    5                  (Y)       (B)       (A)       (X)     157        {}
+    6                  (A)       (B)       (Y)       (X)    2628        {}
+    8                  (A)       (Y)       (B)       (X)    1234        {}
+    7                  (A)       (B)       (X)       (Y)    1041        {}
+    0                  (B)       (A)       (Y)       (X)     930        {}
+    11                 (A)       (X)       (B)       (Y)     437        {}
+    1                  (B)       (A)       (X)       (Y)     391        {}
+    12                 (Y)       (A)       (B)       (X)     390        {}
+    31                 (X)       (Y)       (B)       (A)     385        {}
+    30                 (X)       (Y)       (A)       (B)     365        {}
+    24                 (Y)       (X)       (A)       (B)     357        {}
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
-that the Alpha voters prefer :math:`A` to :math:`B`, while :math:`X` has
-no support in that bloc. Xenon voters like :math:`X` and :math:`Y`
-equally, and then like :math:`A` and :math:`B` equally (although much
-less than their own slate). There should be a lot more Alpha-style
-voters than Xenon-style voters.
+that the Alpha voters prefer :math:`A` to :math:`B`. Xenon voters like
+:math:`X` and :math:`Y` equally, and then like :math:`A` and :math:`B`
+equally (although much less than their own slate). There should be a lot
+more Alpha-style voters than Xenon-style voters.
 
 Elections
 ---------
@@ -926,13 +915,13 @@ Extra Prompts
 If you have finished this section and are looking to extend your
 understanding, try the following prompts:
 
-- Write your own profile with four candidates named Trump, Rubio, Cruz,
-  and Kasich, a preference interval of your choice, and with the bloc
-  name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
-  how they should be given your preference interval?
-- Create a preference profile where candidates :math:`B,C` should be
-  elected under a 2-seat plurality election. Run the election and
-  confirm!
-- Generate ballots for two voter blocs W and POC, and three slates,
-  Republican, Democrat, and Independent. This is to show you that the
-  blocs and slates can be changed independently of each other.
+-  Write your own profile with four candidates named Trump, Rubio, Cruz,
+   and Kasich, a preference interval of your choice, and with the bloc
+   name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
+   how they should be given your preference interval?
+-  Create a preference profile where candidates :math:`B,C` should be
+   elected under a 2-seat plurality election. Run the election and
+   confirm!
+-  Generate ballots for two voter blocs W and POC, and three slates,
+   Republican, Democrat, and Independent. This is to show you that the
+   blocs and slates can be changed independently of each other.

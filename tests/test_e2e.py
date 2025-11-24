@@ -49,10 +49,6 @@ def test_generate_election_completion():
     }
     bloc_voter_prop = {"W": 0.7, "C": 0.3}
 
-    DATA_DIR = "src/votekit/ballot_generator/bloc_slate_generator/data"
-
-    path = Path(DATA_DIR, "Cambridge_09to17_ballot_types.p")
-
     config = bg.BlocSlateConfig(
         n_voters=number_of_ballots,
         slate_to_candidates=slate_to_candidate,
@@ -61,7 +57,7 @@ def test_generate_election_completion():
         cohesion_mapping=cohesion_parameters,
     )
 
-    pp = bg.cambridge_profile_generator(config, path=path)
+    pp = bg.cambridge_profile_generator(config)
 
     assert isinstance(pp, PreferenceProfile)
 

@@ -185,7 +185,6 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
 
         # Directly initialize the list using good memory trick
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"), dtype=object)
-        zero_cands = pref_interval_by_bloc_dict[bloc].zero_cands
         single_bloc_pdf_dict = _bradley_terry_pdf(
             pref_interval_by_bloc_dict[bloc].interval
         )
@@ -205,10 +204,6 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
 
         for j, index in enumerate(sampled_indices):
             ranking = [frozenset({cand}) for cand in rankings[index]]
-
-            # Add any zero candidates as ties only if they exist
-            if zero_cands:
-                ranking.append(frozenset(zero_cands))
 
             ballot_pool[j] = np.array(ranking)
 
@@ -235,7 +230,6 @@ def _bradley_terry_mcmc(
     n_ballots: int,
     pref_interval: Mapping[str, float],
     seed_ballot: RankBallot,
-    zero_cands: Optional[frozenset[str]] = None,
     verbose: bool = False,
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
@@ -248,7 +242,6 @@ def _bradley_terry_mcmc(
         n_ballots (int): the number of ballots to sample
         pref_interval (Mapping[str, float]): the preference interval to determine BT distribution
         seed_ballot (RankBallot):  the seed ballot for the Markov chain
-        zero_cands (frozenset[str], optional): candidates with zero support to be added as ties
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
         chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
@@ -256,8 +249,6 @@ def _bradley_terry_mcmc(
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
     """
-    if zero_cands is None:
-        zero_cands = frozenset()
 
     if chain_length is None:
         chain_length = n_ballots
@@ -317,10 +308,7 @@ def _bradley_terry_mcmc(
             )
             accept += 1
 
-        if len(zero_cands) > 0:
-            ballots[i] = RankBallot(ranking=current_ranking + [zero_cands])
-        else:
-            ballots[i] = RankBallot(ranking=current_ranking)
+        ballots[i] = RankBallot(ranking=current_ranking)
 
     if verbose:
         print(
@@ -399,17 +387,13 @@ def _inner_name_bradley_terry_mcmc(
         n_ballots = ballots_per_bloc[bloc]
         pref_interval = pref_interval_by_bloc_dict[bloc]
         pref_interval_dict = pref_interval.interval
-        non_zero_cands = pref_interval.non_zero_cands
-        zero_cands = pref_interval.zero_cands
+        cands = pref_interval.candidates
 
-        seed_ballot = RankBallot(
-            ranking=tuple([frozenset({c}) for c in non_zero_cands])
-        )
+        seed_ballot = RankBallot(ranking=tuple([frozenset({c}) for c in cands]))
         pp = _bradley_terry_mcmc(
             n_ballots,
             pref_interval_dict,
             seed_ballot,
-            zero_cands=zero_cands,
             verbose=verbose,
             burn_in_time=burn_in_time,
             chain_length=chain_length,
@@ -581,7 +565,6 @@ def _bradley_terry_mcmc_shortcut(
     n_ballots,
     pref_interval,
     seed_ballot,
-    zero_cands={},
     verbose=False,
     burn_in_time=0,
     chain_length=None,
@@ -677,10 +660,7 @@ def _bradley_terry_mcmc_shortcut(
             )
             accept += 1
 
-        if len(zero_cands) > 0:
-            ballots[i] = RankBallot(ranking=current_ranking + [zero_cands])
-        else:
-            ballots[i] = RankBallot(ranking=current_ranking)
+        ballots[i] = RankBallot(ranking=current_ranking)
 
     if verbose:
         print(

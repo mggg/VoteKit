@@ -59,14 +59,13 @@ def _inner_name_cumulative(
             continue
 
         pref = pref_by_bloc[bloc]
-        non_zero_cands = list(pref.non_zero_cands)
-        if not non_zero_cands:
+        cands = list(pref.candidates)
+        if not cands:
             pp_by_bloc[bloc] = ScoreProfile()
             continue
 
         # config.get_combined_preference_intervals_by_bloc() should ensure normalization
-        # for the non-zero candidates
-        p = np.array([pref.interval[c] for c in non_zero_cands], dtype=float)
+        p = np.array([pref.interval[c] for c in cands], dtype=float)
         assert abs(p.sum() - 1.0) < 1e-10, "PreferenceInterval not normalized"
 
         # Vectorized: one multinomial per ballot -> shape (num_ballots, n_cands)
@@ -74,7 +73,7 @@ def _inner_name_cumulative(
         counts = rng.multinomial(n=total_points, pvals=p, size=num_ballots)
 
         ballots = [
-            ScoreBallot(scores=dict(zip(non_zero_cands, row.astype(float))), weight=1)
+            ScoreBallot(scores=dict(zip(cands, row.astype(float))), weight=1)
             for row in counts
         ]
         pp_by_bloc[bloc] = ScoreProfile(ballots=tuple(ballots))
