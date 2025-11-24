@@ -607,11 +607,12 @@ A few other useful attributes/methods are listed here. Use
 
 -  ``total_ballot_wt`` returns the sum of the ballot weights.
 
--  ``to_pickle(fpath = "name_of_file.pkl")`` saves the profile as a pkl
-   (useful if you want to replicate runs of an experiment).
+- ``to_pickle("name_of_file.pkl")`` saves the profile as a pkl
+  (useful if you want to replicate runs of an experiment).
 
--  ``to_csv(fpath = "name_of_file.csv")`` saves the profile as a csv
-   (useful if you want to replicate runs of an experiment).
+- ``to_csv("name_of_file.csv")`` saves the profile as a csv 
+  (useful if you want to replicate runs of an experiment).
+
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
