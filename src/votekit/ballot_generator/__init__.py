@@ -1,5 +1,4 @@
 from votekit.ballot_generator.ballot_generator import BallotGenerator
-from votekit.ballot_generator.utils import sample_cohesion_ballot_types
 from votekit.ballot_generator.bloc_slate_generator import (
     name_bt_profile_generator,
     name_bt_profiles_by_bloc_generator,
@@ -50,7 +49,6 @@ from votekit.ballot_generator.deprecated_classes import (
 
 __all__ = [
     "BallotGenerator",
-    "sample_cohesion_ballot_types",
     "name_bt_profile_generator",
     "name_bt_profiles_by_bloc_generator",
     "name_bt_profile_generator_using_mcmc",

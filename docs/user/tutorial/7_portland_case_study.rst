@@ -665,7 +665,7 @@ Finally, we have a CVR that is cleaned and ready to be analyzed. If you
 skipped all of the cleaning steps above, you can download the prepared
 data
 `here <https://github.com/mggg/VoteKit/blob/main/notebooks/Portland_D1_cleaned_votekit_pref_profile.csv>`__.
-Save the pkl file in the same working directory as your Python notebook.
+Save the csv file in the same working directory as your Python notebook.
 
 The first thing we should do is verify that our data and outcome matches
 that of the official election.

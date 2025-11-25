@@ -33,7 +33,7 @@ def valid_config():
     preference_mapping = {
         "bloc_1": {
             "slate_1": PreferenceInterval({"A": 0.4, "B": 0.1}),
-            "slate_2": PreferenceInterval({"X": 0.0, "Y": 0.05}),
+            "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
         },
         "bloc_2": {
             "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
@@ -58,7 +58,7 @@ def alt_valid_config():
     slate_to_candidates = {"slate_1": ["A", "B"], "slate_2": ["X", "Y"]}
     preference_mapping = pd.DataFrame(
         {
-            "bloc_1": {"A": 0.8, "B": 0.2, "X": 0, "Y": 1.00},
+            "bloc_1": {"A": 0.8, "B": 0.2, "X": 0.1, "Y": 0.9},
             "bloc_2": {"A": 0.5, "B": 0.5, "X": 0.5, "Y": 0.5},
         }
     ).T
@@ -96,8 +96,8 @@ def extra_profile_settings():
         {
             "A": {"bloc_1": 0.8, "bloc_2": 0.5},
             "B": {"bloc_1": 0.2, "bloc_2": 0.5},
-            "X": {"bloc_1": 0.0, "bloc_2": 0.5},
-            "Y": {"bloc_1": 1.0, "bloc_2": 0.5},
+            "X": {"bloc_1": 0.1, "bloc_2": 0.5},
+            "Y": {"bloc_1": 0.9, "bloc_2": 0.5},
         }
     )
 
@@ -114,7 +114,7 @@ def extra_profile_settings():
     pref_map_intervals = {
         "bloc_1": {
             "slate_1": PreferenceInterval({"A": 0.8, "B": 0.2}),
-            "slate_2": PreferenceInterval({"X": 0.0, "Y": 1.0}),
+            "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
         },
         "bloc_2": {
             "slate_1": PreferenceInterval({"A": 0.5, "B": 0.5}),
@@ -1028,7 +1028,7 @@ def test_valid_config(valid_config):
     assert config.slate_to_candidates == valid_config["slate_to_candidates"]
     assert config.bloc_proportions == valid_config["bloc_proportions"]
     pref_df = pd.DataFrame(
-        {"bloc_1": [0.8, 0.2, 0, 1.0], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
+        {"bloc_1": [0.8, 0.2, 0.1, 0.9], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
     ).T
     pref_df.rename(
         columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True
@@ -1050,7 +1050,7 @@ def test_alt_valid_config(alt_valid_config):
     assert config.slate_to_candidates == alt_valid_config["slate_to_candidates"]
     assert config.bloc_proportions == alt_valid_config["bloc_proportions"]
     pref_df = pd.DataFrame(
-        {"bloc_1": [0.8, 0.2, 0, 1.0], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
+        {"bloc_1": [0.8, 0.2, 0.1, 0.9], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
     ).T
     pref_df.rename(
         columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True
@@ -1087,7 +1087,7 @@ def test_pref_df_with_dict(valid_config):
     preference_mapping = {
         "bloc_1": {
             "slate_1": {"A": 0.8, "B": 0.2},
-            "slate_2": {"X": 0, "Y": 1.0},
+            "slate_2": {"X": 0.1, "Y": 0.9},
         },
         "bloc_2": {
             "slate_1": {"A": 0.5, "B": 0.5},
@@ -1107,7 +1107,7 @@ def test_normalize_pref_df(valid_config):
     preference_mapping = {
         "bloc_1": {
             "slate_1": {"A": 4, "B": 1},
-            "slate_2": {"X": 0, "Y": 5},
+            "slate_2": {"X": 1, "Y": 9},
         },
         "bloc_2": {
             "slate_1": {"A": 1, "B": 1},
@@ -1137,8 +1137,8 @@ def test_pref_mapping_missing_slates_errors(valid_config):
     preference_mapping = {
         "bloc_1": {
             "slate_1": PreferenceInterval({"A": 0.4, "B": 0.1}),
-            "slate_2": PreferenceInterval({"X": 0, "Y": 0.05}),
-            "slate_3": PreferenceInterval({"X": 0.45}),
+            "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
+            "slate_3": PreferenceInterval({}),
         },
         "bloc_2": {
             "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
@@ -1223,7 +1223,7 @@ def test_preference_df_duplicate_cands_errors(valid_config):
         config.preference_df = {  # type: ignore[assignment]
             "bloc_1": {
                 "slate_1": PreferenceInterval({"A": 0.8, "B": 0.15}),
-                "slate_2": PreferenceInterval({"X": 0, "Y": 0.05}),
+                "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
             },
             "bloc_2": {
                 "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05, "X": 0.1}),
@@ -1480,12 +1480,85 @@ def test_error_when_preference_row_sum_not_one_per_slate(valid_config):
     # Break slate_1 row sum for a bloc (set both to zero)
     bloc = config.preference_df.index[0]
     cands = list(config.slate_to_candidates["slate_1"])
-    config.preference_df.loc[bloc, cands] = [0.0, 0.0]
+    config.preference_df.loc[bloc, cands] = [0.5, 0.2]
     msgs = _messages(_det_errs(config))
     assert any(
-        "preference_df row for bloc" in m and "must sum to 1, got 0.000000" in m
+        "preference_df row for bloc" in m and "must sum to 1, got 0.7" in m
         for m in msgs
     )
+
+
+def test_error_when_preference_row_is_missing_candidate(valid_config):
+    # should not be allowed to leave X our of bloc 2 slate 2
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": PreferenceInterval({"A": 0.4, "B": 0.1}),
+            "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
+        },
+        "bloc_2": {
+            "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
+            "slate_2": PreferenceInterval({"Y": 0.45}),
+        },
+    }
+    with pytest.raises(
+        ValueError,
+        match="preference_df row for bloc 'bloc_2' has values that are "
+        "zero. All candidates must have non-zero support.",
+    ):
+        BlocSlateConfig(
+            bloc_proportions=valid_config["bloc_proportions"],
+            slate_to_candidates=valid_config["slate_to_candidates"],
+            preference_mapping=preference_mapping,
+            cohesion_mapping=valid_config["cohesion_mapping"],
+            n_voters=100,
+        ).is_valid(raise_errors=True)
+
+    # should not be allowed to leave X our of bloc 1 slate 2
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 0.8, "B": 0.2},
+            "slate_2": {"Y": 1.0},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+    with pytest.raises(
+        ValueError,
+        match="preference_df row for bloc 'bloc_1' has values that are "
+        "zero. All candidates must have non-zero support.",
+    ):
+        BlocSlateConfig(
+            bloc_proportions=valid_config["bloc_proportions"],
+            slate_to_candidates=valid_config["slate_to_candidates"],
+            preference_mapping=preference_mapping,
+            cohesion_mapping=valid_config["cohesion_mapping"],
+            n_voters=100,
+        ).is_valid(raise_errors=True)
+
+
+def test_error_when_preference_row_has_zero_support_candidates(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 0.8, "B": 0.2},
+            "slate_2": {"X": 0, "Y": 0.9},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="preference_df row for bloc 'bloc_1' has values that are "
+        "zero. All candidates must have non-zero support.",
+    ):
+        config.preference_df = preference_mapping  # type: ignore[assignment]
+        config.is_valid(raise_errors=True)
 
 
 # --- cohesion_df structural/content errors --------------------------------
@@ -1763,7 +1836,7 @@ def test_rename_candidate_updates_columns_and_slate_mapping(valid_config):
     config.rename_candidates(new_names)
     assert config.is_valid()
     new_df = {
-        "bloc_1": {"B": 0.8, "X": 0.2, "Z": 0.0, "Y": 1.0},
+        "bloc_1": {"B": 0.8, "X": 0.2, "Z": 0.1, "Y": 0.9},
         "bloc_2": {"B": 0.5, "X": 0.5, "Z": 0.5, "Y": 0.5},
     }
 
@@ -2439,7 +2512,7 @@ def test_get_combined_preference_interval_by_bloc():
     preference_mapping = {
         "bloc_1": {
             "slate_1": PreferenceInterval({"A": 0.4, "B": 0.1}),
-            "slate_2": PreferenceInterval({"X": 0.0, "Y": 0.05}),
+            "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
         },
         "bloc_2": {
             "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
@@ -2465,8 +2538,8 @@ def test_get_combined_preference_interval_by_bloc():
     bloc_1_combined = {
         "A": 0.8 * 0.9,
         "B": 0.2 * 0.9,
-        "X": 0.0 * 0.1,
-        "Y": 1.0 * 0.1,
+        "X": 0.1 * 0.1,
+        "Y": 0.9 * 0.1,
     }
     bloc_2_combined = {
         "A": 0.5 * 0.2,

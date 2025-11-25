@@ -360,7 +360,6 @@ def convert_preference_map_to_preference_df(
         bloc: {} for bloc in preference_map
     }
     for bloc, slate_dict in preference_map.items():
-        seen_candidates: set[str] = set()
         for cand_item in slate_dict.values():
             cand_map = (
                 cand_item.interval
@@ -368,9 +367,9 @@ def convert_preference_map_to_preference_df(
                 else cand_item
             )
             cand_series = pd.Series(cand_map)
-            seen_candidates.update(list(cand_series.index))
+            cand_dict = cand_series.to_dict()
 
-            blocs_to_cand[bloc].update(cand_series.to_dict())
+            blocs_to_cand[bloc].update(cand_dict)
 
     return pd.DataFrame(blocs_to_cand).fillna(0.0).T
 
@@ -1018,7 +1017,6 @@ class BlocSlateConfig:
         if not self.silent:
             for msg in messages:
                 warn(msg, ConfigurationWarning)
-
         return valid
 
     def __validate_cohesion_df_mapping_keys_ok_in_config(
@@ -1164,6 +1162,13 @@ class BlocSlateConfig:
                                     f"not been set (indicated with value of -1)."
                                 )
                             )
+                        elif any(row[1] == 0):
+                            errors.append(
+                                ValueError(
+                                    f"preference_df row for bloc '{row[0]}' has values that are "
+                                    "zero. All candidates must have non-zero support."
+                                )
+                            )
                         elif abs(row[1].sum() - 1.0) > 1e-8:
                             errors.append(
                                 ValueError(
@@ -1217,7 +1222,6 @@ class BlocSlateConfig:
                             f"got {row[1].sum():.6f}"
                         )
                     )
-
         return errors
 
     def is_valid(

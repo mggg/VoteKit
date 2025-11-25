@@ -69,36 +69,22 @@ def _inner_name_plackett_luce(
     for bloc in config.blocs:
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, ballot_length), frozenset("~"))
-        non_zero_cands = list(pref_interval_by_bloc_dict[bloc].non_zero_cands)
+        cands = list(pref_interval_by_bloc_dict[bloc].candidates)
         pref_interval_values = [
-            pref_interval_by_bloc_dict[bloc].interval[c] for c in non_zero_cands
+            pref_interval_by_bloc_dict[bloc].interval[c] for c in cands
         ]
-        zero_cands = list(pref_interval_by_bloc_dict[bloc].zero_cands)
-
-        # if there aren't enough non-zero supported candidates,
-        # include 0 support as ties
-        number_to_sample = ballot_length
-        number_tied = None
-
-        if len(non_zero_cands) < number_to_sample:
-            number_tied = number_to_sample - len(non_zero_cands)
-            number_to_sample = len(non_zero_cands)
 
         for i in range(n_ballots):
             non_zero_ranking = list(
                 np.random.choice(
-                    non_zero_cands,
-                    number_to_sample,
+                    cands,
+                    ballot_length,
                     p=pref_interval_values,
                     replace=False,
                 )
             )
 
             ranking = [frozenset({cand}) for cand in non_zero_ranking]
-
-            if number_tied is not None:
-                ranking.append(frozenset(zero_cands))
-
             ballot_pool[i] = np.array(ranking)
 
         df = pd.DataFrame(ballot_pool)
