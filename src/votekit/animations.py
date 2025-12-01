@@ -319,7 +319,7 @@ class STVAnimation:
         Returns:
             EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and ``event2``.
         """
-        support_transferred: dict[str, float] = defaultdict(float)
+        support_transferred : dict[str,float] = defaultdict(float)
         for key, value in event1.support_transferred.items():
             support_transferred[key] += value
         for key, value in event2.support_transferred.items():
@@ -720,8 +720,7 @@ class ElectionScene(manim.Scene):
             exhausted_bar = Rectangle(
                 width=self._support_to_bar_width(exhausted_votes),
                 height=self.bar_height,
-                # color=self.bar_color,
-                color=manim.GOLD,
+                color=self.bar_color,
                 fill_color=candidate_color,
                 fill_opacity=self.bar_opacity,
             )
