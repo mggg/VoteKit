@@ -319,7 +319,7 @@ class STVAnimation:
         Returns:
             EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and ``event2``.
         """
-        support_transferred : dict[str,float] = defaultdict(float)
+        support_transferred: dict[str, float] = defaultdict(float)
         for key, value in event1.support_transferred.items():
             support_transferred[key] += value
         for key, value in event2.support_transferred.items():
