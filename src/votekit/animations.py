@@ -864,7 +864,8 @@ class ElectionScene(manim.Scene):
             bar.to_edge(DOWN).shift((self.bar_height + 2) * DOWN)
 
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
-        self.play(*transformations)
+        if len(transformations) > 0:
+            self.play(*transformations)
 
     def _support_to_bar_width(self, support: float) -> float:
         """
