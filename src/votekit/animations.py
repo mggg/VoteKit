@@ -669,9 +669,10 @@ class ElectionScene(manim.Scene):
             destinations = event.support_transferred[from_candidate_name]
             candidate_color = from_candidate["color"]
 
+            used_votes = min(event.quota, from_candidate["support"])
             winner_bar = (
                 Rectangle(
-                    width=self._support_to_bar_width(event.quota),
+                    width=self._support_to_bar_width(used_votes),
                     height=self.bar_height,
                     color=self.bar_color,
                     fill_color=self.win_bar_color,
@@ -714,7 +715,7 @@ class ElectionScene(manim.Scene):
             # Create a final short bar representing the exhausted votes
             exhausted_votes = (
                 from_candidate["support"]
-                - event.quota
+                - used_votes
                 - sum(list(destinations.values()))
             )
             exhausted_bar = Rectangle(
@@ -725,10 +726,12 @@ class ElectionScene(manim.Scene):
                 fill_opacity=self.bar_opacity,
             )
             assert self.quota_line is not None
-            exhausted_bar.align_to(self.quota_line, LEFT).align_to(
-                from_candidate["bars"][-1], UP
-            )
+            if len(new_bars) > 0:
+                exhausted_bar.next_to(new_bars[0], RIGHT, buff=0)
+            else:
+                exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
             exhausted_bar.set_z_index(1)
+            transformations.append(Uncreate(exhausted_bar))
 
             # Animate the splitting of the old bar into the new sub_bars
             self.play(
@@ -739,7 +742,6 @@ class ElectionScene(manim.Scene):
             )
 
             # Animate moving the sub-bars to the destination bars, and the destruction of the exhausted votes
-            transformations.append(Uncreate(exhausted_bar))
             if len(transformations) > 0:
                 self.play(*transformations)
 
