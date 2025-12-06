@@ -15,6 +15,7 @@ from .ranking import (
     RandomDictator,
     BoostedRandomDictator,
     RankedPairs,
+    Schulze,
 )
 
 
@@ -44,4 +45,5 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Schulze",
 ]

@@ -15,6 +15,7 @@ from .plurality_veto import PluralityVeto
 from .random_dictator import RandomDictator
 from .boosted_random_dictator import BoostedRandomDictator
 from .ranked_pairs import RankedPairs
+from .schulze import Schulze
 
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Schulze",
 ]

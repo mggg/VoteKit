@@ -24,6 +24,7 @@ from .election_types import (
     RandomDictator,
     BoostedRandomDictator,
     RankedPairs,
+    Schulze,
 )
 
 
@@ -54,4 +55,5 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Schulze",
 ]
