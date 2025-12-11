@@ -14,7 +14,10 @@ from manim import (
     LEFT,
     RIGHT,
 )
-from .cleaning import condense_ballot_ranking, remove_cand_from_ballot
+from .cleaning.rank_ballots_cleaning import (
+    condense_rank_ballot,
+    remove_cand_rank_ballot,
+)
 from .utils import ballots_by_first_cand
 from .elections.election_types.ranking.stv import STV
 from typing import Literal, List, Optional, Sequence, Mapping
@@ -266,7 +269,7 @@ class STVAnimation:
                     election.threshold,
                 )
                 clean_ballots = [
-                    condense_ballot_ranking(remove_cand_from_ballot(from_candidates, b))
+                    condense_rank_ballot(remove_cand_rank_ballot(from_candidates, b))
                     for b in new_ballots
                 ]
                 transfer_weights_from_candidate: dict[str, float] = defaultdict(float)
