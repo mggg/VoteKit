@@ -18,8 +18,10 @@ class Schulze(RankingElection):
 
     The Schulze method uses the widest path algorithm to determine winners. For each pair
     of candidates, it computes the strength of the strongest path (where the strength of
-    a path is the strength of its weakest link). Candidate A is preferred to candidate B
-    if the strongest path from A to B is stronger than the strongest path from B to A.
+    a path is the strength of its weakest link). For example, if Alice beats Bob by 2 votes,
+    Bob beats Charlie by 4 votes, then the beatpath strength from Alice to Bob is 2. Candidate
+    A is preferred to candidate B if the strongest path from A to B is stronger than the
+    strongest path from B to A.
 
     The Schulze method computes the strongest paths between all pairs of candidates:
     1. Initialize p[i,j] = d[i,j] - d[j,i] (margin of victory)
