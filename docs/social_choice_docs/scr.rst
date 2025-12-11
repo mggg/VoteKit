@@ -511,7 +511,7 @@ head-to-head, and Bob beats Charlie, then Alice indirectly beats Charlie. A beat
 strength is determined by its weakest link. Alice has a "beatpath-win" over Bob if Alice's 
 strongest beatpath to Bob is stronger than Bob's strongest beatpath back to Alice. The winner 
 is the candidate not beaten by anyone via beatpath-wins. Always elects the Condorcet winner 
-when one exists.
+when one exists. This method is capable of producing an output ranking of candidates.
 
 
 Score-based
