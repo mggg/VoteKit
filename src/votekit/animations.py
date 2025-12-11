@@ -51,16 +51,18 @@ class EliminationEvent(AnimationEvent):
 
     Attributes:
         candidate (str): The name of the eliminated candidate.
+        display_name (str): The candidate name to use for display purposes, such as a nickname.
         support_transferred (Mapping[str,float]): A dictionary mapping names of candidates to the amount of support they received from the elimination.
         round_number (int): The round of the election process associated to this event.
     """
 
     candidate: str
+    display_name: str
     support_transferred: Mapping[str, float]
     round_number: int
 
     def get_message(self) -> str:
-        return f"Round {self.round_number}: {self.candidate} eliminated."
+        return f"Round {self.round_number}: {self.display_name} eliminated."
 
 
 @dataclass
@@ -90,17 +92,19 @@ class WinEvent(AnimationEvent):
     An animation event representing a round in which some number of candidates were elected.
 
     Attributes:
-        candidates (str): The names of the elected candidates.
+        candidates (Sequence[str]): The names of the elected candidates.
+        display_names (Sequence[str]): The candidate names to use for display purposes, such as nicknames.
         support_transferred (Mapping[str, Mapping[str,float]]): A dictionary mapping pairs of candidate names to the amount of support transferred between them this round. For instance, if ``c1`` was elected this round, then ``support_transferred[c1][c2]`` will represent the amount of support that ran off from ``c1`` to candidate ``c2``.
         round_number (int): The round of the election process associated to this event.
     """
 
     candidates: Sequence[str]
+    display_names: Sequence[str]
     support_transferred: Mapping[str, Mapping[str, float]]
     round_number: int
 
     def get_message(self) -> str:
-        candidate_string = ", ".join(self.candidates)
+        candidate_string = ", ".join(self.display_names)
         return f"Round {self.round_number}: {candidate_string} elected."
 
 
@@ -112,6 +116,7 @@ class STVAnimation:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
         focus (List[str], optional): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. If ``None``, focus only the elected candidates. Defaults to ``None``.
+        nicknames (dict[str,str]): A dictionary mapping candidate names to candidate "nicknames" to be used in the animation instead. The keys of ``nicknames`` need not contain every candidate, only the ones for which the user would like to provide a nickname.
     """
 
     def __init__(
@@ -119,12 +124,14 @@ class STVAnimation:
         election: STV,
         title: Optional[str] = None,
         focus: Optional[List[str]] = None,
+        nicknames: dict[str, str] = {},
     ):
         if focus is None:
             focus = []
         self.focus = focus
         elected_candidates = [c for s in election.get_elected() for c in s]
         focus += [name for name in elected_candidates if name not in focus]
+        self.nicknames = nicknames
         self.candidate_dict = self._make_candidate_dict(election)
         self.events = self._make_event_list(election)
         if len(self.candidate_dict) == 0:
@@ -148,6 +155,12 @@ class STVAnimation:
             for name, support in election.election_states[0].scores.items()
             if name in self.focus
         }
+        for name in candidate_dict.keys():
+            if name in self.nicknames.keys():
+                display_name = self.nicknames[name]
+            else:
+                display_name = name
+            candidate_dict[name]["display_name"] = display_name
         return candidate_dict
 
     def _make_event_list(self, election: STV) -> List[AnimationEvent]:
@@ -180,10 +193,15 @@ class STVAnimation:
                     support_transferred = self._get_transferred_votes(
                         election, round_number, elected_candidates, "win"
                     )
+                display_names = [
+                    str(self.candidate_dict[name]["display_name"])
+                    for name in elected_candidates
+                ]
                 events.append(
                     WinEvent(
                         quota=election.threshold,
                         candidates=elected_candidates,
+                        display_names=display_names,
                         support_transferred=support_transferred,
                         round_number=round_number,
                     )
@@ -198,10 +216,14 @@ class STVAnimation:
                     election, round_number, eliminated_candidates, "elimination"
                 )
                 if eliminated_candidate in self.focus:
+                    display_name = str(
+                        self.candidate_dict[eliminated_candidate]["display_name"]
+                    )
                     events.append(
                         EliminationEvent(
                             quota=election.threshold,
                             candidate=eliminated_candidate,
+                            display_name=display_name,
                             support_transferred=support_transferred[
                                 eliminated_candidate
                             ],
@@ -488,7 +510,9 @@ class ElectionScene(manim.Scene):
         for i, name in enumerate(sorted_candidates):
             candidate = self.candidate_dict[name]
             candidate["name_text"] = Text(
-                name, font_size=self.font_size, color=candidate["color"]
+                candidate["display_name"],
+                font_size=self.font_size,
+                color=candidate["color"],
             )
             if i == 0:
                 # First candidate goes at the top
