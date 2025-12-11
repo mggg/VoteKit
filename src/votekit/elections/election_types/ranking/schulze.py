@@ -14,12 +14,17 @@ from votekit.elections.election_state import ElectionState
 
 class Schulze(RankingElection):
     """
-    See `Schulze Method <https://en.wikipedia.org/wiki/Schulze_method>`_ for more details.
+    See <https://link.springer.com/article/10.1007/s00355-010-0475-4> and <https://arxiv.org/pdf/1804.02973>
 
     The Schulze method uses the widest path algorithm to determine winners. For each pair
     of candidates, it computes the strength of the strongest path (where the strength of
     a path is the strength of its weakest link). Candidate A is preferred to candidate B
     if the strongest path from A to B is stronger than the strongest path from B to A.
+
+    The Schulze method computes the strongest paths between all pairs of candidates:
+    1. Initialize p[i,j] = d[i,j] - d[j,i] (margin of victory)
+    2. For each intermediate candidate k, update p[i,j] = max(p[i,j], min(p[i,k], p[k,j]))
+    3. Candidate i beats j if p[i,j] > p[j,i]
 
     Args:
         profile (RankProfile): Profile to conduct election on.

@@ -508,10 +508,12 @@ Schulze
 ~~~~~~~
 A Condorcet method based on indirect victories through "beatpaths." If Alice beats Bob 
 head-to-head, and Bob beats Charlie, then Alice indirectly beats Charlie. A beatpath's 
-strength is determined by its weakest link. Alice has a "beatpath-win" over Bob if Alice's 
-strongest beatpath to Bob is stronger than Bob's strongest beatpath back to Alice. The winner 
-is the candidate not beaten by anyone via beatpath-wins. Always elects the Condorcet winner 
-when one exists. This method is capable of producing an output ranking of candidates.
+strength is determined by its weakest link. For example, if Alice beats Bob by 2 votes,
+Bob beats Charlie by 4 votes, then the beatpath strength from Alice to Bob is 2. Alice 
+has a "beatpath-win" over Bob if Alice's strongest beatpath to Bob is stronger than Bob's 
+strongest beatpath back to Alice. The winner is the candidate not beaten by anyone via 
+beatpath-wins. Always elects the Condorcet winner when one exists. This method is capable 
+of producing an output ranking of candidates.
 
 
 Score-based
