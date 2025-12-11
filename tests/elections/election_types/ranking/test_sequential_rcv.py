@@ -1,5 +1,6 @@
 from votekit.elections import SequentialRCV, ElectionState
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile, ProfileError
+from votekit.ballot import Ballot
 import pytest
 
 # taken from STV wiki
@@ -98,14 +99,18 @@ states = [
     ),
     ElectionState(
         round_number=2,
-        remaining=({"Cake"}, {"Burger", "Orange"}, {"Chicken"}, {"Chocolate"}),
-        elected=({"Strawberry"},),
+        remaining=tuple(
+            map(frozenset, ({"Cake"}, {"Burger", "Orange"}, {"Chicken"}, {"Chocolate"}))
+        ),
+        elected=tuple(map(frozenset, ({"Strawberry"},))),
         scores={"Burger": 4, "Orange": 4, "Cake": 11, "Chicken": 3, "Chocolate": 1},
     ),
     ElectionState(
         round_number=3,
-        remaining=({"Burger", "Orange", "Chocolate"}, {"Chicken"}),
-        elected=({"Cake"},),
+        remaining=tuple(
+            map(frozenset, ({"Burger", "Orange", "Chocolate"}, {"Chicken"}))
+        ),
+        elected=(frozenset({"Cake"}),),
         scores={"Burger": 4, "Orange": 4, "Chicken": 3, "Chocolate": 4},
     ),
 ]
@@ -261,5 +266,5 @@ def test_errors():
             PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip"
         )
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

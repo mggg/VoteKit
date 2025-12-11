@@ -1,4 +1,7 @@
-from votekit import PreferenceProfile, Ballot
+from votekit.pref_profile import (
+    PreferenceProfile,
+)
+from votekit.ballot import Ballot
 from votekit.elections import RandomDictator
 import numpy as np
 import random
@@ -21,6 +24,7 @@ def test_random_dictator_error():
         RandomDictator(PreferenceProfile(), m=1)
 
 
+@pytest.mark.slow
 def test_random_dictator_simple():
     # set seed for more predictable results
     random.seed(919717)
@@ -42,7 +46,7 @@ def test_random_dictator_simple():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     # check to make sure that the fraction of wins matches the true probability
     assert np.allclose(3 / 5, winner_counts["A"] / trials, atol=5e-2)
@@ -50,6 +54,7 @@ def test_random_dictator_simple():
     assert np.allclose(1 / 5, winner_counts["C"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_without_ties():
     random.seed(919717)
 
@@ -88,7 +93,7 @@ def test_random_dictator_4_candidates_without_ties():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)
@@ -96,6 +101,7 @@ def test_random_dictator_4_candidates_without_ties():
     assert np.allclose(float(fpv["D"]), winner_counts["D"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_with_ties():
     random.seed(919717)
 
@@ -125,7 +131,7 @@ def test_random_dictator_4_candidates_with_ties():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)
@@ -133,6 +139,7 @@ def test_random_dictator_4_candidates_with_ties():
     assert np.allclose(float(fpv["D"]), winner_counts["D"] / trials, atol=5e-2)
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     random.seed(919717)
 
@@ -158,7 +165,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)

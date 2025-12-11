@@ -11,16 +11,25 @@ API Reference
 Ballot
 ------
 
-.. autoclass:: votekit.ballot.Ballot
+.. autoclass:: votekit.ballot.RankBallot
+    :members:
+
+.. autoclass:: votekit.ballot.ScoreBallot
     :members:
 
 Preference Profiles
 -------------------
 
-.. autoclass:: votekit.pref_profile.PreferenceProfile
+.. autoclass:: votekit.pref_profile.RankProfile
     :members:
 
-.. autoclass:: votekit.pref_profile.CleanedProfile
+.. autoclass:: votekit.pref_profile.ScoreProfile
+    :members:
+
+.. autoclass:: votekit.pref_profile.CleanedRankProfile
+    :members:
+
+.. autoclass:: votekit.pref_profile.CleanedScoreProfile
     :members:
 
 .. automodule:: votekit.pref_profile.utils
@@ -42,7 +51,8 @@ Ballot Generators
 
 Cleaning
 ---------
-.. automodule:: votekit.cleaning.general_profiles.cleaning
+
+.. automodule:: votekit.cleaning
     :members:
     :show-inheritance:
 
@@ -100,6 +110,10 @@ Ranking-based
     :show-inheritance:
 
 .. automodule:: votekit.elections.election_types.ranking.random_dictator
+    :members:
+    :show-inheritance:
+
+.. automodule:: votekit.elections.election_types.ranking.ranked_pairs
     :members:
     :show-inheritance:
 

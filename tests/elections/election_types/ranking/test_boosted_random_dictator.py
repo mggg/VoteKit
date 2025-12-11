@@ -1,4 +1,5 @@
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
 from votekit.elections import BoostedRandomDictator
 import random
 import numpy as np
@@ -21,6 +22,7 @@ def test_boosted_random_dictator_error():
         BoostedRandomDictator(PreferenceProfile(), m=1)
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_simple():
     random.seed(919717)
 
@@ -41,7 +43,7 @@ def test_boosted_random_dictator_simple():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}
+    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     # check to make sure that the fraction of wins matches the true probability
     assert np.allclose(
@@ -55,6 +57,7 @@ def test_boosted_random_dictator_simple():
     )
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_without_ties():
     random.seed(919717)
 
@@ -119,6 +122,7 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     )
 
 
+@pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_with_ties():
     random.seed(919717)
 
@@ -173,6 +177,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     )
 
 
+@pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     random.seed(919717)
 

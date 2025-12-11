@@ -129,14 +129,17 @@ def _add_text_to_heatmap(
         for j in range(ncols):
             val = matrix[i, j]
             txt = "N/A" if np.isnan(val) else f"{val:.{n_decimals_to_display}f}"
+            txt = "inf" if np.isinf(val) else f"{val:.{n_decimals_to_display}f}"
 
             # Normalize the cell value between 0 and 1, then get the RGBA color
             norm_val = quadmesh.norm(val)
-            r, g, b, _ = quadmesh.cmap(norm_val)  # type: ignore[misc]
+            r, g, b, _ = quadmesh.cmap(norm_val)
 
             # Simple brightness measure: average of R, G, B
             brightness = (r + g + b) / 3
             txt_color = "black" if brightness > 0.5 else "white"
+            txt_color = "white" if np.isnan(val) else txt_color
+            txt_color = "white" if np.isinf(val) else txt_color
 
             heatmap.text(
                 j + 0.5,
@@ -269,7 +272,7 @@ def matrix_heatmap(
     """
 
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
 
     _validate_heatmap_inputs(
         matrix=matrix,
@@ -286,11 +289,18 @@ def matrix_heatmap(
         row_and_col_legends.update(column_legend)
 
     ax.xaxis.set_ticks_position("top")
+    ax.yaxis.set_ticks_position("left")
+
+    vmin = np.nanmin(matrix)
+    vmax = np.nanmax(matrix)
+    norm: Union[TwoSlopeNorm, str, None] = (
+        TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax) if (vmin < 0 < vmax) else None
+    )
 
     if cell_color_map is None:
         if np.nanmin(matrix) < 0:
             cell_color_map = sns.color_palette("PRGn", as_cmap=True)
-            norm: Union[TwoSlopeNorm, str] = TwoSlopeNorm(
+            norm = TwoSlopeNorm(
                 vmin=np.nanmin(matrix), vcenter=0.0, vmax=np.nanmax(matrix)
             )
         else:

@@ -1,5 +1,5 @@
-from .base_graph import Graph
-from ..pref_profile import PreferenceProfile
+from votekit.graphs.base_graph import Graph
+from votekit.pref_profile import RankProfile
 from typing import Optional, Union
 import networkx as nx  # type: ignore
 from functools import cache
@@ -16,15 +16,15 @@ class BallotGraph(Graph):
     Class to build ballot graphs.
 
     Args:
-        source (Union[PreferenceProfile, int, list]): data to create graph from, either
-            ``PreferenceProfile`` object, number of candidates, or list of candidates.
+        source (Union[RankProfile, int, list]): data to create graph from, either
+            ``RankProfile`` object, number of candidates, or list of candidates.
         allow_partial (bool, optional): If True, builds graph using all possible ballots,
             If False, only uses total linear ordered ballots. Defaults to True.
         fix_short (bool, optional): If True, auto completes ballots of length :math:`n-1` to
             :math:`n`. Ballots of length less than :math:`n-1` are preserved. Defaults to True.
 
     Attributes:
-        profile (PreferenceProfile): Profile used to create graph, None if not provided.
+        profile (RankProfile): Profile used to create graph, None if not provided.
         candidates (tuple[str]): Tuple of candidates, None if not provided.
         num_cands (int): Number of candidates.
         num_voters (float): Sum of weights of profile if provided.
@@ -36,12 +36,11 @@ class BallotGraph(Graph):
 
     def __init__(
         self,
-        source: Union[PreferenceProfile, int, list],
+        source: Union[RankProfile, int, list],
         allow_partial: Optional[bool] = True,
         fix_short: Optional[bool] = True,
     ):
-        super().__init__()
-
+        super().__init__(nx.Graph())
         self.profile = None
         self.candidates = None
         self.allow_partial = allow_partial
@@ -55,12 +54,12 @@ class BallotGraph(Graph):
             self.graph = self.build_graph(len(source))
             self.candidates = tuple(source)
 
-        if isinstance(source, PreferenceProfile):
+        if isinstance(source, RankProfile):
             self.profile = source
             self.num_voters = source.total_ballot_wt
             self.num_cands = len(source.candidates)
             self.allow_partial = True
-            if self.graph is None:
+            if len(self.graph.nodes) == 0:
                 self.graph = self.build_graph(len(source.candidates))
             self.graph = self.from_profile(source, fix_short=fix_short)
 
@@ -93,7 +92,7 @@ class BallotGraph(Graph):
 
         return nx.relabel_nodes(gr, node_map)
 
-    def build_graph(self, n: int) -> nx.Graph:  # ask Gabe about optimizing?
+    def build_graph(self, n: int) -> nx.Graph:
         """
         Builds graph of all possible ballots given a number of candiates.
 
@@ -103,7 +102,13 @@ class BallotGraph(Graph):
         Returns:
             networkx.Graph: A ``networkx`` graph.
         """
-        Gc = nx.Graph()
+        if n > 9:
+            raise ValueError(
+                "Ballot graphs with more than 9 candidates are not supported due to "
+                "exponential growth in the number of possible ballots."
+            )
+
+        Gc: nx.Graph = nx.Graph()
         # base cases
         if n == 1:
             Gc.add_nodes_from([1], weight=0, cast=False)
@@ -143,21 +148,21 @@ class BallotGraph(Graph):
         return Gc
 
     def from_profile(
-        self, profile: PreferenceProfile, fix_short: Optional[bool] = True
+        self, profile: RankProfile, fix_short: Optional[bool] = True
     ) -> nx.Graph:
         """
-        Updates existing graph based on cast ballots from a PreferenceProfile,
-        or creates graph based on PreferenceProfile.
+        Updates existing graph based on cast ballots from a RankProfile,
+        or creates graph based on RankProfile.
 
         Args:
-            profile (PreferenceProfile): ``PreferenceProfile`` assigned to graph.
+            profile (RankProfile): ``RankProfile`` assigned to graph.
             fix_short (bool, optional): If True, complete short ballots. Defaults to True.
 
 
         Returns:
             networkx.Graph:
-                Graph based on ``PreferenceProfile``, 'cast' node attribute indicates
-                ballots cast in ``PreferenceProfile``.
+                Graph based on ``RankProfile``, 'cast' node attribute indicates
+                ballots cast in ``RankProfile``.
         """
         if self.profile is None:
             self.profile = profile
@@ -165,7 +170,7 @@ class BallotGraph(Graph):
         if self.num_voters is None:
             self.num_voters = profile.total_ballot_wt
 
-        self.candidates = profile.candidates
+        self.candidates = tuple(profile.candidates)
         ballots = profile.ballots
         self.cand_num = self._number_cands(self.candidates)
         self.node_weights = {ballot: 0 for ballot in self.graph.nodes}

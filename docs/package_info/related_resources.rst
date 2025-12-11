@@ -14,3 +14,5 @@ If you know of a resource not included here, please open an :doc:`issue <./issue
 - `abcvoting <https://abcvoting.readthedocs.io/en/latest/>`_ is a Python library for approval-based elections.
 - `Votelib <https://github.com/simberaj/votelib>`_ is a Python library that conducts elections.
 - `COMSOC-Community <https://comsoc-community.org/tools>`_ maintains a list of open-source tools for computational social choice written in a variety of programming languages.
+- `FairVote Repo <https://dataverse.harvard.edu/dataverse/rcv_cvrs>`_ of ranked choice voting cast vote records, compatible with VoteKit's load_ranking_csv function.
+

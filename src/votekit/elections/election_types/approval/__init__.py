@@ -1,1 +1,4 @@
-from .approval import Approval, BlocPlurality  # noqa
+from .approval import Approval, BlocPlurality
+
+
+__all__ = ["Approval", "BlocPlurality"]

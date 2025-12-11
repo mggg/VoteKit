@@ -1,7 +1,8 @@
 from votekit.representation_scores import winner_sets_r_representation_scores
-from votekit import PreferenceProfile, Ballot
-from votekit.cvr_loaders import load_csv
-from votekit.cleaning import remove_cand
+from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot
+from votekit.cvr_loaders import load_ranking_csv
+from votekit.cleaning import remove_cand_rank_profile
 from pathlib import Path
 import pytest
 
@@ -56,26 +57,31 @@ def test_winner_sets_r_rep_score_subset_cands():
 
 
 def test_winner_sets_r_rep_score_error_r():
-    with pytest.raises(ValueError, match="r \(0\) must be at least 1."):
+    with pytest.raises(ValueError, match="r \\(0\\) must be at least 1."):
         winner_sets_r_representation_scores(profile, 1, 0)
 
 
 def test_winner_sets_r_rep_score_error_m():
-    with pytest.raises(ValueError, match="Number of seats m \(0\) must be at least 1."):
+    with pytest.raises(
+        ValueError, match="Number of seats m \\(0\\) must be at least 1."
+    ):
         winner_sets_r_representation_scores(PreferenceProfile(), 0, 1)
 
     with pytest.raises(
         ValueError,
-        match="Number of seats m \(2\) must be less than number of candidates \(1\).",
+        match="Number of seats m \\(2\\) must be less than number of candidates \\(1\\).",
     ):
         winner_sets_r_representation_scores(PreferenceProfile(), 2, 1, ["Chris"])
 
 
+@pytest.mark.slow
 def test_winner_sets_r_rep_score_portland():
-    profile = load_csv(
-        CSV_DIR / "Portland_D1_Condensed.csv", rank_cols=[1, 2, 3, 4, 5, 6]
+    profile = load_ranking_csv(
+        CSV_DIR / "Portland_D1_Condensed.csv",
+        rank_cols=[1, 2, 3, 4, 5, 6],
+        header_row=0,
     )
-    clean_profile = remove_cand("skipped", profile)
+    clean_profile = remove_cand_rank_profile("skipped", profile)
 
     score_dict = winner_sets_r_representation_scores(
         clean_profile,
