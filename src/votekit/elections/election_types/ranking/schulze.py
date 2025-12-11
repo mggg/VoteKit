@@ -111,17 +111,12 @@ class Schulze(RankingElection):
             # Also set the reverse direction
             p[j, i] = weight_b - weight_a
 
-        # Step 2: Floyd-Warshall algorithm to compute strongest paths
-        # For each intermediate node k, update all paths i -> j
+        # Step 2: Floyd-Warshall style algorithm to compute strongest (widest) paths
+        # Schulze requires: p[i,j] = max(p[i,j], min(p[i,k], p[k,j]))
+        # We use NumPy broadcasting to vectorize the inner two loops for performance.
         for k in range(n):
-            for i in range(n):
-                if i != k:
-                    for j in range(n):
-                        if j != k and j != i:
-                            # The strength of path i -> j through k is the minimum of
-                            # the strengths of i -> k and k -> j
-                            # We take the maximum of the current path and this new path
-                            p[i, j] = max(p[i, j], min(p[i, k], p[k, j]))
+            # p[:, k:k+1] is column k (shape n x 1), p[k:k+1, :] is row k (shape 1 x n)
+            p = np.maximum(p, np.minimum(p[:, k : k + 1], p[k : k + 1, :]))
 
         # Step 3: Build directed graph where i -> j if p[i,j] > p[j,i]
         graph: nx.DiGraph = nx.DiGraph()
