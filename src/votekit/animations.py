@@ -357,7 +357,7 @@ class STVAnimation:
             round_numbers=round_numbers,
         )
 
-    def render(self, preview: bool = False) -> None:
+    def render(self, preview: bool = False, color_palette: str = "dark") -> None:
         """
         Renders the STV animation using Manim.
 
@@ -365,9 +365,17 @@ class STVAnimation:
 
         Args:
             preview (bool, optional): If ``True``, display the result in a video player immediately upon completing the render. Defaults to False.
+            color_palette (str, optional): A color scheme to use in the animation. Supports `'dark'` or `'light'`. Defaults to `'dark'`.
         """
+
+        manim.config.background_color = ElectionScene.color_palettes[color_palette][
+            "background"
+        ]
         manimation = ElectionScene(
-            deepcopy(self.candidate_dict), deepcopy(self.events), title=self.title
+            deepcopy(self.candidate_dict),
+            deepcopy(self.events),
+            title=self.title,
+            color_palette=color_palette,
         )
         manimation.render(preview=preview)
 
@@ -383,29 +391,54 @@ class ElectionScene(manim.Scene):
         candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of attributes of the candidate.
         events (List[AnimationEvent]): A list of animation events to be constructed and rendered.
         title (str): A string to be displayed at the beginning of the animation as a title screen. If ``None``, the animation will skip the title screen.
+        color_palette (str, optional): A color scheme to use in the animation. Supports `'dark'` or `'light'`. Defaults to `'dark'`.
     """
 
-    color_palette = {
-        "bar_fills": [
-            manim.color.ManimColor(hex)
-            for hex in [
-                "#16DEBD",
-                "#163EDE",
-                "#9F34F6",
-                "#FF6F00",
-                "#8F560C",
-                "#E2AD00",
-                "#8AD412",
-            ]
-        ],
-        "bar_outline": manim.LIGHT_GRAY,
-        "win_bar_fill": manim.GREEN,
-        "win_box_outline": manim.GREEN,
-        "offscreen_candidate_fill": manim.GRAY,
-        "background": manim.BLACK,
-        "elimination_line": manim.RED,
-        "ticker_tape_frosted": manim.DARK_GRAY,
-        "ticker_tape_highlight": manim.WHITE,
+    color_palettes = {
+        "dark": {
+            "bar_fills": [
+                manim.color.ManimColor(hex)
+                for hex in [
+                    "#16DEBD",
+                    "#163EDE",
+                    "#9F34F6",
+                    "#FF6F00",
+                    "#8F560C",
+                    "#E2AD00",
+                    "#8AD412",
+                ]
+            ],
+            "bar_outline": manim.LIGHT_GRAY,
+            "win_bar_fill": manim.GREEN,
+            "win_box_outline": manim.GREEN,
+            "offscreen_candidate_fill": manim.GRAY,
+            "background": manim.BLACK,
+            "elimination_line": manim.RED,
+            "ticker_tape_frosted": manim.DARK_GRAY,
+            "ticker_tape_highlight": manim.WHITE,
+        },
+        "light": {
+            "bar_fills": [
+                manim.color.ManimColor(hex)
+                for hex in [
+                    "#16DEBD",
+                    "#163EDE",
+                    "#9F34F6",
+                    "#FF6F00",
+                    "#8F560C",
+                    "#E2AD00",
+                    "#8AD412",
+                ]
+            ],
+            "bar_outline": manim.BLACK,
+            "win_bar_fill": manim.GREEN,
+            "win_box_outline": manim.GREEN,
+            "offscreen_candidate_fill": manim.GRAY,
+            "background": manim.WHITE,
+            "elimination_line": manim.RED,
+            "ticker_tape_frosted": manim.LIGHT_GRAY,
+            "ticker_tape_highlight": manim.BLACK,
+        },
     }
     bar_opacity = 1
     ghost_opacity = 0.3
@@ -421,11 +454,13 @@ class ElectionScene(manim.Scene):
         candidate_dict: dict[str, dict],
         events: List[AnimationEvent],
         title: Optional[str] = None,
+        color_palette: str = "dark",
     ):
         super().__init__()
         self.candidate_dict = candidate_dict
         self.events = events
         self.title = title
+        self.color_palette = self.color_palettes[color_palette]
 
         self.width = 8
         self.bar_height = 3.5 / len(self.candidate_dict)
@@ -589,6 +624,7 @@ class ElectionScene(manim.Scene):
         ticker_line = Line(
             start=LEFT * line_length / 2,
             end=RIGHT * line_length / 2,
+            color=self.color_palette["bar_outline"],
         )
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
         ticker_line.set_z_index(
