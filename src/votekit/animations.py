@@ -18,7 +18,7 @@ from .cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
     remove_cand_rank_ballot,
 )
-from .utils import ballots_by_first_cand
+from .utils import ballots_by_first_cand, mentions
 from .elections.election_types.ranking.stv import STV
 from typing import Literal, List, Optional, Sequence, Mapping
 from collections import defaultdict
@@ -115,7 +115,7 @@ class STVAnimation:
     Args:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (List[str], optional): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. If ``None``, focus only the elected candidates. Defaults to ``None``.
+        focus (List[str], "winners", "viable", or "all"): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only the candidates with more mentions than the election threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
         nicknames (dict[str,str]): A dictionary mapping candidate names to candidate "nicknames" to be used in the animation instead. The keys of ``nicknames`` need not contain every candidate, only the ones for which the user would like to provide a nickname.
     """
 
@@ -123,14 +123,29 @@ class STVAnimation:
         self,
         election: STV,
         title: Optional[str] = None,
-        focus: Optional[List[str]] = None,
+        focus: List[str] | Literal["winners", "viable", "all"] = "viable",
         nicknames: dict[str, str] = {},
     ):
-        if focus is None:
-            focus = []
-        self.focus = focus
+
+        match focus:
+            case "winners":
+                focus = [c for s in election.get_elected() for c in s]
+            case "viable":
+                total_mentions = mentions(election.get_profile(0))
+                focus = [
+                    candidate
+                    for candidate, ment in total_mentions.items()
+                    if ment >= election.threshold
+                ]
+            case "all":
+                focus = list(election.get_profile().candidates)
+            case _:
+                if not isinstance(focus, list):
+                    raise TypeError(f"{focus} was not a recognized literal for focus")
+        # Election winners must all be onscreen. Ensure it is so.
         elected_candidates = [c for s in election.get_elected() for c in s]
-        focus += [name for name in elected_candidates if name not in focus]
+        focus = focus + [name for name in elected_candidates if name not in focus]
+        self.focus = focus
         self.nicknames = nicknames
         self.candidate_dict = self._make_candidate_dict(election)
         self.events = self._make_event_list(election)

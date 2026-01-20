@@ -105,6 +105,7 @@ def run_animation_snapshot_test(
     baseline_subdir: str,
     color_palette: str = "dark",
     nicknames: dict[str, str] = {},
+    focus="viable",
 ):
     """
     Helper to render an STV animation, extract frames, and compare to baselines.
@@ -118,7 +119,9 @@ def run_animation_snapshot_test(
 
     # Configure manim to output to tmp_path to ensure media files are deleted after testing
 
-    animation = STVAnimation(election, title="Test Election", nicknames=nicknames)
+    animation = STVAnimation(
+        election, title="Test Election", focus=focus, nicknames=nicknames
+    )
     animation.render(color_palette=color_palette, render_dir=str(tmp_path / "media"))
 
     # Get video duration using ffprobe
@@ -207,10 +210,17 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
         baseline_subdir="multi",
         color_palette="light",
         nicknames=nicknames,
+        focus="viable",
     )
 
 
 @pytest.mark.slow
 def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
     """Render an STV animation video of a "happy path" election with dark mode and compare frames to saved snapshots."""
-    run_animation_snapshot_test(election_happy, tmp_path, baseline_subdir="happy")
+    run_animation_snapshot_test(
+        election_happy,
+        tmp_path,
+        baseline_subdir="happy",
+        color_palette="dark",
+        focus="winners",
+    )
