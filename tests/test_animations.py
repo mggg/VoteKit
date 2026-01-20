@@ -7,14 +7,23 @@ import shutil
 from pathlib import Path
 from PIL import Image
 import numpy as np
-import manim
-
-# modified from STV wiki
-# Election following the "happy path". One elimination or election per round. No ties. No exact quota matches. No funny business.
 
 
 @pytest.fixture
 def election_happy():
+    """
+    Modified from STV wiki.
+    A "happy path" election. One elimination or election per round. No ties. No exact quota matches. No funny business.
+    The rounds should be:
+                    Status  Round
+    Pear           Elected      1
+    Chocolate   Eliminated      2
+    Strawberry  Eliminated      3
+    Cake           Elected      4
+    Chicken     Eliminated      5
+    Burger         Elected      6
+    Orange       Remaining      6
+    """
     profile_happy = PreferenceProfile(
         ballots=(
             Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
@@ -28,6 +37,28 @@ def election_happy():
         max_ranking_length=3,
     )
     return STV(profile_happy, m=3)
+
+
+@pytest.fixture
+def election_multi():
+    """
+    Election in which two candidates are simultaneously elected immediately.
+    The rounds should be:
+                   Status  Round
+    Orange        Elected      1
+    Pear          Elected      1
+    Strawberry  Remaining      1
+    """
+    profile_multi = PreferenceProfile(
+        ballots=(
+            Ballot(ranking=({"Orange"}, {"Strawberry"}), weight=12),
+            Ballot(ranking=({"Orange"},), weight=14),
+            Ballot(ranking=({"Pear"}, {"Strawberry"}), weight=12),
+            Ballot(ranking=({"Pear"},), weight=11),
+            Ballot(ranking=({"Strawberry"},), weight=11),
+        ),
+    )
+    return STV(profile_multi, m=2)
 
 
 def test_STVAnimation_init(election_happy):
@@ -68,26 +99,30 @@ def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
     return mean_diff <= tolerance
 
 
-@pytest.mark.slow
-def test_stv_animation_video_screenshots(election_happy, tmp_path):
+def run_animation_snapshot_test(
+    election,
+    tmp_path,
+    baseline_subdir: str,
+    color_palette: str = "dark",
+    nicknames: dict[str, str] = {},
+):
     """
-    Render an STV animation video, extract frames at 3-second intervals,
-    and compare them to saved snapshots.
+    Helper to render an STV animation, extract frames, and compare to baselines.
+
+    Args:
+        election: An STV election result to animate.
+        tmp_path: Pytest tmp_path fixture for temporary files.
+        baseline_subdir: Subdirectory name under snapshots/animations/ for baseline images.
+        color_palette: Color palette to use ("dark" or "light").
     """
 
     # Configure manim to output to tmp_path to ensure media files are deleted after testing
-    manim.config.media_dir = str(tmp_path / "media")
 
-    animation = STVAnimation(election_happy, title="Test Election")
-    animation.render()
-
-    # Find the rendered video file
-    video_dir = tmp_path / "media" / "videos" / "1080p60"
-    video_files = list(video_dir.glob("*.mp4"))
-    assert len(video_files) == 1, f"Expected 1 video file, found {len(video_files)}"
-    video_path = video_files[0]
+    animation = STVAnimation(election, title="Test Election", nicknames=nicknames)
+    animation.render(color_palette=color_palette, render_dir=str(tmp_path / "media"))
 
     # Get video duration using ffprobe
+    video_path = tmp_path / "media" / "videos" / "1080p60" / "ElectionScene.mp4"
     result = subprocess.run(
         [
             "ffprobe",
@@ -129,7 +164,7 @@ def test_stv_animation_video_screenshots(election_happy, tmp_path):
         )
 
     # Compare to baseline images
-    baseline_dir = Path(__file__).parent / "snapshots" / "animations"
+    baseline_dir = Path(__file__).parent / "snapshots" / "animations" / baseline_subdir
     baseline_dir.mkdir(parents=True, exist_ok=True)
 
     # If baselines don't exist or directory is empty, create them and fail the test
@@ -159,3 +194,23 @@ def test_stv_animation_video_screenshots(election_happy, tmp_path):
         f"Frame(s) did not match baseline: {', '.join(mismatched_frames)}. "
         f"Generated frames are in {frames_dir}"
     )
+
+
+# NOTE: To re-generate new snapshots for one of these tests, delete the associate sub-directory of the snapshots folder and run the test. The test will fail and generate new snapshots.
+@pytest.mark.slow
+def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
+    """Render an STV animation with light mode, multi-winner rounds, and nicknames, and compare frames to saved snapshots."""
+    nicknames = {"Strawberry": "'Barry'"}
+    run_animation_snapshot_test(
+        election_multi,
+        tmp_path,
+        baseline_subdir="multi",
+        color_palette="light",
+        nicknames=nicknames,
+    )
+
+
+@pytest.mark.slow
+def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
+    """Render an STV animation video of a "happy path" election with dark mode and compare frames to saved snapshots."""
+    run_animation_snapshot_test(election_happy, tmp_path, baseline_subdir="happy")
