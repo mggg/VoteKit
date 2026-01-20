@@ -357,7 +357,12 @@ class STVAnimation:
             round_numbers=round_numbers,
         )
 
-    def render(self, preview: bool = False, color_palette: str = "dark", render_dir: str = "media") -> None:
+    def render(
+        self,
+        preview: bool = False,
+        color_palette: str = "dark",
+        render_dir: str = "media",
+    ) -> None:
         """
         Renders the STV animation using Manim.
 
@@ -370,10 +375,9 @@ class STVAnimation:
         """
         # Set up necessary manim configurations.
         background_color = ElectionScene.color_palettes[color_palette]["background"]
-        with manim.tempconfig({
-            "media_dir": render_dir,
-            "background_color": background_color
-        }):
+        with manim.tempconfig(
+            {"media_dir": render_dir, "background_color": background_color}
+        ):
             # Animate
             manimation = ElectionScene(
                 deepcopy(self.candidate_dict),
