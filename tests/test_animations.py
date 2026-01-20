@@ -200,7 +200,7 @@ def run_animation_snapshot_test(
 @pytest.mark.slow
 def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
     """Render an STV animation with light mode, multi-winner rounds, and nicknames, and compare frames to saved snapshots."""
-    nicknames = {"Strawberry": "'Barry'"}
+    nicknames = {"Orange": "Clementine"}
     run_animation_snapshot_test(
         election_multi,
         tmp_path,
