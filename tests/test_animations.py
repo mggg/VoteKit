@@ -13,7 +13,8 @@ import numpy as np
 def election_happy():
     """
     Modified from STV wiki.
-    A "happy path" election. One elimination or election per round. No ties. No exact quota matches. No funny business.
+    A "happy path" election. One elimination or election per round.
+    No ties. No exact quota matches. No funny business.
     The rounds should be:
                     Status  Round
     Pear           Elected      1
@@ -199,10 +200,15 @@ def run_animation_snapshot_test(
     )
 
 
-# NOTE: To re-generate new snapshots for one of these tests, delete the associate sub-directory of the snapshots folder and run the test. The test will fail and generate new snapshots.
+# NOTE: To re-generate new snapshots for one of these tests,
+# delete the associate sub-directory of the snapshots folder and run the test.
+# The test will fail and generate new snapshots.
 @pytest.mark.slow
 def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
-    """Render an STV animation with light mode, multi-winner rounds, and nicknames, and compare frames to saved snapshots."""
+    """
+    Render an STV animation with light mode, multi-winner rounds,
+    and nicknames, and compare frames to saved snapshots.
+    """
     nicknames = {"Orange": "Clementine"}
     run_animation_snapshot_test(
         election_multi,
@@ -216,7 +222,10 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
 
 @pytest.mark.slow
 def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
-    """Render an STV animation video of a "happy path" election with dark mode and compare frames to saved snapshots."""
+    """
+    Render an STV animation video of a "happy path" election with
+    dark mode and compare frames to saved snapshots.
+    """
     run_animation_snapshot_test(
         election_happy,
         tmp_path,

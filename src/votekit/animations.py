@@ -51,8 +51,10 @@ class EliminationEvent(AnimationEvent):
 
     Attributes:
         candidate (str): The name of the eliminated candidate.
-        display_name (str): The candidate name to use for display purposes, such as a nickname.
-        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates to the amount of support they received from the elimination.
+        display_name (str): The candidate name to use for display purposes, such as a
+            nickname.
+        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates
+            to the amount of support they received from the elimination.
         round_number (int): The round of the election process associated to this event.
     """
 
@@ -68,10 +70,12 @@ class EliminationEvent(AnimationEvent):
 @dataclass
 class EliminationOffscreenEvent(AnimationEvent):
     """
-    An animation event representing some number of rounds in which offscreen candidates were eliminated.
+    An animation event representing some number of rounds in which offscreen candidates
+        were eliminated.
 
     Attributes:
-        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates to the total amount of support they received from the eliminations.
+        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates
+            to the total amount of support they received from the eliminations.
         round_numbers (List[int]): The rounds of the election process associated to this event.
     """
 
@@ -93,8 +97,13 @@ class WinEvent(AnimationEvent):
 
     Attributes:
         candidates (Sequence[str]): The names of the elected candidates.
-        display_names (Sequence[str]): The candidate names to use for display purposes, such as nicknames.
-        support_transferred (Mapping[str, Mapping[str,float]]): A dictionary mapping pairs of candidate names to the amount of support transferred between them this round. For instance, if ``c1`` was elected this round, then ``support_transferred[c1][c2]`` will represent the amount of support that ran off from ``c1`` to candidate ``c2``.
+        display_names (Sequence[str]): The candidate names to use for display purposes,
+            such as nicknames.
+        support_transferred (Mapping[str, Mapping[str,float]]): A dictionary mapping
+            pairs of candidate names to the amount of support transferred between them
+            this round. For instance, if ``c1`` was elected this round, then
+            ``support_transferred[c1][c2]`` will represent the amount of support
+            that ran off from ``c1`` to candidate ``c2``.
         round_number (int): The round of the election process associated to this event.
     """
 
@@ -114,9 +123,18 @@ class STVAnimation:
 
     Args:
         election (STV): An STV election to animate.
-        title (str, optional): Text to be displayed at the beginning of the animation as a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (List[str], "winners", "viable", or "all"): A list of names of candidates that should appear on-screen. This is useful for elections with many candidates. Note that any candidates that won the election are on-screen automatically, so passing an empty list will result in only elected candidates appearing on-screen. If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only the candidates with more mentions than the election threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
-        nicknames (dict[str,str]): A dictionary mapping candidate names to candidate "nicknames" to be used in the animation instead. The keys of ``nicknames`` need not contain every candidate, only the ones for which the user would like to provide a nickname.
+        title (str, optional): Text to be displayed at the beginning of the animation as
+            a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
+        focus (List[str], "winners", "viable", or "all"): A list of names of candidates that
+            should appear on-screen. This is useful for elections with many candidates.
+            Note that any candidates that won the election are on-screen automatically,
+            so passing an empty list will result in only elected candidates appearing on-screen.
+            If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only
+            the candidates with more mentions than the election threshold. If ``"all"``,
+            focus all candidates. Defaults to ``"viable"``.
+        nicknames (dict[str,str]): A dictionary mapping candidate names to candidate "nicknames"
+            to be used in the animation instead. The keys of ``nicknames`` need not contain
+            every candidate, only the ones for which the user would like to provide a nickname.
     """
 
     def __init__(
@@ -163,7 +181,8 @@ class STVAnimation:
             election (STV): An STV election from which to extract the candidates.
 
         Returns:
-            dict[str, dict[str,object]]: A dictionary whose keys are candidate names and whose values are themselves dictionaries with details about each candidate.
+            dict[str, dict[str,object]]: A dictionary whose keys are candidate names and whose
+                values are themselves dictionaries with details about each candidate.
         """
         candidate_dict: dict[str, dict[str, object]] = {
             name: {"support": support}
@@ -180,13 +199,15 @@ class STVAnimation:
 
     def _make_event_list(self, election: STV) -> List[AnimationEvent]:
         """
-        Processes an STV election into a condensed list of animation events which roughly correspond to election rounds.
+        Processes an STV election into a condensed list of animation events which roughly
+            correspond to election rounds.
 
         Args:
             election (STV): The STV election to process.
 
         Returns:
-            List[AnimationEvent]: A list of the events of the election which are worthy of animation.
+            List[AnimationEvent]: A list of the events of the election which are
+                worthy of animation.
 
         Raises:
             ValueError: If multiple candidates are eliminated in the same election round.
@@ -224,7 +245,9 @@ class STVAnimation:
             elif len(eliminated_candidates) > 0:  # Elimination round
                 if len(eliminated_candidates) > 1:
                     raise ValueError(
-                        f"Multiple-elimination rounds not supported. At most one candidate should be eliminated in each round. Candidates eliminated in round {round_number}: {eliminated_candidates}."
+                        f"Multiple-elimination rounds not supported. "
+                        "At most one candidate should be eliminated in each round. "
+                        "Candidates eliminated in round {round_number}: {eliminated_candidates}."
                     )
                 eliminated_candidate = eliminated_candidates[0]
                 support_transferred = self._get_transferred_votes(
@@ -268,19 +291,27 @@ class STVAnimation:
         event_type: Literal["win", "elimination"],
     ) -> dict[str, dict[str, float]]:
         """
-        Compute the number of votes transferred from each elected or eliminated candidate to each remaining candidate.
+        Compute the number of votes transferred from each elected or eliminated candidate
+            to each remaining candidate.
 
         Args:
             election (STV): The election.
             round_number (int): The number of the round in question.
-            from_candidates (List[str]): A list of the names of the elected or eliminated candidates.
-            event_type (str): ``"win"`` if candidates were elected this round, ``"elimination"`` otherwise.
+            from_candidates (List[str]): A list of the names of the elected or
+                eliminated candidates.
+            event_type (str): ``"win"`` if candidates were elected this round,
+                ``"elimination"`` otherwise.
 
         Returns:
-            dict[str, dict[str, float]]: A nested dictionary. If ``d`` is the return value, ``c1`` was a candidate eliminated this round, and ``c2`` is a remaining candidate, then ``d[c1][c2]`` will be the total support transferred this round from candidate ``c1`` to candidate ``c2``.
+            dict[str, dict[str, float]]: A nested dictionary. If ``d`` is the return value,
+                ``c1`` was a candidate eliminated this round, and ``c2`` is a remaining candidate,
+                then ``d[c1][c2]`` will be the total support transferred this round from
+                candidate ``c1`` to candidate ``c2``.
 
         Notes:
-            This function supports the election, but not the elimination, of multiple candidates in one round. If ``event_type`` is ``"elimination"`` then ``from_candidates`` should have length 1.
+            This function supports the election, but not the elimination, of multiple candidates
+                in one round. If ``event_type`` is ``"elimination"`` then ``from_candidates``
+                should have length 1.
         """
         prev_profile, prev_state = election.get_step(round_number - 1)
         current_state = election.election_states[round_number]
@@ -326,7 +357,9 @@ class STVAnimation:
         self, events: List[AnimationEvent]
     ) -> List[AnimationEvent]:
         """
-        Take a list of events and condense any consecutive offscreen events into one summarizing event. For instance, if ``events`` contians three offscreen eliminations in a row, this function will condense them into one offscreen elimination of three candidates.
+        Take a list of events and condense any consecutive offscreen events into one summarizing
+            event. For instance, if ``events`` contians three offscreen eliminations in a row,
+            this function will condense them into one offscreen elimination of three candidates.
 
         Args:
             events (List[AnimationEvent]): A list of animation events to be condensed.
@@ -350,14 +383,16 @@ class STVAnimation:
         self, event1: EliminationOffscreenEvent, event2: EliminationOffscreenEvent
     ) -> EliminationOffscreenEvent:
         """
-        Take two offscreen eliminations and "compose" them into a single offscreen elimination event summarizing both.
+        Take two offscreen eliminations and "compose" them into a single offscreen elimination
+            event summarizing both.
 
         Args:
             event1 (EliminationOffscreenEvent): The first offscreen elimination event to compose.
             event2 (EliminationOffscreenEvent): The second offscreen elimination event to compose.
 
         Returns:
-            EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and ``event2``.
+            EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and
+            ``event2``.
         """
         support_transferred: dict[str, float] = defaultdict(float)
         for key, value in event1.support_transferred.items():
@@ -384,8 +419,10 @@ class STVAnimation:
         The completed video will appear in the directory ``media/videos``.
 
         Args:
-            preview (bool, optional): If ``True``, display the result in a video player immediately upon completing the render. Defaults to False.
-            color_palette (str, optional): A color scheme to use in the animation. Supports `'dark'` or `'light'`. Defaults to `'dark'`.
+            preview (bool, optional): If ``True``, display the result in a video player
+                immediately upon completing the render. Defaults to False.
+            color_palette (str, optional): A color scheme to use in the animation.
+                Supports `'dark'` or `'light'`. Defaults to `'dark'`.
             render_dir (str, optional): Directory in which the rendering files will appear.
         """
         # Set up necessary manim configurations.
@@ -408,13 +445,17 @@ class ElectionScene(manim.Scene):
     Class for Manim animation of an STV election.
 
     Notes:
-        This class is instantiated by the class ``STVAnimation``. It should not be instantiated directly.
+        This class is instantiated by the class ``STVAnimation``. It should not be
+            instantiated directly.
 
     Args:
-        candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of attributes of the candidate.
+        candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of
+            attributes of the candidate.
         events (List[AnimationEvent]): A list of animation events to be constructed and rendered.
-        title (str): A string to be displayed at the beginning of the animation as a title screen. If ``None``, the animation will skip the title screen.
-        color_palette (str, optional): A color scheme to use in the animation. Supports `'dark'` or `'light'`. Defaults to `'dark'`.
+        title (str): A string to be displayed at the beginning of the animation as a title screen.
+            If ``None``, the animation will skip the title screen.
+        color_palette (str, optional): A color scheme to use in the animation. Supports
+            `'dark'` or `'light'`. Defaults to `'dark'`.
     """
 
     color_palettes = {
@@ -611,7 +652,8 @@ class ElectionScene(manim.Scene):
                 ).next_to(candidate["name_text"], RIGHT, buff=self.name_bar_spacing)
             ]
 
-        # Draw a large black rectangle for the background so that the ticker tape vanishes behind it
+        # Draw a large black rectangle for the background
+        # so that the ticker tape vanishes behind it
         frame_width = manim.config.frame_width
         frame_height = manim.config.frame_height
         background = (
@@ -713,10 +755,12 @@ class ElectionScene(manim.Scene):
 
     def _update_quota_line(self, quota: float) -> None:
         """
-        Update the position of the quota line to reflect the given quota. If no quota line exists, create it and animate its creation.
+        Update the position of the quota line to reflect the given quota. If no quota line
+            exists, create it and animate its creation.
 
         Args:
-            quota (float): The threshold number of votes necessary to be elected in the current round.
+            quota (float): The threshold number of votes necessary to be elected in the
+                current round.
         """
         some_candidate = list(self.candidate_dict.values())[0]
         if not self.quota_line:
@@ -747,7 +791,9 @@ class ElectionScene(manim.Scene):
         Animate a round in which one or more candidates are elected.
 
         Args:
-            from_candidates (dict[str,dict]): A dictionary in which the keys are the candidates elected this round and the values are dictionaries recording the candidate's attributes.
+            from_candidates (dict[str,dict]): A dictionary in which the keys are the
+                candidates elected this round and the values are dictionaries recording
+                the candidate's attributes.
             event (WinEvent): The event to be animated.
         """
         # Box the winners' names
@@ -795,7 +841,9 @@ class ElectionScene(manim.Scene):
                     fill_color=candidate_color,
                     fill_opacity=self.bar_opacity,
                 )
-                # The first sub-bar should start at the right end of the eliminated candidate's stack. The rest should be arranged to the left of that one
+                # The first sub-bar should start at the right end of the
+                # eliminated candidate's stack. The rest should be arranged
+                # to the left of that one
                 if len(new_bars) == 0:
                     sub_bar.align_to(from_candidate["bars"][-1], RIGHT).align_to(
                         from_candidate["bars"][-1], UP
@@ -843,7 +891,8 @@ class ElectionScene(manim.Scene):
                 FadeIn(exhausted_bar),
             )
 
-            # Animate moving the sub-bars to the destination bars, and the destruction of the exhausted votes
+            # Animate moving the sub-bars to the destination bars,
+            # and the destruction of the exhausted votes
             if len(transformations) > 0:
                 self.play(*transformations)
 
@@ -854,11 +903,15 @@ class ElectionScene(manim.Scene):
         Animate a round in which a candidate was eliminated.
 
         Args:
-            from_candidates (dict[str,dict]): A dictionary in which the keys are the candidates eliminated this round and the values are dictionaries recording the candidate's attributes.
+            from_candidates (dict[str,dict]): A dictionary in which the keys are the
+                candidates eliminated this round and the values are dictionaries recording
+                the candidate's attributes.
             event (EliminationEvent): The event to be animated.
 
         Notes:
-            While the interface supports multiple candidate eliminations in one round for future extensibility, this function currently only supports elimination of one candidate at a time. The from_candidates argument should have exactly one entry.
+            While the interface supports multiple candidate eliminations in one round for
+                future extensibility, this function currently only supports elimination of one
+                candidate at a time. The from_candidates argument should have exactly one entry.
 
         Raises:
             ValueError: If the length of ``from_candidates`` is not 1.
@@ -866,7 +919,9 @@ class ElectionScene(manim.Scene):
         num_eliminated_candidates = len(list(from_candidates.values()))
         if num_eliminated_candidates != 1:
             raise ValueError(
-                f"Elimination round animations only support one eliminated candidate at a time. Attempted to animate {num_eliminated_candidates} eliminations in one election round."
+                f"Elimination round animations only support one eliminated candidate at a time. "
+                "Attempted to animate {num_eliminated_candidates} "
+                "eliminations in one election round."
             )
         del num_eliminated_candidates
 
@@ -973,7 +1028,8 @@ class ElectionScene(manim.Scene):
 
     def _support_to_bar_width(self, support: float) -> float:
         """
-        Convert a number of votes to the width of a bar in manim coordinates representing that many votes.
+        Convert a number of votes to the width of a bar in manim coordinates
+            representing that many votes.
 
         Args:
             support (float): A number of votes.
