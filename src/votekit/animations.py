@@ -876,8 +876,8 @@ class ElectionScene(manim.Scene):
                 fill_opacity=self.bar_opacity,
             )
             assert self.quota_line is not None
-            if len(new_bars) > 0:
-                exhausted_bar.next_to(new_bars[0], RIGHT, buff=0)
+            if new_bars:
+                exhausted_bar.next_to(new_bars[0], LEFT, buff=0)
             else:
                 exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
             exhausted_bar.set_z_index(1)
