@@ -473,8 +473,7 @@ class ElectionScene(manim.Scene):
                 ]
             ],
             "bar_outline": manim.LIGHT_GRAY,
-            "win_bar_fill": manim.GREEN,
-            "win_box_outline": manim.GREEN,
+            "winner": manim.GREEN,
             "offscreen_candidate_fill": manim.GRAY,
             "background": manim.BLACK,
             "elimination_line": manim.RED,
@@ -495,8 +494,7 @@ class ElectionScene(manim.Scene):
                 ]
             ],
             "bar_outline": manim.BLACK,
-            "win_bar_fill": manim.GREEN,
-            "win_box_outline": manim.GREEN,
+            "winner": manim.GREEN,
             "offscreen_candidate_fill": manim.GRAY,
             "background": manim.WHITE,
             "elimination_line": manim.RED,
@@ -771,7 +769,7 @@ class ElectionScene(manim.Scene):
             self.quota_line = Line(
                 start=UP * line_top,
                 end=UP * line_bottom,
-                color=self.color_palette["win_bar_fill"],
+                color=self.color_palette["winner"],
             )
             self.quota_line.align_to(some_candidate["bars"][0], LEFT)
             self.quota_line.shift((self.width * quota / self.max_support) * RIGHT)
@@ -800,7 +798,7 @@ class ElectionScene(manim.Scene):
         winner_boxes = [
             SurroundingRectangle(
                 from_candidate["name_text"],
-                color=self.color_palette["win_box_outline"],
+                color=self.color_palette["winner"],
                 buff=self.winner_box_buffer,
             )
             for from_candidate in from_candidates.values()
@@ -823,7 +821,7 @@ class ElectionScene(manim.Scene):
                     width=self._support_to_bar_width(used_votes),
                     height=self.bar_height,
                     color=self.color_palette["bar_outline"],
-                    fill_color=self.color_palette["win_bar_fill"],
+                    fill_color=self.color_palette["winner"],
                     fill_opacity=self.bar_opacity,
                 )
                 .align_to(from_candidate["bars"][0], LEFT)
