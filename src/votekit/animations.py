@@ -28,6 +28,77 @@ from abc import ABC, abstractmethod
 
 
 @dataclass
+class ColorPalette:
+    """
+    A color palette for STV animations.
+
+    Attributes:
+        bar_fills: Colors for candidate bars (cycles through list).
+        bar_outline: Color for bar outlines.
+        winner: Color for boxes around winner names and winner bars.
+        offscreen_candidate_fill: Color for candidates not shown on screen.
+        background: Background color.
+        elimination_line: Color for candidate name strikethrough lines.
+        ticker_tape_frosted: Color for un-emphasized ticker tape messages.
+        ticker_tape_highlight: Color for emphasized ticker tape messages.
+    """
+
+    bar_fills: List[manim.color.ManimColor]
+    bar_outline: manim.color.ManimColor
+    winner: manim.color.ManimColor
+    offscreen_candidate_fill: manim.color.ManimColor
+    background: manim.color.ManimColor
+    elimination_line: manim.color.ManimColor
+    ticker_tape_frosted: manim.color.ManimColor
+    ticker_tape_highlight: manim.color.ManimColor
+
+
+DARK_PALETTE = ColorPalette(
+    bar_fills=[
+        manim.color.ManimColor(hex)
+        for hex in [
+            "#16DEBD",
+            "#163EDE",
+            "#9F34F6",
+            "#FF6F00",
+            "#8F560C",
+            "#E2AD00",
+            "#8AD412",
+        ]
+    ],
+    bar_outline=manim.LIGHT_GRAY,
+    winner=manim.GREEN,
+    offscreen_candidate_fill=manim.GRAY,
+    background=manim.BLACK,
+    elimination_line=manim.RED,
+    ticker_tape_frosted=manim.DARK_GRAY,
+    ticker_tape_highlight=manim.WHITE,
+)
+
+LIGHT_PALETTE = ColorPalette(
+    bar_fills=[
+        manim.color.ManimColor(hex)
+        for hex in [
+            "#16DEBD",
+            "#163EDE",
+            "#9F34F6",
+            "#FF6F00",
+            "#8F560C",
+            "#E2AD00",
+            "#8AD412",
+        ]
+    ],
+    bar_outline=manim.BLACK,
+    winner=manim.GREEN,
+    offscreen_candidate_fill=manim.GRAY,
+    background=manim.WHITE,
+    elimination_line=manim.RED,
+    ticker_tape_frosted=manim.LIGHT_GRAY,
+    ticker_tape_highlight=manim.BLACK,
+)
+
+
+@dataclass
 class AnimationEvent(ABC):
     """
     An abstract class representing a single step of the animation, usually a single election round.
@@ -426,7 +497,7 @@ class STVAnimation:
             render_dir (str, optional): Directory in which the rendering files will appear.
         """
         # Set up necessary manim configurations.
-        background_color = ElectionScene.color_palettes[color_palette]["background"]
+        background_color = ElectionScene.palettes[color_palette].background
         with manim.tempconfig(
             {"media_dir": render_dir, "background_color": background_color}
         ):
@@ -458,49 +529,9 @@ class ElectionScene(manim.Scene):
             `'dark'` or `'light'`. Defaults to `'dark'`.
     """
 
-    color_palettes = {
-        "dark": {
-            "bar_fills": [
-                manim.color.ManimColor(hex)
-                for hex in [
-                    "#16DEBD",
-                    "#163EDE",
-                    "#9F34F6",
-                    "#FF6F00",
-                    "#8F560C",
-                    "#E2AD00",
-                    "#8AD412",
-                ]
-            ],
-            "bar_outline": manim.LIGHT_GRAY,
-            "winner": manim.GREEN,
-            "offscreen_candidate_fill": manim.GRAY,
-            "background": manim.BLACK,
-            "elimination_line": manim.RED,
-            "ticker_tape_frosted": manim.DARK_GRAY,
-            "ticker_tape_highlight": manim.WHITE,
-        },
-        "light": {
-            "bar_fills": [
-                manim.color.ManimColor(hex)
-                for hex in [
-                    "#16DEBD",
-                    "#163EDE",
-                    "#9F34F6",
-                    "#FF6F00",
-                    "#8F560C",
-                    "#E2AD00",
-                    "#8AD412",
-                ]
-            ],
-            "bar_outline": manim.BLACK,
-            "winner": manim.GREEN,
-            "offscreen_candidate_fill": manim.GRAY,
-            "background": manim.WHITE,
-            "elimination_line": manim.RED,
-            "ticker_tape_frosted": manim.LIGHT_GRAY,
-            "ticker_tape_highlight": manim.BLACK,
-        },
+    palettes: dict[str, ColorPalette] = {
+        "dark": DARK_PALETTE,
+        "light": LIGHT_PALETTE,
     }
     bar_opacity = 1
     ghost_opacity = 0.3
@@ -522,7 +553,7 @@ class ElectionScene(manim.Scene):
         self.candidate_dict = candidate_dict
         self.events = events
         self.title = title
-        self.color_palette = self.color_palettes[color_palette]
+        self.color_palette = self.palettes[color_palette]
 
         self.width = 8
         self.bar_height = 3.5 / len(self.candidate_dict)
@@ -606,7 +637,7 @@ class ElectionScene(manim.Scene):
         )
 
         # Assign colors
-        bar_fill_colors = self.color_palette["bar_fills"]
+        bar_fill_colors = self.color_palette.bar_fills
         for i, name in enumerate(sorted_candidates):
             color = bar_fill_colors[i % len(bar_fill_colors)]
             self.candidate_dict[name]["color"] = color
@@ -644,7 +675,7 @@ class ElectionScene(manim.Scene):
                 Rectangle(
                     width=self._support_to_bar_width(candidate["support"]),
                     height=self.bar_height,
-                    color=self.color_palette["bar_outline"],
+                    color=self.color_palette.bar_outline,
                     fill_color=candidate["color"],
                     fill_opacity=self.bar_opacity,
                 ).next_to(candidate["name_text"], RIGHT, buff=self.name_bar_spacing)
@@ -658,8 +689,8 @@ class ElectionScene(manim.Scene):
             Rectangle(
                 width=frame_width,
                 height=frame_height,
-                fill_color=self.color_palette["background"],
-                color=self.color_palette["background"],
+                fill_color=self.color_palette.background,
+                color=self.color_palette.background,
                 fill_opacity=1,
             )
             .shift(UP * self.ticker_tape_height)
@@ -687,7 +718,7 @@ class ElectionScene(manim.Scene):
         ticker_line = Line(
             start=LEFT * line_length / 2,
             end=RIGHT * line_length / 2,
-            color=self.color_palette["bar_outline"],
+            color=self.color_palette.bar_outline,
         )
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
         ticker_line.set_z_index(
@@ -699,7 +730,7 @@ class ElectionScene(manim.Scene):
             new_message = Text(
                 event.get_message(),
                 font_size=24,
-                color=self.color_palette["ticker_tape_frosted"],
+                color=self.color_palette.ticker_tape_frosted,
             )
             if i == 0:
                 new_message.to_edge(DOWN, buff=0).shift(DOWN)
@@ -740,11 +771,11 @@ class ElectionScene(manim.Scene):
             event_number (int): The index of the event whose message will be highlighted.
         """
         highlight_message = self.ticker_tape[event_number].animate.set_color(
-            self.color_palette["ticker_tape_highlight"]
+            self.color_palette.ticker_tape_highlight
         )
         unhighlight_other_messages = [
             self.ticker_tape[i].animate.set_color(
-                self.color_palette["ticker_tape_frosted"]
+                self.color_palette.ticker_tape_frosted
             )
             for i in range(len(self.ticker_tape))
             if i != event_number
@@ -769,7 +800,7 @@ class ElectionScene(manim.Scene):
             self.quota_line = Line(
                 start=UP * line_top,
                 end=UP * line_bottom,
-                color=self.color_palette["winner"],
+                color=self.color_palette.winner,
             )
             self.quota_line.align_to(some_candidate["bars"][0], LEFT)
             self.quota_line.shift((self.width * quota / self.max_support) * RIGHT)
@@ -798,7 +829,7 @@ class ElectionScene(manim.Scene):
         winner_boxes = [
             SurroundingRectangle(
                 from_candidate["name_text"],
-                color=self.color_palette["winner"],
+                color=self.color_palette.winner,
                 buff=self.winner_box_buffer,
             )
             for from_candidate in from_candidates.values()
@@ -820,8 +851,8 @@ class ElectionScene(manim.Scene):
                 Rectangle(
                     width=self._support_to_bar_width(used_votes),
                     height=self.bar_height,
-                    color=self.color_palette["bar_outline"],
-                    fill_color=self.color_palette["winner"],
+                    color=self.color_palette.bar_outline,
+                    fill_color=self.color_palette.winner,
                     fill_opacity=self.bar_opacity,
                 )
                 .align_to(from_candidate["bars"][0], LEFT)
@@ -835,7 +866,7 @@ class ElectionScene(manim.Scene):
                 sub_bar = Rectangle(
                     width=self._support_to_bar_width(votes),
                     height=self.bar_height,
-                    color=self.color_palette["bar_outline"],
+                    color=self.color_palette.bar_outline,
                     fill_color=candidate_color,
                     fill_opacity=self.bar_opacity,
                 )
@@ -869,7 +900,7 @@ class ElectionScene(manim.Scene):
             exhausted_bar = Rectangle(
                 width=self._support_to_bar_width(exhausted_votes),
                 height=self.bar_height,
-                color=self.color_palette["bar_outline"],
+                color=self.color_palette.bar_outline,
                 fill_color=candidate_color,
                 fill_opacity=self.bar_opacity,
             )
@@ -930,7 +961,7 @@ class ElectionScene(manim.Scene):
         cross = Line(
             from_candidate["name_text"].get_left(),
             from_candidate["name_text"].get_right(),
-            color=self.color_palette["elimination_line"],
+            color=self.color_palette.elimination_line,
         )
         cross.set_stroke(width=self.strikethrough_thickness)
         self.play(Create(cross))
@@ -946,7 +977,7 @@ class ElectionScene(manim.Scene):
             sub_bar = Rectangle(
                 width=self._support_to_bar_width(votes),
                 height=self.bar_height,
-                color=self.color_palette["bar_outline"],
+                color=self.color_palette.bar_outline,
                 fill_color=candidate_color,
                 fill_opacity=self.bar_opacity,
             )
@@ -963,7 +994,7 @@ class ElectionScene(manim.Scene):
         exhausted_bar = Rectangle(
             width=self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
-            color=self.color_palette["bar_outline"],
+            color=self.color_palette.bar_outline,
             fill_color=candidate_color,
             fill_opacity=self.bar_opacity,
         )
@@ -1004,8 +1035,8 @@ class ElectionScene(manim.Scene):
             sub_bar = Rectangle(
                 width=self._support_to_bar_width(votes),
                 height=self.bar_height,
-                color=self.color_palette["bar_outline"],
-                fill_color=self.color_palette["offscreen_candidate_fill"],
+                color=self.color_palette.bar_outline,
+                fill_color=self.color_palette.offscreen_candidate_fill,
                 fill_opacity=self.bar_opacity,
             )
             self.candidate_dict[destination]["support"] += votes
