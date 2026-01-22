@@ -216,8 +216,9 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
             "nicknames": nicknames,
             "focus": "viable",
             "title": "Test Election",
+            "color_palette": LIGHT_PALETTE,
         },
-        render_args={"color_palette": LIGHT_PALETTE},
+        render_args={},
     )
 
 
@@ -232,4 +233,5 @@ def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
         tmp_path,
         baseline_subdir="happy",
         stv_animation_args={"focus": "winners", "title": "Test Election"},
+        render_args={},
     )

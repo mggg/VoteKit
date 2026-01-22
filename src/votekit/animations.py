@@ -214,6 +214,7 @@ class STVAnimation:
         title: Optional[str] = None,
         focus: List[str] | Literal["winners", "viable", "all"] = "viable",
         nicknames: dict[str, str] = {},
+        color_palette: ColorPalette = DARK_PALETTE,
     ):
 
         match focus:
@@ -243,6 +244,7 @@ class STVAnimation:
         if len(self.events) == 0:
             raise ValueError("Tried creating animation with no animation event.")
         self.title = title
+        self.color_palette = color_palette
 
     def _make_candidate_dict(self, election: STV) -> dict[str, dict[str, object]]:
         """
@@ -481,7 +483,6 @@ class STVAnimation:
     def render(
         self,
         preview: bool = False,
-        color_palette: ColorPalette = DARK_PALETTE,
         render_dir: str = "media",
     ) -> None:
         """
@@ -492,12 +493,10 @@ class STVAnimation:
         Args:
             preview (bool, optional): If ``True``, display the result in a video player
                 immediately upon completing the render. Defaults to False.
-            color_palette (ColorPalette, optional): A color scheme to use in the animation.
-                Defaults to `DARK_PALETTE`.
             render_dir (str, optional): Directory in which the rendering files will appear.
         """
         # Set up necessary manim configurations.
-        background_color = color_palette.background
+        background_color = self.color_palette.background
         with manim.tempconfig(
             {"media_dir": render_dir, "background_color": background_color}
         ):
@@ -506,7 +505,7 @@ class STVAnimation:
                 deepcopy(self.candidate_dict),
                 deepcopy(self.events),
                 title=self.title,
-                color_palette=color_palette,
+                color_palette=self.color_palette,
             )
             manimation.render(preview=preview)
 
