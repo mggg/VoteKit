@@ -481,7 +481,7 @@ class STVAnimation:
     def render(
         self,
         preview: bool = False,
-        color_palette: str = "dark",
+        color_palette: ColorPalette = DARK_PALETTE,
         render_dir: str = "media",
     ) -> None:
         """
@@ -492,12 +492,12 @@ class STVAnimation:
         Args:
             preview (bool, optional): If ``True``, display the result in a video player
                 immediately upon completing the render. Defaults to False.
-            color_palette (str, optional): A color scheme to use in the animation.
-                Supports `'dark'` or `'light'`. Defaults to `'dark'`.
+            color_palette (ColorPalette, optional): A color scheme to use in the animation.
+                Defaults to `DARK_PALETTE`.
             render_dir (str, optional): Directory in which the rendering files will appear.
         """
         # Set up necessary manim configurations.
-        background_color = ElectionScene.palettes[color_palette].background
+        background_color = color_palette.background
         with manim.tempconfig(
             {"media_dir": render_dir, "background_color": background_color}
         ):
@@ -525,14 +525,10 @@ class ElectionScene(manim.Scene):
         events (List[AnimationEvent]): A list of animation events to be constructed and rendered.
         title (str): A string to be displayed at the beginning of the animation as a title screen.
             If ``None``, the animation will skip the title screen.
-        color_palette (str, optional): A color scheme to use in the animation. Supports
-            `'dark'` or `'light'`. Defaults to `'dark'`.
+        color_palette (ColorPalette, optional): A color scheme to use in the animation.
+            Defaults to `DARK_PALETTE`.
     """
 
-    palettes: dict[str, ColorPalette] = {
-        "dark": DARK_PALETTE,
-        "light": LIGHT_PALETTE,
-    }
     bar_opacity = 1
     ghost_opacity = 0.3
     ticker_tape_height = 2
@@ -547,13 +543,13 @@ class ElectionScene(manim.Scene):
         candidate_dict: dict[str, dict],
         events: List[AnimationEvent],
         title: Optional[str] = None,
-        color_palette: str = "dark",
+        color_palette: ColorPalette = DARK_PALETTE,
     ):
         super().__init__()
         self.candidate_dict = candidate_dict
         self.events = events
         self.title = title
-        self.color_palette = self.palettes[color_palette]
+        self.color_palette = color_palette
 
         self.width = 8
         self.bar_height = 3.5 / len(self.candidate_dict)

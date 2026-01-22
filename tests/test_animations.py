@@ -1,4 +1,4 @@
-from votekit.animations import STVAnimation
+from votekit.animations import STVAnimation, LIGHT_PALETTE
 from votekit import Ballot, PreferenceProfile
 from votekit.elections import STV
 import pytest
@@ -104,9 +104,8 @@ def run_animation_snapshot_test(
     election,
     tmp_path,
     baseline_subdir: str,
-    color_palette: str = "dark",
-    nicknames: dict[str, str] = {},
-    focus="viable",
+    stv_animation_args: dict = {},
+    render_args: dict = {},
 ):
     """
     Helper to render an STV animation, extract frames, and compare to baselines.
@@ -120,10 +119,8 @@ def run_animation_snapshot_test(
 
     # Configure manim to output to tmp_path to ensure media files are deleted after testing
 
-    animation = STVAnimation(
-        election, title="Test Election", focus=focus, nicknames=nicknames
-    )
-    animation.render(color_palette=color_palette, render_dir=str(tmp_path / "media"))
+    animation = STVAnimation(election, **stv_animation_args)
+    animation.render(render_dir=str(tmp_path / "media"), **render_args)
 
     # Get video duration using ffprobe
     video_path = tmp_path / "media" / "videos" / "1080p60" / "ElectionScene.mp4"
@@ -201,7 +198,8 @@ def run_animation_snapshot_test(
 
 
 # NOTE: To re-generate new snapshots for one of these tests,
-# delete the associate sub-directory of the snapshots folder and run the test.
+# delete the associate sub-directory of baseline images in
+# the snapshots folder and run the test.
 # The test will fail and generate new snapshots.
 @pytest.mark.slow
 def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
@@ -214,9 +212,12 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
         election_multi,
         tmp_path,
         baseline_subdir="multi",
-        color_palette="light",
-        nicknames=nicknames,
-        focus="viable",
+        stv_animation_args={
+            "nicknames": nicknames,
+            "focus": "viable",
+            "title": "Test Election",
+        },
+        render_args={"color_palette": LIGHT_PALETTE},
     )
 
 
@@ -230,6 +231,5 @@ def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
         election_happy,
         tmp_path,
         baseline_subdir="happy",
-        color_palette="dark",
-        focus="winners",
+        stv_animation_args={"focus": "winners", "title": "Test Election"},
     )
