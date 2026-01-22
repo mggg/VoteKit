@@ -156,7 +156,7 @@ class STVAnimation:
                     if ment >= election.threshold
                 ]
             case "all":
-                focus = list(election.get_profile().candidates)
+                focus = [c for s in election.get_remaining(0) for c in s]
             case _:
                 if not isinstance(focus, list):
                     raise TypeError(f"{focus} was not a recognized literal for focus")
