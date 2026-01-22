@@ -196,16 +196,18 @@ class STVAnimation:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (List[str], "winners", "viable", or "all"): A list of names of candidates that
+        focus (List[str], "winners", "viable", or "all", optional): A list of names of candidates that
             should appear on-screen. This is useful for elections with many candidates.
             Note that any candidates that won the election are on-screen automatically,
             so passing an empty list will result in only elected candidates appearing on-screen.
             If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only
             the candidates with more mentions than the election threshold. If ``"all"``,
             focus all candidates. Defaults to ``"viable"``.
-        nicknames (dict[str,str]): A dictionary mapping candidate names to candidate "nicknames"
+        nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate "nicknames"
             to be used in the animation instead. The keys of ``nicknames`` need not contain
             every candidate, only the ones for which the user would like to provide a nickname.
+        color_palette (ColorPalette, optional): A color palette to use for the animation.
+            Defaults to `DARK_PALETTE`.
     """
 
     def __init__(
