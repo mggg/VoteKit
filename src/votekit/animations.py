@@ -18,8 +18,8 @@ from .cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
     remove_cand_rank_ballot,
 )
-from .utils import ballots_by_first_cand, mentions
-from .elections.election_types.ranking.stv import STV
+from votekit.utils import ballots_by_first_cand, mentions
+from votekit.elections.election_types.ranking.stv import STV
 from typing import Literal, List, Optional, Sequence, Mapping
 from collections import defaultdict
 import logging
