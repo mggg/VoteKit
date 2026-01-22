@@ -245,9 +245,9 @@ class STVAnimation:
             elif len(eliminated_candidates) > 0:  # Elimination round
                 if len(eliminated_candidates) > 1:
                     raise ValueError(
-                        f"Multiple-elimination rounds not supported. "
+                        "Multiple-elimination rounds not supported. "
                         "At most one candidate should be eliminated in each round. "
-                        "Candidates eliminated in round {round_number}: {eliminated_candidates}."
+                        f"Candidates eliminated in round {round_number}: {eliminated_candidates}."
                     )
                 eliminated_candidate = eliminated_candidates[0]
                 support_transferred = self._get_transferred_votes(
@@ -919,8 +919,8 @@ class ElectionScene(manim.Scene):
         num_eliminated_candidates = len(list(from_candidates.values()))
         if num_eliminated_candidates != 1:
             raise ValueError(
-                f"Elimination round animations only support one eliminated candidate at a time. "
-                "Attempted to animate {num_eliminated_candidates} "
+                "Elimination round animations only support one eliminated candidate at a time. "
+                f"Attempted to animate {num_eliminated_candidates} "
                 "eliminations in one election round."
             )
         del num_eliminated_candidates
