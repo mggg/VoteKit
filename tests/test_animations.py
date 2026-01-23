@@ -208,6 +208,7 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
     and nicknames, and compare frames to saved snapshots.
     """
     nicknames = {"Orange": "Clementine"}
+    candidate_colors = {"Orange": "#D0850E", "Strawberry": "#D51010"}
     run_animation_snapshot_test(
         election_multi,
         tmp_path,
@@ -217,6 +218,7 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
             "focus": "viable",
             "title": "Test Election",
             "color_palette": LIGHT_PALETTE,
+            "candidate_colors": candidate_colors,
         },
         render_args={},
     )
@@ -232,6 +234,9 @@ def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
         election_happy,
         tmp_path,
         baseline_subdir="happy",
-        stv_animation_args={"focus": "winners", "title": "Test Election"},
+        stv_animation_args={
+            "focus": "winners",
+            "title": "Test Election",
+        },
         render_args={},
     )
