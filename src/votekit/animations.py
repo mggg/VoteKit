@@ -513,7 +513,7 @@ class STVAnimation:
         """
         Renders the STV animation using Manim.
 
-        The completed video will appear in the directory ``media/videos``.
+        The completed video will appear in the ``videos`` subdirectory within ``render_dir``.
 
         Args:
             preview (bool, optional): If ``True``, display the result in a video player
