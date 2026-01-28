@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from PIL import Image
 import numpy as np
+from typing import Optional
 
 
 @pytest.fixture
@@ -101,38 +102,50 @@ def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
 
 
 def run_animation_snapshot_test(
-    election,
-    tmp_path,
+    election : STV,
+    tmp_path : Path,
     baseline_subdir: str,
-    stv_animation_args: dict = {},
-    render_args: dict = {},
+    stv_animation_args: Optional[dict] = None,
+    render_args: Optional[dict] = None,
 ):
     """
     Helper to render an STV animation, extract frames, and compare to baselines.
 
     Args:
-        election: An STV election result to animate.
-        tmp_path: Pytest tmp_path fixture for temporary files.
-        baseline_subdir: Subdirectory name under snapshots/animations/ for baseline images.
-        color_palette: Color palette to use ("dark" or "light").
+        election (STV): An STV election result to animate.
+        tmp_path (Path): Pytest tmp_path fixture for temporary files.
+        baseline_subdir (str): Subdirectory name under snapshots/animations/ for baseline images.
+        stv_animation_args(Optional[dict]): Arguments to be passed to the
+            STVAnimation initialization.
+        render_args (Optional[dict]): Arguments to be passed to STVAnimation.render.
     """
-
-    # Configure manim to output to tmp_path to ensure media files are deleted after testing
+    if stv_animation_args is None:
+        stv_animation_args = {}
+    if render_args is None:
+        render_args = {}
 
     animation = STVAnimation(election, **stv_animation_args)
+    # Send output to tmp_path to ensure media files are deleted after testing
     animation.render(render_dir=str(tmp_path / "media"), **render_args)
 
     # Get video duration using ffprobe
+    # The subdirectories are created by manim when establishing the render
     video_path = tmp_path / "media" / "videos" / "1080p60" / "ElectionScene.mp4"
+    # The following ffprobe command prints a single decimal number to stdout:
+    # the duratino of the video in seconds
     result = subprocess.run(
         [
             "ffprobe",
+            # set verbosity to errors only:
             "-v",
-            "error",  # verbosity: errors only
+            "error",
+            # Show duration:
             "-show_entries",
-            "format=duration",  # Show duration
+            "format=duration",
+            # Don't show extra info, just the number:
             "-of",
-            "default=noprint_wrappers=1:nokey=1",  # Don't show extra info, just the number
+            "default=noprint_wrappers=1:nokey=1",
+            # Output path:
             str(video_path),
         ],
         capture_output=True,
@@ -150,15 +163,20 @@ def run_animation_snapshot_test(
         frame_path = frames_dir / f"frame_{i:02d}.png"
         subprocess.run(
             [
+                # Overwrite images:
                 "ffmpeg",
-                "-y",  # Overwrite images
+                "-y",
+                # Seek to timestamp:
                 "-ss",
-                str(timestamp),  # Seek to timestamp
+                str(timestamp),
+                # Input file path:
                 "-i",
-                str(video_path),  # Input file path
+                str(video_path),
+                # One frame only:
                 "-frames:v",
-                "1",  # One frame only
-                str(frame_path),  # Output path
+                "1",
+                # Output path:
+                str(frame_path),
             ],
             check=True,
             capture_output=True,
@@ -202,10 +220,14 @@ def run_animation_snapshot_test(
 # the snapshots folder and run the test.
 # The test will fail and generate new snapshots.
 @pytest.mark.slow
-def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
+def test_stv_animation_video_snapshots_multi(election_multi: STV, tmp_path: Path):
     """
     Render an STV animation with light mode, multi-winner rounds,
     and nicknames, and compare frames to saved snapshots.
+
+    Args:
+        election_multi (STV): Election defined as fixture above
+        tmp_path (Path): Temporary path provided by pytest
     """
     nicknames = {"Orange": "Clementine"}
     candidate_colors = {"Orange": "#D0850E", "Strawberry": "#D51010"}
@@ -225,10 +247,14 @@ def test_stv_animation_video_snapshots_multi(election_multi, tmp_path):
 
 
 @pytest.mark.slow
-def test_stv_animation_video_snapshots_happy(election_happy, tmp_path):
+def test_stv_animation_video_snapshots_happy(election_happy: STV, tmp_path: Path):
     """
     Render an STV animation video of a "happy path" election with
     dark mode and compare frames to saved snapshots.
+
+    Args:
+        election_happy (STV): Election defined as fixture above
+        tmp_path (Path): Temporary path provided by pytest
     """
     run_animation_snapshot_test(
         election_happy,
