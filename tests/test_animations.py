@@ -102,8 +102,8 @@ def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
 
 
 def run_animation_snapshot_test(
-    election : STV,
-    tmp_path : Path,
+    election: STV,
+    tmp_path: Path,
     baseline_subdir: str,
     stv_animation_args: Optional[dict] = None,
     render_args: Optional[dict] = None,

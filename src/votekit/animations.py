@@ -15,7 +15,7 @@ from manim import (
     RIGHT,
     ManimColor,
 )
-from .cleaning.rank_ballots_cleaning import (
+from votekit.cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
     remove_cand_rank_ballot,
 )
@@ -34,14 +34,14 @@ class ColorPalette:
     A color palette for STV animations. All colors are stored as hex codes.
 
     Attributes:
-        bar_fills: Colors for candidate bars (cycles through list).
-        bar_outline: Color for bar outlines.
-        winner: Color for boxes around winner names and winner bars.
-        offscreen_candidate_fill: Color for candidates not shown on screen.
-        background: Background color.
-        elimination_line: Color for candidate name strikethrough lines.
-        ticker_tape_frosted: Color for un-emphasized ticker tape messages.
-        ticker_tape_highlight: Color for emphasized ticker tape messages.
+        bar_fills (List[str]): Colors for candidate bars (cycles through list).
+        bar_outline (str): Color for bar outlines.
+        winner (str): Color for boxes around winner names and winner bars.
+        offscreen_candidate_fill (str): Color for candidates not shown on screen.
+        background (str): Background color.
+        elimination_line (str): Color for candidate name strikethrough lines.
+        ticker_tape_frosted (str): Color for un-emphasized ticker tape messages.
+        ticker_tape_highlight (str): Color for emphasized ticker tape messages.
     """
 
     bar_fills: List[str]
@@ -198,11 +198,11 @@ class STVAnimation:
             If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only
             the candidates with more mentions than the election threshold. If ``"all"``,
             focus all candidates. Defaults to ``"viable"``.
-        nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate
+        nicknames (Optional[dict[str,str]], optional): A dictionary mapping candidate names to candidate
             "nicknames" to be used in the animation instead. The keys of ``nicknames``
             need not contain every candidate, only the ones for which the user would like to
             provide a nickname.
-        candidate_colors (dict[str, str], optional): A dictionary mapping candidate names to
+        candidate_colors (Optional[dict[str, str]], optional): A dictionary mapping candidate names to
             hex codes of colors that should represent them in the animation. The colors in
             ``candidate_colors`` will override the bar fill colors provided by
             ``color_palette``. The keys of ``candidate_colors`` need not contain
@@ -210,6 +210,23 @@ class STVAnimation:
             a specific color. Defaults to the empty dictionary.
         color_palette (ColorPalette, optional): A color palette to use for the animation.
             Defaults to `DARK_PALETTE`.
+
+
+    Attributes:
+        election (STV): An STV election to animate.
+        title (str, optional): Text to be displayed at the beginning of the animation as
+            a title screen.
+        focus (List[str], "winners", "viable", or "all", optional): A list of names of candidates that
+            should appear on-screen.
+        nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate
+            "nicknames" to be used in the animation instead.
+        color_palette (ColorPalette, optional): A color palette to use for the animation.
+        candidate_dict (dict[str, dict[str, object]]): A dictionary mapping each candidate's
+            name to a dictionary recording that candidate's support, display name, and color.
+        events (List[AnimationEvent]): A list of animation events in order of occurence.
+
+    Raises:
+        TypeError: ``focus`` was an unrecognized string.
     """
 
     def __init__(
@@ -217,10 +234,14 @@ class STVAnimation:
         election: STV,
         title: Optional[str] = None,
         focus: List[str] | Literal["winners", "viable", "all"] = "viable",
-        nicknames: dict[str, str] = {},
-        candidate_colors: dict[str, str] = {},
+        nicknames: Optional[dict[str, str]] = None,
+        candidate_colors: Optional[dict[str, str]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
     ):
+        if nicknames is None:
+            nicknames = {}
+        if candidate_colors is None:
+            candidate_colors = {}
 
         match focus:
             case "winners":
@@ -256,7 +277,8 @@ class STVAnimation:
         self, election: STV, candidate_colors: dict[str, str]
     ) -> dict[str, dict[str, object]]:
         """
-        Create the dictionary of candidates and relevant facts about each one.
+        Create a dictionary sending candidate names to dictionaries recording that candidate's
+        support, display name, and color.
 
         Args:
             election (STV): An STV election from which to extract the candidates.
@@ -343,7 +365,7 @@ class STVAnimation:
             elif len(eliminated_candidates) > 0:  # Elimination round
                 if len(eliminated_candidates) > 1:
                     raise ValueError(
-                        "Multiple-elimination rounds not supported. "
+                        "Rounds with multiple eliminations are not supported. "
                         "At most one candidate should be eliminated in each round. "
                         f"Candidates eliminated in round {round_number}: {eliminated_candidates}."
                     )
@@ -385,7 +407,7 @@ class STVAnimation:
         self,
         election: STV,
         round_number: int,
-        from_candidates: List[str],
+        cands_transferred_from: List[str],
         event_type: Literal["win", "elimination"],
     ) -> dict[str, dict[str, float]]:
         """
@@ -395,7 +417,7 @@ class STVAnimation:
         Args:
             election (STV): The election.
             round_number (int): The number of the round in question.
-            from_candidates (List[str]): A list of the names of the elected or
+            cands_transferred_from (List[str]): A list of the names of the elected or
                 eliminated candidates.
             event_type (str): ``"win"`` if candidates were elected this round,
                 ``"elimination"`` otherwise.
@@ -408,7 +430,7 @@ class STVAnimation:
 
         Notes:
             This function supports the election, but not the elimination, of multiple candidates
-                in one round. If ``event_type`` is ``"elimination"`` then ``from_candidates``
+                in one round. If ``event_type`` is ``"elimination"`` then ``cands_transferred_from``
                 should have length 1.
         """
         prev_profile, prev_state = election.get_step(round_number - 1)
@@ -416,26 +438,34 @@ class STVAnimation:
 
         transfers: dict[str, dict[str, float]] = {}
         if event_type == "elimination":
-            assert len(from_candidates) == 1
-            from_candidate = from_candidates[0]
-            transfers = {from_candidate: {}}
+            assert len(cands_transferred_from) == 1, (
+                "Tried to compute transferred votes in a round "
+                "with multiple eliminated candidates, which "
+                "is not supported."
+            )
+            cand_transferred_from = cands_transferred_from[0]
+            transfers = {cand_transferred_from: {}}
             for to_candidate in [
                 c for s in current_state.remaining for c in s if c in self.focus
             ]:
                 prev_score = prev_state.scores[to_candidate]
                 current_score = current_state.scores[to_candidate]
-                transfers[from_candidate][to_candidate] = current_score - prev_score
+                transfers[cand_transferred_from][to_candidate] = (
+                    current_score - prev_score
+                )
         elif event_type == "win":
             ballots_by_fpv = ballots_by_first_cand(prev_profile)
-            for from_candidate in from_candidates:
+            for cand_transferred_from in cands_transferred_from:
                 new_ballots = election.transfer(
-                    from_candidate,
-                    prev_state.scores[from_candidate],
-                    ballots_by_fpv[from_candidate],
+                    cand_transferred_from,
+                    prev_state.scores[cand_transferred_from],
+                    ballots_by_fpv[cand_transferred_from],
                     election.threshold,
                 )
                 clean_ballots = [
-                    condense_rank_ballot(remove_cand_rank_ballot(from_candidates, b))
+                    condense_rank_ballot(
+                        remove_cand_rank_ballot(cands_transferred_from, b)
+                    )
                     for b in new_ballots
                 ]
                 transfer_weights_from_candidate: dict[str, float] = defaultdict(float)
@@ -447,7 +477,7 @@ class STVAnimation:
                                 to_candidate
                             ] += ballot.weight
 
-                transfers[from_candidate] = transfer_weights_from_candidate
+                transfers[cand_transferred_from] = transfer_weights_from_candidate
 
         return transfers
 
@@ -467,14 +497,17 @@ class STVAnimation:
         """
         return_events: List[AnimationEvent] = [events[0]]
         for event in events[1:]:
-            if isinstance(return_events[-1], EliminationOffscreenEvent) and isinstance(
-                event, EliminationOffscreenEvent
-            ):
+            # Unless the next and previous events were both offscreen, just add
+            # the next event to the list
+            if not isinstance(
+                return_events[-1], EliminationOffscreenEvent
+            ) or not isinstance(event, EliminationOffscreenEvent):
+                return_events.append(event)
+            # If both events are offscreen, condense them.
+            else:
                 return_events[-1] = self._compose_offscreen_eliminations(
                     return_events[-1], event
                 )
-            else:
-                return_events.append(event)
         return return_events
 
     def _compose_offscreen_eliminations(
@@ -551,6 +584,7 @@ class ElectionScene(manim.Scene):
             If ``None``, the animation will skip the title screen.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
             Defaults to `DARK_PALETTE`.
+
     """
 
     bar_opacity = 1
@@ -681,7 +715,6 @@ class ElectionScene(manim.Scene):
             *[candidate["name_text"] for candidate in self.candidate_dict.values()]
         )
         group.to_edge(LEFT)
-        del group
 
         # Create bars
         for candidate in self.candidate_dict.values():
@@ -735,9 +768,8 @@ class ElectionScene(manim.Scene):
             color=ManimColor(self.color_palette.bar_outline),
         )
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
-        ticker_line.set_z_index(
-            2
-        )  # Keep this line in front of the bars and the quota line
+        # Keep this line in front of the bars and the quota line
+        ticker_line.set_z_index(2)
         self.ticker_tape_line = ticker_line
         self.ticker_tape = []
         for i, event in enumerate(self.events):
@@ -750,6 +782,7 @@ class ElectionScene(manim.Scene):
                 new_message.to_edge(DOWN, buff=0).shift(DOWN)
             else:
                 new_message.next_to(self.ticker_tape[-1], DOWN)
+            # Messages need to disappear behind the background rectangle as they scroll by.
             new_message.set_z_index(-2)
             self.ticker_tape.append(new_message)
 
@@ -808,7 +841,9 @@ class ElectionScene(manim.Scene):
         some_candidate = list(self.candidate_dict.values())[0]
         if not self.quota_line:
             # If the quota line doesn't exist yet, draw it.
-            assert self.ticker_tape_line is not None
+            assert self.ticker_tape_line is not None, (
+                "Tried to draw the quota line before " "the ticker tape line."
+            )
             line_bottom = self.ticker_tape_line.get_top()[1]
             line_top = manim.config.frame_height / 2
             self.quota_line = Line(
@@ -829,12 +864,14 @@ class ElectionScene(manim.Scene):
                 )
             )
 
-    def _animate_win(self, from_candidates: dict[str, dict], event: WinEvent) -> None:
+    def _animate_win(
+        self, cands_transferred_from: dict[str, dict], event: WinEvent
+    ) -> None:
         """
         Animate a round in which one or more candidates are elected.
 
         Args:
-            from_candidates (dict[str,dict]): A dictionary in which the keys are the
+            cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
                 candidates elected this round and the values are dictionaries recording
                 the candidate's attributes.
             event (WinEvent): The event to be animated.
@@ -842,25 +879,28 @@ class ElectionScene(manim.Scene):
         # Box the winners' names
         winner_boxes = [
             SurroundingRectangle(
-                from_candidate["name_text"],
+                cand_transferred_from["name_text"],
                 color=ManimColor(self.color_palette.winner),
                 buff=self.winner_box_buffer,
             )
-            for from_candidate in from_candidates.values()
+            for cand_transferred_from in cands_transferred_from.values()
         ]
 
         # Animate the box around the candidate name and the message text
         self.play(*[Create(box) for box in winner_boxes])
 
         # Create and animate the subdivision and redistribution of winners' leftover votes
-        for from_candidate_name, from_candidate in from_candidates.items():
-            old_bars: List[Rectangle] = from_candidate["bars"]
+        for (
+            from_candidate_name,
+            cand_transferred_from,
+        ) in cands_transferred_from.items():
+            old_bars: List[Rectangle] = cand_transferred_from["bars"]
             new_bars: List[Rectangle] = []
             transformations = []
             destinations = event.support_transferred[from_candidate_name]
-            candidate_color = from_candidate["color"]
+            candidate_color = cand_transferred_from["color"]
 
-            used_votes = min(event.quota, from_candidate["support"])
+            used_votes = min(event.quota, cand_transferred_from["support"])
             winner_bar = (
                 Rectangle(
                     width=self._support_to_bar_width(used_votes),
@@ -869,8 +909,8 @@ class ElectionScene(manim.Scene):
                     fill_color=ManimColor(self.color_palette.winner),
                     fill_opacity=self.bar_opacity,
                 )
-                .align_to(from_candidate["bars"][0], LEFT)
-                .align_to(from_candidate["bars"][0], UP)
+                .align_to(cand_transferred_from["bars"][0], LEFT)
+                .align_to(cand_transferred_from["bars"][0], UP)
             )
 
             # Create a sub-bar for each destination
@@ -888,8 +928,8 @@ class ElectionScene(manim.Scene):
                 # eliminated candidate's stack. The rest should be arranged
                 # to the left of that one
                 if len(new_bars) == 0:
-                    sub_bar.align_to(from_candidate["bars"][-1], RIGHT).align_to(
-                        from_candidate["bars"][-1], UP
+                    sub_bar.align_to(cand_transferred_from["bars"][-1], RIGHT).align_to(
+                        cand_transferred_from["bars"][-1], UP
                     )
                 else:
                     sub_bar.next_to(new_bars[-1], LEFT, buff=0)
@@ -907,7 +947,7 @@ class ElectionScene(manim.Scene):
 
             # Create a final short bar representing the exhausted votes
             exhausted_votes = (
-                from_candidate["support"]
+                cand_transferred_from["support"]
                 - used_votes
                 - sum(list(destinations.values()))
             )
@@ -918,7 +958,9 @@ class ElectionScene(manim.Scene):
                 fill_color=ManimColor(candidate_color),
                 fill_opacity=self.bar_opacity,
             )
-            assert self.quota_line is not None
+            assert self.quota_line is not None, (
+                "Tried to animate a win event, but the quota " "line was never drawn."
+            )
             if new_bars:
                 exhausted_bar.next_to(new_bars[0], LEFT, buff=0)
             else:
@@ -940,13 +982,13 @@ class ElectionScene(manim.Scene):
                 self.play(*transformations)
 
     def _animate_elimination(
-        self, from_candidates: dict[str, dict], event: EliminationEvent
+        self, cands_transferred_from: dict[str, dict], event: EliminationEvent
     ) -> None:
         """
         Animate a round in which a candidate was eliminated.
 
         Args:
-            from_candidates (dict[str,dict]): A dictionary in which the keys are the
+            cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
                 candidates eliminated this round and the values are dictionaries recording
                 the candidate's attributes.
             event (EliminationEvent): The event to be animated.
@@ -954,35 +996,34 @@ class ElectionScene(manim.Scene):
         Notes:
             While the interface supports multiple candidate eliminations in one round for
                 future extensibility, this function currently only supports elimination of one
-                candidate at a time. The from_candidates argument should have exactly one entry.
+                candidate at a time. The cands_transferred_from argument should have exactly one entry.
 
         Raises:
-            ValueError: If the length of ``from_candidates`` is not 1.
+            ValueError: If the length of ``cands_transferred_from`` is not 1.
         """
-        num_eliminated_candidates = len(list(from_candidates.values()))
+        num_eliminated_candidates = len(list(cands_transferred_from.values()))
         if num_eliminated_candidates != 1:
             raise ValueError(
                 "Elimination round animations only support one eliminated candidate at a time. "
                 f"Attempted to animate {num_eliminated_candidates} "
                 "eliminations in one election round."
             )
-        del num_eliminated_candidates
 
-        from_candidate = list(from_candidates.values())[0]
+        cand_transferred_from = list(cands_transferred_from.values())[0]
         destinations = event.support_transferred
 
         # Cross out the candidate name
         cross = Line(
-            from_candidate["name_text"].get_left(),
-            from_candidate["name_text"].get_right(),
+            cand_transferred_from["name_text"].get_left(),
+            cand_transferred_from["name_text"].get_right(),
             color=ManimColor(self.color_palette.elimination_line),
         )
         cross.set_stroke(width=self.strikethrough_thickness)
         self.play(Create(cross))
 
         # Create short bars that will replace the candidate's current bars
-        candidate_color = from_candidate["color"]
-        old_bars = from_candidate["bars"]
+        candidate_color = cand_transferred_from["color"]
+        old_bars = cand_transferred_from["bars"]
         new_bars = []  # The bits to be redistributed
         transformations = []
         for destination, votes in destinations.items():
@@ -1004,7 +1045,9 @@ class ElectionScene(manim.Scene):
             )  # The sub-bars will move to be next to the bars of their destination candidates
             self.candidate_dict[destination]["bars"].append(sub_bar)
         # Create a final short bar representing the exhausted votes
-        exhausted_votes = from_candidate["support"] - sum(list(destinations.values()))
+        exhausted_votes = cand_transferred_from["support"] - sum(
+            list(destinations.values())
+        )
         exhausted_bar = Rectangle(
             width=self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
@@ -1062,6 +1105,7 @@ class ElectionScene(manim.Scene):
             )  # The sub-bars will move to be next to the bars of their destination candidates
             self.candidate_dict[destination]["bars"].append(sub_bar)
 
+        # Place these bars well offscreen
         for bar in new_bars:
             bar.to_edge(DOWN).shift((self.bar_height + 2) * DOWN)
 
