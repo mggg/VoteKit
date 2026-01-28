@@ -40,8 +40,8 @@ class ColorPalette:
         offscreen_candidate_fill (str): Color for candidates not shown on screen.
         background (str): Background color.
         elimination_line (str): Color for candidate name strikethrough lines.
-        ticker_tape_frosted (str): Color for un-emphasized ticker tape messages.
-        ticker_tape_highlight (str): Color for emphasized ticker tape messages.
+        text_frosted (str): Color for de-emphasized text.
+        text_regular (str): Color for regular text.
     """
 
     bar_fills: List[str]
@@ -50,8 +50,8 @@ class ColorPalette:
     offscreen_candidate_fill: str
     background: str
     elimination_line: str
-    ticker_tape_frosted: str
-    ticker_tape_highlight: str
+    text_frosted: str
+    text_regular: str
 
 
 DARK_PALETTE = ColorPalette(
@@ -69,8 +69,8 @@ DARK_PALETTE = ColorPalette(
     offscreen_candidate_fill="#888888",
     background="#000000",
     elimination_line="#FC6255",
-    ticker_tape_frosted="#444444",
-    ticker_tape_highlight="#FFFFFF",
+    text_frosted="#444444",
+    text_regular="#FFFFFF",
 )
 
 LIGHT_PALETTE = ColorPalette(
@@ -88,8 +88,8 @@ LIGHT_PALETTE = ColorPalette(
     offscreen_candidate_fill="#888888",
     background="#FFFFFF",
     elimination_line="#FC6255",
-    ticker_tape_frosted="#BBBBBB",
-    ticker_tape_highlight="#000000",
+    text_frosted="#BBBBBB",
+    text_regular="#000000",
 )
 
 
@@ -671,7 +671,9 @@ class ElectionScene(manim.Scene):
             message (str): String that the title screen will display.
         """
         text = manim.Tex(
-            r"{7cm}\centering " + message, tex_environment="minipage"
+            r"{7cm}\centering " + message,
+            tex_environment="minipage",
+            color=self.color_palette.text_regular,
         ).scale_to_fit_width(
             10
         )  # We do this one with a TeX minipage to get the text to wrap if it's too long.
@@ -776,7 +778,7 @@ class ElectionScene(manim.Scene):
             new_message = Text(
                 event.get_message(),
                 font_size=24,
-                color=ManimColor(self.color_palette.ticker_tape_frosted),
+                color=ManimColor(self.color_palette.text_frosted),
             )
             if i == 0:
                 new_message.to_edge(DOWN, buff=0).shift(DOWN)
@@ -818,11 +820,11 @@ class ElectionScene(manim.Scene):
             event_number (int): The index of the event whose message will be highlighted.
         """
         highlight_message = self.ticker_tape[event_number].animate.set_color(
-            ManimColor(self.color_palette.ticker_tape_highlight)
+            ManimColor(self.color_palette.text_regular)
         )
         unhighlight_other_messages = [
             self.ticker_tape[i].animate.set_color(
-                ManimColor(self.color_palette.ticker_tape_frosted)
+                ManimColor(self.color_palette.text_frosted)
             )
             for i in range(len(self.ticker_tape))
             if i != event_number
