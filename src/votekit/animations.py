@@ -587,15 +587,6 @@ class ElectionScene(manim.Scene):
 
     """
 
-    bar_opacity = 1
-    ghost_opacity = 0.3
-    ticker_tape_height = 2
-    title_font_size = 48
-    name_bar_spacing = 0.2
-    winner_box_buffer = 0.1
-
-    offscreen_sentinel = "__offscreen__"
-
     def __init__(
         self,
         candidate_dict: dict[str, dict],
@@ -609,12 +600,19 @@ class ElectionScene(manim.Scene):
         self.title = title
         self.color_palette = color_palette
 
+        # Sizing and spacing for various aspects of the animation
         self.width = 8
         self.bar_height = 3.5 / len(self.candidate_dict)
         self.font_size = 3 * 40 / len(self.candidate_dict)
         self.bar_opacity = 1
+        self.ghost_opacity = 0.3
         self.bar_buffer_size = self.bar_height
         self.strikethrough_thickness = self.font_size / 5
+        self.ticker_tape_height = 2
+        self.title_font_size = 48
+        self.name_bar_spacing = 0.2
+        self.winner_box_buffer = 0.1
+
         self.max_support = 1.1 * max([event.quota for event in self.events])
 
         self.quota_line = None
