@@ -24,6 +24,7 @@ from votekit.elections.election_types.ranking.stv import STV
 from typing import Literal, List, Optional, Sequence, Mapping
 from collections import defaultdict
 import logging
+import warnings
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
@@ -191,13 +192,13 @@ class STVAnimation:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (List[str], "winners", "viable", or "all", optional): A list of names of candidates that
-            should appear on-screen. This is useful for elections with many candidates.
-            Note that any candidates that won the election are on-screen automatically,
-            so passing an empty list will result in only elected candidates appearing on-screen.
-            If ``"winners"``, focus only the elected candidates. If ``"viable"``, focus only
-            the candidates with more mentions than the election threshold. If ``"all"``,
-            focus all candidates. Defaults to ``"viable"``.
+        focus (set[str], list[str], "winners", "viable", or "all", optional): A set or list of
+            names of candidates that should appear on-screen. This is useful for elections
+            with many candidates. Note that any candidates that won the election are on-screen
+            automatically, so passing an empty set will result in only elected candidates
+            appearing on-screen. If ``"winners"``, focus only the elected candidates.
+            If ``"viable"``, focus only the candidates with more mentions than the election
+            threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
         nicknames (Optional[dict[str,str]], optional): A dictionary mapping candidate names to candidate
             "nicknames" to be used in the animation instead. The keys of ``nicknames``
             need not contain every candidate, only the ones for which the user would like to
@@ -216,8 +217,7 @@ class STVAnimation:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen.
-        focus (List[str], "winners", "viable", or "all", optional): A list of names of candidates that
-            should appear on-screen.
+        focus (set[str]): A set of names of candidates that should appear on-screen.
         nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate
             "nicknames" to be used in the animation instead.
         color_palette (ColorPalette, optional): A color palette to use for the animation.
@@ -226,14 +226,14 @@ class STVAnimation:
         events (List[AnimationEvent]): A list of animation events in order of occurence.
 
     Raises:
-        TypeError: ``focus`` was an unrecognized string.
+        TypeError: ``focus`` was not a set, list, or recognized string literal.
     """
 
     def __init__(
         self,
         election: STV,
         title: Optional[str] = None,
-        focus: List[str] | Literal["winners", "viable", "all"] = "viable",
+        focus: set[str] | List[str] | Literal["winners", "viable", "all"] = "viable",
         nicknames: Optional[dict[str, str]] = None,
         candidate_colors: Optional[dict[str, str]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
@@ -243,24 +243,33 @@ class STVAnimation:
         if candidate_colors is None:
             candidate_colors = {}
 
+        user_provided_focus = isinstance(focus, (list, set))
         match focus:
             case "winners":
-                focus = [c for s in election.get_elected() for c in s]
+                focus = {c for s in election.get_elected() for c in s}
             case "viable":
                 total_mentions = mentions(election.get_profile(0))
-                focus = [
+                focus = {
                     candidate
                     for candidate, ment in total_mentions.items()
                     if ment >= election.threshold
-                ]
+                }
             case "all":
-                focus = [c for s in election.get_remaining(0) for c in s]
+                focus = {c for s in election.get_remaining(0) for c in s}
             case _:
-                if not isinstance(focus, list):
+                if not user_provided_focus:
                     raise TypeError(f"{focus} was not a recognized literal for focus")
+                focus = set(focus)
         # Election winners must all be onscreen. Ensure it is so.
-        elected_candidates = [c for s in election.get_elected() for c in s]
-        focus = focus + [name for name in elected_candidates if name not in focus]
+        elected_candidates = {c for s in election.get_elected() for c in s}
+        missing_winners = elected_candidates - focus
+        if user_provided_focus and missing_winners:
+            warnings.warn(
+                f"The focus list did not include all election winners. "
+                f"Missing winners {missing_winners} have been added automatically.",
+                UserWarning,
+            )
+        focus = focus | missing_winners
         self.focus = focus
 
         self.nicknames = nicknames
