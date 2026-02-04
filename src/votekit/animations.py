@@ -731,7 +731,7 @@ class ElectionScene(manim.Scene):
                 Rectangle(
                     width=self._support_to_bar_width(candidate["support"]),
                     height=self.bar_height,
-                    color=ManimColor(self.color_palette.bar_outline),
+                    color=ManimColor(candidate["color"]),
                     fill_color=ManimColor(candidate["color"]),
                     fill_opacity=self.bar_opacity,
                 ).next_to(candidate["name_text"], RIGHT, buff=self.name_bar_spacing)
@@ -914,8 +914,8 @@ class ElectionScene(manim.Scene):
                 Rectangle(
                     width=self._support_to_bar_width(used_votes),
                     height=self.bar_height,
-                    color=ManimColor(self.color_palette.bar_outline),
-                    fill_color=ManimColor(self.color_palette.winner),
+                    color=ManimColor(self.color_palette.winner),
+                    fill_color=candidate_color,
                     fill_opacity=self.bar_opacity,
                 )
                 .align_to(cand_transferred_from["bars"][0], LEFT)
@@ -929,7 +929,7 @@ class ElectionScene(manim.Scene):
                 sub_bar = Rectangle(
                     width=self._support_to_bar_width(votes),
                     height=self.bar_height,
-                    color=ManimColor(self.color_palette.bar_outline),
+                    color=ManimColor(candidate_color),
                     fill_color=ManimColor(candidate_color),
                     fill_opacity=self.bar_opacity,
                 )
@@ -963,7 +963,7 @@ class ElectionScene(manim.Scene):
             exhausted_bar = Rectangle(
                 width=self._support_to_bar_width(exhausted_votes),
                 height=self.bar_height,
-                color=ManimColor(self.color_palette.bar_outline),
+                color=ManimColor(candidate_color),
                 fill_color=ManimColor(candidate_color),
                 fill_opacity=self.bar_opacity,
             )
@@ -1041,7 +1041,7 @@ class ElectionScene(manim.Scene):
             sub_bar = Rectangle(
                 width=self._support_to_bar_width(votes),
                 height=self.bar_height,
-                color=ManimColor(self.color_palette.bar_outline),
+                color=ManimColor(candidate_color),
                 fill_color=ManimColor(candidate_color),
                 fill_opacity=self.bar_opacity,
             )
@@ -1060,7 +1060,7 @@ class ElectionScene(manim.Scene):
         exhausted_bar = Rectangle(
             width=self._support_to_bar_width(exhausted_votes),
             height=self.bar_height,
-            color=ManimColor(self.color_palette.bar_outline),
+            color=ManimColor(candidate_color),
             fill_color=ManimColor(candidate_color),
             fill_opacity=self.bar_opacity,
         )
@@ -1101,7 +1101,7 @@ class ElectionScene(manim.Scene):
             sub_bar = Rectangle(
                 width=self._support_to_bar_width(votes),
                 height=self.bar_height,
-                color=ManimColor(self.color_palette.bar_outline),
+                color=ManimColor(self.color_palette.offscreen_candidate_fill),
                 fill_color=ManimColor(self.color_palette.offscreen_candidate_fill),
                 fill_opacity=self.bar_opacity,
             )
