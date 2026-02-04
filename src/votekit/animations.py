@@ -628,6 +628,24 @@ class ElectionScene(manim.Scene):
         self.ticker_tape_line = None
         self.ticker_tape: List[Text] = []
 
+    def _make_text(self, text: str, font_size: float, color: ManimColor) -> Text:
+        """
+        Create a Text object with improved kerning for small font sizes.
+
+        Manim/Pango has poor kerning at small font sizes. This method renders
+        text at a larger size and scales it down to work around the issue.
+        See: https://github.com/ManimCommunity/manim/issues/2844
+        """
+        SCALE_FACTOR = 0.1
+        THRESHOLD = 32  # Only apply workaround for small text
+
+        if font_size < THRESHOLD:
+            scaled_text = Text(text, font_size=font_size / SCALE_FACTOR, color=color)
+            scaled_text.scale(SCALE_FACTOR)
+            return scaled_text
+        else:
+            return Text(text, font_size=font_size, color=color)
+
     def construct(self) -> None:
         """
         Constructs the animation.
@@ -702,8 +720,8 @@ class ElectionScene(manim.Scene):
         # Create candidate name text
         for i, name in enumerate(sorted_candidates):
             candidate = self.candidate_dict[name]
-            candidate["name_text"] = Text(
-                candidate["display_name"],
+            candidate["name_text"] = self._make_text(
+                str(candidate["display_name"]),
                 font_size=self.font_size,
                 color=ManimColor(candidate["color"]),
             )
@@ -782,7 +800,7 @@ class ElectionScene(manim.Scene):
         self.ticker_tape_line = ticker_line
         self.ticker_tape = []
         for i, event in enumerate(self.events):
-            new_message = Text(
+            new_message = self._make_text(
                 event.get_message(),
                 font_size=24,
                 color=ManimColor(self.color_palette.text_frosted),
