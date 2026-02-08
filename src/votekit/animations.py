@@ -511,6 +511,8 @@ class STVAnimation:
         Returns:
             List[AnimationEvent]: A condensed list of animation events.
         """
+        if len(events) == 0:
+            return []
         return_events: List[AnimationEvent] = [events[0]]
         for event in events[1:]:
             # Unless the next and previous events were both offscreen, just add
@@ -998,7 +1000,7 @@ class ElectionScene(manim.Scene):
                 "Tried to animate a win event, but the quota " "line was never drawn."
             )
             if new_bars:
-                exhausted_bar.next_to(new_bars[0], LEFT, buff=0)
+                exhausted_bar.next_to(new_bars[-1], LEFT, buff=0)
             else:
                 exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
             # Keep this bar behind the others
