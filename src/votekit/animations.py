@@ -363,7 +363,7 @@ class STVAnimation:
     def _make_event_list(self, election: STV) -> List[AnimationEvent]:
         """
         Processes an STV election into a condensed list of animation events which roughly
-            correspond to election rounds.
+        correspond to election rounds.
 
         Args:
             election (STV): The STV election to process.
@@ -455,7 +455,7 @@ class STVAnimation:
     ) -> dict[str, dict[str, float]]:
         """
         Compute the number of votes transferred from each elected or eliminated candidate
-            to each remaining candidate.
+        to each remaining candidate.
 
         Args:
             election (STV): The election.
@@ -529,8 +529,8 @@ class STVAnimation:
     ) -> List[AnimationEvent]:
         """
         Take a list of events and condense any consecutive offscreen events into one summarizing
-            event. For instance, if ``events`` contains three offscreen eliminations in a row,
-            this function will condense them into one offscreen elimination of three candidates.
+        event. For instance, if ``events`` contains three offscreen eliminations in a row,
+        this function will condense them into one offscreen elimination of three candidates.
 
         Args:
             events (List[AnimationEvent]): A list of animation events to be condensed.
@@ -560,7 +560,7 @@ class STVAnimation:
     ) -> EliminationOffscreenEvent:
         """
         Take two offscreen eliminations and "compose" them into a single offscreen elimination
-            event summarizing both.
+        event summarizing both.
 
         Args:
             event1 (EliminationOffscreenEvent): The first offscreen elimination event to compose.
@@ -825,7 +825,9 @@ class ElectionScene(manim.Scene):
         )
 
     def _initialize_ticker_tape(self) -> None:
-        """Instantiate and draw the ticker tape line and text."""
+        """
+        Instantiate and draw the ticker tape line and text.
+        """
         line_length = manim.config.frame_width
         ticker_line = Line(
             start=LEFT * line_length / 2,
@@ -897,7 +899,7 @@ class ElectionScene(manim.Scene):
     def _update_quota_line(self, quota: float) -> None:
         """
         Update the position of the quota line to reflect the given quota. If no quota line
-            exists, create it and animate its creation.
+        exists, create it and animate its creation.
 
         Args:
             quota (float): The threshold number of votes necessary to be elected in the
@@ -1183,7 +1185,7 @@ class ElectionScene(manim.Scene):
     def _support_to_bar_width(self, support: float) -> float:
         """
         Convert a number of votes to the width of a bar in manim coordinates
-            representing that many votes.
+        representing that many votes.
 
         Args:
             support (float): A number of votes.
