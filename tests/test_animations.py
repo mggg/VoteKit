@@ -74,6 +74,37 @@ def test_STVAnimation_init(election_happy):
     assert animation.candidate_dict["Pear"]["support"] == 8
 
 
+def test_STVAnimation_focus_bad_literal(election_happy):
+    """Passing an unrecognized string literal for focus raises TypeError."""
+    with pytest.raises(TypeError, match="was not a recognized literal for focus"):
+        STVAnimation(election_happy, focus="nonexistent_option")
+
+
+def test_STVAnimation_focus_invalid_names(election_happy):
+    """Passing candidate names not in the election for focus raises ValueError."""
+    with pytest.raises(ValueError, match="names in focus are not candidates"):
+        STVAnimation(election_happy, focus=["Pear", "NotACandidate"])
+
+
+def test_STVAnimation_nicknames_invalid_keys(election_happy):
+    """Passing candidate names not in the election for nicknames raises ValueError."""
+    with pytest.raises(ValueError, match="keys in nicknames are not candidates"):
+        STVAnimation(election_happy, nicknames={"NotACandidate": "Nick"})
+
+
+def test_STVAnimation_candidate_colors_invalid_keys(election_happy):
+    """Passing candidate names not in the election for candidate_colors raises ValueError."""
+    with pytest.raises(ValueError, match="keys in candidate_colors are not candidates"):
+        STVAnimation(election_happy, candidate_colors={"NotACandidate": "#FF0000"})
+
+
+def test_STVAnimation_focus_missing_winners_warns(election_happy):
+    """Providing a focus list that omits winners emits a UserWarning."""
+    with pytest.warns(UserWarning, match="Missing winners"):
+        # Focus only on a non-winner; winners should be added automatically.
+        STVAnimation(election_happy, focus=["Orange"])
+
+
 def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
     """
     Compare two images, return True if pixel differences are within tolerance.

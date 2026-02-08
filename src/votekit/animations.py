@@ -234,6 +234,8 @@ class STVAnimation:
 
     Raises:
         TypeError: ``focus`` was not a set, list, or recognized string literal.
+        ValueError: ``focus``, ``nicknames``, or ``candidate_colors`` contained
+            candidate names not present in the election.
     """
 
     def __init__(
@@ -267,6 +269,31 @@ class STVAnimation:
                 if not user_provided_focus:
                     raise TypeError(f"{focus} was not a recognized literal for focus")
                 focus = set(focus)
+
+        all_candidates = {c for s in election.get_remaining(0) for c in s}
+
+        if user_provided_focus:
+            invalid_names = focus - all_candidates
+            if invalid_names:
+                raise ValueError(
+                    f"The following names in focus are not candidates "
+                    f"in the election: {invalid_names}"
+                )
+
+        invalid_nicknames = nicknames.keys() - all_candidates
+        if invalid_nicknames:
+            raise ValueError(
+                f"The following keys in nicknames are not candidates "
+                f"in the election: {invalid_nicknames}"
+            )
+
+        invalid_colors = candidate_colors.keys() - all_candidates
+        if invalid_colors:
+            raise ValueError(
+                f"The following keys in candidate_colors are not candidates "
+                f"in the election: {invalid_colors}"
+            )
+
         # Election winners must all be onscreen. Ensure it is so.
         elected_candidates = {c for s in election.get_elected() for c in s}
         missing_winners = elected_candidates - focus
