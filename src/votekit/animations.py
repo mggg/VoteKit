@@ -230,7 +230,7 @@ class STVAnimation:
         color_palette (ColorPalette, optional): A color palette to use for the animation.
         candidate_dict (dict[str, dict[str, object]]): A dictionary mapping each candidate's
             name to a dictionary recording that candidate's support, display name, and color.
-        events (List[AnimationEvent]): A list of animation events in order of occurence.
+        events (List[AnimationEvent]): A list of animation events in order of occurrence.
 
     Raises:
         TypeError: ``focus`` was not a set, list, or recognized string literal.
@@ -502,7 +502,7 @@ class STVAnimation:
     ) -> List[AnimationEvent]:
         """
         Take a list of events and condense any consecutive offscreen events into one summarizing
-            event. For instance, if ``events`` contians three offscreen eliminations in a row,
+            event. For instance, if ``events`` contains three offscreen eliminations in a row,
             this function will condense them into one offscreen elimination of three candidates.
 
         Args:
@@ -576,8 +576,10 @@ class STVAnimation:
         ):
             # Animate
             manimation = ElectionScene(
-                deepcopy(self.candidate_dict),
-                deepcopy(self.events),
+                deepcopy(
+                    self.candidate_dict
+                ),  # deepcopy because this argument is mutated
+                deepcopy(self.events),  # deepcopy because this argument is mutated
                 title=self.title,
                 color_palette=self.color_palette,
             )
@@ -1114,7 +1116,7 @@ class ElectionScene(manim.Scene):
         Animate a round in which offscreen candidates were eliminated.
 
         Args:
-            event (EliminationOffscreenEvent) The event to be animated.
+            event (EliminationOffscreenEvent): The event to be animated.
         """
         destinations = event.support_transferred
         # Create short bars that will begin offscreen
