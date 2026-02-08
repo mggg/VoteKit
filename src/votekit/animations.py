@@ -14,6 +14,7 @@ from manim import (
     LEFT,
     RIGHT,
     ManimColor,
+    ParsableManimColor,
 )
 from votekit.cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
@@ -32,27 +33,33 @@ from abc import ABC, abstractmethod
 @dataclass
 class ColorPalette:
     """
-    A color palette for STV animations. All colors are stored as hex codes.
+    A color palette for STV animations. Colors may be provided in any format that the Manim
+    library can handle. For instance, colors may be
+    - Hex code strings
+    - rbg triples of floats
+    - RGB triples of integers
+    - ManimColor objects
+    Note that any provided alpha channel information will be ignored.
 
     Attributes:
-        bar_fills (List[str]): Colors for candidate bars (cycles through list).
-        bar_outline (str): Color for bar outlines.
-        winner (str): Color for boxes around winner names and winner bars.
-        offscreen_candidate_fill (str): Color for candidates not shown on screen.
-        background (str): Background color.
-        elimination_line (str): Color for candidate name strikethrough lines.
-        text_frosted (str): Color for de-emphasized text.
-        text_regular (str): Color for regular text.
+        bar_fills (List[ParsableManimColor]): Colors for candidate bars (cycles through list).
+        bar_outline (ParsableManimColor): Color for bar outlines.
+        winner (ParsableManimColor): Color for boxes around winner names and winner bars.
+        offscreen_candidate_fill (ParsableManimColor): Color for candidates not shown on screen.
+        background (ParsableManimColor): Background color.
+        elimination_line (ParsableManimColor): Color for candidate name strikethrough lines.
+        text_frosted (ParsableManimColor): Color for de-emphasized text.
+        text_regular (ParsableManimColor): Color for regular text.
     """
 
-    bar_fills: List[str]
-    bar_outline: str
-    winner: str
-    offscreen_candidate_fill: str
-    background: str
-    elimination_line: str
-    text_frosted: str
-    text_regular: str
+    bar_fills: List[ParsableManimColor]
+    bar_outline: ParsableManimColor
+    winner: ParsableManimColor
+    offscreen_candidate_fill: ParsableManimColor
+    background: ParsableManimColor
+    elimination_line: ParsableManimColor
+    text_frosted: ParsableManimColor
+    text_regular: ParsableManimColor
 
 
 DARK_PALETTE = ColorPalette(
@@ -203,9 +210,9 @@ class STVAnimation:
             "nicknames" to be used in the animation instead. The keys of ``nicknames``
             need not contain every candidate, only the ones for which the user would like to
             provide a nickname.
-        candidate_colors (Optional[dict[str, str]], optional): A dictionary mapping candidate names to
-            hex codes of colors that should represent them in the animation. The colors in
-            ``candidate_colors`` will override the bar fill colors provided by
+        candidate_colors (Optional[dict[str, ParsableManimColor]], optional): A dictionary
+            mapping candidate names to colors that should represent them in the animation.
+            The colors in ``candidate_colors`` will override the bar fill colors provided by
             ``color_palette``. The keys of ``candidate_colors`` need not contain
             every candidate, only the ones for which the user would like to provide
             a specific color. Defaults to the empty dictionary.
@@ -235,7 +242,7 @@ class STVAnimation:
         title: Optional[str] = None,
         focus: set[str] | List[str] | Literal["winners", "viable", "all"] = "viable",
         nicknames: Optional[dict[str, str]] = None,
-        candidate_colors: Optional[dict[str, str]] = None,
+        candidate_colors: Optional[dict[str, ParsableManimColor]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
     ):
         if nicknames is None:
@@ -283,7 +290,7 @@ class STVAnimation:
         self.title = title
 
     def _make_candidate_dict(
-        self, election: STV, candidate_colors: dict[str, str]
+        self, election: STV, candidate_colors: dict[str, ParsableManimColor]
     ) -> dict[str, dict[str, object]]:
         """
         Create a dictionary sending candidate names to dictionaries recording that candidate's
@@ -291,8 +298,8 @@ class STVAnimation:
 
         Args:
             election (STV): An STV election from which to extract the candidates.
-            candidate_colors (dict[str,str]): A dictionary mapping candidate names
-                to hex codes for colors to which they should be associated with in the
+            candidate_colors (dict[str,ParsableManimColor]): A dictionary mapping candidate names
+                to codes for colors to which they should be associated with in the
                 candidate dictionary.
 
         Returns:
@@ -313,7 +320,7 @@ class STVAnimation:
                 display_name = name
             candidate_dict[name]["display_name"] = display_name
 
-        # Determine candidate color (as a hex value)
+        # Determine candidate color
         num_default_colors = len(self.color_palette.bar_fills)
         color_index = 0
         for name in candidate_dict.keys():
@@ -933,7 +940,7 @@ class ElectionScene(manim.Scene):
                     width=self._support_to_bar_width(used_votes),
                     height=self.bar_height,
                     color=ManimColor(self.color_palette.winner),
-                    fill_color=candidate_color,
+                    fill_color=ManimColor(candidate_color),
                     fill_opacity=self.bar_opacity,
                 )
                 .align_to(cand_transferred_from["bars"][0], LEFT)
