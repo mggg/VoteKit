@@ -775,8 +775,8 @@ class ElectionScene(manim.Scene):
                 fill_color=ManimColor(self.color_palette.background),
                 color=ManimColor(self.color_palette.background),
                 fill_opacity=1,
-            )
-            .shift(UP * self.ticker_tape_height)
+            ).shift(UP * self.ticker_tape_height)
+            # Background must be in the back, but not behind the play-by-play
             .set_z_index(-1)
         )
 
@@ -1001,7 +1001,9 @@ class ElectionScene(manim.Scene):
                 exhausted_bar.next_to(new_bars[0], LEFT, buff=0)
             else:
                 exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
-            exhausted_bar.set_z_index(1)
+            # Keep this bar behind the others
+            # This helps things look clean in edge cases when there are few exhausted votes
+            exhausted_bar.set_z_index(-1)
             transformations.append(Uncreate(exhausted_bar))
 
             # Animate the splitting of the old bar into the new sub_bars
