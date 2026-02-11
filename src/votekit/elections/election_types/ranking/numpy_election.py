@@ -20,6 +20,7 @@ class NumpyElection:
     election_states: list[ElectionState]
     _core: "ElectionCore"
     threshold: float
+
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset, ...]:
         """
         Fetch the remaining candidates after the given round.
