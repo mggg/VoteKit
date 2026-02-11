@@ -81,7 +81,7 @@ class PluralityVeto(RankingElection):
         # so we can modify that in place
         self._df = profile.df
         self.candidates = frozenset(profile.candidates)
-        self.eliminated = set()
+        self.eliminated: set[str] = set()
 
         self._max_ranking_length = profile.max_ranking_length
 
