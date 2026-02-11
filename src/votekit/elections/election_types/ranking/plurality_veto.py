@@ -1,5 +1,4 @@
 import random
-from contextlib import contextmanager
 from functools import partial
 from typing import Literal
 
@@ -78,14 +77,15 @@ class PluralityVeto(RankingElection):
 
         # group profile in case of repeated ballots
         profile = profile.group_ballots()
-
+        # this also gives us our own copy of profile.df,
+        # so we can modify that in place
         self._df = profile.df
         self.candidates = frozenset(profile.candidates)
         self.eliminated = set()
 
         self._max_ranking_length = profile.max_ranking_length
 
-        self.num_voters = int(sum(self._df["Weight"]))
+        self.num_voters = int(profile.total_ballot_wt)
         self._voter_order = iter(np.random.permutation(self.num_voters))
 
         # a ballot with weight w is a bin containing w voters
@@ -330,48 +330,3 @@ class PluralityVeto(RankingElection):
 
             self.election_states.append(new_state)
         return new_profile
-
-
-if __name__ == "__main__":
-    import time
-    from collections import Counter
-    from contextlib import contextmanager
-
-    from votekit.ballot import RankBallot
-
-    @contextmanager
-    def timer(label="Elapsed"):
-        start = time.perf_counter()
-        yield
-        print(f"{label}: {time.perf_counter() - start:.3f}s")
-
-    candidates = "H", "M", "R"
-    raw_pref_profile = {
-        ("H"): 2327,
-        ("H", "R", "M"): 2337,
-        ("H", "M", "R"): 3564,
-        ("R",): 3740,
-        ("R", "H", "M"): 3095,
-        ("R", "M", "H"): 3180,
-        ("M"): 1846,
-        ("M", "H", "R"): 4194,
-        ("M", "R", "H"): 2150,
-    }
-
-    ballots = [
-        RankBallot(ranking=ranking, weight=weight)
-        for ranking, weight in raw_pref_profile.items()
-    ]
-    profile = RankProfile(ballots=ballots)
-
-    n_runs = 10
-    c = Counter()
-    with timer():
-        for _ in range(n_runs):
-            election = PluralityVeto(
-                profile=profile, m=1, tiebreak="lex", scoring_tie_convention="average"
-            )
-            winner = next(iter(election.get_elected()[0]))
-            c[winner] += 1
-
-    print(c)
