@@ -7,6 +7,7 @@ from typing import Optional
 import pandas as pd
 from itertools import groupby
 
+
 class NumpyElection:
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset, ...]:
         """
@@ -22,8 +23,12 @@ class NumpyElection:
                 denotes ranking of remaining candidates, sets denote ties.
         """
         tallies = self._fpv_by_round[round_number].copy()
-        elected_cands_as_list_of_str = [c for fset in self.get_elected(round_number) for c in list(fset)]
-        elected_cands_numerical = [self.candidates.index(c) for c in elected_cands_as_list_of_str]
+        elected_cands_as_list_of_str = [
+            c for fset in self.get_elected(round_number) for c in list(fset)
+        ]
+        elected_cands_numerical = [
+            self.candidates.index(c) for c in elected_cands_as_list_of_str
+        ]
         tallies[elected_cands_numerical] = 0
         tallies_to_cands = {
             tally: [self.candidates[c] for c, t in enumerate(tallies) if t == tally]
@@ -157,13 +162,9 @@ class NumpyElection:
         round_number = round_number % len(self._fpv_by_round)
         new_index = [c for s in self.get_ranking(round_number) for c in s]
 
-        for play in self._play_by_play[
-            :round_number
-        ]:
+        for play in self._play_by_play[:round_number]:
             if play["round_type"] == "elimination":
-                status_df.at[self.candidates[play["loser"][0]], "Status"] = (
-                    "Eliminated"
-                )
+                status_df.at[self.candidates[play["loser"][0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[play["loser"][0]], "Round"] = (
                     play["round_number"] + 1
                 )
@@ -176,24 +177,33 @@ class NumpyElection:
                 status_df.at[cand_string, "Round"] = round_number
         status_df = status_df.reindex(new_index)
         return status_df
-    
+
     def get_score_df(self):
         fpv_by_round = self._fpv_by_round
 
         list_ranking = list(self.get_ranking())
-        permutation = [self.candidates.index(c) for s in list_ranking for c in (s if isinstance(s, frozenset) else [s])]
+        permutation = [
+            self.candidates.index(c)
+            for s in list_ranking
+            for c in (s if isinstance(s, frozenset) else [s])
+        ]
         permuted_fpv_by_round = [fpv[permutation] for fpv in fpv_by_round]
 
         if hasattr(self, "_quota_by_round"):
             quota_by_round = self._quota_by_round
-            fpv_by_round = [np.append(fpv, quota) for fpv, quota in zip(permuted_fpv_by_round, quota_by_round)]
+            fpv_by_round = [
+                np.append(fpv, quota)
+                for fpv, quota in zip(permuted_fpv_by_round, quota_by_round)
+            ]
             list_ranking.append("Quota")
             permutation.append(len(self.candidates))
-            
+
         score_df = pd.DataFrame(fpv_by_round).T
         # index rows by list_ranking
-        score_df.index = [c for s in list_ranking for c in (s if isinstance(s, frozenset) else [s])]
-        
+        score_df.index = [
+            c for s in list_ranking for c in (s if isinstance(s, frozenset) else [s])
+        ]
+
         score_df = score_df.round(2)
         score_df.columns = [f"Round {i}" for i in range(score_df.shape[1])]
 
@@ -350,17 +360,19 @@ class ElectionCore:
         candidates: list[str] = [],
         tiebreak: Optional[str] = None,
     ):
-        self.candidates = candidates if len(candidates) > 0 else list(profile.candidates)
+        self.candidates = (
+            candidates if len(candidates) > 0 else list(profile.candidates)
+        )
         self._ballot_matrix, self._wt_vec = self._convert_pf_to_numpy_arrays(profile)
         self.profile = profile
         self.m = m
         self._winner_tiebreak = tiebreak
         self._loser_tiebreak = tiebreak if tiebreak is not None else "first_place"
-        self._initial_fpv_scores = self._make_initial_fpv(np.copy(self._ballot_matrix[:, 0]))
-        
-    def _convert_pf_to_numpy_arrays(
-        self, pf: RankProfile
-    ) -> tuple[NDArray, NDArray]:
+        self._initial_fpv_scores = self._make_initial_fpv(
+            np.copy(self._ballot_matrix[:, 0])
+        )
+
+    def _convert_pf_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
@@ -389,7 +401,9 @@ class ElectionCore:
             try:
                 return candidate_to_index[cell]
             except KeyError:
-                raise TypeError(f"Ballots must have rankings, found invalid entry: {cell}")
+                raise TypeError(
+                    f"Ballots must have rankings, found invalid entry: {cell}"
+                )
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
@@ -400,12 +414,14 @@ class ElectionCore:
         wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
 
         # Reject ballots that have no rankings at all (all -127 or -126)
-        empty_rows = np.where(np.all((ballot_matrix == -127) | (ballot_matrix == -126), axis=1))[0]
+        empty_rows = np.where(
+            np.all((ballot_matrix == -127) | (ballot_matrix == -126), axis=1)
+        )[0]
         if empty_rows.size:
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec
-    
+
     def _make_initial_fpv(self, fpv_vec) -> NDArray:
         """
         Creates the initial first-preference vote (FPV) vector.
@@ -467,8 +483,14 @@ class ElectionCore:
 
         tiebroken_candidate = int(np.random.choice(target_cluster))
         return tiebroken_candidate, packaged_ranking
-    
-    def _get_threshold(self, quota_type, total_ballot_wt: float, floor: bool = True, epsilon: float = 1.0) -> int:
+
+    def _get_threshold(
+        self,
+        quota_type,
+        total_ballot_wt: float,
+        floor: bool = True,
+        epsilon: float = 1.0,
+    ) -> int:
         """
         Calculates threshold required for election.
 
@@ -491,7 +513,7 @@ class ElectionCore:
                 return fractional_quota
         else:
             raise ValueError("Misspelled or unknown quota type.")
-    
+
     def _run_winner_tiebreak(
         self,
         tied_winners: list[int],

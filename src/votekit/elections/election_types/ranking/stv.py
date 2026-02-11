@@ -15,7 +15,10 @@ from votekit.utils import (
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from votekit.elections.election_types.ranking.numpy_election import NumpyElection, ElectionCore
+from votekit.elections.election_types.ranking.numpy_election import (
+    NumpyElection,
+    ElectionCore,
+)
 
 from typing import Optional, Callable, Union
 import pandas as pd
@@ -23,17 +26,20 @@ import numpy as np
 from numpy.typing import NDArray
 from itertools import groupby
 
+
 class FastSTV(NumpyElection):
-    def __init__(self, 
-                 profile, 
-                 m = 1, 
-                 transfer: str = "fractional",
-                 quota: str = "droop",
-                 simultaneous: bool = True,
-                 tiebreak = None):
-        
+    def __init__(
+        self,
+        profile,
+        m=1,
+        transfer: str = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = True,
+        tiebreak=None,
+    ):
+
         self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
-        
+
         self.profile = profile
         self.m = m
         self.candidates = list(profile.candidates)
@@ -47,7 +53,7 @@ class FastSTV(NumpyElection):
             quota=quota,
             simultaneous=simultaneous,
         )
-        
+
         self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._core.run()
 
         self.threshold = self._core.threshold
@@ -74,19 +80,20 @@ class FastSTV(NumpyElection):
                 "Transfer method must be either 'fractional', 'cambridge_random', or "
                 "'fractional_random'."
             )
-        
+
+
 class STVCore(ElectionCore):
     def __init__(
-            self, 
-            profile: RankProfile,
-            m = 1,
-            candidates: list[str] = [],
-            tiebreak = None,
-            transfer: str = "fractional",
-            quota: str = "droop",
-            simultaneous: bool = True, 
-            dynamic_threshold: bool = False,
-            ):
+        self,
+        profile: RankProfile,
+        m=1,
+        candidates: list[str] = [],
+        tiebreak=None,
+        transfer: str = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = True,
+        dynamic_threshold: bool = False,
+    ):
         super().__init__(profile, m, candidates, tiebreak)
         self.threshold = self._get_threshold(quota, sum(self._wt_vec))
         self.transfer = transfer
@@ -376,9 +383,7 @@ class STVCore(ElectionCore):
         _mutant_bool_ballot_matrix &= ~np.isin(self._ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def run(
-        self
-    ) -> tuple[
+    def run(self) -> tuple[
         list[NDArray],
         list[tuple[int, list[int], NDArray, str]],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
@@ -429,7 +434,7 @@ class STVCore(ElectionCore):
 
         def make_tallies(fpv_vec: NDArray, wt_vec: NDArray, ncands: int) -> NDArray:
             return np.bincount(
-                fpv_vec[fpv_vec >= 0 ],
+                fpv_vec[fpv_vec >= 0],
                 weights=wt_vec[fpv_vec >= 0],
                 minlength=ncands,
             )
@@ -451,14 +456,16 @@ class STVCore(ElectionCore):
                 mutant_engine = self._update_because_winner(
                     winners, tallies, *mutant_engine
                 )
-                play_by_play.append({
-                    "round_number": int(turn),
-                    "winners": [int(c) for c in winners],
-                    "wt_vec": mutant_engine[1].copy(),
-                    #"transfer_values": winner_to_transfer_values,
-                    #"quota": current_quota,
-                    "round_type": "election",
-                })
+                play_by_play.append(
+                    {
+                        "round_number": int(turn),
+                        "winners": [int(c) for c in winners],
+                        "wt_vec": mutant_engine[1].copy(),
+                        # "transfer_values": winner_to_transfer_values,
+                        # "quota": current_quota,
+                        "round_type": "election",
+                    }
+                )
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 fpv_scores_by_round.append(tallies.copy())
@@ -469,28 +476,33 @@ class STVCore(ElectionCore):
                     int(i) for i in range(ncands) if i not in eliminated_or_exhausted
                 ]
                 winner_list += still_standing
-                play_by_play.append({
-                    "round_number": int(turn),
-                    "winners": still_standing,
-                    #"transfer_values": winner_to_transfer_values,
-                    #"quota": current_quota,
-                    "round_type": "default",
-                })
+                play_by_play.append(
+                    {
+                        "round_number": int(turn),
+                        "winners": still_standing,
+                        # "transfer_values": winner_to_transfer_values,
+                        # "quota": current_quota,
+                        "round_type": "default",
+                    }
+                )
                 turn += 1
                 fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
                 tiebreak_record.append({})
                 break
             loser_idx, mutant_record = self._find_loser(tallies, turn, *mutant_record)
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
-            play_by_play.append({
+            play_by_play.append(
+                {
                     "round_number": int(turn),
                     "loser": [int(loser_idx)],
-                    #"transfer_values": winner_to_transfer_values,
-                    #"quota": current_quota,
+                    # "transfer_values": winner_to_transfer_values,
+                    # "quota": current_quota,
                     "round_type": "elimination",
-            })
+                }
+            )
             turn += 1
         return fpv_scores_by_round, play_by_play, tiebreak_record
+
 
 class old_FastSTV:
     """

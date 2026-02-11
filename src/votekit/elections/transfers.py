@@ -6,6 +6,7 @@ from votekit.pref_profile import RankProfile
 from numpy.typing import NDArray
 import numpy as np
 
+
 def fractional_transfer(
     winner: str,
     fpv: float,
@@ -122,6 +123,7 @@ def random_transfer(
     return RankProfile(
         ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
     ).ballots
+
 
 def numpy_random_transfer(
     fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int
