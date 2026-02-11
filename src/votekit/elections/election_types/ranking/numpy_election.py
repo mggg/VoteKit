@@ -189,37 +189,6 @@ class NumpyElection:
         status_df = status_df.reindex(new_index)
         return status_df
 
-    def get_score_df(self):
-        fpv_by_round = self._fpv_by_round
-
-        list_ranking = list(self.get_ranking())
-        permutation = [
-            self.candidates.index(c)
-            for s in list_ranking
-            for c in (s if isinstance(s, frozenset) else [s])
-        ]
-        permuted_fpv_by_round = [fpv[permutation] for fpv in fpv_by_round]
-
-        if hasattr(self, "_quota_by_round"):
-            quota_by_round = self._quota_by_round
-            fpv_by_round = [
-                np.append(fpv, quota)
-                for fpv, quota in zip(permuted_fpv_by_round, quota_by_round)
-            ]
-            list_ranking.append("Quota")
-            permutation.append(len(self.candidates))
-
-        score_df = pd.DataFrame(fpv_by_round).T
-        # index rows by list_ranking
-        score_df.index = [
-            c for s in list_ranking for c in (s if isinstance(s, frozenset) else [s])
-        ]
-
-        score_df = score_df.round(2)
-        score_df.columns = [f"Round {i}" for i in range(score_df.shape[1])]
-
-        return score_df
-
     def _make_election_states(self):
         """
         Creates the list of election states after the main loop has run.
