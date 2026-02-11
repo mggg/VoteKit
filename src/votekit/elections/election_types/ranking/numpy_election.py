@@ -3,12 +3,23 @@ from numpy.typing import NDArray
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
 from votekit.utils import tiebreak_set
-from typing import Optional
+from typing import Optional, Any
 import pandas as pd
 from itertools import groupby
 
 
 class NumpyElection:
+    # Attributes are populated by subclasses (e.g., FastSTV) but used here.
+    _fpv_by_round: list[NDArray]
+    _play_by_play: list[dict[str, Any]]
+    _tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]]
+    _quota_by_round: list[float]
+    candidates: list[str]
+    profile: RankProfile
+    m: int
+    election_states: list[ElectionState]
+    _core: "ElectionCore"
+    threshold: float
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset, ...]:
         """
         Fetch the remaining candidates after the given round.
@@ -322,7 +333,9 @@ class NumpyElection:
         df.set_index("Ballot Index", inplace=True)
 
         # --- 7) Voter Set: empty set per row (distinct objects) ---
-        df["Voter Set"] = [set() for _ in range(n_rows)]
+        df["Voter Set"] = pd.Series(
+            [set() for _ in range(n_rows)], dtype=object, index=df.index
+        )
 
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
@@ -490,14 +503,14 @@ class ElectionCore:
         total_ballot_wt: float,
         floor: bool = True,
         epsilon: float = 1.0,
-    ) -> int:
+    ) -> float:
         """
         Calculates threshold required for election.
 
         Args:
             total_ballot_wt (float): Total weight of ballots to compute threshold.
         Returns:
-            int: Value of the threshold.
+            float: Value of the threshold.
         """
         if quota_type == "droop":
             fractional_quota = total_ballot_wt / (self.m + 1)

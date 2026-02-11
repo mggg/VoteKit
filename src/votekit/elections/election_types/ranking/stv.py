@@ -20,7 +20,7 @@ from votekit.elections.election_types.ranking.numpy_election import (
     ElectionCore,
 )
 
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, Any
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
@@ -385,7 +385,7 @@ class STVCore(ElectionCore):
 
     def run(self) -> tuple[
         list[NDArray],
-        list[tuple[int, list[int], NDArray, str]],
+        list[dict[str, Any]],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
@@ -403,8 +403,8 @@ class STVCore(ElectionCore):
             ncands (int): The number of candidates in the election.
 
         Returns:
-            tuple[list[NDArray], list[tuple[int, list[int], NDArray, str]], dict[int,
-            dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+            tuple[list[NDArray], list[dict[str, Any]], dict[int, dict[frozenset[str],
+            tuple[frozenset[str], ...]]]]:
                 The tally record is a list with one array per round;
                     each array counts the first-place votes for the remaining candidates.
                 The play-by-play logs some information for the public methods:
@@ -422,7 +422,7 @@ class STVCore(ElectionCore):
         ncands = len(self.candidates)
 
         fpv_scores_by_round = []
-        play_by_play: list[dict] = []
+        play_by_play: list[dict[str, Any]] = []
         turn = 0
         quota = self.threshold
         winner_list: list[int] = []
@@ -1441,7 +1441,9 @@ class old_FastSTV:
         df.set_index("Ballot Index", inplace=True)
 
         # --- 7) Voter Set: empty set per row (distinct objects) ---
-        df["Voter Set"] = [set() for _ in range(n_rows)]
+        df["Voter Set"] = pd.Series(
+            [set() for _ in range(n_rows)], dtype=object, index=df.index
+        )
 
         # --- 8) Weight column ---
         df["Weight"] = wt_vec.astype(np.float64, copy=False)
