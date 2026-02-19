@@ -1,4 +1,5 @@
 from copy import deepcopy
+import textwrap
 import manim  # type: ignore
 from manim import (
     Rectangle,
@@ -8,6 +9,7 @@ from manim import (
     Uncreate,
     FadeIn,
     FadeOut,
+    Paragraph,
     Text,
     UP,
     DOWN,
@@ -658,7 +660,7 @@ class ElectionScene(manim.Scene):
         self.bar_buffer_size = self.bar_height
         self.strikethrough_thickness = self.font_size / 5
         self.ticker_tape_height = 2
-        self.title_font_size = 48
+        self.title_font_size = 120
         self.name_bar_spacing = 0.2
         self.winner_box_buffer = 0.1
 
@@ -735,16 +737,24 @@ class ElectionScene(manim.Scene):
         Args:
             message (str): String that the title screen will display.
         """
-        text = manim.Tex(
-            r"{7cm}\centering " + message,
-            tex_environment="minipage",
-            color=self.color_palette.text_regular,
-        ).scale_to_fit_width(
-            10
-        )  # We do this one with a TeX minipage to get the text to wrap if it's too long.
-        self.play(Create(text))
+        lines = textwrap.wrap(message, width=40)
+        text = Paragraph(
+            *lines,
+            alignment="center",
+            font_size=self.title_font_size,
+            color=ManimColor(self.color_palette.text_regular),
+        )
+        # Scale down to fit within 90 % of the frame if needed.
+        max_width = manim.config.frame_width * 0.9
+        max_height = manim.config.frame_height * 0.9
+        if text.width > max_width:
+            text.scale_to_fit_width(max_width)
+        if text.height > max_height:
+            text.scale_to_fit_height(max_height)
+
+        self.play(FadeIn(text))
         self.wait(3)
-        self.play(Uncreate(text))
+        self.play(FadeOut(text))
 
     def _draw_initial_bars(self) -> None:
         """
