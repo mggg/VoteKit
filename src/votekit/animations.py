@@ -246,7 +246,7 @@ class STVAnimation:
         title: Optional[str] = None,
         focus: set[str] | List[str] | Literal["winners", "viable", "all"] = "viable",
         nicknames: Optional[dict[str, str]] = None,
-        candidate_colors: Optional[dict[str, ParsableManimColor]] = None,
+        candidate_colors: Optional[Mapping[str, ParsableManimColor]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
     ):
         if nicknames is None:
@@ -319,7 +319,7 @@ class STVAnimation:
         self.title = title
 
     def _make_candidate_dict(
-        self, election: STV, candidate_colors: dict[str, ParsableManimColor]
+        self, election: STV, candidate_colors: Mapping[str, ParsableManimColor]
     ) -> dict[str, dict[str, object]]:
         """
         Create a dictionary sending candidate names to dictionaries recording that candidate's
