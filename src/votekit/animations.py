@@ -131,7 +131,7 @@ class EliminationEvent(AnimationEvent):
         candidate (str): The name of the eliminated candidate.
         display_name (str): The candidate name to use for display purposes, such as a
             nickname.
-        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates
+        support_transferred (Mapping[str, float]): A dictionary mapping names of candidates
             to the amount of support they received from the elimination.
         round_number (int): The round of the election process associated to this event.
     """
@@ -152,7 +152,7 @@ class EliminationOffscreenEvent(AnimationEvent):
         were eliminated.
 
     Attributes:
-        support_transferred (Mapping[str,float]): A dictionary mapping names of candidates
+        support_transferred (Mapping[str, float]): A dictionary mapping names of candidates
             to the total amount of support they received from the eliminations.
         round_numbers (List[int]): The rounds of the election process associated to this event.
     """
@@ -177,7 +177,7 @@ class WinEvent(AnimationEvent):
         candidates (Sequence[str]): The names of the elected candidates.
         display_names (Sequence[str]): The candidate names to use for display purposes,
             such as nicknames.
-        support_transferred (Mapping[str, Mapping[str,float]]): A dictionary mapping
+        support_transferred (Mapping[str, Mapping[str, float]]): A dictionary mapping
             pairs of candidate names to the amount of support transferred between them
             this round. For instance, if ``c1`` was elected this round, then
             ``support_transferred[c1][c2]`` will represent the amount of support
@@ -214,7 +214,7 @@ class STVAnimation:
             "nicknames" to be used in the animation instead. The keys of ``nicknames``
             need not contain every candidate, only the ones for which the user would like to
             provide a nickname.
-        candidate_colors (Optional[dict[str, ParsableManimColor]], optional): A dictionary
+        candidate_colors (Optional[Mapping[str, ParsableManimColor]], optional): A dictionary
             mapping candidate names to colors that should represent them in the animation.
             The colors in ``candidate_colors`` will override the bar fill colors provided by
             ``color_palette``. The keys of ``candidate_colors`` need not contain
@@ -225,7 +225,6 @@ class STVAnimation:
 
 
     Attributes:
-        election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen.
         focus (set[str]): A set of names of candidates that should appear on-screen.
@@ -329,7 +328,7 @@ class STVAnimation:
 
         Args:
             election (STV): An STV election from which to extract the candidates.
-            candidate_colors (dict[str,ParsableManimColor]): A dictionary mapping candidate names
+            candidate_colors (Mapping[str, ParsableManimColor]): A dictionary mapping candidate names
                 to codes for colors to which they should be associated with in the
                 candidate dictionary.
 
@@ -466,7 +465,7 @@ class STVAnimation:
             round_number (int): The number of the round in question.
             cands_transferred_from (List[str]): A list of the names of the elected or
                 eliminated candidates.
-            event_type (str): ``"win"`` if candidates were elected this round,
+            event_type (Literal["win", "elimination"]): ``"win"`` if candidates were elected this round,
                 ``"elimination"`` otherwise.
 
         Returns:
@@ -631,8 +630,8 @@ class ElectionScene(manim.Scene):
         candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of
             attributes of the candidate.
         events (List[AnimationEvent]): A list of animation events to be constructed and rendered.
-        title (str): A string to be displayed at the beginning of the animation as a title screen.
-            If ``None``, the animation will skip the title screen.
+        title (Optional[str], optional): A string to be displayed at the beginning of the animation as a title screen.
+            If ``None``, the animation will skip the title screen. Defaults to ``None``.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
             Defaults to `DARK_PALETTE`.
 
