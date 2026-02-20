@@ -1,5 +1,6 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
-from votekit.elections.transfers import fractional_transfer, numpy_random_transfer
+from votekit.elections.transfers import fractional_transfer
+from .utils import numpy_random_transfer
 from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.ballot import RankBallot
@@ -15,7 +16,7 @@ from votekit.utils import (
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from votekit.elections.election_types.ranking.numpy_election import (
+from votekit.elections.election_types.ranking.STV.numpy_stv_base import (
     NumpyElection,
     ElectionCore,
 )

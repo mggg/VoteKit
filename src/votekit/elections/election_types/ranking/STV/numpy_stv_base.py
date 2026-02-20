@@ -118,7 +118,6 @@ class NumpyElection:
             for play in self._play_by_play[round_number - 1 :: -1]
             if play["round_type"] == "elimination"
         ]
-        print(list_of_losers)
         return tuple(
             frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers
         )
