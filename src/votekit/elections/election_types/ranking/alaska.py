@@ -3,7 +3,8 @@ from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.utils import first_place_votes
-from votekit.elections.election_types.ranking import Plurality, STV
+from votekit.elections.election_types.ranking import Plurality
+from votekit.elections.election_types.ranking.STV.stv import STV
 from votekit.elections.transfers import fractional_transfer
 from votekit.ballot import RankBallot
 from typing import Optional, Callable, Union, Literal
