@@ -29,61 +29,6 @@ from numpy.typing import NDArray
 from itertools import groupby
 
 
-class FastSTV(NumpyElection):
-    def __init__(
-        self,
-        profile,
-        m=1,
-        transfer: str = "fractional",
-        quota: str = "droop",
-        simultaneous: bool = True,
-        tiebreak=None,
-    ):
-
-        self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
-
-        self.profile = profile
-        self.m = m
-        self.candidates = list(profile.candidates)
-
-        self._core = STVCore(
-            profile=self.profile,
-            m=self.m,
-            candidates=self.candidates,
-            tiebreak=tiebreak,
-            transfer=transfer,
-            quota=quota,
-            simultaneous=simultaneous,
-        )
-
-        self._fpv_by_round, self._play_by_play, self._tiebreak_record = self._core.run()
-
-        self.threshold = self._core.threshold
-        self.election_states = self._make_election_states()
-
-    def __check_seats_and_candidates_and_transfer(
-        self, profile: RankProfile, m: int, transfer: str
-    ):
-        """
-        Checks if the number of seats is positive, if there are enough candidates to fill the seats,
-            and if the transfer method is implemented.
-
-        Args:
-            profile (RankProfile): The preference profile to validate.
-            m (int): The number of seats to be elected.
-            transfer (str): The transfer method to be used.
-        """
-        if m <= 0:
-            raise ValueError("m must be positive.")
-        elif len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
-            raise ValueError(
-                "Transfer method must be either 'fractional', 'cambridge_random', or "
-                "'fractional_random'."
-            )
-
-
 class NumpyInnerSTV(NumpySTVBase):
     def __init__(
         self,
@@ -402,6 +347,44 @@ class NumpyInnerSTV(NumpySTVBase):
             )
             turn += 1
         return fpv_scores_by_round, play_by_play, tiebreak_record
+
+
+class FastSTV(NumpyInnerSTV):
+    """
+    STV elections. All ballots must have no ties.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+        m (int): Number of seats to be elected. Defaults to 1.
+        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+            'fractional'.
+        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        simultaneous (bool): True if all candidates who cross threshold in a round are
+            elected simultaneously, False if only the candidate with highest first-place votes
+            who crosses the threshold is elected in a round. Defaults to True.
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+
+    """
+    def __init__(
+        self,
+        profile: RankProfile,
+        m: int=1,
+        transfer: str = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = True,
+        tiebreak: Optional[str] = None,
+    ):
+        super().__init__(
+            profile=profile,
+            m=m,
+            transfer=transfer,
+            quota=quota,
+            simultaneous=simultaneous,
+            tiebreak=tiebreak,
+        )
 
 
 class STV(RankingElection):
