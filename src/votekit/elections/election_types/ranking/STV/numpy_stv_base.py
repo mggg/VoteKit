@@ -181,9 +181,10 @@ class NumpySTVBase(ABC):
             raise IndexError("round_number out of range.")
         round_number = round_number % len(self._data.fpv_by_round)
         list_of_winners = [
-            [c for c in play["winners"]]
+            [c]
             for play in self._data.play_by_play[:round_number]
             if play["round_type"] in {"election", "default"}
+            for c in play["winners"]
         ]
         return tuple(
             frozenset([self.candidates[c] for c in w_list])
