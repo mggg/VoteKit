@@ -16,47 +16,32 @@ def numpy_random_transfer(
         wt_vec (NDArray): Integer weights vector.
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
+
+    Example:
+        Assume candidate 2 just won.
+        Let fpv_vec = [2, 5, 3, 2]. Then eligible_for_transfer is
+        [True, False, False, True], and winner_row_indices is [0, 3].
+        Let wt_vec = [200, 100, 50, 25]. Then wts is [200, 25].
+        If the quota was 220, then winner 2 had 5 surplus votes and
+        225 transferable votes, so maximum_transferable is 225 and
+        transferred_votes is 5. We sample 5 distinct numbers from
+        [0, 225), for example 12, 50, 178, 200, 201. Numbers 0 through
+        199 map to the first bin (winner_row_indices[0]), and 200 and 201
+        map to the second bin (winner_row_indices[1]).
     """
     rng = np.random.default_rng()
-
-    # running example: assume that candidate 2 just won.
-    # assume the fpv_vec looks like [2,5,3,2]
-    # then eligible looks like [True, False, False, True]
-    # and winner_row_indices looks like [0, 3]
-    eligible_for_transfer = (fpv_vec == winner)
+    eligible_for_transfer = fpv_vec == winner
     winner_row_indices = np.flatnonzero(eligible_for_transfer)
-
-    # assume the original weight vector was [200, 100, 50, 25]
-    # then wts looks like [200, 25]
     wts = wt_vec[winner_row_indices].astype(np.int64)
-
-    # assume that quota was 220, so winner 2 had 5 surplus votes and 225 transferable votes
     maximum_transferable = int(wts.sum())
-
-    # this deals with cases where there are fewer than surplus votes to transfer
-    # (lots of exhausted ballots)
     transferred_votes = min(surplus, maximum_transferable)
-
-    # Sample surplus distinct positions in the implicit pool [0, maximum_transferable)
-    # in our example: we sample 5 distinct numbers from [0, 225)
-    positions_to_transfer = rng.choice(maximum_transferable, size=transferred_votes, replace=False)
+    positions_to_transfer = rng.choice(
+        maximum_transferable, size=transferred_votes, replace=False
+    )
     positions_to_transfer.sort()
-
-    # Say we sampled the numbers 12, 50, 178, 200, and 201
-    # numbers 0 through 199 inclusive get mapped to the first bin, so the first three sampled
-    # votes go to winner_row_index[0]
-    # numbers 200 and 201 get mapped to the second bin, so they go to our second
-    #  winner_row_index[1]
-    bins = np.cumsum(wts)  # len = len(idx)
-    owners = np.searchsorted(
-        bins, positions_to_transfer, side="right"
-    )  # values in winner_row_indices
-
-    # Accumulate counts back to global rows
+    bins = np.cumsum(wts)
+    owners = np.searchsorted(bins, positions_to_transfer, side="right")
     counts_local = np.bincount(owners, minlength=winner_row_indices.size)
     counts = np.zeros(fpv_vec.shape[0], dtype=np.int64)
-    counts[winner_row_indices] = (
-        counts_local  # this tells us how many times each row was sampled as indexed in the
-        # global ballot_matrix
-    )
+    counts[winner_row_indices] = counts_local
     return counts
