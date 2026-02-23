@@ -56,12 +56,14 @@ class NumpyInnerSTV(NumpySTVBase):
         simultaneous: bool = True,
         tiebreak: Optional[str] = None,
         dynamic_threshold: bool = False,
+        block_rcv: bool = False,
     ):
         self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
         self.transfer = transfer
         self.quota = quota
         self.simultaneous = simultaneous
         self.dynamic_threshold = dynamic_threshold
+        self.block_rcv = block_rcv
         super().__init__(
             profile=profile,
             m=m,
@@ -130,6 +132,14 @@ class NumpyInnerSTV(NumpySTVBase):
 
         next_fpv_vec = self._data.ballot_matrix[winner_row_indices, next_fpv_pos_vec]
 
+        if self.block_rcv:
+            mutated_fpv_vec[rows_with_winner_fpv] = next_fpv_vec
+            return (
+                mutated_fpv_vec,
+                mutated_wt_vec,
+                bool_ballot_matrix,
+                mutated_pos_vec,
+            )
         if self.transfer == "fractional":
             get_transfer_value_vec = np.frompyfunc(
                 lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
@@ -551,6 +561,42 @@ class FastIRV(NumpyInnerSTV):
             dynamic_threshold=True,
         )
 
+
+class FastSequentialRCV(NumpyInnerSTV):
+    """
+    An STV election in which votes are not transferred after a candidate has reached threshold, or
+    been elected. This system is actually used in parts of Utah.
+
+    Args:
+        profile (RankProfile):   RankProfile to run election on.
+        m (int, optional): Number of seats to be elected. Defaults to 1.
+        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        simultaneous (bool, optional): True if all candidates who cross threshold in a round are
+            elected simultaneously, False if only the candidate with highest first-place votes
+            who crosses the threshold is elected in a round. Defaults to True.
+        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+
+    """
+    def __init__(
+        self,
+        profile: RankProfile,
+        m: int = 1,
+        quota: str = "droop",
+        simultaneous: bool = True,
+        tiebreak: Optional[str] = None,
+    ):
+        super().__init__(
+            profile=profile,
+            m=m,
+            transfer=None,
+            quota=quota,
+            simultaneous=simultaneous,
+            tiebreak=tiebreak,
+            block_rcv=True,
+        )
 
 class STV(RankingElection):
     """
