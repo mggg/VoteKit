@@ -4,6 +4,7 @@ from votekit.ballot import RankBallot
 from typing import Union
 from votekit.pref_profile import RankProfile
 
+
 def fractional_transfer(
     winner: str,
     fpv: float,
