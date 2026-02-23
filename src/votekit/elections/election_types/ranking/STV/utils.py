@@ -1,6 +1,7 @@
 from numpy.typing import NDArray
 import numpy as np
 
+
 def numpy_random_transfer(
     fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int
 ) -> NDArray:

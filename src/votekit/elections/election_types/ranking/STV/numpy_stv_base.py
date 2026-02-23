@@ -41,6 +41,7 @@ class NumpyElectionDataTracker:
         candidate_sets_by_fpv (Optional[list[set[int]]]): Cached FPV clusters for tiebreaking.
         extras (dict[str, Any]): Extension point for child classes to store additional outputs.
     """
+
     ballot_matrix: NDArray
     wt_vec: NDArray
     initial_fpv_scores: NDArray
@@ -65,6 +66,7 @@ class NumpySTVBase(ABC):
     Returns:
         NumpySTVBase: Initialized base instance.
     """
+
     candidates: list[str]
     profile: RankProfile
     m: int
@@ -99,15 +101,13 @@ class NumpySTVBase(ABC):
         )
 
     @abstractmethod
-    def _run_election(
-        self, data: NumpyElectionDataTracker
-    ) -> tuple[
+    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
         list[NDArray],
         list[dict[str, Any]],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Expected outputs: 
+        Expected outputs:
         """
         pass
 
@@ -427,7 +427,7 @@ class NumpySTVBase(ABC):
             tuple[RankProfile, ElectionState]
         """
         return (self.get_profile(round_number), self.election_states[round_number])
-    
+
     def _convert_pf_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
@@ -477,7 +477,7 @@ class NumpySTVBase(ABC):
             raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec
-    
+
     def _make_initial_fpv(self, fpv_vec: NDArray, wt_vec: NDArray) -> NDArray:
         """
         Creates the initial first-preference vote (FPV) vector.
@@ -646,5 +646,5 @@ class NumpySTVBase(ABC):
 
     def __str__(self):
         return self.get_status_df().to_string(index=True, justify="justify")
-    
+
     __repr__ = __str__

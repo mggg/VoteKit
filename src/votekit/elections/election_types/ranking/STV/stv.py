@@ -47,6 +47,7 @@ class NumpyInnerSTV(NumpySTVBase):
         dynamic_threshold (bool): If True, threshold is recalculated each round based on
             remaining candidates and votes. Defaults to False.
     """
+
     def __init__(
         self,
         profile: RankProfile,
@@ -352,9 +353,7 @@ class NumpyInnerSTV(NumpySTVBase):
         _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def _run_election(
-        self, data: NumpyElectionDataTracker
-    ) -> tuple[
+    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
         list[NDArray],
         list[dict[str, Any]],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
@@ -477,10 +476,11 @@ class FastSTV(NumpyInnerSTV):
             a tiebreak is needed.
 
     """
+
     def __init__(
         self,
         profile: RankProfile,
-        m: int=1,
+        m: int = 1,
         transfer: str = "fractional",
         quota: str = "droop",
         simultaneous: bool = True,
@@ -494,6 +494,7 @@ class FastSTV(NumpyInnerSTV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
         )
+
 
 class AlbanySTV(NumpyInnerSTV):
     """
@@ -514,10 +515,11 @@ class AlbanySTV(NumpyInnerSTV):
             a tiebreak is needed.
 
     """
+
     def __init__(
         self,
         profile: RankProfile,
-        m: int=1,
+        m: int = 1,
         transfer: str = "fractional",
         quota: str = "droop",
         simultaneous: bool = True,
@@ -533,6 +535,7 @@ class AlbanySTV(NumpyInnerSTV):
             dynamic_threshold=True,
         )
 
+
 class FastIRV(NumpyInnerSTV):
     """
     IRV (Instant-runoff voting) elections.  Elect 1 seat. All ballots must have no ties.
@@ -546,6 +549,7 @@ class FastIRV(NumpyInnerSTV):
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
     """
+
     def __init__(
         self,
         profile: RankProfile,
@@ -554,8 +558,8 @@ class FastIRV(NumpyInnerSTV):
         super().__init__(
             profile=profile,
             m=1,
-            transfer='fractional',
-            quota='droop',
+            transfer="fractional",
+            quota="droop",
             simultaneous=False,
             tiebreak=tiebreak,
             dynamic_threshold=True,
@@ -580,6 +584,7 @@ class FastSequentialRCV(NumpyInnerSTV):
             a tiebreak is needed.
 
     """
+
     def __init__(
         self,
         profile: RankProfile,
@@ -596,6 +601,7 @@ class FastSequentialRCV(NumpyInnerSTV):
             tiebreak=tiebreak,
             block_rcv=True,
         )
+
 
 class STV(RankingElection):
     """
