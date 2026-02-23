@@ -523,6 +523,34 @@ class AlbanySTV(NumpyInnerSTV):
             dynamic_threshold=True,
         )
 
+class FastIRV(NumpyInnerSTV):
+    """
+    IRV (Instant-runoff voting) elections.  Elect 1 seat. All ballots must have no ties.
+    Equivalent to STV for m = 1.
+
+    Args:
+        profile (RankProfile):   RankProfile to run election on.
+        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+    """
+    def __init__(
+        self,
+        profile: RankProfile,
+        tiebreak: Optional[str] = None,
+    ):
+        super().__init__(
+            profile=profile,
+            m=1,
+            transfer='fractional',
+            quota='droop',
+            simultaneous=False,
+            tiebreak=tiebreak,
+            dynamic_threshold=True,
+        )
+
 
 class STV(RankingElection):
     """
