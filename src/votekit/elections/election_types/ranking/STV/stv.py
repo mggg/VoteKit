@@ -30,6 +30,25 @@ from itertools import groupby
 
 
 class NumpyInnerSTV(NumpySTVBase):
+    """
+    Most general version of an STV election. Contains niche arguments such as "dynamic_threshold" that are not exposed in the main STV class.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+        m (int): Number of seats to be elected. Defaults to 1.
+        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+            'fractional'.
+        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        simultaneous (bool): True if all candidates who cross threshold in a round are
+            elected simultaneously, False if only the candidate with highest first-place votes
+            who crosses the threshold is elected in a round. Defaults to True.
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+        dynamic_threshold (bool): If True, threshold is recalculated each round based on remaining candidates and votes. Defaults to False.
+
+    """
     def __init__(
         self,
         profile: RankProfile,
@@ -204,6 +223,7 @@ class NumpyInnerSTV(NumpySTVBase):
         self,
         tallies: NDArray,
         turn: int,
+        quota: float,
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
@@ -221,7 +241,7 @@ class NumpyInnerSTV(NumpySTVBase):
         Identify the candidate(s) to elect in the current round, applying tiebreaks if necessary.
         """
         if self.simultaneous:
-            winners_temp = np.where(tallies >= self.threshold)[0]
+            winners_temp = np.where(tallies >= quota)[0]
             winners_temp = winners_temp[np.argsort(-tallies[winners_temp])]
             winners = winners_temp.tolist()
             mutant_tiebreak_record.append({})
@@ -265,7 +285,7 @@ class NumpyInnerSTV(NumpySTVBase):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Runs the STV algorithm and returns the legacy outputs.
+        Runs the STV algorithm and returns numpy arrays as outputs.
         """
         ballot_matrix = data.ballot_matrix
         wt_vec = np.copy(data.wt_vec)
@@ -299,10 +319,12 @@ class NumpyInnerSTV(NumpySTVBase):
         )
         while len(winner_list) < m:
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
+            if self.dynamic_threshold:
+                quota = self._get_threshold(self.quota, tallies.sum())
             fpv_scores_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self._find_winners(
-                    tallies, turn, *mutant_record
+                    tallies, turn, quota, *mutant_record
                 )
                 mutant_engine = self._update_because_winner(
                     winners, tallies, *mutant_engine
@@ -317,6 +339,8 @@ class NumpyInnerSTV(NumpySTVBase):
                 )
                 turn += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
+                if self.dynamic_threshold:
+                    play_by_play[-1]["threshold"] = float(quota)
                 fpv_scores_by_round.append(tallies.copy())
             if len(winner_list) == m:
                 break
@@ -332,6 +356,8 @@ class NumpyInnerSTV(NumpySTVBase):
                         "round_type": "default",
                     }
                 )
+                if self.dynamic_threshold:
+                    play_by_play[-1]["threshold"] = float(quota)
                 turn += 1
                 fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
                 tiebreak_record.append({})
@@ -345,6 +371,8 @@ class NumpyInnerSTV(NumpySTVBase):
                     "round_type": "elimination",
                 }
             )
+            if self.dynamic_threshold:
+                play_by_play[-1]["threshold"] = float(quota)
             turn += 1
         return fpv_scores_by_round, play_by_play, tiebreak_record
 
@@ -384,6 +412,44 @@ class FastSTV(NumpyInnerSTV):
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
+        )
+
+class AlbanySTV(NumpyInnerSTV):
+    """
+    STV variant used in Albany, CA. Differs from FastSTV in that the threshold is recalculated each round based on remaining votes and candidates.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+        m (int): Number of seats to be elected. Defaults to 1.
+        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+            'fractional'.
+        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
+            Defaults to "droop".
+        simultaneous (bool): True if all candidates who cross threshold in a round are
+            elected simultaneously, False if only the candidate with highest first-place votes
+            who crosses the threshold is elected in a round. Defaults to True.
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
+            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+            a tiebreak is needed.
+
+    """
+    def __init__(
+        self,
+        profile: RankProfile,
+        m: int=1,
+        transfer: str = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = True,
+        tiebreak: Optional[str] = None,
+    ):
+        super().__init__(
+            profile=profile,
+            m=m,
+            transfer=transfer,
+            quota=quota,
+            simultaneous=simultaneous,
+            tiebreak=tiebreak,
+            dynamic_threshold=True,
         )
 
 
