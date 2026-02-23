@@ -17,6 +17,7 @@ from votekit.utils import (
     score_dict_to_ranking,
 )
 from votekit.elections.election_types.ranking.STV.numpy_stv_base import (
+    NumpySTVBase,
     NumpyElection,
     ElectionCore,
 )
@@ -498,6 +499,326 @@ class STVCore(ElectionCore):
                     "loser": [int(loser_idx)],
                     # "transfer_values": winner_to_transfer_values,
                     # "quota": current_quota,
+                    "round_type": "elimination",
+                }
+            )
+            turn += 1
+        return fpv_scores_by_round, play_by_play, tiebreak_record
+
+
+class NumpyInnerSTV(NumpySTVBase):
+    def __init__(
+        self,
+        profile: RankProfile,
+        m=1,
+        transfer: str = "fractional",
+        quota: str = "droop",
+        simultaneous: bool = True,
+        tiebreak: Optional[str] = None,
+        dynamic_threshold: bool = False,
+    ):
+        self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
+        self.transfer = transfer
+        self.quota = quota
+        self.simultaneous = simultaneous
+        self.dynamic_threshold = dynamic_threshold
+        super().__init__(
+            profile=profile,
+            m=m,
+            tiebreak=tiebreak,
+        )
+        self.threshold = self._get_threshold(quota, float(np.sum(self._data.wt_vec)))
+        self._run_and_store()
+
+    def __check_seats_and_candidates_and_transfer(
+        self, profile: RankProfile, m: int, transfer: str
+    ):
+        """
+        Checks if the number of seats is positive, if there are enough candidates to fill the seats,
+            and if the transfer method is implemented.
+
+        Args:
+            profile (RankProfile): The preference profile to validate.
+            m (int): The number of seats to be elected.
+            transfer (str): The transfer method to be used.
+        """
+        if m <= 0:
+            raise ValueError("m must be positive.")
+        elif len(profile.candidates_cast) < m:
+            raise ValueError("Not enough candidates received votes to be elected.")
+        if transfer not in ["fractional", "cambridge_random", "fractional_random"]:
+            raise ValueError(
+                "Transfer method must be either 'fractional', 'cambridge_random', or "
+                "'fractional_random'."
+            )
+
+    def _update_because_winner(
+        self,
+        winners: list[int],
+        tallies: NDArray,
+        mutated_fpv_vec: NDArray,
+        mutated_wt_vec: NDArray,
+        bool_ballot_matrix: NDArray,
+        mutated_pos_vec: NDArray,
+    ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
+        """
+        Updates helper arrays after candidates have been elected, transferring surplus votes.
+        """
+        rows_with_winner_fpv = np.isin(mutated_fpv_vec, winners)
+        winner_row_indices = np.where(rows_with_winner_fpv)[0]
+        allowed_pos_matrix = bool_ballot_matrix[winner_row_indices]
+
+        next_fpv_pos_vec = allowed_pos_matrix.argmax(axis=1)
+        mutated_pos_vec[winner_row_indices] = next_fpv_pos_vec
+
+        next_fpv_vec = self._data.ballot_matrix[winner_row_indices, next_fpv_pos_vec]
+
+        if self.transfer == "fractional":
+            get_transfer_value_vec = np.frompyfunc(
+                lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
+            )
+            transfer_value_vec = get_transfer_value_vec(
+                mutated_fpv_vec[rows_with_winner_fpv]
+            ).astype(np.float64)
+            mutated_wt_vec[rows_with_winner_fpv] *= transfer_value_vec
+            mutated_fpv_vec[rows_with_winner_fpv] = self._data.ballot_matrix[
+                winner_row_indices, next_fpv_pos_vec
+            ]
+        elif self.transfer is not None and "random" in self.transfer:
+            new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
+            for winner_idx in winners:
+                if self.transfer == "cambridge_random":
+                    mutated_fpv_vec[winner_row_indices[next_fpv_vec < 0]] = -127
+                surplus = int(tallies[winner_idx] - self.threshold)
+                counts = numpy_random_transfer(
+                    fpv_vec=mutated_fpv_vec,
+                    wt_vec=mutated_wt_vec,
+                    winner=winner_idx,
+                    surplus=surplus,
+                )
+                new_weights += counts.astype(new_weights.dtype)
+
+            mutated_wt_vec[winner_row_indices] = new_weights[winner_row_indices]
+            mutated_fpv_vec[rows_with_winner_fpv] = next_fpv_vec
+        return (
+            mutated_fpv_vec,
+            mutated_wt_vec,
+            bool_ballot_matrix,
+            mutated_pos_vec,
+        )
+
+    def _update_because_loser(
+        self,
+        loser: int,
+        mutated_fpv_vec: NDArray,
+        wt_vec: NDArray,
+        bool_ballot_matrix: NDArray,
+        mutated_pos_vec: NDArray,
+    ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
+        """
+        Updates helper arrays after a single candidate has been eliminated.
+        """
+        rows_with_loser_fpv = np.isin(mutated_fpv_vec, loser)
+        loser_row_indices = np.where(rows_with_loser_fpv)[0]
+        allowed_pos_matrix = bool_ballot_matrix[loser_row_indices]
+        mutated_pos_vec[loser_row_indices] = allowed_pos_matrix.argmax(axis=1)
+        mutated_fpv_vec[loser_row_indices] = self._data.ballot_matrix[
+            loser_row_indices, mutated_pos_vec[loser_row_indices]
+        ]
+
+        return (
+            mutated_fpv_vec,
+            wt_vec,
+            bool_ballot_matrix,
+            mutated_pos_vec,
+        )
+
+    def _find_loser(
+        self,
+        tallies: NDArray,
+        turn: int,
+        mutant_bool_ballot_matrix: NDArray,
+        mutant_winner_list: list[int],
+        mutant_eliminated_or_exhausted: list[int],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+    ) -> tuple[
+        int,
+        tuple[
+            NDArray,
+            list[int],
+            list[int],
+            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        ],
+    ]:
+        """
+        Identify the candidate to eliminate in the current round, applying tiebreaks if necessary.
+        """
+        masked_tallies: NDArray = np.where(
+            np.isin(np.arange(len(tallies)), mutant_eliminated_or_exhausted),
+            np.inf,
+            tallies,
+        )
+        if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
+            potential_losers: list[int] = (
+                np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
+            )
+            loser_idx, mutant_tiebreak_record = self._run_loser_tiebreak(
+                potential_losers, turn, mutant_tiebreak_record
+            )
+        else:
+            loser_idx = int(np.argmin(masked_tallies))
+            mutant_tiebreak_record.append({})
+        mutant_eliminated_or_exhausted.append(loser_idx)
+        self._update_bool_ballot_matrix(mutant_bool_ballot_matrix, [loser_idx])
+        return loser_idx, (
+            mutant_bool_ballot_matrix,
+            mutant_winner_list,
+            mutant_eliminated_or_exhausted,
+            mutant_tiebreak_record,
+        )
+
+    def _find_winners(
+        self,
+        tallies: NDArray,
+        turn: int,
+        mutant_bool_ballot_matrix: NDArray,
+        mutant_winner_list: list[int],
+        mutant_eliminated_or_exhausted: list[int],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+    ) -> tuple[
+        list[int],
+        tuple[
+            NDArray,
+            list[int],
+            list[int],
+            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        ],
+    ]:
+        """
+        Identify the candidate(s) to elect in the current round, applying tiebreaks if necessary.
+        """
+        if self.simultaneous:
+            winners_temp = np.where(tallies >= self.threshold)[0]
+            winners_temp = winners_temp[np.argsort(-tallies[winners_temp])]
+            winners = winners_temp.tolist()
+            mutant_tiebreak_record.append({})
+        else:
+            if np.count_nonzero(tallies == np.max(tallies)) > 1:
+                potential_winners: list[int] = (
+                    np.where(tallies == tallies.max())[0].astype(int).tolist()
+                )
+                winner_idx, mutant_tiebreak_record = self._run_winner_tiebreak(
+                    potential_winners, turn, mutant_tiebreak_record
+                )
+            else:
+                winner_idx = int(np.argmax(tallies))
+                mutant_tiebreak_record.append({})
+            winners = [winner_idx]
+        for winner_idx in winners:
+            mutant_winner_list.append(int(winner_idx))
+            mutant_eliminated_or_exhausted.append(winner_idx)
+        self._update_bool_ballot_matrix(mutant_bool_ballot_matrix, winners)
+        return winners, (
+            mutant_bool_ballot_matrix,
+            mutant_winner_list,
+            mutant_eliminated_or_exhausted,
+            mutant_tiebreak_record,
+        )
+
+    def _update_bool_ballot_matrix(
+        self, _mutant_bool_ballot_matrix: NDArray, newly_gone: list[int]
+    ) -> NDArray:
+        """
+        Update the stencil mask to mark candidates as eliminated or elected.
+        """
+        _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
+        return _mutant_bool_ballot_matrix
+
+    def _run_election(
+        self, data
+    ) -> tuple[
+        list[NDArray],
+        list[dict[str, Any]],
+        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+    ]:
+        """
+        Runs the STV algorithm and returns the legacy outputs.
+        """
+        ballot_matrix = data.ballot_matrix
+        wt_vec = np.copy(data.wt_vec)
+        fpv_vec = np.copy(ballot_matrix[:, 0])
+        m = self.m
+        ncands = len(self.candidates)
+
+        fpv_scores_by_round = []
+        play_by_play: list[dict[str, Any]] = []
+        turn = 0
+        quota = self.threshold
+        winner_list: list[int] = []
+        eliminated_or_exhausted: list[int] = []
+        tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
+        pos_vec: NDArray = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
+        mutant_bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
+
+        def make_tallies(fpv_vec: NDArray, wt_vec: NDArray, ncands: int) -> NDArray:
+            return np.bincount(
+                fpv_vec[fpv_vec >= 0],
+                weights=wt_vec[fpv_vec >= 0],
+                minlength=ncands,
+            )
+
+        mutant_engine = (fpv_vec, wt_vec, mutant_bool_ballot_matrix, pos_vec)
+        mutant_record = (
+            mutant_bool_ballot_matrix,
+            winner_list,
+            eliminated_or_exhausted,
+            tiebreak_record,
+        )
+        while len(winner_list) < m:
+            tallies = make_tallies(fpv_vec, wt_vec, ncands)
+            fpv_scores_by_round.append(tallies.copy())
+            while np.any(tallies >= quota):
+                winners, mutant_record = self._find_winners(
+                    tallies, turn, *mutant_record
+                )
+                mutant_engine = self._update_because_winner(
+                    winners, tallies, *mutant_engine
+                )
+                play_by_play.append(
+                    {
+                        "round_number": int(turn),
+                        "winners": [int(c) for c in winners],
+                        "wt_vec": mutant_engine[1].copy(),
+                        "round_type": "election",
+                    }
+                )
+                turn += 1
+                tallies = make_tallies(fpv_vec, wt_vec, ncands)
+                fpv_scores_by_round.append(tallies.copy())
+            if len(winner_list) == m:
+                break
+            if len(eliminated_or_exhausted) - len(winner_list) == ncands - m:
+                still_standing = [
+                    int(i) for i in range(ncands) if i not in eliminated_or_exhausted
+                ]
+                winner_list += still_standing
+                play_by_play.append(
+                    {
+                        "round_number": int(turn),
+                        "winners": still_standing,
+                        "round_type": "default",
+                    }
+                )
+                turn += 1
+                fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
+                tiebreak_record.append({})
+                break
+            loser_idx, mutant_record = self._find_loser(tallies, turn, *mutant_record)
+            mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
+            play_by_play.append(
+                {
+                    "round_number": int(turn),
+                    "loser": [int(loser_idx)],
                     "round_type": "elimination",
                 }
             )
