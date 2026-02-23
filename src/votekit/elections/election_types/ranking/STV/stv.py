@@ -591,7 +591,6 @@ class FastSequentialRCV(NumpyInnerSTV):
         super().__init__(
             profile=profile,
             m=m,
-            transfer=None,
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,

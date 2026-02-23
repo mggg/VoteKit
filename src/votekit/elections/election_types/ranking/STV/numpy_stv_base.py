@@ -73,7 +73,7 @@ class NumpySTVBase(ABC):
     tiebreak: Optional[str]
     _data: NumpyElectionDataTracker
     _winner_tiebreak: Optional[str]
-    _loser_tiebreak: Optional[str]
+    _loser_tiebreak: str
 
     def __init__(
         self,
