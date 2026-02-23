@@ -15,6 +15,21 @@ class NumpyElectionDataTracker:
     """
     Data container for internal use in numpy-based elections.
 
+    Args:
+        ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with
+            sentinel padding.
+        wt_vec (NDArray): Starting weight vector for each ballot row.
+        initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
+        fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
+        play_by_play (list[dict[str, Any]]): Per-round action log used for legacy outputs.
+        tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+            Tiebreak resolutions by round.
+        candidate_sets_by_fpv (Optional[list[set[int]]]): Cached FPV clusters for tiebreaking.
+        extras (dict[str, Any]): Extension point for child classes to store additional outputs.
+
+    Returns:
+        NumpyElectionDataTracker: Instance storing numpy election state.
+
     Attributes:
         ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
@@ -39,6 +54,17 @@ class NumpyElectionDataTracker:
 
 
 class NumpySTVBase(ABC):
+    """
+    Abstract base class for numpy-based STV-style elections.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+        m (int): Number of seats to be elected. Defaults to 1.
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Defaults to None.
+
+    Returns:
+        NumpySTVBase: Initialized base instance.
+    """
     candidates: list[str]
     profile: RankProfile
     m: int
@@ -622,21 +648,6 @@ class NumpySTVBase(ABC):
         return self.get_status_df().to_string(index=True, justify="justify")
     
     __repr__ = __str__
-
-
-class NumpyElection(NumpySTVBase):
-    """
-    Legacy shim to keep FastSTV compatible with the previous NumpyElection interface.
-    """
-
-    def _run_election(
-        self, data: NumpyElectionDataTracker
-    ) -> tuple[
-        list[NDArray],
-        list[dict[str, Any]],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ]:
-        return self._core.run()
 
 
 class ElectionCore:
