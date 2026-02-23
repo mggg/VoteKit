@@ -23,23 +23,23 @@ def numpy_random_transfer(
     # assume the fpv_vec looks like [2,5,3,2]
     # then eligible looks like [True, False, False, True]
     # and winner_row_indices looks like [0, 3]
-    eligible = fpv_vec == winner
-    winner_row_indices = np.flatnonzero(eligible)
+    eligible_for_transfer = (fpv_vec == winner)
+    winner_row_indices = np.flatnonzero(eligible_for_transfer)
 
     # assume the original weight vector was [200, 100, 50, 25]
     # then wts looks like [200, 25]
     wts = wt_vec[winner_row_indices].astype(np.int64)
 
     # assume that quota was 220, so winner 2 had 5 surplus votes and 225 transferable votes
-    transferable = int(wts.sum())
+    maximum_transferable = int(wts.sum())
 
     # this deals with cases where there are fewer than surplus votes to transfer
     # (lots of exhausted ballots)
-    surplus = min(surplus, transferable)
+    transferred_votes = min(surplus, maximum_transferable)
 
-    # Sample surplus distinct positions in the implicit pool [0, transferable)
+    # Sample surplus distinct positions in the implicit pool [0, maximum_transferable)
     # in our example: we sample 5 distinct numbers from [0, 225)
-    positions_to_transfer = rng.choice(transferable, size=surplus, replace=False)
+    positions_to_transfer = rng.choice(maximum_transferable, size=transferred_votes, replace=False)
     positions_to_transfer.sort()
 
     # Say we sampled the numbers 12, 50, 178, 200, and 201
