@@ -18,20 +18,18 @@ from votekit.utils import (
 )
 from votekit.elections.election_types.ranking.STV.numpy_stv_base import (
     NumpySTVBase,
-    NumpyElection,
-    ElectionCore,
+    NumpyElectionDataTracker,
 )
 
 from typing import Optional, Callable, Union, Any
-import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
-from itertools import groupby
 
 
 class NumpyInnerSTV(NumpySTVBase):
     """
-    Most general version of an STV election. Contains niche arguments such as "dynamic_threshold" that are not exposed in the main STV class.
+    Most general version of an STV election. Contains niche arguments such as
+    "dynamic_threshold" that are not exposed in the main STV class.
 
     Args:
         profile (RankProfile): RankProfile to run election on.
@@ -46,8 +44,8 @@ class NumpyInnerSTV(NumpySTVBase):
         tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
-        dynamic_threshold (bool): If True, threshold is recalculated each round based on remaining candidates and votes. Defaults to False.
-
+        dynamic_threshold (bool): If True, threshold is recalculated each round based on
+            remaining candidates and votes. Defaults to False.
     """
     def __init__(
         self,
@@ -105,6 +103,23 @@ class NumpyInnerSTV(NumpySTVBase):
     ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         """
         Updates helper arrays after candidates have been elected, transferring surplus votes.
+
+        This method handles the vote transfer process when one or more candidates cross the
+        election threshold. It moves ballot pointers to the next available candidate and
+        adjusts vote weights according to the transfer method (fractional or random).
+
+        Args:
+            winners (list[int]): List of candidate indices who were elected this round.
+            tallies (NDArray): Current vote tallies for all candidates.
+            mutated_fpv_vec (NDArray): First preference vector (modified in place).
+            mutated_wt_vec (NDArray): Weight vector for ballots (modified in place).
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix
+                not eliminated or exhausted.
+            mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
+
+        Returns:
+            tuple[NDArray, NDArray, NDArray, NDArray]: Updated helper arrays:
+                (mutated_fpv_vec, mutated_wt_vec, bool_ballot_matrix, mutated_pos_vec).
         """
         rows_with_winner_fpv = np.isin(mutated_fpv_vec, winners)
         winner_row_indices = np.where(rows_with_winner_fpv)[0]
@@ -159,6 +174,21 @@ class NumpyInnerSTV(NumpySTVBase):
     ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         """
         Updates helper arrays after a single candidate has been eliminated.
+
+        There's not a lot to do here -- find_loser already updates the stencil, so we just
+        need to move the position and FPV vectors to their pre-calculated new positions.
+
+        Args:
+            loser (int): Index of the candidate who was eliminated this round.
+            mutated_fpv_vec (NDArray): First preference vector (modified in place).
+            wt_vec (NDArray): Weight vector for ballots (modified in place).
+            bool_ballot_matrix (NDArray): Boolean mask indicating entries of the ballot matrix
+                not eliminated or exhausted.
+            mutated_pos_vec (NDArray): Position vector tracking current ballot positions.
+
+        Returns:
+            tuple[NDArray, NDArray, NDArray, NDArray]: Updated helper arrays:
+                (mutated_fpv_vec, wt_vec, bool_ballot_matrix, mutated_pos_vec).
         """
         rows_with_loser_fpv = np.isin(mutated_fpv_vec, loser)
         loser_row_indices = np.where(rows_with_loser_fpv)[0]
@@ -194,6 +224,19 @@ class NumpyInnerSTV(NumpySTVBase):
     ]:
         """
         Identify the candidate to eliminate in the current round, applying tiebreaks if necessary.
+
+        Args:
+            tallies (NDArray): Current tallies for each candidate.
+            turn (int): The current round number.
+            mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
+            mutant_winner_list (list[int]): List of winner candidate indices so far.
+            mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
+
+        Returns:
+            tuple: (index of eliminated candidate, updated state tuple containing the boolean
+                ballot matrix, winner list, eliminated list, and tiebreak record).
         """
         masked_tallies: NDArray = np.where(
             np.isin(np.arange(len(tallies)), mutant_eliminated_or_exhausted),
@@ -239,6 +282,21 @@ class NumpyInnerSTV(NumpySTVBase):
     ]:
         """
         Identify the candidate(s) to elect in the current round, applying tiebreaks if necessary.
+
+        Args:
+            tallies (NDArray): Current tallies for each candidate.
+            turn (int): The current round number.
+            quota (float): Threshold required for election in this round.
+            mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated/elected candidates.
+            mutant_winner_list (list[int]): List of winner candidate indices so far.
+            mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate
+                indices so far.
+            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                Tiebreak record for each round.
+
+        Returns:
+            tuple: (list of elected candidate indices, updated state tuple containing the boolean
+                ballot matrix, winner list, eliminated list, and tiebreak record).
         """
         if self.simultaneous:
             winners_temp = np.where(tallies >= quota)[0]
@@ -273,12 +331,19 @@ class NumpyInnerSTV(NumpySTVBase):
     ) -> NDArray:
         """
         Update the stencil mask to mark candidates as eliminated or elected.
+
+        Args:
+            _mutant_bool_ballot_matrix (NDArray): Boolean mask of eliminated/elected candidates.
+            newly_gone (list[int]): List of candidate indices to mark as eliminated/elected.
+
+        Returns:
+            NDArray: Updated stencil mask.
         """
         _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
     def _run_election(
-        self, data
+        self, data: NumpyElectionDataTracker
     ) -> tuple[
         list[NDArray],
         list[dict[str, Any]],
@@ -286,6 +351,12 @@ class NumpyInnerSTV(NumpySTVBase):
     ]:
         """
         Runs the STV algorithm and returns numpy arrays as outputs.
+
+        Args:
+            data (NumpyElectionDataTracker): Internal data container with ballot matrix, weights, etc.
+
+        Returns:
+            tuple: (fpv_scores_by_round, play_by_play, tiebreak_record).
         """
         ballot_matrix = data.ballot_matrix
         wt_vec = np.copy(data.wt_vec)
