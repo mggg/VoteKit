@@ -586,6 +586,13 @@ class STVAnimation:
             round_numbers=round_numbers,
         )
 
+    @staticmethod
+    def _is_notebook() -> bool:
+        try:
+            return get_ipython().__class__.__name__ == "ZMQInteractiveShell"  # type: ignore[name-defined]
+        except NameError:
+            return False
+
     def render(
         self,
         preview: bool = False,
@@ -598,9 +605,12 @@ class STVAnimation:
 
         Args:
             preview (bool, optional): If ``True``, display the result in a video player
-                immediately upon completing the render. Defaults to False.
+                immediately upon completing the render. Ignored when running inside a
+                Jupyter notebook, where the video is always displayed as inline cell
+                output. Defaults to False.
             render_dir (str, optional): Directory in which the rendering files will appear.
         """
+        in_notebook = STVAnimation._is_notebook()
         # Set up necessary manim configurations.
         background_color = self.color_palette.background
         with manim.tempconfig(
@@ -615,7 +625,13 @@ class STVAnimation:
                 title=self.title,
                 color_palette=self.color_palette,
             )
-            manimation.render(preview=preview)
+            manimation.render(preview=preview and not in_notebook)
+
+            if in_notebook:
+                from IPython.display import Video, display
+
+                output_path = manimation.renderer.file_writer.movie_file_path
+                display(Video(str(output_path)))
 
 
 class ElectionScene(manim.Scene):
