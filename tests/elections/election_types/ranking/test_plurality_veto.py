@@ -65,6 +65,35 @@ def test_plurality_veto_errors():
         PluralityVeto(RankProfile(ballots=(b1,)), m=1)
 
 
+def test_get_profile_does_not_corrupt_state():
+    """Calling get_profile (which replays the election) should not corrupt election state."""
+    profile = make_complete_ballots(candidates=("A", "B", "C"))
+    election = PluralityVeto(profile, m=1, tiebreak="first_place")
+
+    winners_before = election.get_elected()
+    states_before = list(election.election_states)
+
+    # replay various rounds via get_profile
+    for i in range(len(election.election_states)):
+        p = election.get_profile(i)
+        assert isinstance(p, RankProfile)
+
+    # also test negative indexing
+    election.get_profile(-1)
+    election.get_profile(0)
+
+    winners_after = election.get_elected()
+    states_after = list(election.election_states)
+
+    assert winners_before == winners_after
+    assert len(states_before) == len(states_after)
+    for s_before, s_after in zip(states_before, states_after):
+        assert s_before.round_number == s_after.round_number
+        assert s_before.elected == s_after.elected
+        assert s_before.eliminated == s_after.eliminated
+        assert s_before.scores == s_after.scores
+
+
 @pytest.mark.slow
 def test_plurality_veto_4_candidates_deterministic_tiebreaking():
     random.seed(919717)
@@ -102,3 +131,11 @@ def test_plurality_veto_4_candidates_random_tiebreaking():
     assert np.allclose(1 / 4, winner_counts["B"] / TRIALS, atol=8e-2)
     assert np.allclose(1 / 4, winner_counts["C"] / TRIALS, atol=8e-2)
     assert np.allclose(1 / 4, winner_counts["D"] / TRIALS, atol=8e-2)
+
+
+def test_serial_veto():
+    profile = make_complete_ballots(candidates=("A", "B", "C"))
+    election = PluralityVeto(
+        profile, 1, tiebreak="first_place", elimination_strategy="careful"
+    )
+    assert election.get_elected()
