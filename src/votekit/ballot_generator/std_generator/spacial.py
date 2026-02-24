@@ -36,6 +36,7 @@ def onedim_spacial_profile_generator(
     to candidates on this line.
 
     Args:
+        candidates (Sequence[str]): Candidate names used in each generated ballot.
         number_of_ballots (int): The number of ballots to generate.
 
     Returns:
@@ -90,7 +91,20 @@ def spacial_profile_and_positions_generator(
 
     Args:
         number_of_ballots (int): The number of ballots to generate.
-        by_bloc (bool): Dummy variable from parent class.
+        candidates (list[str]): Candidate names used when building rankings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
+            to draw each voter position. Defaults to ``np.random.uniform``.
+        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+            passed to ``voter_dist`` for each sample. Defaults to None.
+        candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
+            used to draw each candidate position. Defaults to
+            ``np.random.uniform``.
+        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+            arguments passed to ``candidate_dist`` for each sample. Defaults to
+            None.
+        distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
+            function used to compare voter and candidate positions. Defaults to
+            ``euclidean_dist``.
 
     Returns:
         Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
@@ -188,7 +202,22 @@ def clustered_spacial_profile_and_positions_generator(
     Args:
         number_of_ballots (dict[str, int]): The number of voters attributed
                     to each candidate {candidate string: # voters}.
-        by_bloc (bool): Dummy variable from parent class.
+        candidates (list[str]): Candidate names used when building rankings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
+            to draw voter positions centered at each candidate location. Defaults
+            to ``np.random.normal``.
+        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+            passed to ``voter_dist`` while generating voter positions. Defaults
+            to None.
+        candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
+            used to draw each candidate position. Defaults to
+            ``np.random.uniform``.
+        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+            arguments passed to ``candidate_dist`` for each sample. Defaults to
+            None.
+        distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
+            function used to compare voter and candidate positions. Defaults to
+            ``euclidean_dist``.
 
     Returns:
         Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
