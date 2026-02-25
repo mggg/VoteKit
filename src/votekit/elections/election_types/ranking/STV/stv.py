@@ -557,17 +557,26 @@ class FastIRV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
+        quota: str = "droop",
         tiebreak: Optional[str] = None,
     ):
+        self._validate_rank_profile(profile)
         super().__init__(
             profile=profile,
             m=1,
             transfer="fractional",
-            quota="droop",
+            quota=quota,
             simultaneous=False,
             tiebreak=tiebreak,
-            dynamic_threshold=True,
+            dynamic_threshold=False,
         )
+        
+    def _validate_rank_profile(self, profile: RankProfile):
+        """
+        Validate that each ballot has a ranking, and that there are no ties in ballots.
+        """
+        if not isinstance(profile, RankProfile):
+            raise ProfileError("Profile must be of type RankProfile.")
 
 
 class FastSequentialRCV(NumpyInnerSTV):
