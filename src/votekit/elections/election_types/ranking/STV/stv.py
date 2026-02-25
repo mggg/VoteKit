@@ -59,7 +59,7 @@ class NumpyInnerSTV(NumpySTVBase):
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
     ):
-        self.__check_seats_and_candidates_and_transfer(profile, m, transfer)
+        self.__check_profile_and_seats_and_candidates_and_transfer(profile, m, transfer)
         self.transfer = transfer
         self.quota = quota
         self.simultaneous = simultaneous
@@ -73,11 +73,11 @@ class NumpyInnerSTV(NumpySTVBase):
         self.threshold = self._get_threshold(quota, float(np.sum(self._data.wt_vec)))
         self._run_and_store()
 
-    def __check_seats_and_candidates_and_transfer(
+    def __check_profile_and_seats_and_candidates_and_transfer(
         self, profile: RankProfile, m: int, transfer: str
     ):
         """
-        Checks if the number of seats is positive, if there are enough candidates to fill the seats,
+        Checks if the profile is a RankProfile, if the number of seats is positive, if there are enough candidates to fill the seats,
             and if the transfer method is implemented.
 
         Args:
@@ -85,6 +85,8 @@ class NumpyInnerSTV(NumpySTVBase):
             m (int): The number of seats to be elected.
             transfer (str): The transfer method to be used.
         """
+        if not isinstance(profile, RankProfile):
+            raise ProfileError("Profile must be of type RankProfile.")
         if m <= 0:
             raise ValueError("m must be positive.")
         elif len(profile.candidates_cast) < m:
@@ -564,7 +566,6 @@ class FastIRV(NumpyInnerSTV):
         quota: str = "droop",
         tiebreak: Optional[str] = None,
     ):
-        self._validate_rank_profile(profile)
         super().__init__(
             profile=profile,
             m=1,
@@ -574,13 +575,6 @@ class FastIRV(NumpyInnerSTV):
             tiebreak=tiebreak,
             dynamic_threshold=False,
         )
-
-    def _validate_rank_profile(self, profile: RankProfile):
-        """
-        Validate that each ballot has a ranking, and that there are no ties in ballots.
-        """
-        if not isinstance(profile, RankProfile):
-            raise ProfileError("Profile must be of type RankProfile.")
 
 
 class FastSequentialRCV(NumpyInnerSTV):
