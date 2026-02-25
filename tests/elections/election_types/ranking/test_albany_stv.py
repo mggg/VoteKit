@@ -1,5 +1,5 @@
 from votekit.pref_profile import RankProfile
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.elections import ElectionState
 from votekit.elections.election_types.ranking.STV.stv import AlbanySTV
 from pathlib import Path
@@ -85,11 +85,11 @@ albany_quotas = [2387.0,2376.0,2355.0,2338.0]
 albany_not_same_as_wigm_profile = RankProfile(
     ballots=tuple(
         [
-            Ballot(ranking=tuple(map(frozenset, ["A", "B"])), weight=90),
-            Ballot(ranking=tuple(map(frozenset, ["B"])), weight=67),
-            Ballot(ranking=tuple(map(frozenset, ["C"])), weight=70),
-            Ballot(ranking=tuple(map(frozenset, ["D", "A"])), weight=40),
-            Ballot(ranking=tuple(map(frozenset, ["E"])), weight=30),
+            RankBallot(ranking=tuple(map(frozenset, ["A", "B"])), weight=90),
+            RankBallot(ranking=tuple(map(frozenset, ["B"])), weight=67),
+            RankBallot(ranking=tuple(map(frozenset, ["C"])), weight=70),
+            RankBallot(ranking=tuple(map(frozenset, ["D", "A"])), weight=40),
+            RankBallot(ranking=tuple(map(frozenset, ["E"])), weight=30),
         ]
     ),
     max_ranking_length=2,
@@ -100,11 +100,11 @@ not_same_as_wigm_quotas = [100.0, 90.0, 90.0, 76.0, 54.0]
 three_winners_with_sharp_quotas_profile = RankProfile(
     ballots=tuple(
         [
-            Ballot(ranking=tuple(map(frozenset, ["A"])), weight=200),
-            Ballot(ranking=tuple(map(frozenset, ["B"])), weight=90),
-            Ballot(ranking=tuple(map(frozenset, ["C"])), weight=86),
-            Ballot(ranking=tuple(map(frozenset, ["D"])), weight=60),
-            Ballot(ranking=tuple(map(frozenset, ["E"])), weight=40),
+            RankBallot(ranking=tuple(map(frozenset, ["A"])), weight=200),
+            RankBallot(ranking=tuple(map(frozenset, ["B"])), weight=90),
+            RankBallot(ranking=tuple(map(frozenset, ["C"])), weight=86),
+            RankBallot(ranking=tuple(map(frozenset, ["D"])), weight=60),
+            RankBallot(ranking=tuple(map(frozenset, ["E"])), weight=40),
         ]
     ),
     max_ranking_length=1,
@@ -165,10 +165,10 @@ three_winners_with_sharp_quotas_quotas = [120.0, 100.0, 90.0, 90.0, 75.0]
 interaction_with_simultaneous = RankProfile(
     ballots=tuple(
         [
-            Ballot(ranking=tuple(map(frozenset, ["A"])), weight=140),
-            Ballot(ranking=tuple(map(frozenset, ["B", "C"])), weight=100),
-            Ballot(ranking=tuple(map(frozenset, ["C"])), weight=76),
-            Ballot(ranking=tuple(map(frozenset, ["D"])), weight=80),
+            RankBallot(ranking=tuple(map(frozenset, ["A"])), weight=140),
+            RankBallot(ranking=tuple(map(frozenset, ["B", "C"])), weight=100),
+            RankBallot(ranking=tuple(map(frozenset, ["C"])), weight=76),
+            RankBallot(ranking=tuple(map(frozenset, ["D"])), weight=80),
         ]
     ),
     max_ranking_length=2,
