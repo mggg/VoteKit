@@ -10,6 +10,8 @@ CSV_DIR = BASE_DIR / "data/csv"
 
 albany_profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
 
+# all of these states except the last come from the official tabulation:
+# https://alamedacountyca.gov/rovresults/rcv/248/rcvresults.htm?race=Albany%2F001-CityCouncil
 albany_states = [
     ElectionState(
         round_number=0,
