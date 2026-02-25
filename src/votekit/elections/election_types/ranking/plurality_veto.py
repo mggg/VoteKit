@@ -69,7 +69,7 @@ class PluralityVeto(RankingElection):
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
         self._veto_loop: Callable[
-            dict[str, float], tuple[frozenset[str], frozenset[str]]
+            [dict[str, float]], tuple[frozenset[str], frozenset[str]]
         ] = (
             self._serial_veto_loop
             if elimination_strategy == "careful"
@@ -167,13 +167,13 @@ class PluralityVeto(RankingElection):
         """
         if self.tiebreak == "random":
 
-            def rank(c: str) -> int:
+            def rank(c: str) -> float:
                 return random.random()
 
         # in _tiebreak_order, higher position is worse; veto the worst remaining
         else:
 
-            def rank(c: str) -> int:
+            def rank(c: str) -> float:
                 return self._tiebreak_ranks[c]
 
         return max(candidate_set, key=rank)
@@ -207,6 +207,8 @@ class PluralityVeto(RankingElection):
             if potential_vetoes:
                 self._veto_position_cache[ballot_idx] = pos
                 break
+        else:
+            potential_vetoes = frozenset()
 
         return potential_vetoes
 
@@ -367,6 +369,7 @@ class PluralityVeto(RankingElection):
             del new_scores[c]
 
         if electable_candidates:
+            assert self.scoring_tie_convention in ("high", "average", "low")
             tiebroken_order = tiebreak_set(
                 electable_candidates,
                 profile,
