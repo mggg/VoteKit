@@ -378,6 +378,7 @@ class NumpyInnerSTV(NumpySTVBase):
         play_by_play: list[dict[str, Any]] = []
         turn = 0
         quota = self.threshold
+        ballot_weight_sitting_with_winners = 0.0
         winner_list: list[int] = []
         eliminated_or_exhausted: list[int] = []
         tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
@@ -401,8 +402,7 @@ class NumpyInnerSTV(NumpySTVBase):
         while len(winner_list) < m:
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             if self.dynamic_threshold:
-                quota = self._get_threshold(self.quota, tallies.sum())
-                print(f"Recalculated threshold in round {turn}: {quota}")
+                quota = self._get_threshold(self.quota, tallies.sum()+ ballot_weight_sitting_with_winners)
             fpv_scores_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self._find_winners(
@@ -423,6 +423,8 @@ class NumpyInnerSTV(NumpySTVBase):
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 if self.dynamic_threshold:
                     play_by_play[-1]["threshold"] = float(quota)
+                    ballot_weight_sitting_with_winners += len(winners) * float(quota)
+                    quota = self._get_threshold(self.quota, tallies.sum()+ ballot_weight_sitting_with_winners)
                 fpv_scores_by_round.append(tallies.copy())
             if len(winner_list) == m:
                 break
