@@ -4,7 +4,6 @@ from votekit.elections import ElectionState
 from votekit.elections.election_types.ranking.STV.stv import AlbanySTV
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 CSV_DIR = BASE_DIR / "data/csv"
 
@@ -76,11 +75,13 @@ albany_states = [
         round_number=4,
         remaining=(frozenset({"JENNIFER HANSEN ROMERO"}),),
         elected=(frozenset({"ROBIN D  LOPEZ"}),),
-        scores={"JENNIFER HANSEN ROMERO": 2303.409599}, # this number needs to be checked by hand
+        scores={
+            "JENNIFER HANSEN ROMERO": 2303.409599
+        },  # this number needs to be checked by hand
     ),
 ]
 
-albany_quotas = [2387.0,2376.0,2355.0,2338.0]
+albany_quotas = [2387.0, 2376.0, 2355.0, 2338.0]
 
 albany_not_same_as_wigm_profile = RankProfile(
     ballots=tuple(
@@ -174,6 +175,7 @@ interaction_with_simultaneous = RankProfile(
     max_ranking_length=2,
 )
 
+
 def looser_equality_for_election_states(state1, state2, precision):
     if state1.remaining != state2.remaining:
         return False
@@ -188,14 +190,18 @@ def looser_equality_for_election_states(state1, state2, precision):
             return False
     return True
 
+
 def test_albany_state_list():
     albany_elec = AlbanySTV(albany_profile, m=2)
-    for i in [0, 1, 2]:# these states all have integer scores
+    for i in [0, 1, 2]:  # these states all have integer scores
         assert albany_elec.election_states[i] == albany_states[i]
-    for i in [3, 4]:# these do not
-        assert looser_equality_for_election_states(albany_elec.election_states[i], albany_states[i], precision=1e-3)
-    for i in [0,1,2,3]:
+    for i in [3, 4]:  # these do not
+        assert looser_equality_for_election_states(
+            albany_elec.election_states[i], albany_states[i], precision=1e-3
+        )
+    for i in [0, 1, 2, 3]:
         assert albany_elec._data.play_by_play[i]["threshold"] == albany_quotas[i]
+
 
 def test_albany_not_same_as_wigm():
     elec = AlbanySTV(albany_not_same_as_wigm_profile, m=2)
@@ -206,21 +212,33 @@ def test_albany_not_same_as_wigm():
     )
     assert elec.get_elected() == (frozenset({"A"}), frozenset({"C"}))
 
+
 def test_three_winners_with_sharp_quotas():
     elec = AlbanySTV(three_winners_with_sharp_quotas_profile, m=3)
     play_by_play = elec._data.play_by_play
     assert all(
         play_by_play[i]["threshold"] == three_winners_with_sharp_quotas_quotas[i]
-        for i in [0,1,2,3,4]
+        for i in [0, 1, 2, 3, 4]
     )
     assert all(
         elec.election_states[i] == three_winners_with_sharp_quotas_states[i]
-        for i in [0,1,2,3,4]
+        for i in [0, 1, 2, 3, 4]
     )
+
 
 def test_interaction_with_simultaneous():
     # could maybe also test quota values for both elections? idk I'm tired
     simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=True)
-    non_simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=False)
-    assert simultaneous_elec.get_elected() == (frozenset({'A'}), frozenset({'B'}), frozenset({'D'}))
-    assert non_simultaneous_elec.get_elected() == (frozenset({'A'}), frozenset({'B'}), frozenset({'C'}))
+    non_simultaneous_elec = AlbanySTV(
+        interaction_with_simultaneous, m=3, simultaneous=False
+    )
+    assert simultaneous_elec.get_elected() == (
+        frozenset({"A"}),
+        frozenset({"B"}),
+        frozenset({"D"}),
+    )
+    assert non_simultaneous_elec.get_elected() == (
+        frozenset({"A"}),
+        frozenset({"B"}),
+        frozenset({"C"}),
+    )

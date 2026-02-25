@@ -1,5 +1,7 @@
 from votekit.elections import ElectionState
-from votekit.elections.election_types.ranking.STV.stv import FastSequentialRCV as SequentialRCV
+from votekit.elections.election_types.ranking.STV.stv import (
+    FastSequentialRCV as SequentialRCV,
+)
 from votekit.pref_profile import PreferenceProfile, ProfileError
 from votekit.ballot import Ballot
 import pytest

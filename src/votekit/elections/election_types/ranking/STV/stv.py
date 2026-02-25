@@ -402,7 +402,9 @@ class NumpyInnerSTV(NumpySTVBase):
         while len(winner_list) < m:
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             if self.dynamic_threshold:
-                quota = self._get_threshold(self.quota, tallies.sum()+ ballot_weight_sitting_with_winners)
+                quota = self._get_threshold(
+                    self.quota, tallies.sum() + ballot_weight_sitting_with_winners
+                )
             fpv_scores_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self._find_winners(
@@ -424,7 +426,9 @@ class NumpyInnerSTV(NumpySTVBase):
                 if self.dynamic_threshold:
                     play_by_play[-1]["threshold"] = float(quota)
                     ballot_weight_sitting_with_winners += len(winners) * float(quota)
-                    quota = self._get_threshold(self.quota, tallies.sum()+ ballot_weight_sitting_with_winners)
+                    quota = self._get_threshold(
+                        self.quota, tallies.sum() + ballot_weight_sitting_with_winners
+                    )
                 fpv_scores_by_round.append(tallies.copy())
             if len(winner_list) == m:
                 break
@@ -570,7 +574,7 @@ class FastIRV(NumpyInnerSTV):
             tiebreak=tiebreak,
             dynamic_threshold=False,
         )
-        
+
     def _validate_rank_profile(self, profile: RankProfile):
         """
         Validate that each ballot has a ranking, and that there are no ties in ballots.
