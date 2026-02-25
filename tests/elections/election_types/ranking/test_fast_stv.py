@@ -1,6 +1,7 @@
 from votekit.elections import ElectionState
 from votekit.elections import FastSTV as STV
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import ProfileError
+from votekit import Ballot, PreferenceProfile, ScoreBallot, ScoreProfile
 import pandas as pd
 import pytest
 
@@ -443,8 +444,8 @@ def test_errors():
             quota="Drip",
         )
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
-        STV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+        STV(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
 
 
 def test_stv_cands_cast():
