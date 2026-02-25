@@ -99,6 +99,7 @@ class NumpyInnerSTV(NumpySTVBase):
         self,
         winners: list[int],
         tallies: NDArray,
+        quota: float,
         mutated_fpv_vec: NDArray,
         mutated_wt_vec: NDArray,
         bool_ballot_matrix: NDArray,
@@ -143,7 +144,7 @@ class NumpyInnerSTV(NumpySTVBase):
             )
         if self.transfer == "fractional":
             get_transfer_value_vec = np.frompyfunc(
-                lambda w: (tallies[w] - self.threshold) / tallies[w], 1, 1
+                lambda w: (tallies[w] - quota) / tallies[w], 1, 1
             )
             transfer_value_vec = get_transfer_value_vec(
                 mutated_fpv_vec[rows_with_winner_fpv]
@@ -157,7 +158,7 @@ class NumpyInnerSTV(NumpySTVBase):
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
                     mutated_fpv_vec[winner_row_indices[next_fpv_vec < 0]] = -127
-                surplus = int(tallies[winner_idx] - self.threshold)
+                surplus = int(tallies[winner_idx] - quota)
                 counts = numpy_random_transfer(
                     fpv_vec=mutated_fpv_vec,
                     wt_vec=mutated_wt_vec,
@@ -401,13 +402,14 @@ class NumpyInnerSTV(NumpySTVBase):
             tallies = make_tallies(fpv_vec, wt_vec, ncands)
             if self.dynamic_threshold:
                 quota = self._get_threshold(self.quota, tallies.sum())
+                print(f"Recalculated threshold in round {turn}: {quota}")
             fpv_scores_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self._find_winners(
                     tallies, turn, quota, *mutant_record
                 )
                 mutant_engine = self._update_because_winner(
-                    winners, tallies, *mutant_engine
+                    winners, tallies, quota, *mutant_engine
                 )
                 play_by_play.append(
                     {
