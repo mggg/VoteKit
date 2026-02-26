@@ -36,7 +36,7 @@ from abc import ABC, abstractmethod
 from enum import IntEnum
 
 
-class ZIndex(IntEnum):
+class _ZIndex(IntEnum):
     """Z-index layers controlling the front-to-back draw order of Manim objects."""
 
     TICKER_MESSAGE = -2
@@ -119,7 +119,7 @@ LIGHT_PALETTE = ColorPalette(
 
 
 @dataclass
-class AnimationEvent(ABC):
+class _AnimationEvent(ABC):
     """
     An abstract class representing a single step of the animation, usually a single election round.
 
@@ -136,7 +136,7 @@ class AnimationEvent(ABC):
 
 
 @dataclass
-class EliminationEvent(AnimationEvent):
+class _EliminationEvent(_AnimationEvent):
     """
     An animation event representing a round in which a candidate was eliminated.
 
@@ -159,7 +159,7 @@ class EliminationEvent(AnimationEvent):
 
 
 @dataclass
-class EliminationOffscreenEvent(AnimationEvent):
+class _EliminationOffscreenEvent(_AnimationEvent):
     """
     An animation event representing some number of rounds in which offscreen candidates
         were eliminated.
@@ -182,7 +182,7 @@ class EliminationOffscreenEvent(AnimationEvent):
 
 
 @dataclass
-class WinEvent(AnimationEvent):
+class _WinEvent(_AnimationEvent):
     """
     An animation event representing a round in which some number of candidates were elected.
 
@@ -246,7 +246,7 @@ class STVAnimation:
         color_palette (ColorPalette, optional): A color palette to use for the animation.
         candidate_dict (dict[str, dict[str, object]]): A dictionary mapping each candidate's
             name to a dictionary recording that candidate's support, display name, and color.
-        events (List[AnimationEvent]): A list of animation events in order of occurrence.
+        events (List[_AnimationEvent]): A list of animation events in order of occurrence.
 
     Raises:
         TypeError: ``focus`` was not a set, list, or recognized string literal.
@@ -377,7 +377,7 @@ class STVAnimation:
                 color_index += 1
         return candidate_dict
 
-    def _make_event_list(self, election: STV) -> List[AnimationEvent]:
+    def _make_event_list(self, election: STV) -> List[_AnimationEvent]:
         """
         Processes an STV election into a condensed list of animation events which roughly
         correspond to election rounds.
@@ -386,13 +386,13 @@ class STVAnimation:
             election (STV): The STV election to process.
 
         Returns:
-            List[AnimationEvent]: A list of the events of the election which are
+            List[_AnimationEvent]: A list of the events of the election which are
                 worthy of animation.
 
         Raises:
             ValueError: If multiple candidates are eliminated in the same election round.
         """
-        events: List[AnimationEvent] = []
+        events: List[_AnimationEvent] = []
         for round_number, election_round in enumerate(
             election.election_states[1:], start=1
         ):
@@ -414,7 +414,7 @@ class STVAnimation:
                     for name in elected_candidates
                 ]
                 events.append(
-                    WinEvent(
+                    _WinEvent(
                         quota=election.threshold,
                         candidates=elected_candidates,
                         display_names=display_names,
@@ -438,7 +438,7 @@ class STVAnimation:
                         self.candidate_dict[eliminated_candidate]["display_name"]
                     )
                     events.append(
-                        EliminationEvent(
+                        _EliminationEvent(
                             quota=election.threshold,
                             candidate=eliminated_candidate,
                             display_name=display_name,
@@ -450,7 +450,7 @@ class STVAnimation:
                     )
                 else:
                     events.append(
-                        EliminationOffscreenEvent(
+                        _EliminationOffscreenEvent(
                             quota=election.threshold,
                             support_transferred=support_transferred[
                                 eliminated_candidate
@@ -542,28 +542,28 @@ class STVAnimation:
         return transfers
 
     def _condense_offscreen_events(
-        self, events: List[AnimationEvent]
-    ) -> List[AnimationEvent]:
+        self, events: List[_AnimationEvent]
+    ) -> List[_AnimationEvent]:
         """
         Take a list of events and condense any consecutive offscreen events into one summarizing
         event. For instance, if ``events`` contains three offscreen eliminations in a row,
         this function will condense them into one offscreen elimination of three candidates.
 
         Args:
-            events (List[AnimationEvent]): A list of animation events to be condensed.
+            events (List[_AnimationEvent]): A list of animation events to be condensed.
 
         Returns:
-            List[AnimationEvent]: A condensed list of animation events.
+            List[_AnimationEvent]: A condensed list of animation events.
         """
         if len(events) == 0:
             return []
-        return_events: List[AnimationEvent] = [events[0]]
+        return_events: List[_AnimationEvent] = [events[0]]
         for event in events[1:]:
             # Unless the next and previous events were both offscreen, just add
             # the next event to the list
             if not isinstance(
-                return_events[-1], EliminationOffscreenEvent
-            ) or not isinstance(event, EliminationOffscreenEvent):
+                return_events[-1], _EliminationOffscreenEvent
+            ) or not isinstance(event, _EliminationOffscreenEvent):
                 return_events.append(event)
             # If both events are offscreen, condense them.
             else:
@@ -573,18 +573,18 @@ class STVAnimation:
         return return_events
 
     def _compose_offscreen_eliminations(
-        self, event1: EliminationOffscreenEvent, event2: EliminationOffscreenEvent
-    ) -> EliminationOffscreenEvent:
+        self, event1: _EliminationOffscreenEvent, event2: _EliminationOffscreenEvent
+    ) -> _EliminationOffscreenEvent:
         """
         Take two offscreen eliminations and "compose" them into a single offscreen elimination
         event summarizing both.
 
         Args:
-            event1 (EliminationOffscreenEvent): The first offscreen elimination event to compose.
-            event2 (EliminationOffscreenEvent): The second offscreen elimination event to compose.
+            event1 (_EliminationOffscreenEvent): The first offscreen elimination event to compose.
+            event2 (_EliminationOffscreenEvent): The second offscreen elimination event to compose.
 
         Returns:
-            EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and
+            _EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and
             ``event2``.
         """
         support_transferred: dict[str, float] = defaultdict(float)
@@ -594,7 +594,7 @@ class STVAnimation:
             support_transferred[key] += value
         round_numbers = event1.round_numbers + event2.round_numbers
         quota = event1.quota
-        return EliminationOffscreenEvent(
+        return _EliminationOffscreenEvent(
             quota=quota,
             support_transferred=support_transferred,
             round_numbers=round_numbers,
@@ -683,7 +683,7 @@ class ElectionScene(manim.Scene):
     Args:
         candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of
             attributes of the candidate.
-        events (List[AnimationEvent]): A list of animation events to be constructed and rendered.
+        events (List[_AnimationEvent]): A list of animation events to be constructed and rendered.
         title (Optional[str], optional): A string to be displayed at the beginning of the animation as a title screen.
             If ``None``, the animation will skip the title screen. Defaults to ``None``.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
@@ -694,7 +694,7 @@ class ElectionScene(manim.Scene):
     def __init__(
         self,
         candidate_dict: dict[str, dict],
-        events: List[AnimationEvent],
+        events: List[_AnimationEvent],
         title: Optional[str] = None,
         color_palette: ColorPalette = DARK_PALETTE,
     ):
@@ -763,17 +763,17 @@ class ElectionScene(manim.Scene):
             self._ticker_animation_shift(event_number)
             self._ticker_animation_highlight(event_number)
 
-            if isinstance(event, EliminationEvent):  # Onscreen candidate eliminated
+            if isinstance(event, _EliminationEvent):  # Onscreen candidate eliminated
                 # Remove the candidate from the candidate list
                 eliminated_candidates = {
                     event.candidate: self.candidate_dict.pop(event.candidate)
                 }
                 self._animate_elimination(eliminated_candidates, event)
             elif isinstance(
-                event, EliminationOffscreenEvent
+                event, _EliminationOffscreenEvent
             ):  # Offscreen candidate eliminated
                 self._animate_elimination_offscreen(event)
-            elif isinstance(event, WinEvent):  # Election round
+            elif isinstance(event, _WinEvent):  # Election round
                 # Remove the candidates from the candidate list
                 elected_candidates = {}
                 for name in event.candidates:
@@ -871,7 +871,7 @@ class ElectionScene(manim.Scene):
                 fill_opacity=1,
             ).shift(UP * self.ticker_tape_height)
             # Background must be in the back, but not behind the play-by-play
-            .set_z_index(ZIndex.BACKGROUND)
+            .set_z_index(_ZIndex.BACKGROUND)
         )
 
         # Draw the bars and names
@@ -901,7 +901,7 @@ class ElectionScene(manim.Scene):
         )
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
         # Keep this line in front of the bars and the quota line
-        ticker_line.set_z_index(ZIndex.TICKER_LINE)
+        ticker_line.set_z_index(_ZIndex.TICKER_LINE)
         self.ticker_tape_line = ticker_line
         self.ticker_tape = []
         for i, event in enumerate(self.events):
@@ -915,7 +915,7 @@ class ElectionScene(manim.Scene):
             else:
                 new_message.next_to(self.ticker_tape[-1], DOWN)
             # Messages need to disappear behind the background rectangle as they scroll by.
-            new_message.set_z_index(ZIndex.TICKER_MESSAGE)
+            new_message.set_z_index(_ZIndex.TICKER_MESSAGE)
             self.ticker_tape.append(new_message)
 
         self.play(Create(ticker_line))
@@ -985,7 +985,7 @@ class ElectionScene(manim.Scene):
             )
             self.quota_line.align_to(some_candidate["bars"][0], LEFT)
             self.quota_line.shift((self.width * quota / self.max_support) * RIGHT)
-            self.quota_line.set_z_index(ZIndex.QUOTA_LINE)
+            self.quota_line.set_z_index(_ZIndex.QUOTA_LINE)
 
             self.play(Create(self.quota_line))
             self.wait(2)
@@ -997,7 +997,7 @@ class ElectionScene(manim.Scene):
             )
 
     def _animate_win(
-        self, cands_transferred_from: dict[str, dict], event: WinEvent
+        self, cands_transferred_from: dict[str, dict], event: _WinEvent
     ) -> None:
         """
         Animate a round in which one or more candidates are elected.
@@ -1006,7 +1006,7 @@ class ElectionScene(manim.Scene):
             cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
                 candidates elected this round and the values are dictionaries recording
                 the candidate's attributes.
-            event (WinEvent): The event to be animated.
+            event (_WinEvent): The event to be animated.
         """
         # Box the winners' names
         winner_boxes = [
@@ -1099,7 +1099,7 @@ class ElectionScene(manim.Scene):
                 exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
             # Keep this bar behind the others
             # This helps things look clean in edge cases when there are few exhausted votes
-            exhausted_bar.set_z_index(ZIndex.BACKGROUND)
+            exhausted_bar.set_z_index(_ZIndex.BACKGROUND)
             transformations.append(Uncreate(exhausted_bar))
 
             # Animate the splitting of the old bar into the new sub_bars
@@ -1116,7 +1116,7 @@ class ElectionScene(manim.Scene):
                 self.play(*transformations)
 
     def _animate_elimination(
-        self, cands_transferred_from: dict[str, dict], event: EliminationEvent
+        self, cands_transferred_from: dict[str, dict], event: _EliminationEvent
     ) -> None:
         """
         Animate a round in which a candidate was eliminated.
@@ -1125,7 +1125,7 @@ class ElectionScene(manim.Scene):
             cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
                 candidates eliminated this round and the values are dictionaries recording
                 the candidate's attributes.
-            event (EliminationEvent): The event to be animated.
+            event (_EliminationEvent): The event to be animated.
 
         Notes:
             While the interface supports multiple candidate eliminations in one round for
@@ -1209,12 +1209,12 @@ class ElectionScene(manim.Scene):
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
         self.play(Uncreate(exhausted_bar), *transformations)
 
-    def _animate_elimination_offscreen(self, event: EliminationOffscreenEvent) -> None:
+    def _animate_elimination_offscreen(self, event: _EliminationOffscreenEvent) -> None:
         """
         Animate a round in which offscreen candidates were eliminated.
 
         Args:
-            event (EliminationOffscreenEvent): The event to be animated.
+            event (_EliminationOffscreenEvent): The event to be animated.
         """
         destinations = event.support_transferred
         # Create short bars that will begin offscreen
