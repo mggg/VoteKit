@@ -72,6 +72,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._pv_validate_input(grouped_profile)
 
         self._df = grouped_profile.df.copy()
+        assert grouped_profile.max_ranking_length is not None
         self._ranking_cols = [
             f"Ranking_{i}" for i in range(1, grouped_profile.max_ranking_length + 1)
         ]
@@ -259,8 +260,8 @@ class _IterativeVetoBase(RankingElection, ABC):
     def _is_finished(self) -> bool:
         # for PluralityVeto, candidates are only elected in the final round, all at once
         elected = self.election_states[-1].elected
-        elected = frozenset.union(*elected)
-        return len(elected) > 0
+        elected_set = frozenset.union(*elected)
+        return len(elected_set) > 0
 
     def _reset(self):
         """
@@ -328,15 +329,15 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._internal_round_number += 1
 
         new_scores = prev_state.scores.copy()
-        remaining = self.candidates - self._eliminated
-        if len(remaining) == self.m:
-            electable_candidates = remaining
-            eliminated = frozenset()
+        remaining_set = self.candidates - self._eliminated
+        if len(remaining_set) == self.m:
+            electable_candidates = remaining_set
+            eliminated_set: frozenset[str] = frozenset()
         else:
-            eliminated, electable_candidates = self._veto_loop(new_scores)
+            eliminated_set, electable_candidates = self._veto_loop(new_scores)
 
-        self._eliminated.update(eliminated)
-        for c in eliminated | electable_candidates:
+        self._eliminated.update(eliminated_set)
+        for c in eliminated_set | electable_candidates:
             del new_scores[c]
 
         if len(electable_candidates) > 0:
@@ -353,7 +354,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         else:
             elected = (frozenset(),)
             new_profile = remove_and_condense_rank_profile(
-                removed=list(eliminated),
+                removed=list(eliminated_set),
                 profile=profile,
                 remove_zero_weight_ballots=False,
                 remove_empty_ballots=False,
@@ -361,10 +362,11 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         if store_states:
             remaining = score_dict_to_ranking(new_scores)
+            eliminated = (eliminated_set,)
             new_state = ElectionState(
                 round_number=prev_state.round_number + 1,
                 elected=elected,
-                eliminated=(eliminated,),
+                eliminated=eliminated,
                 remaining=remaining,
                 scores=new_scores,
             )
@@ -389,9 +391,10 @@ class PluralityVeto(_IterativeVetoBase):
             elected (frozenset[str]): Candidates worthy of election.
         """
 
-        eliminated = elected = ()
+        eliminated: set[str] = set()
+        elected: frozenset[str] = frozenset()
         if self._internal_round_number == 0:
-            eliminated = tuple(c for c, score in scores.items() if score <= 0)
+            eliminated.update(c for c, score in scores.items() if score <= 0)
 
         while not eliminated:
             voter_idx = self._voter_order[self._voter_order_current_index]
@@ -402,9 +405,9 @@ class PluralityVeto(_IterativeVetoBase):
             self._voter_order_current_index += 1
 
             if scores[veto] <= 0:
-                eliminated = (veto,)
+                eliminated.add(veto)
 
-        return frozenset(eliminated), frozenset(elected)
+        return frozenset(eliminated), elected
 
 
 class SerialVeto(_IterativeVetoBase):
@@ -424,14 +427,15 @@ class SerialVeto(_IterativeVetoBase):
             eliminated (frozenset[str]): Candidates worthy of elimination.
             elected (frozenset[str]): Candidates worthy of election.
         """
-        eliminated = elected = ()
+        eliminated: set[str] = set()
+        elected: frozenset[str] = frozenset()
         while self._voter_order_current_index < len(self._voter_order):
             voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)
             veto = self._get_veto(ballot_idx)
 
             if scores[veto] <= 0:
-                eliminated = (veto,)
+                eliminated.add(veto)
                 break
 
             scores[veto] -= 1
@@ -439,4 +443,4 @@ class SerialVeto(_IterativeVetoBase):
         else:
             # if we run out of voters, there's a tie
             elected = self.candidates - self._eliminated
-        return frozenset(eliminated), frozenset(elected)
+        return frozenset(eliminated), elected
