@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
 import random
+from abc import ABC, abstractmethod
 from functools import partial
 from typing import Literal
 
@@ -29,8 +29,8 @@ class _IterativeVetoBase(RankingElection, ABC):
     Partial ballots are handled by assuming that unranked candidates tie for last place.
 
     Args:
-        profile (RankProfile): RankProfile to run election on. Note that
-            ballots must have integer weights to be considered valid for this mechanism.
+        profile (RankProfile): RankProfile to run election on.
+            All ballots must have integer weights.
         m (int): Number of seats to elect.
         tiebreak (str): Tiebreak method to use. Options are 'first_place', 'random', or 'borda'.
             Used to determine veto when multiple candidates are tied for last place on a ballot.
@@ -38,21 +38,23 @@ class _IterativeVetoBase(RankingElection, ABC):
             in advance, using the initial profile. Thus, for 'borda' tiebreak, Borda scores are not
             recalculated as candidates are eliminated.
         scoring_tie_convention (str): How to award points for tied first-place votes. Defaults to
-            "average", where if n candidates are tied for first, each receives 1/n points.
-            "high" would award them each one point, and "low" 0.
+            'average', where if n candidates are tied for first, each receives 1/n points.
+            'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
 
     Attributes:
         m (int): The number of seats to be filled in the election.
         candidates (frozenset[str]): The set of candidates in the election.
-        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break last-place ties
-            when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
+        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+            last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
     Raises:
-        ValueError: If ``m`` is less than or equal to 0, or if ``m`` exceeds the number of
-            candidates in the profile who received votes.
-        TypeError: If the profile contains invalid ballots.
+        ValueError: If any of the following:
+            - ``m`` is less than or equal to 0
+            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - a ballot has no ranking,
+            - a ballot has non-integer weight.
     """
 
     def __init__(
@@ -90,12 +92,13 @@ class _IterativeVetoBase(RankingElection, ABC):
         )
 
         # for each ballot, save the position where we last left off when looking for a veto
-        self._veto_position_cache: list[int | None] = [None] * len(self._df)
+        self._n_ballots = len(self._df)
+        self._veto_position_cache: list[int | None] = [None] * self._n_ballots
 
         self.tiebreak_order = None
         if self.tiebreak != "random":
             # stores the most recent veto each ballot gave
-            self._veto_cache = ["" for _ in range(len(self._df))]
+            self._veto_cache = ["" for _ in range(self._n_ballots)]
 
             self.tiebreak_order = tiebreak_set(
                 self.candidates,
@@ -110,8 +113,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         self._internal_round_number = 0
 
-        # Election base class calls _run_election on instantiation,
-        # so this must be at the end of __init__
+        # Election base class calls _run_election on instantiation, so this must be at the end
         super().__init__(
             grouped_profile,
             score_function=partial(
@@ -123,6 +125,16 @@ class _IterativeVetoBase(RankingElection, ABC):
         """
         Validates input to PluralityVeto.
         Checks that each ballot has a ranking and that each ballot has integer weight.
+
+        Args:
+            profile (RankProfile): RankProfile to run election on.
+
+        Raises:
+            ValueError: If any of the following:
+                - ``m`` is less than or equal to 0
+                - ``m`` exceeds the number of candidates in the profile who received votes,
+                - a ballot has no ranking,
+                - a ballot has non-integer weight.
         """
         if self.m <= 0:
             raise ValueError("m must be positive.")
@@ -131,19 +143,25 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         for ballot in profile.ballots:
             if ballot.ranking is None:
-                raise TypeError("Ballots must have rankings.")
+                raise ValueError("Ballots must have rankings.")
             elif int(ballot.weight) != ballot.weight:
-                raise TypeError(f"Ballot {ballot} has non-integer weight.")
+                raise ValueError(f"Ballot {ballot} has non-integer weight.")
 
     def _get_ballot_idx(self, voter_idx: int) -> np.intp:
         """
-        Converts a voter index in [0, num_voters) to a ballot index in [0, len(self._df)) that can
+        Converts a voter index in [0, num_voters) to a ballot index in [0, n_ballots) that can
         be used to retrieve the row in self._df corresponding to that voter's ballot.
+
+        Args:
+            voter_idx (int): A voter index in [0, num_voters)
+
+        Returns:
+            np.intp: A ballot index in [0, n_ballots).
         """
         ballot_idx = np.searchsorted(self._cumsum, voter_idx, side="right")
-        if ballot_idx >= len(self._df):
+        if ballot_idx >= self._n_ballots:
             raise IndexError(
-                f"Voter index {voter_idx} out of range for a profile of {len(self._df)} ballots."
+                f"Voter index {voter_idx} out of range for a profile of {self._n_ballots} ballots."
             )
         return ballot_idx
 
@@ -164,12 +182,12 @@ class _IterativeVetoBase(RankingElection, ABC):
             def rank(c: str) -> float:
                 return random.random()
 
-        # in _tiebreak_order, higher position is worse; veto the worst remaining
         else:
 
             def rank(c: str) -> float:
                 return self._tiebreak_ranks[c]
 
+        # in _tiebreak_order, higher position is worse; veto the worst remaining
         return max(candidate_set, key=rank)
 
     def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
@@ -179,7 +197,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         ranking using the position cache.
 
         Args:
-            ballot_idx (int): A ballot index in [0, len(self._df)).
+            ballot_idx (np.intp): A ballot index in [0, n_ballots).
 
         Returns:
             frozenset[str]: The candidate(s) tied for last place on this ballot.
@@ -214,10 +232,10 @@ class _IterativeVetoBase(RankingElection, ABC):
         the new veto and updates _veto_cache.
 
         Args:
-            ballot_idx (int): A ballot index in [0, len(self._df)).
+            ballot_idx (int): A ballot index in [0, n_ballots).
 
         Returns:
-            veto (str): The candidate to be vetoed.
+            str: The candidate to be vetoed.
 
         Raises:
             RuntimeError: If the ballot contains no remaining candidates.
@@ -252,9 +270,9 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._internal_round_number = 0
         self._eliminated = set("~")
         self._voter_order_current_index = 0
-        self._veto_position_cache = [None] * len(self._df)
+        self._veto_position_cache = [None] * self._n_ballots
         if self.tiebreak != "random":
-            self._veto_cache = ["" for _ in range(len(self._df))]
+            self._veto_cache = ["" for _ in range(self._n_ballots)]
 
     @abstractmethod
     def _veto_loop(
@@ -274,8 +292,9 @@ class _IterativeVetoBase(RankingElection, ABC):
             scores (dict[str, float]): Mutable score dict, modified in place.
 
         Returns:
-            eliminated (frozenset[str]): Candidates worthy of elimination.
-            elected (frozenset[str]): Candidates worthy of election.
+            tuple[frozenset[str], frozenset[str]]: A 2-tuple of (eliminated, elected),
+                where eliminated contains candidates worthy of elimination
+                and elected contains candidates worthy of election.
         """
         raise NotImplementedError
 
@@ -304,7 +323,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self._reset()
             else:
                 raise ValueError(
-                    "Calling _run_step on the middle of a PluralityVeto election is not permitted."
+                    f"Calling _run_step on the middle of a {self.__class__.__name__} election is not permitted."
                 )
         self._internal_round_number += 1
 
@@ -317,7 +336,7 @@ class _IterativeVetoBase(RankingElection, ABC):
             eliminated, electable_candidates = self._veto_loop(new_scores)
 
         self._eliminated.update(eliminated)
-        for c in eliminated:
+        for c in eliminated | electable_candidates:
             del new_scores[c]
 
         if len(electable_candidates) > 0:

@@ -7,8 +7,7 @@ from joblib import Parallel, delayed
 from typing_extensions import Sequence
 
 from votekit.ballot import RankBallot
-from votekit.elections import PluralityVeto
-from votekit.elections import SerialVeto
+from votekit.elections import PluralityVeto, SerialVeto
 from votekit.pref_profile import RankProfile
 
 BALLOT_WEIGHT = 5
@@ -53,7 +52,7 @@ def test_plurality_veto_errors():
     with pytest.raises(ValueError, match="m must be positive."):
         PluralityVeto(RankProfile(), m=0)
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
+    with pytest.raises(ValueError, match="Ballots must have rankings."):
         b1 = RankBallot(ranking=("A",))
         b2 = RankBallot()
         PluralityVeto(RankProfile(ballots=(b1, b2)), m=1)
@@ -61,7 +60,7 @@ def test_plurality_veto_errors():
     non_int_weight_msg = (
         r"Ballot RankBallot\n1.\) A, \nWeight: 0.5 has non-integer weight."
     )
-    with pytest.raises(TypeError, match=non_int_weight_msg):
+    with pytest.raises(ValueError, match=non_int_weight_msg):
         b1 = RankBallot(ranking=("A",), weight=1 / 2)
         PluralityVeto(RankProfile(ballots=(b1,)), m=1)
 
