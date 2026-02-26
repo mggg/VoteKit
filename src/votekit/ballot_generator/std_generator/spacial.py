@@ -207,6 +207,16 @@ def clustered_spacial_profile_and_positions_generator(
     Samples candidate positions first, then samples each voter around the
     candidate they are assigned to in ``number_of_ballots``.
 
+    Example:
+        profile, cand_pos, voter_pos = clustered_spacial_profile_and_positions_generator(
+            number_of_ballots={"A": 40, "B": 35, "C": 25},
+            candidates=["A", "B", "C"],
+            voter_dist=np.random.normal,
+            voter_dist_kwargs={"loc": 0.0, "scale": 0.5, "size": 2},
+            candidate_dist=np.random.uniform,
+            candidate_dist_kwargs={"low": -1.0, "high": 1.0, "size": 2},
+        )
+
     Args:
         number_of_ballots (dict[str, int]): The number of voters attributed
                     to each candidate {candidate string: # voters}.
