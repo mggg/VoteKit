@@ -1,6 +1,6 @@
 import random
 from functools import partial
-from typing import Callable, Literal
+from typing import Literal
 
 import numpy as np
 
@@ -15,13 +15,15 @@ from votekit.utils import (
 )
 
 
-# TODO: make a parent class for these and have SerialVeto and PluralityVeto inherit from it
-class PluralityVeto(RankingElection):
+class SequentialVeto(RankingElection):
     """
     Scores each candidate by their plurality (number of first place) votes,
     then in a randomized order it lets each voter decrement the score of their
-    least favorite remaining candidate. Candidates are eliminated when their score
-    reaches 0. The last m candidates standing are the winners.
+    least favorite remaining candidate.
+    In PluralityVeto, candidates are eliminated immediately when their score reaches zero.
+    In SerialVeto, candidates with zero score are only eliminated when a voter attempts to veto
+    them, which does not use up that voter's veto.
+    In either case, the last m candidates standing are the winners.
 
     Partial ballots are handled by assuming that unranked candidates tie for last place.
 
@@ -39,9 +41,6 @@ class PluralityVeto(RankingElection):
             "high" would award them each one point, and "low" 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
-        elimination_strategy (str): 'naive' eliminates candidates when their score hits zero.
-            'careful' eliminates candidates only when they have zero score and a voter attempts to
-            veto them (which does not use up that voter's veto).
 
     Attributes:
         m (int): The number of seats to be filled in the election.
@@ -61,20 +60,12 @@ class PluralityVeto(RankingElection):
         m: int = 1,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
-        elimination_strategy: Literal["naive", "careful"] = "naive",
     ):
         grouped_profile = profile.group_ballots()
 
         self.m = m
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
-        self._veto_loop: Callable[
-            [dict[str, float]], tuple[frozenset[str], frozenset[str]]
-        ] = (
-            self._serial_veto_loop
-            if elimination_strategy == "careful"
-            else self._plurality_veto_loop
-        )
         self._pv_validate_input(grouped_profile)
 
         self._df = grouped_profile.df.copy()
@@ -178,7 +169,7 @@ class PluralityVeto(RankingElection):
 
         return max(candidate_set, key=rank)
 
-    def _find_potential_vetoes_set(self, ballot_idx: np.intp) -> frozenset[str]:
+    def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
         """
         Given a ballot index, returns the set of last-place candidates (before tiebreaking).
         First considers unlisted candidates; if all eliminated, walks backward through the
@@ -233,7 +224,7 @@ class PluralityVeto(RankingElection):
             if most_recent_veto and most_recent_veto not in self._eliminated:
                 return most_recent_veto
 
-        potential_vetoes = self._find_potential_vetoes_set(ballot_idx)
+        potential_vetoes = self._find_potential_vetoes(ballot_idx)
         if not potential_vetoes:
             raise RuntimeError(
                 "Attempted to get veto from a ballot that contained no remaining candidates."
@@ -262,12 +253,18 @@ class PluralityVeto(RankingElection):
         if self.tiebreak != "random":
             self._veto_cache = ["" for _ in range(len(self._df))]
 
-    def _plurality_veto_loop(
+    def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
         """
-        Processes vetoes until some candidate's score reaches zero.
-        Each voter decrements the score of their least favorite remaining candidate.
+        Abstract method for veto loop to be defined by subclasses.
+
+        Processes vetoes one at a time, updating self._voter_order_pointer appropriately.
+        Each voter decrements the score of their least favorite remaining candidate,
+        updating the mutable scores dict in place.
+
+        Returning a non-empty ``elected`` signals the end of the election.
+        Ties will be broken in _run_step.
 
         Args:
             scores (dict[str, float]): Mutable score dict, modified in place.
@@ -276,56 +273,7 @@ class PluralityVeto(RankingElection):
             eliminated (frozenset[str]): Candidates worthy of elimination.
             elected (frozenset[str]): Candidates worthy of election.
         """
-
-        eliminated = elected = ()
-        if self._internal_round_number == 0:
-            eliminated = tuple(c for c, score in scores.items() if score <= 0)
-
-        while not eliminated:
-            voter_idx = self._voter_order[self._voter_order_pointer]
-            ballot_idx = self._get_ballot_idx(voter_idx)
-            veto = self._get_veto(ballot_idx)
-
-            scores[veto] -= 1
-            self._voter_order_pointer += 1
-
-            if scores[veto] <= 0:
-                eliminated = (veto,)
-
-        return frozenset(eliminated), frozenset(elected)
-
-    def _serial_veto_loop(
-        self, scores: dict[str, float]
-    ) -> tuple[frozenset[str], frozenset[str]]:
-        """
-        Processes vetoes until some candidate is eliminated or all vetoes have been processed.
-        Zero-score candidates are only eliminated when a voter attempts to veto them,
-        which does not use up that voter's veto.
-        If all vetoes are processed, elects all remaining candidates, breaking ties if necessary.
-
-        Args:
-            scores (dict[str, float]): Mutable score dict, modified in place.
-
-        Returns:
-            eliminated (frozenset[str]): Candidates worthy of elimination.
-            elected (frozenset[str]): Candidates worthy of election.
-        """
-        eliminated = elected = ()
-        while self._voter_order_pointer < len(self._voter_order):
-            voter_idx = self._voter_order[self._voter_order_pointer]
-            ballot_idx = self._get_ballot_idx(voter_idx)
-            veto = self._get_veto(ballot_idx)
-
-            if scores[veto] <= 0:
-                eliminated = (veto,)
-                break
-
-            scores[veto] -= 1
-            self._voter_order_pointer += 1
-        else:
-            # if we run out of voters, there's a tie
-            elected = self.candidates - self._eliminated
-        return frozenset(eliminated), frozenset(elected)
+        raise NotImplementedError
 
     def _run_step(
         self, profile: RankProfile, prev_state: ElectionState, store_states=False
@@ -380,7 +328,7 @@ class PluralityVeto(RankingElection):
             elected = tiebroken_order[: self.m]
             new_profile = RankProfile()
         else:
-            elected = (frozenset(),)
+            elected = (electable_candidates,)
             new_profile = remove_and_condense_rank_profile(
                 removed=list(eliminated),
                 profile=profile,
@@ -400,3 +348,72 @@ class PluralityVeto(RankingElection):
 
             self.election_states.append(new_state)
         return new_profile
+
+
+class PluralityVeto(SequentialVeto):
+    def _veto_loop(
+        self, scores: dict[str, float]
+    ) -> tuple[frozenset[str], frozenset[str]]:
+        """
+        Processes vetoes until some candidate's score reaches zero.
+        Each voter decrements the score of their least favorite remaining candidate.
+
+        Args:
+            scores (dict[str, float]): Mutable score dict, modified in place.
+
+        Returns:
+            eliminated (frozenset[str]): Candidates worthy of elimination.
+            elected (frozenset[str]): Candidates worthy of election.
+        """
+
+        eliminated = elected = ()
+        if self._internal_round_number == 0:
+            eliminated = tuple(c for c, score in scores.items() if score <= 0)
+
+        while not eliminated:
+            voter_idx = self._voter_order[self._voter_order_pointer]
+            ballot_idx = self._get_ballot_idx(voter_idx)
+            veto = self._get_veto(ballot_idx)
+
+            scores[veto] -= 1
+            self._voter_order_pointer += 1
+
+            if scores[veto] <= 0:
+                eliminated = (veto,)
+
+        return frozenset(eliminated), frozenset(elected)
+
+
+class SerialVeto(SequentialVeto):
+    def _veto_loop(
+        self, scores: dict[str, float]
+    ) -> tuple[frozenset[str], frozenset[str]]:
+        """
+        Processes vetoes until some candidate is eliminated or all vetoes have been processed.
+        Zero-score candidates are only eliminated when a voter attempts to veto them,
+        which does not use up that voter's veto.
+        If all vetoes are processed, elects all remaining candidates.
+
+        Args:
+            scores (dict[str, float]): Mutable score dict, modified in place.
+
+        Returns:
+            eliminated (frozenset[str]): Candidates worthy of elimination.
+            elected (frozenset[str]): Candidates worthy of election.
+        """
+        eliminated = elected = ()
+        while self._voter_order_pointer < len(self._voter_order):
+            voter_idx = self._voter_order[self._voter_order_pointer]
+            ballot_idx = self._get_ballot_idx(voter_idx)
+            veto = self._get_veto(ballot_idx)
+
+            if scores[veto] <= 0:
+                eliminated = (veto,)
+                break
+
+            scores[veto] -= 1
+            self._voter_order_pointer += 1
+        else:
+            # if we run out of voters, there's a tie
+            elected = self.candidates - self._eliminated
+        return frozenset(eliminated), frozenset(elected)

@@ -8,6 +8,7 @@ from typing_extensions import Sequence
 
 from votekit.ballot import RankBallot
 from votekit.elections import PluralityVeto
+from votekit.elections import SerialVeto
 from votekit.pref_profile import RankProfile
 
 BALLOT_WEIGHT = 5
@@ -135,7 +136,9 @@ def test_plurality_veto_4_candidates_random_tiebreaking():
 
 def test_serial_veto():
     profile = make_complete_ballots(candidates=("A", "B", "C"))
-    election = PluralityVeto(
-        profile, 1, tiebreak="first_place", elimination_strategy="careful"
+    election = SerialVeto(
+        profile,
+        1,
+        tiebreak="first_place",
     )
     assert election.get_elected()
