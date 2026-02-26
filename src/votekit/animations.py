@@ -33,6 +33,16 @@ import logging
 import warnings
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from enum import IntEnum
+
+
+class ZIndex(IntEnum):
+    """Z-index layers controlling the front-to-back draw order of Manim objects."""
+
+    TICKER_MESSAGE = -2
+    BACKGROUND = -1
+    QUOTA_LINE = 1
+    TICKER_LINE = 2
 
 
 @dataclass
@@ -637,7 +647,7 @@ class STVAnimation:
             if in_notebook:
                 from IPython.display import Video, display
 
-                display(Video(str(self._video_path)))
+                display(Video(str(self._video_path), embed=True))
 
     def save(self, save_path: str | Path) -> None:
         """
@@ -857,7 +867,7 @@ class ElectionScene(manim.Scene):
                 fill_opacity=1,
             ).shift(UP * self.ticker_tape_height)
             # Background must be in the back, but not behind the play-by-play
-            .set_z_index(-1)
+            .set_z_index(ZIndex.BACKGROUND)
         )
 
         # Draw the bars and names
@@ -887,7 +897,7 @@ class ElectionScene(manim.Scene):
         )
         ticker_line.to_edge(DOWN, buff=0).shift(UP * self.ticker_tape_height)
         # Keep this line in front of the bars and the quota line
-        ticker_line.set_z_index(2)
+        ticker_line.set_z_index(ZIndex.TICKER_LINE)
         self.ticker_tape_line = ticker_line
         self.ticker_tape = []
         for i, event in enumerate(self.events):
@@ -901,7 +911,7 @@ class ElectionScene(manim.Scene):
             else:
                 new_message.next_to(self.ticker_tape[-1], DOWN)
             # Messages need to disappear behind the background rectangle as they scroll by.
-            new_message.set_z_index(-2)
+            new_message.set_z_index(ZIndex.TICKER_MESSAGE)
             self.ticker_tape.append(new_message)
 
         self.play(Create(ticker_line))
@@ -971,7 +981,7 @@ class ElectionScene(manim.Scene):
             )
             self.quota_line.align_to(some_candidate["bars"][0], LEFT)
             self.quota_line.shift((self.width * quota / self.max_support) * RIGHT)
-            self.quota_line.set_z_index(1)  # Keep the quota line in the front
+            self.quota_line.set_z_index(ZIndex.QUOTA_LINE)
 
             self.play(Create(self.quota_line))
             self.wait(2)
@@ -1085,7 +1095,7 @@ class ElectionScene(manim.Scene):
                 exhausted_bar.next_to(winner_bar, RIGHT, buff=0)
             # Keep this bar behind the others
             # This helps things look clean in edge cases when there are few exhausted votes
-            exhausted_bar.set_z_index(-1)
+            exhausted_bar.set_z_index(ZIndex.BACKGROUND)
             transformations.append(Uncreate(exhausted_bar))
 
             # Animate the splitting of the old bar into the new sub_bars
