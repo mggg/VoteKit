@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import random
 from functools import partial
 from typing import Literal
@@ -15,7 +16,7 @@ from votekit.utils import (
 )
 
 
-class SequentialVeto(RankingElection):
+class _IterativeVetoBase(RankingElection, ABC):
     """
     Scores each candidate by their plurality (number of first place) votes,
     then in a randomized order it lets each voter decrement the score of their
@@ -79,7 +80,7 @@ class SequentialVeto(RankingElection):
 
         num_voters = int(grouped_profile.total_ballot_wt)
         self._voter_order = np.random.permutation(num_voters)
-        self._voter_order_pointer = 0
+        self._voter_order_current_index = 0
 
         self.candidates = frozenset(grouped_profile.candidates)
         self._eliminated = set("~")
@@ -109,6 +110,8 @@ class SequentialVeto(RankingElection):
 
         self._internal_round_number = 0
 
+        # Election base class calls _run_election on instantiation,
+        # so this must be at the end of __init__
         super().__init__(
             grouped_profile,
             score_function=partial(
@@ -243,23 +246,24 @@ class SequentialVeto(RankingElection):
 
     def _reset(self):
         """
-        Resets _internal_round_number and _voter_order_pointer to 0, resets veto caches,
+        Resets _internal_round_number and _voter_order_current_index to 0, resets veto caches,
         and empties _eliminated so that the election can be replayed from the start.
         """
         self._internal_round_number = 0
         self._eliminated = set("~")
-        self._voter_order_pointer = 0
+        self._voter_order_current_index = 0
         self._veto_position_cache = [None] * len(self._df)
         if self.tiebreak != "random":
             self._veto_cache = ["" for _ in range(len(self._df))]
 
+    @abstractmethod
     def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
         """
         Abstract method for veto loop to be defined by subclasses.
 
-        Processes vetoes one at a time, updating self._voter_order_pointer appropriately.
+        Processes vetoes one at a time, updating self._voter_order_current_index appropriately.
         Each voter decrements the score of their least favorite remaining candidate,
         updating the mutable scores dict in place.
 
@@ -316,7 +320,7 @@ class SequentialVeto(RankingElection):
         for c in eliminated:
             del new_scores[c]
 
-        if electable_candidates:
+        if len(electable_candidates) > 0:
             assert self.scoring_tie_convention in ("high", "average", "low")
             tiebroken_order = tiebreak_set(
                 electable_candidates,
@@ -328,7 +332,7 @@ class SequentialVeto(RankingElection):
             elected = tiebroken_order[: self.m]
             new_profile = RankProfile()
         else:
-            elected = (electable_candidates,)
+            elected = (frozenset(),)
             new_profile = remove_and_condense_rank_profile(
                 removed=list(eliminated),
                 profile=profile,
@@ -350,7 +354,7 @@ class SequentialVeto(RankingElection):
         return new_profile
 
 
-class PluralityVeto(SequentialVeto):
+class PluralityVeto(_IterativeVetoBase):
     def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
@@ -371,12 +375,12 @@ class PluralityVeto(SequentialVeto):
             eliminated = tuple(c for c, score in scores.items() if score <= 0)
 
         while not eliminated:
-            voter_idx = self._voter_order[self._voter_order_pointer]
+            voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)
             veto = self._get_veto(ballot_idx)
 
             scores[veto] -= 1
-            self._voter_order_pointer += 1
+            self._voter_order_current_index += 1
 
             if scores[veto] <= 0:
                 eliminated = (veto,)
@@ -384,7 +388,7 @@ class PluralityVeto(SequentialVeto):
         return frozenset(eliminated), frozenset(elected)
 
 
-class SerialVeto(SequentialVeto):
+class SerialVeto(_IterativeVetoBase):
     def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
@@ -402,8 +406,8 @@ class SerialVeto(SequentialVeto):
             elected (frozenset[str]): Candidates worthy of election.
         """
         eliminated = elected = ()
-        while self._voter_order_pointer < len(self._voter_order):
-            voter_idx = self._voter_order[self._voter_order_pointer]
+        while self._voter_order_current_index < len(self._voter_order):
+            voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)
             veto = self._get_veto(ballot_idx)
 
@@ -412,7 +416,7 @@ class SerialVeto(SequentialVeto):
                 break
 
             scores[veto] -= 1
-            self._voter_order_pointer += 1
+            self._voter_order_current_index += 1
         else:
             # if we run out of voters, there's a tie
             elected = self.candidates - self._eliminated
