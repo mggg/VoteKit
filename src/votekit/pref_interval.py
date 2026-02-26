@@ -55,18 +55,18 @@ class PreferenceInterval:
         interval (dict): A dictionary representing the given PreferenceInterval.
             The keys are candidate names, and the values are floats representing that candidates
             share of the interval. Does not have to sum to one, the init method will renormalize.
-            Does not include candidates with zero support.
+            Includes candidates with zero support.
         candidates (frozenset): A frozenset of candidates.
 
     Raises:
-        ValueError: If there are candidates with zero support.
+        ValueError: If support values cannot be normalized (sum to <= 0).
     """
 
     def __init__(self, interval: dict):
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
 
-        self._check_for_zero_support_cands()
+        self._check_for_normalizable_interval()
         self._normalize()
 
     @classmethod
@@ -89,16 +89,15 @@ class PreferenceInterval:
 
         return cls({c: s for c, s in zip(candidates, probs)})
 
-    def _check_for_zero_support_cands(self):
+    def _check_for_normalizable_interval(self):
         """
-        Check for candidates with zero support in the interval.
+        Check if the interval can be normalized.
 
         Raises:
-            ValueError: If there are candidates with zero support.
+            ValueError: If support values sum to <= 0.
         """
-        for cand, value in self.interval.items():
-            if value == 0:
-                raise ValueError(f"Candidate {cand} has zero support.")
+        if self.interval and sum(self.interval.values()) <= 0:
+            raise ValueError("Support values must sum to a positive number.")
 
     def _normalize(self):
         """

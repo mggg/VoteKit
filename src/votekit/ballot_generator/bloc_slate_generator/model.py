@@ -371,7 +371,7 @@ def convert_preference_map_to_preference_df(
 
             blocs_to_cand[bloc].update(cand_dict)
 
-    return pd.DataFrame(blocs_to_cand).fillna(0.0).T
+    return pd.DataFrame(blocs_to_cand).fillna(-1.0).T
 
 
 class _CandListProxy(MutableSequence[str]):
@@ -875,7 +875,9 @@ class BlocSlateConfig:
         else:
             self.__validate_pref_df_mapping_keys_ok_in_config(preference_mapping)
             preference_df = convert_preference_map_to_preference_df(preference_mapping)
-            preference_df = preference_df[self.candidates]  # ensure column order
+            preference_df = preference_df.reindex(
+                columns=self.candidates, fill_value=-1.0
+            )  # ensure column order and preserve unset candidates
         object.__setattr__(self, "preference_df", preference_df)
 
         object.__setattr__(self, "_BlocSlateConfig__alphas", None)
@@ -1155,25 +1157,58 @@ class BlocSlateConfig:
                 for cand_list_proxy in self.slate_to_candidates.values():
                     cand_list = list(cand_list_proxy)
                     for row in self.preference_df[cand_list].iterrows():
-                        if any(row[1] < 0):
+                        bloc_name = str(row[0])
+                        row_vals = row[1]
+                        try:
+                            vals = row_vals.to_numpy(dtype=float)
+                        except (TypeError, ValueError):
                             errors.append(
-                                ValueError(
-                                    f"preference_df row for bloc '{row[0]}' has values that have "
-                                    f"not been set (indicated with value of -1)."
+                                TypeError(
+                                    f"preference_df row for bloc '{bloc_name}' must contain "
+                                    "numeric values."
                                 )
                             )
-                        elif any(row[1] == 0):
+                            continue
+
+                        if not np.isfinite(vals).all():
                             errors.append(
                                 ValueError(
-                                    f"preference_df row for bloc '{row[0]}' has values that are "
-                                    "zero. All candidates must have non-zero support."
+                                    f"preference_df row for bloc '{bloc_name}' contains "
+                                    "non-finite values."
                                 )
                             )
-                        elif abs(row[1].sum() - 1.0) > 1e-8:
+                            continue
+
+                        negative_mask = vals < 0
+                        if negative_mask.any():
+                            unset_mask = np.isclose(vals, -1.0, atol=1e-8)
+                            invalid_negative_mask = negative_mask & ~unset_mask
+                            if invalid_negative_mask.any():
+                                invalid_negatives = sorted(
+                                    {float(v) for v in vals[invalid_negative_mask]}
+                                )
+                                errors.append(
+                                    ValueError(
+                                        f"preference_df row for bloc '{bloc_name}' has invalid "
+                                        f"negative values {invalid_negatives}. Use -1 to mark "
+                                        "unset values."
+                                    )
+                                )
+                            else:
+                                errors.append(
+                                    ValueError(
+                                        f"preference_df row for bloc '{bloc_name}' has values "
+                                        f"that have "
+                                        f"not been set (indicated with value of -1)."
+                                    )
+                                )
+                            continue
+
+                        if abs(float(vals.sum()) - 1.0) > 1e-8:
                             errors.append(
                                 ValueError(
-                                    f"preference_df row for bloc '{row[0]}' and candidates "
-                                    f"{cand_list} must sum to 1, got {row[1].sum():.6f}"
+                                    f"preference_df row for bloc '{bloc_name}' and candidates "
+                                    f"{cand_list} must sum to 1, got {float(vals.sum()):.6f}"
                                 )
                             )
 
@@ -1208,18 +1243,55 @@ class BlocSlateConfig:
                 )
 
             for row in self.cohesion_df.iterrows():
-                if any(row[1] < 0):
+                bloc_name = str(row[0])
+                row_vals = row[1]
+                try:
+                    vals = row_vals.to_numpy(dtype=float)
+                except (TypeError, ValueError):
                     errors.append(
-                        ValueError(
-                            f"cohesion_df row for bloc '{row[0]}' has values that have not been "
-                            f"set (indicated with value of -1)."
+                        TypeError(
+                            f"cohesion_df row for bloc '{bloc_name}' must contain numeric values."
                         )
                     )
-                elif abs(row[1].sum() - 1.0) > 1e-8:
+                    continue
+
+                if not np.isfinite(vals).all():
                     errors.append(
                         ValueError(
-                            f"cohesion_df row for bloc '{row[0]}' must sum to 1, "
-                            f"got {row[1].sum():.6f}"
+                            f"cohesion_df row for bloc '{bloc_name}' contains non-finite values."
+                        )
+                    )
+                    continue
+
+                negative_mask = vals < 0
+                if negative_mask.any():
+                    unset_mask = np.isclose(vals, -1.0, atol=1e-8)
+                    invalid_negative_mask = negative_mask & ~unset_mask
+                    if invalid_negative_mask.any():
+                        invalid_negatives = sorted(
+                            {float(v) for v in vals[invalid_negative_mask]}
+                        )
+                        errors.append(
+                            ValueError(
+                                f"cohesion_df row for bloc '{bloc_name}' has invalid "
+                                f"negative values {invalid_negatives}. Use -1 to mark "
+                                "unset values."
+                            )
+                        )
+                    else:
+                        errors.append(
+                            ValueError(
+                                f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
+                                f"set (indicated with value of -1)."
+                            )
+                        )
+                    continue
+
+                if abs(float(vals.sum()) - 1.0) > 1e-8:
+                    errors.append(
+                        ValueError(
+                            f"cohesion_df row for bloc '{bloc_name}' must sum to 1, "
+                            f"got {float(vals.sum()):.6f}"
                         )
                     )
         return errors
@@ -1516,16 +1588,42 @@ class BlocSlateConfig:
                     f"Bloc '{bloc}' not found in preference_df index. "
                     f"Available blocs: {list(self.preference_df.index)}"
                 )
-            if any(self.preference_df[cand_list].loc[bloc] < 0):
+            row_vals = self.preference_df[cand_list].loc[bloc]
+            try:
+                vals = row_vals.to_numpy(dtype=float)
+            except (TypeError, ValueError):
+                raise TypeError(
+                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
+                    "contain numeric values."
+                )
+            if not np.isfinite(vals).all():
+                raise ValueError(
+                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' contains "
+                    "non-finite values."
+                )
+
+            negative_mask = vals < 0
+            if negative_mask.any():
+                unset_mask = np.isclose(vals, -1.0, atol=1e-8)
+                invalid_negative_mask = negative_mask & ~unset_mask
+                if invalid_negative_mask.any():
+                    invalid_negatives = sorted(
+                        {float(v) for v in vals[invalid_negative_mask]}
+                    )
+                    raise ValueError(
+                        f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
+                        f"invalid negative values {invalid_negatives}. Use -1 to mark unset "
+                        "values."
+                    )
                 raise ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
                     f"candidates {cand_list} that have not been set (indicated with "
                     f"value of -1)."
                 )
-            if abs(self.preference_df[cand_list].loc[bloc].sum() - 1.0) > 1e-8:
+            if abs(float(vals.sum()) - 1.0) > 1e-8:
                 raise ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
-                    f"sum to 1, got {self.preference_df[cand_list].loc[bloc].sum():.6f}"
+                    f"sum to 1, got {float(vals.sum()):.6f}"
                 )
 
         return PreferenceInterval(
@@ -1586,7 +1684,23 @@ class BlocSlateConfig:
         Note: Will set all uninitialized candidates (value -1.0) to 0.0 before
         normalizing.
         """
-        mask = self.preference_df == -1.0
+        try:
+            pref_values = self.preference_df.to_numpy(dtype=float)
+        except (TypeError, ValueError):
+            raise TypeError("preference_df must contain numeric values to normalize.")
+
+        if not np.isfinite(pref_values).all():
+            raise ValueError("preference_df contains non-finite values and cannot be normalized.")
+
+        invalid_negative_mask = (pref_values < 0) & (~np.isclose(pref_values, -1.0, atol=1e-8))
+        if invalid_negative_mask.any():
+            invalid_negatives = sorted({float(v) for v in pref_values[invalid_negative_mask]})
+            raise ValueError(
+                f"preference_df contains invalid negative values {invalid_negatives}. "
+                "Use -1 to mark unset values before normalization."
+            )
+
+        mask = np.isclose(pref_values, -1.0, atol=1e-8)
         self.preference_df = self.preference_df.mask(mask, 0.0)
         for cand_lst_proxy in self.slate_to_candidates.values():
             cand_list = list(cand_lst_proxy)
@@ -1601,7 +1715,29 @@ class BlocSlateConfig:
         Note: Will set all uninitialized slates (value -1.0) to 0.0 before
         normalizing.
         """
-        mask = self.cohesion_df == -1.0
+        try:
+            cohesion_values = self.cohesion_df.to_numpy(dtype=float)
+        except (TypeError, ValueError):
+            raise TypeError("cohesion_df must contain numeric values to normalize.")
+
+        if not np.isfinite(cohesion_values).all():
+            raise ValueError(
+                "cohesion_df contains non-finite values and cannot be normalized."
+            )
+
+        invalid_negative_mask = (cohesion_values < 0) & (
+            ~np.isclose(cohesion_values, -1.0, atol=1e-8)
+        )
+        if invalid_negative_mask.any():
+            invalid_negatives = sorted(
+                {float(v) for v in cohesion_values[invalid_negative_mask]}
+            )
+            raise ValueError(
+                f"cohesion_df contains invalid negative values {invalid_negatives}. "
+                "Use -1 to mark unset values before normalization."
+            )
+
+        mask = np.isclose(cohesion_values, -1.0, atol=1e-8)
         self.cohesion_df = self.cohesion_df.mask(mask, 0.0)
         self.cohesion_df = self.cohesion_df.div(self.cohesion_df.sum(axis=1), axis=0)
 

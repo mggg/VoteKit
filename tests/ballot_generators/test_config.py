@@ -445,7 +445,7 @@ def test_convert_preference_df_passthrough_and_duplicate_checks():
         convert_preference_map_to_preference_df(dup_cols)
 
 
-def test_convert_preference_mapping_unions_candidates_and_fills_zero():
+def test_convert_preference_mapping_unions_candidates_and_fills_unset_with_minus_one():
     pref = {
         "bloc1": {"slate1": {"A": 0.6, "B": 0.4}, "slate2": {"C": 1.0}},
         "bloc2": {"slate1": {"B": 1.0}, "slate2": {"C": 1.0}},
@@ -453,7 +453,7 @@ def test_convert_preference_mapping_unions_candidates_and_fills_zero():
     df = convert_preference_map_to_preference_df(pref)
     assert set(df.index) == {"bloc1", "bloc2"}
     assert set(df.columns) == {"A", "B", "C"}
-    assert df.loc["bloc2", "A"] == 0.0
+    assert df.loc["bloc2", "A"] == -1.0
     assert pd.api.types.is_numeric_dtype(df["A"].dtype)
 
 
@@ -1066,6 +1066,31 @@ def test_alt_valid_config(alt_valid_config):
     assert config.cohesion_df.equals(cohesion_df)
 
 
+def test_valid_config_allows_zero_preferences_and_bloc_named_slates():
+    config = BlocSlateConfig(
+        n_voters=10_000,
+        bloc_proportions={"Alpha": 0.8, "Xenon": 0.2},
+        slate_to_candidates={"Alpha": ["A", "B"], "Xenon": ["X", "Y"]},
+        preference_mapping={
+            "Alpha": {
+                "Alpha": PreferenceInterval({"A": 0.8, "B": 0.2}),
+                "Xenon": PreferenceInterval({"X": 0.0, "Y": 1.0}),
+            },
+            "Xenon": {
+                "Alpha": PreferenceInterval({"A": 0.5, "B": 0.5}),
+                "Xenon": PreferenceInterval({"X": 0.5, "Y": 0.5}),
+            },
+        },
+        cohesion_mapping={
+            "Alpha": {"Alpha": 0.9, "Xenon": 0.1},
+            "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
+        },
+    )
+
+    assert config.is_valid(raise_errors=True)
+    assert config.preference_df.loc["Alpha", "X"] == 0.0
+
+
 def test_pref_mapping_bad_types_errors(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100)
     with pytest.raises(
@@ -1475,6 +1500,27 @@ def test_error_when_preference_contains_unset_minus_one(valid_config):
     )
 
 
+def test_error_when_preference_contains_invalid_negative_not_unset(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    bloc = config.preference_df.index[0]
+    cand = config.slate_to_candidates["slate_1"][0]
+    config.preference_df.loc[bloc, cand] = -0.25
+    msgs = _messages(_det_errs(config))
+    assert any(
+        "invalid negative values" in m and "Use -1 to mark unset values." in m
+        for m in msgs
+    )
+
+
+def test_error_when_preference_contains_non_finite_values(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    bloc = config.preference_df.index[0]
+    cand = config.slate_to_candidates["slate_1"][0]
+    config.preference_df.loc[bloc, cand] = np.nan
+    msgs = _messages(_det_errs(config))
+    assert any("contains non-finite values" in m for m in msgs)
+
+
 def test_error_when_preference_row_sum_not_one_per_slate(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # Break slate_1 row sum for a bloc (set both to zero)
@@ -1502,8 +1548,8 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
     }
     with pytest.raises(
         ValueError,
-        match="preference_df row for bloc 'bloc_2' has values that are "
-        "zero. All candidates must have non-zero support.",
+        match="preference_df row for bloc 'bloc_2' has values that have not been set "
+        r"\(indicated with value of -1\)\.",
     ):
         BlocSlateConfig(
             bloc_proportions=valid_config["bloc_proportions"],
@@ -1526,8 +1572,8 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
     }
     with pytest.raises(
         ValueError,
-        match="preference_df row for bloc 'bloc_1' has values that are "
-        "zero. All candidates must have non-zero support.",
+        match="preference_df row for bloc 'bloc_1' has values that have not been set "
+        r"\(indicated with value of -1\)\.",
     ):
         BlocSlateConfig(
             bloc_proportions=valid_config["bloc_proportions"],
@@ -1538,7 +1584,7 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
         ).is_valid(raise_errors=True)
 
 
-def test_error_when_preference_row_has_zero_support_candidates(valid_config):
+def test_error_when_preference_row_sum_not_one_with_zero_support_candidate(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100)
 
     preference_mapping = {
@@ -1554,8 +1600,8 @@ def test_error_when_preference_row_has_zero_support_candidates(valid_config):
 
     with pytest.raises(
         ValueError,
-        match="preference_df row for bloc 'bloc_1' has values that are "
-        "zero. All candidates must have non-zero support.",
+        match="preference_df row for bloc 'bloc_1' and candidates "
+        r"\['X', 'Y'\] must sum to 1, got 0.9",
     ):
         config.preference_df = preference_mapping  # type: ignore[assignment]
         config.is_valid(raise_errors=True)
@@ -1593,6 +1639,27 @@ def test_error_when_cohesion_contains_unset_minus_one(valid_config):
         and "have not been set (indicated with value of -1)" in m
         for m in msgs
     )
+
+
+def test_error_when_cohesion_contains_invalid_negative_not_unset(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    bloc = config.cohesion_df.index[0]
+    slate = config.cohesion_df.columns[0]
+    config.cohesion_df.loc[bloc, slate] = -0.4
+    msgs = _messages(_det_errs(config))
+    assert any(
+        "invalid negative values" in m and "Use -1 to mark unset values." in m
+        for m in msgs
+    )
+
+
+def test_error_when_cohesion_contains_non_finite_values(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    bloc = config.cohesion_df.index[0]
+    slate = config.cohesion_df.columns[0]
+    config.cohesion_df.loc[bloc, slate] = np.inf
+    msgs = _messages(_det_errs(config))
+    assert any("contains non-finite values" in m for m in msgs)
 
 
 def test_error_when_cohesion_row_sum_not_one(valid_config):
@@ -1650,6 +1717,15 @@ def test_normalize_cohesion_df_sets_minus_one_to_zero_and_row_sums_to_one(valid_
     assert (config.cohesion_df.values >= 0).all()
 
 
+def test_normalize_cohesion_df_rejects_invalid_negative_values(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.cohesion_df.loc["bloc_1", "slate_1"] = -0.2
+    with pytest.raises(
+        ValueError, match="contains invalid negative values .*Use -1 to mark unset values"
+    ):
+        config.normalize_cohesion_df()
+
+
 def test_normalize_preference_intervals_sets_minus_one_to_zero_and_row_sums_by_slate(
     valid_config,
 ):
@@ -1665,6 +1741,15 @@ def test_normalize_preference_intervals_sets_minus_one_to_zero_and_row_sums_by_s
     for _, cand_list in config.slate_to_candidates.items():
         sub = config.preference_df[list(cand_list)]
         assert np.allclose(sub.sum(axis=1).to_numpy(), 1.0, atol=1e-9)
+
+
+def test_normalize_preference_intervals_rejects_invalid_negative_values(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.preference_df.loc["bloc_1", "A"] = -0.2
+    with pytest.raises(
+        ValueError, match="contains invalid negative values .*Use -1 to mark unset values"
+    ):
+        config.normalize_preference_intervals()
 
 
 # ---------- __setattr__-driven updates to DFs ----------
@@ -2492,6 +2577,27 @@ def test_raises_valueerror_when_any_candidate_unset_negative_one(valid_config):
         cfg.get_preference_interval_for_bloc_and_slate(
             bloc_name="bloc_1", slate_name="slate_1"
         )
+
+
+def test_raises_valueerror_when_any_candidate_negative_not_unset(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    cfg.preference_df.loc["bloc_1", "A"] = -0.2
+
+    with pytest.raises(ValueError, match="invalid negative values"):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="slate_1"
+        )
+
+
+def test_get_preference_interval_allows_explicit_zero_support(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    cfg.preference_df.loc["bloc_1", ["A", "B"]] = [0.0, 1.0]
+
+    out = cfg.get_preference_interval_for_bloc_and_slate(
+        bloc_name="bloc_1", slate_name="slate_1"
+    )
+    assert out.interval["A"] == 0.0
+    assert out.interval["B"] == 1.0
 
 
 def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):

@@ -24,9 +24,15 @@ def test_normalize():
     assert interval_1 == interval_2
 
 
-def test_zero_support_error():
-    with pytest.raises(ValueError, match="Candidate A has zero support."):
-        PreferenceInterval(interval={"A": 0, "B": 1})
+def test_zero_support_allowed():
+    pi = PreferenceInterval(interval={"A": 0, "B": 1})
+    assert pi.interval["A"] == 0
+    assert pi.interval["B"] == 1
+
+
+def test_all_zero_support_error():
+    with pytest.raises(ValueError, match="Support values must sum to a positive number."):
+        PreferenceInterval(interval={"A": 0, "B": 0})
 
 
 def test_eq():
