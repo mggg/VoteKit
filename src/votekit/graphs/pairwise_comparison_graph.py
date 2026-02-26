@@ -364,17 +364,19 @@ class PairwiseComparisonGraph(nx.DiGraph):
             # We filter for edges with weight > 0 to find strict cycles
             strict_edges = []
             for u, v, d in self.pairwise_graph.edges(data=True):
-                if d.get('weight', 0) > 0:
+                if d.get("weight", 0) > 0:
                     strict_edges.append((u, v, d))
-                    
+
             graph_to_use = nx.DiGraph()
             graph_to_use.add_nodes_from(self.pairwise_graph.nodes)
             graph_to_use.add_edges_from(strict_edges)
 
         list_of_cycles = nx.recursive_simple_cycles(graph_to_use)
         # Filtering for cycles with length > 2 as per docstring definition
-        return [set(x) for x in sorted(list_of_cycles, key=lambda x: len(x)) if len(x) > 2]
-    
+        return [
+            set(x) for x in sorted(list_of_cycles, key=lambda x: len(x)) if len(x) > 2
+        ]
+
     def has_condorcet_cycles(self) -> bool:
         """
         Checks if graph has any condorcet cycles, which we define as any cycle of length
