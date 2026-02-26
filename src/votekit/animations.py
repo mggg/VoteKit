@@ -629,7 +629,11 @@ class STVAnimation:
         self._temp_dir = tempfile.TemporaryDirectory()
         background_color = self.color_palette.background
         with manim.tempconfig(
-            {"media_dir": self._temp_dir.name, "background_color": background_color}
+            {
+                "media_dir": self._temp_dir.name,
+                "background_color": background_color,
+                "disable_caching": True,
+            }
         ):
             # Animate
             manimation = ElectionScene(
