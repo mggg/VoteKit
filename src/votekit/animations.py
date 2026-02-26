@@ -1,4 +1,6 @@
 from copy import deepcopy
+import shutil
+import tempfile
 import textwrap
 import manim  # type: ignore
 from manim import (
@@ -24,6 +26,7 @@ from votekit.cleaning.rank_ballots_cleaning import (
 )
 from votekit.utils import ballots_by_first_cand, mentions
 from votekit.elections.election_types.ranking.stv import STV
+from pathlib import Path
 from typing import Literal, List, Optional, Sequence, Mapping
 from collections import defaultdict
 import logging
@@ -318,6 +321,7 @@ class STVAnimation:
         if len(self.events) == 0:
             raise ValueError("Tried creating animation with no animation event.")
         self.title = title
+        self._video_path: Optional[Path] = None
 
     def _make_candidate_dict(
         self, election: STV, candidate_colors: Mapping[str, ParsableManimColor]
@@ -596,25 +600,26 @@ class STVAnimation:
     def render(
         self,
         preview: bool = False,
-        render_dir: str = "media",
     ) -> None:
         """
         Renders the STV animation using Manim.
 
-        The completed video will appear in the ``videos`` subdirectory within ``render_dir``.
+        The rendered video is stored in a temporary directory. To save the video
+        to a permanent location, call `save` after rendering.
 
         Args:
             preview (bool, optional): If ``True``, display the result in a video player
                 immediately upon completing the render. Ignored when running inside a
                 Jupyter notebook, where the video is always displayed as inline cell
                 output. Defaults to False.
-            render_dir (str, optional): Directory in which the rendering files will appear.
         """
         in_notebook = STVAnimation._is_notebook()
-        # Set up necessary manim configurations.
+        # Render into a temporary directory so we don't pollute the user's
+        # working directory.
+        self._temp_dir = tempfile.TemporaryDirectory()
         background_color = self.color_palette.background
         with manim.tempconfig(
-            {"media_dir": render_dir, "background_color": background_color}
+            {"media_dir": self._temp_dir.name, "background_color": background_color}
         ):
             # Animate
             manimation = ElectionScene(
@@ -627,11 +632,30 @@ class STVAnimation:
             )
             manimation.render(preview=preview and not in_notebook)
 
+            self._video_path = Path(manimation.renderer.file_writer.movie_file_path)
+
             if in_notebook:
                 from IPython.display import Video, display
 
-                output_path = manimation.renderer.file_writer.movie_file_path
-                display(Video(str(output_path)))
+                display(Video(str(self._video_path)))
+
+    def save(self, save_path: str | Path) -> None:
+        """
+        Save the rendered video to a file.
+
+        Args:
+            save_path (str or Path): The destination file path for the video.
+
+        Raises:
+            RuntimeError: If `render` has not yet been called.
+        """
+        if self._video_path is None:
+            raise RuntimeError(
+                "No rendered video to save. Call render() before save()."
+            )
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(self._video_path, save_path)
 
 
 class ElectionScene(manim.Scene):

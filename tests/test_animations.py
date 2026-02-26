@@ -137,7 +137,6 @@ def run_animation_snapshot_test(
     tmp_path: Path,
     baseline_subdir: str,
     stv_animation_args: Optional[dict] = None,
-    render_args: Optional[dict] = None,
 ):
     """
     Helper to render an STV animation, extract frames, and compare to baselines.
@@ -148,20 +147,16 @@ def run_animation_snapshot_test(
         baseline_subdir (str): Subdirectory name under snapshots/animations/ for baseline images.
         stv_animation_args(Optional[dict]): Arguments to be passed to the
             STVAnimation initialization.
-        render_args (Optional[dict]): Arguments to be passed to STVAnimation.render.
     """
     if stv_animation_args is None:
         stv_animation_args = {}
-    if render_args is None:
-        render_args = {}
 
     animation = STVAnimation(election, **stv_animation_args)
-    # Send output to tmp_path to ensure media files are deleted after testing
-    animation.render(render_dir=str(tmp_path / "media"), **render_args)
+    animation.render()
 
-    # Get video duration using ffprobe
-    # The subdirectories are created by manim when establishing the render
-    video_path = tmp_path / "media" / "videos" / "1080p60" / "ElectionScene.mp4"
+    # Save the rendered video to a known location for frame extraction
+    video_path = tmp_path / "output" / "ElectionScene.mp4"
+    animation.save(video_path)
     # The following ffprobe command prints a single decimal number to stdout:
     # the duratino of the video in seconds
     result = subprocess.run(
@@ -273,7 +268,6 @@ def test_stv_animation_video_snapshots_multi(election_multi: STV, tmp_path: Path
             "color_palette": LIGHT_PALETTE,
             "candidate_colors": candidate_colors,
         },
-        render_args={},
     )
 
 
@@ -295,5 +289,4 @@ def test_stv_animation_video_snapshots_happy(election_happy: STV, tmp_path: Path
             "focus": "winners",
             "title": "Test Election",
         },
-        render_args={},
     )
