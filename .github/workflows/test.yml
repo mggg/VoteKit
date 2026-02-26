@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-poetry-${{ matrix.python-version }}-
 
       - name: Install deps
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --extras animation
 
       - name: Sync poetry (safety check)
         run: poetry sync
