@@ -31,22 +31,6 @@ class NumpyInnerSTV(NumpySTVBase):
     """
     Most general version of an STV election. Contains niche arguments such as
     "dynamic_threshold" that are not exposed in the main STV class.
-
-    Args:
-        profile (RankProfile): RankProfile to run election on.
-        m (int): Number of seats to be elected. Defaults to 1.
-        transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
-            'fractional'.
-        quota (str): Formula to calculate quota. Accepts "droop" or "hare".
-            Defaults to "droop".
-        simultaneous (bool): True if all candidates who cross threshold in a round are
-            elected simultaneously, False if only the candidate with highest first-place votes
-            who crosses the threshold is elected in a round. Defaults to True.
-        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
-            'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
-            a tiebreak is needed.
-        dynamic_threshold (bool): If True, threshold is recalculated each round based on
-            remaining candidates and votes. Defaults to False.
     """
 
     def __init__(
@@ -60,6 +44,24 @@ class NumpyInnerSTV(NumpySTVBase):
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
     ):
+        """
+        Args:
+            profile (RankProfile): RankProfile to run election on.
+            m (int): Number of seats to be elected. Defaults to 1.
+            transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
+                'fractional'.
+            quota (str): Formula to calculate quota. Accepts "droop" or "hare".
+                Defaults to "droop".
+            simultaneous (bool): True if all candidates who cross threshold in a round are
+                elected simultaneously, False if only the candidate with highest first-place votes
+                who crosses the threshold is elected in a round. Defaults to True.
+            tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
+                'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
+                a tiebreak is needed.
+            dynamic_threshold (bool): If True, threshold is recalculated each round based on
+                the number of remaining active votes.
+            block_rcv (bool): If True, blocks ranked-choice voting. Defaults to False.
+        """
         self.__check_profile_and_seats_and_candidates_and_transfer(profile, m, transfer)
         self.transfer = transfer
         self.quota = quota
