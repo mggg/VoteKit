@@ -574,9 +574,7 @@ class FastIRV(NumpyInnerSTV):
             m=1,
             transfer="fractional",
             quota=quota,
-            simultaneous=False,
             tiebreak=tiebreak,
-            dynamic_threshold=False,
         )
 
 
