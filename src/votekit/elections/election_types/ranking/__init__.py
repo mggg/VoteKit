@@ -33,5 +33,4 @@ __all__ = [
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
-    "STV"
 ]
