@@ -233,8 +233,7 @@ def test_interaction_with_simultaneous():
         interaction_with_simultaneous, m=3, simultaneous=False
     )
     assert simultaneous_elec.get_elected() == (
-        frozenset({"A"}),
-        frozenset({"B"}),
+        frozenset({"A", "B"}),
         frozenset({"D"}),
     )
     assert non_simultaneous_elec.get_elected() == (
