@@ -136,14 +136,14 @@ class NumpySTVBase(ABC):
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
         # Add padding
-        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), -126, dtype=np.int8)
+        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
         wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
 
-        # Reject ballots that have no rankings at all (all -127 or -126)
+        # Reject ballots that have no rankings at all (all -127)
         empty_rows = np.where(
-            np.all((ballot_matrix == -127) | (ballot_matrix == -126), axis=1)
+            np.all(ballot_matrix == -127, axis=1)
         )[0]
         if empty_rows.size:
             raise TypeError("Ballots must have rankings.")
