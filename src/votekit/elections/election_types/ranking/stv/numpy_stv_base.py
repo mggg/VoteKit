@@ -419,14 +419,7 @@ class NumpySTVBase(ABC):
 
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Returns the RankProfile of the given round number.
-
-        Args:
-            round_number (Optional[int]): The round number. Supports negative indexing. Defaults to
-                -1, which accesses the final profile.
-
-        Returns:
-            RankProfile: The RankProfile of the given round.
+        Fetch the RankProfile of the given round number.
         """
         if (
             round_number < -len(self.election_states)
@@ -437,7 +430,8 @@ class NumpySTVBase(ABC):
         round_number = round_number % len(self.election_states)
 
         remaining = self._data.fpv_by_round[round_number].nonzero()[0]
-        wt_vec = self._data.wt_vec.copy()
+        # start from stored weights; may be overwritten by play-by-play for this round
+        wt_vec = self._data.wt_vec
         for i in range(len(self._data.play_by_play[:round_number]) - 1, -1, -1):
             if self._data.play_by_play[i]["round_type"] == "election":
                 wt_vec = self._data.play_by_play[i]["wt_vec"]
@@ -445,9 +439,8 @@ class NumpySTVBase(ABC):
 
         idx_to_fset = {c: frozenset([self.candidates[c]]) for c in remaining}
 
-        # --- 1) drop last column by view ---
-        A = self._data.ballot_matrix.copy()
-        A = A[:, :-1]
+        # --- 1) drop last column by view (sentinel column) ---
+        A = self._data.ballot_matrix[:, :-1]
 
         n_rows, n_cols = A.shape
 
@@ -461,14 +454,9 @@ class NumpySTVBase(ABC):
         r_idx, c_idx = np.nonzero(keep_mask)
         out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
 
-        # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
-        row_keep_mask = ~(out == NumpySTVSentinel.BLANK_RANKING.value).all(axis=1)
-        out = out[row_keep_mask]
-        wt_vec = wt_vec[row_keep_mask]
-        n_rows = out.shape[0]
-
-        # --- 3.75) also drop out rows with weight 0 ---
-        row_keep_mask = wt_vec != 0
+        # --- 3.5) drop rows that are empty after filtering AND rows with weight 0 ---
+        # keep rows that have at least one remaining candidate and nonzero weight
+        row_keep_mask = ~(out == NumpySTVSentinel.BLANK_RANKING.value).all(axis=1) & (wt_vec != 0)
         out = out[row_keep_mask]
         wt_vec = wt_vec[row_keep_mask]
         n_rows = out.shape[0]
@@ -480,7 +468,7 @@ class NumpySTVBase(ABC):
         for k, v in idx_to_fset.items():
             lut[int(np.int16(k)) + 128] = v
         # index into LUT (shift by +128 to map [-128,127] -> [0,255])
-        obj = lut[out.astype(np.int16) + 128]  # dtype=object, frozensets
+        obj = lut[out.astype(np.int16, copy=False) + 128]  # dtype=object, frozensets
 
         # --- 5) to DataFrame with Ranking_i columns ---
         data = {f"Ranking_{i+1}": obj[:, i] for i in range(n_cols)}
