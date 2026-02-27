@@ -673,7 +673,9 @@ def test_error_when_preference_row_is_missing_candidate(valid_config):
         ).is_valid(raise_errors=True)
 
 
-def test_error_when_preference_row_sum_not_one_with_zero_support_candidate(valid_config):
+def test_error_when_preference_row_sum_not_one_with_zero_support_candidate(
+    valid_config,
+):
     config = BlocSlateConfig(**valid_config, n_voters=100)
 
     preference_mapping = {
@@ -810,7 +812,8 @@ def test_normalize_cohesion_df_rejects_invalid_negative_values(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     config.cohesion_df.loc["bloc_1", "slate_1"] = -0.2
     with pytest.raises(
-        ValueError, match="contains invalid negative values .*Use -1 to mark unset values"
+        ValueError,
+        match="contains invalid negative values .*Use -1 to mark unset values",
     ):
         config.normalize_cohesion_df()
 
@@ -836,7 +839,8 @@ def test_normalize_preference_intervals_rejects_invalid_negative_values(valid_co
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     config.preference_df.loc["bloc_1", "A"] = -0.2
     with pytest.raises(
-        ValueError, match="contains invalid negative values .*Use -1 to mark unset values"
+        ValueError,
+        match="contains invalid negative values .*Use -1 to mark unset values",
     ):
         config.normalize_preference_intervals()
 

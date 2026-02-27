@@ -133,7 +133,9 @@ class BlocSlateConfig:
             bloc_voter_series: pd.Series = pd.Series(dtype=float)
         else:
             bloc_voter_series = convert_bloc_proportion_map_to_series(bloc_proportions)
-        object.__setattr__(self, "bloc_proportions", BlocProportions(self, bloc_voter_series))
+        object.__setattr__(
+            self, "bloc_proportions", BlocProportions(self, bloc_voter_series)
+        )
 
         if slate_to_candidates is None:
             slate_map = SlateCandMap(self, dict())
@@ -201,7 +203,9 @@ class BlocSlateConfig:
         if voters <= 0:
             raise ValueError("Number of voters must be > 0.")
 
-    def __validate_pref_df_mapping_keys_ok_in_config(self, pref_mapping: PreferenceMapping) -> bool:
+    def __validate_pref_df_mapping_keys_ok_in_config(
+        self, pref_mapping: PreferenceMapping
+    ) -> bool:
         """
         Validate that the keys in the preference mapping are compatible with the current config.
 
@@ -409,11 +413,15 @@ class BlocSlateConfig:
             for block, prop in self.bloc_proportions.items():
                 if prop <= 0:
                     errors.append(
-                        ValueError(f"Bloc '{block}' has non-positive proportion {prop:.6f}.")
+                        ValueError(
+                            f"Bloc '{block}' has non-positive proportion {prop:.6f}."
+                        )
                     )
 
         if self.slate_to_candidates == {}:
-            errors.append(ValueError("At least one slate and candidate list must be defined."))
+            errors.append(
+                ValueError("At least one slate and candidate list must be defined.")
+            )
 
         if self.preference_df.empty:
             errors.append(ValueError("Preference mapping must be non-empty."))
@@ -530,7 +538,9 @@ class BlocSlateConfig:
                     errors.append(row_error)
         return errors
 
-    def is_valid(self, *, raise_errors: bool = False, raise_warnings: bool = True) -> bool:
+    def is_valid(
+        self, *, raise_errors: bool = False, raise_warnings: bool = True
+    ) -> bool:
         """
         Check if the current configuration is valid and can be passed to a ballot generator.
 
@@ -555,7 +565,9 @@ class BlocSlateConfig:
 
         return False
 
-    def __make_unset_df(self, *, index: Sequence[str], columns: Sequence[str]) -> pd.DataFrame:
+    def __make_unset_df(
+        self, *, index: Sequence[str], columns: Sequence[str]
+    ) -> pd.DataFrame:
         """Build a float DataFrame filled with UNSET_VALUE for the requested shape."""
         return pd.DataFrame(
             UNSET_VALUE,
@@ -564,7 +576,9 @@ class BlocSlateConfig:
             dtype=float,
         )
 
-    def __sync_df_columns(self, df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
+    def __sync_df_columns(
+        self, df: pd.DataFrame, columns: Sequence[str]
+    ) -> pd.DataFrame:
         """Drop unknown columns, add missing columns as UNSET_VALUE, and reorder."""
         expected_columns = list(columns)
         expected_set = set(expected_columns)
@@ -679,14 +693,20 @@ class BlocSlateConfig:
         object.__setattr__(self, "n_voters", int(value))
 
     def __set_slate_to_candidates_attr(self, value: Any) -> None:
-        slate_map = value if isinstance(value, SlateCandMap) else SlateCandMap(self, value)
+        slate_map = (
+            value if isinstance(value, SlateCandMap) else SlateCandMap(self, value)
+        )
         object.__setattr__(self, "slate_to_candidates", slate_map)
 
         if self.bloc_proportions != {}:
             self._update_preference_and_cohesion_slates()
 
     def __set_bloc_proportions_attr(self, value: Any) -> None:
-        bloc_props = value if isinstance(value, BlocProportions) else BlocProportions(self, value)
+        bloc_props = (
+            value
+            if isinstance(value, BlocProportions)
+            else BlocProportions(self, value)
+        )
         object.__setattr__(self, "bloc_proportions", bloc_props)
 
         if self.slate_to_candidates != {}:
@@ -749,7 +769,9 @@ class BlocSlateConfig:
                 object.__setattr__(self, "_BlocSlateConfig__clear_alpha_bool", value)
 
             case "_current_preference_df_slate_cand_mapping":
-                object.__setattr__(self, "_current_preference_df_slate_cand_mapping", value)
+                object.__setattr__(
+                    self, "_current_preference_df_slate_cand_mapping", value
+                )
 
             case "silent":  # pragma: no cover
                 self.__set_silent_attr(value)
@@ -764,7 +786,9 @@ class BlocSlateConfig:
                 raise AttributeError("'blocs' is a read-only property.")
 
             case _:  # pragma: no cover
-                raise AttributeError(f"'BlocSlateConfig' object has no attribute '{name}'")
+                raise AttributeError(
+                    f"'BlocSlateConfig' object has no attribute '{name}'"
+                )
 
     # ============
     #   MAIN API
@@ -837,7 +861,9 @@ class BlocSlateConfig:
             }
         )
 
-    def get_preference_intervals_for_bloc(self, block_name) -> dict[str, PreferenceInterval]:
+    def get_preference_intervals_for_bloc(
+        self, block_name
+    ) -> dict[str, PreferenceInterval]:
         """
         Get the preference intervals for each bloc and slate.
 
@@ -887,11 +913,15 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            pref_values = _to_finite_float_array(self.preference_df, context="preference_df")
+            pref_values = _to_finite_float_array(
+                self.preference_df, context="preference_df"
+            )
         except TypeError:
             raise TypeError("preference_df must contain numeric values to normalize.")
         except ValueError:
-            raise ValueError("preference_df contains non-finite values and cannot be normalized.")
+            raise ValueError(
+                "preference_df contains non-finite values and cannot be normalized."
+            )
 
         invalid_negatives = _invalid_negative_values(pref_values)
         if invalid_negatives:
@@ -916,11 +946,15 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            cohesion_values = _to_finite_float_array(self.cohesion_df, context="cohesion_df")
+            cohesion_values = _to_finite_float_array(
+                self.cohesion_df, context="cohesion_df"
+            )
         except TypeError:
             raise TypeError("cohesion_df must contain numeric values to normalize.")
         except ValueError:
-            raise ValueError("cohesion_df contains non-finite values and cannot be normalized.")
+            raise ValueError(
+                "cohesion_df contains non-finite values and cannot be normalized."
+            )
 
         invalid_negatives = _invalid_negative_values(cohesion_values)
         if invalid_negatives:
@@ -933,7 +967,9 @@ class BlocSlateConfig:
         self.cohesion_df = self.cohesion_df.mask(mask, 0.0)
         self.cohesion_df = self.cohesion_df.div(self.cohesion_df.sum(axis=1), axis=0)
 
-    def unset_candidate_preferences(self, candidates: Union[str, Sequence[str]]) -> None:
+    def unset_candidate_preferences(
+        self, candidates: Union[str, Sequence[str]]
+    ) -> None:
         """
         Unset the preferences for the given candidates by setting their values to -1.0.
 
@@ -978,13 +1014,17 @@ class BlocSlateConfig:
             raise TypeError("slate_candidate_list must be a sequence of str.")
 
         if set(slate_candidate_list).intersection(set(self.candidates)) != set():
-            raise ValueError("Some candidates in the slate are already present in configuration.")
+            raise ValueError(
+                "Some candidates in the slate are already present in configuration."
+            )
 
         if slate_candidate_list == []:
             raise ValueError("Slate candidate list cannot be empty.")
 
         if len(slate_candidate_list) != len(set(slate_candidate_list)):
-            raise ValueError("slate_candidate_list cannot contain duplicate candidates.")
+            raise ValueError(
+                "slate_candidate_list cannot contain duplicate candidates."
+            )
 
         new_candidate_list = []
         for cand in slate_candidate_list:
@@ -1089,7 +1129,9 @@ class BlocSlateConfig:
         new_slate_to_candidates: dict[str, list[str]] = {}
         full_new_candidate_list: list[str] = []
         for slate, clist in self.slate_to_candidates.items():
-            new_clist = [candidate_mapping[c] if c in candidate_mapping else c for c in clist]
+            new_clist = [
+                candidate_mapping[c] if c in candidate_mapping else c for c in clist
+            ]
             new_slate_to_candidates[slate] = new_clist
             full_new_candidate_list.extend(new_clist)
 
@@ -1129,7 +1171,9 @@ class BlocSlateConfig:
             if not all(isinstance(c, str) for c in df.columns):
                 raise TypeError("Dirichlet alphas columns (slates) must be a 'str'.")
             if not all(pd.api.types.is_float_dtype(dt) for dt in df.dtypes):
-                raise TypeError("Dirichlet alphas must have float dtypes in every column.")
+                raise TypeError(
+                    "Dirichlet alphas must have float dtypes in every column."
+                )
             if not np.isfinite(df.to_numpy()).all():
                 raise ValueError("Dirichlet alphas contains non-finite values.")
             if not (df.to_numpy() > 0).all():
@@ -1202,7 +1246,9 @@ class BlocSlateConfig:
                 setting the Dirichlet alphas. Setting the Dirichlet alphas will overwrite
                 the existing preference intervals
         """
-        if self.__alphas is None and not all(self.preference_df.values.flatten() == UNSET_VALUE):
+        if self.__alphas is None and not all(
+            self.preference_df.values.flatten() == UNSET_VALUE
+        ):
             warning_msg = (
                 "Preference intervals have already been set without setting the Dirichlet "
                 "alphas. Setting the Dirichlet alphas will overwrite the existing preference "

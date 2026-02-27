@@ -337,5 +337,3 @@ def test_convert_preference_mapping_unions_candidates_and_fills_unset_with_minus
     assert set(df.columns) == {"A", "B", "C"}
     assert df.loc["bloc2", "A"] == -1.0
     assert pd.api.types.is_numeric_dtype(df["A"].dtype)
-
-

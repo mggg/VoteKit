@@ -31,7 +31,9 @@ def test_zero_support_allowed():
 
 
 def test_all_zero_support_error():
-    with pytest.raises(ValueError, match="Support values must sum to a positive number."):
+    with pytest.raises(
+        ValueError, match="Support values must sum to a positive number."
+    ):
         PreferenceInterval(interval={"A": 0, "B": 0})
 
 

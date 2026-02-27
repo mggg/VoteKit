@@ -10,7 +10,16 @@ from collections.abc import (
 )
 from copy import deepcopy
 from pprint import pformat
-from typing import TYPE_CHECKING, Any, Optional, Self, SupportsIndex, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Optional,
+    Self,
+    SupportsIndex,
+    Union,
+    cast,
+    overload,
+)
 from warnings import warn
 import operator
 import weakref
@@ -26,7 +35,9 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
 )
 
 if TYPE_CHECKING:
-    from votekit.ballot_generator.bloc_slate_generator.config.core import BlocSlateConfig
+    from votekit.ballot_generator.bloc_slate_generator.config.core import (
+        BlocSlateConfig,
+    )
 
 
 class _CandListProxy(MutableSequence[str]):
@@ -55,7 +66,9 @@ class _CandListProxy(MutableSequence[str]):
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[str]: ...
 
-    def __getitem__(self, index: Union[SupportsIndex, slice]) -> Union[str, MutableSequence[str]]:
+    def __getitem__(
+        self, index: Union[SupportsIndex, slice]
+    ) -> Union[str, MutableSequence[str]]:
         data = self.__owner._data[self.__key]
         if isinstance(index, slice):
             return data[index]
@@ -241,7 +254,9 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
             set(self._data.get(key, ()))
         ):
             rollback = self._data.get(key, None)
-            rollback_slate_dict = self.__parent._current_preference_df_slate_cand_mapping
+            rollback_slate_dict = (
+                self.__parent._current_preference_df_slate_cand_mapping
+            )
             self._data[key] = val_list
             try:
                 self.__parent._update_preference_and_cohesion_slates()
@@ -251,7 +266,9 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
                 else:
                     self._data[key] = rollback
 
-                self.__parent._current_preference_df_slate_cand_mapping = rollback_slate_dict
+                self.__parent._current_preference_df_slate_cand_mapping = (
+                    rollback_slate_dict
+                )
                 raise KeyError(
                     f"{e.args[0]}. "
                     "You may have tried to modify the candidate list directly. "
@@ -285,7 +302,10 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         return key in self._data
 
     def update(
-        self, other: Mapping[str, Sequence[str]] | Iterable[tuple[str, Sequence[str]]] = (), /, **kw
+        self,
+        other: Mapping[str, Sequence[str]] | Iterable[tuple[str, Sequence[str]]] = (),
+        /,
+        **kw,
     ) -> None:
         """
         Update the slate to candidates mapping with the key-value pairs from other.

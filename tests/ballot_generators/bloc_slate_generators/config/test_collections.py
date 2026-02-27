@@ -479,4 +479,3 @@ def test_delitem_no_warning_when_silent_true(bp_silent_true):
 def test_repr_contains_keys(bp_silent_false):
     r = repr(bp_silent_false)
     assert "b1" in r and "b2" in r
-
