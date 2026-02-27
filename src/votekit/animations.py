@@ -735,7 +735,7 @@ class ElectionScene(manim.Scene):
         """
         font_preferences = ["Noto Serif", "Arial"]
         available_fonts = list_fonts()
-
+        print("Available fonts: ", available_fonts) #Temporary
         for font in font_preferences:
             if font in available_fonts:
                 return font
