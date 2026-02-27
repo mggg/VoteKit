@@ -221,7 +221,7 @@ class NumpyInnerSTV(NumpySTVBase):
     def _find_loser(
         self,
         tallies: NDArray,
-        turn: int,
+        round_number: int,
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
@@ -240,7 +240,7 @@ class NumpyInnerSTV(NumpySTVBase):
 
         Args:
             tallies (NDArray): Current tallies for each candidate.
-            turn (int): The current round number.
+            round_number (int): The current round number.
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
@@ -261,7 +261,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
             )
             loser_idx, mutant_tiebreak_record = self._run_loser_tiebreak(
-                potential_losers, turn, mutant_tiebreak_record
+                potential_losers, round_number, mutant_tiebreak_record
             )
         else:
             loser_idx = int(np.argmin(masked_tallies))
@@ -278,7 +278,7 @@ class NumpyInnerSTV(NumpySTVBase):
     def _find_winners(
         self,
         tallies: NDArray,
-        turn: int,
+        round_number: int,
         quota: float,
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
@@ -298,7 +298,7 @@ class NumpyInnerSTV(NumpySTVBase):
 
         Args:
             tallies (NDArray): Current tallies for each candidate.
-            turn (int): The current round number.
+            round_number (int): The current round number.
             quota (float): Threshold required for election in this round.
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated/elected candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
@@ -322,7 +322,7 @@ class NumpyInnerSTV(NumpySTVBase):
                     np.where(tallies == tallies.max())[0].astype(int).tolist()
                 )
                 winner_idx, mutant_tiebreak_record = self._run_winner_tiebreak(
-                    potential_winners, turn, mutant_tiebreak_record
+                    potential_winners, round_number, mutant_tiebreak_record
                 )
             else:
                 winner_idx = int(np.argmax(tallies))
@@ -377,7 +377,7 @@ class NumpyInnerSTV(NumpySTVBase):
 
         fpv_scores_by_round = []
         play_by_play: list[dict[str, Any]] = []
-        turn = 0
+        round_number = 0
         quota = self.threshold
         ballot_weight_sitting_with_winners = 0.0
         winner_list: list[int] = []
@@ -409,20 +409,20 @@ class NumpyInnerSTV(NumpySTVBase):
             fpv_scores_by_round.append(tallies.copy())
             while np.any(tallies >= quota):
                 winners, mutant_record = self._find_winners(
-                    tallies, turn, quota, *mutant_record
+                    tallies, round_number, quota, *mutant_record
                 )
                 mutant_engine = self._update_because_winner(
                     winners, tallies, quota, *mutant_engine
                 )
                 play_by_play.append(
                     {
-                        "round_number": int(turn),
+                        "round_number": int(round_number),
                         "winners": [int(c) for c in winners],
                         "wt_vec": mutant_engine[1].copy(),
                         "round_type": "election",
                     }
                 )
-                turn += 1
+                round_number += 1
                 tallies = make_tallies(fpv_vec, wt_vec, ncands)
                 if self.dynamic_threshold:
                     play_by_play[-1]["threshold"] = float(quota)
@@ -440,29 +440,29 @@ class NumpyInnerSTV(NumpySTVBase):
                 winner_list += still_standing
                 play_by_play.append(
                     {
-                        "round_number": int(turn),
+                        "round_number": int(round_number),
                         "winners": still_standing,
                         "round_type": "default",
                     }
                 )
                 if self.dynamic_threshold:
                     play_by_play[-1]["threshold"] = float(quota)
-                turn += 1
+                round_number += 1
                 fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
                 tiebreak_record.append({})
                 break
-            loser_idx, mutant_record = self._find_loser(tallies, turn, *mutant_record)
+            loser_idx, mutant_record = self._find_loser(tallies, round_number, *mutant_record)
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
             play_by_play.append(
                 {
-                    "round_number": int(turn),
+                    "round_number": int(round_number),
                     "loser": [int(loser_idx)],
                     "round_type": "elimination",
                 }
             )
             if self.dynamic_threshold:
                 play_by_play[-1]["threshold"] = float(quota)
-            turn += 1
+            round_number += 1
         return fpv_scores_by_round, play_by_play, tiebreak_record
 
 

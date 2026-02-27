@@ -603,7 +603,7 @@ class NumpySTVBase(ABC):
     def _run_winner_tiebreak(
         self,
         tied_winners: list[int],
-        turn: int,
+        round_number: int,
         mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
@@ -611,7 +611,7 @@ class NumpySTVBase(ABC):
 
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
-            turn (int): The current round number.
+            round_number (int): The current round number.
             mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
                 Tiebreak record for each round.
 
@@ -642,7 +642,7 @@ class NumpySTVBase(ABC):
     def _run_loser_tiebreak(
         self,
         tied_losers: list[int],
-        turn: int,
+        round_number: int,
         mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
         """
@@ -650,7 +650,7 @@ class NumpySTVBase(ABC):
 
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
-            turn (int): The current round number.
+            round_number (int): The current round number.
             mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
                 Tiebreak record for each round.
 
