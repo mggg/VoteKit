@@ -4,7 +4,7 @@ from votekit.elections import ElectionState
 from votekit.elections.election_types.ranking.stv.stv import AlbanySTV
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parents[3]
 CSV_DIR = BASE_DIR / "data/csv"
 
 albany_profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
