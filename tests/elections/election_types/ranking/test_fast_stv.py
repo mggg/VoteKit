@@ -606,7 +606,9 @@ def test_simult_not_same_as_1b1():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    assert STV(profile, m=3, simultaneous=True).get_elected() == ( # TODO: change this test
+    assert STV(
+        profile, m=3, simultaneous=True
+    ).get_elected() == (  # TODO: change this test
         frozenset({"A", "B"}),
         frozenset({"D"}),
     )
