@@ -416,7 +416,7 @@ class NumpySTVBase(ABC):
         Returns the RankProfile of the given round number.
 
         Args:
-            round_number (int): The round number. Supports negative indexing. Defaults to
+            round_number (Optional[int]): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
