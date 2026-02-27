@@ -363,13 +363,15 @@ class NumpyInnerSTV(NumpySTVBase):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Runs the STV algorithm and returns numpy arrays as outputs.
+        Core election logic for STV.
 
         Args:
-            data (NumpyElectionDataTracker): Internal data container with ballot matrix, weights, etc.
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to numpy arrays.
 
         Returns:
-            tuple: (fpv_scores_by_round, play_by_play, tiebreak_record).
+            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
+            play_by_play (list[dict[str, Any]]): List of dictionaries representing the actions taken in each round.
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries representing tiebreak resolutions for each round.
         """
         ballot_matrix = data.ballot_matrix
         wt_vec = np.copy(data.wt_vec)
@@ -554,9 +556,9 @@ class FastIRV(NumpyInnerSTV):
 
     Args:
         profile (RankProfile):   RankProfile to run election on.
-        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+        quota (Optional[str]): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
-        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
     """
@@ -564,7 +566,7 @@ class FastIRV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
-        quota: str = "droop",
+        quota: Optional[str] = "droop",
         tiebreak: Optional[str] = None,
     ):
         super().__init__(
@@ -585,13 +587,13 @@ class FastSequentialRCV(NumpyInnerSTV):
 
     Args:
         profile (RankProfile):   RankProfile to run election on.
-        m (int, optional): Number of seats to be elected. Defaults to 1.
-        quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
+        m (Optional[int]): Number of seats to be elected. Defaults to 1.
+        quota (Optional[str]): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
-        simultaneous (bool, optional): True if all candidates who cross threshold in a round are
+        simultaneous (Optional[bool]): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
             who crosses the threshold is elected in a round. Defaults to True.
-        tiebreak (str, optional): Method to be used if a tiebreak is needed. Accepts
+        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
             'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
             a tiebreak is needed.
 
@@ -600,9 +602,9 @@ class FastSequentialRCV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
-        quota: str = "droop",
-        simultaneous: bool = True,
+        m: Optional[int] = 1,
+        quota: Optional[str] = "droop",
+        simultaneous: Optional[bool] = True,
         tiebreak: Optional[str] = None,
     ):
         super().__init__(

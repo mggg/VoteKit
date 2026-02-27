@@ -148,7 +148,7 @@ class NumpySTVBase(ABC):
 
         # Add padding -- a lot of the election logic needs at least one entry of each row of the ballot matrix to be negative.
         # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set to 0 only when candidates are eliminated/elected.
-        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having the last column of the matrix always be 1.
+        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having at least one entry in each row be 0.
         ballot_matrix: NDArray = np.full((num_rows, num_cols+1), NumpySTVSentinel.BLANK_RANKING.value, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
@@ -419,7 +419,7 @@ class NumpySTVBase(ABC):
 
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Fetch the RankProfile of the given round number.
+        Returns the RankProfile of the given round number.
         """
         if (
             round_number < -len(self.election_states)
@@ -494,7 +494,7 @@ class NumpySTVBase(ABC):
 
     def get_step(self, round_number: int = -1) -> tuple[RankProfile, ElectionState]:
         """
-        Fetches the profile and ElectionState of the given round number.
+        Returns the profile and ElectionState of the given round number.
 
         Args:
             round_number (int): The round number. Supports negative indexing. Defaults to
