@@ -1484,73 +1484,87 @@ class BlocSlateConfig:
         self.__update_preference_df_on_bloc_change()
         self.__update_cohesion_df_on_bloc_change()
 
+    def __set_n_voters_attr(self, value: Any) -> None:
+        self.__validate_voters(value)
+        object.__setattr__(self, "n_voters", int(value))
+
+    def __set_slate_to_candidates_attr(self, value: Any) -> None:
+        slate_map = value if isinstance(value, SlateCandMap) else SlateCandMap(self, value)
+        object.__setattr__(self, "slate_to_candidates", slate_map)
+
+        if self.bloc_proportions != {}:
+            self._update_preference_and_cohesion_slates()
+
+    def __set_bloc_proportions_attr(self, value: Any) -> None:
+        bloc_props = value if isinstance(value, BlocProportions) else BlocProportions(self, value)
+        object.__setattr__(self, "bloc_proportions", bloc_props)
+
+        if self.slate_to_candidates != {}:
+            self._update_preference_and_cohesion_blocs()
+
+    def __set_preference_df_attr(self, value: Any) -> None:
+        self.__validate_pref_df_mapping_keys_ok_in_config(value)
+        pref_df = convert_preference_map_to_preference_df(value)
+        object.__setattr__(self, "preference_df", pref_df)
+
+        if self.__clear_alpha_bool:
+            self.__alphas = None
+        if not pref_df.empty:
+            self.__update_preference_df_on_candidate_change()
+            self.__update_preference_df_on_bloc_change()
+
+        # must come after update
+        self.__clear_alpha_bool = True
+
+    def __set_cohesion_df_attr(self, value: Any) -> None:
+        self.__validate_cohesion_df_mapping_keys_ok_in_config(value)
+        cohesion_df = convert_cohesion_map_to_cohesion_df(value)
+        object.__setattr__(self, "cohesion_df", cohesion_df)
+
+        if not cohesion_df.empty:
+            self.__update_cohesion_df_on_slate_change()
+            self.__update_cohesion_df_on_bloc_change()
+
+    def __set_alphas_attr(self, value: Any) -> None:
+        if value is not None:
+            self.__keycheck_dirichlet_alphas(value)
+        object.__setattr__(self, "_BlocSlateConfig__alphas", value)
+
+    def __set_silent_attr(self, value: Any) -> None:
+        if not isinstance(cast(object, value), bool):
+            raise TypeError("silent must be a bool.")
+        object.__setattr__(self, "silent", value)
+
     def __setattr__(self, name: str, value: Any) -> None:
         match name:
             case "n_voters":
-                self.__validate_voters(value)
-                value = int(value)
-                object.__setattr__(self, name, value)
+                self.__set_n_voters_attr(value)
 
             case "slate_to_candidates":
-                if isinstance(value, SlateCandMap):
-                    object.__setattr__(self, name, value)
-                else:
-                    value = SlateCandMap(
-                        self, value
-                    )  # This class handles the validation
-                    object.__setattr__(self, name, value)
-
-                if self.bloc_proportions != {}:
-                    self._update_preference_and_cohesion_slates()
+                self.__set_slate_to_candidates_attr(value)
 
             case "bloc_proportions":
-                if isinstance(value, BlocProportions):
-                    object.__setattr__(self, name, value)
-                else:
-                    value = BlocProportions(self, value)
-                    object.__setattr__(self, name, value)
-
-                if self.slate_to_candidates != {}:
-                    self._update_preference_and_cohesion_blocs()
+                self.__set_bloc_proportions_attr(value)
 
             case "preference_df":
-                self.__validate_pref_df_mapping_keys_ok_in_config(value)
-                value = convert_preference_map_to_preference_df(value)
-                object.__setattr__(self, name, value)
-
-                if self.__clear_alpha_bool:
-                    self.__alphas = None
-                if not value.empty:
-                    self.__update_preference_df_on_candidate_change()
-                    self.__update_preference_df_on_bloc_change()
-
-                # must come after update
-                self.__clear_alpha_bool = True
+                self.__set_preference_df_attr(value)
 
             case "cohesion_df":
-                self.__validate_cohesion_df_mapping_keys_ok_in_config(value)
-                value = convert_cohesion_map_to_cohesion_df(value)
-                object.__setattr__(self, name, value)
-
-                if not value.empty:
-                    self.__update_cohesion_df_on_slate_change()
-                    self.__update_cohesion_df_on_bloc_change()
+                self.__set_cohesion_df_attr(value)
 
             case "_BlocSlateConfig__alphas":
-                if value is not None:
-                    self.__keycheck_dirichlet_alphas(value)
-                object.__setattr__(self, name, value)
+                self.__set_alphas_attr(value)
 
             case "_BlocSlateConfig__clear_alpha_bool":
-                object.__setattr__(self, name, value)
+                object.__setattr__(self, "_BlocSlateConfig__clear_alpha_bool", value)
 
             case "_current_preference_df_slate_cand_mapping":
-                object.__setattr__(self, name, value)
+                object.__setattr__(
+                    self, "_current_preference_df_slate_cand_mapping", value
+                )
 
             case "silent":  # pragma: no cover
-                if not isinstance(cast(object, value), bool):
-                    raise TypeError("silent must be a bool.")
-                object.__setattr__(self, name, value)
+                self.__set_silent_attr(value)
 
             case "candidates":
                 raise AttributeError("'candidates' is a read-only property.")
