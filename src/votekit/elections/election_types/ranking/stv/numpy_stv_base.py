@@ -86,7 +86,7 @@ class NumpySTVBase(ABC):
         self._winner_tiebreak = tiebreak
         self._loser_tiebreak = tiebreak if tiebreak is not None else "first_place"
 
-        ballot_matrix, wt_vec = self._convert_pf_to_numpy_arrays(profile)
+        ballot_matrix, wt_vec = self._convert_profile_to_numpy_arrays(profile)
         initial_fpv_scores = self._make_initial_fpv(
             np.copy(ballot_matrix[:, 0]), wt_vec
         )
@@ -100,7 +100,7 @@ class NumpySTVBase(ABC):
     # == Init Methods ==
     # ==================
 
-    def _convert_pf_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
+    def _convert_profile_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
