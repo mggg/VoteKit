@@ -126,6 +126,7 @@ def test_draw_pwcg_non_candidate_error():
     ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])
 
+
 def test_strict_condorcet_cycles():
     weak_cycle_profile = RankProfile(
         ballots=(
