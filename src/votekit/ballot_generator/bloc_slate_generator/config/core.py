@@ -1,860 +1,37 @@
-"""
-This file only contains the model for BlocSlateConfig and related helper classes and functions.
+"""BlocSlateConfig core class implementation."""
 
-BlocSlateConfig is a configuration object for BlocSlateGenerator that holds all the
-parameters needed to generate a set of ballots using one of our ballot generation algorithms
-involving both voter blocs and slates of candidates.
-"""
-
-from collections.abc import (
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Iterator,
-    Callable,
-)
-from typing import (
-    Sequence,
-    Optional,
-    Union,
-    cast,
-    Any,
-    overload,
-    Iterable,
-    Self,
-    SupportsIndex,
-)
-from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
-from numbers import Real
-import weakref
-import math
-import operator
-import pandas as pd
-import numpy as np
-import warnings
-from copy import deepcopy
-from warnings import warn
+from collections.abc import Mapping, Sequence
 from pprint import pformat
 from textwrap import indent
-
-UNSET_VALUE = -1.0
-FLOAT_TOL = 1e-8
-
-
-class ConfigurationWarning(UserWarning):
-    """Raised when adjusting a setting in BlocSlateConfig may cause a conflict."""
-
-
-_original_formatwarning = warnings.formatwarning
-
-
-def _config_warning_format(
-    message: Union[Warning, str],
-    category: type[Warning],
-    filename: str,
-    lineno: int,
-    line: Optional[str] = None,
-) -> str:  # pragma: no cover
-    if issubclass(category, ConfigurationWarning):
-        return f"{category.__name__}: {message}\n"
-    return _original_formatwarning(message, category, filename, lineno, line)
-
-
-warnings.formatwarning = cast(Any, _config_warning_format)
-
-
-BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
-# Backward compatibility alias; keep the original misspelling available.
-BlocPropotionMapping = BlocProportionMapping
-CohesionMapping = Union[
-    Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame
-]
-PreferenceIntervalLike = Union[Mapping[str, Union[float, int]], PreferenceInterval]
-PreferenceMapping = Union[
-    Mapping[str, Mapping[str, PreferenceIntervalLike]],
-    pd.DataFrame,
-]
-
-
-def _is_finite_real(x: object) -> bool:
-    """
-    Return True if x is a finite real number (int or float), False otherwise.
-
-    Args:
-        x (object): The object to check.
-    Returns:
-        bool: True if x is a finite real number, False otherwise.
-    """
-    # Reject bools (subclass of int) and non-finite numbers
-    if isinstance(x, bool) or not isinstance(x, Real):
-        return False
-    try:
-        return math.isfinite(float(x))
-    except Exception:  # pragma: no cover
-        return False
-
-
-def _to_finite_float_array(
-    values: Union[pd.Series, pd.DataFrame],
-    *,
-    context: str,
-) -> np.ndarray:
-    """Convert values to float ndarray and enforce finiteness."""
-    try:
-        arr = values.to_numpy(dtype=float)
-    except (TypeError, ValueError):
-        raise TypeError(f"{context} must contain numeric values.")
-    if not np.isfinite(arr).all():
-        raise ValueError(f"{context} contains non-finite values.")
-    return arr
-
-
-def _unset_mask(values: np.ndarray) -> np.ndarray:
-    """Return boolean mask for unset sentinel values."""
-    return np.isclose(values, UNSET_VALUE, atol=FLOAT_TOL)
-
-
-def _invalid_negative_values(values: np.ndarray) -> list[float]:
-    """Return sorted distinct negative values that are not unset sentinel values."""
-    invalid_mask = (values < 0) & (~_unset_mask(values))
-    return sorted({float(v) for v in values[invalid_mask]})
-
-
-def _sum_differs_from_one(value: float) -> bool:
-    """Return True when value is not within tolerance of 1.0."""
-    return abs(float(value) - 1.0) > FLOAT_TOL
-
-
-def _first_probability_row_error(
-    row_vals: Union[pd.Series, pd.DataFrame],
-    *,
-    context: str,
-    invalid_negative_error: Callable[[list[float]], Exception],
-    unset_error: Callable[[], Exception],
-    sum_error: Callable[[float], Exception],
-) -> Optional[Exception]:
-    """
-    Return the first validation error for a probability row, if any.
-
-    Validation order is:
-    1) numeric + finite
-    2) invalid negative values (anything < 0 except UNSET_VALUE)
-    3) unset values (UNSET_VALUE present)
-    4) row sum equals 1 within tolerance
-    """
-    try:
-        vals = _to_finite_float_array(row_vals, context=context)
-    except (TypeError, ValueError) as e:
-        return e
-
-    invalid_negatives = _invalid_negative_values(vals)
-    if invalid_negatives:
-        return invalid_negative_error(invalid_negatives)
-
-    if (vals < 0).any():
-        return unset_error()
-
-    total = float(vals.sum())
-    if _sum_differs_from_one(total):
-        return sum_error(total)
-
-    return None
-
-
-def typecheck_bloc_proportion_mapping(
-    params: BlocProportionMapping,
-) -> None:
-    """
-    Checks to make sure that the values that are stored in params are of the expected type.
-
-    Args:
-        params (BlocProportionMapping): The bloc proportion mapping to check.
-
-    Raises:
-        TypeError: If params is not a Mapping[str, float] or pd.Series with string index
-            and numeric dtype.
-        ValueError: If params contains non-finite values.
-    """
-    if isinstance(params, pd.Series):
-        ser = params
-        if not all(isinstance(i, str) for i in ser.index):
-            raise TypeError("Bloc keys must be a 'str'.")
-        if not pd.api.types.is_numeric_dtype(ser.dtype):
-            raise TypeError("Bloc proportions must be numeric.")
-        if not np.isfinite(ser.to_numpy()).all():
-            raise ValueError("Bloc proportions contain non-finite values.")
-        return
-
-    if not isinstance(cast(object, params), Mapping):  # keep Pyright happy
-        raise TypeError(
-            f"Bloc proportions must be a mapping or a dataframe, got '{type(params).__name__}'"
-        )
-
-    for bloc, v in params.items():
-        if not isinstance(bloc, str):
-            raise TypeError(
-                f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'"
-            )
-        if not _is_finite_real(v):
-            raise TypeError(
-                f"Bloc '{bloc!r}': proportion must be a finite real (int|float), got '{v!r}' of "
-                f"type '{type(v).__name__}'"
-            )
-
-
-def convert_bloc_proportion_map_to_series(
-    bloc_prop: BlocProportionMapping,
-) -> pd.Series:
-    """
-    Convert a dictionary of bloc proportions to a Series.
-
-    Args:
-        bloc_prop (BlocProportionMapping): The bloc proportion mapping to convert.
-
-    Returns:
-        pd.Series: A pandas Series with bloc names as the index and proportions as values.
-
-    Raises:
-        TypeError: If bloc_prop is not a Mapping[str, float] or pd.Series with string index
-            and numeric dtype.
-        ValueError: If bloc_prop contains non-finite values, negative values, or does not sum to 1.
-    """
-    typecheck_bloc_proportion_mapping(bloc_prop)
-
-    # basically a no_op if already a Series
-    if isinstance(bloc_prop, pd.Series):
-        if len(set(bloc_prop.index)) != len(bloc_prop.index):
-            raise ValueError("Bloc proportions index (blocs) contains duplicates.")
-        if bloc_prop.dtype != float:
-            bloc_prop = bloc_prop.astype(float)
-        if any(bloc_prop < 0):
-            raise ValueError("Bloc proportions must be non-negative.")
-        if any(bloc_prop > 1):
-            raise ValueError("Bloc proportions cannot be greater than 1.")
-        return bloc_prop
-
-    bloc_series = pd.Series(bloc_prop)
-
-    if any(bloc_series < 0):
-        raise ValueError("Bloc proportions must be non-negative.")
-    if _sum_differs_from_one(bloc_series.sum()):
-        raise ValueError(
-            f"Bloc proportions currently sum to {bloc_series.sum():0.6f} when they "
-            "should sum to 1."
-        )
-
-    # Quick normalize in case of fp errors
-    bloc_series = bloc_series / bloc_series.sum()
-    return bloc_series
-
-
-def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
-    """
-    Raise TypeError if 'params' is not a mapping of the expected nested shape.
-
-    Args:
-        params (CohesionMapping): The cohesion mapping to check.
-
-    Raises:
-        TypeError: If params is not a Mapping[str, Mapping[str, float]] or pd.DataFrame
-            with string index and float dtypes.
-        ValueError: If params contains non-finite values.
-    """
-
-    if isinstance(params, pd.DataFrame):
-        df = params
-        if not all(isinstance(c, str) for c in df.columns):
-            raise TypeError("cohesion_df columns (blocs) must be a 'str'.")
-        if not all(isinstance(i, str) for i in df.index):
-            raise TypeError("cohesion_df index (slates) must be a 'str'.")
-        if not all(pd.api.types.is_float_dtype(dt) for dt in df.dtypes):
-            raise TypeError("cohesion_df must have float dtypes in every column.")
-        if not np.isfinite(df.to_numpy()).all():
-            raise ValueError("cohesion_df contains non-finite values.")
-        return
-
-    if not isinstance(cast(object, params), Mapping):  # keep Pyright happy
-        raise TypeError(
-            f"Cohesion parameters must be a mapping, got '{type(params).__name__}'"
-        )
-
-    for bloc, inner in params.items():
-        if not isinstance(bloc, str):
-            raise TypeError(f"Bloc keys must be a 'str', got '{type(bloc).__name__}'")
-        if not isinstance(inner, Mapping):
-            raise TypeError(
-                f"Bloc '{bloc!r}' value must be a mapping, got '{type(inner).__name__}'"
-            )
-
-        for slate, v in inner.items():
-            if not isinstance(slate, str):
-                raise TypeError(
-                    f"In bloc '{bloc!r}': slate keys must be a 'str', got '{type(slate).__name__}'"
-                )
-            if not _is_finite_real(v):
-                raise TypeError(
-                    f"In bloc '{bloc!r}', slate '{slate!r}': value must be a finite real "
-                    f"(int|float), got '{v!r}' of type '{type(v).__name__}'"
-                )
-
-
-def convert_cohesion_map_to_cohesion_df(
-    cohesion_map: CohesionMapping,
-) -> pd.DataFrame:
-    """
-    Convert a dictionary of cohesion parameters to a DataFrame to pass to BlocSlateConfig.
-
-    Args:
-        cohesion_map (CohesionMapping): The cohesion mapping to convert.
-
-    Returns:
-        pd.DataFrame: A pandas DataFrame with blocs as the index and slates as columns.
-
-    Raises:
-        TypeError: If cohesion_map is not a Mapping[str, Mapping[str, float]] or pd.DataFrame
-            with string index and float dtypes.
-        ValueError: If cohesion_map contains non-finite values.
-        ValueError: If cohesion_map contains duplicate blocs or slates.
-    """
-    typecheck_cohesion_mapping(cohesion_map)
-
-    # basically a no_op if already a DataFrame
-    if isinstance(cohesion_map, pd.DataFrame):
-        ret = cohesion_map.copy()
-        if len(set(ret.index)) != len(ret.index):
-            raise ValueError("cohesion_df index (blocs) contains duplicates.")
-        if len(set(ret.columns)) != len(ret.columns):
-            raise ValueError("cohesion_df columns (slates) contains duplicates.")
-        return ret
-
-    blocs_to_slate: MutableMapping[str, MutableMapping[str, float]] = {
-        bloc: {} for bloc in cohesion_map
-    }
-
-    for bloc, slate_dict in cohesion_map.items():
-        slate_series = pd.Series(slate_dict)
-        blocs_to_slate[bloc].update(slate_series.to_dict())
-
-    return pd.DataFrame(blocs_to_slate).fillna(UNSET_VALUE).T
-
-
-def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
-    """
-    Raise TypeError if 'pref_mapping' is not a mapping of the expected nested shape.
-
-    Args:
-        pref_mapping (PreferenceMapping): The preference mapping to check.
-
-    Raises:
-        TypeError: If pref_mapping is not a Mapping[str, Mapping[str, PreferenceIntervalLike]]
-            or pd.DataFrame with string index and numeric dtypes. Note that PreferenceIntervalLike
-            is either a Mapping[str, float|int] or PreferenceInterval.
-        ValueError: If pref_mapping contains non-finite values.
-    """
-    if isinstance(pref_mapping, pd.DataFrame):
-        df = pref_mapping
-        if not all(isinstance(c, str) for c in df.columns):
-            raise TypeError("preference_df columns (candidates) must be a 'str'.")
-        if not all(isinstance(i, str) for i in df.index):
-            raise TypeError("preference_df index (blocs) must be a 'str'.")
-        if not all(pd.api.types.is_numeric_dtype(dt) for dt in df.dtypes):
-            raise TypeError("preference_df columns must be numeric.")
-        if not np.isfinite(df.to_numpy()).all():
-            raise ValueError("preference_df contains non-finite values.")
-        return
-
-    if not isinstance(cast(object, pref_mapping), Mapping):  # cast gets around Pyright
-        raise TypeError(
-            f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'"
-        )
-
-    for bloc, slate_dict in pref_mapping.items():
-        if not isinstance(bloc, str):
-            raise TypeError(f"Bloc keys must be a 'str', got '{type(bloc).__name__}'")
-        if not isinstance(slate_dict, Mapping):
-            raise TypeError(
-                f"Value for bloc '{bloc!r}' must be a mapping, got '{type(slate_dict).__name__}'"
-            )
-
-        for slate, item in slate_dict.items():
-            if not isinstance(slate, str):
-                raise TypeError(
-                    f"In bloc '{bloc!r}': slate keys must be a 'str', got '{type(slate).__name__}'"
-                )
-
-            if isinstance(item, Mapping):
-                for name, score in item.items():
-                    if not isinstance(name, str):
-                        raise TypeError(
-                            f"In bloc '{bloc!r}', slate '{slate!r}': "
-                            f"candidate names must be a 'str', got '{type(name).__name__}'"
-                        )
-                    if not _is_finite_real(score):
-                        raise TypeError(
-                            f"In bloc '{bloc!r}', slate '{slate!r}', candidate '{name!r}': "
-                            f"score must be a finite real (int|float), got '{score!r}'"
-                        )
-
-            elif isinstance(item, PreferenceInterval):
-                interval = item.interval
-                for name, score in interval.items():
-                    if not isinstance(name, str):
-                        raise TypeError(
-                            f"In bloc '{bloc!r}', slate '{slate!r}': candidate names must be "
-                            f"a 'str', got '{type(name).__name__}'"
-                        )
-                    if not _is_finite_real(score):
-                        raise TypeError(
-                            f"In bloc '{bloc!r}', slate '{slate!r}', candidate '{name!r}': "
-                            f"score must be a finite real (int|float), got '{score!r}'"
-                        )
-            else:
-                raise TypeError(
-                    f"In bloc '{bloc!r}', slate '{slate!r}': expected Mapping[str, float|int] "
-                    f"or PreferenceInterval, got '{type(item).__name__}'"
-                )
-
-
-def convert_preference_map_to_preference_df(
-    preference_map: PreferenceMapping,
-) -> pd.DataFrame:
-    """
-    Convert a dictionary of preference mappings to a DataFrame to pass to BlocSlateConfig.
-
-    Args:
-        preference_map (PreferenceMapping): The preference mapping to convert.
-
-    Returns:
-        pd.DataFrame: A pandas DataFrame with blocs as the index and candidates as columns.
-
-    Raises:
-        TypeError: If preference_map is not a Mapping[str, Mapping[str, PreferenceIntervalLike]]
-            or pd.DataFrame with string index and numeric dtypes. Note that PreferenceIntervalLike
-            is either a Mapping[str, float|int] or PreferenceInterval.
-
-        ValueError: If preference_map contains non-finite values.
-        ValueError: If preference_map contains duplicate blocs or candidates.
-    """
-    typecheck_preference(preference_map)
-
-    # basically a no_op if already a DataFrame
-    if isinstance(preference_map, pd.DataFrame):
-        if len(set(preference_map.index)) != len(preference_map.index):
-            raise ValueError("preference_df index (blocs) contains duplicates.")
-        if len(set(preference_map.columns)) != len(preference_map.columns):
-            raise ValueError("preference_df columns (candidates) contains duplicates.")
-        return preference_map
-
-    blocs_to_cand: MutableMapping[str, MutableMapping[str, float]] = {
-        bloc: {} for bloc in preference_map
-    }
-    for bloc, slate_dict in preference_map.items():
-        for cand_item in slate_dict.values():
-            cand_map = (
-                cand_item.interval
-                if isinstance(cand_item, PreferenceInterval)
-                else cand_item
-            )
-            cand_series = pd.Series(cand_map)
-            cand_dict = cand_series.to_dict()
-
-            blocs_to_cand[bloc].update(cand_dict)
-
-    return pd.DataFrame(blocs_to_cand).fillna(UNSET_VALUE).T
-
-
-class _CandListProxy(MutableSequence[str]):
-    """
-    A proxy for a list of candidates in a slate that routes all changes through the
-    owning SlateCandMap to ensure validation.
-
-    Args:
-        owner (SlateCandMap): The owning SlateCandMap.
-        key (str): The slate name.
-    """
-
-    __slots__ = ("__owner", "__key")
-
-    def __init__(self, owner: "SlateCandMap", key: str):
-        self.__owner = owner
-        self.__key = key
-
-    def __len__(self) -> int:
-        return len(self.__owner._data[self.__key])
-
-    @overload
-    def __getitem__(self, index: SupportsIndex) -> str: ...
-
-    @overload
-    def __getitem__(self, index: slice) -> MutableSequence[str]: ...
-
-    def __getitem__(
-        self, index: Union[SupportsIndex, slice]
-    ) -> Union[str, MutableSequence[str]]:
-        data = self.__owner._data[self.__key]
-        if isinstance(index, slice):
-            return data[index]
-        return data[operator.index(index)]
-
-    @overload
-    def __setitem__(self, index: SupportsIndex, value: str) -> None: ...
-
-    @overload
-    def __setitem__(self, index: slice, value: Iterable[str]) -> None: ...
-
-    def __setitem__(
-        self,
-        index: Union[SupportsIndex, slice],
-        value: Union[str, Iterable[str]],
-    ) -> None:
-        new = list(self.__owner._data[self.__key])
-        if isinstance(index, slice):  # pragma: no cover
-            if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
-                raise TypeError("Slice assignment requires an iterable of str")
-            new[index] = [str(x) for x in value]
-        else:
-            new[operator.index(index)] = str(value)
-        self.__owner[self.__key] = new
-
-    @overload
-    def __delitem__(self, index: SupportsIndex) -> None: ...
-
-    @overload
-    def __delitem__(self, index: slice) -> None: ...
-
-    def __delitem__(self, index: Union[SupportsIndex, slice]) -> None:
-        new = list(self.__owner._data[self.__key])
-        if isinstance(index, slice):
-            del new[index]
-        else:
-            del new[operator.index(index)]
-        self.__owner[self.__key] = new
-
-    def _current(self) -> list[str]:
-        return list(self.__owner._data[self.__key])
-
-    def insert(self, index: SupportsIndex, value: str) -> None:
-        """Insert candidate value at index if not already present."""
-        if not isinstance(cast(object, value), str):
-            raise TypeError("Slate candidates must be a 'str'")
-        try:
-            int_index = operator.index(index)
-        except TypeError:
-            raise TypeError("Index must be an 'int'")
-        new = list(self.__owner._data[self.__key])
-        if value not in new:
-            new.insert(int_index, str(value))
-        self.__owner[self.__key] = new
-
-    def extend(self, values: Iterable[str]) -> None:
-        """Extend the candidate list by appending elements from the iterable."""
-        rollback = self._current().copy()
-        try:
-            for value in values:
-                self.insert(len(self), value)
-
-        except Exception as e:
-            self.__owner[self.__key] = rollback
-            raise e
-
-    def __iadd__(self, values: Iterable[str]) -> Self:
-        self.extend(values)
-        return self
-
-    def append(self, value: str) -> None:
-        """Append candidate value to the end of the list if not already present."""
-        self.insert(len(self), value)
-
-    def sort(self) -> None:
-        """Sort the candidate list in place."""
-        new = self._current()
-        new.sort()
-        self.__owner[self.__key] = new
-
-    def __eq__(self, other: Union[Sequence[str], Any]):
-        if not isinstance(other, Sequence):
-            return False
-        if len(self) != len(other):
-            return False
-        for v1, v2 in zip(self._current(), other):
-            if v1 != v2:
-                return False
-
-        return True
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return str(self._current())
-
-
-class SlateCandMap(MutableMapping[str, Sequence[str]]):
-    """
-    Mapping[str, Sequence[str]] that enforces slate to candidate list rules:
-
-    - Each slate must have a non-empty list of candidates
-    - No candidate may appear in more than one slate
-    - Allows item assignment with warnings if candidates are duplicated
-    - Routes candidate list mutations through a proxy to ensure validation
-
-    Args:
-        parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[Mapping[str, Sequence[str]]]): Initial mapping of slate names to
-            sequences of candidate names. If None, defaults to an empty mapping.
-    """
-
-    __slots__ = ("__parent", "_data")
-
-    def __init__(
-        self,
-        parent: "BlocSlateConfig",
-        init: Optional[Mapping[str, Sequence[str]]] = None,
-    ) -> None:
-        try:
-            self.__parent = weakref.proxy(parent)
-        except TypeError:
-            # parent is already a weakref.ProxyType
-            self.__parent = parent
-        self._data: dict[str, list[str]] = {}
-        if init is not None:
-            try:
-                for k, v in init.items():
-                    if len(v) == 0:
-                        raise ValueError(
-                            f"Slate '{k}' has empty candidate list. "
-                            "Candidate lists must be non-empty."
-                        )
-                    self._data.update({k: [str(c) for c in v]})
-            except AttributeError as e:
-                raise AttributeError(
-                    f"SlateCandMap 'init' variable is of type '{type(init).__name__}' which "
-                    "does not implement the '.items()' method."
-                ) from e
-
-    def to_dict(self) -> dict[str, list[str]]:
-        """
-        Return a deep copy of the internal slate to candidates mapping as a standard dict.
-
-        Returns:
-            dict[str, list[str]]: A deep copy of the internal mapping.
-        """
-        return {k: deepcopy(v) for k, v in self._data.items()}
-
-    def __getitem__(self, key: str) -> _CandListProxy:
-        return _CandListProxy(self, key)
-
-    def __setitem__(self, key: str, value: Sequence[str]) -> None:
-        if not isinstance(cast(object, key), str):
-            raise TypeError("Slate name must be a 'str'")
-        if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-            raise TypeError("Slate candidates must be a sequence of str")
-        if len(value) == 0:
-            raise ValueError(
-                f"Slate '{key}' has empty candidate list. Candidate lists must be non-empty."
-            )
-        val_list = [str(c) for c in value]
-
-        # Prevent adding candidates that already exist in *other* slates
-        existing_cands = set(self.__parent.candidates)
-        existing_cands -= set(self._data.get(key, ()))  # allow replacing same slate
-        clashing_candidates = existing_cands.intersection(val_list)
-        if clashing_candidates == set() or clashing_candidates.issubset(
-            set(self._data.get(key, ()))
-        ):
-            rollback = self._data.get(key, None)
-            rollback_slate_dict = (
-                self.__parent._current_preference_df_slate_cand_mapping
-            )
-            self._data[key] = val_list
-            try:
-                self.__parent._update_preference_and_cohesion_slates()
-            except KeyError as e:
-                if rollback is None:
-                    del self._data[key]
-                else:
-                    self._data[key] = rollback
-
-                self.__parent._current_preference_df_slate_cand_mapping = (
-                    rollback_slate_dict
-                )
-                raise KeyError(
-                    f"{e.args[0]}. "
-                    "You may have tried to modify the candidate list directly. "
-                    "Please modify the entire slate at once instead using "
-                    "config.slate_to_candidates[slate] = [...]. "
-                    "If renaming a candidate, please use config.rename_candidates({...}) "
-                ) from e
-            return
-
-        clash_cand_keys = []
-        clash_cand_list = list(clashing_candidates)
-        for k, v_list in self._data.items():
-            for v in clash_cand_list:
-                if v in v_list:
-                    clash_cand_keys.append(k)
-        if len(clash_cand_keys) != 0:
-            raise ValueError(
-                f"Candidates {clash_cand_list} already exist in slates {clash_cand_keys}"
-            )
-
-    def __delitem__(self, key: str) -> None:
-        del self._data[key]
-
-    def __iter__(self) -> Iterator[str]:  # noqa
-        return iter(self._data)
-
-    def __len__(self) -> int:
-        return len(self._data)
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._data
-
-    def update(self, other=(), /, **kw) -> None:
-        if isinstance(other, Mapping):
-            item_pairs = list(other.items())
-        else:
-            item_pairs = list(dict(other).items())
-        item_pairs.extend(list(kw.items()))
-
-        for k, v in item_pairs:
-            if not isinstance(k, str):
-                raise TypeError("Slate keys must be str in update().")
-            if isinstance(v, (str, bytes)) or not isinstance(v, Sequence):
-                raise TypeError("Slate values must be sequences of candidate names.")
-            self[k] = cast(Sequence[str], v)  # route through __setitem__
-
-    def __or__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
-        new = SlateCandMap(self.__parent, self._data)
-        new.update(other)
-        return new
-
-    def __ror__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
-        full_map = dict(other) | self._data.copy()
-        return SlateCandMap(self.__parent, full_map)
-
-    def __ior__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
-        self.update(other)
-        return self
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return pformat(self._data, indent=2, width=40, sort_dicts=False, compact=True)
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, MutableMapping):
-            return False
-
-        for k1, v1 in self._data.items():
-            if k1 not in other or other[k1] != v1:
-                return False
-
-        for k2, v2 in other.items():
-            if k2 not in self._data or self._data[k2] != v2:
-                return False
-
-        return True
-
-    def copy(self):
-        """
-        Return a deep copy of the internal slate to candidates mapping.
-
-        Returns:
-            dict[str, list[str]]: A deep copy of the internal mapping.
-        """
-        return deepcopy(self._data)
-
-
-class BlocProportions(MutableMapping[str, float]):
-    """
-    Mapping[str, float] that enforces bloc proportion rules:
-    - Each bloc must have a non-negative proportion
-    - The proportions must sum to 1
-
-    Args:
-        parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[BlocProportionMapping]): Initial mapping of bloc names to their
-            proportions in the electorate. If None, defaults to an empty mapping.
-    """
-
-    __slots__ = ("__parent", "__data")
-
-    def __init__(
-        self,
-        parent: "BlocSlateConfig",
-        init: Optional[BlocProportionMapping] = None,
-    ) -> None:
-        self.__parent = weakref.proxy(parent)
-        self.__data: dict[str, float] = {}
-
-        if init is not None:
-            ser = convert_bloc_proportion_map_to_series(init)
-            self.__data.update(ser.to_dict())
-
-        self._validate()
-
-    def _validate(self) -> None:
-        """
-        Validate that the bloc proportions are non-negative and sum to 1.
-
-        Raises:
-            ValueError: If any bloc proportion is negative.
-            Warning: If the bloc proportions do not sum to 1 and the parent config is not silent.
-        """
-        ser = pd.Series(self.__data, dtype=float)
-
-        if (ser < 0).any():  # pragma: no cover
-            raise ValueError("Bloc proportions must be non-negative.")
-
-        typecheck_bloc_proportion_mapping(ser)
-        total = ser.sum()
-        if _sum_differs_from_one(total):
-            if not self.__parent.silent:
-                warn(
-                    f"Bloc proportions currently sum to {total:.6f} when they should sum to 1.",
-                    ConfigurationWarning,
-                )
-
-    def __getitem__(self, key: str) -> float:
-        return self.__data[key]
-
-    def __setitem__(self, key: str, value: float) -> None:
-        raise RuntimeError(
-            "Cannot set bloc proportions directly. Please provide a full mapping "
-            "and set using config.bloc_proportions = {...}"
-        )
-
-    def __delitem__(self, key: str) -> None:
-        rollback = self.__data[key]
-        del self.__data[key]
-        try:
-            self._validate()
-        except Exception as e:  # pragma: no cover
-            self.__data[key] = rollback
-            raise e
-
-    def __iter__(self) -> Iterator[str]:  # pragma: no cover  # noqa
-        return iter(self.__data)
-
-    def __len__(self) -> int:
-        return len(self.__data)
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return pformat(self.__data, indent=2, width=40, sort_dicts=False, compact=True)
-
-    def to_series(self) -> pd.Series:
-        """
-        Return a Series representation of the bloc proportions.
-
-        Returns:
-            pd.Series: A pandas Series with bloc names as the index and proportions as values.
-        """
-        return pd.Series(self.__data, dtype=float)
-
-    def copy(self) -> dict[str, float]:
-        """
-        Return a deep copy of the internal bloc proportions mapping as a standard dict.
-
-        Returns:
-            dict[str, float]: A deep copy of the internal mapping.
-        """
-        return deepcopy(self.__data)
+from typing import Any, Optional, Union, cast
+from warnings import warn
+from numbers import Real
+
+import numpy as np
+import pandas as pd
+
+from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
+
+from votekit.ballot_generator.bloc_slate_generator.config.collections import (
+    BlocProportions,
+    SlateCandMap,
+)
+from votekit.ballot_generator.bloc_slate_generator.config.validation import (
+    BlocProportionMapping,
+    CohesionMapping,
+    ConfigurationWarning,
+    PreferenceMapping,
+    UNSET_VALUE,
+    _first_probability_row_error,
+    _is_finite_real,
+    _invalid_negative_values,
+    _sum_differs_from_one,
+    _to_finite_float_array,
+    _unset_mask,
+    convert_bloc_proportion_map_to_series,
+    convert_cohesion_map_to_cohesion_df,
+    convert_preference_map_to_preference_df,
+)
 
 
 class BlocSlateConfig:
@@ -956,9 +133,7 @@ class BlocSlateConfig:
             bloc_voter_series: pd.Series = pd.Series(dtype=float)
         else:
             bloc_voter_series = convert_bloc_proportion_map_to_series(bloc_proportions)
-        object.__setattr__(
-            self, "bloc_proportions", BlocProportions(self, bloc_voter_series)
-        )
+        object.__setattr__(self, "bloc_proportions", BlocProportions(self, bloc_voter_series))
 
         if slate_to_candidates is None:
             slate_map = SlateCandMap(self, dict())
@@ -990,22 +165,23 @@ class BlocSlateConfig:
     @property
     def candidates(self) -> list[str]:
         """
-        Computed property: A flat list of all candidates in all slate. Derived from the values of
-        slate_to_candidates.
+        Computed property: A flat list of all candidates in all slate.
+
+        Derived from the values of slate_to_candidates.
         """
         return [c for clist in self.slate_to_candidates.values() for c in clist]
 
     @property
     def slates(self) -> list[str]:
-        """
-        Computed property: A list of all slates. Derived from the keys of slate_to_candidates.
-        """
+        """Computed property: A list of all slates. Derived from the keys of slate_to_candidates."""
         return list(self.slate_to_candidates.keys())
 
     @property
     def blocs(self) -> list[str]:
         """
-        Computed property: A list of all voter blocs. Derived from the keys of bloc_proportions.
+        Computed property: A list of all voter blocs.
+
+        Derived from the keys of bloc_proportions.
         """
         return list(self.bloc_proportions.keys())
 
@@ -1025,12 +201,9 @@ class BlocSlateConfig:
         if voters <= 0:
             raise ValueError("Number of voters must be > 0.")
 
-    def __validate_pref_df_mapping_keys_ok_in_config(
-        self, pref_mapping: PreferenceMapping
-    ) -> bool:
+    def __validate_pref_df_mapping_keys_ok_in_config(self, pref_mapping: PreferenceMapping) -> bool:
         """
-        Validate that the keys in the preference mapping are compatible with the
-        current configuration.
+        Validate that the keys in the preference mapping are compatible with the current config.
 
         Args:
             pref_mapping (PreferenceMapping): The preference mapping to validate.
@@ -1130,8 +303,7 @@ class BlocSlateConfig:
         self, cohesion_mapping: CohesionMapping
     ) -> bool:
         """
-        Validate that the keys in the cohesion mapping are compatible with the
-        current configuration.
+        Validate that the keys in the cohesion mapping are compatible with the current config.
 
         Args:
             cohesion_mapping (CohesionMapping): The cohesion mapping to validate.
@@ -1174,8 +346,7 @@ class BlocSlateConfig:
         if set(blocs) != set(self.blocs):
             if self.blocs == []:
                 messages.append(
-                    "Cohesion mapping has voter blocs but no blocs are defined in "
-                    "bloc_proportions."
+                    "Cohesion mapping has voter blocs but no blocs are defined in bloc_proportions."
                 )
             else:
                 messages.append(
@@ -1186,8 +357,7 @@ class BlocSlateConfig:
         if set(slates) != set(self.slates):
             if self.slates == []:
                 messages.append(
-                    "Cohesion mapping has slates but no slates are defined in "
-                    "slate_to_candidates."
+                    "Cohesion mapping has slates but no slates are defined in slate_to_candidates."
                 )
             else:
                 messages.append(
@@ -1204,8 +374,10 @@ class BlocSlateConfig:
 
     def __determine_errors(self) -> list[Exception]:
         """
-        Determine if there are any errors in the current configuration that would
-        cause an error when passed to a ballot generator.
+        Determine if there are any errors in the current configuration.
+
+        Errors are those settings which will produce invalid states when passed to a ballot
+        generator function.
 
         Returns:
             list[Exception]: A list of exceptions representing the errors found.
@@ -1237,15 +409,11 @@ class BlocSlateConfig:
             for block, prop in self.bloc_proportions.items():
                 if prop <= 0:
                     errors.append(
-                        ValueError(
-                            f"Bloc '{block}' has non-positive proportion {prop:.6f}."
-                        )
+                        ValueError(f"Bloc '{block}' has non-positive proportion {prop:.6f}.")
                     )
 
         if self.slate_to_candidates == {}:
-            errors.append(
-                ValueError("At least one slate and candidate list must be defined.")
-            )
+            errors.append(ValueError("At least one slate and candidate list must be defined."))
 
         if self.preference_df.empty:
             errors.append(ValueError("Preference mapping must be non-empty."))
@@ -1348,8 +516,7 @@ class BlocSlateConfig:
 
                 def _cohesion_sum_error(total: float) -> Exception:
                     return ValueError(
-                        f"cohesion_df row for bloc '{bloc_name}' must sum to 1, "
-                        f"got {total:.6f}"
+                        f"cohesion_df row for bloc '{bloc_name}' must sum to 1, got {total:.6f}"
                     )
 
                 row_error = _first_probability_row_error(
@@ -1363,9 +530,7 @@ class BlocSlateConfig:
                     errors.append(row_error)
         return errors
 
-    def is_valid(
-        self, *, raise_errors: bool = False, raise_warnings: bool = True
-    ) -> bool:
+    def is_valid(self, *, raise_errors: bool = False, raise_warnings: bool = True) -> bool:
         """
         Check if the current configuration is valid and can be passed to a ballot generator.
 
@@ -1390,9 +555,7 @@ class BlocSlateConfig:
 
         return False
 
-    def __make_unset_df(
-        self, *, index: Sequence[str], columns: Sequence[str]
-    ) -> pd.DataFrame:
+    def __make_unset_df(self, *, index: Sequence[str], columns: Sequence[str]) -> pd.DataFrame:
         """Build a float DataFrame filled with UNSET_VALUE for the requested shape."""
         return pd.DataFrame(
             UNSET_VALUE,
@@ -1432,9 +595,7 @@ class BlocSlateConfig:
         return df.loc[expected_index]
 
     def __update_preference_df_on_candidate_change(self) -> None:
-        """
-        Update the preference DataFrame when candidates change in slate_to_candidates.
-        """
+        """Update the preference DataFrame when candidates change in slate_to_candidates."""
         current_slate_cand_dict = self.slate_to_candidates.to_dict()
         curr_pref_df_slate_cands_dict = self._current_preference_df_slate_cand_mapping
 
@@ -1450,14 +611,10 @@ class BlocSlateConfig:
             return
 
         self._current_preference_df_slate_cand_mapping = current_slate_cand_dict
-        self.preference_df = self.__sync_df_columns(
-            self.preference_df, self.candidates
-        )
+        self.preference_df = self.__sync_df_columns(self.preference_df, self.candidates)
 
     def __update_cohesion_df_on_slate_change(self) -> None:
-        """
-        Update the cohesion DataFrame when slates change in slate_to_candidates.
-        """
+        """Update the cohesion DataFrame when slates change in slate_to_candidates."""
         config_slates = self.slates
 
         if list(self.cohesion_df.columns) == list(config_slates):
@@ -1471,14 +628,10 @@ class BlocSlateConfig:
             )
             return
 
-        self.cohesion_df = self.__sync_df_columns(
-            self.cohesion_df, config_slates
-        )
+        self.cohesion_df = self.__sync_df_columns(self.cohesion_df, config_slates)
 
     def __update_preference_df_on_bloc_change(self) -> None:
-        """
-        Update the preference DataFrame when blocs change in bloc_proportions.
-        """
+        """Update the preference DataFrame when blocs change in bloc_proportions."""
         config_blocs = self.blocs
 
         if list(self.preference_df.index) == list(config_blocs):
@@ -1495,9 +648,7 @@ class BlocSlateConfig:
         self.preference_df = self.__sync_df_index(self.preference_df, config_blocs)
 
     def __update_cohesion_df_on_bloc_change(self) -> None:
-        """
-        Update the cohesion DataFrame when blocs change in bloc_proportions.
-        """
+        """Update the cohesion DataFrame when blocs change in bloc_proportions."""
         config_blocs = self.blocs
 
         if list(self.cohesion_df.index) == list(config_blocs):
@@ -1514,16 +665,12 @@ class BlocSlateConfig:
         self.cohesion_df = self.__sync_df_index(self.cohesion_df, config_blocs)
 
     def _update_preference_and_cohesion_slates(self) -> None:
-        """
-        Update preference and cohesion DataFrames when slates or candidates change
-        """
+        """Update preference and cohesion DataFrames when slates or candidates change"""
         self.__update_preference_df_on_candidate_change()
         self.__update_cohesion_df_on_slate_change()
 
     def _update_preference_and_cohesion_blocs(self) -> None:
-        """
-        Update preference and cohesion DataFrames when blocs change
-        """
+        """Update preference and cohesion DataFrames when blocs change"""
         self.__update_preference_df_on_bloc_change()
         self.__update_cohesion_df_on_bloc_change()
 
@@ -1602,9 +749,7 @@ class BlocSlateConfig:
                 object.__setattr__(self, "_BlocSlateConfig__clear_alpha_bool", value)
 
             case "_current_preference_df_slate_cand_mapping":
-                object.__setattr__(
-                    self, "_current_preference_df_slate_cand_mapping", value
-                )
+                object.__setattr__(self, "_current_preference_df_slate_cand_mapping", value)
 
             case "silent":  # pragma: no cover
                 self.__set_silent_attr(value)
@@ -1619,9 +764,7 @@ class BlocSlateConfig:
                 raise AttributeError("'blocs' is a read-only property.")
 
             case _:  # pragma: no cover
-                raise AttributeError(
-                    f"'BlocSlateConfig' object has no attribute '{name}'"
-                )
+                raise AttributeError(f"'BlocSlateConfig' object has no attribute '{name}'")
 
     # ============
     #   MAIN API
@@ -1694,9 +837,7 @@ class BlocSlateConfig:
             }
         )
 
-    def get_preference_intervals_for_bloc(
-        self, block_name
-    ) -> dict[str, PreferenceInterval]:
+    def get_preference_intervals_for_bloc(self, block_name) -> dict[str, PreferenceInterval]:
         """
         Get the preference intervals for each bloc and slate.
 
@@ -1746,9 +887,7 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            pref_values = _to_finite_float_array(
-                self.preference_df, context="preference_df"
-            )
+            pref_values = _to_finite_float_array(self.preference_df, context="preference_df")
         except TypeError:
             raise TypeError("preference_df must contain numeric values to normalize.")
         except ValueError:
@@ -1777,15 +916,11 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            cohesion_values = _to_finite_float_array(
-                self.cohesion_df, context="cohesion_df"
-            )
+            cohesion_values = _to_finite_float_array(self.cohesion_df, context="cohesion_df")
         except TypeError:
             raise TypeError("cohesion_df must contain numeric values to normalize.")
         except ValueError:
-            raise ValueError(
-                "cohesion_df contains non-finite values and cannot be normalized."
-            )
+            raise ValueError("cohesion_df contains non-finite values and cannot be normalized.")
 
         invalid_negatives = _invalid_negative_values(cohesion_values)
         if invalid_negatives:
@@ -1798,9 +933,7 @@ class BlocSlateConfig:
         self.cohesion_df = self.cohesion_df.mask(mask, 0.0)
         self.cohesion_df = self.cohesion_df.div(self.cohesion_df.sum(axis=1), axis=0)
 
-    def unset_candidate_preferences(
-        self, candidates: Union[str, Sequence[str]]
-    ) -> None:
+    def unset_candidate_preferences(self, candidates: Union[str, Sequence[str]]) -> None:
         """
         Unset the preferences for the given candidates by setting their values to -1.0.
 
@@ -1845,17 +978,13 @@ class BlocSlateConfig:
             raise TypeError("slate_candidate_list must be a sequence of str.")
 
         if set(slate_candidate_list).intersection(set(self.candidates)) != set():
-            raise ValueError(
-                "Some candidates in the slate are already present in configuration."
-            )
+            raise ValueError("Some candidates in the slate are already present in configuration.")
 
         if slate_candidate_list == []:
             raise ValueError("Slate candidate list cannot be empty.")
 
         if len(slate_candidate_list) != len(set(slate_candidate_list)):
-            raise ValueError(
-                "slate_candidate_list cannot contain duplicate candidates."
-            )
+            raise ValueError("slate_candidate_list cannot contain duplicate candidates.")
 
         new_candidate_list = []
         for cand in slate_candidate_list:
@@ -1960,9 +1089,7 @@ class BlocSlateConfig:
         new_slate_to_candidates: dict[str, list[str]] = {}
         full_new_candidate_list: list[str] = []
         for slate, clist in self.slate_to_candidates.items():
-            new_clist = [
-                candidate_mapping[c] if c in candidate_mapping else c for c in clist
-            ]
+            new_clist = [candidate_mapping[c] if c in candidate_mapping else c for c in clist]
             new_slate_to_candidates[slate] = new_clist
             full_new_candidate_list.extend(new_clist)
 
@@ -2002,17 +1129,14 @@ class BlocSlateConfig:
             if not all(isinstance(c, str) for c in df.columns):
                 raise TypeError("Dirichlet alphas columns (slates) must be a 'str'.")
             if not all(pd.api.types.is_float_dtype(dt) for dt in df.dtypes):
-                raise TypeError(
-                    "Dirichlet alphas must have float dtypes in every column."
-                )
+                raise TypeError("Dirichlet alphas must have float dtypes in every column.")
             if not np.isfinite(df.to_numpy()).all():
                 raise ValueError("Dirichlet alphas contains non-finite values.")
             if not (df.to_numpy() > 0).all():
                 raise ValueError("Dirichlet alphas must be positive finite reals.")
             if set(df.index) != all_blocs:
                 raise ValueError(
-                    f"Dirichlet alphas must have exactly the blocs {all_blocs}, "
-                    f"got {set(df.index)}"
+                    f"Dirichlet alphas must have exactly the blocs {all_blocs}, got {set(df.index)}"
                 )
             if set(df.columns) != all_slates:
                 raise ValueError(
@@ -2078,9 +1202,7 @@ class BlocSlateConfig:
                 setting the Dirichlet alphas. Setting the Dirichlet alphas will overwrite
                 the existing preference intervals
         """
-        if self.__alphas is None and not all(
-            self.preference_df.values.flatten() == UNSET_VALUE
-        ):
+        if self.__alphas is None and not all(self.preference_df.values.flatten() == UNSET_VALUE):
             warning_msg = (
                 "Preference intervals have already been set without setting the Dirichlet "
                 "alphas. Setting the Dirichlet alphas will overwrite the existing preference "
@@ -2098,9 +1220,7 @@ class BlocSlateConfig:
         self.resample_preference_intervals_from_dirichlet_alphas()
 
     def clear_dirichlet_alphas(self) -> None:
-        """
-        Remove the Dirichlet alphas from the configuration.
-        """
+        """Remove the Dirichlet alphas from the configuration."""
         self.__alphas = None
 
     def read_dirichlet_alphas(self) -> Optional[pd.DataFrame]:

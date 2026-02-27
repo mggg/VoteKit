@@ -1,17 +1,19 @@
 """Configuration model and utilities for bloc-slate ballot generators."""
 
-from votekit.ballot_generator.bloc_slate_generator.config.model import (
+from votekit.ballot_generator.bloc_slate_generator.config.collections import (
+    BlocProportions,
+    SlateCandMap,
+)
+from votekit.ballot_generator.bloc_slate_generator.config.core import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config.validation import (
+    FLOAT_TOL,
+    UNSET_VALUE,
     BlocProportionMapping,
     BlocPropotionMapping,
-    BlocProportions,
-    BlocSlateConfig,
     CohesionMapping,
     ConfigurationWarning,
-    FLOAT_TOL,
     PreferenceIntervalLike,
     PreferenceMapping,
-    SlateCandMap,
-    UNSET_VALUE,
     convert_bloc_proportion_map_to_series,
     convert_cohesion_map_to_cohesion_df,
     convert_preference_map_to_preference_df,
