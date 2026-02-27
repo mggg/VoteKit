@@ -458,7 +458,7 @@ def test_stv_cands_cast():
         candidates=("A", "B", "C", "D", "E"),
     )
 
-    assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
+    assert STV(profile, simultaneous=False, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
 
 
 @pytest.mark.slow
@@ -606,9 +606,8 @@ def test_simult_not_same_as_1b1():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    assert STV(profile, m=3, simultaneous=True).get_elected() == (
-        frozenset({"A"}),
-        frozenset({"B"}),
+    assert STV(profile, m=3, simultaneous=True).get_elected() == ( # TODO: change this test
+        frozenset({"A", "B"}),
         frozenset({"D"}),
     )
     assert STV(profile, m=3, simultaneous=False).get_elected() == (

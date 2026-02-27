@@ -1,5 +1,5 @@
 from votekit.elections import ElectionState
-from votekit.elections.election_types.ranking.STV.stv import FastIRV as IRV
+from votekit.elections.election_types.ranking.stv.stv import FastIRV as IRV
 from votekit.pref_profile import RankProfile, ScoreProfile, ProfileError
 from votekit.ballot import RankBallot, ScoreBallot
 import pandas as pd

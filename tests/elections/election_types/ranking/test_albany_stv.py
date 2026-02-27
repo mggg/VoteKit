@@ -1,7 +1,7 @@
 from votekit.pref_profile import RankProfile
 from votekit.ballot import RankBallot
 from votekit.elections import ElectionState
-from votekit.elections.election_types.ranking.STV.stv import AlbanySTV
+from votekit.elections.election_types.ranking.stv.stv import AlbanySTV
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent

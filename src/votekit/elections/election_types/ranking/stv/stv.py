@@ -16,7 +16,7 @@ from votekit.utils import (
     elect_cands_from_set_ranking,
     score_dict_to_ranking,
 )
-from votekit.elections.election_types.ranking.STV.numpy_stv_base import (
+from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     NumpySTVBase,
     NumpyElectionDataTracker,
 )

@@ -17,6 +17,9 @@ def numpy_random_transfer(
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
 
+    Returns:
+        counts (NDArray): Vector of counts 
+
     Example:
         Assume candidate 2 just won.
         Let fpv_vec = [2, 5, 3, 2]. Then eligible_for_transfer is

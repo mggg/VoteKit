@@ -1,5 +1,5 @@
 from votekit.elections import ElectionState
-from votekit.elections.election_types.ranking.STV.stv import (
+from votekit.elections.election_types.ranking.stv.stv import (
     FastSequentialRCV as SequentialRCV,
 )
 from votekit.pref_profile import PreferenceProfile, ProfileError

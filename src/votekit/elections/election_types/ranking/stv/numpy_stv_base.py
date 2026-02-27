@@ -14,22 +14,7 @@ from dataclasses import dataclass, field
 class NumpyElectionDataTracker:
     """
     Data container for internal use in numpy-based elections.
-
-    Args:
-        ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with
-            sentinel padding.
-        wt_vec (NDArray): Starting weight vector for each ballot row.
-        initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
-        fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
-        play_by_play (list[dict[str, Any]]): Per-round action log used for legacy outputs.
-        tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-            Tiebreak resolutions by round.
-        candidate_sets_by_fpv (Optional[list[set[int]]]): Cached FPV clusters for tiebreaking.
-        extras (dict[str, Any]): Extension point for child classes to store additional outputs.
-
-    Returns:
-        NumpyElectionDataTracker: Instance storing numpy election state.
-
+    
     Attributes:
         ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
@@ -107,7 +92,7 @@ class NumpySTVBase(ABC):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Expected outputs:
+        Expected outputs: TODO: document this
         """
         pass
 
@@ -181,10 +166,9 @@ class NumpySTVBase(ABC):
             raise IndexError("round_number out of range.")
         round_number = round_number % len(self._data.fpv_by_round)
         list_of_winners = [
-            [c]
+            [c for c in play["winners"]]
             for play in self._data.play_by_play[:round_number]
             if play["round_type"] in {"election", "default"}
-            for c in play["winners"]
         ]
         return tuple(
             frozenset([self.candidates[c] for c in w_list])
@@ -245,7 +229,7 @@ class NumpySTVBase(ABC):
 
     def get_status_df(self, round_number: int = -1) -> pd.DataFrame:
         """
-        Yield the status (elected, eliminated, remaining) of the candidates in the given round.
+        Returns a dataframe reporting the status (elected, eliminated, remaining) of the candidates in the given round.
         DataFrame is sorted by current ranking.
 
         Args:
@@ -337,7 +321,14 @@ class NumpySTVBase(ABC):
 
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Fetch the RankProfile of the given round number.
+        Returns the RankProfile of the given round number.
+
+        Args:
+            round_number (int): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            RankProfile: The RankProfile of the given round.
         """
         if (
             round_number < -len(self.election_states)
