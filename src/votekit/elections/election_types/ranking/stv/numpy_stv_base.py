@@ -130,7 +130,7 @@ class NumpySTVBase(ABC):
                 return candidate_to_index[cell]
             except KeyError:
                 raise TypeError(
-                    f"Ballots must have rankings, found invalid entry: {cell}"
+                    f"Found invalid entry: {cell}"
                 )
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
@@ -145,8 +145,6 @@ class NumpySTVBase(ABC):
         empty_rows = np.where(
             np.all(ballot_matrix == -127, axis=1)
         )[0]
-        if empty_rows.size:
-            raise TypeError("Ballots must have rankings.")
 
         return ballot_matrix, wt_vec
     
