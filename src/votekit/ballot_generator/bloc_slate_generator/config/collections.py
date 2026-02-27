@@ -303,9 +303,9 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
 
     def update(
         self,
-        other: Mapping[str, Sequence[str]] | Iterable[tuple[str, Sequence[str]]] = (),
+        other: Any = (),
         /,
-        **kw,
+        **kw: Sequence[str],
     ) -> None:
         """
         Update the slate to candidates mapping with the key-value pairs from other.
