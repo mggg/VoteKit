@@ -388,8 +388,8 @@ class NumpyInnerSTV(NumpySTVBase):
 
         def make_tallies(fpv_vec: NDArray, wt_vec: NDArray, ncands: int) -> NDArray:
             return np.bincount(
-                fpv_vec[fpv_vec >= 0],
-                weights=wt_vec[fpv_vec >= 0],
+                fpv_vec[fpv_vec != NumpySTVSentinel.BLANK_RANKING.value],
+                weights=wt_vec[fpv_vec != NumpySTVSentinel.BLANK_RANKING.value],
                 minlength=ncands,
             )
 
