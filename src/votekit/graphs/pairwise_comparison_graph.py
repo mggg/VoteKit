@@ -363,12 +363,11 @@ class PairwiseComparisonGraph(nx.DiGraph):
         if strict:
             # We filter for edges with weight > 0 to find strict cycles
             strict_edges = []
-            for u, v, d in self.pairwise_graph.edges(data=True):
-                if d.get("weight", 0) > 0:
-                    strict_edges.append((u, v, d))
+            for u, v, data in self.pairwise_graph.edges(data=True):
+                if data.get("weight", 0) > 0:
+                    strict_edges.append((u, v, data))
 
             graph_to_use = nx.DiGraph()
-            graph_to_use.add_nodes_from(self.pairwise_graph.nodes)
             graph_to_use.add_edges_from(strict_edges)
 
         list_of_cycles = nx.recursive_simple_cycles(graph_to_use)
