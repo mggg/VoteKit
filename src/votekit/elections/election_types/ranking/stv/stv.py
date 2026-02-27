@@ -63,16 +63,16 @@ class NumpyInnerSTV(NumpySTVBase):
             block_rcv (bool): If True, blocks ranked-choice voting. Defaults to False.
         """
         self.__check_profile_and_seats_and_candidates_and_transfer(profile, m, transfer)
-        self.transfer = transfer
-        self.quota = quota
-        self.simultaneous = simultaneous
-        self.dynamic_threshold = dynamic_threshold
-        self.block_rcv = block_rcv
         super().__init__(
             profile=profile,
             m=m,
             tiebreak=tiebreak,
         )
+        self.transfer = transfer
+        self.quota = quota
+        self.simultaneous = simultaneous
+        self.dynamic_threshold = dynamic_threshold
+        self.block_rcv = block_rcv
         self.threshold = self._get_threshold(quota, float(np.sum(self._data.wt_vec)))
         self._run_and_store()
 
