@@ -748,6 +748,14 @@ class ElectionScene(manim.Scene):
         Manim/Pango has poor kerning at small font sizes. This method renders
         text at a larger size and scales it down to work around the issue.
         See: https://github.com/ManimCommunity/manim/issues/2844
+
+        Args:
+            text (str): The text to be displayed.
+            font_size (float): Size of the font.
+            color (ManimColor): The color of the text.
+
+        Returns:
+            Manim Text object with proper kerning.
         """
         SCALE_FACTOR = 0.1
         THRESHOLD = 32  # Only apply workaround for small text
