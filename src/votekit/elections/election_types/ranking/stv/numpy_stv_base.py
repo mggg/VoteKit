@@ -205,7 +205,16 @@ class NumpySTVBase(ABC):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Expected outputs: TODO: document this
+        Core election logic to be implemented by child classes. This should run the election and produce the outputs needed to populate the NumpyElectionDataTracker.
+        Note that the child class can store additional outputs in the `extras` field of the data tracker if needed. 
+
+        Args:
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to numpy arrays.
+
+        Returns:
+            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
+            play_by_play (list[dict[str, Any]]): List of dictionaries representing the actions taken in each round.
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries representing tiebreak resolutions for each round.
         """
         pass
 
