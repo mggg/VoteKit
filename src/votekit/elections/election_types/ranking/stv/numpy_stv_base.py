@@ -43,13 +43,15 @@ class NumpySTVBase(ABC):
     """
     Abstract base class for numpy-based STV-style elections.
 
-    Args:
-        profile (RankProfile): RankProfile to run election on.
-        m (int): Number of seats to be elected. Defaults to 1.
-        tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Defaults to None.
-
-    Returns:
-        NumpySTVBase: Initialized base instance.
+    Attributes:
+        candidates (list[str]): List of candidate names, indexed to correspond to ballot matrix entries.
+        profile (RankProfile): The original RankProfile for reference.
+        m (int): Number of seats to be elected.
+        election_states (list[ElectionState]): List of ElectionState objects representing each round in chronological order.
+        tiebreak (Optional[str]): User-specified method to be used if a tiebreak is needed. Defaults to None.
+        _data (NumpyElectionDataTracker): Internal data tracker.
+        _winner_tiebreak (Optional[str]): Tiebreak method for winners, set to `None` by default.
+        _loser_tiebreak (str): Tiebreak method for losers, set to "first_place" by default.
     """
 
     candidates: list[str]
@@ -68,6 +70,15 @@ class NumpySTVBase(ABC):
         m: int = 1,
         tiebreak: Optional[str] = None,
     ):
+        """
+        Args:
+            profile (RankProfile): RankProfile to run election on.
+            m (int): Number of seats to be elected. Defaults to 1.
+            tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Defaults to None.
+
+        Returns:
+            NumpySTVBase: Initialized base instance.
+        """
         self.profile = profile
         self.m = m
         self.candidates = list(profile.candidates)
