@@ -21,7 +21,7 @@ __all__ = [
     "Plurality",
     "SNTV",
     "Borda",
-    "stv",
+    "STV",
     "FastSTV",
     "IRV",
     "SequentialRCV",
