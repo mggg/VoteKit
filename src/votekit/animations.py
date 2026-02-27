@@ -816,7 +816,7 @@ class ElectionScene(manim.Scene):
             alignment="center",
             font_size=self.title_font_size,
             color=ManimColor(self.color_palette.text_regular),
-            font=self.font
+            font=self.font,
         )
         # Scale down to fit within 90 % of the frame if needed.
         max_width = manim.config.frame_width * 0.9
