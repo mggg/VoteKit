@@ -655,18 +655,19 @@ class STVAnimation:
 
     def save(self, save_path: str | Path) -> None:
         """
-        Save the rendered video to a file.
+        Save the video to a file. This method will also render the animation
+        if it has not been rendered already.
 
         Args:
             save_path (str or Path): The destination file path for the video.
-
-        Raises:
-            RuntimeError: If `render` has not yet been called.
         """
+
         if self._video_path is None:
-            raise RuntimeError(
-                "No rendered video to save. Call render() before save()."
-            )
+            self.render()
+        assert (
+            self._video_path is not None
+        ), "Rendering video did not produce a video path."
+
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(self._video_path, save_path)
