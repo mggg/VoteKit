@@ -20,6 +20,7 @@ from manim import (
     ManimColor,
     ParsableManimColor,
 )
+from manimpango import list_fonts  # type: ignore
 from votekit.cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
     remove_cand_rank_ballot,
@@ -723,6 +724,22 @@ class ElectionScene(manim.Scene):
         self.quota_line = None
         self.ticker_tape_line = None
         self.ticker_tape: List[Text] = []
+        self.font = self._determine_font()
+
+    def _determine_font(self) -> str:
+        """
+        Determine the font to use for the animation.
+
+        The font must be installed on the system. This function checks whether the preferred
+        fonts are installed, and if not, lets Manim choose the font.
+        """
+        font_preferences = ["Noto Serif", "Arial"]
+        available_fonts = list_fonts()
+
+        for font in font_preferences:
+            if font in available_fonts:
+                return font
+        return ""
 
     def _make_text(self, text: str, font_size: float, color: ManimColor) -> Text:
         """
@@ -736,11 +753,13 @@ class ElectionScene(manim.Scene):
         THRESHOLD = 32  # Only apply workaround for small text
 
         if font_size < THRESHOLD:
-            scaled_text = Text(text, font_size=font_size / SCALE_FACTOR, color=color)
+            scaled_text = Text(
+                text, font_size=font_size / SCALE_FACTOR, color=color, font=self.font
+            )
             scaled_text.scale(SCALE_FACTOR)
             return scaled_text
         else:
-            return Text(text, font_size=font_size, color=color)
+            return Text(text, font_size=font_size, color=color, font=self.font)
 
     def construct(self) -> None:
         """
@@ -797,6 +816,7 @@ class ElectionScene(manim.Scene):
             alignment="center",
             font_size=self.title_font_size,
             color=ManimColor(self.color_palette.text_regular),
+            font=self.font
         )
         # Scale down to fit within 90 % of the frame if needed.
         max_width = manim.config.frame_width * 0.9
