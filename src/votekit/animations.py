@@ -544,8 +544,8 @@ class STVAnimation:
         self, events: List[_AnimationEvent]
     ) -> List[_AnimationEvent]:
         """
-        Take a list of events and condense any consecutive offscreen events into one summarizing event. 
-        
+        Take a list of events and condense any consecutive offscreen events into one summarizing event.
+
         For instance, if ``events`` contains three offscreen eliminations in a row,
         this function will condense them into one offscreen elimination of three candidates.
 
@@ -655,8 +655,8 @@ class STVAnimation:
 
     def save(self, save_path: str | Path) -> None:
         """
-        Save the video to a file. 
-        
+        Save the video to a file.
+
         This method will also render the animation if it has not been rendered already.
 
         Args:
@@ -735,7 +735,7 @@ class ElectionScene(manim.Scene):
         """
         font_preferences = ["Noto Serif", "Arial"]
         available_fonts = list_fonts()
-        print("Available fonts: ", available_fonts) #Temporary
+        print("Available fonts: ", available_fonts)  # Temporary
         for font in font_preferences:
             if font in available_fonts:
                 return font
