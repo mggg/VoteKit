@@ -8,7 +8,13 @@ import pandas as pd
 from itertools import groupby
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 
+class NumpySTVSentinel(Enum):
+    """
+    Enum for sentinel values in the ballot matrix. These are used to indicate empty cells after padding.
+    """
+    BLANK_RANKING = np.int8(-127)
 
 @dataclass(slots=True)
 class NumpyElectionDataTracker:
@@ -115,7 +121,7 @@ class NumpySTVBase(ABC):
         candidate_to_index = {
             frozenset([name]): i for i, name in enumerate(self.candidates)
         }
-        candidate_to_index[frozenset(["~"])] = -127
+        candidate_to_index[frozenset(["~"])] = NumpySTVSentinel.BLANK_RANKING.value  # sentinel for blank/empty rankings after padding
 
         ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
         num_rows = len(df)
@@ -136,14 +142,14 @@ class NumpySTVBase(ABC):
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
         # Add padding
-        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), -127, dtype=np.int8)
+        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), NumpySTVSentinel.BLANK_RANKING.value, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
         wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
 
         # Reject ballots that have no rankings at all (all -127)
         empty_rows = np.where(
-            np.all(ballot_matrix == -127, axis=1)
+            np.all(ballot_matrix == NumpySTVSentinel.BLANK_RANKING.value, axis=1)
         )[0]
 
         return ballot_matrix, wt_vec
@@ -202,8 +208,8 @@ class NumpySTVBase(ABC):
             NDArray: The i-th entry is the initial first-preference vote tally for candidate i.
         """
         return np.bincount(
-            fpv_vec[fpv_vec != -127],
-            weights=wt_vec[fpv_vec != -127],
+            fpv_vec[fpv_vec != NumpySTVSentinel.BLANK_RANKING.value],
+            weights=wt_vec[fpv_vec != NumpySTVSentinel.BLANK_RANKING.value],
             minlength=len(self.candidates),
         )
 
@@ -448,13 +454,13 @@ class NumpySTVBase(ABC):
         keep_mask = np.isin(A, remaining_arr)
 
         # --- 3) stable left-compaction, fill with -127 ---
-        out = np.full_like(A, fill_value=-127)  # int8
+        out = np.full_like(A, fill_value=NumpySTVSentinel.BLANK_RANKING.value)  # int8
         pos = keep_mask.cumsum(axis=1) - 1  # target col for each kept entry
         r_idx, c_idx = np.nonzero(keep_mask)
         out[r_idx, pos[r_idx, c_idx]] = A[r_idx, c_idx]
 
         # --- 3.5) drop rows that are all -127 (empty ballots after filtering) ---
-        row_keep_mask = ~(out == -127).all(axis=1)
+        row_keep_mask = ~(out == NumpySTVSentinel.BLANK_RANKING.value).all(axis=1)
         out = out[row_keep_mask]
         wt_vec = wt_vec[row_keep_mask]
         n_rows = out.shape[0]
