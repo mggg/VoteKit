@@ -6,7 +6,13 @@ parameters needed to generate a set of ballots using one of our ballot generatio
 involving both voter blocs and slates of candidates.
 """
 
-from collections.abc import Mapping, MutableMapping, MutableSequence, Iterator
+from collections.abc import (
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Iterator,
+    Callable,
+)
 from typing import (
     Sequence,
     Optional,
@@ -117,6 +123,42 @@ def _invalid_negative_values(values: np.ndarray) -> list[float]:
 def _sum_differs_from_one(value: float) -> bool:
     """Return True when value is not within tolerance of 1.0."""
     return abs(float(value) - 1.0) > FLOAT_TOL
+
+
+def _first_probability_row_error(
+    row_vals: Union[pd.Series, pd.DataFrame],
+    *,
+    context: str,
+    invalid_negative_error: Callable[[list[float]], Exception],
+    unset_error: Callable[[], Exception],
+    sum_error: Callable[[float], Exception],
+) -> Optional[Exception]:
+    """
+    Return the first validation error for a probability row, if any.
+
+    Validation order is:
+    1) numeric + finite
+    2) invalid negative values (anything < 0 except UNSET_VALUE)
+    3) unset values (UNSET_VALUE present)
+    4) row sum equals 1 within tolerance
+    """
+    try:
+        vals = _to_finite_float_array(row_vals, context=context)
+    except (TypeError, ValueError) as e:
+        return e
+
+    invalid_negatives = _invalid_negative_values(vals)
+    if invalid_negatives:
+        return invalid_negative_error(invalid_negatives)
+
+    if (vals < 0).any():
+        return unset_error()
+
+    total = float(vals.sum())
+    if _sum_differs_from_one(total):
+        return sum_error(total)
+
+    return None
 
 
 def typecheck_bloc_proportion_mapping(
@@ -1222,43 +1264,38 @@ class BlocSlateConfig:
                     for row in self.preference_df[cand_list].iterrows():
                         bloc_name = str(row[0])
                         row_vals = row[1]
-                        try:
-                            vals = _to_finite_float_array(
-                                row_vals,
-                                context=f"preference_df row for bloc '{bloc_name}'",
-                            )
-                        except (TypeError, ValueError) as e:
-                            errors.append(e)
-                            continue
 
-                        invalid_negatives = _invalid_negative_values(vals)
-                        if invalid_negatives:
-                            errors.append(
-                                ValueError(
-                                    f"preference_df row for bloc '{bloc_name}' has invalid "
-                                    f"negative values {invalid_negatives}. Use -1 to mark "
-                                    "unset values."
-                                )
+                        def _pref_invalid_negative_error(
+                            invalid_negatives: list[float],
+                        ) -> Exception:
+                            return ValueError(
+                                f"preference_df row for bloc '{bloc_name}' has invalid "
+                                f"negative values {invalid_negatives}. Use -1 to mark "
+                                "unset values."
                             )
-                            continue
 
-                        if (vals < 0).any():
-                            errors.append(
-                                ValueError(
-                                    f"preference_df row for bloc '{bloc_name}' has values "
-                                    f"that have "
-                                    f"not been set (indicated with value of {UNSET_VALUE:g})."
-                                )
+                        def _pref_unset_error() -> Exception:
+                            return ValueError(
+                                f"preference_df row for bloc '{bloc_name}' has values "
+                                f"that have "
+                                f"not been set (indicated with value of {UNSET_VALUE:g})."
                             )
-                            continue
 
-                        if _sum_differs_from_one(vals.sum()):
-                            errors.append(
-                                ValueError(
-                                    f"preference_df row for bloc '{bloc_name}' and candidates "
-                                    f"{cand_list} must sum to 1, got {float(vals.sum()):.6f}"
-                                )
+                        def _pref_sum_error(total: float) -> Exception:
+                            return ValueError(
+                                f"preference_df row for bloc '{bloc_name}' and candidates "
+                                f"{cand_list} must sum to 1, got {total:.6f}"
                             )
+
+                        row_error = _first_probability_row_error(
+                            row_vals,
+                            context=f"preference_df row for bloc '{bloc_name}'",
+                            invalid_negative_error=_pref_invalid_negative_error,
+                            unset_error=_pref_unset_error,
+                            sum_error=_pref_sum_error,
+                        )
+                        if row_error is not None:
+                            errors.append(row_error)
 
             if set(self.preference_df.index) != set(self.blocs):
                 errors.append(
@@ -1293,42 +1330,37 @@ class BlocSlateConfig:
             for row in self.cohesion_df.iterrows():
                 bloc_name = str(row[0])
                 row_vals = row[1]
-                try:
-                    vals = _to_finite_float_array(
-                        row_vals,
-                        context=f"cohesion_df row for bloc '{bloc_name}'",
-                    )
-                except (TypeError, ValueError) as e:
-                    errors.append(e)
-                    continue
 
-                invalid_negatives = _invalid_negative_values(vals)
-                if invalid_negatives:
-                    errors.append(
-                        ValueError(
-                            f"cohesion_df row for bloc '{bloc_name}' has invalid "
-                            f"negative values {invalid_negatives}. Use -1 to mark "
-                            "unset values."
-                        )
+                def _cohesion_invalid_negative_error(
+                    invalid_negatives: list[float],
+                ) -> Exception:
+                    return ValueError(
+                        f"cohesion_df row for bloc '{bloc_name}' has invalid "
+                        f"negative values {invalid_negatives}. Use -1 to mark "
+                        "unset values."
                     )
-                    continue
 
-                if (vals < 0).any():
-                    errors.append(
-                        ValueError(
-                            f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
-                            f"set (indicated with value of {UNSET_VALUE:g})."
-                        )
+                def _cohesion_unset_error() -> Exception:
+                    return ValueError(
+                        f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
+                        f"set (indicated with value of {UNSET_VALUE:g})."
                     )
-                    continue
 
-                if _sum_differs_from_one(vals.sum()):
-                    errors.append(
-                        ValueError(
-                            f"cohesion_df row for bloc '{bloc_name}' must sum to 1, "
-                            f"got {float(vals.sum()):.6f}"
-                        )
+                def _cohesion_sum_error(total: float) -> Exception:
+                    return ValueError(
+                        f"cohesion_df row for bloc '{bloc_name}' must sum to 1, "
+                        f"got {total:.6f}"
                     )
+
+                row_error = _first_probability_row_error(
+                    row_vals,
+                    context=f"cohesion_df row for bloc '{bloc_name}'",
+                    invalid_negative_error=_cohesion_invalid_negative_error,
+                    unset_error=_cohesion_unset_error,
+                    sum_error=_cohesion_sum_error,
+                )
+                if row_error is not None:
+                    errors.append(row_error)
         return errors
 
     def is_valid(
@@ -1358,6 +1390,47 @@ class BlocSlateConfig:
 
         return False
 
+    def __make_unset_df(
+        self, *, index: Sequence[str], columns: Sequence[str]
+    ) -> pd.DataFrame:
+        """Build a float DataFrame filled with UNSET_VALUE for the requested shape."""
+        return pd.DataFrame(
+            UNSET_VALUE,
+            index=pd.Index(index),
+            columns=pd.Index(columns),
+            dtype=float,
+        )
+
+    def __sync_df_columns(self, df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
+        """Drop unknown columns, add missing columns as UNSET_VALUE, and reorder."""
+        expected_columns = list(columns)
+        expected_set = set(expected_columns)
+
+        drop_columns = [col for col in df.columns if col not in expected_set]
+        if drop_columns:
+            df.drop(columns=drop_columns, inplace=True)
+
+        for col in expected_columns:
+            if col not in df.columns:
+                df[col] = UNSET_VALUE
+
+        return df[expected_columns]
+
+    def __sync_df_index(self, df: pd.DataFrame, index: Sequence[str]) -> pd.DataFrame:
+        """Drop unknown rows, add missing rows as UNSET_VALUE, and reorder."""
+        expected_index = list(index)
+        expected_set = set(expected_index)
+
+        drop_index = [idx for idx in df.index if idx not in expected_set]
+        if drop_index:
+            df.drop(index=drop_index, inplace=True)
+
+        missing_index = [idx for idx in expected_index if idx not in df.index]
+        if missing_index:
+            df.loc[missing_index] = UNSET_VALUE
+
+        return df.loc[expected_index]
+
     def __update_preference_df_on_candidate_change(self) -> None:
         """
         Update the preference DataFrame when candidates change in slate_to_candidates.
@@ -1370,132 +1443,75 @@ class BlocSlateConfig:
 
         if self.preference_df.empty:
             # If the preference_df is empty, just create a new one with the right shape
-            self.preference_df = pd.DataFrame(
-                UNSET_VALUE,
-                index=pd.Index(self.blocs),
-                columns=pd.Index(self.candidates),
-                dtype=float,
+            self.preference_df = self.__make_unset_df(
+                index=self.blocs,
+                columns=self.candidates,
             )
             return
 
-        previous_slate_cand_list_pairs: list[tuple[str, list[str]]]
-        if curr_pref_df_slate_cands_dict is None:
-            previous_slate_cand_list_pairs = list()
-        else:
-            previous_slate_cand_list_pairs = list(curr_pref_df_slate_cands_dict.items())
-
-        drop_set = set()
-        for slate, previous_cand_list in previous_slate_cand_list_pairs:
-            if slate not in current_slate_cand_dict:  # pragma: no cover
-                drop_set.update(set(previous_cand_list))
-            else:
-                drop_set.update(
-                    set(previous_cand_list) - set(current_slate_cand_dict.get(slate, []))
-                )
-
-        # Remove candidates that are no longer in the config
-        drop_list = list(drop_set)
-        if len(drop_list) > 0:  # pragma: no cover
-            self.preference_df.drop(columns=drop_list, inplace=True)
-
-        pref_df_cands = set(self.preference_df.columns)
-        current_cands = set(self.candidates)
-        # Add new candidates with default -1.0 values
-        for c in current_cands - pref_df_cands:
-            self.preference_df[c] = UNSET_VALUE
-
         self._current_preference_df_slate_cand_mapping = current_slate_cand_dict
-        # Reorder columns to match config order
-        self.preference_df = self.preference_df[self.candidates]
+        self.preference_df = self.__sync_df_columns(
+            self.preference_df, self.candidates
+        )
 
     def __update_cohesion_df_on_slate_change(self) -> None:
         """
         Update the cohesion DataFrame when slates change in slate_to_candidates.
         """
-        current_slates = set(self.cohesion_df.columns)
-        config_slates = set(self.slates)
+        config_slates = self.slates
 
-        if current_slates == config_slates:
+        if list(self.cohesion_df.columns) == list(config_slates):
             return
 
         if self.cohesion_df.empty:
             # If the cohesion_df is empty, just create a new one with the right shape
-            self.cohesion_df = pd.DataFrame(
-                UNSET_VALUE,
-                index=pd.Index(self.blocs),
-                columns=pd.Index(self.slates),
-                dtype=float,
+            self.cohesion_df = self.__make_unset_df(
+                index=self.blocs,
+                columns=self.slates,
             )
             return
 
-        # Remove slates that are no longer in the config
-        self.cohesion_df.drop(
-            columns=list(current_slates - config_slates), inplace=True
+        self.cohesion_df = self.__sync_df_columns(
+            self.cohesion_df, config_slates
         )
-
-        # Add new slates with default -1.0 values
-        self.cohesion_df[list(config_slates - current_slates)] = UNSET_VALUE
-
-        # Reorder columns to match config order
-        self.cohesion_df = self.cohesion_df[self.slates]
 
     def __update_preference_df_on_bloc_change(self) -> None:
         """
         Update the preference DataFrame when blocs change in bloc_proportions.
         """
-        current_blocs = set(self.preference_df.index)
-        config_blocs = set(self.blocs)
+        config_blocs = self.blocs
 
-        if current_blocs == config_blocs:
+        if list(self.preference_df.index) == list(config_blocs):
             return
 
         if self.preference_df.empty:
             # If the preference_df is empty, just create a new one with the right shape
-            self.preference_df = pd.DataFrame(
-                UNSET_VALUE,
-                index=pd.Index(self.blocs),
-                columns=pd.Index(self.candidates),
-                dtype=float,
+            self.preference_df = self.__make_unset_df(
+                index=self.blocs,
+                columns=self.candidates,
             )
             return
 
-        # Remove blocs that are no longer in the config
-        self.preference_df.drop(index=list(current_blocs - config_blocs), inplace=True)
-
-        # Add new blocs with default -1.0 values
-        self.preference_df.loc[list(config_blocs - current_blocs)] = UNSET_VALUE
-
-        # Reorder rows to match config order
-        self.preference_df = self.preference_df.loc[self.blocs]
+        self.preference_df = self.__sync_df_index(self.preference_df, config_blocs)
 
     def __update_cohesion_df_on_bloc_change(self) -> None:
         """
         Update the cohesion DataFrame when blocs change in bloc_proportions.
         """
-        current_blocs = set(self.cohesion_df.index)
-        config_blocs = set(self.blocs)
+        config_blocs = self.blocs
 
-        if current_blocs == config_blocs:
+        if list(self.cohesion_df.index) == list(config_blocs):
             return
 
         if self.cohesion_df.empty:
             # If the cohesion_df is empty, just create a new one with the right shape
-            self.cohesion_df = pd.DataFrame(
-                UNSET_VALUE,
-                index=pd.Index(self.blocs),
-                columns=pd.Index(self.slates),
-                dtype=float,
+            self.cohesion_df = self.__make_unset_df(
+                index=self.blocs,
+                columns=self.slates,
             )
             return
 
-        # Remove blocs that are no longer in the config
-        self.cohesion_df.drop(index=list(current_blocs - config_blocs), inplace=True)
-
-        # Add new blocs with default -1.0 values
-        self.cohesion_df.loc[list(config_blocs - current_blocs)] = UNSET_VALUE
-
-        # Reorder rows to match config order
-        self.cohesion_df = self.cohesion_df.loc[self.blocs]
+        self.cohesion_df = self.__sync_df_index(self.cohesion_df, config_blocs)
 
     def _update_preference_and_cohesion_slates(self) -> None:
         """
@@ -1638,42 +1654,38 @@ class BlocSlateConfig:
                     f"Available blocs: {list(self.preference_df.index)}"
                 )
             row_vals = self.preference_df[cand_list].loc[bloc]
-            try:
-                vals = _to_finite_float_array(
-                    row_vals,
-                    context=f"Preference interval for bloc '{bloc}' and slate '{slate_name}'",
-                )
-            except TypeError:
-                raise TypeError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
-                    "contain numeric values."
-                )
-            except ValueError:
-                raise ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' contains "
-                    "non-finite values."
-                )
 
-            invalid_negatives = _invalid_negative_values(vals)
-            if invalid_negatives:
-                raise ValueError(
+            def _interval_invalid_negative_error(
+                invalid_negatives: list[float],
+            ) -> Exception:
+                return ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
                     f"invalid negative values {invalid_negatives}. Use -1 to mark unset "
                     "values."
                 )
 
-            if (vals < 0).any():
-                raise ValueError(
+            def _interval_unset_error() -> Exception:
+                return ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
                     f"candidates {cand_list} that have not been set (indicated with "
                     f"value of {UNSET_VALUE:g})."
                 )
 
-            if _sum_differs_from_one(vals.sum()):
-                raise ValueError(
+            def _interval_sum_error(total: float) -> Exception:
+                return ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
-                    f"sum to 1, got {float(vals.sum()):.6f}"
+                    f"sum to 1, got {total:.6f}"
                 )
+
+            row_error = _first_probability_row_error(
+                row_vals,
+                context=f"Preference interval for bloc '{bloc}' and slate '{slate_name}'",
+                invalid_negative_error=_interval_invalid_negative_error,
+                unset_error=_interval_unset_error,
+                sum_error=_interval_sum_error,
+            )
+            if row_error is not None:
+                raise row_error
 
         return PreferenceInterval(
             {

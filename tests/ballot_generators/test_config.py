@@ -1770,6 +1770,20 @@ def test_setting_slate_to_candidates_adds_new_candidate_columns_with_minus_one(
     assert set(config.cohesion_df.columns) == set(config.slates)
 
 
+def test_setting_slate_to_candidates_reorders_cohesion_columns_when_only_order_changes(
+    valid_config,
+):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    reordered = {
+        "slate_2": list(config.slate_to_candidates["slate_2"]),
+        "slate_1": list(config.slate_to_candidates["slate_1"]),
+    }
+    config.slate_to_candidates = reordered  # type: ignore[assignment]
+
+    assert list(config.cohesion_df.columns) == config.slates
+
+
 def test_setting_bloc_proportions_adds_and_removes_rows_with_minus_one(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
@@ -1781,6 +1795,19 @@ def test_setting_bloc_proportions_adds_and_removes_rows_with_minus_one(valid_con
     config.bloc_proportions = bp2  # type: ignore[assignment]
     assert "bloc_1" not in config.preference_df.index
     assert "bloc_1" not in config.cohesion_df.index
+
+
+def test_setting_bloc_proportions_reorders_rows_when_only_order_changes(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    reordered = {
+        "bloc_2": config.bloc_proportions["bloc_2"],
+        "bloc_1": config.bloc_proportions["bloc_1"],
+    }
+    config.bloc_proportions = reordered  # type: ignore[assignment]
+
+    assert list(config.preference_df.index) == config.blocs
+    assert list(config.cohesion_df.index) == config.blocs
 
 
 # ---------- dirichlet alphas ----------
