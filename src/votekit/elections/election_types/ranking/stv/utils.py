@@ -11,15 +11,6 @@ def numpy_random_transfer(
     Returns a counts vector where counts[i] is the number of times row i was sampled.
     Ensures sum(counts) == s and counts[i] <= wt_vec[i].
 
-    Args:
-        fpv_vec (NDArray): First-preference vector.
-        wt_vec (NDArray): Integer weights vector.
-        winner (int): Candidate code whose ballots are to be transferred.
-        surplus (int): Number of surplus votes to transfer.
-
-    Returns:
-        counts (NDArray): Vector of counts 
-
     Example:
         Assume candidate 2 just won.
         Let fpv_vec = [2, 5, 3, 2]. Then eligible_for_transfer is
@@ -31,6 +22,15 @@ def numpy_random_transfer(
         [0, 225), for example 12, 50, 178, 200, 201. Numbers 0 through
         199 map to the first bin (winner_row_indices[0]), and 200 and 201
         map to the second bin (winner_row_indices[1]).
+
+    Args:
+        fpv_vec (NDArray): First-preference vector.
+        wt_vec (NDArray): Integer weights vector.
+        winner (int): Candidate code whose ballots are to be transferred.
+        surplus (int): Number of surplus votes to transfer.
+
+    Returns:
+        counts (NDArray): Vector of counts 
     """
     rng = np.random.default_rng()
     eligible_for_transfer = fpv_vec == winner
