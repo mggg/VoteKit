@@ -49,7 +49,7 @@ jobs:
         run: poetry install --no-interaction --extras animation
 
       - name: Sync poetry (safety check)
-        run: poetry sync
+        run: poetry sync --extras animation
 
       - name: pytest
         run: poetry run pytest --runslow
