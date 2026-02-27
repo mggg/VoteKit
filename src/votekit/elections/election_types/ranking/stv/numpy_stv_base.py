@@ -146,16 +146,13 @@ class NumpySTVBase(ABC):
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # Add padding
-        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), NumpySTVSentinel.BLANK_RANKING.value, dtype=np.int8)
+        # Add padding -- a lot of the election logic needs at least one entry of each row of the ballot matrix to be negative.
+        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set to 0 only when candidates are eliminated/elected.
+        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having the last column of the matrix always be 1.
+        ballot_matrix: NDArray = np.full((num_rows, num_cols+1), NumpySTVSentinel.BLANK_RANKING.value, dtype=np.int8)
         ballot_matrix[:, :num_cols] = mapped
 
         wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
-
-        # Reject ballots that have no rankings at all (all -127)
-        empty_rows = np.where(
-            np.all(ballot_matrix == NumpySTVSentinel.BLANK_RANKING.value, axis=1)
-        )[0]
 
         return ballot_matrix, wt_vec
     
