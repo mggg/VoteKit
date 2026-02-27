@@ -85,6 +85,119 @@ class NumpySTVBase(ABC):
             initial_fpv_scores=initial_fpv_scores,
         )
 
+    # ==================
+    # == Init Methods ==
+    # ==================
+
+    def _convert_pf_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
+        """
+        This converts the profile into a numpy matrix with some helper arrays for faster iteration.
+
+        Args:
+            profile (RankProfile): The preference profile to convert.
+
+        Returns:
+            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and
+                first-preference vector.
+        """
+        df = pf.df.copy()
+        candidate_to_index = {
+            frozenset([name]): i for i, name in enumerate(self.candidates)
+        }
+        candidate_to_index[frozenset(["~"])] = -127
+
+        ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
+        num_rows = len(df)
+        num_cols = len(ranking_columns)
+        if num_cols > len(pf.candidates):
+            ranking_columns = ranking_columns[: len(pf.candidates)]
+            num_cols = len(ranking_columns)
+        cells = df[ranking_columns].to_numpy()
+
+        def map_cell(cell):
+            try:
+                return candidate_to_index[cell]
+            except KeyError:
+                raise TypeError(
+                    f"Ballots must have rankings, found invalid entry: {cell}"
+                )
+
+        mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
+
+        # Add padding
+        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), -126, dtype=np.int8)
+        ballot_matrix[:, :num_cols] = mapped
+
+        wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
+
+        # Reject ballots that have no rankings at all (all -127 or -126)
+        empty_rows = np.where(
+            np.all((ballot_matrix == -127) | (ballot_matrix == -126), axis=1)
+        )[0]
+        if empty_rows.size:
+            raise TypeError("Ballots must have rankings.")
+
+        return ballot_matrix, wt_vec
+    
+    def _make_election_states(self):
+        """
+        Creates the list of election states after the main loop has run.
+        Returns:
+            list[ElectionState]: List of ElectionState objects representing each round in
+                chronological order.
+        """
+        e_states = [
+            ElectionState(
+                round_number=0,
+                remaining=self.get_remaining(0),
+                scores={
+                    self.candidates[c]: self._data.fpv_by_round[0][c]
+                    for c in self._data.fpv_by_round[0].nonzero()[0]
+                },
+            )
+        ]
+        for i, play in enumerate(self._data.play_by_play):
+            packaged_tiebreak = self._data.tiebreak_record[i]
+            packaged_elected = (
+                tuple([frozenset([self.candidates[c]]) for c in play["winners"]])
+                if play["round_type"] != "elimination"
+                else (frozenset(),)
+            )
+            packaged_eliminated = (
+                (frozenset([self.candidates[c] for c in play["loser"]]),)
+                if play["round_type"] == "elimination"
+                else (frozenset(),)
+            )
+            packaged_scores = {
+                self.candidates[c]: self._data.fpv_by_round[i + 1][c]
+                for c in self._data.fpv_by_round[i + 1].nonzero()[0]
+            }
+            e_states.append(
+                ElectionState(
+                    round_number=i + 1,
+                    remaining=self.get_remaining(i + 1),
+                    elected=packaged_elected,
+                    tiebreaks=packaged_tiebreak,
+                    eliminated=packaged_eliminated,
+                    scores=packaged_scores,
+                )
+            )
+
+        return e_states
+
+    def _make_initial_fpv(self, fpv_vec: NDArray, wt_vec: NDArray) -> NDArray:
+        """
+        Creates the initial first-preference vote (FPV) vector.
+
+        Returns:
+            NDArray: The i-th entry is the initial first-preference vote tally for candidate i.
+        """
+        return np.bincount(
+            fpv_vec[fpv_vec != -127],
+            weights=wt_vec[fpv_vec != -127],
+            minlength=len(self.candidates),
+        )
+
     @abstractmethod
     def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
         list[NDArray],
@@ -105,6 +218,10 @@ class NumpySTVBase(ABC):
         self._data.play_by_play = play_by_play
         self._data.tiebreak_record = tiebreak_record
         self.election_states = self._make_election_states()
+
+    # ==================
+    # == User Methods ==
+    # ==================
 
     def get_remaining(self, round_number: int = -1) -> tuple[frozenset, ...]:
         """
@@ -273,51 +390,6 @@ class NumpySTVBase(ABC):
         status_df = status_df.reindex(new_index)
         return status_df
 
-    def _make_election_states(self):
-        """
-        Creates the list of election states after the main loop has run.
-        Returns:
-            list[ElectionState]: List of ElectionState objects representing each round in
-                chronological order.
-        """
-        e_states = [
-            ElectionState(
-                round_number=0,
-                remaining=self.get_remaining(0),
-                scores={
-                    self.candidates[c]: self._data.fpv_by_round[0][c]
-                    for c in self._data.fpv_by_round[0].nonzero()[0]
-                },
-            )
-        ]
-        for i, play in enumerate(self._data.play_by_play):
-            packaged_tiebreak = self._data.tiebreak_record[i]
-            packaged_elected = (
-                tuple([frozenset([self.candidates[c]]) for c in play["winners"]])
-                if play["round_type"] != "elimination"
-                else (frozenset(),)
-            )
-            packaged_eliminated = (
-                (frozenset([self.candidates[c] for c in play["loser"]]),)
-                if play["round_type"] == "elimination"
-                else (frozenset(),)
-            )
-            packaged_scores = {
-                self.candidates[c]: self._data.fpv_by_round[i + 1][c]
-                for c in self._data.fpv_by_round[i + 1].nonzero()[0]
-            }
-            e_states.append(
-                ElectionState(
-                    round_number=i + 1,
-                    remaining=self.get_remaining(i + 1),
-                    elected=packaged_elected,
-                    tiebreaks=packaged_tiebreak,
-                    eliminated=packaged_eliminated,
-                    scores=packaged_scores,
-                )
-            )
-
-        return e_states
 
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
@@ -418,69 +490,10 @@ class NumpySTVBase(ABC):
             tuple[RankProfile, ElectionState]
         """
         return (self.get_profile(round_number), self.election_states[round_number])
-
-    def _convert_pf_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
-        """
-        This converts the profile into a numpy matrix with some helper arrays for faster iteration.
-
-        Args:
-            profile (RankProfile): The preference profile to convert.
-
-        Returns:
-            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and
-                first-preference vector.
-        """
-        df = pf.df.copy()
-        candidate_to_index = {
-            frozenset([name]): i for i, name in enumerate(self.candidates)
-        }
-        candidate_to_index[frozenset(["~"])] = -127
-
-        ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
-        num_rows = len(df)
-        num_cols = len(ranking_columns)
-        if num_cols > len(pf.candidates):
-            ranking_columns = ranking_columns[: len(pf.candidates)]
-            num_cols = len(ranking_columns)
-        cells = df[ranking_columns].to_numpy()
-
-        def map_cell(cell):
-            try:
-                return candidate_to_index[cell]
-            except KeyError:
-                raise TypeError(
-                    f"Ballots must have rankings, found invalid entry: {cell}"
-                )
-
-        mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
-
-        # Add padding
-        ballot_matrix: NDArray = np.full((num_rows, num_cols + 1), -126, dtype=np.int8)
-        ballot_matrix[:, :num_cols] = mapped
-
-        wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
-
-        # Reject ballots that have no rankings at all (all -127 or -126)
-        empty_rows = np.where(
-            np.all((ballot_matrix == -127) | (ballot_matrix == -126), axis=1)
-        )[0]
-        if empty_rows.size:
-            raise TypeError("Ballots must have rankings.")
-
-        return ballot_matrix, wt_vec
-
-    def _make_initial_fpv(self, fpv_vec: NDArray, wt_vec: NDArray) -> NDArray:
-        """
-        Creates the initial first-preference vote (FPV) vector.
-
-        Returns:
-            NDArray: The i-th entry is the initial first-preference vote tally for candidate i.
-        """
-        return np.bincount(
-            fpv_vec[fpv_vec != -127],
-            weights=wt_vec[fpv_vec != -127],
-            minlength=len(self.candidates),
-        )
+    
+    # ======================
+    # == Internal Methods ==
+    # ======================
 
     def _fpv_tiebreak(
         self, tied_cands: list[int], winner_tiebreak_bool: bool
