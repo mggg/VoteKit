@@ -20,6 +20,9 @@ from warnings import warn
 from pprint import pformat
 from textwrap import indent
 
+UNSET_VALUE = -1.0
+FLOAT_TOL = 1e-8
+
 
 class ConfigurationWarning(UserWarning):
     """Raised when adjusting a setting in BlocSlateConfig may cause a conflict."""
@@ -43,7 +46,9 @@ def _config_warning_format(
 warnings.formatwarning = _config_warning_format
 
 
-BlocPropotionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
+BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
+# Backward compatibility alias; keep the original misspelling available.
+BlocPropotionMapping = BlocProportionMapping
 CohesionMapping = Union[
     Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame
 ]
@@ -72,14 +77,45 @@ def _is_finite_real(x: object) -> bool:
         return False
 
 
+def _to_finite_float_array(
+    values: Union[pd.Series, pd.DataFrame],
+    *,
+    context: str,
+) -> np.ndarray:
+    """Convert values to float ndarray and enforce finiteness."""
+    try:
+        arr = values.to_numpy(dtype=float)
+    except (TypeError, ValueError):
+        raise TypeError(f"{context} must contain numeric values.")
+    if not np.isfinite(arr).all():
+        raise ValueError(f"{context} contains non-finite values.")
+    return arr
+
+
+def _unset_mask(values: np.ndarray) -> np.ndarray:
+    """Return boolean mask for unset sentinel values."""
+    return np.isclose(values, UNSET_VALUE, atol=FLOAT_TOL)
+
+
+def _invalid_negative_values(values: np.ndarray) -> list[float]:
+    """Return sorted distinct negative values that are not unset sentinel values."""
+    invalid_mask = (values < 0) & (~_unset_mask(values))
+    return sorted({float(v) for v in values[invalid_mask]})
+
+
+def _sum_differs_from_one(value: float) -> bool:
+    """Return True when value is not within tolerance of 1.0."""
+    return abs(float(value) - 1.0) > FLOAT_TOL
+
+
 def typecheck_bloc_proportion_mapping(
-    params: BlocPropotionMapping,
+    params: BlocProportionMapping,
 ) -> None:
     """
     Checks to make sure that the values that are stored in params are of the expected type.
 
     Args:
-        params (BlocPropotionMapping): The bloc proportion mapping to check.
+        params (BlocProportionMapping): The bloc proportion mapping to check.
 
     Raises:
         TypeError: If params is not a Mapping[str, float] or pd.Series with string index
@@ -114,13 +150,13 @@ def typecheck_bloc_proportion_mapping(
 
 
 def convert_bloc_proportion_map_to_series(
-    bloc_prop: BlocPropotionMapping,
+    bloc_prop: BlocProportionMapping,
 ) -> pd.Series:
     """
     Convert a dictionary of bloc proportions to a Series.
 
     Args:
-        bloc_prop (BlocPropotionMapping): The bloc proportion mapping to convert.
+        bloc_prop (BlocProportionMapping): The bloc proportion mapping to convert.
 
     Returns:
         pd.Series: A pandas Series with bloc names as the index and proportions as values.
@@ -148,7 +184,7 @@ def convert_bloc_proportion_map_to_series(
 
     if any(bloc_series < 0):
         raise ValueError("Bloc proportions must be non-negative.")
-    if abs(bloc_series.sum() - 1) > 1e-8:
+    if _sum_differs_from_one(bloc_series.sum()):
         raise ValueError(
             f"Bloc proportions currently sum to {bloc_series.sum():0.6f} when they "
             "should sum to 1."
@@ -246,7 +282,7 @@ def convert_cohesion_map_to_cohesion_df(
         slate_series = pd.Series(slate_dict)
         blocs_to_slate[bloc].update(slate_series.to_dict())
 
-    return pd.DataFrame(blocs_to_slate).fillna(-1.0).T
+    return pd.DataFrame(blocs_to_slate).fillna(UNSET_VALUE).T
 
 
 def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
@@ -371,7 +407,7 @@ def convert_preference_map_to_preference_df(
 
             blocs_to_cand[bloc].update(cand_dict)
 
-    return pd.DataFrame(blocs_to_cand).fillna(-1.0).T
+    return pd.DataFrame(blocs_to_cand).fillna(UNSET_VALUE).T
 
 
 class _CandListProxy(MutableSequence[str]):
@@ -664,7 +700,7 @@ class BlocProportions(MutableMapping[str, float]):
 
     Args:
         parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[BlocPropotionMapping]): Initial mapping of bloc names to their
+        init (Optional[BlocProportionMapping]): Initial mapping of bloc names to their
             proportions in the electorate. If None, defaults to an empty mapping.
     """
 
@@ -673,7 +709,7 @@ class BlocProportions(MutableMapping[str, float]):
     def __init__(
         self,
         parent: "BlocSlateConfig",
-        init: Optional[BlocPropotionMapping] = None,
+        init: Optional[BlocProportionMapping] = None,
     ) -> None:
         self.__parent = weakref.proxy(parent)
         self.__data: dict[str, float] = {}
@@ -699,7 +735,7 @@ class BlocProportions(MutableMapping[str, float]):
 
         typecheck_bloc_proportion_mapping(ser)
         total = ser.sum()
-        if abs(total - 1.0) > 1e-8:
+        if _sum_differs_from_one(total):
             if not self.__parent.silent:
                 warn(
                     f"Bloc proportions currently sum to {total:.6f} when they should sum to 1.",
@@ -764,7 +800,7 @@ class BlocSlateConfig:
             to sequences of candidate names. Each slate must have a non-empty list of candidates,
             and no candidate may appear in more than one slate. If None, defaults to an empty
             mapping.
-        bloc_proportions (Optional[BlocPropotionMapping]): A mapping of voter bloc names to
+        bloc_proportions (Optional[BlocProportionMapping]): A mapping of voter bloc names to
             their proportions in the electorate. The proportions must be non-negative and sum to 1.
             If None, defaults to an empty mapping.
         preference_mapping (Optional[PreferenceMapping]): A nested mapping of voter bloc names
@@ -833,7 +869,7 @@ class BlocSlateConfig:
         *,
         n_voters: int,
         slate_to_candidates: Optional[Mapping[str, Sequence[str]]] = None,
-        bloc_proportions: Optional[BlocPropotionMapping] = None,
+        bloc_proportions: Optional[BlocProportionMapping] = None,
         preference_mapping: Optional[PreferenceMapping] = None,
         cohesion_mapping: Optional[CohesionMapping] = None,
         silent: bool = False,
@@ -876,7 +912,7 @@ class BlocSlateConfig:
             self.__validate_pref_df_mapping_keys_ok_in_config(preference_mapping)
             preference_df = convert_preference_map_to_preference_df(preference_mapping)
             preference_df = preference_df.reindex(
-                columns=self.candidates, fill_value=-1.0
+                columns=self.candidates, fill_value=UNSET_VALUE
             )  # ensure column order and preserve unset candidates
         object.__setattr__(self, "preference_df", preference_df)
 
@@ -1120,7 +1156,7 @@ class BlocSlateConfig:
         else:
             # Check that bloc proportions sum to 1
             bloc_ser = self.bloc_proportions.to_series()
-            if abs(bloc_ser.sum() - 1.0) > 1e-8:
+            if _sum_differs_from_one(bloc_ser.sum()):
                 errors.append(
                     ValueError(
                         f"Bloc proportions currenlty sum to {bloc_ser.sum():.6f} "
@@ -1160,51 +1196,36 @@ class BlocSlateConfig:
                         bloc_name = str(row[0])
                         row_vals = row[1]
                         try:
-                            vals = row_vals.to_numpy(dtype=float)
-                        except (TypeError, ValueError):
-                            errors.append(
-                                TypeError(
-                                    f"preference_df row for bloc '{bloc_name}' must contain "
-                                    "numeric values."
-                                )
+                            vals = _to_finite_float_array(
+                                row_vals,
+                                context=f"preference_df row for bloc '{bloc_name}'",
                             )
+                        except (TypeError, ValueError) as e:
+                            errors.append(e)
                             continue
 
-                        if not np.isfinite(vals).all():
+                        invalid_negatives = _invalid_negative_values(vals)
+                        if invalid_negatives:
                             errors.append(
                                 ValueError(
-                                    f"preference_df row for bloc '{bloc_name}' contains "
-                                    "non-finite values."
+                                    f"preference_df row for bloc '{bloc_name}' has invalid "
+                                    f"negative values {invalid_negatives}. Use -1 to mark "
+                                    "unset values."
                                 )
                             )
                             continue
 
-                        negative_mask = vals < 0
-                        if negative_mask.any():
-                            unset_mask = np.isclose(vals, -1.0, atol=1e-8)
-                            invalid_negative_mask = negative_mask & ~unset_mask
-                            if invalid_negative_mask.any():
-                                invalid_negatives = sorted(
-                                    {float(v) for v in vals[invalid_negative_mask]}
+                        if (vals < 0).any():
+                            errors.append(
+                                ValueError(
+                                    f"preference_df row for bloc '{bloc_name}' has values "
+                                    f"that have "
+                                    f"not been set (indicated with value of {UNSET_VALUE:g})."
                                 )
-                                errors.append(
-                                    ValueError(
-                                        f"preference_df row for bloc '{bloc_name}' has invalid "
-                                        f"negative values {invalid_negatives}. Use -1 to mark "
-                                        "unset values."
-                                    )
-                                )
-                            else:
-                                errors.append(
-                                    ValueError(
-                                        f"preference_df row for bloc '{bloc_name}' has values "
-                                        f"that have "
-                                        f"not been set (indicated with value of -1)."
-                                    )
-                                )
+                            )
                             continue
 
-                        if abs(float(vals.sum()) - 1.0) > 1e-8:
+                        if _sum_differs_from_one(vals.sum()):
                             errors.append(
                                 ValueError(
                                     f"preference_df row for bloc '{bloc_name}' and candidates "
@@ -1246,48 +1267,35 @@ class BlocSlateConfig:
                 bloc_name = str(row[0])
                 row_vals = row[1]
                 try:
-                    vals = row_vals.to_numpy(dtype=float)
-                except (TypeError, ValueError):
-                    errors.append(
-                        TypeError(
-                            f"cohesion_df row for bloc '{bloc_name}' must contain numeric values."
-                        )
+                    vals = _to_finite_float_array(
+                        row_vals,
+                        context=f"cohesion_df row for bloc '{bloc_name}'",
                     )
+                except (TypeError, ValueError) as e:
+                    errors.append(e)
                     continue
 
-                if not np.isfinite(vals).all():
+                invalid_negatives = _invalid_negative_values(vals)
+                if invalid_negatives:
                     errors.append(
                         ValueError(
-                            f"cohesion_df row for bloc '{bloc_name}' contains non-finite values."
+                            f"cohesion_df row for bloc '{bloc_name}' has invalid "
+                            f"negative values {invalid_negatives}. Use -1 to mark "
+                            "unset values."
                         )
                     )
                     continue
 
-                negative_mask = vals < 0
-                if negative_mask.any():
-                    unset_mask = np.isclose(vals, -1.0, atol=1e-8)
-                    invalid_negative_mask = negative_mask & ~unset_mask
-                    if invalid_negative_mask.any():
-                        invalid_negatives = sorted(
-                            {float(v) for v in vals[invalid_negative_mask]}
+                if (vals < 0).any():
+                    errors.append(
+                        ValueError(
+                            f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
+                            f"set (indicated with value of {UNSET_VALUE:g})."
                         )
-                        errors.append(
-                            ValueError(
-                                f"cohesion_df row for bloc '{bloc_name}' has invalid "
-                                f"negative values {invalid_negatives}. Use -1 to mark "
-                                "unset values."
-                            )
-                        )
-                    else:
-                        errors.append(
-                            ValueError(
-                                f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
-                                f"set (indicated with value of -1)."
-                            )
-                        )
+                    )
                     continue
 
-                if abs(float(vals.sum()) - 1.0) > 1e-8:
+                if _sum_differs_from_one(vals.sum()):
                     errors.append(
                         ValueError(
                             f"cohesion_df row for bloc '{bloc_name}' must sum to 1, "
@@ -1336,26 +1344,26 @@ class BlocSlateConfig:
         if self.preference_df.empty:
             # If the preference_df is empty, just create a new one with the right shape
             self.preference_df = pd.DataFrame(
-                -1.0,
+                UNSET_VALUE,
                 index=self.blocs,
                 columns=self.candidates,
                 dtype=float,
             )
             return
 
-        slate_cand_list_pairs: list[tuple[str, list[str]]]
+        previous_slate_cand_list_pairs: list[tuple[str, list[str]]]
         if curr_pref_df_slate_cands_dict is None:
-            slate_cand_list_pairs = list()
+            previous_slate_cand_list_pairs = list()
         else:
-            slate_cand_list_pairs = list(current_slate_cand_dict.items())
+            previous_slate_cand_list_pairs = list(curr_pref_df_slate_cands_dict.items())
 
         drop_set = set()
-        for slate, current_cand_list in slate_cand_list_pairs:
+        for slate, previous_cand_list in previous_slate_cand_list_pairs:
             if slate not in current_slate_cand_dict:  # pragma: no cover
-                drop_set.update(set(current_cand_list))
+                drop_set.update(set(previous_cand_list))
             else:
                 drop_set.update(
-                    set(current_cand_list) - set(current_slate_cand_dict.get(slate, []))
+                    set(previous_cand_list) - set(current_slate_cand_dict.get(slate, []))
                 )
 
         # Remove candidates that are no longer in the config
@@ -1367,7 +1375,7 @@ class BlocSlateConfig:
         current_cands = set(self.candidates)
         # Add new candidates with default -1.0 values
         for c in current_cands - pref_df_cands:
-            self.preference_df[c] = -1.0
+            self.preference_df[c] = UNSET_VALUE
 
         self._current_preference_df_slate_cand_mapping = current_slate_cand_dict
         # Reorder columns to match config order
@@ -1386,7 +1394,7 @@ class BlocSlateConfig:
         if self.cohesion_df.empty:
             # If the cohesion_df is empty, just create a new one with the right shape
             self.cohesion_df = pd.DataFrame(
-                -1.0,
+                UNSET_VALUE,
                 index=self.blocs,
                 columns=self.slates,
                 dtype=float,
@@ -1399,7 +1407,7 @@ class BlocSlateConfig:
         )
 
         # Add new slates with default -1.0 values
-        self.cohesion_df[list(config_slates - current_slates)] = -1.0
+        self.cohesion_df[list(config_slates - current_slates)] = UNSET_VALUE
 
         # Reorder columns to match config order
         self.cohesion_df = self.cohesion_df[self.slates]
@@ -1417,7 +1425,7 @@ class BlocSlateConfig:
         if self.preference_df.empty:
             # If the preference_df is empty, just create a new one with the right shape
             self.preference_df = pd.DataFrame(
-                -1.0,
+                UNSET_VALUE,
                 index=self.blocs,
                 columns=self.candidates,
                 dtype=float,
@@ -1428,7 +1436,7 @@ class BlocSlateConfig:
         self.preference_df.drop(index=list(current_blocs - config_blocs), inplace=True)
 
         # Add new blocs with default -1.0 values
-        self.preference_df.loc[list(config_blocs - current_blocs)] = -1.0
+        self.preference_df.loc[list(config_blocs - current_blocs)] = UNSET_VALUE
 
         # Reorder rows to match config order
         self.preference_df = self.preference_df.loc[self.blocs]
@@ -1446,7 +1454,7 @@ class BlocSlateConfig:
         if self.cohesion_df.empty:
             # If the cohesion_df is empty, just create a new one with the right shape
             self.cohesion_df = pd.DataFrame(
-                -1.0,
+                UNSET_VALUE,
                 index=self.blocs,
                 columns=self.slates,
                 dtype=float,
@@ -1457,7 +1465,7 @@ class BlocSlateConfig:
         self.cohesion_df.drop(index=list(current_blocs - config_blocs), inplace=True)
 
         # Add new blocs with default -1.0 values
-        self.cohesion_df.loc[list(config_blocs - current_blocs)] = -1.0
+        self.cohesion_df.loc[list(config_blocs - current_blocs)] = UNSET_VALUE
 
         # Reorder rows to match config order
         self.cohesion_df = self.cohesion_df.loc[self.blocs]
@@ -1590,37 +1598,37 @@ class BlocSlateConfig:
                 )
             row_vals = self.preference_df[cand_list].loc[bloc]
             try:
-                vals = row_vals.to_numpy(dtype=float)
-            except (TypeError, ValueError):
+                vals = _to_finite_float_array(
+                    row_vals,
+                    context=f"Preference interval for bloc '{bloc}' and slate '{slate_name}'",
+                )
+            except TypeError:
                 raise TypeError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
                     "contain numeric values."
                 )
-            if not np.isfinite(vals).all():
+            except ValueError:
                 raise ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' contains "
                     "non-finite values."
                 )
 
-            negative_mask = vals < 0
-            if negative_mask.any():
-                unset_mask = np.isclose(vals, -1.0, atol=1e-8)
-                invalid_negative_mask = negative_mask & ~unset_mask
-                if invalid_negative_mask.any():
-                    invalid_negatives = sorted(
-                        {float(v) for v in vals[invalid_negative_mask]}
-                    )
-                    raise ValueError(
-                        f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
-                        f"invalid negative values {invalid_negatives}. Use -1 to mark unset "
-                        "values."
-                    )
+            invalid_negatives = _invalid_negative_values(vals)
+            if invalid_negatives:
+                raise ValueError(
+                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
+                    f"invalid negative values {invalid_negatives}. Use -1 to mark unset "
+                    "values."
+                )
+
+            if (vals < 0).any():
                 raise ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
                     f"candidates {cand_list} that have not been set (indicated with "
-                    f"value of -1)."
+                    f"value of {UNSET_VALUE:g})."
                 )
-            if abs(float(vals.sum()) - 1.0) > 1e-8:
+
+            if _sum_differs_from_one(vals.sum()):
                 raise ValueError(
                     f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
                     f"sum to 1, got {float(vals.sum()):.6f}"
@@ -1685,22 +1693,22 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            pref_values = self.preference_df.to_numpy(dtype=float)
-        except (TypeError, ValueError):
+            pref_values = _to_finite_float_array(
+                self.preference_df, context="preference_df"
+            )
+        except TypeError:
             raise TypeError("preference_df must contain numeric values to normalize.")
-
-        if not np.isfinite(pref_values).all():
+        except ValueError:
             raise ValueError("preference_df contains non-finite values and cannot be normalized.")
 
-        invalid_negative_mask = (pref_values < 0) & (~np.isclose(pref_values, -1.0, atol=1e-8))
-        if invalid_negative_mask.any():
-            invalid_negatives = sorted({float(v) for v in pref_values[invalid_negative_mask]})
+        invalid_negatives = _invalid_negative_values(pref_values)
+        if invalid_negatives:
             raise ValueError(
                 f"preference_df contains invalid negative values {invalid_negatives}. "
                 "Use -1 to mark unset values before normalization."
             )
 
-        mask = np.isclose(pref_values, -1.0, atol=1e-8)
+        mask = _unset_mask(pref_values)
         self.preference_df = self.preference_df.mask(mask, 0.0)
         for cand_lst_proxy in self.slate_to_candidates.values():
             cand_list = list(cand_lst_proxy)
@@ -1716,28 +1724,24 @@ class BlocSlateConfig:
         normalizing.
         """
         try:
-            cohesion_values = self.cohesion_df.to_numpy(dtype=float)
-        except (TypeError, ValueError):
+            cohesion_values = _to_finite_float_array(
+                self.cohesion_df, context="cohesion_df"
+            )
+        except TypeError:
             raise TypeError("cohesion_df must contain numeric values to normalize.")
-
-        if not np.isfinite(cohesion_values).all():
+        except ValueError:
             raise ValueError(
                 "cohesion_df contains non-finite values and cannot be normalized."
             )
 
-        invalid_negative_mask = (cohesion_values < 0) & (
-            ~np.isclose(cohesion_values, -1.0, atol=1e-8)
-        )
-        if invalid_negative_mask.any():
-            invalid_negatives = sorted(
-                {float(v) for v in cohesion_values[invalid_negative_mask]}
-            )
+        invalid_negatives = _invalid_negative_values(cohesion_values)
+        if invalid_negatives:
             raise ValueError(
                 f"cohesion_df contains invalid negative values {invalid_negatives}. "
                 "Use -1 to mark unset values before normalization."
             )
 
-        mask = np.isclose(cohesion_values, -1.0, atol=1e-8)
+        mask = _unset_mask(cohesion_values)
         self.cohesion_df = self.cohesion_df.mask(mask, 0.0)
         self.cohesion_df = self.cohesion_df.div(self.cohesion_df.sum(axis=1), axis=0)
 
@@ -1760,7 +1764,7 @@ class BlocSlateConfig:
         if set(self.candidates).intersection(cand_set) == set():
             return
 
-        self.preference_df[list(cand_set)] = -1.0
+        self.preference_df[list(cand_set)] = UNSET_VALUE
 
     def add_slate(self, slate: str, slate_candidate_list: Sequence[str]) -> None:
         """
@@ -2022,7 +2026,7 @@ class BlocSlateConfig:
                 the existing preference intervals
         """
         if self.__alphas is None and not all(
-            self.preference_df.values.flatten() == -1.0
+            self.preference_df.values.flatten() == UNSET_VALUE
         ):
             warning_msg = (
                 "Preference intervals have already been set without setting the Dirichlet "
