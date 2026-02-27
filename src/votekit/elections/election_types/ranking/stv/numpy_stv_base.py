@@ -10,22 +10,25 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 
+
 class NumpySTVSentinel(Enum):
     """
     Enum for sentinel values in the ballot matrix. These are used to indicate empty cells after padding.
-    
+
     Attributes:
         BLANK_RANKING (int): Sentinel value for blank/empty rankings after padding.
             This value is used at the end of the ballot matrix to indicate the end of each ballot,
             and candidates are replaced with this value in the ballot matrix when they are elected/eliminated.
     """
+
     BLANK_RANKING = np.int8(-127)
+
 
 @dataclass(slots=True)
 class NumpyElectionDataTracker:
     """
     Data container for internal use in numpy-based elections.
-    
+
     Attributes:
         ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
@@ -111,7 +114,9 @@ class NumpySTVBase(ABC):
     # == Init Methods ==
     # ==================
 
-    def _convert_profile_to_numpy_arrays(self, pf: RankProfile) -> tuple[NDArray, NDArray]:
+    def _convert_profile_to_numpy_arrays(
+        self, pf: RankProfile
+    ) -> tuple[NDArray, NDArray]:
         """
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
@@ -126,7 +131,9 @@ class NumpySTVBase(ABC):
         candidate_to_index = {
             frozenset([name]): i for i, name in enumerate(self.candidates)
         }
-        candidate_to_index[frozenset(["~"])] = NumpySTVSentinel.BLANK_RANKING.value  # sentinel for blank/empty rankings after padding
+        candidate_to_index[frozenset(["~"])] = (
+            NumpySTVSentinel.BLANK_RANKING.value
+        )  # sentinel for blank/empty rankings after padding
 
         ranking_columns = [c for c in df.columns if c.startswith("Ranking")]
         num_rows = len(df)
@@ -140,22 +147,24 @@ class NumpySTVBase(ABC):
             try:
                 return candidate_to_index[cell]
             except KeyError:
-                raise TypeError(
-                    f"Found invalid entry: {cell}"
-                )
+                raise TypeError(f"Found invalid entry: {cell}")
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
         # Add padding -- a lot of the election logic needs at least one entry of each row of the ballot matrix to be negative.
         # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set to 0 only when candidates are eliminated/elected.
         # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having at least one entry in each row be 0.
-        ballot_matrix: NDArray = np.full((num_rows, num_cols+1), NumpySTVSentinel.BLANK_RANKING.value, dtype=np.int8)
+        ballot_matrix: NDArray = np.full(
+            (num_rows, num_cols + 1),
+            NumpySTVSentinel.BLANK_RANKING.value,
+            dtype=np.int8,
+        )
         ballot_matrix[:, :num_cols] = mapped
 
         wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
 
         return ballot_matrix, wt_vec
-    
+
     def _make_election_states(self):
         """
         Creates the list of election states after the main loop has run.
@@ -223,7 +232,7 @@ class NumpySTVBase(ABC):
     ]:
         """
         Core election logic to be implemented by child classes. This should run the election and produce the outputs needed to populate the NumpyElectionDataTracker.
-        Note that the child class can store additional outputs in the `extras` field of the data tracker if needed. 
+        Note that the child class can store additional outputs in the `extras` field of the data tracker if needed.
 
         Args:
             data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to numpy arrays.
@@ -416,7 +425,6 @@ class NumpySTVBase(ABC):
         status_df = status_df.reindex(new_index)
         return status_df
 
-
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
         Returns the RankProfile of the given round number.
@@ -456,7 +464,9 @@ class NumpySTVBase(ABC):
 
         # --- 3.5) drop rows that are empty after filtering AND rows with weight 0 ---
         # keep rows that have at least one remaining candidate and nonzero weight
-        row_keep_mask = ~(out == NumpySTVSentinel.BLANK_RANKING.value).all(axis=1) & (wt_vec != 0)
+        row_keep_mask = ~(out == NumpySTVSentinel.BLANK_RANKING.value).all(axis=1) & (
+            wt_vec != 0
+        )
         out = out[row_keep_mask]
         wt_vec = wt_vec[row_keep_mask]
         n_rows = out.shape[0]
@@ -504,7 +514,7 @@ class NumpySTVBase(ABC):
             tuple[RankProfile, ElectionState]
         """
         return (self.get_profile(round_number), self.election_states[round_number])
-    
+
     # ======================
     # == Internal Methods ==
     # ======================

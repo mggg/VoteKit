@@ -30,7 +30,7 @@ def numpy_random_transfer(
         surplus (int): Number of surplus votes to transfer.
 
     Returns:
-        counts (NDArray): Vector of counts 
+        counts (NDArray): Vector of counts
     """
     rng = np.random.default_rng()
     eligible_for_transfer = fpv_vec == winner

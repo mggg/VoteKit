@@ -160,7 +160,11 @@ class NumpyInnerSTV(NumpySTVBase):
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
-                    mutated_fpv_vec[winner_row_indices[next_fpv_vec == NumpySTVSentinel.BLANK_RANKING.value]] = NumpySTVSentinel.BLANK_RANKING.value
+                    mutated_fpv_vec[
+                        winner_row_indices[
+                            next_fpv_vec == NumpySTVSentinel.BLANK_RANKING.value
+                        ]
+                    ] = NumpySTVSentinel.BLANK_RANKING.value
                 surplus = int(tallies[winner_idx] - quota)
                 counts = numpy_random_transfer(
                     fpv_vec=mutated_fpv_vec,
@@ -455,7 +459,9 @@ class NumpyInnerSTV(NumpySTVBase):
                 fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
                 tiebreak_record.append({})
                 break
-            loser_idx, mutant_record = self._find_loser(tallies, round_number, *mutant_record)
+            loser_idx, mutant_record = self._find_loser(
+                tallies, round_number, *mutant_record
+            )
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
             play_by_play.append(
                 {
