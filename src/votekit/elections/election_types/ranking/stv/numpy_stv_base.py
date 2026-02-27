@@ -132,7 +132,7 @@ class NumpySTVBase(ABC):
             frozenset([name]): i for i, name in enumerate(self.candidates)
         }
         candidate_to_index[frozenset(["~"])] = (
-            NumpySTVSentinel.BLANK_RANKING.value
+            int(NumpySTVSentinel.BLANK_RANKING.value)
         )  # sentinel for blank/empty rankings after padding
 
         ranking_columns = [c for c in df.columns if c.startswith("Ranking")]

@@ -38,8 +38,8 @@ class NumpyInnerSTV(NumpySTVBase):
         profile: RankProfile,
         m=1,
         transfer: str = "fractional",
-        quota: str = "droop",
-        simultaneous: bool = True,
+        quota: Optional[str] = "droop",
+        simultaneous: Optional[bool] = True,
         tiebreak: Optional[str] = None,
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
@@ -50,9 +50,9 @@ class NumpyInnerSTV(NumpySTVBase):
             m (int): Number of seats to be elected. Defaults to 1.
             transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. Defaults to
                 'fractional'.
-            quota (str): Formula to calculate quota. Accepts "droop" or "hare".
+            quota (Optional[str]): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            simultaneous (bool): True if all candidates who cross threshold in a round are
+            simultaneous (Optional[bool]): True if all candidates who cross threshold in a round are
                 elected simultaneously, False if only the candidate with highest first-place votes
                 who crosses the threshold is elected in a round. Defaults to True.
             tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
