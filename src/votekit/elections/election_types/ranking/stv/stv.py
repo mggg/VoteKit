@@ -1,6 +1,6 @@
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.transfers import fractional_transfer
-from .utils import numpy_random_transfer
+from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.pref_profile import RankProfile, ProfileError
 from votekit.elections.election_state import ElectionState
 from votekit.ballot import RankBallot
@@ -19,6 +19,7 @@ from votekit.utils import (
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     NumpySTVBase,
     NumpyElectionDataTracker,
+    NumpySTVSentinel,
 )
 
 from typing import Optional, Callable, Union, Any
@@ -152,14 +153,12 @@ class NumpyInnerSTV(NumpySTVBase):
                 mutated_fpv_vec[rows_with_winner_fpv]
             ).astype(np.float64)
             mutated_wt_vec[rows_with_winner_fpv] *= transfer_value_vec
-            mutated_fpv_vec[rows_with_winner_fpv] = self._data.ballot_matrix[
-                winner_row_indices, next_fpv_pos_vec
-            ]
+            mutated_fpv_vec[rows_with_winner_fpv] = next_fpv_vec
         elif self.transfer is not None and "random" in self.transfer:
             new_weights = np.zeros_like(mutated_wt_vec, dtype=np.int64)
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
-                    mutated_fpv_vec[winner_row_indices[next_fpv_vec < 0]] = -127
+                    mutated_fpv_vec[winner_row_indices[next_fpv_vec == NumpySTVSentinel.BLANK_RANKING.value]] = NumpySTVSentinel.BLANK_RANKING.value
                 surplus = int(tallies[winner_idx] - quota)
                 counts = numpy_random_transfer(
                     fpv_vec=mutated_fpv_vec,

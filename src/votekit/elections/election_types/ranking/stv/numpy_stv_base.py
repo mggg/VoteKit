@@ -13,6 +13,11 @@ from enum import Enum
 class NumpySTVSentinel(Enum):
     """
     Enum for sentinel values in the ballot matrix. These are used to indicate empty cells after padding.
+    
+    Attributes:
+        BLANK_RANKING (int): Sentinel value for blank/empty rankings after padding.
+            This value is used at the end of the ballot matrix to indicate the end of each ballot,
+            and candidates are replaced with this value in the ballot matrix when they are elected/eliminated.
     """
     BLANK_RANKING = np.int8(-127)
 
