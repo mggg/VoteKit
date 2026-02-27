@@ -380,8 +380,7 @@ class STVAnimation:
 
     def _make_event_list(self, election: STV) -> List[_AnimationEvent]:
         """
-        Processes an STV election into a condensed list of animation events which roughly
-        correspond to election rounds.
+        Processes an STV election into a condensed list of animation events.
 
         Args:
             election (STV): The STV election to process.
@@ -472,8 +471,7 @@ class STVAnimation:
         event_type: Literal["win", "elimination"],
     ) -> dict[str, dict[str, float]]:
         """
-        Compute the number of votes transferred from each elected or eliminated candidate
-        to each remaining candidate.
+        Compute the number of votes transferred from elected/eliminated candidates to remaining candidates.
 
         Args:
             election (STV): The election.
@@ -546,8 +544,9 @@ class STVAnimation:
         self, events: List[_AnimationEvent]
     ) -> List[_AnimationEvent]:
         """
-        Take a list of events and condense any consecutive offscreen events into one summarizing
-        event. For instance, if ``events`` contains three offscreen eliminations in a row,
+        Take a list of events and condense any consecutive offscreen events into one summarizing event. 
+        
+        For instance, if ``events`` contains three offscreen eliminations in a row,
         this function will condense them into one offscreen elimination of three candidates.
 
         Args:
@@ -656,8 +655,9 @@ class STVAnimation:
 
     def save(self, save_path: str | Path) -> None:
         """
-        Save the video to a file. This method will also render the animation
-        if it has not been rendered already.
+        Save the video to a file. 
+        
+        This method will also render the animation if it has not been rendered already.
 
         Args:
             save_path (str or Path): The destination file path for the video.
@@ -984,8 +984,9 @@ class ElectionScene(manim.Scene):
 
     def _update_quota_line(self, quota: float) -> None:
         """
-        Update the position of the quota line to reflect the given quota. If no quota line
-        exists, create it and animate its creation.
+        Update the position of the quota line to reflect the given quota.
+
+        If no quota line, this method will create that line and animate its creation.
 
         Args:
             quota (float): The threshold number of votes necessary to be elected in the
@@ -1270,8 +1271,7 @@ class ElectionScene(manim.Scene):
 
     def _support_to_bar_width(self, support: float) -> float:
         """
-        Convert a number of votes to the width of a bar in manim coordinates
-        representing that many votes.
+        Convert a number of votes to the width of a bar in manim coordinates.
 
         Args:
             support (float): A number of votes.
