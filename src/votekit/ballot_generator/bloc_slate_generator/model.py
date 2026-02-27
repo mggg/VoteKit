@@ -7,11 +7,22 @@ involving both voter blocs and slates of candidates.
 """
 
 from collections.abc import Mapping, MutableMapping, MutableSequence, Iterator
-from typing import Sequence, Optional, Union, cast, Any, overload, Iterable
+from typing import (
+    Sequence,
+    Optional,
+    Union,
+    cast,
+    Any,
+    overload,
+    Iterable,
+    Self,
+    SupportsIndex,
+)
 from votekit.pref_interval import combine_preference_intervals, PreferenceInterval
 from numbers import Real
 import weakref
 import math
+import operator
 import pandas as pd
 import numpy as np
 import warnings
@@ -43,7 +54,7 @@ def _config_warning_format(
     return _original_formatwarning(message, category, filename, lineno, line)
 
 
-warnings.formatwarning = _config_warning_format
+warnings.formatwarning = cast(Any, _config_warning_format)
 
 
 BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
@@ -430,76 +441,87 @@ class _CandListProxy(MutableSequence[str]):
         return len(self.__owner._data[self.__key])
 
     @overload
-    def __getitem__(self, i: int) -> str: ...
+    def __getitem__(self, index: SupportsIndex) -> str: ...
 
     @overload
-    def __getitem__(self, i: slice) -> MutableSequence[str]: ...
+    def __getitem__(self, index: slice) -> MutableSequence[str]: ...
 
-    def __getitem__(self, i: Union[int, slice]) -> Union[str, MutableSequence[str]]:
+    def __getitem__(
+        self, index: Union[SupportsIndex, slice]
+    ) -> Union[str, MutableSequence[str]]:
         data = self.__owner._data[self.__key]
-        if isinstance(i, slice):
-            return data[i]
-        return data[i]
+        if isinstance(index, slice):
+            return data[index]
+        return data[operator.index(index)]
 
     @overload
-    def __setitem__(self, i: int, v: str) -> None: ...
+    def __setitem__(self, index: SupportsIndex, value: str) -> None: ...
 
     @overload
-    def __setitem__(self, i: slice, v: Iterable[str]) -> None: ...
+    def __setitem__(self, index: slice, value: Iterable[str]) -> None: ...
 
-    def __setitem__(self, i: Union[int, slice], v: Union[str, Iterable[str]]) -> None:
+    def __setitem__(
+        self,
+        index: Union[SupportsIndex, slice],
+        value: Union[str, Iterable[str]],
+    ) -> None:
         new = list(self.__owner._data[self.__key])
-        if isinstance(i, slice):  # pragma: no cover
-            if isinstance(v, (str, bytes)) or not isinstance(v, Iterable):
+        if isinstance(index, slice):  # pragma: no cover
+            if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
                 raise TypeError("Slice assignment requires an iterable of str")
-            new[i] = [str(x) for x in v]
+            new[index] = [str(x) for x in value]
         else:
-            new[i] = str(v)
+            new[operator.index(index)] = str(value)
         self.__owner[self.__key] = new
 
     @overload
-    def __delitem__(self, i: int) -> None: ...
+    def __delitem__(self, index: SupportsIndex) -> None: ...
 
     @overload
-    def __delitem__(self, i: slice) -> None: ...
+    def __delitem__(self, index: slice) -> None: ...
 
-    def __delitem__(self, i: Union[int, slice]) -> None:
+    def __delitem__(self, index: Union[SupportsIndex, slice]) -> None:
         new = list(self.__owner._data[self.__key])
-        del new[i]
+        if isinstance(index, slice):
+            del new[index]
+        else:
+            del new[operator.index(index)]
         self.__owner[self.__key] = new
 
     def _current(self) -> list[str]:
         return list(self.__owner._data[self.__key])
 
-    def insert(self, i: int, v: str) -> None:
-        """Insert candidate v at index i if not already present."""
-        if not isinstance(cast(object, v), str):
+    def insert(self, index: SupportsIndex, value: str) -> None:
+        """Insert candidate value at index if not already present."""
+        if not isinstance(cast(object, value), str):
             raise TypeError("Slate candidates must be a 'str'")
-        if not isinstance(cast(object, i), int):
+        try:
+            int_index = operator.index(index)
+        except TypeError:
             raise TypeError("Index must be an 'int'")
         new = list(self.__owner._data[self.__key])
-        if v not in new:
-            new.insert(i, str(v))
+        if value not in new:
+            new.insert(int_index, str(value))
         self.__owner[self.__key] = new
 
-    def extend(self, it: Iterable[str]) -> None:
+    def extend(self, values: Iterable[str]) -> None:
         """Extend the candidate list by appending elements from the iterable."""
         rollback = self._current().copy()
         try:
-            for v in it:
-                self.insert(len(self), v)
+            for value in values:
+                self.insert(len(self), value)
 
         except Exception as e:
             self.__owner[self.__key] = rollback
             raise e
 
-    def __iadd__(self, it: Iterable[str]) -> "_CandListProxy":
-        self.extend(it)
+    def __iadd__(self, values: Iterable[str]) -> Self:
+        self.extend(values)
         return self
 
-    def append(self, v: str) -> None:
-        """Append candidate v to the end of the list if not already present."""
-        self.insert(len(self), v)
+    def append(self, value: str) -> None:
+        """Append candidate value to the end of the list if not already present."""
+        self.insert(len(self), value)
 
     def sort(self) -> None:
         """Sort the candidate list in place."""
@@ -644,13 +666,18 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         return key in self._data
 
     def update(self, other=(), /, **kw) -> None:
-        items = (
-            dict(other, **kw).items()
-            if not isinstance(other, Mapping)
-            else other.items()
-        )
-        for k, v in items:
-            self[k] = v  # route through __setitem__
+        if isinstance(other, Mapping):
+            item_pairs = list(other.items())
+        else:
+            item_pairs = list(dict(other).items())
+        item_pairs.extend(list(kw.items()))
+
+        for k, v in item_pairs:
+            if not isinstance(k, str):
+                raise TypeError("Slate keys must be str in update().")
+            if isinstance(v, (str, bytes)) or not isinstance(v, Sequence):
+                raise TypeError("Slate values must be sequences of candidate names.")
+            self[k] = cast(Sequence[str], v)  # route through __setitem__
 
     def __or__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
         new = SlateCandMap(self.__parent, self._data)
@@ -1345,8 +1372,8 @@ class BlocSlateConfig:
             # If the preference_df is empty, just create a new one with the right shape
             self.preference_df = pd.DataFrame(
                 UNSET_VALUE,
-                index=self.blocs,
-                columns=self.candidates,
+                index=pd.Index(self.blocs),
+                columns=pd.Index(self.candidates),
                 dtype=float,
             )
             return
@@ -1395,8 +1422,8 @@ class BlocSlateConfig:
             # If the cohesion_df is empty, just create a new one with the right shape
             self.cohesion_df = pd.DataFrame(
                 UNSET_VALUE,
-                index=self.blocs,
-                columns=self.slates,
+                index=pd.Index(self.blocs),
+                columns=pd.Index(self.slates),
                 dtype=float,
             )
             return
@@ -1426,8 +1453,8 @@ class BlocSlateConfig:
             # If the preference_df is empty, just create a new one with the right shape
             self.preference_df = pd.DataFrame(
                 UNSET_VALUE,
-                index=self.blocs,
-                columns=self.candidates,
+                index=pd.Index(self.blocs),
+                columns=pd.Index(self.candidates),
                 dtype=float,
             )
             return
@@ -1455,8 +1482,8 @@ class BlocSlateConfig:
             # If the cohesion_df is empty, just create a new one with the right shape
             self.cohesion_df = pd.DataFrame(
                 UNSET_VALUE,
-                index=self.blocs,
-                columns=self.slates,
+                index=pd.Index(self.blocs),
+                columns=pd.Index(self.slates),
                 dtype=float,
             )
             return
