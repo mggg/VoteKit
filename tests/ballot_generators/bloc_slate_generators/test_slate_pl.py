@@ -1,6 +1,6 @@
 from votekit.pref_profile import RankProfile
 from votekit.pref_interval import PreferenceInterval
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,

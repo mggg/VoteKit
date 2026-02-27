@@ -1,12 +1,7 @@
-"""
-Unit tests for bloc slate generator configuration validation and conversion functions.
-t
-
-This will be broken up into multiple files later.
-"""
+"""Tests for bloc-slate configuration validation and mutation behavior."""
 
 from votekit import PreferenceInterval
-from votekit.ballot_generator.bloc_slate_generator.model import (
+from votekit.ballot_generator.bloc_slate_generator.config import (
     BlocSlateConfig,
     BlocProportions,
     SlateCandMap,

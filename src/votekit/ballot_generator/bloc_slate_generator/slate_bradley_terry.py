@@ -25,7 +25,7 @@ from typing import Sequence, cast
 import apportionment.methods as apportion
 
 from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _lexicographic_symbol_tuple_iterator,
