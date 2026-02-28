@@ -747,19 +747,18 @@ class ElectionScene(manim.Scene):
             str: The name of a locally installed font, or an empty string, which represents
                 the choice to let Manim decide on the font.
         """
-        if preferred_font == "":
-            return ""
 
         available_fonts = list_fonts()
         if preferred_font in available_fonts:
             return preferred_font
 
-        warnings.warn(
-            f"The font {preferred_font} was not found among the installed fonts. "
-            "Falling back on default font preferences. "
-            f"Available fonts: {available_fonts}.",
-            UserWarning,
-        )
+        if preferred_font != "":
+            warnings.warn(
+                f"The font {preferred_font} was not found among the installed fonts. "
+                "Falling back on default font preferences. "
+                f"Available fonts: {available_fonts}.",
+                UserWarning,
+            )
 
         font_preferences = ["Noto Serif"]  # Fonts in order of preference.
         for font in font_preferences:
