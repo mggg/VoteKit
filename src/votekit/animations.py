@@ -348,8 +348,7 @@ class STVAnimation:
         Args:
             election (STV): An STV election from which to extract the candidates.
             candidate_colors (Mapping[str, ParsableManimColor]): A dictionary mapping candidate names
-                to codes for colors to which they should be associated with in the
-                candidate dictionary.
+                to their associated color codes in the candidate dictionary.
 
         Returns:
             dict[str, dict[str,object]]: A dictionary whose keys are candidate names and whose
@@ -748,9 +747,10 @@ class ElectionScene(manim.Scene):
             str: The name of a locally installed font, or an empty string, which represents
                 the choice to let Manim decide on the font.
         """
-        font_preferences = ["Noto Serif"]  # Fonts in order of preference.
-        available_fonts = list_fonts()
+        if preferred_font == "":
+            return ""
 
+        available_fonts = list_fonts()
         if preferred_font in available_fonts:
             return preferred_font
 
@@ -761,6 +761,7 @@ class ElectionScene(manim.Scene):
             UserWarning,
         )
 
+        font_preferences = ["Noto Serif"]  # Fonts in order of preference.
         for font in font_preferences:
             if font in available_fonts:
                 return font
