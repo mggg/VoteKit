@@ -312,6 +312,18 @@ class RankProfile(PreferenceProfile):
 
         self.max_ranking_length = self._find_max_ranking_length()
 
+        if self.max_ranking_length > 0:
+            if self.max_candidates_ranked > self.max_ranking_length:
+                msg = (
+                    "This preference profile contains ballot(s) whose number of candidates "
+                    "exceeds the length of the longest ranking. "
+                    "It's likely that you need to clean the profile to remove ties. "
+                    "If the profile is exactly as you expect, "
+                    f"pass max_ranking_length={self.max_candidates_ranked} "
+                    "to RankProfile()."
+                )
+                raise ValueError(msg)
+
         super().__init__(
             candidates=self.candidates,
             candidates_cast=self.candidates_cast,
@@ -598,6 +610,26 @@ class RankProfile(PreferenceProfile):
             return len([c for c in self.df.columns if "Ranking_" in c])
 
         return self.max_ranking_length
+
+    @cached_property
+    def max_candidates_ranked(self) -> int:
+        """
+        The maximum number of candidates ranked on any ballot in the profile.
+
+        Can be longer than max_ranking_length if a ballot has ties.
+        E.g., a ballot that ranks two candidates tied for first and ranks no other candidates
+        has length 1, but ranks 2 candidates in total.
+        """
+        if self.df.empty:
+            return 0
+        tilde = frozenset("~")
+        assert self.max_ranking_length is not None
+        ranking_cols = [f"Ranking_{i}" for i in range(1, self.max_ranking_length + 1)]
+        return (
+            self.df[ranking_cols]
+            .apply(lambda row: len(frozenset.union(*row) - tilde), axis=1)
+            .max()
+        )
 
     @cached_property
     def ballots(self: RankProfile) -> tuple[RankBallot, ...]:

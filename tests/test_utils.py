@@ -1,5 +1,5 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
+from votekit.ballot import Ballot, RankBallot
+from votekit.pref_profile import PreferenceProfile, RankProfile
 from votekit.utils import (
     ballots_by_first_cand,
     add_missing_cands,
@@ -44,6 +44,29 @@ profile_with_missing = PreferenceProfile(
     ),
     candidates=("A", "B", "C", "D", "E"),
 )
+
+
+class TestShortBallot:
+    # this profile has max_ranking_length = 1 but max_candidates_ranked = 2
+    # A and B are tied for first on the sole ballot
+    def test_illegal_short_profile(self):
+        with pytest.raises(
+            ValueError,
+            match="number of candidates exceeds the length of the longest ranking.",
+        ):
+            _ = RankProfile(ballots=(RankBallot(ranking=("AB",), weight=5),))
+
+    def test_legal_short_profile(self):
+        profile = RankProfile(
+            ballots=(
+                RankBallot(
+                    ranking=("AB",),
+                    weight=5,
+                ),
+            ),
+            max_ranking_length=2,
+        )
+        assert profile.max_candidates_ranked == profile.max_ranking_length
 
 
 def test_ballots_by_first_cand():

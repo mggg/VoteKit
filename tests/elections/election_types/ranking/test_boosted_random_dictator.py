@@ -138,7 +138,9 @@ def test_boosted_random_dictator_4_candidates_with_ties():
         map(lambda x: Ballot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset)
     )
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = PreferenceProfile(
+        ballots=ballots, candidates=candidates, max_ranking_length=4
+    )
 
     trials = 4000
 
