@@ -614,13 +614,11 @@ class RankProfile(PreferenceProfile):
     @cached_property
     def max_candidates_ranked(self) -> int:
         """
-        Computes the maximum number of candidates ranked on any ballot in the profile. Can be
-        longer than max_ranking_length if a ballot has ties. E.g., a ballot that ranks two
-        candidates tied for first and ranks no other candidates has length 1, but ranks 2
-        candidates in total.
+        The maximum number of candidates ranked on any ballot in the profile.
 
-        Returns:
-            int: Maximum number of candidates ranked.
+        Can be longer than max_ranking_length if a ballot has ties.
+        E.g., a ballot that ranks two candidates tied for first and ranks no other candidates
+        has length 1, but ranks 2 candidates in total.
         """
         if self.df.empty:
             return 0
