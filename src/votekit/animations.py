@@ -1313,4 +1313,4 @@ class ElectionScene(manim.Scene):
         Returns:
             float: The width, in manim coordinates, of a bar representing the support.
         """
-        return self.width * support / self.max_support
+        return self.width * max(support, 0.0) / self.max_support
