@@ -18,12 +18,17 @@ from votekit.utils import (
 
 class _IterativeVetoBase(RankingElection, ABC):
     """
-    Scores each candidate by their plurality (number of first place) votes,
+    Base class for PluralityVeto and SerialVeto election methods.
+
+    Scores each candidate by their number of first place (plurality) votes,
     then in a randomized order it lets each voter decrement the score of their
     least favorite remaining candidate.
-    In PluralityVeto, candidates are eliminated immediately when their score reaches zero.
-    In SerialVeto, candidates with zero score are only eliminated when a voter attempts to veto
-    them, which does not use up that voter's veto.
+
+    The PluralityVeto and SerialVeto subclasses implement only _veto_loop(), which reflects
+    their differing candidate-elimination behavior:
+        - In PluralityVeto, candidates are eliminated immediately when their score reaches zero.
+        - In SerialVeto, candidates with zero score are only eliminated when a voter attempts
+            to veto them, which does not use up that voter's veto.
     In either case, the last m candidates standing are the winners.
 
     Partial ballots are handled by assuming that unranked candidates tie for last place.
@@ -31,14 +36,14 @@ class _IterativeVetoBase(RankingElection, ABC):
     Args:
         profile (RankProfile): RankProfile to run election on.
             All ballots must have integer weights.
-        m (int): Number of seats to elect.
-        tiebreak (str): Tiebreak method to use. Options are 'first_place', 'random', or 'borda'.
+        m (int, optional): Number of seats to elect. Defaults to 1.
+        tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
             Used to determine veto when multiple candidates are tied for last place on a ballot.
-            Default is 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is calculated
-            in advance, using the initial profile. Thus, for 'borda' tiebreak, Borda scores are not
-            recalculated as candidates are eliminated.
-        scoring_tie_convention (str): How to award points for tied first-place votes. Defaults to
-            'average', where if n candidates are tied for first, each receives 1/n points.
+            Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
+            calculated in advance, using the initial profile. Thus, for 'borda' tiebreak,
+            Borda scores are not recalculated as candidates are eliminated.
+        scoring_tie_convention (str, optional): How to award points for tied first-place votes.
+            Defaults to 'average': if n candidates are tied for first, each receives 1/n points.
             'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
@@ -124,8 +129,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
     def _pv_validate_input(self, profile: RankProfile):
         """
-        Validates input to PluralityVeto.
-        Checks that each ballot has a ranking and that each ballot has integer weight.
+        Validates input by checking that each ballot has a ranking and has integer weight.
 
         Args:
             profile (RankProfile): RankProfile to run election on.
@@ -150,14 +154,14 @@ class _IterativeVetoBase(RankingElection, ABC):
 
     def _get_ballot_idx(self, voter_idx: int) -> np.intp:
         """
-        Converts a voter index in [0, num_voters) to a ballot index in [0, n_ballots) that can
-        be used to retrieve the row in self._df corresponding to that voter's ballot.
+        Converts a voter index in [0, num_voters) to a ballot index in [0, n_ballots).
 
         Args:
-            voter_idx (int): A voter index in [0, num_voters)
+            voter_idx (int): A voter index in [0, num_voters).
 
         Returns:
-            np.intp: A ballot index in [0, n_ballots).
+            np.intp: A ballot index in [0, n_ballots). Can be used to retrieve the row in self._df
+                corresponding to that voter's ballot.
         """
         ballot_idx = np.searchsorted(self._cumsum, voter_idx, side="right")
         if ballot_idx >= self._n_ballots:
@@ -169,6 +173,7 @@ class _IterativeVetoBase(RankingElection, ABC):
     def _break_tie(self, candidate_set: frozenset[str]) -> str:
         """
         Chooses a veto from a set of last-place candidates.
+
         If ``tiebreak`` = 'random', does so randomly. Otherwise, identifies veto according to
         ``tiebreak_order``, which is defined at instantiation.
 
@@ -194,6 +199,7 @@ class _IterativeVetoBase(RankingElection, ABC):
     def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
         """
         Given a ballot index, returns the set of last-place candidates (before tiebreaking).
+
         First considers unlisted candidates; if all eliminated, walks backward through the
         ranking using the position cache.
 
@@ -228,12 +234,13 @@ class _IterativeVetoBase(RankingElection, ABC):
     def _get_veto(self, ballot_idx: np.intp) -> str:
         """
         Given a ballot index, returns the candidate to veto.
+
         For deterministic tiebreak methods, returns the most recent veto
         that ballot gave; if that candidate has been eliminated, calculates
         the new veto and updates _veto_cache.
 
         Args:
-            ballot_idx (int): A ballot index in [0, n_ballots).
+            ballot_idx (np.intp): A ballot index in [0, n_ballots).
 
         Returns:
             str: The candidate to be vetoed.
@@ -258,15 +265,18 @@ class _IterativeVetoBase(RankingElection, ABC):
         return veto
 
     def _is_finished(self) -> bool:
-        # for PluralityVeto, candidates are only elected in the final round, all at once
+        """Returns True if election is finished, False if another round is needed."""
+        # candidates are only elected in the final round, all at once
         elected = self.election_states[-1].elected
         elected_set = frozenset.union(*elected)
         return len(elected_set) > 0
 
     def _reset(self):
         """
-        Resets _internal_round_number and _voter_order_current_index to 0, resets veto caches,
-        and empties _eliminated so that the election can be replayed from the start.
+        Resets mutable state so that the election can be replayed from the start.
+
+        Resets _internal_round_number and _voter_order_current_index to 0,
+        resets veto caches, and empties _eliminated.
         """
         self._internal_round_number = 0
         self._eliminated = set("~")
@@ -293,7 +303,7 @@ class _IterativeVetoBase(RankingElection, ABC):
             scores (dict[str, float]): Mutable score dict, modified in place.
 
         Returns:
-            tuple[frozenset[str], frozenset[str]]: A 2-tuple of (eliminated, elected),
+            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
                 where eliminated contains candidates worthy of elimination
                 and elected contains candidates worthy of election.
         """
@@ -303,7 +313,8 @@ class _IterativeVetoBase(RankingElection, ABC):
         self, profile: RankProfile, prev_state: ElectionState, store_states=False
     ) -> RankProfile:
         """
-        Runs one round of the PluralityVeto election.
+        Runs one round of the election.
+
         If only ``m`` candidates remain, they are all elected.
         Otherwise, runs the veto loop to eliminate the next candidate.
 
@@ -316,7 +327,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         Returns:
             RankProfile: The profile of ballots after the round is completed,
-            or an empty profile if the election has ended.
+                or an empty profile if the election has ended.
         """
 
         if self._internal_round_number != prev_state.round_number:
@@ -324,7 +335,8 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self._reset()
             else:
                 raise ValueError(
-                    f"Calling _run_step on the middle of a {self.__class__.__name__} election is not permitted."
+                    f"Calling _run_step on the middle of a {self.__class__.__name__} election "
+                    "is not permitted."
                 )
         self._internal_round_number += 1
 
@@ -376,19 +388,60 @@ class _IterativeVetoBase(RankingElection, ABC):
 
 
 class PluralityVeto(_IterativeVetoBase):
+    """
+    PluralityVeto election.
+
+    Scores each candidate by their number of first place (plurality) votes,
+    then in a randomized order it lets each voter decrement the score of their
+    least favorite remaining candidate.
+    Candidates are eliminated immediately when their score reaches zero.
+    The last ``m`` candidates remaining are the winners.
+
+    Partial ballots are handled by assuming that unranked candidates tie for last place.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+            All ballots must have integer weights.
+        m (int, optional): Number of seats to elect. Defaults to 1.
+        tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
+            Used to determine veto when multiple candidates are tied for last place on a ballot.
+            Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
+            calculated in advance, using the initial profile. Thus, for 'borda' tiebreak,
+            Borda scores are not recalculated as candidates are eliminated.
+        scoring_tie_convention (str, optional): How to award points for tied first-place votes.
+            Defaults to 'average': if n candidates are tied for first, each receives 1/n points.
+            'high' would award them each one point, and 'low' 0.
+            Used by ``score_function`` parameter.
+            Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+
+    Attributes:
+        m (int): The number of seats to be filled in the election.
+        candidates (frozenset[str]): The set of candidates in the election.
+        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+            last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
+
+    Raises:
+        ValueError: If any of the following:
+            - ``m`` is less than or equal to 0
+            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - a ballot has no ranking,
+            - a ballot has non-integer weight.
+    """
+
     def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
         """
         Processes vetoes until some candidate's score reaches zero.
+
         Each voter decrements the score of their least favorite remaining candidate.
 
         Args:
             scores (dict[str, float]): Mutable score dict, modified in place.
 
         Returns:
-            eliminated (frozenset[str]): Candidates worthy of elimination.
-            elected (frozenset[str]): Candidates worthy of election.
+            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
+                where each is a set of candidates worthy of elimination or election, respectively.
         """
 
         eliminated: set[str] = set()
@@ -411,11 +464,53 @@ class PluralityVeto(_IterativeVetoBase):
 
 
 class SerialVeto(_IterativeVetoBase):
+    """
+    SerialVeto election.
+
+    Scores each candidate by their number of first place (plurality) votes,
+    then in a randomized order it lets each voter decrement the score of their
+    least favorite remaining candidate.
+    Candidates with zero score are only eliminated when a voter attempts to veto
+    them, which does not use up that voter's veto.
+    The last ``m`` candidates remaining are the winners.
+
+    Partial ballots are handled by assuming that unranked candidates tie for last place.
+
+    Args:
+        profile (RankProfile): RankProfile to run election on.
+            All ballots must have integer weights.
+        m (int, optional): Number of seats to elect. Defaults to 1.
+        tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
+        Used to determine veto when multiple candidates are tied for last place on a ballot.
+            Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
+            calculated in advance, using the initial profile. Thus, for 'borda' tiebreak,
+            Borda scores are not recalculated as candidates are eliminated.
+        scoring_tie_convention (str, optional): How to award points for tied first-place votes.
+            Defaults to 'average': if n candidates are tied for first, each receives 1/n points.
+            'high' would award them each one point, and 'low' 0.
+            Used by ``score_function`` parameter.
+            Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+
+    Attributes:
+        m (int): The number of seats to be filled in the election.
+        candidates (frozenset[str]): The set of candidates in the election.
+        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+            last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
+
+    Raises:
+        ValueError: If any of the following:
+            - ``m`` is less than or equal to 0,
+            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - a ballot has no ranking, or
+            - a ballot has non-integer weight.
+    """
+
     def _veto_loop(
         self, scores: dict[str, float]
     ) -> tuple[frozenset[str], frozenset[str]]:
         """
         Processes vetoes until some candidate is eliminated or all vetoes have been processed.
+
         Zero-score candidates are only eliminated when a voter attempts to veto them,
         which does not use up that voter's veto.
         If all vetoes are processed, elects all remaining candidates.
@@ -424,8 +519,8 @@ class SerialVeto(_IterativeVetoBase):
             scores (dict[str, float]): Mutable score dict, modified in place.
 
         Returns:
-            eliminated (frozenset[str]): Candidates worthy of elimination.
-            elected (frozenset[str]): Candidates worthy of election.
+            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
+                where each is a set of candidates worthy of elimination or election, respectively.
         """
         eliminated: set[str] = set()
         elected: frozenset[str] = frozenset()
