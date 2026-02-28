@@ -1,7 +1,7 @@
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import Literal
-from collections.abc import Iterable, Callable, Mapping
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -33,10 +33,10 @@ class _SVState:
 class SimultaneousVeto(RankingElection):
     """
     An anonymous version of PluralityVeto.
+
     Each candidate begins with a score, then, all at the same time, voters remove score from their
     least favorite candidates at a constant rate. As candidates' scores reach zero, they are
     eliminated, and voters that were vetoing them transfer to their next least-favorite candidate.
-
     With plurality scores (first-place votes), this voting rule achieves optimal metric distortion.
     See Kizilkaya & Kempe's 2023 paper: "Generalized Veto Core and a Practical Voting Rule with
     Optimal Metric Distortion".
@@ -46,10 +46,10 @@ class SimultaneousVeto(RankingElection):
 
     Args:
         profile (RankProfile): Profile to run election on.
-        m (int, optional): Number of seats to elect. Default is 1.
-        candidate_weights (Literal['first_place', 'uniform', 'borda'] | dict[str, float] | int, optional):
-            Initial candidate scores. 'first_place' means candidates begin with their
-            first-place vote count. 'uniform' means all candidates begin with the same
+        m (int, optional): Number of seats to elect. Defaults to 1.
+        candidate_weights (Literal['first_place', 'uniform', 'borda'] | dict[str, float] |
+            int, optional): Initial candidate scores. 'first_place' means candidates begin with
+            their first-place vote count. 'uniform' means all candidates begin with the same
             score. 'borda' means candidates begin with their Borda scores. If a dictionary,
             keys are candidates and values are initial scores; a score must be provided
             for every candidate. If an integer k, candidates begin with their top-k vote count.
@@ -62,7 +62,7 @@ class SimultaneousVeto(RankingElection):
             award points for ties in rankings when ``candidate_weights`` is 'first_place'
             or 'borda'. Defaults to "average".
         return_all_tied_winners (bool): If True, election returns a winner set of all tied winners,
-            even if it is larger than ``m``. Default is False.
+            even if it is larger than ``m``. Defaults to False.
 
     Attributes:
         candidates (frozenset[str]): Candidates in the initial profile.
@@ -148,7 +148,12 @@ class SimultaneousVeto(RankingElection):
         super().__init__(grouped_profile, score_function=score_func)
 
     def _compute_scores_dict(self) -> dict[str, float]:
-        """Converts self._scores (np.array) to dict[str, float]"""
+        """
+        Converts self._scores (np.array) to dict[str, float].
+
+        Returns:
+            dict[str, float]: Dictionary mapping candidates to scores.
+        """
         return {
             cand: self._scores[idx]
             for idx, cand in enumerate(self._sorted_candidates)
@@ -163,13 +168,15 @@ class SimultaneousVeto(RankingElection):
         scoring_tie_convention: str,
     ):
         """
-        Validate that each ballot has a ranking, that ``m`` is valid,
+        Validates input to SimultaneousVeto.
+
+        Checks that each ballot has a ranking, that ``m`` is valid,
         that enough candidates received votes to fill all the seats,
         and that if candidate_weights is an int, it's valid.
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int, optional): Number of seats to elect. Default is 1.
+            m (int, optional): Number of seats to elect. Defaults to 1.
             tiebreak (str, optional): Method for breaking ties when multiple candidates
                 are eliminated simultaneously. Defaults to "first_place".
                 Backup tiebreak is lexicographic/alphabetical.
@@ -201,7 +208,8 @@ class SimultaneousVeto(RankingElection):
         self, candidate_weights: str | dict[str, float] | int
     ) -> Callable[[RankProfile], dict[str, float]]:
         """
-        Convert ``candidate_weights`` into a callable function.
+        Converts ``candidate_weights`` into a callable function.
+
         This function is used to generate initial scores and is also passed to super().__init__.
 
         Args:
@@ -213,7 +221,7 @@ class SimultaneousVeto(RankingElection):
                 for every candidate. If an integer k, candidates begin with their top-k vote count.
 
         Returns:
-            Callable[[RankProfile], dict[str, float]]: score function that takes a RankProfile and
+            Callable[[RankProfile], dict[str, float]]: Score function that takes a RankProfile and
                 returns a dict mapping candidates to scores.
 
         Raises:
@@ -267,7 +275,8 @@ class SimultaneousVeto(RankingElection):
                 missing_cands = self.candidates.difference(candidate_weights.keys())
                 if missing_cands:
                     msg = (
-                        "If candidate_weights is a dict, scores must be provided for all candidates. "
+                        "If candidate_weights is a dict, "
+                        "scores must be provided for all candidates. "
                         f"The following candidates were missing: {missing_cands}"
                     )
                     raise ValueError(msg)
@@ -279,14 +288,14 @@ class SimultaneousVeto(RankingElection):
 
     def _initialize_veto_matrix(self, n_candidates: int, n_ballots: int) -> np.ndarray:
         """
-        Initialize veto_matrix.
+        Initializes veto_matrix.
 
         Args:
             n_candidates (int): Number of candidates.
             n_ballots (int): Number of ballots.
 
         Returns:
-            np.ndarray: veto_matrix of shape (n_candidates, n_ballots), where element (i,j)
+            np.ndarray: A veto matrix of shape (n_candidates, n_ballots), where element (i,j)
                 represents the amount of veto ballot j is giving to candidate i.
         """
         veto_matrix = np.zeros((n_candidates, n_ballots))
@@ -300,7 +309,7 @@ class SimultaneousVeto(RankingElection):
 
     def _update_veto_matrix(self, candidate: str):
         """
-        Update veto matrix in place by redistributing veto pressure from an eliminated candidate.
+        Updates veto matrix in place by redistributing veto pressure from an eliminated candidate.
 
         Args:
             candidate (str): Candidate being eliminated.
@@ -322,6 +331,7 @@ class SimultaneousVeto(RankingElection):
     def _get_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
         """
         Given a ballot index, returns the candidate(s) to veto.
+
         When calculating veto, first considers unlisted candidates.
         If they have all been eliminated, then it walks backward through the ballot
         until it finds a set with remaining candidate(s).
@@ -330,11 +340,11 @@ class SimultaneousVeto(RankingElection):
         so we don't have to walk from the end of the ranking every time.
 
         Args:
-            ballot_idx (int): A ballot index in [0, len(self._df)) corresponds to the row in
+            ballot_idx (np.intp): A ballot index in [0, len(self._df)) corresponds to the row in
                 self._df containing that ballot.
 
         Returns:
-            vetoes (frozenset[str]): The candidate(s) to be vetoed.
+            frozenset[str]: The candidate(s) to be vetoed.
 
         Raises:
             ValueError: If the ballot has no remaining candidates to veto.
@@ -372,18 +382,20 @@ class SimultaneousVeto(RankingElection):
         self,
         candidates: frozenset[str],
         candidate_idx: Iterable[int],
-        profile: RankProfile | None = None,
+        profile: RankProfile,
     ) -> tuple[frozenset[str], ...]:
         """
-        Takes candidate names or indices and returns a tiebroken order of names.
+        Takes candidate names and indices and returns a tiebroken order of names.
 
         Args:
-            candidates (frozenset[str]): names of tied candidates.
-            candidate_idx (Iterable[int]): indices of tied candidates.
-            profile (RankProfile | None): required if ``tiebreak`` is not 'veto_pressure' or 'remaining_score'
+            candidates (frozenset[str]): Names of tied candidates.
+            candidate_idx (Iterable[int]): Indices of tied candidates.
+            profile (RankProfile): RankProfile of the current round.
+                Passed to tiebreak_set() if ``tiebreak`` is not 'veto_pressure'
+                or 'remaining_score'.
 
         Returns:
-            tuple[frozenset[str], ...]: tiebroken ordering of candidates; each frozenset is a singleton.
+            tuple[frozenset[str], ...]: Tiebroken ordering of candidates (each in their own set).
         """
 
         def make_singleton_ranking(indices: list[int]) -> tuple[frozenset[str], ...]:
@@ -419,6 +431,17 @@ class SimultaneousVeto(RankingElection):
     ) -> tuple[str | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
         """
         Eliminate exactly one candidate whose score has hit zero, breaking a tie if necessary.
+
+        Args:
+            profile (RankProfile): RankProfile of the current round.
+
+        Returns:
+            tuple[str | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+                Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
+                is either a str giving the name of the eliminated candidate, or ``None``,
+                signaling that no candidate was eliminated; and tiebreaks is a dict
+                mapping a set of simultaneously-eliminated candidates to a tiebroken order;
+                if only one candidate is eliminated, tiebreaks is empty.
         """
         idx_to_elim = np.where((self._scores <= 0) & (self._veto_pressure > 0))[0]
 
@@ -447,7 +470,21 @@ class SimultaneousVeto(RankingElection):
     def _handle_all_zeroed(
         self, profile: RankProfile
     ) -> tuple[Sentinel, dict[frozenset[str], tuple[frozenset[str], ...]]]:
-        """All remaining candidates' scores hit zero simultaneously, so the election is over."""
+        """
+        Handles the case in which all remaining candidates' scores hit zero simultaneously.
+
+        This represents the end of the election, and the remaining candidates are tied winners.
+        Because there may be more than ``m`` candidate remaining, prepares a tiebroken order.
+
+        Args:
+            profile (RankProfile): RankProfile of the current round.
+
+        Returns:
+            tuple[Sentinel, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+                Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
+                is a Sentinel indicating that the election is over, and tiebreaks is a dict
+                mapping the set of remaining candidates to a tiebroken order of the same.
+        """
         tiebreaks = {}
         if not self.return_all_tied_winners:
             remaining = self.candidates - self._eliminated
@@ -480,7 +517,7 @@ class SimultaneousVeto(RankingElection):
 
         Returns:
             tuple[str | Sentinel | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
-                A 2-tuple of (eliminated_candidate, tiebreaks), where eliminated_candidate is one of:
+                A 2-tuple of (eliminated_candidate, tiebreaks). eliminated_candidate is one of:
                     - a str indicating the candidate to be eliminated
                     - NO_CANDIDATES_REMAINING, a Sentinel indicating the end of the election
                     - None, an error code signaling the failure to eliminate a candidate this round
@@ -492,9 +529,8 @@ class SimultaneousVeto(RankingElection):
         mask = self._veto_pressure != 0
         delta = np.min(self._scores[mask] / self._veto_pressure[mask])
         self._scores -= delta * self._veto_pressure
-        self._scores[np.abs(self._scores) < 1e-12] = (
-            0  # deal with floating point imprecision
-        )
+        # handle floating point imprecision:
+        self._scores[np.abs(self._scores) < 1e-12] = 0
 
         eliminated_candidate: str | Sentinel | None = None
         if np.any(self._scores):
@@ -503,8 +539,14 @@ class SimultaneousVeto(RankingElection):
             eliminated_candidate, tiebreaks = self._handle_all_zeroed(profile)
         return eliminated_candidate, tiebreaks
 
-    def _write_state(self, round_number):
-        """Saves the internal election state for the start of this round."""
+    def _write_state(self, round_number: int):
+        """
+        Saves the internal election state for the start of this round.
+
+        Args:
+            round_number (int): Round number for the current round.
+                Used as the key for writing the current state to ``_sv_states``.
+        """
         self._sv_states[round_number] = _SVState(
             veto_matrix=np.array(self._veto_matrix),
             veto_position_cache=np.array(self._veto_position_cache),
@@ -512,9 +554,13 @@ class SimultaneousVeto(RankingElection):
             eliminated=frozenset(self._eliminated),
         )
 
-    def _load_state(self, round_number):
+    def _load_state(self, round_number: int):
         """
         If the election has already been run, loads the state for the start of this round.
+
+        Args:
+            round_number (int): Round number for the current round.
+                Used as the key a lookup in ``_sv_states``.
         """
         state = self._sv_states[round_number]
         self._veto_matrix = np.array(state.veto_matrix)
