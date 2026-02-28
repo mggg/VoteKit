@@ -236,6 +236,7 @@ class STVAnimation:
             a specific color. Defaults to the empty dictionary.
         color_palette (ColorPalette, optional): A color palette to use for the animation.
             Defaults to `DARK_PALETTE`.
+        font (str): The name of a font that the user prefers to use if available.
 
 
     Attributes:
@@ -248,6 +249,7 @@ class STVAnimation:
         candidate_dict (dict[str, dict[str, object]]): A dictionary mapping each candidate's
             name to a dictionary recording that candidate's support, display name, and color.
         events (List[_AnimationEvent]): A list of animation events in order of occurrence.
+        font (str): The name of a font that the user prefers to use if available.
 
     Raises:
         TypeError: ``focus`` was not a set, list, or recognized string literal.
@@ -263,6 +265,7 @@ class STVAnimation:
         nicknames: Optional[dict[str, str]] = None,
         candidate_colors: Optional[Mapping[str, ParsableManimColor]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
+        font: str = "",
     ):
         if nicknames is None:
             nicknames = {}
@@ -333,6 +336,7 @@ class STVAnimation:
             raise ValueError("Tried creating animation with no animation event.")
         self.title = title
         self._video_path: Optional[Path] = None
+        self.font = font
 
     def _make_candidate_dict(
         self, election: STV, candidate_colors: Mapping[str, ParsableManimColor]
@@ -643,6 +647,7 @@ class STVAnimation:
                 deepcopy(self.events),  # deepcopy because this argument is mutated
                 title=self.title,
                 color_palette=self.color_palette,
+                font=self.font,
             )
             manimation.render(preview=preview and not in_notebook)
 
@@ -690,6 +695,7 @@ class ElectionScene(manim.Scene):
             If ``None``, the animation will skip the title screen. Defaults to ``None``.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
             Defaults to `DARK_PALETTE`.
+        font (str): The name of a font that the user prefers to use if available.
 
     """
 
@@ -699,6 +705,7 @@ class ElectionScene(manim.Scene):
         events: List[_AnimationEvent],
         title: Optional[str] = None,
         color_palette: ColorPalette = DARK_PALETTE,
+        font: str = "",
     ):
         super().__init__()
         self.candidate_dict = candidate_dict
@@ -724,17 +731,36 @@ class ElectionScene(manim.Scene):
         self.quota_line = None
         self.ticker_tape_line = None
         self.ticker_tape: List[Text] = []
-        self.font = self._determine_font()
+        self.font = self._determine_font(font)
 
-    def _determine_font(self) -> str:
+    def _determine_font(self, preferred_font: str) -> str:
         """
         Determine the font to use for the animation.
 
         The font must be installed on the system. This function checks whether the preferred
         fonts are installed, and if not, lets Manim choose the font.
+
+        Args:
+            preferred_font (str): The name of a font that the user prefers. This font will be
+                chosen if it is installed on the user's machine.
+
+        Returns:
+            str: The name of a locally installed font, or an empty string, which represents
+                the choice to let Manim decide on the font.
         """
-        font_preferences = ["Noto Serif", "Arial"]
+        font_preferences = ["Noto Serif"]  # Fonts in order of preference.
         available_fonts = list_fonts()
+
+        if preferred_font in available_fonts:
+            return preferred_font
+
+        warnings.warn(
+            f"The font {preferred_font} was not found among the installed fonts. "
+            "Falling back on default font preferences. "
+            f"Available fonts: {available_fonts}.",
+            UserWarning,
+        )
+
         for font in font_preferences:
             if font in available_fonts:
                 return font

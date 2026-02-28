@@ -267,6 +267,7 @@ def test_stv_animation_video_snapshots_multi(election_multi: STV, tmp_path: Path
             "title": "Test Election",
             "color_palette": LIGHT_PALETTE,
             "candidate_colors": candidate_colors,
+            "font": "Noto Serif",
         },
     )
 
@@ -288,5 +289,6 @@ def test_stv_animation_video_snapshots_happy(election_happy: STV, tmp_path: Path
         stv_animation_args={
             "focus": "winners",
             "title": "Test Election",
+            "font": "Noto Serif",
         },
     )
