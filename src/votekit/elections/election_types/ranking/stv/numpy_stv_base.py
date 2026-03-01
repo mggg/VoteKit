@@ -232,8 +232,11 @@ class NumpySTVBase(ABC):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Core election logic to be implemented by child classes. This should run the election and produce the outputs needed to populate the NumpyElectionDataTracker.
-        Note that the child class can store additional outputs in the `extras` field of the data tracker if needed.
+        Core election logic to be implemented by child classes. 
+        
+        This should run the election and produce the outputs needed to populate the 
+        NumpyElectionDataTracker. Note that the child class can store additional outputs in the `extras` 
+        field of the data tracker if needed.
 
         Args:
             data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to numpy arrays.
