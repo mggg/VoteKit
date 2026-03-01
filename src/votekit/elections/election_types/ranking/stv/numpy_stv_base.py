@@ -13,12 +13,13 @@ from enum import Enum
 
 class NumpySTVSentinel(Enum):
     """
-    Enum for sentinel values in the ballot matrix. These are used to indicate empty cells after padding.
+    Enum for sentinel values in the ballot matrix.
 
     Attributes:
         BLANK_RANKING (int): Sentinel value for blank/empty rankings after padding.
             This value is used at the end of the ballot matrix to indicate the end of each ballot,
-            and candidates are replaced with this value in the ballot matrix when they are elected/eliminated.
+            and candidates are replaced with this value in the ballot matrix 
+            when they are elected or eliminated.
     """
 
     BLANK_RANKING = np.int8(-127)
@@ -30,7 +31,7 @@ class NumpyElectionDataTracker:
     Data container for internal use in numpy-based elections.
 
     Attributes:
-        ballot_matrix (NDArray): Matrix of ballot rankings (each row is a unique ballot) with sentinel padding.
+        ballot_matrix (NDArray): Matrix of ballots (each row is a unique ballot) with sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
         initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
         fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
@@ -58,11 +59,14 @@ class NumpySTVBase(ABC):
     Abstract base class for numpy-based STV-style elections.
 
     Attributes:
-        candidates (list[str]): List of candidate names, indexed to correspond to ballot matrix entries.
+        candidates (list[str]): List of candidate names, indexed 
+            to correspond to ballot matrix entries.
         profile (RankProfile): The original RankProfile for reference.
         m (int): Number of seats to be elected.
-        election_states (list[ElectionState]): List of ElectionState objects representing each round in chronological order.
-        tiebreak (Optional[str]): User-specified method to be used if a tiebreak is needed. Defaults to None.
+        election_states (list[ElectionState]): List of ElectionState objects representing each round in 
+            chronological order.
+        tiebreak (Optional[str]): User-specified method to be used if a tiebreak is needed. 
+            Defaults to None.
         _data (NumpyElectionDataTracker): Internal data tracker.
         _winner_tiebreak (Optional[str]): Tiebreak method for winners, set to `None` by default.
         _loser_tiebreak (str): Tiebreak method for losers, set to "first_place" by default.
@@ -235,16 +239,19 @@ class NumpySTVBase(ABC):
         Core election logic to be implemented by child classes.
 
         This should run the election and produce the outputs needed to populate the
-        NumpyElectionDataTracker. Note that the child class can store additional outputs in the `extras`
-        field of the data tracker if needed.
+        NumpyElectionDataTracker. Note that the child class can store additional outputs 
+        in the `extras` field of the data tracker if needed.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to numpy arrays.
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to 
+                numpy arrays.
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[dict[str, Any]]): List of dictionaries representing the actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries representing tiebreak resolutions for each round.
+            play_by_play (list[dict[str, Any]]): List of dictionaries representing the actions taken in each 
+                round.
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries 
+                representing tiebreak resolutions for each round.
         """
         pass
 
