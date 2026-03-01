@@ -168,6 +168,7 @@ class NumpySTVBase(ABC):
     def _make_election_states(self):
         """
         Creates the list of election states after the main loop has run.
+        
         Returns:
             list[ElectionState]: List of ElectionState objects representing each round in
                 chronological order.
