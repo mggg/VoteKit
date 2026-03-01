@@ -1004,8 +1004,9 @@ class STV(RankingElection):
 
 class IRV(STV):
     """
-    IRV (Instant-runoff voting) elections.  Elect 1 seat. All ballots must have no ties.
-    Equivalent to STV for m = 1.
+    Elect exactly 1 seat using IRV (Instant-runoff voting).
+    
+    All ballots must have no ties. Equivalent to STV for m = 1.
 
     Args:
         profile (RankProfile):   RankProfile to run election on.
