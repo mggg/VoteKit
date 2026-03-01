@@ -80,8 +80,13 @@ class NumpyInnerSTV(NumpySTVBase):
         self, profile: RankProfile, m: int, transfer: str
     ):
         """
-        Checks if the profile is a RankProfile, if the number of seats is positive, if there are enough candidates to fill the seats,
-            and if the transfer method is implemented.
+        Initial validation of the arguments passed to the STV election.
+
+        Checks the following:
+            - Checks if the profile is a RankProfile, 
+            - Checks if the number of seats is positive,
+            - Checks if there are enough candidates to fill the seats,
+            - Checks if the transfer method is implemented.
 
         Args:
             profile (RankProfile): The preference profile to validate.
