@@ -517,7 +517,9 @@ class FastSTV(NumpyInnerSTV):
 
 class AlbanySTV(NumpyInnerSTV):
     """
-    STV variant used in Albany, CA. Differs from FastSTV in that the threshold is recalculated each round based on remaining votes and candidates.
+    STV variant used in Albany, CA. 
+    
+    Differs from FastSTV in that the threshold is recalculated each round based on remaining votes and candidates.
 
     Args:
         profile (RankProfile): RankProfile to run election on.
