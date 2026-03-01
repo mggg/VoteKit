@@ -385,7 +385,8 @@ class NumpySTVBase(ABC):
 
     def get_status_df(self, round_number: int = -1) -> pd.DataFrame:
         """
-        Returns a dataframe reporting the status (elected, eliminated, remaining) of the candidates in the given round.
+        Returns a dataframe reporting the status of the candidates in the given round.
+        
         DataFrame is sorted by current ranking.
 
         Args:
