@@ -738,6 +738,7 @@ class STV(RankingElection):
     ) -> tuple[tuple[frozenset[str], ...], RankProfile]:
         """
         Run one step of an election from the given profile and previous state.
+        
         Used for simultaneous STV election if candidates cross threshold.
 
         Args:
