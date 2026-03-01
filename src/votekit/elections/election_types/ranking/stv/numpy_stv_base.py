@@ -393,9 +393,8 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            pd.DataFrame:
-                Data frame displaying candidate, status (elected, eliminated,
-                remaining), and the round their status updated.
+            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated, remaining), and the 
+                round their status updated.
         """
         status_df = pd.DataFrame(
             {
