@@ -1029,8 +1029,12 @@ class IRV(STV):
 
 class SequentialRCV(STV):
     """
-    An STV election in which votes are not transferred after a candidate has reached threshold, or
-    been elected. This system is actually used in parts of Utah.
+    STV election in which votes are not transferred from elected candidates.
+
+    This system just runs a series of IRV elections until the desired number of candidates are elected. 
+    
+    Notes:
+     - Used in parts of Utah.
 
     Args:
         profile (RankProfile):   RankProfile to run election on.
