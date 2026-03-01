@@ -899,6 +899,7 @@ class STV(RankingElection):
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
+        
         STV sets a threshold for first-place votes. If a candidate passes it, they are elected.
         We remove them from all ballots and transfer any surplus ballots to other candidates.
         If no one passes, we eliminate the lowest ranked candidate and reallocate their ballots.
