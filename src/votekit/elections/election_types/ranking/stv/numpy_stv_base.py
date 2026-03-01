@@ -168,7 +168,7 @@ class NumpySTVBase(ABC):
     def _make_election_states(self):
         """
         Creates the list of election states after the main loop has run.
-        
+
         Returns:
             list[ElectionState]: List of ElectionState objects representing each round in
                 chronological order.
@@ -232,10 +232,10 @@ class NumpySTVBase(ABC):
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     ]:
         """
-        Core election logic to be implemented by child classes. 
-        
-        This should run the election and produce the outputs needed to populate the 
-        NumpyElectionDataTracker. Note that the child class can store additional outputs in the `extras` 
+        Core election logic to be implemented by child classes.
+
+        This should run the election and produce the outputs needed to populate the
+        NumpyElectionDataTracker. Note that the child class can store additional outputs in the `extras`
         field of the data tracker if needed.
 
         Args:
@@ -386,7 +386,7 @@ class NumpySTVBase(ABC):
     def get_status_df(self, round_number: int = -1) -> pd.DataFrame:
         """
         Returns a dataframe reporting the status of the candidates in the given round.
-        
+
         DataFrame is sorted by current ranking.
 
         Args:
@@ -394,7 +394,7 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated, remaining), and the 
+            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated, remaining), and the
                 round their status updated.
         """
         status_df = pd.DataFrame(

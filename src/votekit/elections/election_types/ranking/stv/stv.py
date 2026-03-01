@@ -83,7 +83,7 @@ class NumpyInnerSTV(NumpySTVBase):
         Initial validation of the arguments passed to the STV election.
 
         Checks the following:
-            - Checks if the profile is a RankProfile, 
+            - Checks if the profile is a RankProfile,
             - Checks if the number of seats is positive,
             - Checks if there are enough candidates to fill the seats,
             - Checks if the transfer method is implemented.
@@ -522,8 +522,8 @@ class FastSTV(NumpyInnerSTV):
 
 class AlbanySTV(NumpyInnerSTV):
     """
-    STV variant used in Albany, CA. 
-    
+    STV variant used in Albany, CA.
+
     Differs from FastSTV in that the threshold is recalculated each round based on remaining votes and candidates.
 
     Args:
@@ -564,8 +564,8 @@ class AlbanySTV(NumpyInnerSTV):
 
 class FastIRV(NumpyInnerSTV):
     """
-    Elect exactly 1 seat using IRV (Instant-runoff voting) elections. 
-    
+    Elect exactly 1 seat using IRV (Instant-runoff voting) elections.
+
     All ballots must have no ties. Equivalent to STV for m = 1.
 
     Args:
@@ -596,8 +596,8 @@ class FastSequentialRCV(NumpyInnerSTV):
     """
     STV election in which votes are not transferred from elected candidates.
 
-    This system just runs a series of IRV elections until the desired number of candidates are elected. 
-    
+    This system just runs a series of IRV elections until the desired number of candidates are elected.
+
     Notes:
      - Used in parts of Utah.
 
@@ -747,7 +747,7 @@ class STV(RankingElection):
     ) -> tuple[tuple[frozenset[str], ...], RankProfile]:
         """
         Run one step of an election from the given profile and previous state.
-        
+
         Used for simultaneous STV election if candidates cross threshold.
 
         Args:
@@ -829,7 +829,7 @@ class STV(RankingElection):
     ]:
         """
         Run one step of an election from the given profile and previous state.
-        
+
         Used for one-by-one STV election if candidates cross threshold.
 
         Args:
@@ -904,7 +904,7 @@ class STV(RankingElection):
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
-        
+
         STV sets a threshold for first-place votes. If a candidate passes it, they are elected.
         We remove them from all ballots and transfer any surplus ballots to other candidates.
         If no one passes, we eliminate the lowest ranked candidate and reallocate their ballots.
@@ -1010,7 +1010,7 @@ class STV(RankingElection):
 class IRV(STV):
     """
     Elect exactly 1 seat using IRV (Instant-runoff voting).
-    
+
     All ballots must have no ties. Equivalent to STV for m = 1.
 
     Args:
@@ -1036,8 +1036,8 @@ class SequentialRCV(STV):
     """
     STV election in which votes are not transferred from elected candidates.
 
-    This system just runs a series of IRV elections until the desired number of candidates are elected. 
-    
+    This system just runs a series of IRV elections until the desired number of candidates are elected.
+
     Notes:
      - Used in parts of Utah.
 

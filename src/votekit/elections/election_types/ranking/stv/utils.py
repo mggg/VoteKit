@@ -7,7 +7,7 @@ def numpy_random_transfer(
 ) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.
-    
+
     Each row index i appears wt_vec[i] times if fpv_vec[i] == winner.
     Returns a counts vector where counts[i] is the number of times row i was sampled.
     Ensures sum(counts) == s and counts[i] <= wt_vec[i].
