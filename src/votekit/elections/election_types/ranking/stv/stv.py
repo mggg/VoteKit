@@ -29,9 +29,9 @@ from numpy.typing import NDArray
 
 class NumpyInnerSTV(NumpySTVBase):
     """
-    Most general version of an STV election. 
-    
-    Contains niche arguments such as "dynamic_threshold" that are not exposed in the main STV 
+    Most general version of an STV election.
+
+    Contains niche arguments such as "dynamic_threshold" that are not exposed in the main STV
         class.
     """
 
@@ -50,12 +50,12 @@ class NumpyInnerSTV(NumpySTVBase):
         Args:
             profile (RankProfile): RankProfile to run election on.
             m (int): Number of seats to be elected. Defaults to 1.
-            transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'. 
+            transfer: (str): Transfer method to be used. Accepts 'fractional' and 'random'.
                 Defaults to 'fractional'.
             quota (Optional[str]): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            simultaneous (Optional[bool]): True if all candidates who cross threshold in a round 
-                are elected simultaneously, False if only the candidate with highest first-place 
+            simultaneous (Optional[bool]): True if all candidates who cross threshold in a round
+                are elected simultaneously, False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
             tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Accepts
                 'borda' and 'random'. Defaults to None, in which case a ValueError is raised if
@@ -377,14 +377,14 @@ class NumpyInnerSTV(NumpySTVBase):
         Core election logic for STV.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile 
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile
                 converted to numpy arrays.
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
             play_by_play (list[dict[str, Any]]): List of dictionaries representing the actions
                  taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): 
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
         """
         ballot_matrix = data.ballot_matrix
@@ -529,7 +529,7 @@ class AlbanySTV(NumpyInnerSTV):
     """
     STV variant used in Albany, CA.
 
-    Differs from FastSTV in that the threshold is recalculated each round based on remaining 
+    Differs from FastSTV in that the threshold is recalculated each round based on remaining
         votes and candidates.
 
     Args:
