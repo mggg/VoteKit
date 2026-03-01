@@ -820,6 +820,7 @@ class STV(RankingElection):
     ]:
         """
         Run one step of an election from the given profile and previous state.
+        
         Used for one-by-one STV election if candidates cross threshold.
 
         Args:
