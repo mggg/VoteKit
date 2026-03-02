@@ -3,7 +3,7 @@ from numpy.typing import NDArray
 from votekit.pref_profile import RankProfile
 from votekit.elections.election_state import ElectionState
 from votekit.utils import tiebreak_set
-from typing import Optional, Any
+from typing import Any
 import pandas as pd
 from itertools import groupby
 from abc import ABC, abstractmethod
@@ -38,7 +38,7 @@ class NumpyElectionDataTracker:
         play_by_play (list[dict[str, Any]]): Per-round action log used for legacy outputs.
         tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
             Tiebreak resolutions by round.
-        candidate_sets_by_fpv (Optional[list[set[int]]]): Cached FPV clusters for tiebreaking.
+        candidate_sets_by_fpv (list[set[int]] | None): Cached FPV clusters for tiebreaking.
         extras (dict[str, Any]): Extension point for child classes to store additional outputs.
     """
 
@@ -50,7 +50,7 @@ class NumpyElectionDataTracker:
     tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = field(
         default_factory=list
     )
-    candidate_sets_by_fpv: Optional[list[set[int]]] = None
+    candidate_sets_by_fpv: list[set[int]] | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
 
@@ -65,10 +65,10 @@ class NumpySTVBase(ABC):
         m (int): Number of seats to be elected.
         election_states (list[ElectionState]): List of ElectionState objects representing each round in
             chronological order.
-        tiebreak (Optional[str]): User-specified method to be used if a tiebreak is needed.
+        tiebreak (str | None): User-specified method to be used if a tiebreak is needed.
             Defaults to None.
         _data (NumpyElectionDataTracker): Internal data tracker.
-        _winner_tiebreak (Optional[str]): Tiebreak method for winners, set to `None` by default.
+        _winner_tiebreak (str | None): Tiebreak method for winners, set to `None` by default.
         _loser_tiebreak (str): Tiebreak method for losers, set to "first_place" by default.
     """
 
@@ -77,25 +77,24 @@ class NumpySTVBase(ABC):
     m: int
     election_states: list[ElectionState]
     threshold: float
-    tiebreak: Optional[str]
+    tiebreak: str | None
     _data: NumpyElectionDataTracker
-    _winner_tiebreak: Optional[str]
+    _winner_tiebreak: str | None
     _loser_tiebreak: str
 
     def __init__(
         self,
         profile: RankProfile,
         m: int = 1,
-        tiebreak: Optional[str] = None,
+        tiebreak: str | None = None,
     ):
         """
+        Initialize the numpy STV base.
+
         Args:
             profile (RankProfile): RankProfile to run election on.
             m (int): Number of seats to be elected. Defaults to 1.
-            tiebreak (Optional[str]): Method to be used if a tiebreak is needed. Defaults to None.
-
-        Returns:
-            NumpySTVBase: Initialized base instance.
+            tiebreak (str | None): Method to be used if a tiebreak is needed. Defaults to None.
         """
         self.profile = profile
         self.m = m
@@ -125,11 +124,10 @@ class NumpySTVBase(ABC):
         This converts the profile into a numpy matrix with some helper arrays for faster iteration.
 
         Args:
-            profile (RankProfile): The preference profile to convert.
+            pf (RankProfile): The preference profile to convert.
 
         Returns:
-            tuple[NDArray, NDArray, NDArray]: The ballot matrix, weights vector, and
-                first-preference vector.
+            tuple[NDArray, NDArray]: The ballot matrix and weights vector.
         """
         df = pf.df.copy()
         candidate_to_index = {
@@ -219,6 +217,10 @@ class NumpySTVBase(ABC):
     def _make_initial_fpv(self, fpv_vec: NDArray, wt_vec: NDArray) -> NDArray:
         """
         Creates the initial first-preference vote (FPV) vector.
+
+        Args:
+            fpv_vec (NDArray): First-preference vector.
+            wt_vec (NDArray): Weight vector.
 
         Returns:
             NDArray: The i-th entry is the initial first-preference vote tally for candidate i.
@@ -438,7 +440,14 @@ class NumpySTVBase(ABC):
 
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
-        Returns the RankProfile of the given round number.
+        Return the RankProfile of the given round number.
+
+        Args:
+            round_number (int): The round number. Supports negative indexing. Defaults to
+                -1, which accesses the final profile.
+
+        Returns:
+            RankProfile: Profile corresponding to the given round.
         """
         if (
             round_number < -len(self.election_states)
@@ -590,7 +599,11 @@ class NumpySTVBase(ABC):
         Calculates threshold required for election.
 
         Args:
+            quota_type: Quota type to use ("droop" or "hare").
             total_ballot_wt (float): Total weight of ballots to compute threshold.
+            floor (bool): Whether to floor the quota before applying epsilon.
+            epsilon (float): Offset applied to the computed quota.
+
         Returns:
             float: Value of the threshold.
         """
@@ -684,6 +697,9 @@ class NumpySTVBase(ABC):
         return loser_idx, mutant_tiebreak_record
 
     def __str__(self):
+        """
+        Return a string representation of the current election status.
+        """
         return self.get_status_df().to_string(index=True, justify="justify")
 
     __repr__ = __str__
