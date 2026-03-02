@@ -63,7 +63,7 @@ class NumpyInnerSTV(NumpySTVBase):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round
                 are elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
             dynamic_threshold (bool, optional): If True, threshold is recalculated each round based on
@@ -525,7 +525,7 @@ class FastSTV(NumpyInnerSTV):
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int): Number of seats to be elected. Defaults to 1.
+            m (int, optional): Number of seats to be elected. Defaults to 1.
             transfer (TransferType, optional): Transfer method to be used. Accepts "fractional", "random",
                 "fractional_random", and "cambridge_random". Defaults to "fractional".
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
@@ -533,7 +533,7 @@ class FastSTV(NumpyInnerSTV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -553,7 +553,6 @@ class AlbanySTV(NumpyInnerSTV):
 
     Differs from FastSTV in that the threshold is recalculated each round based on remaining
         votes and candidates.
-
     """
 
     def __init__(
@@ -578,7 +577,7 @@ class AlbanySTV(NumpyInnerSTV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -598,7 +597,6 @@ class FastIRV(NumpyInnerSTV):
     Elect exactly 1 seat using IRV (Instant-runoff voting) elections.
 
     All ballots must have no ties. Equivalent to STV for m = 1.
-
     """
 
     def __init__(
@@ -614,7 +612,7 @@ class FastIRV(NumpyInnerSTV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -635,7 +633,6 @@ class FastSequentialRCV(NumpyInnerSTV):
 
     Notes:
      - Used in parts of Utah.
-
     """
 
     def __init__(
@@ -657,7 +654,7 @@ class FastSequentialRCV(NumpyInnerSTV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -704,7 +701,7 @@ class STV(RankingElection):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place votes
                 who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda" and "random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -1074,7 +1071,7 @@ class IRV(STV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda" and "random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
@@ -1111,7 +1108,7 @@ class SequentialRCV(STV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType, optional): Method to be used if a tiebreak is needed. Accepts
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda" and "random". Defaults to None, in which case a ValueError is raised if
                 a tiebreak is needed.
         """
