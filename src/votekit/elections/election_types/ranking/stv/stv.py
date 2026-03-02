@@ -29,6 +29,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from typing import Callable, Union
 import numpy as np
 from numpy.typing import NDArray
+from warnings import warn
 
 
 class NumpyInnerSTV(NumpySTVBase):
@@ -118,9 +119,9 @@ class NumpyInnerSTV(NumpySTVBase):
                 "Transfer method must be either 'fractional', 'cambridge_random', 'fractional_random', or 'random'."
             )
         if transfer == "random":
-            print(
-                "Warning: the 'random' transfer method is ambiguous, and being interpreted"
-                " as 'cambridge_random'. Please specify 'cambridge_random' or 'fractional_random' to avoid this warning."
+            warn(
+                "The 'random' transfer method is ambiguous, and being interpreted as 'cambridge_random'. "
+                "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning."
             )
 
     def _update_because_winner(
