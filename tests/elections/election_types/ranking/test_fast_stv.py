@@ -444,6 +444,17 @@ def test_errors():
             quota="Drip",
         )
 
+    with pytest.warns(
+        Warning,
+        match="The 'random' transfer method is ambiguous, and being interpreted as 'cambridge_random'. "
+        "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning.",
+    ):
+        STV(
+            PreferenceProfile(ballots=(Ballot(ranking=(frozenset({"A"}),)),)),
+            m=1,
+            transfer="random",
+        )
+
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         STV(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
 
