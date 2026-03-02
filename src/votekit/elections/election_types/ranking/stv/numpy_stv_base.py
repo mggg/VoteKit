@@ -93,8 +93,8 @@ class NumpySTVBase(ABC):
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int): Number of seats to be elected. Defaults to 1.
-            tiebreak (str | None): Method to be used if a tiebreak is needed. Defaults to None.
+            m (int, optional): Number of seats to be elected. Defaults to 1.
+            tiebreak (str | None, optional): Method to be used if a tiebreak is needed. Defaults to None.
         """
         self.profile = profile
         self.m = m
