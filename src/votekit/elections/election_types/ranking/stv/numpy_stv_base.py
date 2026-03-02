@@ -276,7 +276,7 @@ class NumpySTVBase(ABC):
         Fetch the remaining candidates after the given round.
 
         Args:
-            round_number (int): The round number. Supports negative indexing. Defaults to
+            round_number (int, optional): The round number. Supports negative indexing. Defaults to
                 -1, which accesses the final profile.
 
         Returns:
