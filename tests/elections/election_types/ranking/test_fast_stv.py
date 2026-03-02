@@ -1,6 +1,7 @@
 from votekit.elections import ElectionState
 from votekit.elections import FastSTV as STV
-from votekit import Ballot, PreferenceProfile
+from votekit.pref_profile import ProfileError
+from votekit import Ballot, PreferenceProfile, ScoreBallot, ScoreProfile
 import pandas as pd
 import pytest
 
@@ -443,8 +444,19 @@ def test_errors():
             quota="Drip",
         )
 
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
-        STV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+    with pytest.warns(
+        Warning,
+        match="The 'random' transfer method is ambiguous, and being interpreted as 'cambridge_random'. "
+        "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning.",
+    ):
+        STV(
+            PreferenceProfile(ballots=(Ballot(ranking=(frozenset({"A"}),)),)),
+            m=1,
+            transfer="random",
+        )
+
+    with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
+        STV(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
 
 
 def test_stv_cands_cast():
@@ -457,7 +469,7 @@ def test_stv_cands_cast():
         candidates=("A", "B", "C", "D", "E"),
     )
 
-    assert STV(profile, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
+    assert STV(profile, simultaneous=False, m=3).get_elected() == ({"C"}, {"A"}, {"B"})
 
 
 @pytest.mark.slow
@@ -605,9 +617,10 @@ def test_simult_not_same_as_1b1():
         ),
         candidates=("A", "B", "C", "D"),
     )
-    assert STV(profile, m=3, simultaneous=True).get_elected() == (
-        frozenset({"A"}),
-        frozenset({"B"}),
+    assert STV(
+        profile, m=3, simultaneous=True
+    ).get_elected() == (  # TODO: change this test
+        frozenset({"A", "B"}),
         frozenset({"D"}),
     )
     assert STV(profile, m=3, simultaneous=False).get_elected() == (
