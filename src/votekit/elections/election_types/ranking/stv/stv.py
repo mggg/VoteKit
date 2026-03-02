@@ -480,7 +480,6 @@ class NumpyInnerSTV(NumpySTVBase):
                     ElectionPlay(
                         round_number=int(round_number),
                         winners=still_standing,
-                        wt_vec=np.zeros_like(fpv_vec, dtype=np.float64),
                         round_type="default",
                     )
                 )
