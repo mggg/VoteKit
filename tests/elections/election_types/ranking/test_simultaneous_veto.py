@@ -147,7 +147,7 @@ class TestValidation:
 # All parameter combinations (m=1, str-valued params)
 # ---------------------------------------------------------------------------
 
-CANDIDATE_WEIGHTS_STR = ["first_place", "uniform", "borda", 2]
+CANDIDATE_WEIGHTS_STR = ["first_place", "uniform", "borda", "harmonic", 2]
 TIEBREAKS = [
     "first_place",
     "random",
@@ -201,6 +201,17 @@ class TestCandidateWeights:
         election = SimultaneousVeto(basic_profile, candidate_weights="uniform")
         assert election.initial_scores == {"A": 1.0, "B": 1.0, "C": 1.0}
         assert elected_set(election) == {"B"}
+
+    def test_harmonic(self, basic_profile):
+        election = SimultaneousVeto(basic_profile, candidate_weights="harmonic")
+        expected_scores = {
+            "A": 3.2 + 2 * 1 / 2 + 3 * 1 / 3,
+            "B": 3 + 3.2 * 1 / 2 + 2 * 1 / 3,
+            "C": 2 + 3 * 1 / 2 + 3.2 * 1 / 3,
+        }
+        assert all(
+            election.initial_scores[c] - expected_scores[c] < 1e-5 for c in "ABC"
+        )
 
     def test_top2(self, basic_profile):
         election = SimultaneousVeto(basic_profile, candidate_weights=2)
