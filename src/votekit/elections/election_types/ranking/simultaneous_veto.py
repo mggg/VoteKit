@@ -47,8 +47,8 @@ class SimultaneousVeto(RankingElection):
     Args:
         profile (RankProfile): Profile to run election on.
         m (int, optional): Number of seats to elect. Defaults to 1.
-        candidate_weights (Literal['first_place', 'uniform', 'borda'] | dict[str, float] |
-            int, optional): Initial candidate scores. 'first_place' means candidates begin with
+        candidate_weights (Literal['first_place', 'uniform', 'borda', 'harmonic'] | dict[str, float]
+            | int, optional): Initial candidate scores. 'first_place' means candidates begin with
             their first-place vote count. 'uniform' means all candidates begin with the same
             score. 'borda' means candidates begin with their Borda scores. If a dictionary,
             keys are candidates and values are initial scores; a score must be provided
@@ -93,7 +93,9 @@ class SimultaneousVeto(RankingElection):
         profile: RankProfile,
         m: int = 1,
         candidate_weights: (
-            Literal["first_place", "uniform", "borda"] | dict[str, float] | int
+            Literal["first_place", "uniform", "borda", "harmonic"]
+            | dict[str, float]
+            | int
         ) = "first_place",
         tiebreak: Literal[
             "first_place", "random", "borda", "remaining_score", "veto_pressure", "lex"
@@ -262,6 +264,18 @@ class SimultaneousVeto(RankingElection):
                     return {c: 1.0 for c in profile.candidates}
 
                 return uniform_weights
+            case "harmonic" | "dowdall":
+
+                def harmonic_weights(profile: RankProfile) -> dict[str, float]:
+                    assert profile.max_ranking_length is not None
+                    harmonic_score_vector = [
+                        1 / (i + 1) for i in range(profile.max_ranking_length)
+                    ]
+                    return score_dict_from_score_vector(
+                        profile, harmonic_score_vector, self.scoring_tie_convention
+                    )
+
+                return harmonic_weights
             case _:
                 if isinstance(candidate_weights, str):
                     raise ValueError(
