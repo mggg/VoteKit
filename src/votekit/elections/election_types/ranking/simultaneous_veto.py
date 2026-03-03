@@ -544,7 +544,7 @@ class SimultaneousVeto(RankingElection):
         delta = np.min(self._scores[mask] / self._veto_pressure[mask])
         self._scores -= delta * self._veto_pressure
         # handle floating point imprecision:
-        self._scores[np.abs(self._scores) < 1e-12] = 0
+        self._scores[np.abs(self._scores) < 1e-10] = 0
 
         eliminated_candidate: str | Sentinel | None = None
         if np.any(self._scores):
