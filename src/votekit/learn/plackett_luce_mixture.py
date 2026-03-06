@@ -577,20 +577,6 @@ class PlackettLuceMixture:
 
         return log_prob
 
-    @property
-    def support_params_array_(self) -> NDArray[np.floating]:
-        """
-        Return support parameters as numpy array of shape ``(n_components, n_candidates)``.
-
-        Returns:
-            NDArray[np.floating]: Support parameter matrix with shape
-                ``(n_components, n_candidates)``.
-        """
-        assert (
-            self._support_params_array_ is not None
-        ), "Must fit the model before accessing support parameters."
-        return self._support_params_array_
-
     def name_pl_parameters(self) -> dict[str, Any]:
         """
         Format parameters for VoteKit's ``BlocSlateConfig``.
