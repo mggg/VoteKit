@@ -39,7 +39,7 @@ class SimultaneousVeto(RankingElection):
     eliminated, and voters that were vetoing them transfer to their next least-favorite candidate.
     With plurality scores (first-place votes), this voting rule achieves optimal metric distortion.
     See Kizilkaya & Kempe's 2023 paper: "Generalized Veto Core and a Practical Voting Rule with
-    Optimal Metric Distortion".
+    Optimal Metric Distortion" (https://arxiv.org/pdf/2305.19632).
 
     Partial ballots are treated by assuming that all unranked candidates tie for last place.
     Voters with ties in their ranking will spread their veto evenly across the tied candidates.
