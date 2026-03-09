@@ -40,7 +40,9 @@ warnings.formatwarning = cast(Any, _config_warning_format)
 BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
 # Backward compatibility alias; keep the original misspelling available.
 BlocPropotionMapping = BlocProportionMapping
-CohesionMapping = Union[Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame]
+CohesionMapping = Union[
+    Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame
+]
 PreferenceIntervalLike = Union[Mapping[str, Union[float, int]], PreferenceInterval]
 PreferenceMapping = Union[
     Mapping[str, Mapping[str, PreferenceIntervalLike]],
@@ -211,7 +213,9 @@ def typecheck_bloc_proportion_mapping(
 
     for bloc, v in bloc_prop_mapping.items():
         if not isinstance(bloc, str):
-            raise TypeError(f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'")
+            raise TypeError(
+                f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'"
+            )
         if not _is_finite_real(v):
             raise TypeError(
                 f"Bloc '{bloc!r}': proportion must be a finite real (int|float), got '{v!r}' of "
@@ -382,7 +386,9 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
         return
 
     if not isinstance(cast(object, pref_mapping), Mapping):  # cast gets around Pyright
-        raise TypeError(f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'")
+        raise TypeError(
+            f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'"
+        )
 
     for bloc, slate_dict in pref_mapping.items():
         if not isinstance(bloc, str):
@@ -467,7 +473,9 @@ def convert_preference_map_to_preference_df(
     for bloc, slate_dict in preference_mapping.items():
         for cand_item in slate_dict.values():
             cand_map = (
-                cand_item.interval if isinstance(cand_item, PreferenceInterval) else cand_item
+                cand_item.interval
+                if isinstance(cand_item, PreferenceInterval)
+                else cand_item
             )
             cand_series = pd.Series(cand_map)
             cand_dict = cand_series.to_dict()

@@ -132,7 +132,9 @@ class PreferenceInterval:
         """
         summ = sum(self.interval.values())
 
-        self.interval = types.MappingProxyType({c: s / summ for c, s in self.interval.items()})
+        self.interval = types.MappingProxyType(
+            {c: s / summ for c, s in self.interval.items()}
+        )
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):

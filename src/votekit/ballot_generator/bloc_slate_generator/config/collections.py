@@ -292,7 +292,9 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
 
     def __delitem__(self, key: str) -> None:
         del self._data[key]
-        update_hook = getattr(self.__parent, "_update_preference_and_cohesion_slates", None)
+        update_hook = getattr(
+            self.__parent, "_update_preference_and_cohesion_slates", None
+        )
         if callable(update_hook):
             update_hook()
 
@@ -441,7 +443,9 @@ class BlocProportions(MutableMapping[str, float]):
         del self.__data[key]
         try:
             self._validate()
-            update_hook = getattr(self.__parent, "_update_preference_and_cohesion_blocs", None)
+            update_hook = getattr(
+                self.__parent, "_update_preference_and_cohesion_blocs", None
+            )
             if callable(update_hook):
                 update_hook()
         except Exception as e:  # pragma: no cover
