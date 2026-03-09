@@ -417,7 +417,7 @@ class BlocSlateConfig:
             if _sum_differs_from_one(bloc_ser.sum()):
                 errors.append(
                     ValueError(
-                        f"Bloc proportions currenlty sum to {bloc_ser.sum():.6f} "
+                        f"Bloc proportions currently sum to {bloc_ser.sum():.6f} "
                         f"when they should sum to 1 within tolerance {FLOAT_TOL:g}."
                     )
                 )

@@ -92,7 +92,8 @@ class PreferenceInterval:
         Args:
             candidates (list): List of candidate strings.
             alpha (float): Alpha parameter for Dirichlet distribution.
-
+            allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
+                all candidates must have strictly positive support.
 
         Returns:
             PreferenceInterval
