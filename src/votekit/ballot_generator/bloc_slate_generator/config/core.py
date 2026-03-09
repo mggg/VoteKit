@@ -414,7 +414,7 @@ class BlocSlateConfig:
                 errors.append(
                     ValueError(
                         f"Bloc proportions currenlty sum to {bloc_ser.sum():.6f} "
-                        "when they should sum to 1."
+                        f"when they should sum to 1 within tolerance {FLOAT_TOL:g}."
                     )
                 )
 
@@ -459,7 +459,7 @@ class BlocSlateConfig:
             context=f"preference_df row for bloc '{bloc_name}'",
             invalid_negative_error=lambda invalid_negatives: ValueError(
                 f"preference_df row for bloc '{bloc_name}' has invalid "
-                f"negative values {invalid_negatives}. Use -1 to mark "
+                f"negative values {invalid_negatives}. Use {UNSET_VALUE:g} to mark "
                 "unset values."
             ),
             unset_error=lambda: ValueError(
@@ -589,7 +589,7 @@ class BlocSlateConfig:
             context=f"cohesion_df row for bloc '{bloc_name}'",
             invalid_negative_error=lambda invalid_negatives: ValueError(
                 f"cohesion_df row for bloc '{bloc_name}' has invalid "
-                f"negative values {invalid_negatives}. Use -1 to mark "
+                f"negative values {invalid_negatives}. Use {UNSET_VALUE:g} to mark "
                 "unset values."
             ),
             unset_error=lambda: ValueError(
@@ -945,7 +945,7 @@ class BlocSlateConfig:
         ) -> Exception:
             return ValueError(
                 f"Preference interval for bloc '{bloc_name}' and slate '{slate_name}' has "
-                f"invalid negative values {invalid_negatives}. Use {UNSET_VALUE} to mark unset "
+                f"invalid negative values {invalid_negatives}. Use {UNSET_VALUE:g} to mark unset "
                 "values."
             )
 
@@ -1041,7 +1041,7 @@ class BlocSlateConfig:
         if invalid_negatives:
             raise ValueError(
                 f"preference_df contains invalid negative values {invalid_negatives}. "
-                "Use -1 to mark unset values before normalization."
+                f"Use {UNSET_VALUE:g} to mark unset values before normalization."
             )
 
         mask = _unset_mask(pref_values)
@@ -1079,7 +1079,7 @@ class BlocSlateConfig:
         if invalid_negatives:
             raise ValueError(
                 f"cohesion_df contains invalid negative values {invalid_negatives}. "
-                "Use -1 to mark unset values before normalization."
+                f"Use {UNSET_VALUE:g} to mark unset values before normalization."
             )
 
         mask = _unset_mask(cohesion_values)

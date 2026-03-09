@@ -29,6 +29,7 @@ import pandas as pd
 from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     BlocProportionMapping,
     ConfigurationWarning,
+    FLOAT_TOL,
     _sum_differs_from_one,
     convert_bloc_proportion_map_to_series,
     typecheck_bloc_proportion_mapping,
@@ -420,7 +421,9 @@ class BlocProportions(MutableMapping[str, float]):
         if _sum_differs_from_one(total):
             if not self.__parent.silent:
                 warn(
-                    f"Bloc proportions currently sum to {total:.6f} when they should sum to 1.",
+                    "Bloc proportions currently sum to "
+                    f"{total:.6f} when they should sum to 1 within tolerance "
+                    f"{FLOAT_TOL:g}.",
                     ConfigurationWarning,
                 )
 

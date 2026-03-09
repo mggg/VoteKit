@@ -256,7 +256,9 @@ def convert_bloc_proportion_map_to_series(
         raise ValueError("Bloc proportions must be non-negative.")
     if _sum_differs_from_one(bloc_series.sum()):
         raise ValueError(
-            f"Bloc proportions currently sum to {bloc_series.sum():0.6f} when they should sum to 1."
+            "Bloc proportions currently sum to "
+            f"{bloc_series.sum():0.6f} when they should sum to 1 within tolerance "
+            f"{FLOAT_TOL:g}."
         )
 
     # Quick normalize in case of fp errors
