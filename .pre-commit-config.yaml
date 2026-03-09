@@ -14,8 +14,12 @@ repos:
     rev: 25.9.0
     hooks:
       - id: black
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: "v1.1.1"
+  - repo: https://github.com/pycqa/isort
+    rev: 8.0.1
+    hooks:
+      - id: isort
+  # - repo: https://github.com/astral-sh/ty
+  #   rev: "0.0.21"
   #   hooks:
-  #     - id: mypy
-  #       args: [src]
+  #     - id: ty
+  #       args: [check, src, tests]

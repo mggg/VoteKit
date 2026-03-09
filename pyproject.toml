@@ -1,13 +1,12 @@
 [project]
 name = "votekit"
-version = "3.3.1"
+version = "3.4.0"
 description = "A Swiss army knife for computational social choice research."
 authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
 dependencies = [
     "scipy (>=1.16.1, <2.0)",
-    "mypy (==1.18.2)",
     "pydantic (>=2.11.9, <3.0)",
     "networkx (>=3.5, <4.0)",
     "jinja2 (>=3.1.6, <4.0)",
@@ -18,7 +17,6 @@ dependencies = [
     "numpy (>=2.3.3, <3.0)",
     "seaborn (>=0.13.2,<0.14.0)",
     "types-seaborn (>=0.13.2.20250728,<0.14.0.0)",
-    "mypy-extensions (>=1.1.0)",
     "numba (>=0.62.1,<0.62.2)",
     "types-networkx (>=3.5.0.20250728,<4.0.0.0)",
     "psutil (>=7.1.0,<8.0.0)",
@@ -28,45 +26,75 @@ dependencies = [
 [project.optional-dependencies]
 animation = ["manim (>=0.19.0, <0.20.0)"]
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.13.2"
-black = "^25.9.0"
-pytest = "^8.4.2"
-pytest-cov = "^7.0.0"
-pre-commit = "^4.3.0"
-ipython = "^9.6.0"
-recommonmark = "^0.7.1"
-seaborn = "^0.13.2"
-ipykernel = "^6.30.1"
-scipy-stubs = "^1.16.1.0"
-pytest-mpl = ">=0.17.0,<0.18.0"
-pillow = "^11.2.0"
+[dependency-groups]
+dev = [
+    "ruff>=0.13.2,<0.14.0",
+    "black>=25.9.0,<26.0.0",
+    "pytest>=8.4.2,<9.0.0",
+    "pytest-cov>=7.0.0,<8.0.0",
+    "pre-commit>=4.3.0,<5.0.0",
+    "ipython>=9.6.0,<10.0.0",
+    "recommonmark>=0.7.1,<0.8.0",
+    "ipykernel>=6.30.1,<7.0.0",
+    "ty>=0.0.21",
+    "scipy-stubs>=1.16.1.0,<2.0.0",
+    "pytest-mpl>=0.17.0,<0.18.0",
+    "pillow>=11.2.0,<12.0.0",
+    "isort>=8.0.1",
+]
+docs = [
+    "sphinx>=8.2.3,<9.0.0",
+    "sphinx-copybutton>=0.5.2,<0.6.0",
+    "recommonmark>=0.7.1,<0.8.0",
+    "sphinx-rtd-theme>=3.0.2,<4.0.0",
+    "nbconvert>=7.16.6,<8.0.0",
+]
 
-[tool.poetry.group.docs.dependencies]
-sphinx = "^8.2.3"
-sphinx-copybutton = "^0.5.2"
-recommonmark = "^0.7.1"
-sphinx-rtd-theme = "^3.0.2"
-nbconvert = "^7.16.6"
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F"]
+ignore = [
+    "E501",  # line length handled by black
+    "E203",  # whitespace before ':', handled by black
+    "E731",  # do not assign lambda expression
+    "F541",  # f-string is missing placeholders
+]
+task-tags = ["TODO", "FIXME", "XXX", "HACK", "NOTE", "FIX", "BUG"]
+
+[tool.ruff.lint.pycodestyle]
+ignore-overlong-task-comments = true
+
+[tool.ty]
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.ty.terminal]
+output-format = "concise"
+# error-on-warning = true  # optional: fail CI on warnings too
+
 
 [project.urls]
 repository = "https://github.com/mggg/VoteKit"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.mypy]
-python_version = "3.13"
-mypy_path = "src"
-namespace_packages = true
+[tool.hatch.build.targets.wheel]
+packages = ["src/votekit"]
 
-[[tool.mypy.overrides]]
-module = ["apportionment", "apportionment.*", "joblib", "joblib.*", "networkx", "scipy.*", "networkx.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 markers = [
