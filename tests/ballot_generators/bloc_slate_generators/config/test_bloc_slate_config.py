@@ -1416,6 +1416,17 @@ def test_remove_slate_removes_candidates_and_cohesion_column(valid_config):
     assert "slate_3" not in config.cohesion_df.columns
 
 
+def test_direct_slate_delete_keeps_frames_in_sync(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    del config.slate_to_candidates["slate_2"]
+
+    assert config.slates == ["slate_1"]
+    assert set(config.candidates) == {"A", "B"}
+    assert set(config.preference_df.columns) == {"A", "B"}
+    assert list(config.cohesion_df.columns) == ["slate_1"]
+
+
 def test_remove_candidates_single_then_drop_empty_slate(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
@@ -1479,6 +1490,16 @@ def test_remove_candidates_noop_when_missing_list(valid_config):
     assert config.slate_to_candidates == slates_before
     pdt.assert_frame_equal(config.preference_df, pref_before)
     pdt.assert_frame_equal(config.cohesion_df, coh_before)
+
+
+def test_direct_bloc_delete_keeps_frames_in_sync(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    del config.bloc_proportions["bloc_2"]
+
+    assert config.blocs == ["bloc_1"]
+    assert list(config.preference_df.index) == ["bloc_1"]
+    assert list(config.cohesion_df.index) == ["bloc_1"]
 
 
 # -----------  dirichlet alphas keycheck --------------
