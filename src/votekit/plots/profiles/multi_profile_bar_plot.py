@@ -1,15 +1,17 @@
-from typing import Callable, Optional, Union, Any
-from votekit.pref_profile import RankProfile, ScoreProfile
-from matplotlib.axes import Axes
-from votekit.utils import (
-    first_place_votes,
-    borda_scores,
-    mentions,
-    ballot_lengths,
-    COLOR_LIST,
-)
 from functools import partial
+from typing import Any, Callable, Optional, Union
+
+from matplotlib.axes import Axes
+
 from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
+from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.utils import (
+    COLOR_LIST,
+    ballot_lengths,
+    borda_scores,
+    first_place_votes,
+    mentions,
+)
 
 
 def _create_data_dict(
@@ -32,9 +34,7 @@ def _create_data_dict(
 
     """
 
-    data_dict = {
-        label: stat_function(profile) for label, profile in profile_dict.items()
-    }
+    data_dict = {label: stat_function(profile) for label, profile in profile_dict.items()}
 
     return add_null_keys(data_dict)
 
@@ -431,9 +431,7 @@ def multi_profile_fpv_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    stat_function = (
-        partial(first_place_votes, **fpv_kwds) if fpv_kwds else first_place_votes
-    )
+    stat_function = partial(first_place_votes, **fpv_kwds) if fpv_kwds else first_place_votes
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 
     if candidate_ordering is None:
@@ -544,9 +542,7 @@ def multi_profile_ballot_lengths_plot(
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
     stat_function = (
-        partial(ballot_lengths, **ballot_lengths_kwds)
-        if ballot_lengths_kwds
-        else ballot_lengths
+        partial(ballot_lengths, **ballot_lengths_kwds) if ballot_lengths_kwds else ballot_lengths
     )
     data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
 

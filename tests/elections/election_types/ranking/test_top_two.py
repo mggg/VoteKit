@@ -1,11 +1,12 @@
-from votekit.elections import TopTwo, ElectionState
+import pandas as pd
+import pytest
+
+from votekit.ballot import Ballot
+from votekit.elections import ElectionState, TopTwo
 from votekit.pref_profile import (
     PreferenceProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
-import pytest
-import pandas as pd
 
 profile_no_tied_pl_no_tied_top_two = PreferenceProfile(
     ballots=[
@@ -86,9 +87,7 @@ def test_ties():
     e = TopTwo(profile_with_tied_pl, tiebreak="random")
     assert len([c for s in e.get_elected(2) for c in s]) == 1
 
-    e = TopTwo(
-        profile_with_tied_top_two, tiebreak="borda"
-    )  # will perform random tie on top 2
+    e = TopTwo(profile_with_tied_top_two, tiebreak="borda")  # will perform random tie on top 2
     assert len([c for s in e.get_elected(2) for c in s]) == 1
 
     e = TopTwo(profile_with_tied_top_two, tiebreak="random")

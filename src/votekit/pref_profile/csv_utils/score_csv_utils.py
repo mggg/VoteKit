@@ -1,10 +1,12 @@
 from __future__ import annotations
-from ...ballot import ScoreBallot
+
 from typing import Tuple
+
+from ...ballot import ScoreBallot
 from .csv_utils import (
-    _validate_csv_ballot_weight,
-    _validate_csv_ballot_voter_set,
     _validate_csv_ballot_row_break_idxs,
+    _validate_csv_ballot_voter_set,
+    _validate_csv_ballot_weight,
 )
 
 CANDIDATES_HEADER_ROW = 1
@@ -36,9 +38,7 @@ def _parse_profile_data_from_score_csv(
     includes_voter_set = csv_data[VOTER_SET_VALUE_ROW][0] == "True"
 
     ballot_data_column_names = csv_data[COLUMN_NAMES_ROW]
-    break_indices = [
-        i for i, col_name in enumerate(ballot_data_column_names) if col_name == "&"
-    ]
+    break_indices = [i for i, col_name in enumerate(ballot_data_column_names) if col_name == "&"]
 
     return (
         inv_candidate_mapping,
@@ -78,9 +78,7 @@ def _parse_ballot_from_score_csv(
             "must be float."
         )
 
-    scores = {
-        c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]
-    }
+    scores = {c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]}
 
     if includes_voter_set:
         voter_set = set(v.strip() for v in ballot_row[break_indices[-1] + 1 :])
@@ -113,9 +111,10 @@ def _validate_score_csv_header_values(header_data: list[list[str]]):
             )
         )
 
-    if len(header_data[VOTER_SET_VALUE_ROW]) != 1 or header_data[VOTER_SET_VALUE_ROW][
-        0
-    ] not in ["True", "False"]:
+    if len(header_data[VOTER_SET_VALUE_ROW]) != 1 or header_data[VOTER_SET_VALUE_ROW][0] not in [
+        "True",
+        "False",
+    ]:
         raise ValueError(
             (
                 f"csv file is improperly formatted. Row {VOTER_SET_VALUE_ROW} should be 'True' or "
@@ -151,8 +150,7 @@ def _validate_score_csv_header_rows(header_data: list[list[str]]):
         raise ValueError(
             (
                 f"csv file is improperly formatted. Row {CANDIDATES_HEADER_ROW} should be "
-                f"'Candidates', not {header_data[CANDIDATES_HEADER_ROW]}. "
-                + boiler_plate
+                f"'Candidates', not {header_data[CANDIDATES_HEADER_ROW]}. " + boiler_plate
             )
         )
 
@@ -160,8 +158,7 @@ def _validate_score_csv_header_rows(header_data: list[list[str]]):
         raise ValueError(
             (
                 f"csv file is improperly formatted. Row {VOTER_SET_HEADER_ROW} should be"
-                f" 'Includes Voter Set', not {header_data[VOTER_SET_HEADER_ROW]}. "
-                + boiler_plate
+                f" 'Includes Voter Set', not {header_data[VOTER_SET_HEADER_ROW]}. " + boiler_plate
             )
         )
 
@@ -241,8 +238,7 @@ def _validate_score_csv_ballot_header_row(
         raise ValueError(
             (
                 "csv file is improperly formatted. Includes Voter Set is not set to the correct"
-                f" value given the columns in row {COLUMN_NAMES_ROW}: {header_row}. "
-                + boiler_plate
+                f" value given the columns in row {COLUMN_NAMES_ROW}: {header_row}. " + boiler_plate
             )
         )
 
@@ -326,9 +322,7 @@ def _validate_score_csv_ballot_rows(csv_data: list[list[str]]):
                 candidates,
             )
             _validate_csv_ballot_weight(ballot_row, i + DATA_START_ROW)
-            _validate_csv_ballot_voter_set(
-                ballot_row, i + DATA_START_ROW, include_voter_set
-            )
+            _validate_csv_ballot_voter_set(ballot_row, i + DATA_START_ROW, include_voter_set)
         except ValueError as e:
             error_rows.append((i + DATA_START_ROW, e))
 

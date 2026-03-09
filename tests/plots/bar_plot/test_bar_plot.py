@@ -1,6 +1,7 @@
-from votekit.plots import bar_plot
-from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
+from votekit.plots import bar_plot
 
 data = {"Chris": 5, "Peter": 6, "Moon": 7}
 

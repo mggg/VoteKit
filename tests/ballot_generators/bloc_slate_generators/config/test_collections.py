@@ -12,7 +12,6 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
     SlateCandMap,
 )
 
-
 #   _CandListProxy
 # ==================
 
@@ -180,9 +179,7 @@ def test_init_rejects_empty_candidate_list(parent_and_map):
 
 def test_init_raises_attributeerror_if_init_has_no_items(parent_and_map):
     parent = parent_and_map[0]
-    with pytest.raises(
-        AttributeError, match=r"does not implement the '\.items\(\)' method"
-    ):
+    with pytest.raises(AttributeError, match=r"does not implement the '\.items\(\)' method"):
         SlateCandMap(
             parent,
             [("x", ["A"])],  # type: ignore[arg-type]
@@ -231,9 +228,7 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
     parent._map = sm  # type: ignore[attr-defined]
 
     before = sm.to_dict()["s1"].copy()
-    with pytest.raises(
-        KeyError, match="You may have tried to modify the candidate list directly"
-    ):
+    with pytest.raises(KeyError, match="You may have tried to modify the candidate list directly"):
         sm["s1"] = ["Z", "B"]  # non-clashing change; parent blows up
 
     # Rolled back to original
@@ -265,9 +260,7 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
     sm = SlateCandMap(parent, {"s1": ["A", "B"]})  # type: ignore[arg-type]
     parent._map = sm  # type: ignore[attr-defined]
 
-    with pytest.raises(
-        KeyError, match="You may have tried to modify the candidate list directly"
-    ):
+    with pytest.raises(KeyError, match="You may have tried to modify the candidate list directly"):
         sm["s3"] = ["P", "Q"]  # add new slate; parent blows up
 
     # New key should have been removed

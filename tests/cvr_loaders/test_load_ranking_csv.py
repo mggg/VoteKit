@@ -1,10 +1,12 @@
-from pandas.errors import EmptyDataError
-from pathlib import Path
-import pytest
 import re
+from pathlib import Path
+
+import pytest
+from pandas.errors import EmptyDataError
+
+from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_csv, load_ranking_csv
 from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_DIR = BASE_DIR / "data/csv/load_ranking_csv"
@@ -54,12 +56,8 @@ def test_candidate_errors():
 
 
 def test_id_and_weight_error():
-    with pytest.raises(
-        ValueError, match="Only one of weight_col and id_col can be provided"
-    ):
-        load_ranking_csv(
-            CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=3, id_col=4
-        )
+    with pytest.raises(ValueError, match="Only one of weight_col and id_col can be provided"):
+        load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=3, id_col=4)
 
 
 def test_distinct_col_error():
@@ -79,48 +77,36 @@ def test_distinct_col_error():
 def test_columns_out_of_range_error():
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index -1 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index -1 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[-1])
 
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index -1 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index -1 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=-1)
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index -1 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index -1 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], id_col=-1)
 
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index 5 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index 5 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[5])
 
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index 5 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index 5 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], id_col=5)
 
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "column index 5 must be in [0, 4] because Python is 0-indexed."
-        ),
+        match=re.escape("column index 5 must be in [0, 4] because Python is 0-indexed."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=5)
 
@@ -129,14 +115,10 @@ def test_numerical_weights_error():
     with pytest.raises(
         ValueError, match=f"Weight {'a'} in row {0} must be able to be cast to float."
     ):
-        load_ranking_csv(
-            CSV_DIR / "non_numeric_weight.csv", rank_cols=[0, 1, 2], weight_col=3
-        )
+        load_ranking_csv(CSV_DIR / "non_numeric_weight.csv", rank_cols=[0, 1, 2], weight_col=3)
 
     with pytest.raises(ValueError, match=f"No weight provided in row {1}."):
-        load_ranking_csv(
-            CSV_DIR / "no_weight_provided.csv", rank_cols=[0, 1, 2], weight_col=3
-        )
+        load_ranking_csv(CSV_DIR / "no_weight_provided.csv", rank_cols=[0, 1, 2], weight_col=3)
 
 
 def test_header_error():
@@ -173,9 +155,7 @@ def test_load_ranking_csv():
 
 
 def test_load_ranking_csv_w_weight():
-    profile = load_ranking_csv(
-        CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=3
-    )
+    profile = load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=3)
 
     true_profile = PreferenceProfile(
         ballots=(
@@ -218,12 +198,8 @@ def test_load_ranking_csv_w_id():
         ballots=(
             Ballot(ranking=({"Peter"}, {"Chris"}), weight=1, voter_set={"X40"}),
             Ballot(ranking=({"Chris"}, {"Moon"}), weight=1, voter_set={"X31"}),
-            Ballot(
-                ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=1, voter_set={"X29"}
-            ),
-            Ballot(
-                ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=1, voter_set={"X400"}
-            ),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=1, voter_set={"X29"}),
+            Ballot(ranking=({"Jeanne"}, {"David"}, {"Mala"}), weight=1, voter_set={"X400"}),
             Ballot(
                 ranking=(
                     frozenset(),
@@ -312,9 +288,7 @@ def test_print(capsys):
 
     assert "RankProfile" in captured.out
 
-    load_ranking_csv(
-        CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], print_profile=False
-    )
+    load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], print_profile=False)
 
     captured = capsys.readouterr()
 

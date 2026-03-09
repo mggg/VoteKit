@@ -1,9 +1,10 @@
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
+from votekit.ballot import Ballot
 from votekit.plots import profile_bar_plot
 from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
 from votekit.utils import borda_scores
-from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 
 ballot_1 = Ballot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1

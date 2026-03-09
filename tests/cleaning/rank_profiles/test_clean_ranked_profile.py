@@ -1,6 +1,6 @@
-from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import clean_rank_profile
+from votekit.pref_profile import CleanedRankProfile, PreferenceProfile
 
 profile = PreferenceProfile(
     ballots=[
@@ -16,9 +16,7 @@ profile = PreferenceProfile(
 def test_clean_profile_with_defaults():
     adj_profile = clean_rank_profile(
         profile,
-        lambda x: tuple(
-            c_set - {"A"} if isinstance(c_set, frozenset) else c_set for c_set in x
-        ),
+        lambda x: tuple(c_set - {"A"} if isinstance(c_set, frozenset) else c_set for c_set in x),
     )
 
     assert isinstance(adj_profile, CleanedRankProfile)
@@ -40,9 +38,7 @@ def test_clean_profile_with_defaults():
 def test_clean_profile_change_defaults():
     adj_profile = clean_rank_profile(
         profile,
-        lambda x: tuple(
-            c_set - {"A"} if isinstance(c_set, frozenset) else c_set for c_set in x
-        ),
+        lambda x: tuple(c_set - {"A"} if isinstance(c_set, frozenset) else c_set for c_set in x),
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,
         retain_original_candidate_list=True,

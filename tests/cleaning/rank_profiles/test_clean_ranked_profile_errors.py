@@ -1,8 +1,8 @@
 import pytest
 
-from votekit.pref_profile import ScoreProfile, ProfileError
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import clean_rank_profile
+from votekit.pref_profile import ProfileError, ScoreProfile
 
 
 def test_clean_ranked_error():

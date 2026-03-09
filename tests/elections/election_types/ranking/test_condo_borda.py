@@ -1,11 +1,12 @@
+import pandas as pd
+import pytest
+
+from votekit.ballot import Ballot
 from votekit.elections import CondoBorda, ElectionState
 from votekit.pref_profile import (
     PreferenceProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
-import pytest
-import pandas as pd
 
 profile_tied_set = PreferenceProfile(
     ballots=(
@@ -156,9 +157,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         CondoBorda(profile_tied_set, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         CondoBorda(profile_tied_set, m=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):

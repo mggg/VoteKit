@@ -1,11 +1,12 @@
-from votekit.elections import Plurality, ElectionState, SNTV
+import pandas as pd
+import pytest
+
+from votekit.ballot import Ballot
+from votekit.elections import SNTV, ElectionState, Plurality
 from votekit.pref_profile import (
     PreferenceProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
-import pytest
-import pandas as pd
 
 profile_no_tied_fpv = PreferenceProfile(
     ballots=[
@@ -135,9 +136,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         Plurality(profile_no_tied_fpv, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Plurality(profile_no_tied_fpv, m=4)
 
     with pytest.raises(

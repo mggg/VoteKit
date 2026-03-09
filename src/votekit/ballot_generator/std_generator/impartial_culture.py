@@ -7,14 +7,15 @@ The main API functions in this module are:
 """
 
 import math
-import numpy as np
 import random
-from typing import Sequence, Optional
-from functools import lru_cache
 from collections import Counter
+from functools import lru_cache
+from typing import Optional, Sequence
+
+import numpy as np
 
 from votekit.pref_profile import RankProfile
-from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
+from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
 
 # ====================================================
 # ================= Helper Functions =================
@@ -34,8 +35,7 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
         int: the total number of valid ballots
     """
     return sum(
-        math.comb(n_candidates, i) * math.factorial(i)
-        for i in range(1, max_ballot_length + 1)
+        math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1)
     )
 
 
@@ -108,9 +108,7 @@ def _generate_profile_optimized_with_short(
 
     # sample indices (representing allowed ballots) uniformally at
     # random
-    ballot_inds = [
-        random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)
-    ]
+    ballot_inds = [random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
         tuple(
             index_to_lexicographic_ballot(
@@ -167,6 +165,4 @@ def ic_profile_generator(
             candidates, number_of_ballots, max_ballot_length
         )
 
-    return _generate_profile_optimized_non_short(
-        candidates, number_of_ballots, max_ballot_length
-    )
+    return _generate_profile_optimized_non_short(candidates, number_of_ballots, max_ballot_length)

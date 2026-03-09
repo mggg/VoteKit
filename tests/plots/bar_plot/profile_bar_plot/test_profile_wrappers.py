@@ -1,13 +1,14 @@
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
+from votekit.ballot import Ballot
 from votekit.plots import (
+    profile_ballot_lengths_plot,
     profile_borda_plot,
     profile_fpv_plot,
     profile_mentions_plot,
-    profile_ballot_lengths_plot,
 )
 from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
-from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 
 ballot_1 = Ballot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1

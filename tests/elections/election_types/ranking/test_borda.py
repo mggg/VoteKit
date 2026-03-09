@@ -1,11 +1,12 @@
+import pandas as pd
+import pytest
+
+from votekit.ballot import Ballot
 from votekit.elections import Borda, ElectionState
 from votekit.pref_profile import (
     PreferenceProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
-import pytest
-import pandas as pd
 
 profile_no_tied_borda = PreferenceProfile(
     ballots=[
@@ -144,9 +145,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         Borda(profile_no_tied_borda, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Borda(profile_no_tied_borda, m=4)
 
     with pytest.raises(

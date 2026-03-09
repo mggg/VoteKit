@@ -1,15 +1,14 @@
 import networkx as nx
 import numpy as np
 
-from votekit.pref_profile import RankProfile
-from votekit.graphs.pairwise_comparison_graph import (
-    pairwise_dict,
-    get_dominating_tiers_digraph,
-)
-from votekit.utils import tiebreak_set
-
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.graphs.pairwise_comparison_graph import (
+    get_dominating_tiers_digraph,
+    pairwise_dict,
+)
+from votekit.pref_profile import RankProfile
+from votekit.utils import tiebreak_set
 
 
 class Schulze(RankingElection):
@@ -145,9 +144,7 @@ class Schulze(RankingElection):
                 )
 
         ordered_candidates = [
-            candidate
-            for candidate_set in dominating_tiers
-            for candidate in sorted(candidate_set)
+            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
         ]
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])

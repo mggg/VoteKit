@@ -1,10 +1,11 @@
+import pytest
+
+from votekit.ballot import Ballot
 from votekit.elections import DominatingSets, ElectionState
 from votekit.pref_profile import (
     PreferenceProfile,
     ProfileError,
 )
-from votekit.ballot import Ballot
-import pytest
 
 profile_no_tied_dominating_sets = PreferenceProfile(
     ballots=[

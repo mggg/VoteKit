@@ -1,6 +1,7 @@
-from votekit.ballot import ScoreBallot
-from votekit.pref_profile import ScoreProfile, ProfileError
 import pytest
+
+from votekit.ballot import ScoreBallot
+from votekit.pref_profile import ProfileError, ScoreProfile
 
 
 def test_pp_candidate_list():

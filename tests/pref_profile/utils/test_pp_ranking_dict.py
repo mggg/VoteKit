@@ -1,7 +1,8 @@
+import pytest
+
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.utils import rank_profile_to_ranking_dict
-import pytest
 
 
 def test_to_ranking_dict():

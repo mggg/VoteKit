@@ -1,7 +1,8 @@
-from votekit.elections import SequentialRCV, ElectionState
-from votekit.pref_profile import PreferenceProfile, ProfileError
-from votekit.ballot import Ballot
 import pytest
+
+from votekit.ballot import Ballot
+from votekit.elections import ElectionState, SequentialRCV
+from votekit.pref_profile import PreferenceProfile, ProfileError
 
 # taken from STV wiki
 simult_same_as_one_by_one_profile = PreferenceProfile(
@@ -107,9 +108,7 @@ states = [
     ),
     ElectionState(
         round_number=3,
-        remaining=tuple(
-            map(frozenset, ({"Burger", "Orange", "Chocolate"}, {"Chicken"}))
-        ),
+        remaining=tuple(map(frozenset, ({"Burger", "Orange", "Chocolate"}, {"Chicken"}))),
         elected=(frozenset({"Cake"}),),
         scores={"Burger": 4, "Orange": 4, "Chicken": 3, "Chocolate": 4},
     ),
@@ -262,9 +261,7 @@ def test_errors():
         SequentialRCV(profile, m=2, simultaneous=False)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        SequentialRCV(
-            PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip"
-        )
+        SequentialRCV(PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip")
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))

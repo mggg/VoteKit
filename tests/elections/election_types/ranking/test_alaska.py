@@ -1,7 +1,8 @@
-from votekit.elections import Alaska, ElectionState
-from votekit.ballot import ScoreBallot, RankBallot
-from votekit.pref_profile import ScoreProfile, RankProfile, ProfileError
 import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import Alaska, ElectionState
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 test_profile = RankProfile(
     ballots=(
@@ -139,9 +140,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m_2 must be positive."):
         Alaska(test_profile, m_2=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Alaska(test_profile, m_1=5)
 
     with pytest.raises(ValueError, match="m_1 must be greater than or equal to m_2."):

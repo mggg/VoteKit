@@ -1,14 +1,16 @@
-from typing import Callable, Optional, Union, Any
-from votekit.pref_profile import RankProfile, ScoreProfile
-from votekit.plots.profiles.multi_profile_bar_plot import multi_profile_bar_plot
-from votekit.plots.bar_plot import bar_plot
+from typing import Any, Callable, Optional, Union
+
 from matplotlib.axes import Axes
+
+from votekit.plots.bar_plot import bar_plot
+from votekit.plots.profiles.multi_profile_bar_plot import multi_profile_bar_plot
+from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.utils import (
-    first_place_votes,
-    borda_scores,
-    mentions,
-    ballot_lengths,
     COLOR_LIST,
+    ballot_lengths,
+    borda_scores,
+    first_place_votes,
+    mentions,
 )
 
 
@@ -160,14 +162,10 @@ def profile_borda_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        borda_scores(profile, **borda_kwds) if borda_kwds else borda_scores(profile)
-    )
+    score_dict = borda_scores(profile, **borda_kwds) if borda_kwds else borda_scores(profile)
 
     if candidate_ordering is None:
-        candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
-        )
+        candidate_ordering = sorted(score_dict.keys(), reverse=True, key=lambda x: score_dict[x])
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
@@ -256,14 +254,10 @@ def profile_mentions_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        mentions(profile, **mentions_kwds) if mentions_kwds else mentions(profile)
-    )
+    score_dict = mentions(profile, **mentions_kwds) if mentions_kwds else mentions(profile)
 
     if candidate_ordering is None:
-        candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
-        )
+        candidate_ordering = sorted(score_dict.keys(), reverse=True, key=lambda x: score_dict[x])
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
@@ -352,16 +346,10 @@ def profile_fpv_plot(
     Returns:
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
-    score_dict = (
-        first_place_votes(profile, **fpv_kwds)
-        if fpv_kwds
-        else first_place_votes(profile)
-    )
+    score_dict = first_place_votes(profile, **fpv_kwds) if fpv_kwds else first_place_votes(profile)
 
     if candidate_ordering is None:
-        candidate_ordering = sorted(
-            score_dict.keys(), reverse=True, key=lambda x: score_dict[x]
-        )
+        candidate_ordering = sorted(score_dict.keys(), reverse=True, key=lambda x: score_dict[x])
 
     if relabel_candidates_with_int and not candidate_legend:
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}

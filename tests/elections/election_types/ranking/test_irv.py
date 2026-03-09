@@ -1,8 +1,9 @@
-from votekit.elections import IRV, ElectionState
-from votekit.pref_profile import RankProfile, ScoreProfile, ProfileError
-from votekit.ballot import RankBallot, ScoreBallot
 import pandas as pd
 import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import IRV, ElectionState
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 # taken from STV wiki
 test_profile = RankProfile(

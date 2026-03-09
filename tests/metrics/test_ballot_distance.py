@@ -1,5 +1,6 @@
-from votekit.metrics.distances import compute_ranking_distance_on_ballot_graph
 import pytest
+
+from votekit.metrics.distances import compute_ranking_distance_on_ballot_graph
 
 
 def test_ballot_distance_disjoint_rankings_partition_candidates():
@@ -23,10 +24,7 @@ def test_ballot_distance_same_rankings_is_zero():
 
 
 def test_ballot_distance_same_rankings_in_disguise_is_zero():
-    assert (
-        compute_ranking_distance_on_ballot_graph((1, 2, 3, 4), (1, 2, 3, 4, 5), 5)
-        == 0.0
-    )
+    assert compute_ranking_distance_on_ballot_graph((1, 2, 3, 4), (1, 2, 3, 4, 5), 5) == 0.0
 
 
 def test_ballot_distance_bullet_vs_full_ranking():
@@ -82,18 +80,12 @@ def test_ballot_distance_2_candidates_with_transposition():
 
 
 def test_ballot_distance_full_ranking_transposition_at_end():
-    assert (
-        compute_ranking_distance_on_ballot_graph((0, 1, 2, 3), (0, 1, 3, 2), 4) == 1.0
-    )
+    assert compute_ranking_distance_on_ballot_graph((0, 1, 2, 3), (0, 1, 3, 2), 4) == 1.0
 
 
 def test_ballot_distance_errors():
-    with pytest.raises(
-        ValueError, match="The number of candidates must be greater than zero."
-    ):
+    with pytest.raises(ValueError, match="The number of candidates must be greater than zero."):
         compute_ranking_distance_on_ballot_graph((1, 2), (3, 4, 5), 0)
 
-    with pytest.raises(
-        ValueError, match="The number of candidates must be greater than zero."
-    ):
+    with pytest.raises(ValueError, match="The number of candidates must be greater than zero."):
         compute_ranking_distance_on_ballot_graph((1, 2), (3, 4, 5), -1)

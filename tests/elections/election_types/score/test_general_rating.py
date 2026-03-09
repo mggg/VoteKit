@@ -1,7 +1,8 @@
+import pytest
+
+from votekit.ballot import ScoreBallot
 from votekit.elections import GeneralRating
 from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import ScoreBallot
-import pytest
 
 
 def test_init():
@@ -32,19 +33,13 @@ def test_validate_profile():
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(scores={"A": -3, "B": 2, "C": 2})]
-        )
+        profile = PreferenceProfile(ballots=[ScoreBallot(scores={"A": -3, "B": 2, "C": 2})])
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(), ScoreBallot(scores={"A": 2, "B": 2})]
-        )
+        profile = PreferenceProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 2, "B": 2})])
         GeneralRating(profile, m=2, L=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(scores={"A": 2, "C": 2, "B": 2})]
-        )
+        profile = PreferenceProfile(ballots=[ScoreBallot(scores={"A": 2, "C": 2, "B": 2})])
         GeneralRating(profile, L=2, k=2)

@@ -1,10 +1,11 @@
+from functools import cache
+from typing import Callable, Optional, Union
+
+import matplotlib.pyplot as plt
+import networkx as nx  # type: ignore
+
 from votekit.graphs.base_graph import Graph
 from votekit.pref_profile import RankProfile
-from typing import Optional, Union
-import networkx as nx  # type: ignore
-from functools import cache
-from typing import Callable
-import matplotlib.pyplot as plt
 
 
 def all_nodes(graph, node):
@@ -134,22 +135,16 @@ class BallotGraph(Graph):
                 if n == 3:
                     Gc.add_edges_from([(k, (i,)) for k in G_corner.nodes])
                 else:
-                    Gc.add_edges_from(
-                        [(k, (i,)) for k in G_corner.nodes if len(k) == 2]
-                    )
+                    Gc.add_edges_from([(k, (i,)) for k in G_corner.nodes if len(k) == 2])
 
             nodes = Gc.nodes
 
-            new_edges = [
-                (bal, (bal[1], bal[0]) + bal[2:]) for bal in nodes if len(bal) >= 2
-            ]
+            new_edges = [(bal, (bal[1], bal[0]) + bal[2:]) for bal in nodes if len(bal) >= 2]
             Gc.add_edges_from(new_edges)
 
         return Gc
 
-    def from_profile(
-        self, profile: RankProfile, fix_short: Optional[bool] = True
-    ) -> nx.Graph:
+    def from_profile(self, profile: RankProfile, fix_short: Optional[bool] = True) -> nx.Graph:
         """
         Updates existing graph based on cast ballots from a RankProfile,
         or creates graph based on RankProfile.
@@ -187,9 +182,7 @@ class BallotGraph(Graph):
                 for cand in position:
                     ballot_node.append(self.cand_num[cand])
             if len(ballot_node) == len(self.candidates) - 1 and fix_short:
-                ballot_node = self.fix_short_ballot(
-                    ballot_node, list(self.cand_num.values())
-                )
+                ballot_node = self.fix_short_ballot(ballot_node, list(self.cand_num.values()))
 
             if tuple(ballot_node) in self.graph.nodes:
                 self.graph.nodes[tuple(ballot_node)]["weight"] += ballot.weight
@@ -256,9 +249,7 @@ class BallotGraph(Graph):
             if to_display(self.graph, node):
                 # label the ballot and give the number of votes
                 if self.graph.nodes[node]["weight"] > 0:
-                    node_labels[node] = (
-                        str(node) + ": " + str(self.graph.nodes[node]["weight"])
-                    )
+                    node_labels[node] = str(node) + ": " + str(self.graph.nodes[node]["weight"])
                 else:
                     node_labels[node] = str(node)
 

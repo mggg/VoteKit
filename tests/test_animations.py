@@ -1,13 +1,15 @@
-from votekit.animations import STVAnimation, LIGHT_PALETTE
-from votekit import Ballot, PreferenceProfile
-from votekit.elections import STV
-import pytest
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
-from PIL import Image
-import numpy as np
 from typing import Optional
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from votekit import Ballot, PreferenceProfile
+from votekit.animations import LIGHT_PALETTE, STVAnimation
+from votekit.elections import STV
 
 
 @pytest.fixture

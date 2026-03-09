@@ -1,10 +1,11 @@
+import matplotlib.pyplot as plt
+import pytest
+from matplotlib.axes import Axes
+
+from votekit.ballot import Ballot
 from votekit.plots.profiles import multi_profile_bar_plot
 from votekit.pref_profile import PreferenceProfile
 from votekit.utils import COLOR_LIST, first_place_votes
-from votekit.ballot import Ballot
-from matplotlib.axes import Axes
-import pytest
-import matplotlib.pyplot as plt
 
 ballot_1 = Ballot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1
@@ -57,9 +58,7 @@ def test_barplot_with_no_defaults():
 
 
 def test_wrapped_errors():
-    with pytest.raises(
-        ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} profiles."
-    ):
+    with pytest.raises(ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} profiles."):
         multi_profile_bar_plot(
             {f"Profile_{i}": profile_1 for i in range(len(COLOR_LIST) + 2)},
             stat_function=first_place_votes,

@@ -1,16 +1,15 @@
-from votekit.pref_profile import PreferenceProfile
-from typing import Callable
+from typing import Callable, Dict, Optional
+
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
-from typing import Dict, Optional
-from sklearn import manifold  # type: ignore
 from matplotlib.axes import Axes
+from sklearn import manifold  # type: ignore
+
+from votekit.pref_profile import PreferenceProfile
 
 
 # Helper function for MDS Plot
-def distance_matrix(
-    pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs
-):
+def distance_matrix(pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs):
     """
     Creates pairwise distance matrix between ``PreferenceProfile`` objects. The :math:`(i,j)` entry
     is the pairwise distance between :math:`i`th and the :math:`j`th ``PreferenceProfile``.

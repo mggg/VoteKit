@@ -1,7 +1,8 @@
+import numpy as np
+import pytest
+
 from votekit.ballot import Ballot
 from votekit.matrices import candidate_distance
-import pytest
-import numpy as np
 
 
 def test_candidate_distance():

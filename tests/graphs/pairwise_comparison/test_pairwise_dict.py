@@ -1,7 +1,8 @@
+import pytest
+
+from votekit.ballot import Ballot, RankBallot
 from votekit.graphs import pairwise_dict, restrict_pairwise_dict_to_subset
 from votekit.pref_profile import PreferenceProfile, RankProfile
-from votekit.ballot import Ballot, RankBallot
-import pytest
 
 ballots = (
     Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=10),
@@ -31,17 +32,13 @@ def test_restrict_pairwise():
 def test_restrict_pairwise_single_cand():
     # make sure passing as string doesn't mess this up
     ballots = [
-        Ballot(
-            ranking=tuple(map(frozenset, [{"Chris"}, {"Peter"}, {"Moon"}])), weight=10
-        ),
+        Ballot(ranking=tuple(map(frozenset, [{"Chris"}, {"Peter"}, {"Moon"}])), weight=10),
     ]
     profile = PreferenceProfile(ballots=tuple(ballots))
 
     pwd = pairwise_dict(profile)
 
-    with pytest.raises(
-        ValueError, match="Must be at least two candidates in cand_subset:"
-    ):
+    with pytest.raises(ValueError, match="Must be at least two candidates in cand_subset:"):
         restrict_pairwise_dict_to_subset(["Chris"], pwd)
 
 
@@ -50,8 +47,7 @@ def test_restrict_pairwise_cand_error():
     with pytest.raises(
         ValueError,
         match=(
-            "are found in cand_subset but "
-            "not in the list of candidates found in the dictionary:"
+            "are found in cand_subset but " "not in the list of candidates found in the dictionary:"
         ),
     ):
         restrict_pairwise_dict_to_subset(["A", "E"], pwd)

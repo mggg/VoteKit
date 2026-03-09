@@ -1,17 +1,13 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
-from votekit.matrices import candidate_distance_matrix
 import numpy as np
 
+from votekit.ballot import Ballot
+from votekit.matrices import candidate_distance_matrix
+from votekit.pref_profile import PreferenceProfile
 
-ballot_1 = Ballot(
-    ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"}))
-)
+ballot_1 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
 ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})))
 ballot_3 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Moon"})))
-ballot_4 = Ballot(
-    ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"}))
-)
+ballot_4 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
 
 
 pref_profile = PreferenceProfile(

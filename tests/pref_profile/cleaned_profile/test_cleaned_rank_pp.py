@@ -1,11 +1,12 @@
-from votekit.pref_profile import (
-    RankProfile,
-    CleanedRankProfile,
-)
-from votekit.ballot import RankBallot
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
+
+from votekit.ballot import RankBallot
+from votekit.pref_profile import (
+    CleanedRankProfile,
+    RankProfile,
+)
 
 profile = RankProfile(
     ballots=[
@@ -73,9 +74,7 @@ def test_reindexing_df():
 def test_no_wt_altr_idxs_subset_error():
     with pytest.raises(
         ValueError,
-        match=(
-            "no_wt_altr_idxs is not a subset of " "the parent profile df index column."
-        ),
+        match=("no_wt_altr_idxs is not a subset of " "the parent profile df index column."),
     ):
         CleanedRankProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -89,10 +88,7 @@ def test_no_wt_altr_idxs_subset_error():
 def test_no_ranking_altr_subset_error():
     with pytest.raises(
         ValueError,
-        match=(
-            "no_rank_altr_idxs is not a subset of "
-            "the parent profile df index column."
-        ),
+        match=("no_rank_altr_idxs is not a subset of " "the parent profile df index column."),
     ):
         CleanedRankProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -107,10 +103,7 @@ def test_no_ranking_altr_subset_error():
 def test_valid_but_alt_subset_error():
     with pytest.raises(
         ValueError,
-        match=(
-            "nonempty_altr_idxs is not a subset of "
-            "the parent profile df index column."
-        ),
+        match=("nonempty_altr_idxs is not a subset of " "the parent profile df index column."),
     ):
         CleanedRankProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],

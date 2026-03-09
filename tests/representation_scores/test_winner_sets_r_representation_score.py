@@ -1,10 +1,12 @@
-from votekit.representation_scores import winner_sets_r_representation_scores
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
-from votekit.cvr_loaders import load_ranking_csv
-from votekit.cleaning import remove_cand_rank_profile
 from pathlib import Path
+
 import pytest
+
+from votekit.ballot import Ballot
+from votekit.cleaning import remove_cand_rank_profile
+from votekit.cvr_loaders import load_ranking_csv
+from votekit.pref_profile import PreferenceProfile
+from votekit.representation_scores import winner_sets_r_representation_scores
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_DIR = BASE_DIR / "data/csv/"
@@ -62,9 +64,7 @@ def test_winner_sets_r_rep_score_error_r():
 
 
 def test_winner_sets_r_rep_score_error_m():
-    with pytest.raises(
-        ValueError, match="Number of seats m \\(0\\) must be at least 1."
-    ):
+    with pytest.raises(ValueError, match="Number of seats m \\(0\\) must be at least 1."):
         winner_sets_r_representation_scores(PreferenceProfile(), 0, 1)
 
     with pytest.raises(
@@ -97,8 +97,5 @@ def test_winner_sets_r_rep_score_portland():
         == 0.709
     )
     assert (
-        round(
-            score_dict[frozenset(["Candace Avalos", "Steph Routh", "Jamie Dunphy"])], 3
-        )
-        == 0.636
+        round(score_dict[frozenset(["Candace Avalos", "Steph Routh", "Jamie Dunphy"])], 3) == 0.636
     )

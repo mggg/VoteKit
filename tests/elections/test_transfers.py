@@ -1,6 +1,7 @@
-from votekit.elections import fractional_transfer, random_transfer
-from votekit.ballot import RankBallot
 import pytest
+
+from votekit.ballot import RankBallot
+from votekit.elections import fractional_transfer, random_transfer
 
 ranking_error_ballot_list = [
     RankBallot(weight=2),

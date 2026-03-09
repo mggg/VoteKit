@@ -93,9 +93,7 @@ class SimultaneousVeto(RankingElection):
         profile: RankProfile,
         m: int = 1,
         candidate_weights: (
-            Literal["first_place", "uniform", "borda", "harmonic"]
-            | dict[str, float]
-            | int
+            Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int
         ) = "first_place",
         tiebreak: Literal[
             "first_place", "random", "borda", "remaining_score", "veto_pressure", "lex"
@@ -121,9 +119,7 @@ class SimultaneousVeto(RankingElection):
         # unmentioned candidates are considered tied for last place
         assert grouped_profile.max_ranking_length is not None
         self._max_ranking_length: int = grouped_profile.max_ranking_length
-        self._ranking_cols = [
-            f"Ranking_{i}" for i in range(1, self._max_ranking_length + 1)
-        ]
+        self._ranking_cols = [f"Ranking_{i}" for i in range(1, self._max_ranking_length + 1)]
         self._unlisted_candidates_by_ballot = tuple(
             self.candidates - (frozenset.union(*ballot[self._ranking_cols]))
             for _, ballot in self._df.iterrows()
@@ -235,9 +231,7 @@ class SimultaneousVeto(RankingElection):
         """
         if isinstance(k := candidate_weights, int):
             if k < 1:
-                raise ValueError(
-                    f"Invalid value for top-k scoring: candidate_weights={k}"
-                )
+                raise ValueError(f"Invalid value for top-k scoring: candidate_weights={k}")
             if k > self._max_ranking_length:
                 raise ValueError(
                     f"candidate_weights={k} is not valid for a profile with "
@@ -252,9 +246,7 @@ class SimultaneousVeto(RankingElection):
         match candidate_weights:
             case "first_place" | "plurality":
                 assert self.scoring_tie_convention in ("high", "average", "low")
-                return partial(
-                    first_place_votes, tie_convention=self.scoring_tie_convention
-                )
+                return partial(first_place_votes, tie_convention=self.scoring_tie_convention)
             case "borda":
                 assert self.scoring_tie_convention in ("high", "average", "low")
                 return partial(borda_scores, tie_convention=self.scoring_tie_convention)
@@ -268,9 +260,7 @@ class SimultaneousVeto(RankingElection):
 
                 def harmonic_weights(profile: RankProfile) -> dict[str, float]:
                     assert profile.max_ranking_length is not None
-                    harmonic_score_vector = [
-                        1 / (i + 1) for i in range(profile.max_ranking_length)
-                    ]
+                    harmonic_score_vector = [1 / (i + 1) for i in range(profile.max_ranking_length)]
                     return score_dict_from_score_vector(
                         profile, harmonic_score_vector, self.scoring_tie_convention
                     )
@@ -419,9 +409,7 @@ class SimultaneousVeto(RankingElection):
         match self.tiebreak:
             case "veto_pressure":
                 # sort eliminatable candidates in order of increasing veto pressure
-                sorted_indices = sorted(
-                    candidate_idx, key=lambda i: self._veto_pressure[i]
-                )
+                sorted_indices = sorted(candidate_idx, key=lambda i: self._veto_pressure[i])
                 tiebroken_order = make_singleton_ranking(sorted_indices)
             case "remaining_score":
                 # sort eliminatable candidates in order of decreasing remaining score prior to step
@@ -466,9 +454,7 @@ class SimultaneousVeto(RankingElection):
             case 1:
                 eliminated_candidate = self._sorted_candidates[idx_to_elim[0]]
             case _:
-                candidates_to_elim = frozenset(
-                    self._sorted_candidates[idx] for idx in idx_to_elim
-                )
+                candidates_to_elim = frozenset(self._sorted_candidates[idx] for idx in idx_to_elim)
                 tiebroken_order = self._break_tie(
                     candidates=candidates_to_elim,
                     candidate_idx=idx_to_elim,

@@ -1,23 +1,24 @@
+import pytest
+
 from votekit.ballot import Ballot, RankBallot
 from votekit.pref_profile import PreferenceProfile, RankProfile
 from votekit.utils import (
-    ballots_by_first_cand,
     add_missing_cands,
-    validate_score_vector,
-    score_dict_from_score_vector,
-    first_place_votes,
-    mentions,
+    ballot_lengths,
+    ballots_by_first_cand,
     borda_scores,
-    tiebreak_set,
-    tiebroken_ranking,
-    score_dict_to_ranking,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
+    first_place_votes,
+    mentions,
     resolve_profile_ties,
+    score_dict_from_score_vector,
+    score_dict_to_ranking,
     score_profile_from_ballot_scores,
-    ballot_lengths,
+    tiebreak_set,
+    tiebroken_ranking,
+    validate_score_vector,
 )
-import pytest
 
 profile_no_ties = PreferenceProfile(
     ballots=(
@@ -101,9 +102,7 @@ def test_ballots_by_first_cand_error():
 def test_add_missing_cands():
     true_add = PreferenceProfile(
         ballots=(
-            Ballot(
-                ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}, {"C", "E"}])), weight=1
-            ),
+            Ballot(ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}, {"C", "E"}])), weight=1),
             Ballot(
                 ranking=tuple(map(frozenset, [{"A", "B", "C", "D"}, {"E"}])),
                 weight=1 / 2,
@@ -528,9 +527,7 @@ def test_elect_cands_from_set_ranking_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         elect_cands_from_set_ranking(({"A", "B"},), 0)
 
-    with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
-    ):
+    with pytest.raises(ValueError, match="m must be no more than the number of candidates."):
         elect_cands_from_set_ranking(({"A", "B"},), 3)
 
     with pytest.raises(
@@ -572,9 +569,7 @@ def test_resolve_profile_ties():
             Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=1 / 12),
             Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=1 / 12),
             Ballot(ranking=tuple(map(frozenset, [{"C"}, {"A"}, {"B"}])), weight=1 / 12),
-            Ballot(
-                ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=37 / 12
-            ),
+            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=37 / 12),
         ]
     )
 
@@ -595,9 +590,7 @@ def test_score_profile_from_ballot_scores_float():
 
 
 def test_score_profile_from_ballot_scores_error():
-    profile = PreferenceProfile(
-        ballots=(Ballot(ranking=(frozenset({"A"}),), weight=2),)
-    )
+    profile = PreferenceProfile(ballots=(Ballot(ranking=(frozenset({"A"}),), weight=2),))
     with pytest.raises(TypeError, match="Profile must be of type ScoreProfile."):
         score_profile_from_ballot_scores(profile)
 

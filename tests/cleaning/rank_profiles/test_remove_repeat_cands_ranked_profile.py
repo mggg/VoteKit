@@ -1,6 +1,6 @@
-from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_repeat_cands_rank_profile
+from votekit.pref_profile import CleanedRankProfile, PreferenceProfile
 
 
 def test_remove_repeated_candidates():

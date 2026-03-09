@@ -1,4 +1,4 @@
-from .stv import FastSTV, STV, IRV, SequentialRCV
+from .stv import IRV, STV, FastSTV, SequentialRCV
 
 __all__ = [
     "STV",

@@ -1,12 +1,13 @@
+import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import (
     PreferenceProfile,
+    ProfileError,
     RankProfile,
     ScoreProfile,
-    ProfileError,
 )
-from votekit.ballot import RankBallot, ScoreBallot
-import pytest
-import pandas as pd
 
 
 def test_pp_factory_to_rank_profile():

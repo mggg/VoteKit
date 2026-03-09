@@ -1,11 +1,10 @@
 # tests/matrices/heatmap/test_heatmap_snapshots.py
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
-from matplotlib.colors import LinearSegmentedColormap
-from votekit.matrices.heatmap import matrix_heatmap  # adjust import if needed
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 
+from votekit.matrices.heatmap import matrix_heatmap  # adjust import if needed
 
 # Subtle custom sequential map for visibility of spacing/grid color
 greys_steps = ListedColormap(

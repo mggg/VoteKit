@@ -1,16 +1,18 @@
-from votekit.pref_interval import PreferenceInterval
-from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+import hashlib
+import json
+import re
+from collections import Counter
+from pathlib import Path
+
+import pytest
+
 from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
 )
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import RankProfile
-import json
-from pathlib import Path
-import pytest
-import hashlib
-from collections import Counter
-import re
 
 PROB_THRESHOLD = 0.01
 
@@ -99,9 +101,7 @@ def test_Cambridge_invalid_config():
         cambridge_profile_generator(config)
 
 
-def test_Cambridge_errors(
-    two_bloc_two_slate_config, two_bloc_two_slate_config_cambridge
-):
+def test_Cambridge_errors(two_bloc_two_slate_config, two_bloc_two_slate_config_cambridge):
     config = BlocSlateConfig(
         n_voters=100_000,
         allow_zero_support_candidates=True,
@@ -166,9 +166,7 @@ def test_Cambridge_errors(
 
     with pytest.raises(
         ValueError,
-        match=re.escape(
-            "The slates (['A', 'B']) must correspond to the blocs (['X', 'Y'])."
-        ),
+        match=re.escape("The slates (['A', 'B']) must correspond to the blocs (['X', 'Y'])."),
     ):
         cambridge_profile_generator(two_bloc_two_slate_config)
 
@@ -190,16 +188,12 @@ def test_Cambridge_errors(
         ValueError,
         match=re.escape("Majority group Z not found in config.blocs."),
     ):
-        cambridge_profile_generator(
-            two_bloc_two_slate_config_cambridge, majority_bloc="Z"
-        )
+        cambridge_profile_generator(two_bloc_two_slate_config_cambridge, majority_bloc="Z")
     with pytest.raises(
         ValueError,
         match=re.escape("Minority group Z not found in config.blocs."),
     ):
-        cambridge_profile_generator(
-            two_bloc_two_slate_config_cambridge, minority_bloc="Z"
-        )
+        cambridge_profile_generator(two_bloc_two_slate_config_cambridge, minority_bloc="Z")
 
 
 def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
@@ -227,9 +221,7 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
     data_sets = {"X": starts_with_W_data, "Y": starts_with_C_data}
     distribution_for_config_by_starting_slate = {"X": {}, "Y": {}}
 
-    num_cands_per_slate = {
-        slate: len(config.slate_to_candidates[slate]) for slate in config.slates
-    }
+    num_cands_per_slate = {slate: len(config.slate_to_candidates[slate]) for slate in config.slates}
     for starting_slate, data_set in data_sets.items():
         distribution_for_config = {}
         for ballot_type, weight in data_set.items():
@@ -243,15 +235,11 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
             distribution_for_config[trimmed_ballot_type] = (
                 distribution_for_config.get(trimmed_ballot_type, 0) + weight
             )
-        distribution_for_config_by_starting_slate[starting_slate] = (
-            distribution_for_config
-        )
+        distribution_for_config_by_starting_slate[starting_slate] = distribution_for_config
     profile_dict = cambridge_profiles_by_bloc_generator(config)
 
     cand_to_slate_dict = {
-        cand: slate
-        for slate, cand_list in config.slate_to_candidates.items()
-        for cand in cand_list
+        cand: slate for slate, cand_list in config.slate_to_candidates.items() for cand in cand_list
     }
     for bloc in config.blocs:
         profile = profile_dict[bloc]
@@ -261,11 +249,7 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
             if any(len(cand_set) > 1 for cand_set in ballot.ranking):
                 raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
             slate_ballot_type = "".join(
-                [
-                    cand_to_slate_dict[cand]
-                    for cand_set in ballot.ranking
-                    for cand in cand_set
-                ]
+                [cand_to_slate_dict[cand] for cand_set in ballot.ranking for cand in cand_set]
             )
             slate_ballot_counts[slate_ballot_type] = (
                 slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -300,10 +284,7 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
             comparisons_profile = Counter(
                 [
                     tuple(
-                        cand
-                        for cand_set in ballot.ranking
-                        for cand in cand_set
-                        if cand[0] == slate
+                        cand for cand_set in ballot.ranking for cand in cand_set if cand[0] == slate
                     )
                     for ballot in profile.ballots
                     for _ in range(int(ballot.weight))

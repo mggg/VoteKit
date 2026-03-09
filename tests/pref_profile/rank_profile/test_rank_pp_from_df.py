@@ -1,7 +1,8 @@
-from votekit.pref_profile import RankProfile, ProfileError
-from votekit.ballot import RankBallot, ScoreBallot
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.pref_profile import ProfileError, RankProfile
 
 profile = RankProfile(
     ballots=(
@@ -49,9 +50,7 @@ def test_from_df_init_errors():
         match="Profile cannot contain RankBallots and ScoreBallots. "
         "There are 1 ScoreBallots and 1 RankBallots.",
     ):
-        RankProfile(
-            ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1}))
-        )
+        RankProfile(ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1})))
 
 
 def test_from_df_validation_errors():
@@ -76,9 +75,7 @@ def test_from_df_validation_errors():
             candidates=["A"],
         )
 
-    with pytest.raises(
-        ProfileError, match="Ranking column 'Ranking_2' not in dataframe:"
-    ):
+    with pytest.raises(ProfileError, match="Ranking column 'Ranking_2' not in dataframe:"):
         df = pd.DataFrame(columns=["Weight", "Voter Set", "Ranking_1", "Ranking_3"])
         df.index.name = "Ballot Index"
         RankProfile(

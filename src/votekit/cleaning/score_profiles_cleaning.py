@@ -1,9 +1,10 @@
-from votekit.pref_profile import ScoreProfile, CleanedScoreProfile, ProfileError
-from typing import Callable
-import pandas as pd
-from typing import Union
 from functools import partial
+from typing import Callable, Union
+
 import numpy as np
+import pandas as pd
+
+from votekit.pref_profile import CleanedScoreProfile, ProfileError, ScoreProfile
 
 
 def _iterate_and_clean_score_tuples(
@@ -27,8 +28,7 @@ def _iterate_and_clean_score_tuples(
     candidate_cols = [c for c in cleaned_df.columns if c not in ["Weight", "Voter Set"]]
 
     orig_rows = [
-        tuple(vals)
-        for vals in cleaned_df[candidate_cols].itertuples(index=False, name=None)
+        tuple(vals) for vals in cleaned_df[candidate_cols].itertuples(index=False, name=None)
     ]
     cleaned_rows = [clean_score_func(row) for row in orig_rows]
 
@@ -99,9 +99,7 @@ def clean_score_profile(
     ) = _iterate_and_clean_score_tuples(profile, clean_score_func)
 
     if remove_empty_ballots:
-        candidate_cols = [
-            c for c in cleaned_df.columns if c not in ["Weight", "Voter Set"]
-        ]
+        candidate_cols = [c for c in cleaned_df.columns if c not in ["Weight", "Voter Set"]]
         mask = (
             cleaned_df[candidate_cols]
             .map(lambda score: score == 0 or pd.isna(score))  # type: ignore[operator]
@@ -139,9 +137,7 @@ def remove_cand_from_score_tuple(
     Returns:
         tuple: Ranking with candidate(s) removed.
     """
-    return tuple(
-        s if i not in removed_idxs else np.nan for i, s in enumerate(score_tup)
-    )
+    return tuple(s if i not in removed_idxs else np.nan for i, s in enumerate(score_tup))
 
 
 def remove_cand_score_profile(

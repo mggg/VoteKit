@@ -1,5 +1,5 @@
-from votekit.matrices import comention
 from votekit.ballot import Ballot
+from votekit.matrices import comention
 
 
 def test_comention_ranked():

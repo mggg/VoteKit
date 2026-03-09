@@ -1,4 +1,5 @@
 import pandas as pd
+
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile.utils import convert_row_to_score_ballot
 

@@ -1,12 +1,14 @@
-from votekit.pref_profile import PreferenceProfile
+import itertools
+import random
+
+import numpy as np
+import pytest
+from joblib import Parallel, delayed
+
 from votekit.ballot import Ballot
 from votekit.elections import BoostedRandomDictator
-import random
-import numpy as np
-from joblib import Parallel, delayed
-import itertools
+from votekit.pref_profile import PreferenceProfile
 from votekit.utils import first_place_votes
-import pytest
 
 
 def run_election_once(test_profile):
@@ -16,9 +18,7 @@ def run_election_once(test_profile):
 
 
 def test_boosted_random_dictator_error():
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         BoostedRandomDictator(PreferenceProfile(), m=1)
 
 
@@ -46,15 +46,9 @@ def test_boosted_random_dictator_simple():
     winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
 
     # check to make sure that the fraction of wins matches the true probability
-    assert np.allclose(
-        1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=2e-2
-    )
-    assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=2e-2
-    )
-    assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=2e-2
-    )
+    assert np.allclose(1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=2e-2)
+    assert np.allclose(1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=2e-2)
+    assert np.allclose(1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=2e-2)
 
 
 @pytest.mark.slow
@@ -64,10 +58,7 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     candidates = ["A", "B", "C", "D"]
 
     full_power = list(
-        list(
-            list(itertools.permutations(x))
-            for x in itertools.combinations(candidates, r)
-        )
+        list(list(itertools.permutations(x)) for x in itertools.combinations(candidates, r))
         for r in range(1, len(candidates) + 1)
     )
 
@@ -75,9 +66,7 @@ def test_boosted_random_dictator_4_candidates_without_ties():
 
     ballots = list(
         map(
-            lambda x: Ballot(
-                ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1
-            ),
+            lambda x: Ballot(ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1),
             powerset,
         )
     )
@@ -134,13 +123,9 @@ def test_boosted_random_dictator_4_candidates_with_ties():
         )
     )
 
-    ballots = list(
-        map(lambda x: Ballot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset)
-    )
+    ballots = list(map(lambda x: Ballot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset))
 
-    test_profile = PreferenceProfile(
-        ballots=ballots, candidates=candidates, max_ranking_length=4
-    )
+    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
 
     trials = 4000
 

@@ -16,7 +16,6 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
     typecheck_preference,
 )
 
-
 #   typecheck_bloc_proportion_mapping
 # =====================================
 
@@ -79,9 +78,7 @@ def test_convert_bloc_prop_series_passthrough_checks_and_cast():
     with pytest.raises(ValueError, match=r"\(blocs\) contains duplicates."):
         convert_bloc_proportion_map_to_series(dup)
     with pytest.raises(ValueError, match="must be non-negative"):
-        convert_bloc_proportion_map_to_series(
-            pd.Series({"b1": -0.1, "b2": 1.1}, dtype=float)
-        )
+        convert_bloc_proportion_map_to_series(pd.Series({"b1": -0.1, "b2": 1.1}, dtype=float))
 
 
 def test_convert_bloc_prop_mapping_requires_sum_one_and_nonneg():
@@ -133,9 +130,7 @@ def test_convert_bloc_prop_series_rejects_values_greater_than_one():
 
 
 def test_typecheck_cohesion_df_accepts_float_str_labels():
-    df = pd.DataFrame(
-        {"s1": {"b1": 0.7, "b2": 0.2}, "s2": {"b1": 0.3, "b2": 0.8}}
-    ).astype(float)
+    df = pd.DataFrame({"s1": {"b1": 0.7, "b2": 0.2}, "s2": {"b1": 0.3, "b2": 0.8}}).astype(float)
     typecheck_cohesion_mapping(df)  # no raise
 
 
@@ -181,9 +176,7 @@ def test_typecheck_cohesion_mapping_nested_dict_happy_and_errors():
 
 
 def test_convert_cohesion_df_passthrough_and_duplicates_check():
-    df = pd.DataFrame(
-        {"s1": {"b1": 0.7, "b2": 0.3}, "s2": {"b1": 0.3, "b2": 0.7}}
-    ).astype(float)
+    df = pd.DataFrame({"s1": {"b1": 0.7, "b2": 0.3}, "s2": {"b1": 0.3, "b2": 0.7}}).astype(float)
     out = convert_cohesion_map_to_cohesion_df(df)
     pd.testing.assert_frame_equal(out, df)  # copy returns equal content
 

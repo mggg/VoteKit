@@ -1,7 +1,9 @@
 import urllib
+
+import pytest
+
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
-import pytest
 
 filepath = "tests/pref_profile/data/pickle"
 

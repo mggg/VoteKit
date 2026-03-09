@@ -1,6 +1,7 @@
-from votekit.matrices import comention_above
-from votekit.ballot import Ballot
 import pytest
+
+from votekit.ballot import Ballot
+from votekit.matrices import comention_above
 
 
 def test_comention_above_error():

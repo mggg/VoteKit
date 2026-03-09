@@ -5,7 +5,6 @@ from votekit.ballot import Ballot
 from votekit.graphs.ballot_graph import BallotGraph
 from votekit.pref_profile import PreferenceProfile
 
-
 three_cand = PreferenceProfile(
     ballots=[
         Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=4),

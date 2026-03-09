@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -30,9 +29,7 @@ class ElectionState:
     remaining: tuple[frozenset[str], ...] = (frozenset(),)
     elected: tuple[frozenset[str], ...] = (frozenset(),)
     eliminated: tuple[frozenset[str], ...] = (frozenset(),)
-    tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = field(
-        default_factory=dict
-    )
+    tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = field(default_factory=dict)
     scores: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

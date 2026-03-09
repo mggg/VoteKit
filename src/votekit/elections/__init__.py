@@ -1,34 +1,33 @@
-from .election_state import ElectionState
 from ..models import Election
-from .transfers import fractional_transfer, random_transfer
+from .election_state import ElectionState
 from .election_types import (
-    RankingElection,
-    Plurality,
-    SNTV,
-    Borda,
-    STV,
-    FastSTV,
     IRV,
-    SequentialRCV,
+    SNTV,
+    STV,
     Alaska,
-    DominatingSets,
-    CondoBorda,
-    TopTwo,
-    GeneralRating,
-    Rating,
-    Limited,
-    Cumulative,
     Approval,
     BlocPlurality,
+    BoostedRandomDictator,
+    Borda,
+    CondoBorda,
+    Cumulative,
+    DominatingSets,
+    FastSTV,
+    GeneralRating,
+    Limited,
+    Plurality,
     PluralityVeto,
+    RandomDictator,
+    RankedPairs,
+    RankingElection,
+    Rating,
+    Schulze,
+    SequentialRCV,
     SerialVeto,
     SimultaneousVeto,
-    RandomDictator,
-    BoostedRandomDictator,
-    RankedPairs,
-    Schulze,
+    TopTwo,
 )
-
+from .transfers import fractional_transfer, random_transfer
 
 __all__ = [
     "ElectionState",

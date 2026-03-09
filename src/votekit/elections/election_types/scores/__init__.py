@@ -1,4 +1,4 @@
-from .rating import GeneralRating, Rating, Limited, Cumulative
+from .rating import Cumulative, GeneralRating, Limited, Rating
 
 __all__ = [
     "GeneralRating",

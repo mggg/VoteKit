@@ -1,8 +1,9 @@
-from votekit.elections import Approval, ElectionState
-from votekit.pref_profile import ScoreProfile, RankProfile
-from votekit.ballot import ScoreBallot, RankBallot
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import Approval, ElectionState
+from votekit.pref_profile import RankProfile, ScoreProfile
 
 profile_no_tied_approval = ScoreProfile(
     ballots=[
@@ -127,9 +128,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be positive."):
         Approval(profile_no_tied_approval, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Approval(profile_no_tied_approval, m=5)
 
     with pytest.raises(

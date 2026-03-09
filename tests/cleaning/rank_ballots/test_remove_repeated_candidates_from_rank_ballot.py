@@ -1,12 +1,11 @@
 import pytest
+
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.cleaning import remove_repeat_cands_rank_ballot
 
 
 def test_remove_repeated_cands():
-    b = RankBallot(
-        ranking=[{"A"}, {"A"}, {"B"}, {"C"}, {"B"}], weight=2.1, voter_set={"Chris"}
-    )
+    b = RankBallot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}, {"B"}], weight=2.1, voter_set={"Chris"})
     rrc = remove_repeat_cands_rank_ballot(b)
 
     assert rrc.weight == 2.1

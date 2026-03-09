@@ -1,11 +1,12 @@
+import itertools as it
+
 from votekit.ballot_generator import (
+    BlocSlateConfig,
     name_pl_profile_generator,
     name_pl_profiles_by_bloc_generator,
-    BlocSlateConfig,
 )
-from votekit.pref_profile import RankProfile
 from votekit.pref_interval import PreferenceInterval
-import itertools as it
+from votekit.pref_profile import RankProfile
 
 
 def test_NPL_completion():
@@ -82,6 +83,4 @@ def test_NPL_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
 
     assert isinstance(generated_profile, RankProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        ballot_prob_dict, generated_profile
-    )
+    assert do_ballot_probs_match_ballot_dist_rank_profile(ballot_prob_dict, generated_profile)

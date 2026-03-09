@@ -1,6 +1,6 @@
-from votekit.pref_profile import ScoreProfile, CleanedScoreProfile
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
+from votekit.pref_profile import CleanedScoreProfile, ScoreProfile
 
 profile = ScoreProfile(
     ballots=[

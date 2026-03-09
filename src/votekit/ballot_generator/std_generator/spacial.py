@@ -12,10 +12,11 @@ The main API functions in this module are:
     clustered multi-dimensional spacial model where voters are clustered around candidates.
 """
 
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple
+
 import numpy as np
-from numpy.typing import NDArray
 import pandas as pd
-from typing import Optional, Tuple, Callable, Dict, Any, Sequence
+from numpy.typing import NDArray
 
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
@@ -47,14 +48,10 @@ def onedim_spacial_profile_generator(
     candidate_position_dict = {c: np.random.normal(0, 1) for c in candidates}
     voter_positions = np.random.normal(0, 1, number_of_ballots)
 
-    ballot_pool = np.full(
-        (number_of_ballots, n_candidates), frozenset("~"), dtype=object
-    )
+    ballot_pool = np.full((number_of_ballots, n_candidates), frozenset("~"), dtype=object)
 
     for i, vp in enumerate(voter_positions):
-        distance_tuples = [
-            (c, abs(v - vp)) for c, v, in candidate_position_dict.items()
-        ]
+        distance_tuples = [(c, abs(v - vp)) for c, v, in candidate_position_dict.items()]
         candidate_ranking = np.array(
             [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
         )
@@ -152,16 +149,11 @@ def spacial_profile_and_positions_generator(
         distance(v, c)
     except TypeError:
         raise TypeError(
-            "Distance function is invalid or incompatible "
-            "with voter/candidate distributions."
+            "Distance function is invalid or incompatible " "with voter/candidate distributions."
         )
 
-    candidate_position_dict = {
-        c: candidate_dist(**candidate_dist_kwargs) for c in candidates
-    }
-    voter_positions = np.array(
-        [voter_dist(**voter_dist_kwargs) for _ in range(number_of_ballots)]
-    )
+    candidate_position_dict = {c: candidate_dist(**candidate_dist_kwargs) for c in candidates}
+    voter_positions = np.array([voter_dist(**voter_dist_kwargs) for _ in range(number_of_ballots)])
 
     ballot_pool = np.full((number_of_ballots, len(candidates)), frozenset("~"))
 
@@ -283,8 +275,7 @@ def clustered_spacial_profile_and_positions_generator(
         distance(v, c)
     except TypeError:
         raise TypeError(
-            "Distance function is invalid or incompatible "
-            "with voter/candidate distributions."
+            "Distance function is invalid or incompatible " "with voter/candidate distributions."
         )
 
     candidate_position_dict: dict[str, NDArray] = {

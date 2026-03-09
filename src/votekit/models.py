@@ -1,11 +1,13 @@
 from abc import abstractmethod
+from typing import Callable, Generic, Optional, TypeVar
+
+import pandas as pd
+
 from votekit.elections import ElectionState
 from votekit.pref_profile import PreferenceProfile
-import pandas as pd
 from votekit.utils import (
     score_dict_to_ranking,
 )
-from typing import Callable, Optional, Generic, TypeVar
 
 P = TypeVar("P", bound=PreferenceProfile)
 
@@ -298,9 +300,7 @@ class Election(Generic[P]):
         self.election_states.append(ElectionState(remaining=remaining, scores=scores))
 
         while not self._is_finished():
-            profile = self._run_step(
-                profile, self.election_states[-1], store_states=True
-            )
+            profile = self._run_step(profile, self.election_states[-1], store_states=True)
 
     def __len__(self):
         return self.length

@@ -1,6 +1,7 @@
+import pandas as pd
+
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
-import pandas as pd
 
 ballots_rankings = [
     RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),

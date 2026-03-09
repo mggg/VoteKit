@@ -1,13 +1,14 @@
+from typing import Optional
+
+from votekit.ballot import ScoreBallot
+from votekit.cleaning import remove_cand_score_profile
+from votekit.elections.election_state import ElectionState
 from votekit.models import Election
 from votekit.pref_profile import ScoreProfile
-from votekit.ballot import ScoreBallot
-from votekit.elections.election_state import ElectionState
 from votekit.utils import (
-    score_profile_from_ballot_scores,
     elect_cands_from_set_ranking,
+    score_profile_from_ballot_scores,
 )
-from votekit.cleaning import remove_cand_score_profile
-from typing import Optional
 
 
 class GeneralRating(Election[ScoreProfile]):
@@ -77,9 +78,7 @@ class GeneralRating(Election[ScoreProfile]):
             elif b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
             elif any(score > self.L for score in b.scores.values()):
-                raise TypeError(
-                    f"Ballot {b} violates score limit {self.L} per candidate."
-                )
+                raise TypeError(f"Ballot {b} violates score limit {self.L} per candidate.")
             elif any(score < 0 for score in b.scores.values()):
                 raise TypeError(f"Ballot {b} must have non-negative scores.")
 
@@ -117,9 +116,7 @@ class GeneralRating(Election[ScoreProfile]):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak  # type: ignore
         )
 
-        new_profile = remove_cand_score_profile(
-            [c for s in elected for c in s], profile
-        )
+        new_profile = remove_cand_score_profile([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:
@@ -208,7 +205,5 @@ class Cumulative(Limited):
             Defaults to None, in which case a tie raises a ValueError.
     """
 
-    def __init__(
-        self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None
-    ):
+    def __init__(self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None):
         super().__init__(profile, m=m, k=m, tiebreak=tiebreak)

@@ -1,5 +1,6 @@
-from votekit.graphs.pairwise_comparison_graph import get_dominating_tiers_digraph
 import networkx as nx
+
+from votekit.graphs.pairwise_comparison_graph import get_dominating_tiers_digraph
 
 
 def add_cycle(mutated_graph, cycle_nodes):

@@ -1,8 +1,9 @@
-from votekit.elections import BlocPlurality, ElectionState
-from votekit.ballot import RankBallot, ScoreBallot
-from votekit.pref_profile import RankProfile, ScoreProfile
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import BlocPlurality, ElectionState
+from votekit.pref_profile import RankProfile, ScoreProfile
 
 profile_no_tied_bloc_plurality = ScoreProfile(
     ballots=[
@@ -133,9 +134,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be positive."):
         BlocPlurality(profile_no_tied_bloc_plurality, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         BlocPlurality(profile_no_tied_bloc_plurality, m=5)
 
     with pytest.raises(

@@ -1,6 +1,6 @@
-from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
 from votekit.ballot import Ballot
 from votekit.cleaning import remove_cand_rank_profile
+from votekit.pref_profile import CleanedRankProfile, PreferenceProfile
 
 profile_no_ties = PreferenceProfile(
     ballots=[

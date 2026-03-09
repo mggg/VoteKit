@@ -1,10 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 
 from votekit.ballot_generator import (
-    spacial_profile_and_positions_generator,
     clustered_spacial_profile_and_positions_generator,
     onedim_spacial_profile_generator,
+    spacial_profile_and_positions_generator,
 )
 from votekit.pref_profile import RankProfile
 
@@ -27,9 +27,7 @@ def test_spatial_generator():
             candidate_dist_kwargs=normal_params,
         )
 
-    with pytest.raises(
-        TypeError, match="Invalid kwargs for the candidate distribution."
-    ):
+    with pytest.raises(TypeError, match="Invalid kwargs for the candidate distribution."):
         spacial_profile_and_positions_generator(
             number_of_ballots=1,
             candidates=candidates,
@@ -41,8 +39,7 @@ def test_spatial_generator():
 
     with pytest.raises(
         TypeError,
-        match="Distance function is invalid or "
-        "incompatible with voter/candidate distributions.",
+        match="Distance function is invalid or " "incompatible with voter/candidate distributions.",
     ):
         spacial_profile_and_positions_generator(
             number_of_ballots=1,
@@ -73,9 +70,7 @@ def test_clustered_spatial_generator():
             candidate_dist_kwargs=normal_params,
         )
 
-    with pytest.raises(
-        TypeError, match="Invalid kwargs for the candidate distribution."
-    ):
+    with pytest.raises(TypeError, match="Invalid kwargs for the candidate distribution."):
         clustered_spacial_profile_and_positions_generator(
             number_of_ballots=1,
             candidates=candidates,
@@ -87,8 +82,7 @@ def test_clustered_spatial_generator():
 
     with pytest.raises(
         TypeError,
-        match="Distance function is invalid or "
-        "incompatible with voter/candidate distributions.",
+        match="Distance function is invalid or " "incompatible with voter/candidate distributions.",
     ):
         clustered_spacial_profile_and_positions_generator(
             number_of_ballots=1,

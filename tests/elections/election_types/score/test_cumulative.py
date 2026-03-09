@@ -1,8 +1,9 @@
+import pandas as pd
+import pytest
+
+from votekit.ballot import ScoreBallot
 from votekit.elections import Cumulative, ElectionState
 from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import ScoreBallot
-import pytest
-import pandas as pd
 
 profile_no_tied_cumulative = PreferenceProfile(
     ballots=[
@@ -113,9 +114,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be positive."):
         Cumulative(profile_no_tied_cumulative, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Cumulative(profile_no_tied_cumulative, m=4)
 
     with pytest.raises(
@@ -131,9 +130,7 @@ def test_validate_profile():
         Cumulative(profile, m=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})]
-        )
+        profile = PreferenceProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})])
         Cumulative(profile, m=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
@@ -141,7 +138,5 @@ def test_validate_profile():
         Cumulative(profile, m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})]
-        )
+        profile = PreferenceProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})])
         Cumulative(profile, m=2)

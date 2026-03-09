@@ -1,6 +1,5 @@
-from typing import Optional, Union, TypeAlias, Iterable, Sequence
 from numbers import Real
-
+from typing import Iterable, Optional, Sequence, TypeAlias, Union
 
 Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
 RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
@@ -70,9 +69,7 @@ class Ballot:
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
 
-        self.voter_set = (
-            frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
-        )
+        self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
 
         if weight < 0:
             raise ValueError("Ballot weight cannot be negative.")
@@ -229,9 +226,7 @@ class ScoreBallot(Ballot):
 
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _validate_scores_candidates(
-        self, scores: Optional[dict[str, Union[int, float]]]
-    ):
+    def _validate_scores_candidates(self, scores: Optional[dict[str, Union[int, float]]]):
         if scores is not None:
             if "~" in scores:
                 raise ValueError(

@@ -1,8 +1,9 @@
-from votekit.pref_profile import RankProfile
+from pathlib import Path
+
 from votekit.ballot import RankBallot
 from votekit.elections import ElectionState
 from votekit.elections.election_types.ranking.stv.stv import AlbanySTV
-from pathlib import Path
+from votekit.pref_profile import RankProfile
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 CSV_DIR = BASE_DIR / "data/csv"
@@ -75,9 +76,7 @@ albany_states = [
         round_number=4,
         remaining=(frozenset({"JENNIFER HANSEN ROMERO"}),),
         elected=(frozenset({"ROBIN D  LOPEZ"}),),
-        scores={
-            "JENNIFER HANSEN ROMERO": 2303.409599
-        },  # this number needs to be checked by hand
+        scores={"JENNIFER HANSEN ROMERO": 2303.409599},  # this number needs to be checked by hand
     ),
 ]
 
@@ -207,8 +206,7 @@ def test_albany_not_same_as_wigm():
     elec = AlbanySTV(albany_not_same_as_wigm_profile, m=2)
     play_by_play = elec._data.play_by_play
     assert all(
-        play_by_play[i]["threshold"] == not_same_as_wigm_quotas[i]
-        for i in range(len(play_by_play))
+        play_by_play[i]["threshold"] == not_same_as_wigm_quotas[i] for i in range(len(play_by_play))
     )
     assert elec.get_elected() == (frozenset({"A"}), frozenset({"C"}))
 
@@ -229,9 +227,7 @@ def test_three_winners_with_sharp_quotas():
 def test_interaction_with_simultaneous():
     # could maybe also test quota values for both elections? idk I'm tired
     simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=True)
-    non_simultaneous_elec = AlbanySTV(
-        interaction_with_simultaneous, m=3, simultaneous=False
-    )
+    non_simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=False)
     assert simultaneous_elec.get_elected() == (
         frozenset({"A", "B"}),
         frozenset({"D"}),

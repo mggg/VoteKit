@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from votekit.cvr_loaders import load_scottish
-import votekit.cleaning as clean
-from votekit.elections import Election
 import votekit.ballot_generator as bg
+import votekit.cleaning as clean
 import votekit.elections.election_types as elections
-from votekit.pref_profile import PreferenceProfile
 from votekit.ballot import Ballot
+from votekit.cvr_loaders import load_scottish
+from votekit.elections import Election
 from votekit.pref_interval import PreferenceInterval
+from votekit.pref_profile import PreferenceProfile
 
 
 def test_load_clean_completion():

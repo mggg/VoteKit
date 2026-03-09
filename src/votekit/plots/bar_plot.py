@@ -1,11 +1,13 @@
-from matplotlib import pyplot as plt  # type: ignore
-from votekit.utils import COLOR_LIST
-from matplotlib.axes import Axes
-from typing import Optional, Union, Tuple, Literal, Any
-import matplotlib.patches as mpatches
 import warnings
+from typing import Any, Literal, Optional, Tuple, Union
+
+import matplotlib.patches as mpatches
+from matplotlib import pyplot as plt  # type: ignore
+from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
+
+from votekit.utils import COLOR_LIST
 
 DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "grey", "alpha": 0.5}
 
@@ -73,9 +75,7 @@ def _set_default_bar_plot_args(
         legend_font_size, threshold_values, threshold_kwds, ax
     """
 
-    data_set_to_color = {
-        d: COLOR_LIST[i % len(COLOR_LIST)] for i, d in enumerate(data.keys())
-    }
+    data_set_to_color = {d: COLOR_LIST[i % len(COLOR_LIST)] for i, d in enumerate(data.keys())}
 
     if data_set_colors:
         for data_set, color in data_set_colors.items():
@@ -179,9 +179,7 @@ def _validate_bar_plot_args(
     true_categories = next(iter(data.values())).keys()
 
     if len(category_ordering) != len(true_categories):
-        raise ValueError(
-            "category_ordering must be the same length as sub-dictionaries."
-        )
+        raise ValueError("category_ordering must be the same length as sub-dictionaries.")
 
     if set(category_ordering).difference(true_categories) != set():
         raise ValueError(
@@ -219,9 +217,7 @@ def _validate_bar_plot_args(
 
     if threshold_values and threshold_kwds:
         if len(threshold_kwds) != len(threshold_values):
-            raise ValueError(
-                "threshold_values must have the same length as threshold_kwds."
-            )
+            raise ValueError("threshold_values must have the same length as threshold_kwds.")
         if any("ls" in d.keys() for d in threshold_kwds):
             raise ValueError("Must use linestyle, not ls.")
         if any("lw" in d.keys() for d in threshold_kwds):
@@ -275,13 +271,10 @@ def _prepare_data_bar_plot(
     """
     plot_data = data
     if normalize:
-        plot_data = {
-            label: _normalize_data_dict(data_dict) for label, data_dict in data.items()
-        }
+        plot_data = {label: _normalize_data_dict(data_dict) for label, data_dict in data.items()}
 
     y_data = [
-        [data_dict[x_label] for x_label in category_ordering]
-        for data_dict in plot_data.values()
+        [data_dict[x_label] for x_label in category_ordering] for data_dict in plot_data.values()
     ]
 
     all_data_values: list[float] = []
@@ -292,13 +285,9 @@ def _prepare_data_bar_plot(
 
     flat_y_data = [item for sublist in y_data for item in sublist]
 
-    data_ratio = float(
-        1.0 if not normalize else max(flat_y_data) / max(all_data_values)
-    )
+    data_ratio = float(1.0 if not normalize else max(flat_y_data) / max(all_data_values))
 
-    assert isinstance(
-        data_ratio, float
-    ), "Something went wrong in computation of data_ratio."
+    assert isinstance(data_ratio, float), "Something went wrong in computation of data_ratio."
 
     return y_data, data_ratio
 

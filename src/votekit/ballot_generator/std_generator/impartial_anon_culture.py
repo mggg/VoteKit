@@ -7,14 +7,15 @@ The main API functions in this module are:
 """
 
 import math
-import numpy as np
 import random
 from collections import Counter
 from functools import lru_cache
 from typing import Optional, Sequence
 
+import numpy as np
+
 from votekit.pref_profile import RankProfile
-from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
+from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
 
 # ====================================================
 # ================= Helper Functions =================
@@ -35,8 +36,7 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
         int: Total number of possible ballots.
     """
     return sum(
-        math.comb(n_candidates, i) * math.factorial(i)
-        for i in range(1, max_ballot_length + 1)
+        math.comb(n_candidates, i) * math.factorial(i) for i in range(1, max_ballot_length + 1)
     )
 
 

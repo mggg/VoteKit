@@ -1,10 +1,8 @@
-from numpy.typing import NDArray
 import numpy as np
+from numpy.typing import NDArray
 
 
-def numpy_random_transfer(
-    fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int
-) -> NDArray:
+def numpy_random_transfer(fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.
 
@@ -39,9 +37,7 @@ def numpy_random_transfer(
     wts = wt_vec[winner_row_indices].astype(np.int64)
     maximum_transferable = int(wts.sum())
     transferred_votes = min(surplus, maximum_transferable)
-    positions_to_transfer = rng.choice(
-        maximum_transferable, size=transferred_votes, replace=False
-    )
+    positions_to_transfer = rng.choice(maximum_transferable, size=transferred_votes, replace=False)
     positions_to_transfer.sort()
     bins = np.cumsum(wts)
     owners = np.searchsorted(bins, positions_to_transfer, side="right")
