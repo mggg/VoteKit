@@ -24,7 +24,7 @@ import sys
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 
 # ====================================================

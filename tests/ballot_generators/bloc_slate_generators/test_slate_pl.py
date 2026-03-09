@@ -1,6 +1,6 @@
 from votekit.pref_profile import RankProfile
 from votekit.pref_interval import PreferenceInterval
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
@@ -267,6 +267,7 @@ def test_one_bloc_three_slate_spl_distribution_matches_name_ballot_dist(
 def test_spl_zero_support_slates():
     config = BlocSlateConfig(
         n_voters=100_000,
+        allow_zero_support_candidates=True,
         slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"], "C": ["C1"]},
         bloc_proportions={"X": 1},
         preference_mapping={

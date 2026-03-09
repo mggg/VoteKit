@@ -14,7 +14,7 @@ from typing import Optional
 import pandas as pd
 import apportionment.methods as apportion
 
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
 
 

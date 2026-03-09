@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Sequence, Iterator
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 import pandas as pd
 from numpy.typing import NDArray
 from votekit.pref_profile import RankProfile

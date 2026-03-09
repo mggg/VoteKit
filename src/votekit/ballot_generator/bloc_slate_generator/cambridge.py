@@ -17,7 +17,7 @@ from votekit.pref_profile import RankProfile
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _convert_slate_ballots_to_profile,
 )
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 
 # ====================================================
 # ================= Helper Functions =================
