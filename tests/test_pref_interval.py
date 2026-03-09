@@ -24,8 +24,16 @@ def test_normalize():
     assert interval_1 == interval_2
 
 
-def test_zero_support_allowed():
-    pi = PreferenceInterval(interval={"A": 0, "B": 1})
+def test_zero_support_rejected_by_default():
+    with pytest.raises(
+        ValueError,
+        match="Support values must be strictly positive for all candidates unless",
+    ):
+        PreferenceInterval(interval={"A": 0, "B": 1})
+
+
+def test_zero_support_allowed_with_flag():
+    pi = PreferenceInterval(interval={"A": 0, "B": 1}, allow_zero_support=True)
     assert pi.interval["A"] == 0
     assert pi.interval["B"] == 1
 
@@ -35,6 +43,13 @@ def test_all_zero_support_error():
         ValueError, match="Support values must sum to a positive number."
     ):
         PreferenceInterval(interval={"A": 0, "B": 0})
+
+
+def test_all_zero_support_error_with_flag():
+    with pytest.raises(
+        ValueError, match="Support values must sum to a positive number."
+    ):
+        PreferenceInterval(interval={"A": 0, "B": 0}, allow_zero_support=True)
 
 
 def test_eq():

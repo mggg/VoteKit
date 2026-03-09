@@ -4,7 +4,10 @@ import types
 
 
 def combine_preference_intervals(
-    intervals: list[PreferenceInterval], proportions: list[float]
+    intervals: list[PreferenceInterval],
+    proportions: list[float],
+    *,
+    allow_zero_support: bool = False,
 ):
     """
     Combine a list of preference intervals given a list of proportions used to reweight each
@@ -14,6 +17,8 @@ def combine_preference_intervals(
         intervals (list[PreferenceInterval]): A list of PreferenceInterval objects to combine.
         proportions (list[float]): A list of floats used to reweight the PreferenceInterval objects.
             Proportion $i$ will reweight interval $i$.
+        allow_zero_support (bool): If True, candidates with zero support are allowed in the
+            combined interval. If False, all candidates must have strictly positive support.
 
     Returns:
         PreferenceInterval: A combined PreferenceInterval object.
@@ -36,7 +41,8 @@ def combine_preference_intervals(
             key: value * prop
             for pi, prop in zip(intervals, proportions)
             for key, value in pi.interval.items()
-        }
+        },
+        allow_zero_support=allow_zero_support,
     )
 
 
@@ -45,32 +51,39 @@ class PreferenceInterval:
     PreferenceInterval class, contains preference for individual candidates stored as relative
     share of the interval [0,1].
 
-    Args:
-        interval (dict): A dictionary representing the given PreferenceInterval.
-            The keys are candidate names, and the values are floats representing that candidates
-            share of the interval. Does not have to sum to one, the init method will renormalize.
-            Includes candidates with zero support.
-
     Attributes:
         interval (dict): A dictionary representing the given PreferenceInterval.
             The keys are candidate names, and the values are floats representing that candidates
             share of the interval. Does not have to sum to one, the init method will renormalize.
-            Includes candidates with zero support.
         candidates (frozenset): A frozenset of candidates.
 
     Raises:
         ValueError: If support values cannot be normalized (sum to <= 0).
     """
 
-    def __init__(self, interval: dict):
+    def __init__(self, interval: dict, *, allow_zero_support: bool = False):
+        """
+        Initializes a PreferenceInterval object.
+
+        Args:
+            interval (dict): A dictionary representing the given PreferenceInterval.
+                The keys are candidate names, and the values are floats representing that candidates
+                share of the interval. Does not have to sum to one, the init method will
+                renormalize.
+            allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
+                all candidates must have strictly positive support.
+        """
         self.interval = types.MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
+        self._allow_zero_support = allow_zero_support
 
         self._check_for_normalizable_interval()
         self._normalize()
 
     @classmethod
-    def from_dirichlet(cls, candidates: list[str], alpha: float):
+    def from_dirichlet(
+        cls, candidates: list[str], alpha: float, *, allow_zero_support: bool = False
+    ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
         Alpha tends to 0 is strong support, alpha tends to infinity is uniform support, alpha = 1
@@ -85,9 +98,14 @@ class PreferenceInterval:
             PreferenceInterval
         """
         probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
-        probs = [p + 10e-12 if p == 0 else p for p in probs]
 
-        return cls({c: s for c, s in zip(candidates, probs)})
+        if not allow_zero_support:
+            probs = [p + 10e-12 if p == 0 else p for p in probs]
+
+        return cls(
+            {c: s for c, s in zip(candidates, probs)},
+            allow_zero_support=allow_zero_support,
+        )
 
     def _check_for_normalizable_interval(self):
         """
@@ -96,8 +114,17 @@ class PreferenceInterval:
         Raises:
             ValueError: If support values sum to <= 0.
         """
+        if self.interval and any(v < 0 for v in self.interval.values()):
+            raise ValueError("Support values must be non-negative.")
         if self.interval and sum(self.interval.values()) <= 0:
             raise ValueError("Support values must sum to a positive number.")
+        if not self._allow_zero_support:
+            zero_support_cands = [c for c, s in self.interval.items() if s <= 0]
+            if zero_support_cands:
+                raise ValueError(
+                    "Support values must be strictly positive for all candidates unless "
+                    "allow_zero_support=True."
+                )
 
     def _normalize(self):
         """
@@ -105,9 +132,7 @@ class PreferenceInterval:
         """
         summ = sum(self.interval.values())
 
-        self.interval = types.MappingProxyType(
-            {c: s / summ for c, s in self.interval.items()}
-        )
+        self.interval = types.MappingProxyType({c: s / summ for c, s in self.interval.items()})
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):
@@ -117,6 +142,7 @@ class PreferenceInterval:
             return False
 
         else:
+            # Round to 8 decimal places to avoid floating point issues
             return all(
                 round(other.interval[key], 8) == round(value, 8)
                 for key, value in self.interval.items()

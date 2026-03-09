@@ -40,9 +40,7 @@ warnings.formatwarning = cast(Any, _config_warning_format)
 BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
 # Backward compatibility alias; keep the original misspelling available.
 BlocPropotionMapping = BlocProportionMapping
-CohesionMapping = Union[
-    Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame
-]
+CohesionMapping = Union[Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame]
 PreferenceIntervalLike = Union[Mapping[str, Union[float, int]], PreferenceInterval]
 PreferenceMapping = Union[
     Mapping[str, Mapping[str, PreferenceIntervalLike]],
@@ -132,7 +130,7 @@ def _sum_differs_from_one(value: float) -> bool:
     return abs(float(value) - 1.0) > FLOAT_TOL
 
 
-def _first_probability_row_error(
+def _first_error_probability_row(
     row_vals: Union[pd.Series, pd.DataFrame],
     *,
     context: str,
@@ -183,21 +181,21 @@ def _first_probability_row_error(
 
 
 def typecheck_bloc_proportion_mapping(
-    params: BlocProportionMapping,
+    bloc_prop_mapping: BlocProportionMapping,
 ) -> None:
     """
     Checks to make sure that the values that are stored in params are of the expected type.
 
     Args:
-        params (BlocProportionMapping): The bloc proportion mapping to check.
+        bloc_prop_mapping (BlocProportionMapping): The bloc proportion mapping to check.
 
     Raises:
         TypeError: If params is not a Mapping[str, float] or pd.Series with string index
             and numeric dtype.
         ValueError: If params contains non-finite values.
     """
-    if isinstance(params, pd.Series):
-        ser = params
+    if isinstance(bloc_prop_mapping, pd.Series):
+        ser = bloc_prop_mapping
         if not all(isinstance(i, str) for i in ser.index):
             raise TypeError("Bloc keys must be a 'str'.")
         if not pd.api.types.is_numeric_dtype(ser.dtype):
@@ -206,16 +204,14 @@ def typecheck_bloc_proportion_mapping(
             raise ValueError("Bloc proportions contain non-finite values.")
         return
 
-    if not isinstance(cast(object, params), Mapping):  # keep Pyright happy
+    if not isinstance(cast(object, bloc_prop_mapping), Mapping):  # keep Pyright happy
         raise TypeError(
-            f"Bloc proportions must be a mapping or a dataframe, got '{type(params).__name__}'"
+            f"Bloc proportions must be a mapping or a dataframe, got '{type(bloc_prop_mapping).__name__}'"
         )
 
-    for bloc, v in params.items():
+    for bloc, v in bloc_prop_mapping.items():
         if not isinstance(bloc, str):
-            raise TypeError(
-                f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'"
-            )
+            raise TypeError(f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'")
         if not _is_finite_real(v):
             raise TypeError(
                 f"Bloc '{bloc!r}': proportion must be a finite real (int|float), got '{v!r}' of "
@@ -224,13 +220,13 @@ def typecheck_bloc_proportion_mapping(
 
 
 def convert_bloc_proportion_map_to_series(
-    bloc_prop: BlocProportionMapping,
+    bloc_prop_mapping: BlocProportionMapping,
 ) -> pd.Series:
     """
     Convert a dictionary of bloc proportions to a Series.
 
     Args:
-        bloc_prop (BlocProportionMapping): The bloc proportion mapping to convert.
+        bloc_prop_mapping (BlocProportionMapping): The bloc proportion mapping to convert.
 
     Returns:
         pd.Series: A pandas Series with bloc names as the index and proportions as values.
@@ -240,21 +236,21 @@ def convert_bloc_proportion_map_to_series(
             and numeric dtype.
         ValueError: If bloc_prop contains non-finite values, negative values, or does not sum to 1.
     """
-    typecheck_bloc_proportion_mapping(bloc_prop)
+    typecheck_bloc_proportion_mapping(bloc_prop_mapping)
 
     # basically a no_op if already a Series
-    if isinstance(bloc_prop, pd.Series):
-        if len(set(bloc_prop.index)) != len(bloc_prop.index):
+    if isinstance(bloc_prop_mapping, pd.Series):
+        if len(set(bloc_prop_mapping.index)) != len(bloc_prop_mapping.index):
             raise ValueError("Bloc proportions index (blocs) contains duplicates.")
-        if bloc_prop.dtype != float:
-            bloc_prop = bloc_prop.astype(float)
-        if any(bloc_prop < 0):
+        if bloc_prop_mapping.dtype != float:
+            bloc_prop_mapping = bloc_prop_mapping.astype(float)
+        if any(bloc_prop_mapping < 0):
             raise ValueError("Bloc proportions must be non-negative.")
-        if any(bloc_prop > 1):
+        if any(bloc_prop_mapping > 1):
             raise ValueError("Bloc proportions cannot be greater than 1.")
-        return bloc_prop
+        return bloc_prop_mapping
 
-    bloc_series = pd.Series(bloc_prop)
+    bloc_series = pd.Series(bloc_prop_mapping)
 
     if any(bloc_series < 0):
         raise ValueError("Bloc proportions must be non-negative.")
@@ -268,12 +264,12 @@ def convert_bloc_proportion_map_to_series(
     return bloc_series
 
 
-def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
+def typecheck_cohesion_mapping(cohesion_mapping: CohesionMapping) -> None:
     """
     Raise TypeError if 'params' is not a mapping of the expected nested shape.
 
     Args:
-        params (CohesionMapping): The cohesion mapping to check.
+        cohesion_mapping (CohesionMapping): The cohesion mapping to check.
 
     Raises:
         TypeError: If params is not a Mapping[str, Mapping[str, float]] or pd.DataFrame
@@ -281,8 +277,8 @@ def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
         ValueError: If params contains non-finite values.
     """
 
-    if isinstance(params, pd.DataFrame):
-        df = params
+    if isinstance(cohesion_mapping, pd.DataFrame):
+        df = cohesion_mapping
         if not all(isinstance(c, str) for c in df.columns):
             raise TypeError("cohesion_df columns (blocs) must be a 'str'.")
         if not all(isinstance(i, str) for i in df.index):
@@ -293,12 +289,12 @@ def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
             raise ValueError("cohesion_df contains non-finite values.")
         return
 
-    if not isinstance(cast(object, params), Mapping):  # keep Pyright happy
+    if not isinstance(cast(object, cohesion_mapping), Mapping):  # keep Pyright happy
         raise TypeError(
-            f"Cohesion parameters must be a mapping, got '{type(params).__name__}'"
+            f"Cohesion parameters must be a mapping, got '{type(cohesion_mapping).__name__}'"
         )
 
-    for bloc, inner in params.items():
+    for bloc, inner in cohesion_mapping.items():
         if not isinstance(bloc, str):
             raise TypeError(f"Bloc keys must be a 'str', got '{type(bloc).__name__}'")
         if not isinstance(inner, Mapping):
@@ -319,13 +315,13 @@ def typecheck_cohesion_mapping(params: CohesionMapping) -> None:
 
 
 def convert_cohesion_map_to_cohesion_df(
-    cohesion_map: CohesionMapping,
+    cohesion_mapping: CohesionMapping,
 ) -> pd.DataFrame:
     """
     Convert a dictionary of cohesion parameters to a DataFrame to pass to BlocSlateConfig.
 
     Args:
-        cohesion_map (CohesionMapping): The cohesion mapping to convert.
+        cohesion_mapping (CohesionMapping): The cohesion mapping to convert.
 
     Returns:
         pd.DataFrame: A pandas DataFrame with blocs as the index and slates as columns.
@@ -336,11 +332,11 @@ def convert_cohesion_map_to_cohesion_df(
         ValueError: If cohesion_map contains non-finite values.
         ValueError: If cohesion_map contains duplicate blocs or slates.
     """
-    typecheck_cohesion_mapping(cohesion_map)
+    typecheck_cohesion_mapping(cohesion_mapping)
 
     # basically a no_op if already a DataFrame
-    if isinstance(cohesion_map, pd.DataFrame):
-        ret = cohesion_map.copy()
+    if isinstance(cohesion_mapping, pd.DataFrame):
+        ret = cohesion_mapping.copy()
         if len(set(ret.index)) != len(ret.index):
             raise ValueError("cohesion_df index (blocs) contains duplicates.")
         if len(set(ret.columns)) != len(ret.columns):
@@ -348,10 +344,10 @@ def convert_cohesion_map_to_cohesion_df(
         return ret
 
     blocs_to_slate: MutableMapping[str, MutableMapping[str, float]] = {
-        bloc: {} for bloc in cohesion_map
+        bloc: {} for bloc in cohesion_mapping
     }
 
-    for bloc, slate_dict in cohesion_map.items():
+    for bloc, slate_dict in cohesion_mapping.items():
         slate_series = pd.Series(slate_dict)
         blocs_to_slate[bloc].update(slate_series.to_dict())
 
@@ -384,9 +380,7 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
         return
 
     if not isinstance(cast(object, pref_mapping), Mapping):  # cast gets around Pyright
-        raise TypeError(
-            f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'"
-        )
+        raise TypeError(f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'")
 
     for bloc, slate_dict in pref_mapping.items():
         if not isinstance(bloc, str):
@@ -436,13 +430,13 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
 
 
 def convert_preference_map_to_preference_df(
-    preference_map: PreferenceMapping,
+    preference_mapping: PreferenceMapping,
 ) -> pd.DataFrame:
     """
     Convert a dictionary of preference mappings to a DataFrame to pass to BlocSlateConfig.
 
     Args:
-        preference_map (PreferenceMapping): The preference mapping to convert.
+        preference_mapping (PreferenceMapping): The preference mapping to convert.
 
     Returns:
         pd.DataFrame: A pandas DataFrame with blocs as the index and candidates as columns.
@@ -455,25 +449,23 @@ def convert_preference_map_to_preference_df(
         ValueError: If preference_map contains non-finite values.
         ValueError: If preference_map contains duplicate blocs or candidates.
     """
-    typecheck_preference(preference_map)
+    typecheck_preference(preference_mapping)
 
     # basically a no_op if already a DataFrame
-    if isinstance(preference_map, pd.DataFrame):
-        if len(set(preference_map.index)) != len(preference_map.index):
+    if isinstance(preference_mapping, pd.DataFrame):
+        if len(set(preference_mapping.index)) != len(preference_mapping.index):
             raise ValueError("preference_df index (blocs) contains duplicates.")
-        if len(set(preference_map.columns)) != len(preference_map.columns):
+        if len(set(preference_mapping.columns)) != len(preference_mapping.columns):
             raise ValueError("preference_df columns (candidates) contains duplicates.")
-        return preference_map
+        return preference_mapping
 
     blocs_to_cand: MutableMapping[str, MutableMapping[str, float]] = {
-        bloc: {} for bloc in preference_map
+        bloc: {} for bloc in preference_mapping
     }
-    for bloc, slate_dict in preference_map.items():
+    for bloc, slate_dict in preference_mapping.items():
         for cand_item in slate_dict.values():
             cand_map = (
-                cand_item.interval
-                if isinstance(cand_item, PreferenceInterval)
-                else cand_item
+                cand_item.interval if isinstance(cand_item, PreferenceInterval) else cand_item
             )
             cand_series = pd.Series(cand_map)
             cand_dict = cand_series.to_dict()

@@ -39,10 +39,21 @@ def test_non_positve_voter_errors():
 
 
 def test_non_int_voter_errors():
-    with pytest.raises(
-        TypeError, match="Number of voters must be cleanly convertible to an int."
-    ):
+    with pytest.raises(TypeError, match="Number of voters must be cleanly convertible to an int."):
         BlocSlateConfig(n_voters=3.14)  # type: ignore[arg-type]
+
+
+def test_allow_zero_support_candidates_type_errors(valid_config):
+    with pytest.raises(TypeError, match="allow_zero_support_candidates must be a bool."):
+        BlocSlateConfig(
+            **valid_config,
+            n_voters=100,
+            allow_zero_support_candidates=1,  # type: ignore[arg-type]
+        )
+
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+    with pytest.raises(TypeError, match="allow_zero_support_candidates must be a bool."):
+        config.allow_zero_support_candidates = "yes"  # type: ignore[assignment]
 
 
 def test_reassign_int_voters():
@@ -50,18 +61,14 @@ def test_reassign_int_voters():
         config = BlocSlateConfig(n_voters=10)
     config.n_voters = 25
     assert config.n_voters == 25
-    config.n_voters = (
-        5.0  # float that is cleanly convertible to int # type: ignore[assignment]
-    )
+    config.n_voters = 5.0  # float that is cleanly convertible to int # type: ignore[assignment]
     assert config.n_voters == 5
 
 
 def test_reassign_float_voters_errors():
     with pytest.warns(ConfigurationWarning):
         config = BlocSlateConfig(n_voters=10)
-    with pytest.raises(
-        TypeError, match="Number of voters must be cleanly convertible to an int."
-    ):
+    with pytest.raises(TypeError, match="Number of voters must be cleanly convertible to an int."):
         config.n_voters = 5.5  # type: ignore[assignment]
 
 
@@ -81,9 +88,7 @@ def test_make_new_config_from_existing_values(valid_config):
 
 def test_make_new_config_from_copy_with_alphas_works(valid_config):
     config1 = BlocSlateConfig(**valid_config, n_voters=100)
-    with pytest.warns(
-        ConfigurationWarning, match="Preference intervals have already been set"
-    ):
+    with pytest.warns(ConfigurationWarning, match="Preference intervals have already been set"):
         config1.set_dirichlet_alphas(
             {
                 "bloc_1": {"slate_1": 10, "slate_2": 0.2},
@@ -119,9 +124,7 @@ def test_valid_config(valid_config):
     pref_df = pd.DataFrame(
         {"bloc_1": [0.8, 0.2, 0.1, 0.9], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
     ).T
-    pref_df.rename(
-        columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True
-    )
+    pref_df.rename(columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True)
     assert config.preference_df.equals(pref_df)
 
     cohesion_df = pd.DataFrame(
@@ -141,9 +144,7 @@ def test_alt_valid_config(alt_valid_config):
     pref_df = pd.DataFrame(
         {"bloc_1": [0.8, 0.2, 0.1, 0.9], "bloc_2": [0.5, 0.5, 0.5, 0.5]},
     ).T
-    pref_df.rename(
-        columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True
-    )
+    pref_df.rename(columns={i: v for i, v in enumerate(["A", "B", "X", "Y"])}, inplace=True)
     assert config.preference_df.equals(pref_df)
 
     cohesion_df = pd.DataFrame(
@@ -158,12 +159,13 @@ def test_alt_valid_config(alt_valid_config):
 def test_valid_config_allows_zero_preferences_and_bloc_named_slates():
     config = BlocSlateConfig(
         n_voters=10_000,
+        allow_zero_support_candidates=True,
         bloc_proportions={"Alpha": 0.8, "Xenon": 0.2},
         slate_to_candidates={"Alpha": ["A", "B"], "Xenon": ["X", "Y"]},
         preference_mapping={
             "Alpha": {
                 "Alpha": PreferenceInterval({"A": 0.8, "B": 0.2}),
-                "Xenon": PreferenceInterval({"X": 0.0, "Y": 1.0}),
+                "Xenon": PreferenceInterval({"X": 0.0, "Y": 1.0}, allow_zero_support=True),
             },
             "Xenon": {
                 "Alpha": PreferenceInterval({"A": 0.5, "B": 0.5}),
@@ -184,9 +186,7 @@ def test_pref_mapping_bad_types_errors(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100)
     with pytest.raises(
         TypeError,
-        match=re.escape(
-            "must be Mapping[str, float|int] or PreferenceInterval, got 'int'"
-        ),
+        match=re.escape("must be Mapping[str, float|int] or PreferenceInterval, got 'int'"),
     ):
         config.preference_df = {  # type: ignore[assignment]
             "bloc_1": {"slate_1": 2},
@@ -432,10 +432,7 @@ def test_validate_cohesion_mapping_has_blocs_but_config_has_none_message():
         ok = _call_validate(config, mapping)
     assert ok is False
     msgs = [str(x.message) for x in w if isinstance(x.message, ConfigurationWarning)]
-    assert any(
-        "has voter blocs but no blocs are defined in bloc_proportions" in m
-        for m in msgs
-    )
+    assert any("has voter blocs but no blocs are defined in bloc_proportions" in m for m in msgs)
     # No slate message here because both sides have empty slate sets
 
 
@@ -455,9 +452,7 @@ def test_validate_cohesion_mapping_has_slates_but_config_has_none_message():
     # Per-bloc slate mismatch
     assert any("Cohesion mapping for bloc 'bloc_1' has slates" in m for m in msgs)
     # Special "no slates are defined" message
-    assert any(
-        "has slates but no slates are defined in slate_to_candidates" in m for m in msgs
-    )
+    assert any("has slates but no slates are defined in slate_to_candidates" in m for m in msgs)
 
 
 # --- Silent mode: no warnings but still returns False on mismatch ----------
@@ -512,9 +507,7 @@ def test_error_when_no_blocs_defined():
 def test_error_when_no_slates_defined_with_blocs():
     config = BlocSlateConfig(n_voters=10, bloc_proportions={"b1": 1.0}, silent=True)
     msgs = _messages(_det_errs(config))
-    assert any(
-        "At least one slate and candidate list must be defined." in m for m in msgs
-    )
+    assert any("At least one slate and candidate list must be defined." in m for m in msgs)
 
 
 def test_error_when_preference_df_empty(valid_config):
@@ -583,10 +576,7 @@ def test_error_when_preference_contains_unset_minus_one(valid_config):
     c = config.slate_to_candidates["slate_1"][0]
     config.preference_df.loc[b, c] = -1.0
     msgs = _messages(_det_errs(config))
-    assert any(
-        "has values that have not been set (indicated with value of -1)" in m
-        for m in msgs
-    )
+    assert any("has values that have not been set (indicated with value of -1)" in m for m in msgs)
 
 
 def test_error_when_preference_contains_invalid_negative_not_unset(valid_config):
@@ -595,10 +585,7 @@ def test_error_when_preference_contains_invalid_negative_not_unset(valid_config)
     cand = config.slate_to_candidates["slate_1"][0]
     config.preference_df.loc[bloc, cand] = -0.25
     msgs = _messages(_det_errs(config))
-    assert any(
-        "invalid negative values" in m and "Use -1 to mark unset values." in m
-        for m in msgs
-    )
+    assert any("invalid negative values" in m and "Use -1 to mark unset values." in m for m in msgs)
 
 
 def test_error_when_preference_contains_non_finite_values(valid_config):
@@ -617,10 +604,7 @@ def test_error_when_preference_row_sum_not_one_per_slate(valid_config):
     cands = list(config.slate_to_candidates["slate_1"])
     config.preference_df.loc[bloc, cands] = [0.5, 0.2]
     msgs = _messages(_det_errs(config))
-    assert any(
-        "preference_df row for bloc" in m and "must sum to 1, got 0.7" in m
-        for m in msgs
-    )
+    assert any("preference_df row for bloc" in m and "must sum to 1, got 0.7" in m for m in msgs)
 
 
 def test_error_when_preference_row_is_missing_candidate(valid_config):
@@ -698,6 +682,131 @@ def test_error_when_preference_row_sum_not_one_with_zero_support_candidate(
         config.is_valid(raise_errors=True)
 
 
+def test_error_when_preference_row_has_zero_support_by_default(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 1.0, "B": 0.0},
+            "slate_2": {"X": 0.1, "Y": 0.9},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+    config.preference_df = preference_mapping  # type: ignore[assignment]
+
+    with pytest.raises(ValueError, match="must have strictly positive support"):
+        config.is_valid(raise_errors=True)
+
+
+def test_zero_support_allowed_when_flag_set(valid_config):
+    config = BlocSlateConfig(
+        **valid_config,
+        n_voters=100,
+        allow_zero_support_candidates=True,
+    )
+
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 1.0, "B": 0.0},
+            "slate_2": {"X": 0.1, "Y": 0.9},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+    config.preference_df = preference_mapping  # type: ignore[assignment]
+
+    assert config.is_valid(raise_errors=True)
+
+
+def test_init_with_zero_support_preference_mapping_rejected_by_default(valid_config):
+    zero_support_pref_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 1.0, "B": 0.0},
+            "slate_2": {"X": 0.1, "Y": 0.9},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates=valid_config["slate_to_candidates"],
+        bloc_proportions=valid_config["bloc_proportions"],
+        cohesion_mapping=valid_config["cohesion_mapping"],
+        preference_mapping=zero_support_pref_mapping,
+    )
+
+    with pytest.raises(ValueError, match="must have strictly positive support"):
+        config.is_valid(raise_errors=True)
+
+
+def test_init_with_zero_support_preference_mapping_allowed_with_flag(valid_config):
+    zero_support_pref_mapping = {
+        "bloc_1": {
+            "slate_1": {"A": 1.0, "B": 0.0},
+            "slate_2": {"X": 0.1, "Y": 0.9},
+        },
+        "bloc_2": {
+            "slate_1": {"A": 0.5, "B": 0.5},
+            "slate_2": {"X": 0.5, "Y": 0.5},
+        },
+    }
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates=valid_config["slate_to_candidates"],
+        bloc_proportions=valid_config["bloc_proportions"],
+        cohesion_mapping=valid_config["cohesion_mapping"],
+        preference_mapping=zero_support_pref_mapping,
+        allow_zero_support_candidates=True,
+    )
+
+    assert config.is_valid(raise_errors=True)
+
+
+def test_toggle_allow_zero_support_candidates_after_init(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+    config.preference_df.loc["bloc_1", ["A", "B"]] = [0.0, 1.0]
+
+    with pytest.raises(ValueError, match="must have strictly positive support"):
+        config.is_valid(raise_errors=True)
+
+    config.allow_zero_support_candidates = True
+    assert config.is_valid(raise_errors=True)
+
+
+def test_toggle_allow_zero_support_candidates_to_false_invalidates_config(valid_config):
+    config = BlocSlateConfig(
+        **valid_config,
+        n_voters=100,
+        allow_zero_support_candidates=True,
+    )
+    config.preference_df.loc["bloc_1", ["A", "B"]] = [0.0, 1.0]
+    assert config.is_valid(raise_errors=True)
+
+    config.allow_zero_support_candidates = False
+    with pytest.raises(ValueError, match="must have strictly positive support"):
+        config.is_valid(raise_errors=True)
+
+
+def test_preference_df_dataframe_assignment_with_zero_support_respects_flag(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+    preference_df_with_zero = config.preference_df.copy()
+    preference_df_with_zero.loc["bloc_1", ["A", "B"]] = [1.0, 0.0]
+
+    config.preference_df = preference_df_with_zero
+    with pytest.raises(ValueError, match="must have strictly positive support"):
+        config.is_valid(raise_errors=True)
+
+    config.allow_zero_support_candidates = True
+    assert config.is_valid(raise_errors=True)
+
+
 # --- cohesion_df structural/content errors --------------------------------
 
 
@@ -726,8 +835,7 @@ def test_error_when_cohesion_contains_unset_minus_one(valid_config):
     config.cohesion_df.loc[b, s] = -1.0
     msgs = _messages(_det_errs(config))
     assert any(
-        "cohesion_df row for bloc" in m
-        and "have not been set (indicated with value of -1)" in m
+        "cohesion_df row for bloc" in m and "have not been set (indicated with value of -1)" in m
         for m in msgs
     )
 
@@ -738,10 +846,7 @@ def test_error_when_cohesion_contains_invalid_negative_not_unset(valid_config):
     slate = config.cohesion_df.columns[0]
     config.cohesion_df.loc[bloc, slate] = -0.4
     msgs = _messages(_det_errs(config))
-    assert any(
-        "invalid negative values" in m and "Use -1 to mark unset values." in m
-        for m in msgs
-    )
+    assert any("invalid negative values" in m and "Use -1 to mark unset values." in m for m in msgs)
 
 
 def test_error_when_cohesion_contains_non_finite_values(valid_config):
@@ -782,9 +887,7 @@ def test_is_valid_warns_when_invalid_and_raise_warnings_true(valid_config):
         config.preference_df = pd.DataFrame()
         assert config.is_valid(raise_errors=False, raise_warnings=True) is False
 
-    assert any(
-        "Preference mapping must be non-empty" in str(r.message) for r in records
-    )
+    assert any("Preference mapping must be non-empty" in str(r.message) for r in records)
 
 
 def test_is_valid_raises_first_error_when_raise_errors_true(valid_config):
@@ -957,9 +1060,7 @@ def test_copy_is_independent(valid_config):
     # Mutate original; copy should not change
     config.slate_to_candidates["slate_2"].append("Z")
     config.bloc_proportions = {"bloc_1": 0.51, "bloc_2": 0.49}  # type: ignore[assignment]
-    assert (
-        not clone.slate_to_candidates.to_dict() == config.slate_to_candidates.to_dict()
-    )
+    assert not clone.slate_to_candidates.to_dict() == config.slate_to_candidates.to_dict()
     assert not clone.bloc_proportions == config.bloc_proportions.copy()
 
 
@@ -1005,9 +1106,7 @@ def test_add_and_remove_slate_updates_frames(valid_config):
 def test_add_slate_with_invalid_type(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
-    with pytest.raises(
-        TypeError, match="slate_candidate_list must be a sequence of str"
-    ):
+    with pytest.raises(TypeError, match="slate_candidate_list must be a sequence of str"):
         config.add_slate("slate_3", 1)  # type: ignore[list-item]
 
 
@@ -1056,15 +1155,11 @@ def test_rename_candidate_type_errors(valid_config):
 
     new_names = {1: "B", "B": "X", "Z": "Y"}  # Z not in config
 
-    with pytest.raises(
-        TypeError, match=re.escape("Candidate mapping keys must be a 'str', got")
-    ):
+    with pytest.raises(TypeError, match=re.escape("Candidate mapping keys must be a 'str', got")):
         config.rename_candidates(new_names)
 
     new_names = {"A": 1, "B": "X", "Z": "Y"}  # Z not in config
-    with pytest.raises(
-        TypeError, match=re.escape("Candidate mapping values must be a 'str', got")
-    ):
+    with pytest.raises(TypeError, match=re.escape("Candidate mapping values must be a 'str', got")):
         config.rename_candidates(new_names)
 
 
@@ -1078,9 +1173,7 @@ def test_rename_candidate_with_missing_name(valid_config):
 def test_rename_candidate_with_duplicate_names(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     new_names = {"A": "B"}  # B already exists
-    with pytest.raises(
-        ValueError, match="Candidate mapping results in duplicate candidate names."
-    ):
+    with pytest.raises(ValueError, match="Candidate mapping results in duplicate candidate names."):
         config.rename_candidates(new_names)
 
 
@@ -1106,13 +1199,10 @@ def test_pref_update_creates_shape_from_empty(extra_profile_settings):
         silent=True,
     )
     _update_prefs(config)
-    assert list(config.preference_df.index) == list(
-        extra_profile_settings["blocs"].keys()
-    )
+    assert list(config.preference_df.index) == list(extra_profile_settings["blocs"].keys())
     assert (
         list(config.preference_df.columns)
-        == extra_profile_settings["slates"]["slate_1"]
-        + extra_profile_settings["slates"]["slate_2"]
+        == extra_profile_settings["slates"]["slate_1"] + extra_profile_settings["slates"]["slate_2"]
     )
     assert (config.preference_df.values == -1.0).all()
 
@@ -1173,12 +1263,8 @@ def test_cohesion_update_creates_shape_from_empty(extra_profile_settings):
         silent=True,
     )
     _update_cohesion(config)
-    assert list(config.cohesion_df.index) == list(
-        extra_profile_settings["blocs"].keys()
-    )
-    assert list(config.cohesion_df.columns) == list(
-        extra_profile_settings["slates"].keys()
-    )
+    assert list(config.cohesion_df.index) == list(extra_profile_settings["blocs"].keys())
+    assert list(config.cohesion_df.columns) == list(extra_profile_settings["slates"].keys())
     assert (config.cohesion_df.values == -1.0).all()
 
 
@@ -1457,18 +1543,14 @@ def test_dirichlet_alphas_df_rejects_non_positive(valid_config):
             "slate_2": {"bloc_1": 1.0, "bloc_2": 1.0},
         }
     ).astype(float)
-    with pytest.raises(
-        ValueError, match="Dirichlet alphas must be positive finite reals."
-    ):
+    with pytest.raises(ValueError, match="Dirichlet alphas must be positive finite reals."):
         _keycheck(config, df)
 
 
 def test_dirichlet_alphas_df_rejects_wrong_blocs_set(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     # drop bloc_2
-    df = pd.DataFrame({"slate_1": {"bloc_1": 1.0}, "slate_2": {"bloc_1": 1.0}}).astype(
-        float
-    )
+    df = pd.DataFrame({"slate_1": {"bloc_1": 1.0}, "slate_2": {"bloc_1": 1.0}}).astype(float)
     with pytest.raises(ValueError, match="must have exactly the blocs"):
         _keycheck(config, df)
 
@@ -1655,9 +1737,7 @@ def test_returns_interval_for_specific_bloc_and_slate(valid_config):
 
     expected = {c: float(cfg.preference_df[c].loc[bloc_name]) for c in cand_list}
 
-    out = cfg.get_preference_interval_for_bloc_and_slate(
-        bloc_name=bloc_name, slate_name=slate_name
-    )
+    out = cfg.get_preference_interval_for_bloc_and_slate(bloc_name=bloc_name, slate_name=slate_name)
     assert isinstance(out, PreferenceInterval)
     assert set(out.interval.keys()) == set(cand_list)
     for k, v in expected.items():
@@ -1668,9 +1748,7 @@ def test_returns_interval_for_specific_bloc_and_slate(valid_config):
 def test_raises_keyerror_for_unknown_slate(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     with pytest.raises(KeyError, match="Slate 'not_a_slate' not found"):
-        cfg.get_preference_interval_for_bloc_and_slate(
-            bloc_name="bloc_1", slate_name="not_a_slate"
-        )
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="not_a_slate")
 
 
 def test_raises_keyerror_when_any_bloc_missing_from_preference_df(valid_config):
@@ -1679,12 +1757,8 @@ def test_raises_keyerror_when_any_bloc_missing_from_preference_df(valid_config):
     # Remove bloc_2 row to trigger the check inside the for-loop over self.blocs
     cfg.preference_df.drop(index=["bloc_2"], inplace=True)
 
-    with pytest.raises(
-        KeyError, match=r"Bloc 'bloc_2' not found in preference_df index"
-    ):
-        cfg.get_preference_interval_for_bloc_and_slate(
-            bloc_name="bloc_1", slate_name="slate_1"
-        )
+    with pytest.raises(KeyError, match=r"Bloc 'bloc_2' not found in preference_df index"):
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
 
 
 def test_raises_valueerror_when_any_candidate_unset_negative_one(valid_config):
@@ -1694,9 +1768,7 @@ def test_raises_valueerror_when_any_candidate_unset_negative_one(valid_config):
     cfg.unset_candidate_preferences("A")
 
     with pytest.raises(ValueError, match="have not been set"):
-        cfg.get_preference_interval_for_bloc_and_slate(
-            bloc_name="bloc_1", slate_name="slate_1"
-        )
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
 
 
 def test_raises_valueerror_when_any_candidate_negative_not_unset(valid_config):
@@ -1704,18 +1776,30 @@ def test_raises_valueerror_when_any_candidate_negative_not_unset(valid_config):
     cfg.preference_df.loc["bloc_1", "A"] = -0.2
 
     with pytest.raises(ValueError, match="invalid negative values"):
-        cfg.get_preference_interval_for_bloc_and_slate(
-            bloc_name="bloc_1", slate_name="slate_1"
-        )
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
 
 
-def test_get_preference_interval_allows_explicit_zero_support(valid_config):
+def test_get_preference_interval_rejects_explicit_zero_support_by_default(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     cfg.preference_df.loc["bloc_1", ["A", "B"]] = [0.0, 1.0]
 
-    out = cfg.get_preference_interval_for_bloc_and_slate(
-        bloc_name="bloc_1", slate_name="slate_1"
+    with pytest.raises(
+        ValueError,
+        match="Support values must be strictly positive for all candidates unless",
+    ):
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
+
+
+def test_get_preference_interval_allows_explicit_zero_support_with_flag(valid_config):
+    cfg = BlocSlateConfig(
+        **valid_config,
+        n_voters=100,
+        silent=True,
+        allow_zero_support_candidates=True,
     )
+    cfg.preference_df.loc["bloc_1", ["A", "B"]] = [0.0, 1.0]
+
+    out = cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
     assert out.interval["A"] == 0.0
     assert out.interval["B"] == 1.0
 
@@ -1728,9 +1812,7 @@ def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):
     cfg.preference_df.loc["bloc_1", cands] = row * 0.5  # now sums != 1
 
     with pytest.raises(ValueError, match=r"must\s+sum to 1, got"):
-        cfg.get_preference_interval_for_bloc_and_slate(
-            bloc_name="bloc_1", slate_name="slate_1"
-        )
+        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
 
 
 def test_get_combined_preference_interval_by_bloc():
@@ -1774,9 +1856,7 @@ def test_get_combined_preference_interval_by_bloc():
         "Y": 0.5 * 0.8,
     }
 
-    for bloc_name, expected in zip(
-        ["bloc_1", "bloc_2"], [bloc_1_combined, bloc_2_combined]
-    ):
+    for bloc_name, expected in zip(["bloc_1", "bloc_2"], [bloc_1_combined, bloc_2_combined]):
         for key, value in expected.items():
             assert math.isclose(
                 value,
