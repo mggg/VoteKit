@@ -385,15 +385,15 @@ class BlocSlateConfig:
 
         return valid
 
-    def __determine_errors(self) -> list[Exception]:
+    def __determine_basic_errors(self) -> list[Exception]:
         """
-        Determine if there are any errors in the current configuration.
+        Validate high-level configuration state (voters, bloc proportions, slate presence).
 
-        Errors are those settings which will produce invalid states when passed to a ballot
-        generator function.
+        This method intentionally excludes DataFrame shape/content validation, which is handled
+        in specialized helpers for ``preference_df`` and ``cohesion_df``.
 
         Returns:
-            list[Exception]: A list of exceptions representing the errors found.
+            list[Exception]: All detected errors at the top-level configuration layer.
         """
         errors: list[Exception] = []
 
@@ -408,7 +408,6 @@ class BlocSlateConfig:
         if self.bloc_proportions == {}:
             errors.append(ValueError("At least one voter bloc must be defined."))
         else:
-            # Check that bloc proportions sum to 1
             bloc_ser = self.bloc_proportions.to_series()
             if _sum_differs_from_one(bloc_ser.sum()):
                 errors.append(
@@ -428,132 +427,236 @@ class BlocSlateConfig:
         if self.slate_to_candidates == {}:
             errors.append(ValueError("At least one slate and candidate list must be defined."))
 
+        return errors
+
+    def __preference_probability_row_error(
+        self,
+        *,
+        bloc_name: str,
+        cand_list: list[str],
+        row_vals: pd.Series,
+    ) -> Optional[Exception]:
+        """
+        Return the first probability-row error for a preference row, if any.
+
+        Validation uses the shared probability-row helper in this order:
+        1) numeric + finite
+        2) invalid negative values
+        3) unset marker values
+        4) row sum equals 1
+
+        Args:
+            bloc_name (str): Bloc name for contextual error messages.
+            cand_list (list[str]): Candidate list for the slate being validated.
+            row_vals (pd.Series): Preference row values for a single bloc and slate.
+
+        Returns:
+            Optional[Exception]: The first detected error, else None.
+        """
+        return _first_error_probability_row(
+            row_vals,
+            context=f"preference_df row for bloc '{bloc_name}'",
+            invalid_negative_error=lambda invalid_negatives: ValueError(
+                f"preference_df row for bloc '{bloc_name}' has invalid "
+                f"negative values {invalid_negatives}. Use -1 to mark "
+                "unset values."
+            ),
+            unset_error=lambda: ValueError(
+                f"preference_df row for bloc '{bloc_name}' has values "
+                f"that have not been set (indicated with value of {UNSET_VALUE:g})."
+            ),
+            sum_error=lambda total: ValueError(
+                f"preference_df row for bloc '{bloc_name}' and candidates "
+                f"{cand_list} must sum to 1, got {total:.6f}"
+            ),
+        )
+
+    def __preference_non_positive_row_error(
+        self,
+        *,
+        bloc_name: str,
+        cand_list: list[str],
+        row_vals: pd.Series,
+    ) -> Optional[Exception]:
+        """
+        Return a zero-support error for a preference row when strict mode is enabled.
+
+        Args:
+            bloc_name (str): Bloc name for contextual error messages.
+            cand_list (list[str]): Candidate list for the slate being validated.
+            row_vals (pd.Series): Preference row values for a single bloc and slate.
+
+        Returns:
+            Optional[Exception]: A strict-mode non-positive support error, else None.
+        """
+        if self.allow_zero_support_candidates:
+            return None
+
+        zero_cands = [cand for cand in cand_list if float(row_vals[cand]) <= 0]
+        if not zero_cands:
+            return None
+
+        return ValueError(
+            f"preference_df row for bloc '{bloc_name}' and "
+            f"candidates {cand_list} must have strictly positive "
+            f"support for each candidate unless "
+            f"allow_zero_support_candidates=True. "
+            f"Non-positive candidates: {zero_cands}"
+        )
+
+    def __determine_preference_df_errors(self) -> list[Exception]:
+        """
+        Validate ``preference_df`` structure and per-row probability constraints.
+
+        This checks:
+        1) non-empty DataFrame
+        2) expected candidate columns
+        3) per-slate row validity for each bloc (probability constraints)
+        4) strict non-positive candidate rejection when configured
+        5) expected bloc index
+
+        Returns:
+            list[Exception]: All detected preference DataFrame validation errors.
+        """
+        errors: list[Exception] = []
+
         if self.preference_df.empty:
             errors.append(ValueError("Preference mapping must be non-empty."))
+            return errors
+
+        if set(self.preference_df.columns) != set(self.candidates):
+            errors.append(
+                KeyError(
+                    f"preference_df columns (candidates) must be exactly "
+                    f"{list(self.candidates)}, as defined in the 'slate_to_candidates' "
+                    f"parameter. Got {list(self.preference_df.columns)}"
+                )
+            )
         else:
-            if set(self.preference_df.columns) != set(self.candidates):
-                errors.append(
-                    KeyError(
-                        f"preference_df columns (candidates) must be exactly "
-                        f"{list(self.candidates)}, as defined in the 'slate_to_candidates' "
-                        f"parameter. Got {list(self.preference_df.columns)}"
+            for cand_list_proxy in self.slate_to_candidates.values():
+                cand_list = list(cand_list_proxy)
+                for row in self.preference_df[cand_list].iterrows():
+                    bloc_name = str(row[0])
+                    row_vals = row[1]
+
+                    row_error = self.__preference_probability_row_error(
+                        bloc_name=bloc_name,
+                        cand_list=cand_list,
+                        row_vals=row_vals,
                     )
-                )
-            else:
-                for cand_list_proxy in self.slate_to_candidates.values():
-                    cand_list = list(cand_list_proxy)
-                    for row in self.preference_df[cand_list].iterrows():
-                        bloc_name = str(row[0])
-                        row_vals = row[1]
+                    if row_error is not None:
+                        errors.append(row_error)
+                        continue
 
-                        def _pref_invalid_negative_error(
-                            invalid_negatives: list[float],
-                        ) -> Exception:
-                            return ValueError(
-                                f"preference_df row for bloc '{bloc_name}' has invalid "
-                                f"negative values {invalid_negatives}. Use -1 to mark "
-                                "unset values."
-                            )
-
-                        def _pref_unset_error() -> Exception:
-                            return ValueError(
-                                f"preference_df row for bloc '{bloc_name}' has values "
-                                f"that have "
-                                f"not been set (indicated with value of {UNSET_VALUE:g})."
-                            )
-
-                        def _pref_sum_error(total: float) -> Exception:
-                            return ValueError(
-                                f"preference_df row for bloc '{bloc_name}' and candidates "
-                                f"{cand_list} must sum to 1, got {total:.6f}"
-                            )
-
-                        row_error = _first_error_probability_row(
-                            row_vals,
-                            context=f"preference_df row for bloc '{bloc_name}'",
-                            invalid_negative_error=_pref_invalid_negative_error,
-                            unset_error=_pref_unset_error,
-                            sum_error=_pref_sum_error,
-                        )
-                        if row_error is not None:
-                            errors.append(row_error)
-                            continue
-
-                        if not self.allow_zero_support_candidates and (row_vals <= 0).any():
-                            zero_cands = [cand for cand in cand_list if float(row_vals[cand]) <= 0]
-                            errors.append(
-                                ValueError(
-                                    f"preference_df row for bloc '{bloc_name}' and "
-                                    f"candidates {cand_list} must have strictly positive "
-                                    f"support for each candidate unless "
-                                    f"allow_zero_support_candidates=True. "
-                                    f"Non-positive candidates: {zero_cands}"
-                                )
-                            )
-
-            if set(self.preference_df.index) != set(self.blocs):
-                errors.append(
-                    KeyError(
-                        f"preference_df index (blocs) must be exactly {list(self.blocs)} "
-                        f"as defined in the 'bloc_proportions' parameter. Got"
-                        f"{list(self.preference_df.index)}"
+                    non_positive_error = self.__preference_non_positive_row_error(
+                        bloc_name=bloc_name,
+                        cand_list=cand_list,
+                        row_vals=row_vals,
                     )
+                    if non_positive_error is not None:
+                        errors.append(non_positive_error)
+
+        if set(self.preference_df.index) != set(self.blocs):
+            errors.append(
+                KeyError(
+                    f"preference_df index (blocs) must be exactly {list(self.blocs)} "
+                    f"as defined in the 'bloc_proportions' parameter. Got"
+                    f"{list(self.preference_df.index)}"
                 )
+            )
+
+        return errors
+
+    def __cohesion_probability_row_error(
+        self,
+        *,
+        bloc_name: str,
+        row_vals: pd.Series,
+    ) -> Optional[Exception]:
+        """
+        Return the first probability-row error for a cohesion row, if any.
+
+        Args:
+            bloc_name (str): Bloc name for contextual error messages.
+            row_vals (pd.Series): Cohesion row values for a single bloc.
+
+        Returns:
+            Optional[Exception]: The first detected error, else None.
+        """
+        return _first_error_probability_row(
+            row_vals,
+            context=f"cohesion_df row for bloc '{bloc_name}'",
+            invalid_negative_error=lambda invalid_negatives: ValueError(
+                f"cohesion_df row for bloc '{bloc_name}' has invalid "
+                f"negative values {invalid_negatives}. Use -1 to mark "
+                "unset values."
+            ),
+            unset_error=lambda: ValueError(
+                f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
+                f"set (indicated with value of {UNSET_VALUE:g})."
+            ),
+            sum_error=lambda total: ValueError(
+                f"cohesion_df row for bloc '{bloc_name}' must sum to 1, got {total:.6f}"
+            ),
+        )
+
+    def __determine_cohesion_df_errors(self) -> list[Exception]:
+        """
+        Validate ``cohesion_df`` structure and per-row probability constraints.
+
+        Returns:
+            list[Exception]: All detected cohesion DataFrame validation errors.
+        """
+        errors: list[Exception] = []
 
         if self.cohesion_df.empty:
             errors.append(ValueError("Cohesion mapping must be non-empty."))
-        else:
-            if set(self.cohesion_df.columns) != set(self.slates):
-                errors.append(
-                    KeyError(
-                        f"cohesion_df columns (slates) must be exactly {list(self.slates)} "
-                        f"as defined in the 'slate_to_candidates' parameter. Got "
-                        f"{list(self.cohesion_df.columns)}"
-                    )
+            return errors
+
+        if set(self.cohesion_df.columns) != set(self.slates):
+            errors.append(
+                KeyError(
+                    f"cohesion_df columns (slates) must be exactly {list(self.slates)} "
+                    f"as defined in the 'slate_to_candidates' parameter. Got "
+                    f"{list(self.cohesion_df.columns)}"
                 )
+            )
 
-            if set(self.cohesion_df.index) != set(self.blocs):
-                errors.append(
-                    KeyError(
-                        f"cohesion_df index (blocs) must be exactly {list(self.blocs)} "
-                        f"as defined in the 'bloc_proportions' parameter. Got"
-                        f"{list(self.cohesion_df.index)}"
-                    )
+        if set(self.cohesion_df.index) != set(self.blocs):
+            errors.append(
+                KeyError(
+                    f"cohesion_df index (blocs) must be exactly {list(self.blocs)} "
+                    f"as defined in the 'bloc_proportions' parameter. Got"
+                    f"{list(self.cohesion_df.index)}"
                 )
+            )
 
-            for row in self.cohesion_df.iterrows():
-                bloc_name = str(row[0])
-                row_vals = row[1]
+        for row in self.cohesion_df.iterrows():
+            bloc_name = str(row[0])
+            row_vals = row[1]
+            row_error = self.__cohesion_probability_row_error(
+                bloc_name=bloc_name,
+                row_vals=row_vals,
+            )
+            if row_error is not None:
+                errors.append(row_error)
 
-                def _cohesion_invalid_negative_error(
-                    invalid_negatives: list[float],
-                ) -> Exception:
-                    return ValueError(
-                        f"cohesion_df row for bloc '{bloc_name}' has invalid "
-                        f"negative values {invalid_negatives}. Use -1 to mark "
-                        "unset values."
-                    )
+        return errors
 
-                def _cohesion_unset_error() -> Exception:
-                    return ValueError(
-                        f"cohesion_df row for bloc '{bloc_name}' has values that have not been "
-                        f"set (indicated with value of {UNSET_VALUE:g})."
-                    )
+    def __determine_errors(self) -> list[Exception]:
+        """
+        Determine if there are any errors in the current configuration.
 
-                def _cohesion_sum_error(total: float) -> Exception:
-                    return ValueError(
-                        f"cohesion_df row for bloc '{bloc_name}' must sum to 1, got {total:.6f}"
-                    )
+        Errors are those settings which will produce invalid states when passed to a ballot
+        generator function.
 
-                row_error = _first_error_probability_row(
-                    row_vals,
-                    context=f"cohesion_df row for bloc '{bloc_name}'",
-                    invalid_negative_error=_cohesion_invalid_negative_error,
-                    unset_error=_cohesion_unset_error,
-                    sum_error=_cohesion_sum_error,
-                )
-                if row_error is not None:
-                    errors.append(row_error)
+        Returns:
+            list[Exception]: A list of exceptions representing the errors found.
+        """
+        errors: list[Exception] = []
+        errors.extend(self.__determine_basic_errors())
+        errors.extend(self.__determine_preference_df_errors())
+        errors.extend(self.__determine_cohesion_df_errors())
         return errors
 
     def is_valid(self, *, raise_errors: bool = False, raise_warnings: bool = True) -> bool:
