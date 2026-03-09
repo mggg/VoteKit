@@ -1772,14 +1772,27 @@ def test_raises_keyerror_for_unknown_slate(valid_config):
         cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="not_a_slate")
 
 
-def test_raises_keyerror_when_any_bloc_missing_from_preference_df(valid_config):
+def test_other_missing_bloc_does_not_block_requested_interval(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
-    # Remove bloc_2 row to trigger the check inside the for-loop over self.blocs
+    # Remove an unrelated bloc row; fetching bloc_1 should still work.
     cfg.preference_df.drop(index=["bloc_2"], inplace=True)
 
-    with pytest.raises(KeyError, match=r"Bloc 'bloc_2' not found in preference_df index"):
-        cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
+    out = cfg.get_preference_interval_for_bloc_and_slate(
+        bloc_name="bloc_1", slate_name="slate_1"
+    )
+    assert out.interval == {"A": 0.8, "B": 0.2}
+
+
+def test_raises_keyerror_when_requested_bloc_missing_from_preference_df(valid_config):
+    cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+
+    cfg.preference_df.drop(index=["bloc_1"], inplace=True)
+
+    with pytest.raises(KeyError, match=r"Bloc 'bloc_1' not found in preference_df index"):
+        cfg.get_preference_interval_for_bloc_and_slate(
+            bloc_name="bloc_1", slate_name="slate_1"
+        )
 
 
 def test_raises_valueerror_when_any_candidate_unset_negative_one(valid_config):

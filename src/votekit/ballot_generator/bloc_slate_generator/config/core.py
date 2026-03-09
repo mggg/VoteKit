@@ -920,52 +920,56 @@ class BlocSlateConfig:
         Returns:
             PreferenceInterval: The preference interval for the given bloc and slate.
         """
-        # Check to make sure the slate preference intervals are set
-        for bloc in self.blocs:
-            if slate_name not in self.slate_to_candidates:
-                raise KeyError(
-                    f"Slate '{slate_name}' not found in slate_to_candidates. "
-                    f"Available slates: {self.slates}"
-                )
-            cand_list = list(self.slate_to_candidates[slate_name])
-            if bloc not in self.preference_df.index:
-                raise KeyError(
-                    f"Bloc '{bloc}' not found in preference_df index. "
-                    f"Available blocs: {list(self.preference_df.index)}"
-                )
-            row_vals = self.preference_df[cand_list].loc[bloc]
-
-            def _interval_invalid_negative_error(
-                invalid_negatives: list[float],
-            ) -> Exception:
-                return ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
-                    f"invalid negative values {invalid_negatives}. Use -1 to mark unset "
-                    "values."
-                )
-
-            def _interval_unset_error() -> Exception:
-                return ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' has "
-                    f"candidates {cand_list} that have not been set (indicated with "
-                    f"value of {UNSET_VALUE:g})."
-                )
-
-            def _interval_sum_error(total: float) -> Exception:
-                return ValueError(
-                    f"Preference interval for bloc '{bloc}' and slate '{slate_name}' must "
-                    f"sum to 1, got {total:.6f}"
-                )
-
-            row_error = _first_error_probability_row(
-                row_vals,
-                context=f"Preference interval for bloc '{bloc}' and slate '{slate_name}'",
-                invalid_negative_error=_interval_invalid_negative_error,
-                unset_error=_interval_unset_error,
-                sum_error=_interval_sum_error,
+        if slate_name not in self.slate_to_candidates:
+            raise KeyError(
+                f"Slate '{slate_name}' not found in slate_to_candidates. "
+                f"Available slates: {self.slates}"
             )
-            if row_error is not None:
-                raise row_error
+
+        if bloc_name not in self.blocs:
+            raise KeyError(
+                f"Bloc '{bloc_name}' not found in bloc_proportions. Available blocs: {self.blocs}"
+            )
+
+        cand_list = list(self.slate_to_candidates[slate_name])
+        if bloc_name not in self.preference_df.index:
+            raise KeyError(
+                f"Bloc '{bloc_name}' not found in preference_df index. "
+                f"Available blocs: {list(self.preference_df.index)}"
+            )
+        row_vals = self.preference_df[cand_list].loc[bloc_name]
+
+        def _interval_invalid_negative_error(
+            invalid_negatives: list[float],
+        ) -> Exception:
+            return ValueError(
+                f"Preference interval for bloc '{bloc_name}' and slate '{slate_name}' has "
+                f"invalid negative values {invalid_negatives}. Use {UNSET_VALUE} to mark unset "
+                "values."
+            )
+
+        def _interval_unset_error() -> Exception:
+            return ValueError(
+                f"Preference interval for bloc '{bloc_name}' and slate '{slate_name}' has "
+                f"candidates {cand_list} that have not been set (indicated with "
+                f"value of {UNSET_VALUE:g})."
+            )
+
+        def _interval_sum_error(total: float) -> Exception:
+            return ValueError(
+                f"Preference interval for bloc '{bloc_name}' and slate '{slate_name}' must "
+                f"sum to 1, got {total:.6f}"
+            )
+
+        row_error = _first_error_probability_row(
+            row_vals,
+            context=f"Preference interval for bloc '{bloc_name}' and slate '{slate_name}'",
+            invalid_negative_error=_interval_invalid_negative_error,
+            unset_error=_interval_unset_error,
+            sum_error=_interval_sum_error,
+        )
+        if row_error is not None:
+            raise row_error
 
         return PreferenceInterval(
             {
