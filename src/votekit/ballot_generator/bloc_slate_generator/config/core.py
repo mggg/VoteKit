@@ -20,6 +20,7 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     BlocProportionMapping,
     CohesionMapping,
     ConfigurationWarning,
+    FLOAT_TOL,
     PreferenceMapping,
     UNSET_VALUE,
     _first_error_probability_row,
@@ -1044,12 +1045,21 @@ class BlocSlateConfig:
             )
 
         mask = _unset_mask(pref_values)
-        self.preference_df = self.preference_df.mask(mask, 0.0)
-        for cand_lst_proxy in self.slate_to_candidates.values():
+        normalized_df = self.preference_df.mask(mask, 0.0)
+        for slate_name, cand_lst_proxy in self.slate_to_candidates.items():
             cand_list = list(cand_lst_proxy)
-            self.preference_df[cand_list] = self.preference_df[cand_list].div(
-                self.preference_df[cand_list].sum(axis=1), axis=0
-            )
+            totals = normalized_df[cand_list].sum(axis=1)
+            zero_sum_blocs = totals.index[
+                np.isclose(totals.to_numpy(dtype=float), 0.0, atol=FLOAT_TOL)
+            ]
+            if len(zero_sum_blocs) > 0:
+                raise ValueError(
+                    f"preference_df row for bloc '{zero_sum_blocs[0]}' and slate "
+                    f"'{slate_name}' "
+                    "sums to 0 after replacing unset values with 0 and cannot be normalized."
+                )
+            normalized_df[cand_list] = normalized_df[cand_list].div(totals, axis=0)
+        self.preference_df = normalized_df
 
     def normalize_cohesion_df(self) -> None:
         """
@@ -1073,8 +1083,15 @@ class BlocSlateConfig:
             )
 
         mask = _unset_mask(cohesion_values)
-        self.cohesion_df = self.cohesion_df.mask(mask, 0.0)
-        self.cohesion_df = self.cohesion_df.div(self.cohesion_df.sum(axis=1), axis=0)
+        normalized_df = self.cohesion_df.mask(mask, 0.0)
+        totals = normalized_df.sum(axis=1)
+        zero_sum_blocs = totals.index[np.isclose(totals.to_numpy(dtype=float), 0.0, atol=FLOAT_TOL)]
+        if len(zero_sum_blocs) > 0:
+            raise ValueError(
+                f"cohesion_df row for bloc '{zero_sum_blocs[0]}' sums to 0 after "
+                "replacing unset values with 0 and cannot be normalized."
+            )
+        self.cohesion_df = normalized_df.div(totals, axis=0)
 
     def unset_candidate_preferences(self, candidates: Union[str, Sequence[str]]) -> None:
         """

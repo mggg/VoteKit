@@ -921,6 +921,20 @@ def test_normalize_cohesion_df_rejects_invalid_negative_values(valid_config):
         config.normalize_cohesion_df()
 
 
+def test_normalize_cohesion_df_rejects_zero_sum_row(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.cohesion_df.loc["bloc_1", :] = -1.0
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "cohesion_df row for bloc 'bloc_1' sums to 0 after replacing unset values "
+            "with 0 and cannot be normalized."
+        ),
+    ):
+        config.normalize_cohesion_df()
+
+
 def test_normalize_preference_intervals_sets_minus_one_to_zero_and_row_sums_by_slate(
     valid_config,
 ):
@@ -944,6 +958,20 @@ def test_normalize_preference_intervals_rejects_invalid_negative_values(valid_co
     with pytest.raises(
         ValueError,
         match="contains invalid negative values .*Use -1 to mark unset values",
+    ):
+        config.normalize_preference_intervals()
+
+
+def test_normalize_preference_intervals_rejects_zero_sum_slate_row(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.add_slate("slate_3", ["P", "Q"])
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "preference_df row for bloc 'bloc_1' and slate 'slate_3' sums to 0 after "
+            "replacing unset values with 0 and cannot be normalized."
+        ),
     ):
         config.normalize_preference_intervals()
 
