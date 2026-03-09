@@ -13,6 +13,7 @@ from .dominating_sets import DominatingSets
 from .condo_borda import CondoBorda
 from .plurality_veto import PluralityVeto
 from .plurality_veto import SerialVeto
+from .simultaneous_veto import SimultaneousVeto
 from .random_dictator import RandomDictator
 from .boosted_random_dictator import BoostedRandomDictator
 from .ranked_pairs import RankedPairs
@@ -33,6 +34,7 @@ __all__ = [
     "TopTwo",
     "PluralityVeto",
     "SerialVeto",
+    "SimultaneousVeto",
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
