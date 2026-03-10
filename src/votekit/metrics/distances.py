@@ -208,7 +208,7 @@ def __compute_bubble_sort_distance(
     tau, _ = kendalltau(ranking1_sort_idx, ranking2_sort_idx)
     full_ranking_count = len(full_ranking_set)
     t_value = (full_ranking_count * (full_ranking_count - 1)) / 2
-    return int(round(t_value * (1 - float(tau)) / 2))  # type: ignore[return-value]
+    return int(round(t_value * (1 - float(tau)) / 2))
 
 
 def compute_ranking_distance_on_ballot_graph(

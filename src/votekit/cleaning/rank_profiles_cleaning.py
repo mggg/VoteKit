@@ -99,11 +99,7 @@ def clean_rank_profile(
         assert profile.max_ranking_length is not None
         ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
-        mask = (
-            cleaned_df[ranking_cols]
-            .map(lambda x: x == frozenset({"~"}))  # type: ignore[operator]
-            .all(axis=1)
-        )
+        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
 
         cleaned_df = cleaned_df[~mask]
 

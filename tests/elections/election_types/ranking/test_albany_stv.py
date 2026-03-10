@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 from votekit.ballot import RankBallot
 from votekit.elections import ElectionState
@@ -8,7 +9,7 @@ from votekit.pref_profile import RankProfile
 BASE_DIR = Path(__file__).resolve().parents[3]
 CSV_DIR = BASE_DIR / "data/csv"
 
-albany_profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
+albany_profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
 
 # all of these states except the last come from the official tabulation:
 # https://alamedacountyca.gov/rovresults/rcv/248/rcvresults.htm?race=Albany%2F001-CityCouncil

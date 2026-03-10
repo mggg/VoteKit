@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
@@ -11,7 +12,9 @@ from votekit.pref_profile import RankProfile
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
-portland_profile = RankProfile.from_csv(CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv")
+portland_profile = cast(
+    RankProfile, RankProfile.from_csv(CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv")
+)
 
 ballot_list = (
     RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10),

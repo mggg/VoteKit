@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-import networkx as nx  # type: ignore
+import networkx as nx
 
 
 class Graph(ABC):

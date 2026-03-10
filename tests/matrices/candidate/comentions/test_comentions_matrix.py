@@ -1,13 +1,13 @@
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.matrices import comentions_matrix
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
-ballot_1 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
-ballot_2 = Ballot(ranking=(frozenset({"Peter"}), frozenset({"Moon"})))
-ballot_3 = Ballot(ranking=(frozenset({"Chris"}),))
-ballot_4 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
+ballot_1 = RankBallot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
+ballot_2 = RankBallot(ranking=(frozenset({"Peter"}), frozenset({"Moon"})))
+ballot_3 = RankBallot(ranking=(frozenset({"Chris"}),))
+ballot_4 = RankBallot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
 
-pref_profile = PreferenceProfile(
+pref_profile = RankProfile(
     ballots=tuple(
         [ballot_1 for _ in range(5)]
         + [ballot_2 for _ in range(2)]

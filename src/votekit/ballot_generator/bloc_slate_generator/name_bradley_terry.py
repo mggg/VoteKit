@@ -206,7 +206,11 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
         df.index.name = "Ballot Index"
         df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
         df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
+        df.insert(
+            len(df.columns),
+            "Voter Set",
+            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        )
         pp = RankProfile(
             candidates=config.candidates,
             df=df,
@@ -328,7 +332,7 @@ def _bradley_terry_mcmc(
     if verbose:
         print(f"The number of ballots after is {len(ballots)}")
 
-    pp = RankProfile(ballots=ballots)  # type: ignore
+    pp = RankProfile(ballots=ballots)
     return pp
 
 

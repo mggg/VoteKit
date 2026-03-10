@@ -1,20 +1,20 @@
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.cleaning import remove_cand_rank_profile
-from votekit.pref_profile import CleanedRankProfile, PreferenceProfile
+from votekit.pref_profile import CleanedRankProfile, RankProfile
 
-profile_no_ties = PreferenceProfile(
+profile_no_ties = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}], weight=1),
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+        RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
     ]
 )
 
-profile_with_ties = PreferenceProfile(
+profile_with_ties = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A", "B"}], weight=1),
-        Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-        Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        RankBallot(ranking=[{"A", "B"}], weight=1),
+        RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+        RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
     ]
 )
 
@@ -25,9 +25,9 @@ def test_remove_cand():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
     assert cleaned_profile.ballots == (
-        Ballot(ranking=[frozenset(), {"B"}], weight=1),
-        Ballot(ranking=[frozenset(), {"B"}, {"C"}], weight=1 / 2),
-        Ballot(ranking=[{"C"}, {"B"}, frozenset()], weight=3),
+        RankBallot(ranking=[frozenset(), {"B"}], weight=1),
+        RankBallot(ranking=[frozenset(), {"B"}, {"C"}], weight=1 / 2),
+        RankBallot(ranking=[{"C"}, {"B"}, frozenset()], weight=3),
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
@@ -44,9 +44,9 @@ def test_remove_mult_cands():
 
     assert set(cleaned_profile.group_ballots().ballots) == set(
         [
-            Ballot(ranking=[frozenset(), frozenset()], weight=1),
-            Ballot(ranking=[frozenset(), frozenset(), {"C"}], weight=1 / 2),
-            Ballot(ranking=[{"C"}, frozenset(), frozenset()], weight=3),
+            RankBallot(ranking=[frozenset(), frozenset()], weight=1),
+            RankBallot(ranking=[frozenset(), frozenset(), {"C"}], weight=1 / 2),
+            RankBallot(ranking=[{"C"}, frozenset(), frozenset()], weight=3),
         ]
     )
     assert cleaned_profile != profile_no_ties
@@ -64,9 +64,9 @@ def test_remove_cand_with_ties():
 
     assert set(cleaned_profile.group_ballots().ballots) == set(
         [
-            Ballot(ranking=[frozenset()], weight=1),
-            Ballot(ranking=[{"C"}], weight=1 / 2),
-            Ballot(ranking=[frozenset(), {"C"}, frozenset()], weight=3),
+            RankBallot(ranking=[frozenset()], weight=1),
+            RankBallot(ranking=[{"C"}], weight=1 / 2),
+            RankBallot(ranking=[frozenset(), {"C"}, frozenset()], weight=3),
         ]
     )
     assert cleaned_profile != profile_with_ties

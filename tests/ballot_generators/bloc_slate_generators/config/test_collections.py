@@ -35,7 +35,7 @@ def slate_map():
 
     parent = Parent()
     sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
-    parent._map = sm  # type: ignore[attr-defined]
+    parent._map = sm
     yield sm
 
 
@@ -66,9 +66,9 @@ def test_delitem_updates_via_setitem(slate_map):
 def test_insert_type_checks_and_dedup_within_slate(slate_map):
     p = slate_map["s1"]
     with pytest.raises(TypeError, match="Index must be an 'int'"):
-        p.insert("1", "Z")  # type: ignore[arg-type]
+        p.insert("1", "Z")
     with pytest.raises(TypeError, match="candidates must be a 'str'"):
-        p.insert(1, 5)  # type: ignore[arg-type]
+        p.insert(1, 5)
 
     before = slate_map["s1"]
     p.insert(0, "A")
@@ -155,7 +155,7 @@ def parent_and_map():
 
     parent = Parent()
     smap = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
-    parent._map = smap  # type: ignore[attr-defined]
+    parent._map = smap
     yield parent, smap
 
 
@@ -225,7 +225,7 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
 
     parent = Parent()
     sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
-    parent._map = sm  # type: ignore[attr-defined]
+    parent._map = sm
 
     before = sm.to_dict()["s1"].copy()
     with pytest.raises(KeyError, match="You may have tried to modify the candidate list directly"):
@@ -258,13 +258,13 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
 
     parent = Parent()
     sm = SlateCandMap(parent, {"s1": ["A", "B"]})  # type: ignore[arg-type]
-    parent._map = sm  # type: ignore[attr-defined]
+    parent._map = sm
 
     with pytest.raises(KeyError, match="You may have tried to modify the candidate list directly"):
         sm["s3"] = ["P", "Q"]  # add new slate; parent blows up
 
     # New key should have been removed
-    assert "s3" not in set(iter(sm))  # type: ignore[union-attr]
+    assert "s3" not in set(iter(sm))
     assert "s3" not in sm.to_dict()
 
 
@@ -275,7 +275,7 @@ def test_setitem_replaces_slate_and_coerces_to_str(sm):
 
 def test_setitem_rejects_non_str_key(sm):
     with pytest.raises(TypeError):
-        sm[1] = ["X"]  # type: ignore[index]
+        sm[1] = ["X"]
 
 
 def test_setitem_rejects_non_sequence_value(sm):
@@ -376,7 +376,7 @@ def _make_parent(silent: bool):
 def bp_silent_false():
     """BlocProportions with a live parent (silent=False)."""
     parent = _make_parent(silent=False)
-    bp = BlocProportions(parent, {"b1": 0.6, "b2": 0.4})  # type: ignore[arg-type]
+    bp = BlocProportions(parent, {"b1": 0.6, "b2": 0.4})
     # keep parent alive for the entire test via the generator frame
     yield bp
 
@@ -385,13 +385,13 @@ def bp_silent_false():
 def bp_silent_true():
     """BlocProportions with a live parent (silent=True)."""
     parent = _make_parent(silent=True)
-    bp = BlocProportions(parent, {"b1": 0.6, "b2": 0.4})  # type: ignore[arg-type]
+    bp = BlocProportions(parent, {"b1": 0.6, "b2": 0.4})
     yield bp
 
 
 def test_init_from_dict_valid_normalized_to_series_float():
     parent = _make_parent(False)
-    bp = BlocProportions(parent, {"b1": 0.3000000004, "b2": 0.699999996})  # type: ignore[arg-type]
+    bp = BlocProportions(parent, {"b1": 0.3000000004, "b2": 0.699999996})
     s = bp.to_series()
     assert s.dtype == float
     assert set(s.index) == {"b1", "b2"}
@@ -401,13 +401,13 @@ def test_init_from_dict_valid_normalized_to_series_float():
 def test_init_from_dict_sum_not_one_raises():
     parent = _make_parent(False)
     with pytest.raises(ValueError, match="sum to 1"):
-        BlocProportions(parent, {"b1": 0.2, "b2": 0.2})  # type: ignore[arg-type]
+        BlocProportions(parent, {"b1": 0.2, "b2": 0.2})
 
 
 def test_init_from_series_casts_to_float_and_accepts_numeric():
     parent = _make_parent(False)
     ser = pd.Series({"b1": 1, "b2": 0}, dtype="int64")
-    bp = BlocProportions(parent, ser)  # type: ignore[arg-type]
+    bp = BlocProportions(parent, ser)
     out = bp.to_series()
     assert out.dtype == float
     pd.testing.assert_series_equal(out, ser.astype(float))
@@ -417,7 +417,7 @@ def test_init_from_series_rejects_nonfinite():
     parent = _make_parent(False)
     ser = pd.Series({"b1": np.nan, "b2": 1.0}, dtype=float)
     with pytest.raises(ValueError, match="non-finite"):
-        BlocProportions(parent, ser)  # type: ignore[arg-type]
+        BlocProportions(parent, ser)
 
 
 def test_len_iter_getitem(bp_silent_false):
@@ -442,15 +442,15 @@ def test_setitem_key_type_and_value_finiteness_errors():
     with pytest.raises(TypeError, match="Bloc keys must be a 'str'"):
         _ = BlocProportions(parent, {1: 0.5, "b2": 0.5})  # type: ignore[index]
     with pytest.raises(TypeError, match="finite real"):
-        _ = BlocProportions(parent, {"b1": float("inf"), "b2": 0.0})  # type: ignore[index]
+        _ = BlocProportions(parent, {"b1": float("inf"), "b2": 0.0})
     with pytest.raises(TypeError, match="finite real"):
-        _ = BlocProportions(parent, {"b1": True, "b2": 1.0})  # type: ignore[index]
+        _ = BlocProportions(parent, {"b1": True, "b2": 1.0})
 
 
 def test_setitem_negative_triggers_validate_error():
     parent = _make_parent(silent=False)
     with pytest.raises(ValueError, match="non-negative"):
-        _ = BlocProportions(parent, {"b1": -0.1, "b2": 1.1})  # type: ignore[index]
+        _ = BlocProportions(parent, {"b1": -0.1, "b2": 1.1})
 
 
 def test_delitem_updates_and_warns_on_sum_change_when_silent_false(bp_silent_false):

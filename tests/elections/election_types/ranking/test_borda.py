@@ -1,35 +1,38 @@
+from typing import cast
+
 import pandas as pd
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.elections import Borda, ElectionState
 from votekit.pref_profile import (
-    PreferenceProfile,
     ProfileError,
+    RankProfile,
+    ScoreProfile,
 )
 
-profile_no_tied_borda = PreferenceProfile(
+profile_no_tied_borda = RankProfile(
     ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"})),
     ],
     max_ranking_length=3,
 )
 # 8, 6, 4
 # 3, 2, 1
 
-profile_no_tied_borda_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)],
+profile_no_tied_borda_round_1 = RankProfile(
+    ballots=[RankBallot(ranking=({"C"},), weight=3)],
     max_ranking_length=3,
 )
 
-profile_with_tied_borda = PreferenceProfile(
+profile_with_tied_borda = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}]),
-        Ballot(ranking=[{"A"}, {"C"}, {"B"}, {"D"}]),
-        Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}]),
-        Ballot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}]),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}]),
+        RankBallot(ranking=[{"A"}, {"C"}, {"B"}, {"D"}]),
+        RankBallot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}]),
+        RankBallot(ranking=[{"A"}, {"C"}, {"D"}, {"B"}]),
     ],
     max_ranking_length=4,
 )
@@ -155,4 +158,4 @@ def test_errors():
         Borda(profile_with_tied_borda, m=2)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        Borda(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        Borda(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

@@ -55,9 +55,13 @@ def test_init():
 
 
 def test_parents():
+    assert isinstance(clean_1, CleanedScoreProfile)
+    assert isinstance(clean_2, CleanedScoreProfile)
+    parent_profile = clean_2.parent_profile
+    assert isinstance(parent_profile, CleanedScoreProfile)
     assert clean_2.parent_profile == clean_1
     assert clean_1.parent_profile == profile
-    assert clean_2.parent_profile.parent_profile == profile
+    assert parent_profile.parent_profile == profile
 
 
 def test_reindexing_df():

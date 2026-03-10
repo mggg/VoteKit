@@ -1,3 +1,5 @@
+from typing import cast
+
 import pandas as pd
 import pytest
 
@@ -149,7 +151,7 @@ def test_validate_profile():
 
     with pytest.raises(TypeError, match="must be of type ScoreBallot"):
         profile = RankProfile(ballots=[RankBallot(ranking=({"A"},))])
-        Approval(profile, m=1)
+        Approval(cast(ScoreProfile, profile), m=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
         profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1})])

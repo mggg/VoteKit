@@ -1,10 +1,11 @@
+from collections.abc import Callable, Mapping
 from functools import partial
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, TypeVar, Union
 
 from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
-from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -13,10 +14,13 @@ from votekit.utils import (
     mentions,
 )
 
+ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
+PlotLabel = str | int
+
 
 def _create_data_dict(
-    profile_dict: dict[str, RankProfile | ScoreProfile],
-    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
+    profile_dict: Mapping[str, ProfileT],
+    stat_function: Callable[[ProfileT], dict[str, float]],
 ) -> dict[str, dict[str, float]]:
     """
     Create the correctly formatted dict to pass to ``multi_bar_plot``. Ensures each
@@ -40,17 +44,17 @@ def _create_data_dict(
 
 
 def multi_profile_bar_plot(
-    profile_dict: dict[str, RankProfile | ScoreProfile],
-    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
+    profile_dict: Mapping[str, ProfileT],
+    stat_function: Callable[[ProfileT], dict[str, float]],
     normalize: bool = False,
-    profile_colors: Optional[dict[str, str]] = None,
+    profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
     category_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    categories_legend: Optional[dict[str, str]] = None,
+    categories_legend: Optional[Mapping[str, PlotLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
@@ -140,17 +144,17 @@ def multi_profile_bar_plot(
 
 
 def multi_profile_borda_plot(
-    profile_dict: dict[str, RankProfile],
+    profile_dict: Mapping[str, RankProfile],
     borda_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_colors: Optional[dict[str, str]] = None,
+    profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -206,7 +210,7 @@ def multi_profile_borda_plot(
     """
 
     stat_function = partial(borda_scores, **borda_kwds) if borda_kwds else borda_scores
-    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
+    data_dict = _create_data_dict(profile_dict, stat_function)
 
     if candidate_ordering is None:
         candidate_ordering = sorted(
@@ -254,17 +258,17 @@ def multi_profile_borda_plot(
 
 
 def multi_profile_mentions_plot(
-    profile_dict: dict[str, RankProfile],
+    profile_dict: Mapping[str, RankProfile],
     mentions_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_colors: Optional[dict[str, str]] = None,
+    profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -319,7 +323,7 @@ def multi_profile_mentions_plot(
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
     stat_function = partial(mentions, **mentions_kwds) if mentions_kwds else mentions
-    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
+    data_dict = _create_data_dict(profile_dict, stat_function)
 
     if candidate_ordering is None:
         candidate_ordering = sorted(
@@ -367,17 +371,17 @@ def multi_profile_mentions_plot(
 
 
 def multi_profile_fpv_plot(
-    profile_dict: dict[str, RankProfile],
+    profile_dict: Mapping[str, RankProfile],
     fpv_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_colors: Optional[dict[str, str]] = None,
+    profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
     candidate_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -432,7 +436,7 @@ def multi_profile_fpv_plot(
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
     stat_function = partial(first_place_votes, **fpv_kwds) if fpv_kwds else first_place_votes
-    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
+    data_dict = _create_data_dict(profile_dict, stat_function)
 
     if candidate_ordering is None:
         candidate_ordering = sorted(
@@ -480,17 +484,17 @@ def multi_profile_fpv_plot(
 
 
 def multi_profile_ballot_lengths_plot(
-    profile_dict: dict[str, RankProfile],
+    profile_dict: Mapping[str, RankProfile],
     ballot_lengths_kwds: Optional[dict[str, Any]] = None,
     normalize: bool = False,
-    profile_colors: Optional[dict[str, str]] = None,
+    profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
-    lengths_ordering: Optional[list[str]] = None,
+    lengths_ordering: Optional[list[str | int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    lengths_legend: Optional[dict[str, str]] = None,
+    lengths_legend: Optional[Mapping[str | int, PlotLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
@@ -544,14 +548,24 @@ def multi_profile_ballot_lengths_plot(
     stat_function = (
         partial(ballot_lengths, **ballot_lengths_kwds) if ballot_lengths_kwds else ballot_lengths
     )
-    data_dict = _create_data_dict(profile_dict, stat_function)  # type: ignore[arg-type]
+    raw_data_dict = {label: stat_function(profile) for label, profile in profile_dict.items()}
+    data_dict = add_null_keys(
+        {
+            label: {str(length): count for length, count in score_dict.items()}
+            for label, score_dict in raw_data_dict.items()
+        }
+    )
+    plot_lengths_legend = (
+        {str(length): label for length, label in lengths_legend.items()}
+        if lengths_legend is not None
+        else None
+    )
 
-    if lengths_ordering is None:
-        lengths_ordering = sorted(
-            next(iter(data_dict.values())).keys(),
-            reverse=False,
-            key=lambda x: x,
-        )
+    plot_lengths_ordering = (
+        [str(length) for length in lengths_ordering]
+        if lengths_ordering is not None
+        else sorted(next(iter(data_dict.values())).keys(), reverse=False, key=lambda x: int(x))
+    )
 
     try:
         ax = multi_bar_plot(
@@ -559,12 +573,12 @@ def multi_profile_ballot_lengths_plot(
             normalize=normalize,
             data_set_colors=profile_colors,
             bar_width=bar_width,
-            category_ordering=lengths_ordering,
+            category_ordering=plot_lengths_ordering,
             x_axis_name=x_axis_name,
             y_axis_name=y_axis_name,
             title=title,
             show_data_set_legend=show_profile_legend,
-            categories_legend=lengths_legend,
+            categories_legend=plot_lengths_legend,
             threshold_values=threshold_values,
             threshold_kwds=threshold_kwds,
             legend_font_size=legend_font_size,

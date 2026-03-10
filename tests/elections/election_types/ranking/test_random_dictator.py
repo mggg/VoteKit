@@ -5,11 +5,9 @@ import numpy as np
 import pytest
 from joblib import Parallel, delayed
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.elections import RandomDictator
-from votekit.pref_profile import (
-    PreferenceProfile,
-)
+from votekit.pref_profile import RankProfile
 from votekit.utils import first_place_votes
 
 
@@ -21,7 +19,7 @@ def run_election_once(test_profile):
 
 def test_random_dictator_error():
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        RandomDictator(PreferenceProfile(), m=1)
+        RandomDictator(RankProfile(), m=1)
 
 
 @pytest.mark.slow
@@ -31,11 +29,11 @@ def test_random_dictator_simple():
 
     candidates = ["A", "B", "C"]
     ballots = [
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
-        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        RankBallot(ranking=[{"B"}, {"A"}, {"C"}]),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}]),
     ]
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     winner_counts = {c: 0 for c in candidates}
     trials = 600
@@ -46,7 +44,7 @@ def test_random_dictator_simple():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
+    winner_counts = {c: results.count(c) for c in candidates}
 
     # check to make sure that the fraction of wins matches the true probability
     assert np.allclose(3 / 5, winner_counts["A"] / trials, atol=5e-2)
@@ -69,12 +67,12 @@ def test_random_dictator_4_candidates_without_ties():
 
     ballots = list(
         map(
-            lambda x: Ballot(ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1),
+            lambda x: RankBallot(ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1),
             powerset,
         )
     )
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     fpv = first_place_votes(test_profile)
     tot_fpv = sum(fpv.values())
@@ -88,7 +86,7 @@ def test_random_dictator_4_candidates_without_ties():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
+    winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)
@@ -108,9 +106,9 @@ def test_random_dictator_4_candidates_with_ties():
         )
     )
 
-    ballots = list(map(lambda x: Ballot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset))
+    ballots = list(map(lambda x: RankBallot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset))
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
 
     trials = 750
 
@@ -124,7 +122,7 @@ def test_random_dictator_4_candidates_with_ties():
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
+    winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)
@@ -144,9 +142,9 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:
-            ballots[i] = Ballot(ranking=ballot.ranking, weight=500)
+            ballots[i] = RankBallot(ranking=ballot.ranking, weight=500)
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -158,7 +156,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
         delayed(run_election_once)(test_profile) for _ in range(trials)
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
+    winner_counts = {c: results.count(c) for c in candidates}
 
     assert np.allclose(float(fpv["A"]), winner_counts["A"] / trials, atol=5e-2)
     assert np.allclose(float(fpv["B"]), winner_counts["B"] / trials, atol=5e-2)

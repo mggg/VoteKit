@@ -8,7 +8,7 @@ import warnings
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Self, Sequence, Tuple, Union, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -85,6 +85,39 @@ class PreferenceProfile:
     """
 
     _is_frozen: bool = False
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[RankBallot],
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> RankProfile: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[ScoreBallot],
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> ScoreProfile: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[Ballot] = tuple(),
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> PreferenceProfile: ...
 
     def __new__(
         cls,
@@ -245,6 +278,13 @@ class PreferenceProfile:
 
     __repr__ = __str__
 
+    def group_ballots(self) -> Self:
+        raise NotImplementedError
+
+    @property
+    def ballots(self) -> tuple[Ballot, ...]:
+        raise NotImplementedError
+
     def to_pickle(self, fpath: Union[str, PathLike, Path]):
         """
         Saves profile to pickle file.
@@ -280,11 +320,12 @@ class PreferenceProfile:
 
 
 class RankProfile(PreferenceProfile):
+    max_ranking_length: int
 
     def __init__(
         self,
         *,
-        ballots: Sequence[RankBallot] = tuple(),
+        ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[str] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
@@ -296,7 +337,7 @@ class RankProfile(PreferenceProfile):
             (
                 self.df,
                 self.candidates_cast,
-            ) = self._init_from_rank_ballots(ballots)
+            ) = self._init_from_rank_ballots(cast(Sequence[RankBallot], ballots))
             if self.candidates == tuple():
                 self.candidates = self.candidates_cast
 
@@ -648,10 +689,18 @@ class RankProfile(PreferenceProfile):
 
         if self.max_ranking_length < max_ranking_length:
             for i in range(self.max_ranking_length, max_ranking_length):
-                df_1[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_1)
+                df_1.insert(
+                    len(df_1.columns),
+                    f"Ranking_{i + 1}",
+                    pd.Series([frozenset("~")] * len(df_1), dtype=object, index=df_1.index),
+                )
         if other.max_ranking_length < max_ranking_length:
             for i in range(other.max_ranking_length, max_ranking_length):
-                df_2[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_2)
+                df_2.insert(
+                    len(df_2.columns),
+                    f"Ranking_{i + 1}",
+                    pd.Series([frozenset("~")] * len(df_2), dtype=object, index=df_2.index),
+                )
 
         new_df = pd.concat([df_1, df_2], ignore_index=True)
         new_df.index.name = "Ballot Index"
@@ -915,7 +964,7 @@ class ScoreProfile(PreferenceProfile):
     def __init__(
         self,
         *,
-        ballots: Sequence[ScoreBallot] = tuple(),
+        ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[str] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
@@ -926,7 +975,7 @@ class ScoreProfile(PreferenceProfile):
             (
                 self.df,
                 self.candidates_cast,
-            ) = self._init_from_score_ballots(ballots)
+            ) = self._init_from_score_ballots(cast(Sequence[ScoreBallot], ballots))
 
             if self.candidates == tuple():
                 self.candidates = self.candidates_cast

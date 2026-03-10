@@ -61,7 +61,11 @@ def onedim_spacial_profile_generator(
     df.index.name = "Ballot Index"
     df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
-    df["Voter Set"] = [frozenset()] * len(df)
+    df.insert(
+        len(df.columns),
+        "Voter Set",
+        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+    )
     return RankProfile(
         candidates=candidates,
         df=df,
@@ -172,7 +176,11 @@ def spacial_profile_and_positions_generator(
     df.index.name = "Ballot Index"
     df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
-    df["Voter Set"] = [frozenset()] * len(df)
+    df.insert(
+        len(df.columns),
+        "Voter Set",
+        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+    )
     return (
         RankProfile(
             candidates=candidates,
@@ -249,7 +257,8 @@ def clustered_spacial_profile_and_positions_generator(
         else:
             voter_dist_kwargs = {}
 
-    if voter_dist.__name__ not in ["normal", "laplace", "logistic", "gumbel"]:
+    voter_dist_name = getattr(voter_dist, "__name__", None)
+    if voter_dist_name not in ["normal", "laplace", "logistic", "gumbel"]:
         raise ValueError("Input voter distribution not supported.")
 
     try:
@@ -285,8 +294,8 @@ def clustered_spacial_profile_and_positions_generator(
     n_voters = sum(number_of_ballots.values())
     voter_positions = [np.zeros(2) for _ in range(n_voters)]
     vidx = 0
-    for c, c_position in candidate_position_dict.items():  # type: ignore
-        for _ in range(number_of_ballots[c]):  # type: ignore
+    for c, c_position in candidate_position_dict.items():
+        for _ in range(number_of_ballots[c]):
             voter_dist_kwargs["loc"] = c_position
             voter_positions[vidx] = voter_dist(**voter_dist_kwargs)
             vidx += 1
@@ -310,7 +319,11 @@ def clustered_spacial_profile_and_positions_generator(
     df.index.name = "Ballot Index"
     df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
-    df["Voter Set"] = [frozenset()] * len(df)
+    df.insert(
+        len(df.columns),
+        "Voter Set",
+        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+    )
     return (
         RankProfile(
             candidates=candidates,

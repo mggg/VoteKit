@@ -31,7 +31,7 @@ def _convert_ranking_cols_to_ranking(
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking_cols_idxs = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
+    ranking_cols_idxs = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
@@ -117,7 +117,7 @@ def _df_to_rank_ballot_tuple(
         return tuple()
 
     return tuple(
-        df.apply(  # type: ignore[call-overload]
+        df.apply(
             partial(
                 convert_row_to_rank_ballot,
                 max_ranking_length=max_ranking_length,
@@ -232,7 +232,7 @@ def rank_profile_to_ranking_dict(
 
 def score_profile_to_scores_dict(
     score_profile: ScoreProfile, standardize: bool = False
-) -> dict[tuple[str, float], float]:
+) -> dict[tuple[tuple[str, float], ...] | None, float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
@@ -243,7 +243,7 @@ def score_profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[str, float], float]:
+        dict[tuple[tuple[str, float], ...] | None, float]:
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:
@@ -255,7 +255,7 @@ def score_profile_to_scores_dict(
         raise TypeError(("Profile must be a ScoreProfile."))
 
     tot_weight = score_profile.total_ballot_wt
-    di: dict = {}
+    di: dict[tuple[tuple[str, float], ...] | None, float] = {}
     for ballot in score_profile.ballots:
         scores = tuple(ballot.scores.items()) if ballot.scores else None
         weight = ballot.weight

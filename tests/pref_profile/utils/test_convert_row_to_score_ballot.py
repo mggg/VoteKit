@@ -15,7 +15,7 @@ def test_convert_row_to_score_ballot():
                 "CD": pd.NA,
             }
         ),
-        candidates=["A", "B", "CD"],
+        candidates=("A", "B", "CD"),
     )
 
     assert isinstance(b, ScoreBallot)
@@ -33,7 +33,7 @@ def test_convert_row_to_score_ballot():
                 "CD": pd.NA,
             }
         ),
-        candidates=["A", "B", "CD"],
+        candidates=("A", "B", "CD"),
     )
 
     assert isinstance(b, ScoreBallot)

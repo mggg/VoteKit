@@ -195,7 +195,13 @@ def __format_df(
     if id_col is not None:
         renamed_columns.update({id_col: "Voter Set"})
     else:
-        mutated_df["Voter Set"] = [set() for _ in range(len(mutated_df))]
+        mutated_df.insert(
+            len(mutated_df.columns),
+            "Voter Set",
+            pd.Series(
+                [set() for _ in range(len(mutated_df))], dtype=object, index=mutated_df.index
+            ),
+        )
 
     mutated_df.rename(columns=renamed_columns, inplace=True)
     mutated_df.index.name = "Ballot Index"

@@ -1,3 +1,5 @@
+from typing import Literal, cast
+
 import pandas as pd
 import pytest
 
@@ -297,7 +299,10 @@ def test_get_status_df():
 
 def test_errors():
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        IRV(RankProfile(ballots=(RankBallot(ranking=({"A"},)),)), quota="Drip")
+        IRV(
+            RankProfile(ballots=(RankBallot(ranking=({"A"},)),)),
+            quota=cast(Literal["droop", "hare"] | None, "Drip"),
+        )
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        IRV(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
+        IRV(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

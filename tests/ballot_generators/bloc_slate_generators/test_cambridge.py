@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
@@ -17,7 +18,12 @@ from votekit.pref_profile import RankProfile
 PROB_THRESHOLD = 0.01
 
 
-def hash_json(file_path: str):
+def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[str], ...]:
+    assert ballot.ranking is not None
+    return ballot.ranking
+
+
+def hash_json(file_path: str | Path):
     """
     Hash a JSON file. Used to ensures that the keys and values of the JSON file are the same
     across versions.
@@ -246,10 +252,11 @@ def test_Cambridge_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
         slate_ballot_counts = {}
 
         for ballot in profile.ballots:
-            if any(len(cand_set) > 1 for cand_set in ballot.ranking):
-                raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
+            ranking = ballot_ranking(ballot)
+            if any(len(cand_set) > 1 for cand_set in ranking):
+                raise ValueError(f"Tie occurred in ballot {ranking}")
             slate_ballot_type = "".join(
-                [cand_to_slate_dict[cand] for cand_set in ballot.ranking for cand in cand_set]
+                [cand_to_slate_dict[cand] for cand_set in ranking for cand in cand_set]
             )
             slate_ballot_counts[slate_ballot_type] = (
                 slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -284,7 +291,10 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
             comparisons_profile = Counter(
                 [
                     tuple(
-                        cand for cand_set in ballot.ranking for cand in cand_set if cand[0] == slate
+                        cand
+                        for cand_set in ballot_ranking(ballot)
+                        for cand in cand_set
+                        if cand[0] == slate
                     )
                     for ballot in profile.ballots
                     for _ in range(int(ballot.weight))
@@ -330,4 +340,4 @@ def test_cambridge_zero_support_slates():
     profile_dict = cambridge_profiles_by_bloc_generator(config)
     profile = profile_dict["A"]
 
-    assert all("A" in list(b.ranking[0])[0] for b in profile.ballots)
+    assert all("A" in list(ballot_ranking(ballot)[0])[0] for ballot in profile.ballots)

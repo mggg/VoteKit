@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -18,4 +20,4 @@ def test_errors():
         remove_repeat_cands_rank_ballot(RankBallot())
 
     with pytest.raises(TypeError, match="Ballot must be of type RankBallot."):
-        remove_repeat_cands_rank_ballot(ScoreBallot())
+        remove_repeat_cands_rank_ballot(cast(RankBallot, ScoreBallot()))

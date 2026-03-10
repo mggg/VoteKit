@@ -1,3 +1,5 @@
+from typing import Callable, cast
+
 import numpy as np
 import pytest
 
@@ -48,7 +50,7 @@ def test_spatial_generator():
             voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
             candidate_dist_kwargs=normal_params,
-            distance=bad_dist,
+            distance=cast(Callable[[np.ndarray, np.ndarray], float], bad_dist),
         )
 
 
@@ -62,7 +64,7 @@ def test_clustered_spatial_generator():
 
     with pytest.raises(TypeError, match="Invalid kwargs for the voter distribution."):
         clustered_spacial_profile_and_positions_generator(
-            number_of_ballots=1,
+            number_of_ballots=cast(dict[str, int], 1),
             candidates=candidates,
             voter_dist=np.random.normal,
             voter_dist_kwargs=uniform_params,
@@ -72,7 +74,7 @@ def test_clustered_spatial_generator():
 
     with pytest.raises(TypeError, match="Invalid kwargs for the candidate distribution."):
         clustered_spacial_profile_and_positions_generator(
-            number_of_ballots=1,
+            number_of_ballots=cast(dict[str, int], 1),
             candidates=candidates,
             voter_dist=np.random.normal,
             voter_dist_kwargs=normal_params,
@@ -85,18 +87,18 @@ def test_clustered_spatial_generator():
         match="Distance function is invalid or " "incompatible with voter/candidate distributions.",
     ):
         clustered_spacial_profile_and_positions_generator(
-            number_of_ballots=1,
+            number_of_ballots=cast(dict[str, int], 1),
             candidates=candidates,
             voter_dist=np.random.normal,
             voter_dist_kwargs=normal_params,
             candidate_dist=np.random.normal,
             candidate_dist_kwargs=normal_params,
-            distance=bad_dist,
+            distance=cast(Callable[[np.ndarray, np.ndarray], float], bad_dist),
         )
 
     with pytest.raises(ValueError, match="Input voter distribution not supported."):
         clustered_spacial_profile_and_positions_generator(
-            number_of_ballots=1,
+            number_of_ballots=cast(dict[str, int], 1),
             candidates=candidates,
             voter_dist=np.random.uniform,
             voter_dist_kwargs=normal_params,

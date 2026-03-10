@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from numbers import Real
-from typing import Iterable, Optional, Sequence, TypeAlias, Union
+from typing import Iterable, Optional, Sequence, TypeAlias, Union, overload
 
 Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
 RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
@@ -42,6 +44,36 @@ class Ballot:
         "scores",
         "_frozen",
     ]
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: Sequence[Iterable[str]],
+        scores: None = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> RankBallot: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: None = None,
+        scores: dict[str, Union[int, float]],
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> ScoreBallot: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: Optional[Sequence[Iterable[str]]] = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> Ballot: ...
 
     def __new__(
         cls,
@@ -139,9 +171,12 @@ class RankBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
+        if scores is not None:
+            raise TypeError("Only one of ranking or scores can be provided.")
         self._validate_ranking_candidates(ranking)
         self.ranking = self._strip_whitespace_ranking_candidates(ranking)
         super().__init__(weight=weight, voter_set=voter_set)
@@ -217,10 +252,13 @@ class ScoreBallot(Ballot):
     def __init__(
         self,
         *,
+        ranking: RankingLike = None,
         scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
+        if ranking is not None:
+            raise TypeError("Only one of ranking or scores can be provided.")
         self._validate_scores_candidates(scores)
         self.scores = self._convert_scores_to_float_strip_whitespace(scores)
 

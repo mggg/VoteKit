@@ -1,13 +1,13 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional, cast
 
 import numpy as np
 import pytest
 from PIL import Image
 
-from votekit import Ballot, PreferenceProfile
+from votekit import RankBallot, RankProfile
 from votekit.animations import LIGHT_PALETTE, STVAnimation
 from votekit.elections import STV
 
@@ -28,15 +28,15 @@ def election_happy():
     Burger         Elected      6
     Orange       Remaining      6
     """
-    profile_happy = PreferenceProfile(
+    profile_happy = RankProfile(
         ballots=(
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-            Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3),
+            RankBallot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ),
         max_ranking_length=3,
     )
@@ -53,13 +53,13 @@ def election_multi():
     Pear          Elected      1
     Strawberry  Remaining      1
     """
-    profile_multi = PreferenceProfile(
+    profile_multi = RankProfile(
         ballots=(
-            Ballot(ranking=({"Orange"}, {"Strawberry"}), weight=12),
-            Ballot(ranking=({"Orange"},), weight=14),
-            Ballot(ranking=({"Pear"}, {"Strawberry"}), weight=12),
-            Ballot(ranking=({"Pear"},), weight=11),
-            Ballot(ranking=({"Strawberry"},), weight=11),
+            RankBallot(ranking=({"Orange"}, {"Strawberry"}), weight=12),
+            RankBallot(ranking=({"Orange"},), weight=14),
+            RankBallot(ranking=({"Pear"}, {"Strawberry"}), weight=12),
+            RankBallot(ranking=({"Pear"},), weight=11),
+            RankBallot(ranking=({"Strawberry"},), weight=11),
         ),
     )
     return STV(profile_multi, m=2)
@@ -79,7 +79,12 @@ def test_STVAnimation_init(election_happy):
 def test_STVAnimation_focus_bad_literal(election_happy):
     """Passing an unrecognized string literal for focus raises TypeError."""
     with pytest.raises(TypeError, match="was not a recognized literal for focus"):
-        STVAnimation(election_happy, focus="nonexistent_option")
+        STVAnimation(
+            election_happy,
+            focus=cast(
+                set[str] | list[str] | Literal["winners", "viable", "all"], "nonexistent_option"
+            ),
+        )
 
 
 def test_STVAnimation_focus_invalid_names(election_happy):
@@ -219,7 +224,7 @@ def run_animation_snapshot_test(
     if not existing_baselines:
         for frame_file in sorted(frames_dir.glob("frame_*.png")):
             shutil.copy(frame_file, baseline_dir / frame_file.name)
-        pytest.fail(
+        raise AssertionError(
             f"Baseline images did not exist. Created {len(timestamps)} baseline images "
             f"in {baseline_dir}. Re-run the test to verify."
         )

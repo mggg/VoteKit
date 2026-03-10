@@ -1,4 +1,4 @@
-import urllib
+from urllib.error import URLError
 
 import pytest
 
@@ -37,5 +37,5 @@ def test_pkl_url():
 
     assert isinstance(profile, ScoreProfile)
 
-    with pytest.raises(urllib.error.URLError):
+    with pytest.raises(URLError):
         ScoreProfile.from_pickle("https://www.fail.com")

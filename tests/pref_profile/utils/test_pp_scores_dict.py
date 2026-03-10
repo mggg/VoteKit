@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -28,4 +30,4 @@ def test_scores_dict_error():
         TypeError,
         match=("Profile must be a ScoreProfile"),
     ):
-        score_profile_to_scores_dict(profile)
+        score_profile_to_scores_dict(cast(ScoreProfile, profile))

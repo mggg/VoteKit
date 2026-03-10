@@ -32,7 +32,7 @@ def test_NPL_completion():
 
     profile_dict = name_pl_profiles_by_bloc_generator(config)
     assert isinstance(profile_dict, dict)
-    assert (type(profile_dict["W"])) is RankProfile  # type: ignore
+    assert (type(profile_dict["W"])) is RankProfile
 
 
 def test_NPL_distribution(do_ballot_probs_match_ballot_dist_rank_profile):

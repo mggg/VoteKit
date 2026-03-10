@@ -1,9 +1,9 @@
 from typing import Callable, Dict, Optional
 
-import matplotlib.pyplot as plt  # type: ignore
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from sklearn import manifold  # type: ignore
+from sklearn import manifold
 
 from votekit.pref_profile import PreferenceProfile
 

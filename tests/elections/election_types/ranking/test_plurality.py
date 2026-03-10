@@ -1,33 +1,36 @@
+from typing import cast
+
 import pandas as pd
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.elections import SNTV, ElectionState, Plurality
 from votekit.pref_profile import (
-    PreferenceProfile,
     ProfileError,
+    RankProfile,
+    ScoreProfile,
 )
 
-profile_no_tied_fpv = PreferenceProfile(
+profile_no_tied_fpv = RankProfile(
     ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"})),
     ],
     max_ranking_length=3,
 )
 
-profile_no_tied_fpv_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"C"},), weight=3)],
+profile_no_tied_fpv_round_1 = RankProfile(
+    ballots=[RankBallot(ranking=({"C"},), weight=3)],
     max_ranking_length=3,
 )
 
-profile_with_tied_fpv = PreferenceProfile(
+profile_with_tied_fpv = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=4),
-        Ballot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}, {"E"}], weight=3),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}, {"D"}, {"E"}], weight=2),
-        Ballot(ranking=[{"D"}, {"B"}, {"C"}, {"A"}, {"E"}], weight=2),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}, {"E"}], weight=4),
+        RankBallot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}, {"E"}], weight=3),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}, {"D"}, {"E"}], weight=2),
+        RankBallot(ranking=[{"D"}, {"B"}, {"C"}, {"A"}, {"E"}], weight=2),
     ],
     max_ranking_length=5,
 )
@@ -146,7 +149,7 @@ def test_errors():
         Plurality(profile_with_tied_fpv, m=3)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        Plurality(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        Plurality(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
 
 
 def test_SNTV_Wrapper():

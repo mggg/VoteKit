@@ -157,15 +157,11 @@ def test_typecheck_cohesion_mapping_nested_dict_happy_and_errors():
     with pytest.raises(TypeError, match="must be a mapping"):
         typecheck_cohesion_mapping(
             {"b1": ["s1", 0.5]}  # type: ignore[dict-item]
-        )  # inner not mapping  # type: ignore[dict-item]
+        )  # inner not mapping
     with pytest.raises(TypeError, match="Bloc keys must be a 'str'"):
-        typecheck_cohesion_mapping(
-            {1: {"s1": 0.5}}  # type: ignore[dict-item]
-        )  # bloc key not str  # type: ignore[dict-item]
+        typecheck_cohesion_mapping({1: {"s1": 0.5}})  # type: ignore[dict-item]  # bloc key not str
     with pytest.raises(TypeError, match="slate keys must be a 'str'"):
-        typecheck_cohesion_mapping(
-            {"b1": {1: 0.5}}  # type: ignore[dict-item]
-        )  # slate key not str  # type: ignore[dict-item]
+        typecheck_cohesion_mapping({"b1": {1: 0.5}})  # type: ignore[dict-item]  # slate key not str
     with pytest.raises(TypeError, match="must be a finite real"):
         typecheck_cohesion_mapping({"b1": {"s1": float("inf")}})  # non-finite
 
@@ -247,21 +243,17 @@ def test_typecheck_preference_mapping_happy_and_errors():
     with pytest.raises(TypeError):
         typecheck_preference(3.14)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        typecheck_preference(
-            {1: {"slate1": {"A": 1.0}}}  # type: ignore[dict-item]
-        )  # bloc not str  # type: ignore[dict-item]
+        typecheck_preference({1: {"slate1": {"A": 1.0}}})  # type: ignore[dict-item]  # bloc not str
     with pytest.raises(TypeError):
         typecheck_preference(
             {"bloc": [("slate1", {"A": 1.0})]}  # type: ignore[dict-item]
-        )  # inner not mapping  # type: ignore[dict-item]
+        )  # inner not mapping
     with pytest.raises(TypeError):
-        typecheck_preference(
-            {"bloc": {1: {"A": 1.0}}}  # type: ignore[dict-item]
-        )  # slate not str  # type: ignore[dict-item]
+        typecheck_preference({"bloc": {1: {"A": 1.0}}})  # type: ignore[dict-item]  # slate not str
     with pytest.raises(TypeError):
         typecheck_preference(
             {"bloc": {"slate": {1: 1.0}}}  # type: ignore[dict-item]
-        )  # candidate name not str  # type: ignore[dict-item]
+        )  # candidate name not str
     with pytest.raises(TypeError):
         typecheck_preference({"bloc": {"slate": {"A": float("inf")}}})  # non-finite
 

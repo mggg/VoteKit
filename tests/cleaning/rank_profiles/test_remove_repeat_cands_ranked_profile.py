@@ -1,19 +1,19 @@
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.cleaning import remove_repeat_cands_rank_profile
-from votekit.pref_profile import CleanedRankProfile, PreferenceProfile
+from votekit.pref_profile import CleanedRankProfile, RankProfile
 
 
 def test_remove_repeated_candidates():
-    ballot = Ballot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)
+    ballot = RankBallot(ranking=[{"A"}, {"A"}, {"B"}, {"C"}], weight=1)
     ballot_tuple = (ballot, ballot)
-    profile = PreferenceProfile(ballots=ballot_tuple)
+    profile = RankProfile(ballots=ballot_tuple)
     cleaned_profile = remove_repeat_cands_rank_profile(profile)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=2),
+        RankBallot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=2),
     )
 
     assert cleaned_profile != profile
@@ -24,12 +24,12 @@ def test_remove_repeated_candidates():
 
 
 def test_remove_repeated_candidates_ties():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(
+            RankBallot(
                 ranking=[{"C", "A"}, {"A", "C"}, {"B"}],
             ),
-            Ballot(
+            RankBallot(
                 ranking=[{"A", "C"}, {"C", "A"}, {"B"}],
             ),
         ]
@@ -40,7 +40,7 @@ def test_remove_repeated_candidates_ties():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.group_ballots().ballots == (
-        Ballot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=2),
+        RankBallot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=2),
     )
 
     assert cleaned_profile != profile

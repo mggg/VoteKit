@@ -5,6 +5,7 @@ from collections import Counter
 
 import pytest
 
+from votekit.ballot import RankBallot
 from votekit.ballot_generator import (
     BlocSlateConfig,
     slate_bt_profile_generator,
@@ -14,6 +15,11 @@ from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import RankProfile
 
 PROB_THRESHOLD = 0.01
+
+
+def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[str], ...]:
+    assert ballot.ranking is not None
+    return ballot.ranking
 
 
 def compute_sbt_slate_ballot_distribution(config: BlocSlateConfig, bloc: str):
@@ -147,10 +153,11 @@ def test_SBT_two_bloc_two_slate_distribution_matches_slate_ballot_dist(
         slate_ballot_counts = {}
 
         for ballot in profile.ballots:
-            if any(len(cand_set) > 1 for cand_set in ballot.ranking):
-                raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
+            ranking = ballot_ranking(ballot)
+            if any(len(cand_set) > 1 for cand_set in ranking):
+                raise ValueError(f"Tie occurred in ballot {ranking}")
             slate_ballot_type = tuple(
-                [cand_to_slate_dict[cand] for cand_set in ballot.ranking for cand in cand_set]
+                [cand_to_slate_dict[cand] for cand_set in ranking for cand in cand_set]
             )
             slate_ballot_counts[slate_ballot_type] = (
                 slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -176,13 +183,17 @@ def test_two_bloc_two_slate_sbt_distribution_matches_name_ballot_dist(
         profile = profiles_by_bloc[bloc]
 
         a_comparisons_profile = [
-            tuple(cand for cand_set in ballot.ranking for cand in cand_set if cand[0] == "A")
+            tuple(
+                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "A"
+            )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
         ]
 
         b_comparisons_profile = [
-            tuple(cand for cand_set in ballot.ranking for cand in cand_set if cand[0] == "B")
+            tuple(
+                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "B"
+            )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
         ]
@@ -220,10 +231,11 @@ def test_SBT_one_bloc_three_slate_distribution_matches_slate_ballot_dist(
     slate_ballot_counts = {}
 
     for ballot in profile.ballots:
-        if any(len(cand_set) > 1 for cand_set in ballot.ranking):
-            raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
+        ranking = ballot_ranking(ballot)
+        if any(len(cand_set) > 1 for cand_set in ranking):
+            raise ValueError(f"Tie occurred in ballot {ranking}")
         slate_ballot_type = tuple(
-            [cand_to_slate_dict[cand] for cand_set in ballot.ranking for cand in cand_set]
+            [cand_to_slate_dict[cand] for cand_set in ranking for cand in cand_set]
         )
         slate_ballot_counts[slate_ballot_type] = (
             slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -247,7 +259,7 @@ def test_one_bloc_three_slate_sbt_distribution_matches_name_ballot_dist(
         cand_comparisons_profile = [
             tuple(
                 cand
-                for cand_set in ballot.ranking
+                for cand_set in ballot_ranking(ballot)
                 for cand in cand_set
                 if cand[0] == slate and cand[-1] in ["1", "2"]
             )
@@ -286,7 +298,7 @@ def test_sbt_zero_support_slates():
 
     profile = slate_bt_profile_generator(config)
     zero_support_slate_perms = [
-        tuple(cand[0] for cand_set in ballot.ranking for cand in cand_set if cand[0] != "A")
+        tuple(cand[0] for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] != "A")
         for ballot in profile.ballots
         for _ in range(int(ballot.weight))
     ]

@@ -1,4 +1,5 @@
 from time import time
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -296,7 +297,7 @@ def test_errors():
         Schulze(profile_tied_set, m=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        Schulze(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))  # type: ignore
+        Schulze(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
 
 
 @pytest.mark.slow

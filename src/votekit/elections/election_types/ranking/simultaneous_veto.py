@@ -1,6 +1,7 @@
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
+from numbers import Real
 from typing import Literal
 
 import numpy as np
@@ -284,9 +285,18 @@ class SimultaneousVeto(RankingElection):
                         f"The following candidates were missing: {missing_cands}"
                     )
                     raise ValueError(msg)
+                custom_weight_map: dict[str, float] = {}
+                for candidate in self.candidates:
+                    raw_weight = candidate_weights[candidate]
+                    if not isinstance(raw_weight, Real) or isinstance(raw_weight, bool):
+                        raise TypeError(
+                            "If candidate_weights is a dict, values must be numeric. "
+                            f"Found {type(raw_weight)!r} for candidate {candidate!r}."
+                        )
+                    custom_weight_map[candidate] = float(raw_weight)
 
                 def custom_weights(profile: RankProfile) -> dict[str, float]:
-                    return {c: candidate_weights[c] for c in profile.candidates}
+                    return {c: custom_weight_map[c] for c in profile.candidates}
 
                 return custom_weights
 

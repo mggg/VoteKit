@@ -1,10 +1,10 @@
-from typing import Any, Callable, Optional, Union
+from collections.abc import Callable, Mapping
+from typing import Any, Optional, TypeVar, Union
 
 from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import bar_plot
-from votekit.plots.profiles.multi_profile_bar_plot import multi_profile_bar_plot
-from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile import PreferenceProfile, RankProfile
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -13,10 +13,13 @@ from votekit.utils import (
     mentions,
 )
 
+PlotLabel = str | int
+ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
+
 
 def profile_bar_plot(
-    profile: RankProfile | ScoreProfile,
-    stat_function: Callable[[RankProfile | ScoreProfile], dict[str, float]],
+    profile: ProfileT,
+    stat_function: Callable[[ProfileT], dict[str, float]],
     *,
     profile_label: str = "Profile",
     normalize: bool = False,
@@ -27,14 +30,14 @@ def profile_bar_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    categories_legend: Optional[dict[str, str]] = None,
+    categories_legend: Optional[Mapping[str, PlotLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
     ax: Optional[Axes] = None,
 ) -> Axes:
     """
-    Plots bar plot of single profile. Wrapper for ``multi_profile_bar_plot``.
+    Plots bar plot of a single profile.
 
     Args:
         profile (RankProfile): Profile to plot statistics for.
@@ -78,17 +81,17 @@ def profile_bar_plot(
         Axes: A ``matplotlib`` axes with a bar plot of the given data.
     """
 
-    return multi_profile_bar_plot(
-        {profile_label: profile},
-        stat_function=stat_function,
+    return bar_plot(
+        data=stat_function(profile),
+        data_set_label=profile_label,
         normalize=normalize,
-        profile_colors={profile_label: profile_color},
+        data_set_color=profile_color,
         bar_width=bar_width,
         category_ordering=category_ordering,
         x_axis_name=x_axis_name,
         y_axis_name=y_axis_name,
         title=title,
-        show_profile_legend=show_profile_legend,
+        show_data_set_legend=show_profile_legend,
         categories_legend=categories_legend,
         threshold_values=threshold_values,
         threshold_kwds=threshold_kwds,
@@ -110,7 +113,7 @@ def profile_borda_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -171,7 +174,7 @@ def profile_borda_plot(
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
     return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
+        data=score_dict,
         data_set_label=profile_label,
         normalize=normalize,
         data_set_color=profile_color,
@@ -202,7 +205,7 @@ def profile_mentions_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -263,7 +266,7 @@ def profile_mentions_plot(
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
     return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
+        data=score_dict,
         data_set_label=profile_label,
         normalize=normalize,
         data_set_color=profile_color,
@@ -294,7 +297,7 @@ def profile_fpv_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[dict[str, str]] = None,
+    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -355,7 +358,7 @@ def profile_fpv_plot(
         candidate_legend = {c: str(i + 1) for i, c in enumerate(candidate_ordering)}
 
     return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
+        data=score_dict,
         data_set_label=profile_label,
         normalize=normalize,
         data_set_color=profile_color,
@@ -381,12 +384,12 @@ def profile_ballot_lengths_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    lengths_ordering: Optional[list[str]] = None,
+    lengths_ordering: Optional[list[str | int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    lengths_legend: Optional[dict[str, str]] = None,
+    lengths_legend: Optional[Mapping[str | int, PlotLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
@@ -441,23 +444,30 @@ def profile_ballot_lengths_plot(
         else ballot_lengths(profile)
     )
 
-    if lengths_ordering is None:
-        lengths_ordering = sorted(
-            score_dict.keys(), reverse=False, key=lambda x: x  # type: ignore[arg-type]
-        )
+    plot_score_dict = {str(length): count for length, count in score_dict.items()}
+    plot_lengths_legend = (
+        {str(length): label for length, label in lengths_legend.items()}
+        if lengths_legend is not None
+        else None
+    )
+    plot_lengths_ordering = (
+        [str(length) for length in lengths_ordering]
+        if lengths_ordering is not None
+        else sorted(plot_score_dict.keys(), reverse=False, key=lambda x: int(x))
+    )
 
     return bar_plot(
-        data=score_dict,  # type: ignore[arg-type]
+        data=plot_score_dict,
         data_set_label=profile_label,
         normalize=normalize,
         data_set_color=profile_color,
         bar_width=bar_width,
-        category_ordering=lengths_ordering,
+        category_ordering=plot_lengths_ordering,
         x_axis_name=x_axis_name,
         y_axis_name=y_axis_name,
         title=title,
         show_data_set_legend=show_profile_legend,
-        categories_legend=lengths_legend,
+        categories_legend=plot_lengths_legend,
         threshold_values=threshold_values,
         threshold_kwds=threshold_kwds,
         legend_font_size=legend_font_size,

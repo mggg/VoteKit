@@ -2,7 +2,7 @@ from functools import cache
 from typing import Callable, Optional, Union
 
 import matplotlib.pyplot as plt
-import networkx as nx  # type: ignore
+import networkx as nx
 
 from votekit.graphs.base_graph import Graph
 from votekit.pref_profile import RankProfile
@@ -294,6 +294,8 @@ class BallotGraph(Graph):
             return graph.nodes[node]["cast"]
 
         def in_neighborhoods(graph, node):
+            if neighborhoods is None:
+                return False
             centers = [node for node, radius in neighborhoods]
             radii = [radius for node, radius in neighborhoods]
 

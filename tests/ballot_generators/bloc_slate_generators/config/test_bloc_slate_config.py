@@ -3,6 +3,7 @@
 import math
 import re
 import warnings
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -240,7 +241,7 @@ def test_pref_df_with_blocs_missing(valid_config):
     with pytest.warns(ConfigurationWarning) as records:
         config = BlocSlateConfig(n_voters=100)
         config.bloc_proportions = None  # type: ignore[assignment]
-        config.preference_df = valid_config["preference_mapping"]  # type: ignore[assignment]
+        config.preference_df = valid_config["preference_mapping"]
     assert any("no blocs are defined" in str(r.message) for r in records)
 
 
@@ -541,7 +542,7 @@ def test_error_for_validate_after_low_sum_bloc_poportion(valid_config):
     with pytest.warns(ConfigurationWarning) as records:
         config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
         config.silent = False
-        del config.bloc_proportions["bloc_1"]  # type: ignore[assignment]
+        del config.bloc_proportions["bloc_1"]
         config.is_valid()
 
     assert any("sum to 1" in str(r.message) for r in records)
@@ -1185,11 +1186,11 @@ def test_rename_candidate_type_errors(valid_config):
     new_names = {1: "B", "B": "X", "Z": "Y"}  # Z not in config
 
     with pytest.raises(TypeError, match=re.escape("Candidate mapping keys must be a 'str', got")):
-        config.rename_candidates(new_names)
+        config.rename_candidates(cast(dict[str, str], new_names))
 
     new_names = {"A": 1, "B": "X", "Z": "Y"}  # Z not in config
     with pytest.raises(TypeError, match=re.escape("Candidate mapping values must be a 'str', got")):
-        config.rename_candidates(new_names)
+        config.rename_candidates(cast(dict[str, str], new_names))
 
 
 def test_rename_candidate_with_missing_name(valid_config):

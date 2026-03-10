@@ -1,62 +1,64 @@
+from typing import Literal, cast
+
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.elections import ElectionState, SequentialRCV
-from votekit.pref_profile import PreferenceProfile, ProfileError
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 # taken from STV wiki
-simult_same_as_one_by_one_profile = PreferenceProfile(
+simult_same_as_one_by_one_profile = RankProfile(
     ballots=[
-        Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-        Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-        Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-        Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-        Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-        Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-        Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+        RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3),
+        RankBallot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+        RankBallot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
+        RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+        RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+        RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+        RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
     ]
 )
 
 profile_list = [
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"}, {"Pear"}), weight=3),
-            Ballot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"}, {"Pear"}), weight=3),
+            RankBallot(ranking=({"Pear"}, {"Strawberry"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Strawberry"}, {"Orange"}, {"Pear"}), weight=1),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ]
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"},), weight=3),
-            Ballot(ranking=({"Strawberry"}, {"Cake"}), weight=8),
-            Ballot(ranking=({"Strawberry"}, {"Orange"}), weight=1),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"},), weight=3),
+            RankBallot(ranking=({"Strawberry"}, {"Cake"}), weight=8),
+            RankBallot(ranking=({"Strawberry"}, {"Orange"}), weight=1),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ]
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-            Ballot(ranking=({"Cake"},), weight=8),
-            Ballot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"},), weight=4),
+            RankBallot(ranking=({"Cake"},), weight=8),
+            RankBallot(ranking=({"Cake"}, {"Chocolate"}), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Cake"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ]
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=[
-            Ballot(ranking=({"Orange"},), weight=4),
-            Ballot(ranking=({"Chocolate"},), weight=3),
-            Ballot(ranking=({"Chocolate"}, {"Burger"}), weight=1),
-            Ballot(ranking=({"Burger"}, {"Chicken"}), weight=4),
-            Ballot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
+            RankBallot(ranking=({"Orange"},), weight=4),
+            RankBallot(ranking=({"Chocolate"},), weight=3),
+            RankBallot(ranking=({"Chocolate"}, {"Burger"}), weight=1),
+            RankBallot(ranking=({"Burger"}, {"Chicken"}), weight=4),
+            RankBallot(ranking=({"Chicken"}, {"Chocolate"}, {"Burger"}), weight=3),
         ]
     ),
 ]
@@ -202,10 +204,10 @@ def test_get_ranking():
 
 
 def test_fpv_tie():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"A"}),)),
-            Ballot(ranking=(frozenset({"B"}),)),
+            RankBallot(ranking=(frozenset({"A"}),)),
+            RankBallot(ranking=(frozenset({"B"}),)),
         ),
         candidates=("A", "B", "C"),
     )
@@ -216,10 +218,10 @@ def test_fpv_tie():
 
 
 def test_simul_v_1by1_():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"A"}),)),
-            Ballot(ranking=(frozenset({"B"}),)),
+            RankBallot(ranking=(frozenset({"A"}),)),
+            RankBallot(ranking=(frozenset({"B"}),)),
         ),
         candidates=("A", "B", "C"),
     )
@@ -249,10 +251,10 @@ def test_errors():
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
-        profile = PreferenceProfile(
+        profile = RankProfile(
             ballots=(
-                Ballot(ranking=(frozenset({"A"}),)),
-                Ballot(ranking=(frozenset({"B"}),)),
+                RankBallot(ranking=(frozenset({"A"}),)),
+                RankBallot(ranking=(frozenset({"B"}),)),
             ),
             candidates=("A", "B", "C"),
         )
@@ -261,7 +263,11 @@ def test_errors():
         SequentialRCV(profile, m=2, simultaneous=False)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        SequentialRCV(PreferenceProfile(ballots=(Ballot(ranking=({"a"},)),)), m=1, quota="Drip")
+        SequentialRCV(
+            RankProfile(ballots=(RankBallot(ranking=({"a"},)),)),
+            m=1,
+            quota=cast(Literal["droop", "hare"] | None, "Drip"),
+        )
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        SequentialRCV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        SequentialRCV(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

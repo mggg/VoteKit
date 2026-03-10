@@ -2,20 +2,20 @@ from pathlib import Path
 
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.cleaning import remove_cand_rank_profile
 from votekit.cvr_loaders import load_ranking_csv
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.representation_scores import r_representation_score
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_DIR = BASE_DIR / "data/csv/"
 
-profile = PreferenceProfile(
+profile = RankProfile(
     ballots=(
-        Ballot(ranking=({"Moon"}, {"Chris"}, {"Peter"})),
-        Ballot(ranking=({"Peter"},)),
-        Ballot(ranking=({"Moon"},)),
+        RankBallot(ranking=({"Moon"}, {"Chris"}, {"Peter"})),
+        RankBallot(ranking=({"Peter"},)),
+        RankBallot(ranking=({"Moon"},)),
     ),
     candidates=["Moon", "Peter", "Chris", "Mala"],
 )
@@ -44,7 +44,7 @@ def test_r_rep_score_multi_cand():
 
 def test_r_rep_score_error():
     with pytest.raises(ValueError, match="must be at least 1."):
-        r_representation_score(PreferenceProfile(), 0, [])
+        r_representation_score(RankProfile(), 0, [])
 
 
 def test_r_rep_score_warning():

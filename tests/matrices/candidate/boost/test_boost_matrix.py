@@ -1,13 +1,13 @@
 import numpy as np
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.matrices import boost_matrix
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
-ballot_1 = Ballot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
-ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})))
-ballot_3 = Ballot(ranking=(frozenset({"Chris"}),))
-pref_profile = PreferenceProfile(
+ballot_1 = RankBallot(ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})))
+ballot_2 = RankBallot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})))
+ballot_3 = RankBallot(ranking=(frozenset({"Chris"}),))
+pref_profile = RankProfile(
     ballots=tuple(
         [ballot_1 for _ in range(5)] + [ballot_2 for _ in range(2)] + [ballot_3 for _ in range(1)]
     )

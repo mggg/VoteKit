@@ -3,11 +3,11 @@ from itertools import combinations
 from typing import Optional
 
 import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt  # type: ignore
-import networkx as nx  # type: ignore
-import numpy as np  # type: ignore
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 from matplotlib.axes import Axes
-from numba import float64, int32, njit  # type: ignore
+from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile

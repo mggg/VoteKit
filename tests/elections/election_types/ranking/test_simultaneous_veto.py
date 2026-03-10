@@ -1,4 +1,5 @@
 from itertools import product
+from typing import Literal, cast
 
 import pytest
 
@@ -116,7 +117,13 @@ class TestValidation:
 
     def test_invalid_candidate_weights_string(self, basic_profile):
         with pytest.raises(ValueError, match="invalid input"):
-            SimultaneousVeto(basic_profile, candidate_weights="banana")
+            SimultaneousVeto(
+                basic_profile,
+                candidate_weights=cast(
+                    Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int,
+                    "banana",
+                ),
+            )
 
     def test_invalid_candidate_weights_k_too_large(self, basic_profile):
         with pytest.raises(ValueError, match="not valid for a profile with max_ranking_length"):

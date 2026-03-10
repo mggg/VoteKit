@@ -87,7 +87,11 @@ def _inner_name_plackett_luce(
         df.index.name = "Ballot Index"
         df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
         df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
+        df.insert(
+            len(df.columns),
+            "Voter Set",
+            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        )
         pp = RankProfile(
             candidates=config.candidates,
             df=df,

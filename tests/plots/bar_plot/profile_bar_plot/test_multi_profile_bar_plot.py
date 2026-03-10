@@ -2,20 +2,20 @@ import matplotlib.pyplot as plt
 import pytest
 from matplotlib.axes import Axes
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.plots.profiles import multi_profile_bar_plot
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 from votekit.utils import COLOR_LIST, first_place_votes
 
-ballot_1 = Ballot(
+ballot_1 = RankBallot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1
 )
-ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
-ballot_3 = Ballot(ranking=(frozenset({"Chris"}),), weight=1)
-ballot_4 = Ballot(ranking=(frozenset({"Peter"}),), weight=1)
+ballot_2 = RankBallot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
+ballot_3 = RankBallot(ranking=(frozenset({"Chris"}),), weight=1)
+ballot_4 = RankBallot(ranking=(frozenset({"Peter"}),), weight=1)
 
-profile_1 = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
-profile_2 = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_4))
+profile_1 = RankProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
+profile_2 = RankProfile(ballots=(ballot_1, ballot_2, ballot_4))
 
 
 def test_barplot_with_defaults():

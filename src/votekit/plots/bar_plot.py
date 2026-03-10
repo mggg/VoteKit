@@ -1,8 +1,9 @@
 import warnings
+from collections.abc import Mapping
 from typing import Any, Literal, Optional, Tuple, Union
 
 import matplotlib.patches as mpatches
-from matplotlib import pyplot as plt  # type: ignore
+from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
@@ -10,9 +11,10 @@ from matplotlib.lines import Line2D
 from votekit.utils import COLOR_LIST
 
 DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "grey", "alpha": 0.5}
+CategoryLabel = str | int
 
 
-def add_null_keys(data: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+def add_null_keys(data: Mapping[str, Mapping[str, float]]) -> dict[str, dict[str, float]]:
     """
     Prepares dictionary of dictionaries to be passed to ``multi_bar_plot()``. If a key is missing
     from a dictionary, this function adds the key with value 0.
@@ -25,24 +27,26 @@ def add_null_keys(data: dict[str, dict[str, float]]) -> dict[str, dict[str, floa
         dict[str, dict[str, float]]: Cleaned data.
     """
 
-    x_labels = []
-    for data_dict in data.values():
+    x_labels: list[str] = []
+    clean_data = {label: dict(data_dict) for label, data_dict in data.items()}
+
+    for data_dict in clean_data.values():
         for x_label in data_dict.keys():
             if x_label not in x_labels:
                 x_labels.append(x_label)
 
     for x_label in x_labels:
-        for data_dict in data.values():
+        for data_dict in clean_data.values():
             if x_label not in data_dict:
-                data_dict[x_label] = 0
+                data_dict[x_label] = 0.0
 
-    return data
+    return clean_data
 
 
 def _set_default_bar_plot_args(
     *,
-    data: dict[str, dict[str, float]],
-    data_set_colors: Optional[dict],
+    data: Mapping[str, Mapping[str, float]],
+    data_set_colors: Optional[Mapping[str, str]],
     bar_width: Optional[float],
     category_ordering: Optional[list[str]],
     legend_font_size: Optional[float],
@@ -125,12 +129,12 @@ def _set_default_bar_plot_args(
 
 def _validate_bar_plot_args(
     *,
-    data: dict[str, dict[str, float]],
+    data: Mapping[str, Mapping[str, float]],
     category_ordering: list[str],
-    categories_legend: Optional[dict[str, str]],
+    categories_legend: Optional[Mapping[str, CategoryLabel]],
     bar_width: float,
     threshold_values: Optional[list[float]],
-    threshold_kwds: Optional[list[dict[str, str]]],
+    threshold_kwds: Optional[list[dict[str, object]]],
 ) -> float:
     """
     Validates bar plot arguments.
@@ -202,8 +206,7 @@ def _validate_bar_plot_args(
 
         if mislabeled_keys != set():
             raise ValueError(
-                f"{mislabeled_keys} in categories_legend must "
-                f"be a subset of {set(true_categories)}"
+                f"{mislabeled_keys} in categories_legend must be a subset of {set(true_categories)}"
             )
     if bar_width <= 0:
         raise ValueError("Bar width must be positive.")
@@ -226,7 +229,7 @@ def _validate_bar_plot_args(
     return bar_width
 
 
-def _normalize_data_dict(data_dict: dict[str, float]) -> dict[str, float]:
+def _normalize_data_dict(data_dict: Mapping[str, float]) -> dict[str, float]:
     """
     Normalizes data so number of total observations is 1. Raises a ValueError if the total
     mass is 0.
@@ -253,7 +256,7 @@ def _normalize_data_dict(data_dict: dict[str, float]) -> dict[str, float]:
 def _prepare_data_bar_plot(
     *,
     normalize: bool,
-    data: dict[str, dict[str, float]],
+    data: Mapping[str, Mapping[str, float]],
     category_ordering: list[str],
 ) -> tuple[list[list[float]], float]:
     """
@@ -269,7 +272,7 @@ def _prepare_data_bar_plot(
         list[list[float]]: Height of bars, one list for each data set.
 
     """
-    plot_data = data
+    plot_data: Mapping[str, Mapping[str, float]] = data
     if normalize:
         plot_data = {label: _normalize_data_dict(data_dict) for label, data_dict in data.items()}
 
@@ -277,11 +280,7 @@ def _prepare_data_bar_plot(
         [data_dict[x_label] for x_label in category_ordering] for data_dict in plot_data.values()
     ]
 
-    all_data_values: list[float] = []
-    # NOTE: data is dict[str, dict[str, float]]
-    for dct in data.values():
-        if isinstance(dct, dict):
-            all_data_values.extend(dct.values())
+    all_data_values = [value for data_dict in data.values() for value in data_dict.values()]
 
     flat_y_data = [item for sublist in y_data for item in sublist]
 
@@ -298,9 +297,9 @@ def _plot_datasets_on_bar_plot(
     category_ordering: list[str],
     y_data: list[list[float]],
     data_set_labels: list[str],
-    categories_legend: Optional[dict[str, str]],
+    categories_legend: Optional[Mapping[str, CategoryLabel]],
     bar_width: float,
-    data_set_to_color: dict,
+    data_set_to_color: Mapping[str, str],
     font_size: float,
 ) -> Axes:
     """
@@ -432,8 +431,8 @@ def _add_data_sets_legend_bar_plot(
     *,
     ax: Axes,
     data_set_labels: list[str],
-    data_set_to_color: dict,
-    categories_legend: Optional[dict[str, str]],
+    data_set_to_color: Mapping[str, str],
+    categories_legend: Optional[Mapping[str, CategoryLabel]],
     threshold_kwds: Optional[list[dict]],
     legend_font_size: float,
     legend_loc: str,
@@ -490,7 +489,7 @@ def _add_data_sets_legend_bar_plot(
 def _add_categories_legend_bar_plot(
     *,
     ax: Axes,
-    categories_legend: dict[str, str],
+    categories_legend: Mapping[str, CategoryLabel],
     legend_font_size: float,
     legend_loc: str,
     legend_bbox_to_anchor: Tuple[float, float],
@@ -546,17 +545,17 @@ def _add_categories_legend_bar_plot(
 
 
 def multi_bar_plot(
-    data: dict[str, dict[str, float]],
+    data: Mapping[str, Mapping[str, float]],
     *,
     normalize: bool = False,
-    data_set_colors: Optional[dict[str, str]] = None,
+    data_set_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
     category_ordering: Optional[list[str]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_data_set_legend: bool = False,
-    categories_legend: Optional[dict[str, str]] = None,
+    categories_legend: Optional[Mapping[str, CategoryLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
@@ -667,7 +666,7 @@ def multi_bar_plot(
 
     if show_data_set_legend:
         ax, data_set_legend = _add_data_sets_legend_bar_plot(
-            ax=ax,  # type: ignore[arg-type]
+            ax=ax,
             data_set_labels=list(data.keys()),
             data_set_to_color=barplot_kwds["data_set_to_color"],
             categories_legend=categories_legend,
@@ -679,19 +678,18 @@ def multi_bar_plot(
 
     if categories_legend:
         ax = _add_categories_legend_bar_plot(
-            ax=ax,  # type: ignore[arg-type]
+            ax=ax,
             categories_legend=categories_legend,
             legend_font_size=barplot_kwds["legend_font_size"],
             legend_loc="center left",
             legend_bbox_to_anchor=(1, 1 / 2),
             data_set_legend=data_set_legend,
         )
-
-    return ax  # type: ignore[return-value]
+    return ax
 
 
 def bar_plot(
-    data: dict[str, float],
+    data: Mapping[str, float],
     *,
     data_set_label: str = "Data set",
     normalize: bool = False,
@@ -702,7 +700,7 @@ def bar_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_data_set_legend: bool = False,
-    categories_legend: Optional[dict[str, str]] = None,
+    categories_legend: Optional[Mapping[str, CategoryLabel]] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,

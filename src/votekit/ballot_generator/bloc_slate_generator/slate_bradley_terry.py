@@ -231,7 +231,7 @@ def _sample_bt_slate_ballots_mcmc(
     # randomly permute the seed ballot type
     seed_ballot_type = random.sample(seed_ballot_type, k=len(seed_ballot_type))
 
-    ballots: list[tuple[str, ...]] = [("~",)] * n_ballots
+    ballots: list[tuple[str, ...]] = [("~",) for _ in range(n_ballots)]
     current_ranking = seed_ballot_type
 
     # presample swap indices

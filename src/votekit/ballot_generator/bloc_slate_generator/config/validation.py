@@ -244,9 +244,10 @@ def convert_bloc_proportion_map_to_series(
             raise ValueError("Bloc proportions index (blocs) contains duplicates.")
         if bloc_prop_mapping.dtype != float:
             bloc_prop_mapping = bloc_prop_mapping.astype(float)
-        if any(bloc_prop_mapping < 0):
+        values = bloc_prop_mapping.to_numpy(dtype=float)
+        if np.any(values < 0):
             raise ValueError("Bloc proportions must be non-negative.")
-        if any(bloc_prop_mapping > 1):
+        if np.any(values > 1):
             raise ValueError("Bloc proportions cannot be greater than 1.")
         return bloc_prop_mapping
 
@@ -351,7 +352,9 @@ def convert_cohesion_map_to_cohesion_df(
 
     for bloc, slate_dict in cohesion_mapping.items():
         slate_series = pd.Series(slate_dict)
-        blocs_to_slate[bloc].update(slate_series.to_dict())
+        blocs_to_slate[bloc].update(
+            {str(slate): float(value) for slate, value in slate_series.items()}
+        )
 
     return pd.DataFrame(blocs_to_slate).fillna(UNSET_VALUE).T
 
@@ -470,8 +473,8 @@ def convert_preference_map_to_preference_df(
                 cand_item.interval if isinstance(cand_item, PreferenceInterval) else cand_item
             )
             cand_series = pd.Series(cand_map)
-            cand_dict = cand_series.to_dict()
-
-            blocs_to_cand[bloc].update(cand_dict)
+            blocs_to_cand[bloc].update(
+                {str(candidate): float(value) for candidate, value in cand_series.items()}
+            )
 
     return pd.DataFrame(blocs_to_cand).fillna(UNSET_VALUE).T

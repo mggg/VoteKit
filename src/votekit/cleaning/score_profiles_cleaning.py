@@ -101,9 +101,7 @@ def clean_score_profile(
     if remove_empty_ballots:
         candidate_cols = [c for c in cleaned_df.columns if c not in ["Weight", "Voter Set"]]
         mask = (
-            cleaned_df[candidate_cols]
-            .map(lambda score: score == 0 or pd.isna(score))  # type: ignore[operator]
-            .all(axis=1)
+            cleaned_df[candidate_cols].map(lambda score: score == 0 or pd.isna(score)).all(axis=1)
         )
 
         cleaned_df = cleaned_df[~mask]

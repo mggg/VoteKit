@@ -11,7 +11,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import List, Literal, Mapping, Optional, Sequence
 
-import manim  # type: ignore
+import manim
 from manim import (
     DOWN,
     LEFT,
@@ -29,7 +29,7 @@ from manim import (
     Text,
     Uncreate,
 )
-from manimpango import list_fonts  # type: ignore
+from manimpango import list_fonts
 
 from votekit.cleaning.rank_ballots_cleaning import (
     condense_rank_ballot,
@@ -987,9 +987,9 @@ class ElectionScene(manim.Scene):
         some_candidate = list(self.candidate_dict.values())[0]
         if not self.quota_line:
             # If the quota line doesn't exist yet, draw it.
-            assert self.ticker_tape_line is not None, (
-                "Tried to draw the quota line before " "the ticker tape line."
-            )
+            assert (
+                self.ticker_tape_line is not None
+            ), "Tried to draw the quota line before the ticker tape line."
             line_bottom = self.ticker_tape_line.get_top()[1]
             line_top = manim.config.frame_height / 2
             self.quota_line = Line(
@@ -1100,9 +1100,9 @@ class ElectionScene(manim.Scene):
                 fill_color=ManimColor(candidate_color),
                 fill_opacity=self.bar_opacity,
             )
-            assert self.quota_line is not None, (
-                "Tried to animate a win event, but the quota " "line was never drawn."
-            )
+            assert (
+                self.quota_line is not None
+            ), "Tried to animate a win event, but the quota line was never drawn."
             if new_bars:
                 exhausted_bar.next_to(new_bars[-1], LEFT, buff=0)
             else:

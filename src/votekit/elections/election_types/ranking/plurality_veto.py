@@ -99,7 +99,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         # for each ballot, save the position where we last left off when looking for a veto
         self._n_ballots = len(self._df)
-        self._veto_position_cache: list[int | None] = [None] * self._n_ballots
+        self._veto_position_cache: list[int | None] = [None for _ in range(self._n_ballots)]
 
         self.tiebreak_order = None
         if self.tiebreak != "random":
@@ -275,7 +275,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._internal_round_number = 0
         self._eliminated = set("~")
         self._voter_order_current_index = 0
-        self._veto_position_cache = [None] * self._n_ballots
+        self._veto_position_cache = [None for _ in range(self._n_ballots)]
         if self.tiebreak != "random":
             self._veto_cache = ["" for _ in range(self._n_ballots)]
 

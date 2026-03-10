@@ -1,3 +1,5 @@
+from typing import Literal, cast
+
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -153,10 +155,10 @@ def test_errors():
         Alaska(test_profile_ties, m_1=3, m_2=3)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        Alaska(test_profile, quota="drip")
+        Alaska(test_profile, quota=cast(Literal["droop", "hare"] | None, "drip"))
 
     with pytest.raises(TypeError, match="has no ranking"):
         Alaska(RankProfile(ballots=(RankBallot(),)))
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        Alaska(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
+        Alaska(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

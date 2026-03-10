@@ -393,7 +393,7 @@ class BlocProportions(MutableMapping[str, float]):
 
         if init is not None:
             ser = convert_bloc_proportion_map_to_series(init)
-            self.__data.update(ser.to_dict())
+            self.__data.update({str(bloc): float(value) for bloc, value in ser.items()})
 
         self._validate()
 

@@ -278,7 +278,7 @@ def test_deprecation():
         match="This function is being deprecated in March "
         "2026. The correct function call is now load_ranking_csv.",
     ):
-        load_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2])
+        load_csv(str(CSV_DIR / "valid_cvr.csv"), rank_cols=[0, 1, 2])
 
 
 def test_print(capsys):

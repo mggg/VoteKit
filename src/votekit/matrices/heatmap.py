@@ -112,7 +112,7 @@ def _add_text_to_heatmap(
         if fig:
             fig.canvas.draw()
 
-            # ignoring mypy error, mypy not up to date with matplotlib get_renderer
+            # ignoring type error, ty not up to date with matplotlib get_renderer
             renderer = fig.canvas.get_renderer()  # type: ignore[attr-defined]
 
             # bounding box in display coords
