@@ -3,8 +3,8 @@ from typing import Callable, Generic, Optional, TypeVar
 
 import pandas as pd
 
-from votekit.elections import ElectionState
-from votekit.pref_profile import PreferenceProfile
+from votekit.elections.election_state import ElectionState
+from votekit.pref_profile.pref_profile import PreferenceProfile
 from votekit.utils import (
     score_dict_to_ranking,
 )

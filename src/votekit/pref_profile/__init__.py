@@ -1,6 +1,11 @@
-from .cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
-from .pref_profile import PreferenceProfile, ProfileError, RankProfile, ScoreProfile
-from .utils import (
+from votekit.pref_profile.cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
+from votekit.pref_profile.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+    RankProfile,
+    ScoreProfile,
+)
+from votekit.pref_profile.utils import (
     convert_rank_profile_to_score_profile_via_score_vector,
     convert_row_to_rank_ballot,
     profile_df_head,

@@ -3,8 +3,8 @@ from typing import Literal, Optional
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections.election_state import ElectionState
-from votekit.elections.election_types.ranking import Plurality
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections.election_types.ranking.plurality import Plurality
 from votekit.pref_profile import RankProfile
 from votekit.utils import first_place_votes
 

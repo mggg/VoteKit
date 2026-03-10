@@ -352,13 +352,14 @@ def earth_mover_dist(pp1: RankProfile, pp2: RankProfile) -> float:
     Returns:
         float: Earth Mover's Distance between two profiles.
     """
-    if set(pp1.candidates) != set(pp2.candidates):
-        raise ValueError("The two profiles must have the same candidates.")
-
     if not isinstance(pp1, RankProfile) or not isinstance(pp2, RankProfile):
         raise ValueError(
             "Both profiles must contain rankings to compute the Earth Mover's Distance."
         )
+
+    if set(pp1.candidates) != set(pp2.candidates):
+        raise ValueError("The two profiles must have the same candidates.")
+
     if pp1.max_ranking_length != pp2.max_ranking_length:
         raise ValueError(
             "Both profiles must have the same maximum ranking length to compute the Earth Mover's "

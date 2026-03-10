@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+    from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 from functools import partial
 from typing import Optional, Sequence
@@ -214,7 +214,7 @@ def rank_profile_to_ranking_dict(
     Raises:
         TypeError: Profile must be a RankProfile.
     """
-    from .pref_profile import RankProfile
+    from votekit.pref_profile.pref_profile import RankProfile
 
     if not isinstance(rank_profile, RankProfile):
         raise TypeError(("Profile must be a RankProfile."))
@@ -249,7 +249,7 @@ def score_profile_to_scores_dict(
     Raises:
         TypeError: Profile must be a ScoreProfile.
     """
-    from .pref_profile import ScoreProfile
+    from votekit.pref_profile.pref_profile import ScoreProfile
 
     if not isinstance(score_profile, ScoreProfile):
         raise TypeError(("Profile must be a ScoreProfile."))
@@ -389,7 +389,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         ValueError: Score vector must be non-increasing and non-negative.
     """
     # here to prevent circular import
-    from votekit.pref_profile import ScoreProfile
+    from votekit.pref_profile.pref_profile import ScoreProfile
     from votekit.utils import validate_score_vector
 
     validate_score_vector(score_vector)

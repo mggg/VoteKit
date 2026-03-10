@@ -11,8 +11,9 @@ from votekit.pref_profile import RankProfile
 from votekit.utils import first_place_votes
 
 
-def run_election_once(test_profile):
+def run_election_once(test_profile: RankProfile, rng_seed: int = 42) -> str:
     """Run one election and return the winner."""
+    np.random.seed(rng_seed)  # Ensure randomness in each parallel execution
     election = RandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
 
@@ -24,9 +25,6 @@ def test_random_dictator_error():
 
 @pytest.mark.slow
 def test_random_dictator_simple():
-    # set seed for more predictable results
-    random.seed(919717)
-
     candidates = ["A", "B", "C"]
     ballots = [
         RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
@@ -36,12 +34,12 @@ def test_random_dictator_simple():
     test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     winner_counts = {c: 0 for c in candidates}
-    trials = 600
+    trials = 1000
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, rng_seed) for rng_seed in range(trials)
     )
 
     winner_counts = {c: results.count(c) for c in candidates}

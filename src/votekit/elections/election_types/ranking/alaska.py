@@ -4,7 +4,7 @@ from typing import Callable, Literal, Union
 from votekit.ballot import RankBallot
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections.election_state import ElectionState
-from votekit.elections.election_types.ranking import Plurality
+from votekit.elections.election_types.ranking.plurality import Plurality
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     QuotaType,
     TiebreakType,

@@ -1,6 +1,5 @@
-from ..models import Election
-from .election_state import ElectionState
-from .election_types import (
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types import (
     IRV,
     SNTV,
     STV,
@@ -27,7 +26,8 @@ from .election_types import (
     SimultaneousVeto,
     TopTwo,
 )
-from .transfers import fractional_transfer, random_transfer
+from votekit.elections.transfers import fractional_transfer, random_transfer
+from votekit.models import Election
 
 __all__ = [
     "ElectionState",

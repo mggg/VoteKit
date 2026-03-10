@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 
-from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
 
 
 class CleanedRankProfile(RankProfile):
