@@ -15,18 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v4
-        with:
-          python-version: "3.13"
-          enable-caching: true
+      - name: Install Task
+        uses: go-task/setup-task@v1
 
-      - run: uv sync
+      - name: Set up project environment
+        run: task setup PYTHON_VERSION=3.13
 
-      - name: Black (check)
-        run: uv run black --check --diff src tests
+      - name: Black and isort (check)
+        run: task format-check PYTHON_VERSION=3.13
 
       - name: Ruff
-        run: uv run ruff check --output-format=github src tests
+        run: task lint PYTHON_VERSION=3.13
 
       - name: ty
-        run: uv run ty check src tests
+        run: task typecheck PYTHON_VERSION=3.13

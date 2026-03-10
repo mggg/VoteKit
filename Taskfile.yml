@@ -43,6 +43,17 @@ tasks:
         vars:
           UV_ARGS: run isort src tests
 
+  format-check:
+    desc: Check code formatting using Black and isort
+    silent: true
+    cmds:
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run black --check --diff src tests
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run isort --check-only --diff src tests
+
   lint:
     desc: Lint the codebase using Ruff
     silent: true
@@ -69,6 +80,17 @@ tasks:
       - task: uv-{{OS}}
         vars:
           UV_ARGS: run pytest tests
+
+  test-slow:
+    desc: Run tests using pytest, including slow tests
+    silent: true
+    env:
+      TERM: xterm
+    cmds:
+      - task: setup
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pytest tests --runslow
 
   clean:
     desc: Clean up build artifacts
