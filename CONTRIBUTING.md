@@ -74,6 +74,7 @@ task format
 task lint
 task typecheck
 task test
+task coverage
 task docs
 ```
 
@@ -86,12 +87,14 @@ uv run ruff check src tests
 uv run ty check src tests
 uv run pytest tests
 uv run pytest tests --runslow
+uv run pytest tests --cov=src/votekit --cov-report=term-missing
 uv run pre-commit run --all-files
 ```
 
 Notes:
 
 - Slow tests are marked with `@pytest.mark.slow` and only run when you pass `--runslow`.
+- `task coverage` runs the default test suite with a terminal coverage summary for `src/votekit`.
 - If you change public documentation or tutorial content, run `task docs`.
 - If you touch plotting or animation behavior, check the relevant snapshot tests.
 

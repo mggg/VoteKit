@@ -113,6 +113,20 @@ tasks:
         vars:
           UV_ARGS: run pytest tests --runslow
 
+  coverage:
+    desc: Run tests with coverage reporting
+    silent: true
+    env:
+      TERM: xterm
+    cmds:
+      - task: sync
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pre-commit install
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pytest tests --runslow --cov=src/votekit --cov-report=term-missing
+
   clean:
     desc: Clean up build artifacts
     silent: true
