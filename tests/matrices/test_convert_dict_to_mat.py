@@ -1,6 +1,7 @@
-from votekit.matrices._utils import _convert_dict_to_matrix
 import numpy as np
 import pytest
+
+from votekit.matrices._utils import _convert_dict_to_matrix
 
 
 def test_convert():

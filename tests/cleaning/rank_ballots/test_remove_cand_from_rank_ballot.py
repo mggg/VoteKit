@@ -1,5 +1,5 @@
-from votekit.cleaning import remove_cand_rank_ballot
 from votekit.ballot import RankBallot
+from votekit.cleaning import remove_cand_rank_ballot
 
 
 def test_remove_cand_sing():

@@ -1,10 +1,11 @@
+from functools import partial
+from typing import Literal, Optional
+
+from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
-from votekit.utils import first_place_votes, elect_cands_from_set_ranking
-from votekit.cleaning import remove_and_condense_rank_profile
-from typing import Optional, Literal
-from functools import partial
+from votekit.utils import elect_cands_from_set_ranking, first_place_votes
 
 
 class Plurality(RankingElection):
@@ -38,9 +39,7 @@ class Plurality(RankingElection):
         self.tiebreak = tiebreak
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
             sort_high_low=True,
         )
 
@@ -77,9 +76,7 @@ class Plurality(RankingElection):
             prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
         )
 
-        new_profile = remove_and_condense_rank_profile(
-            [c for s in elected for c in s], profile
-        )
+        new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:
@@ -117,7 +114,5 @@ class SNTV(Plurality):
 
     """
 
-    def __init__(
-        self, profile: RankProfile, m: int = 1, tiebreak: Optional[str] = None
-    ):
+    def __init__(self, profile: RankProfile, m: int = 1, tiebreak: Optional[str] = None):
         super().__init__(profile, m, tiebreak)

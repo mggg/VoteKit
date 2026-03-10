@@ -99,7 +99,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         # for each ballot, save the position where we last left off when looking for a veto
         self._n_ballots = len(self._df)
-        self._veto_position_cache: list[int | None] = [None] * self._n_ballots
+        self._veto_position_cache: list[int | None] = [None for _ in range(self._n_ballots)]
 
         self.tiebreak_order = None
         if self.tiebreak != "random":
@@ -113,18 +113,14 @@ class _IterativeVetoBase(RankingElection, ABC):
                 scoring_tie_convention,
                 backup_tiebreak_convention="lex",
             )
-            self._tiebreak_ranks = {
-                next(iter(s)): i for i, s in enumerate(self.tiebreak_order)
-            }
+            self._tiebreak_ranks = {next(iter(s)): i for i, s in enumerate(self.tiebreak_order)}
 
         self._internal_round_number = 0
 
         # Election base class calls _run_election on instantiation, so this must be at the end
         super().__init__(
             grouped_profile,
-            score_function=partial(
-                first_place_votes, tie_convention=scoring_tie_convention
-            ),
+            score_function=partial(first_place_votes, tie_convention=scoring_tie_convention),
         )
 
     def _pv_validate_input(self, profile: RankProfile):
@@ -212,9 +208,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         cached_pos = self._veto_position_cache[ballot_idx]
 
         if cached_pos is None:
-            potential_vetoes = (
-                self._unlisted_candidates_by_ballot[ballot_idx] - self._eliminated
-            )
+            potential_vetoes = self._unlisted_candidates_by_ballot[ballot_idx] - self._eliminated
             if potential_vetoes:
                 return potential_vetoes
             # no unlisted candidates remain; start walking backwards from the end of the ranking
@@ -281,14 +275,12 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._internal_round_number = 0
         self._eliminated = set("~")
         self._voter_order_current_index = 0
-        self._veto_position_cache = [None] * self._n_ballots
+        self._veto_position_cache = [None for _ in range(self._n_ballots)]
         if self.tiebreak != "random":
             self._veto_cache = ["" for _ in range(self._n_ballots)]
 
     @abstractmethod
-    def _veto_loop(
-        self, scores: dict[str, float]
-    ) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
         """
         Abstract method for veto loop to be defined by subclasses.
 
@@ -428,9 +420,7 @@ class PluralityVeto(_IterativeVetoBase):
             - a ballot has non-integer weight.
     """
 
-    def _veto_loop(
-        self, scores: dict[str, float]
-    ) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
         """
         Processes vetoes until some candidate's score reaches zero.
 
@@ -505,9 +495,7 @@ class SerialVeto(_IterativeVetoBase):
             - a ballot has non-integer weight.
     """
 
-    def _veto_loop(
-        self, scores: dict[str, float]
-    ) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
         """
         Processes vetoes until some candidate is eliminated or all vetoes have been processed.
 

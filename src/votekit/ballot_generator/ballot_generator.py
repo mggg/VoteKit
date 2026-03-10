@@ -1,11 +1,12 @@
-from abc import abstractmethod
 import math
+from abc import abstractmethod
+from typing import Tuple, Union
+
 import numpy as np
-from typing import Union, Tuple
 
 from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
 from votekit.pref_interval import PreferenceInterval
+from votekit.pref_profile import PreferenceProfile
 
 
 # TODO: Change the functionality of this class to allow for sweeping over parameters
@@ -26,18 +27,14 @@ class BallotGenerator:
         **kwargs,
     ):
         if "candidates" not in kwargs and "slate_to_candidates" not in kwargs:
-            raise ValueError(
-                "At least one of candidates or slate_to_candidates must be provided."
-            )
+            raise ValueError("At least one of candidates or slate_to_candidates must be provided.")
 
         if "candidates" in kwargs:
             self.candidates = kwargs["candidates"]
 
         if "slate_to_candidates" in kwargs:
             self.slate_to_candidates = kwargs["slate_to_candidates"]
-            self.candidates = [
-                c for c_list in self.slate_to_candidates.values() for c in c_list
-            ]
+            self.candidates = [c for c_list in self.slate_to_candidates.values() for c in c_list]
 
         nec_parameters = [
             "pref_intervals_by_bloc",
@@ -47,9 +44,7 @@ class BallotGenerator:
 
         if any(x in kwargs for x in nec_parameters):
             if not all(x in kwargs for x in nec_parameters):
-                raise ValueError(
-                    f"If one of {nec_parameters} is provided, all must be provided."
-                )
+                raise ValueError(f"If one of {nec_parameters} is provided, all must be provided.")
 
             bloc_voter_prop = kwargs["bloc_voter_prop"]
             pref_intervals_by_bloc = kwargs["pref_intervals_by_bloc"]
@@ -75,9 +70,7 @@ class BallotGenerator:
 
             for bloc, cohesion_parameter_dict in cohesion_parameters.items():
                 if round(sum(cohesion_parameter_dict.values()), 8) != 1.0:
-                    raise ValueError(
-                        f"Cohesion parameters for bloc {bloc} must sum to 1."
-                    )
+                    raise ValueError(f"Cohesion parameters for bloc {bloc} must sum to 1.")
 
             self.pref_intervals_by_bloc = pref_intervals_by_bloc
             self.bloc_voter_prop = bloc_voter_prop

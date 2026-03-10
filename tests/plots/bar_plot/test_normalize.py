@@ -1,6 +1,6 @@
-from votekit.plots.bar_plot import _normalize_data_dict
 import pytest
 
+from votekit.plots.bar_plot import _normalize_data_dict
 
 data = {
     "Profile 1": {"Chris": 5, "Peter": 6, "Moon": 7},
@@ -16,7 +16,5 @@ def test_normalize_data():
 
 def test_normalize_data_0():
 
-    with pytest.raises(
-        ValueError, match="Total mass of observations must be non-zero."
-    ):
+    with pytest.raises(ValueError, match="Total mass of observations must be non-zero."):
         _normalize_data_dict({"Chris": 0})

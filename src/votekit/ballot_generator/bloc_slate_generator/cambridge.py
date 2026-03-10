@@ -8,16 +8,18 @@ The main API functions in this module are:
     Cambridge model.
 """
 
-import numpy as np
-from pathlib import Path
 import json
+from pathlib import Path
 from typing import Optional
+
 import apportionment.methods as apportion
-from votekit.pref_profile import RankProfile
+import numpy as np
+
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _convert_slate_ballots_to_profile,
 )
-from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.pref_profile import RankProfile
 
 # ====================================================
 # ================= Helper Functions =================
@@ -123,9 +125,7 @@ def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int) -> st
             new_ballot += "C"
             c_count -= 1
         elif char not in "WC":
-            raise ValueError(
-                f"Encountered unexpected character in ballot ranking:  '{char}'"
-            )
+            raise ValueError(f"Encountered unexpected character in ballot ranking:  '{char}'")
     return new_ballot
 
 
@@ -243,9 +243,7 @@ def _inner_cambridge_sampler(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -264,9 +262,7 @@ def _inner_cambridge_sampler(
             historical_slate_to_config_slate,
         )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots
-        )
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
 
     return pref_profile_by_bloc
 

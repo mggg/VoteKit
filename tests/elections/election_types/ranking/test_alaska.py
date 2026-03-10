@@ -1,7 +1,10 @@
-from votekit.elections import Alaska, ElectionState
-from votekit.ballot import ScoreBallot, RankBallot
-from votekit.pref_profile import ScoreProfile, RankProfile, ProfileError
+from typing import Literal, cast
+
 import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import Alaska, ElectionState
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 test_profile = RankProfile(
     ballots=(
@@ -139,9 +142,7 @@ def test_errors():
     with pytest.raises(ValueError, match="m_2 must be positive."):
         Alaska(test_profile, m_2=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Alaska(test_profile, m_1=5)
 
     with pytest.raises(ValueError, match="m_1 must be greater than or equal to m_2."):
@@ -154,10 +155,10 @@ def test_errors():
         Alaska(test_profile_ties, m_1=3, m_2=3)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
-        Alaska(test_profile, quota="drip")
+        Alaska(test_profile, quota=cast(Literal["droop", "hare"] | None, "drip"))
 
     with pytest.raises(TypeError, match="has no ranking"):
         Alaska(RankProfile(ballots=(RankBallot(),)))
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        Alaska(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))
+        Alaska(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

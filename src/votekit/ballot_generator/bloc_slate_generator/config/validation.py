@@ -1,10 +1,10 @@
 """Validation helpers and data-shape conversion utilities for bloc-slate config."""
 
-from collections.abc import Callable, Mapping, MutableMapping
-from typing import Any, Optional, Union, cast
-from numbers import Real
 import math
 import warnings
+from collections.abc import Callable, Mapping, MutableMapping
+from numbers import Real
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -40,9 +40,7 @@ warnings.formatwarning = cast(Any, _config_warning_format)
 BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
 # Backward compatibility alias; keep the original misspelling available.
 BlocPropotionMapping = BlocProportionMapping
-CohesionMapping = Union[
-    Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame
-]
+CohesionMapping = Union[Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame]
 PreferenceIntervalLike = Union[Mapping[str, Union[float, int]], PreferenceInterval]
 PreferenceMapping = Union[
     Mapping[str, Mapping[str, PreferenceIntervalLike]],
@@ -213,9 +211,7 @@ def typecheck_bloc_proportion_mapping(
 
     for bloc, v in bloc_prop_mapping.items():
         if not isinstance(bloc, str):
-            raise TypeError(
-                f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'"
-            )
+            raise TypeError(f"Bloc keys must be a 'str', got '{bloc!r}' of '{type(bloc).__name__}'")
         if not _is_finite_real(v):
             raise TypeError(
                 f"Bloc '{bloc!r}': proportion must be a finite real (int|float), got '{v!r}' of "
@@ -248,9 +244,10 @@ def convert_bloc_proportion_map_to_series(
             raise ValueError("Bloc proportions index (blocs) contains duplicates.")
         if bloc_prop_mapping.dtype != float:
             bloc_prop_mapping = bloc_prop_mapping.astype(float)
-        if any(bloc_prop_mapping < 0):
+        values = bloc_prop_mapping.to_numpy(dtype=float)
+        if np.any(values < 0):
             raise ValueError("Bloc proportions must be non-negative.")
-        if any(bloc_prop_mapping > 1):
+        if np.any(values > 1):
             raise ValueError("Bloc proportions cannot be greater than 1.")
         return bloc_prop_mapping
 
@@ -355,7 +352,9 @@ def convert_cohesion_map_to_cohesion_df(
 
     for bloc, slate_dict in cohesion_mapping.items():
         slate_series = pd.Series(slate_dict)
-        blocs_to_slate[bloc].update(slate_series.to_dict())
+        blocs_to_slate[bloc].update(
+            {str(slate): float(value) for slate, value in slate_series.items()}
+        )
 
     return pd.DataFrame(blocs_to_slate).fillna(UNSET_VALUE).T
 
@@ -386,9 +385,7 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
         return
 
     if not isinstance(cast(object, pref_mapping), Mapping):  # cast gets around Pyright
-        raise TypeError(
-            f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'"
-        )
+        raise TypeError(f"preference_dict must be a mapping, got '{type(pref_mapping).__name__}'")
 
     for bloc, slate_dict in pref_mapping.items():
         if not isinstance(bloc, str):
@@ -473,13 +470,11 @@ def convert_preference_map_to_preference_df(
     for bloc, slate_dict in preference_mapping.items():
         for cand_item in slate_dict.values():
             cand_map = (
-                cand_item.interval
-                if isinstance(cand_item, PreferenceInterval)
-                else cand_item
+                cand_item.interval if isinstance(cand_item, PreferenceInterval) else cand_item
             )
             cand_series = pd.Series(cand_map)
-            cand_dict = cand_series.to_dict()
-
-            blocs_to_cand[bloc].update(cand_dict)
+            blocs_to_cand[bloc].update(
+                {str(candidate): float(value) for candidate, value in cand_series.items()}
+            )
 
     return pd.DataFrame(blocs_to_cand).fillna(UNSET_VALUE).T

@@ -1,28 +1,31 @@
 from __future__ import annotations
+
 import csv
 import os
+import pickle
 import urllib.request
+import warnings
+from functools import cached_property
+from os import PathLike
+from pathlib import Path
+from typing import Optional, Self, Sequence, Tuple, Union, cast, overload
+
+import numpy as np
 import pandas as pd
-from votekit.ballot import Ballot, ScoreBallot, RankBallot
+
+from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.pref_profile.csv_utils import (
+    _parse_ballot_from_rank_csv,
+    _parse_ballot_from_score_csv,
+    _parse_profile_data_from_rank_csv,
+    _parse_profile_data_from_score_csv,
+    _validate_rank_csv_format,
+    _validate_score_csv_format,
+)
 from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
-from votekit.pref_profile.csv_utils import (
-    _validate_rank_csv_format,
-    _parse_profile_data_from_rank_csv,
-    _parse_ballot_from_rank_csv,
-    _validate_score_csv_format,
-    _parse_profile_data_from_score_csv,
-    _parse_ballot_from_score_csv,
-)
-import numpy as np
-from typing import Optional, Tuple, Sequence, Union
-import warnings
-import pickle
-from functools import cached_property
-from pathlib import Path
-from os import PathLike
 
 
 class ProfileError(Exception):
@@ -83,6 +86,39 @@ class PreferenceProfile:
 
     _is_frozen: bool = False
 
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[RankBallot],
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> RankProfile: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[ScoreBallot],
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> ScoreProfile: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: Sequence[Ballot] = tuple(),
+        candidates: Sequence[str] = tuple(),
+        max_ranking_length: int = 0,
+        df: pd.DataFrame = pd.DataFrame(),
+        **kwargs,
+    ) -> PreferenceProfile: ...
+
     def __new__(
         cls,
         *,
@@ -109,12 +145,8 @@ class PreferenceProfile:
                 return super().__new__(ScoreProfile)
 
             else:
-                score_idxs = [
-                    idx for idx, b in enumerate(ballots) if isinstance(b, ScoreBallot)
-                ]
-                rank_idxs = [
-                    idx for idx, b in enumerate(ballots) if isinstance(b, RankBallot)
-                ]
+                score_idxs = [idx for idx, b in enumerate(ballots) if isinstance(b, ScoreBallot)]
+                rank_idxs = [idx for idx, b in enumerate(ballots) if isinstance(b, RankBallot)]
 
                 raise ProfileError(
                     f"Profile cannot contain RankBallots and ScoreBallots. There are "
@@ -202,16 +234,12 @@ class PreferenceProfile:
 
     def __setattr__(self, name, value):
         if getattr(self, "_is_frozen", False):
-            raise AttributeError(
-                f"Cannot modify frozen instance: tried to set '{name}'"
-            )
+            raise AttributeError(f"Cannot modify frozen instance: tried to set '{name}'")
         super().__setattr__(name, value)
 
     def __delattr__(self, name):
         if getattr(self, "_is_frozen", False):
-            raise AttributeError(
-                f"Cannot delete attribute '{name}' from frozen instance"
-            )
+            raise AttributeError(f"Cannot delete attribute '{name}' from frozen instance")
         super().__delattr__(name)
 
     def __eq__(self, other):
@@ -250,6 +278,13 @@ class PreferenceProfile:
 
     __repr__ = __str__
 
+    def group_ballots(self) -> Self:
+        raise NotImplementedError
+
+    @property
+    def ballots(self) -> tuple[Ballot, ...]:
+        raise NotImplementedError
+
     def to_pickle(self, fpath: Union[str, PathLike, Path]):
         """
         Saves profile to pickle file.
@@ -285,25 +320,24 @@ class PreferenceProfile:
 
 
 class RankProfile(PreferenceProfile):
+    max_ranking_length: int
 
     def __init__(
         self,
         *,
-        ballots: Sequence[RankBallot] = tuple(),
+        ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[str] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
         self.candidates = tuple(candidates)
-        self.max_ranking_length = (
-            0 if max_ranking_length is None else max_ranking_length
-        )
+        self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
         if df.equals(pd.DataFrame()):
             (
                 self.df,
                 self.candidates_cast,
-            ) = self._init_from_rank_ballots(ballots)
+            ) = self._init_from_rank_ballots(cast(Sequence[RankBallot], ballots))
             if self.candidates == tuple():
                 self.candidates = self.candidates_cast
 
@@ -511,9 +545,7 @@ class RankProfile(PreferenceProfile):
             ProfileError: max_ranking_length must be provided.
             ProfileError: Candidates must be provided.
         """
-        boiler_plate = (
-            "When providing a dataframe and no ballot list to the init method, "
-        )
+        boiler_plate = "When providing a dataframe and no ballot list to the init method, "
         if len(df) == 0:
             return
 
@@ -543,18 +575,14 @@ class RankProfile(PreferenceProfile):
         if df.index.name != "Ballot Index":
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         assert self.max_ranking_length is not None
-        if any(
-            f"Ranking_{i+1}" not in df.columns for i in range(self.max_ranking_length)
-        ):
+        if any(f"Ranking_{i+1}" not in df.columns for i in range(self.max_ranking_length)):
             for i in range(self.max_ranking_length):
                 if f"Ranking_{i+1}" not in df.columns:
                     raise ProfileError(
                         f"Ranking column 'Ranking_{i+1}' not in dataframe: {df.columns}"
                     )
 
-    def __find_candidates_cast_from_init_rank_df(
-        self, df: pd.DataFrame
-    ) -> tuple[str, ...]:
+    def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[str, ...]:
         """
         Compute which candidates received votes from the df and set the candidates_cast and
         candidates attr.
@@ -577,9 +605,7 @@ class RankProfile(PreferenceProfile):
         candidates_cast.discard("~")
         return tuple(candidates_cast)
 
-    def _init_from_rank_df(
-        self, df: pd.DataFrame
-    ) -> tuple[pd.DataFrame, tuple[str, ...]]:
+    def _init_from_rank_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
         Validate the dataframe and determine the candidates cast.
 
@@ -652,13 +678,9 @@ class RankProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         if not isinstance(other, RankProfile):
-            raise TypeError(
-                "Unsupported operand type. Must be an instance of RankProfile."
-            )
+            raise TypeError("Unsupported operand type. Must be an instance of RankProfile.")
 
-        assert (
-            self.max_ranking_length is not None and other.max_ranking_length is not None
-        )
+        assert self.max_ranking_length is not None and other.max_ranking_length is not None
         max_ranking_length = max([self.max_ranking_length, other.max_ranking_length])
         candidates = list(set(self.candidates).union(other.candidates))
 
@@ -667,18 +689,25 @@ class RankProfile(PreferenceProfile):
 
         if self.max_ranking_length < max_ranking_length:
             for i in range(self.max_ranking_length, max_ranking_length):
-                df_1[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_1)
+                df_1.insert(
+                    len(df_1.columns),
+                    f"Ranking_{i + 1}",
+                    pd.Series([frozenset("~")] * len(df_1), dtype=object, index=df_1.index),
+                )
         if other.max_ranking_length < max_ranking_length:
             for i in range(other.max_ranking_length, max_ranking_length):
-                df_2[f"Ranking_{i + 1}"] = [frozenset("~")] * len(df_2)
+                df_2.insert(
+                    len(df_2.columns),
+                    f"Ranking_{i + 1}",
+                    pd.Series([frozenset("~")] * len(df_2), dtype=object, index=df_2.index),
+                )
 
         new_df = pd.concat([df_1, df_2], ignore_index=True)
         new_df.index.name = "Ballot Index"
         ranking_cols = [c for c in new_df.columns if "Ranking_" in c]
         new_df[ranking_cols] = new_df[ranking_cols].astype("object")
         new_df = new_df[
-            [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
-            + ["Weight", "Voter Set"]
+            [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
         ]
 
         return RankProfile(
@@ -782,11 +811,7 @@ class RankProfile(PreferenceProfile):
 
         if rank_ballot.ranking is not None:
             ranking_list = [
-                (
-                    set([candidate_mapping[c] for c in cand_set])
-                    if cand_set != frozenset()
-                    else "{}"
-                )
+                (set([candidate_mapping[c] for c in cand_set]) if cand_set != frozenset() else "{}")
                 for cand_set in rank_ballot.ranking
             ]
             if len(ranking_list) != self.max_ranking_length:
@@ -875,13 +900,9 @@ class RankProfile(PreferenceProfile):
             candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
 
         header = self.__to_rank_csv_header(candidate_mapping, include_voter_set)
-        data_col_names = self.__to_rank_csv_data_column_names(
-            include_voter_set, candidate_mapping
-        )
+        data_col_names = self.__to_rank_csv_data_column_names(include_voter_set, candidate_mapping)
         ballot_rows = [
-            self.__to_rank_csv_ballot_row(
-                b, include_voter_set, candidate_mapping, weight_precision
-            )
+            self.__to_rank_csv_ballot_row(b, include_voter_set, candidate_mapping, weight_precision)
             for b in self.ballots
         ]
         rows = header + [data_col_names] + ballot_rows
@@ -943,7 +964,7 @@ class ScoreProfile(PreferenceProfile):
     def __init__(
         self,
         *,
-        ballots: Sequence[ScoreBallot] = tuple(),
+        ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[str] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
@@ -954,7 +975,7 @@ class ScoreProfile(PreferenceProfile):
             (
                 self.df,
                 self.candidates_cast,
-            ) = self._init_from_score_ballots(ballots)
+            ) = self._init_from_score_ballots(cast(Sequence[ScoreBallot], ballots))
 
             if self.candidates == tuple():
                 self.candidates = self.candidates_cast
@@ -1055,9 +1076,7 @@ class ScoreProfile(PreferenceProfile):
         }
 
         if self.candidates != tuple():
-            score_ballot_data.update(
-                {c: [np.nan] * num_ballots for c in self.candidates}
-            )
+            score_ballot_data.update({c: [np.nan] * num_ballots for c in self.candidates})
 
         return num_ballots, score_ballot_data
 
@@ -1089,10 +1108,7 @@ class ScoreProfile(PreferenceProfile):
             empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
             df[list(remaining_cands)] = empty_df_cols
 
-            col_order = (
-                sorted([c for c in df.columns if c not in temp_col_order])
-                + temp_col_order
-            )
+            col_order = sorted([c for c in df.columns if c not in temp_col_order]) + temp_col_order
 
         df = df[col_order]
         df.index.name = "Ballot Index"
@@ -1151,9 +1167,7 @@ class ScoreProfile(PreferenceProfile):
             ValueError: If contains_rankings is True, max_ranking_length must be provided.
             ValueError: Candidates must be provided.
         """
-        boiler_plate = (
-            "When providing a dataframe and no ballot list to the init method, "
-        )
+        boiler_plate = "When providing a dataframe and no ballot list to the init method, "
         if len(df) == 0:
             return
 
@@ -1184,13 +1198,9 @@ class ScoreProfile(PreferenceProfile):
         if any(c not in df.columns for c in self.candidates):
             for c in self.candidates:
                 if c not in df.columns:
-                    raise ProfileError(
-                        f"Candidate column '{c}' not in dataframe: {df.columns}"
-                    )
+                    raise ProfileError(f"Candidate column '{c}' not in dataframe: {df.columns}")
 
-    def __find_candidates_cast_from_init_score_df(
-        self, df: pd.DataFrame
-    ) -> tuple[str, ...]:
+    def __find_candidates_cast_from_init_score_df(self, df: pd.DataFrame) -> tuple[str, ...]:
         """
         Compute which candidates received votes from the df and set the candidates_cast and
         candidates attr.
@@ -1213,9 +1223,7 @@ class ScoreProfile(PreferenceProfile):
 
         return tuple(candidates_cast)
 
-    def _init_from_score_df(
-        self, df: pd.DataFrame
-    ) -> tuple[pd.DataFrame, tuple[str, ...]]:
+    def _init_from_score_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
         """
         Validate the dataframe and determine the candidates cast.
 
@@ -1239,9 +1247,7 @@ class ScoreProfile(PreferenceProfile):
         # TODO with map?
         computed_ballots = [ScoreBallot()] * len(self.df)
         for i, (_, b_row) in enumerate(self.df.iterrows()):
-            computed_ballots[i] = convert_row_to_score_ballot(
-                b_row, tuple(self.candidates)
-            )
+            computed_ballots[i] = convert_row_to_score_ballot(b_row, tuple(self.candidates))
         return tuple(computed_ballots)
 
     def __add__(self, other):
@@ -1249,9 +1255,7 @@ class ScoreProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         if not isinstance(other, ScoreProfile):
-            raise TypeError(
-                "Unsupported operand type. Must be an instance of ScoreProfile."
-            )
+            raise TypeError("Unsupported operand type. Must be an instance of ScoreProfile.")
 
         df_1 = self.df.copy()
         df_2 = other.df.copy()
@@ -1440,9 +1444,7 @@ class ScoreProfile(PreferenceProfile):
             candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
 
         header = self.__to_score_csv_header(candidate_mapping, include_voter_set)
-        data_col_names = self.__to_score_csv_data_column_names(
-            include_voter_set, candidate_mapping
-        )
+        data_col_names = self.__to_score_csv_data_column_names(include_voter_set, candidate_mapping)
         ballot_rows = [
             self.__to_score_csv_ballot_row(b, include_voter_set, weight_precision)
             for b in self.ballots

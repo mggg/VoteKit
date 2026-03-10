@@ -1,10 +1,11 @@
-import numpy as np
-from matplotlib.axes import Axes
-from typing import Optional, Dict, List, Tuple, Union
-from matplotlib.colors import Colormap, TwoSlopeNorm
-import matplotlib.pyplot as plt
-import seaborn as sns
+from typing import Dict, List, Optional, Tuple, Union
+
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from matplotlib.axes import Axes
+from matplotlib.colors import Colormap, TwoSlopeNorm
 
 
 def _validate_heatmap_inputs(
@@ -38,9 +39,7 @@ def _validate_heatmap_inputs(
         ValueError: If the legend descriptions in the row legend and column legend are in conflict.
     """
     if matrix.ndim != 2:
-        raise ValueError(
-            f"Please provide a 2D matrix to plot. Found a {matrix.ndim}-D matrix."
-        )
+        raise ValueError(f"Please provide a 2D matrix to plot. Found a {matrix.ndim}-D matrix.")
 
     n_rows = matrix.shape[0]
     n_cols = matrix.shape[1]
@@ -103,8 +102,7 @@ def _add_text_to_heatmap(
     quadmesh = heatmap.collections[0]
 
     max_chars = max(
-        len(f"{val:.{n_decimals_to_display}f}") + (3 if val < 0 else 2)
-        for val in matrix.flatten()
+        len(f"{val:.{n_decimals_to_display}f}") + (3 if val < 0 else 2) for val in matrix.flatten()
     )
 
     if cell_font_size is not None:
@@ -114,7 +112,7 @@ def _add_text_to_heatmap(
         if fig:
             fig.canvas.draw()
 
-            # ignoring mypy error, mypy not up to date with matplotlib get_renderer
+            # ignoring type error, ty not up to date with matplotlib get_renderer
             renderer = fig.canvas.get_renderer()  # type: ignore[attr-defined]
 
             # bounding box in display coords
@@ -300,9 +298,7 @@ def matrix_heatmap(
     if cell_color_map is None:
         if np.nanmin(matrix) < 0:
             cell_color_map = sns.color_palette("PRGn", as_cmap=True)
-            norm = TwoSlopeNorm(
-                vmin=np.nanmin(matrix), vcenter=0.0, vmax=np.nanmax(matrix)
-            )
+            norm = TwoSlopeNorm(vmin=np.nanmin(matrix), vcenter=0.0, vmax=np.nanmax(matrix))
         else:
             cell_color_map = sns.color_palette("Greens", as_cmap=True)
             norm = "linear"

@@ -1,7 +1,8 @@
-from votekit.pref_profile import ScoreProfile, CleanedScoreProfile
+import numpy as np
+
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import clean_score_profile
-import numpy as np
+from votekit.pref_profile import CleanedScoreProfile, ScoreProfile
 
 profile = ScoreProfile(
     ballots=[
@@ -17,8 +18,7 @@ def test_clean_profile_with_defaults():
     adj_profile = clean_score_profile(
         profile,
         lambda x: tuple(
-            np.nan if not np.isnan(score) and int(score) != score else score
-            for score in x
+            np.nan if not np.isnan(score) and int(score) != score else score for score in x
         ),
     )
 
@@ -40,8 +40,7 @@ def test_clean_profile_change_defaults():
     adj_profile = clean_score_profile(
         profile,
         lambda x: tuple(
-            np.nan if not np.isnan(score) and int(score) != score else score
-            for score in x
+            np.nan if not np.isnan(score) and int(score) != score else score for score in x
         ),
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,

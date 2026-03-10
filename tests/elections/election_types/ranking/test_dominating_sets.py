@@ -1,31 +1,35 @@
-from votekit.elections import DominatingSets, ElectionState
-from votekit.pref_profile import (
-    PreferenceProfile,
-    ProfileError,
-)
-from votekit.ballot import Ballot
+from typing import cast
+
 import pytest
 
-profile_no_tied_dominating_sets = PreferenceProfile(
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import DominatingSets, ElectionState
+from votekit.pref_profile import (
+    ProfileError,
+    RankProfile,
+    ScoreProfile,
+)
+
+profile_no_tied_dominating_sets = RankProfile(
     ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"})),
     ],
     max_ranking_length=3,
 )
 
 
-profile_no_tied_dominating_sets_round_1 = PreferenceProfile(
+profile_no_tied_dominating_sets_round_1 = RankProfile(
     ballots=[
-        Ballot(
+        RankBallot(
             ranking=(
                 {"B"},
                 {"C"},
             ),
             weight=2,
         ),
-        Ballot(
+        RankBallot(
             ranking=(
                 {"C"},
                 {"B"},
@@ -35,11 +39,11 @@ profile_no_tied_dominating_sets_round_1 = PreferenceProfile(
     max_ranking_length=3,
 )
 
-profile_multiwinner_dominating_sets = PreferenceProfile(
+profile_multiwinner_dominating_sets = RankProfile(
     ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"}), weight=2),
     ],
     max_ranking_length=3,
 )
@@ -118,4 +122,4 @@ def test_get_ranking():
 
 def test_errors():
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        DominatingSets(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        DominatingSets(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

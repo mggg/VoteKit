@@ -16,6 +16,8 @@ vote2
 .envrc
 .mypy_cache
 .ruff_cache
+.task-tools
+docs/package_info/contributing.md
 dev_files
 __pycache__
 TODO.md

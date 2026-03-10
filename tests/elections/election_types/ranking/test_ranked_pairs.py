@@ -1,15 +1,17 @@
-from votekit.elections import RankedPairs, ElectionState
+from time import time
+from typing import cast
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import ElectionState, RankedPairs
 from votekit.pref_profile import (
+    ProfileError,
     RankProfile,
     ScoreProfile,
-    ProfileError,
 )
-from votekit.ballot import RankBallot, ScoreBallot
-import pytest
-import pandas as pd
-import numpy as np
-from time import time
-
 
 electowiki_profile = RankProfile(
     ballots=(
@@ -232,13 +234,11 @@ def test_errors():
     with pytest.raises(ValueError, match="m must be strictly positive"):
         RankedPairs(profile_tied_set, m=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         RankedPairs(profile_tied_set, m=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        RankedPairs(ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),)))  # type: ignore
+        RankedPairs(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
 
 
 @pytest.mark.slow

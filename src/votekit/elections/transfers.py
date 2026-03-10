@@ -1,7 +1,8 @@
-import random
 import math
-from votekit.ballot import RankBallot
+import random
 from typing import Union
+
+from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 
 
@@ -35,9 +36,7 @@ def fractional_transfer(
             else:
                 transfered_weight = ballot.weight
             # remove winner from ballot
-            new_ranking = tuple(
-                [frozenset([c for c in s if c != winner]) for s in ballot.ranking]
-            )
+            new_ranking = tuple([frozenset([c for c in s if c != winner]) for s in ballot.ranking])
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
             transfered_ballots[i] = RankBallot(
@@ -86,9 +85,7 @@ def random_transfer(
 
         if ballot.ranking is not None:
             # remove winner from ballot
-            new_ranking = tuple(
-                [frozenset([c for c in s if c != winner]) for s in ballot.ranking]
-            )
+            new_ranking = tuple([frozenset([c for c in s if c != winner]) for s in ballot.ranking])
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
             if ballot.ranking[0] == frozenset({winner}):
@@ -99,9 +96,7 @@ def random_transfer(
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)
-                winner_ballots[winner_index : (winner_index + len(new_ballots))] = (
-                    new_ballots
-                )
+                winner_ballots[winner_index : (winner_index + len(new_ballots))] = new_ballots
                 winner_index += len(new_ballots)
 
             else:
@@ -113,9 +108,7 @@ def random_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    surplus_ballots = random.sample(
-        [b for b in winner_ballots if b.ranking], int(fpv) - threshold
-    )
+    surplus_ballots = random.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
     updated_ballots += surplus_ballots
 
     return RankProfile(

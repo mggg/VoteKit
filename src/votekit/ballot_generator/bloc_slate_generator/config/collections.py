@@ -1,5 +1,7 @@
 """Mutable collection wrappers used by BlocSlateConfig."""
 
+import operator
+import weakref
 from collections.abc import (
     Iterable,
     Iterator,
@@ -21,15 +23,13 @@ from typing import (
     overload,
 )
 from warnings import warn
-import operator
-import weakref
 
 import pandas as pd
 
 from votekit.ballot_generator.bloc_slate_generator.config.validation import (
+    FLOAT_TOL,
     BlocProportionMapping,
     ConfigurationWarning,
-    FLOAT_TOL,
     _sum_differs_from_one,
     convert_bloc_proportion_map_to_series,
     typecheck_bloc_proportion_mapping,
@@ -67,9 +67,7 @@ class _CandListProxy(MutableSequence[str]):
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[str]: ...
 
-    def __getitem__(
-        self, index: Union[SupportsIndex, slice]
-    ) -> Union[str, MutableSequence[str]]:
+    def __getitem__(self, index: Union[SupportsIndex, slice]) -> Union[str, MutableSequence[str]]:
         data = self.__owner._data[self.__key]
         if isinstance(index, slice):
             return data[index]
@@ -255,9 +253,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
             set(self._data.get(key, ()))
         ):
             rollback = self._data.get(key, None)
-            rollback_slate_dict = (
-                self.__parent._current_preference_df_slate_cand_mapping
-            )
+            rollback_slate_dict = self.__parent._current_preference_df_slate_cand_mapping
             self._data[key] = val_list
             try:
                 self.__parent._update_preference_and_cohesion_slates()
@@ -267,9 +263,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
                 else:
                     self._data[key] = rollback
 
-                self.__parent._current_preference_df_slate_cand_mapping = (
-                    rollback_slate_dict
-                )
+                self.__parent._current_preference_df_slate_cand_mapping = rollback_slate_dict
                 raise KeyError(
                     f"{e.args[0]}. "
                     "You may have tried to modify the candidate list directly. "
@@ -292,9 +286,7 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
 
     def __delitem__(self, key: str) -> None:
         del self._data[key]
-        update_hook = getattr(
-            self.__parent, "_update_preference_and_cohesion_slates", None
-        )
+        update_hook = getattr(self.__parent, "_update_preference_and_cohesion_slates", None)
         if callable(update_hook):
             update_hook()
 
@@ -401,7 +393,7 @@ class BlocProportions(MutableMapping[str, float]):
 
         if init is not None:
             ser = convert_bloc_proportion_map_to_series(init)
-            self.__data.update(ser.to_dict())
+            self.__data.update({str(bloc): float(value) for bloc, value in ser.items()})
 
         self._validate()
 
@@ -443,9 +435,7 @@ class BlocProportions(MutableMapping[str, float]):
         del self.__data[key]
         try:
             self._validate()
-            update_hook = getattr(
-                self.__parent, "_update_preference_and_cohesion_blocs", None
-            )
+            update_hook = getattr(self.__parent, "_update_preference_and_cohesion_blocs", None)
             if callable(update_hook):
                 update_hook()
         except Exception as e:  # pragma: no cover

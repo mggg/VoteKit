@@ -9,16 +9,17 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
-import apportionment.methods as apportion
+from numbers import Real
 
-from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
-from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _convert_slate_ballots_to_profile,
-    _append_zero_slate_symbols,
-)
+import apportionment.methods as apportion
 import numpy as np
 
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _append_zero_slate_symbols,
+    _convert_slate_ballots_to_profile,
+)
+from votekit.pref_profile import RankProfile
 
 # ====================================================
 # ================= Helper Functions =================
@@ -48,9 +49,7 @@ def _sample_pl_slate_ballots(
         list[tuple[str, ...]]: A list of tuples, where each tuple contains the bloc names in the
             order they appear on the ballot.
     """
-    num_candidates_per_slate = {
-        s: len(config.slate_to_candidates[s]) for s in non_zero_slate_set
-    }
+    num_candidates_per_slate = {s: len(config.slate_to_candidates[s]) for s in non_zero_slate_set}
 
     num_candidates = sum(num_candidates_per_slate.values())
 
@@ -65,9 +64,14 @@ def _sample_pl_slate_ballots(
         return len(dist_bins) - 2
 
     slates = list(non_zero_slate_set)
-    cohesion_values_og = [
-        float(config.cohesion_df.loc[bloc][slate]) for slate in slates
-    ]
+    cohesion_values_og: list[float] = []
+    for slate in slates:
+        cohesion_value = config.cohesion_df.loc[bloc, slate]
+        if not isinstance(cohesion_value, Real) or isinstance(cohesion_value, bool):
+            raise TypeError(
+                f"Cohesion must be numeric. Found {type(cohesion_value)!r} for slate {slate!r}."
+            )
+        cohesion_values_og.append(float(cohesion_value))
 
     for i, rand_unif_seq in enumerate(rand_unif_seqs):
         cohesion_values = np.array(cohesion_values_og)
@@ -129,9 +133,7 @@ def _inner_slate_plackett_luce(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -159,9 +161,7 @@ def _inner_slate_plackett_luce(
             slate_ballots = _append_zero_slate_symbols(
                 slate_ballots, zero_slate_set, n_ballots, config
             )
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots
-        )
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
 
     return pref_profile_by_bloc
 

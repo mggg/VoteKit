@@ -1,19 +1,19 @@
-from itertools import combinations
-import matplotlib.pyplot as plt  # type: ignore
-from matplotlib.axes import Axes
-import matplotlib.patches as mpatches
-import networkx as nx  # type: ignore
 from functools import cache
+from itertools import combinations
 from typing import Optional
-from votekit.pref_profile import RankProfile
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+from matplotlib.axes import Axes
+from numba import float64, int32, njit
 from numpy.typing import NDArray
-import numpy as np  # type: ignore
-from numba import njit, float64, int32  # type: ignore
+
+from votekit.pref_profile import RankProfile
 
 
-def __rows_to_indices(
-    profile: RankProfile, cand_name_to_idx: dict[str, int]
-) -> NDArray:
+def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[str, int]) -> NDArray:
     """
     Converts the ranking columns of a RankProfile to integer indices.
     Each singleton candidate set is converted to an index based on the provided candidates list.
@@ -146,8 +146,7 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
     quotient_generations = list(nx.topological_generations(condensed_acyclic_graph))
 
     node_to_descendants = {
-        n: set(nx.descendants(condensed_acyclic_graph, n))
-        for n in condensed_acyclic_graph.nodes
+        n: set(nx.descendants(condensed_acyclic_graph, n)) for n in condensed_acyclic_graph.nodes
     }
 
     # Deal with unequal legs by checking checking the pairwise node sets for paths.
@@ -214,9 +213,7 @@ def restrict_pairwise_dict_to_subset(
         ValueError: cand_subset must be a subset of the candidates in the dictionary.
     """
     if len(cand_subset) < 2:
-        raise ValueError(
-            f"Must be at least two candidates in cand_subset: {cand_subset}"
-        )
+        raise ValueError(f"Must be at least two candidates in cand_subset: {cand_subset}")
 
     candidates = [c for s in pairwise_dict.keys() for c in s]
 
@@ -263,9 +260,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
 
     def __init__(self, profile: RankProfile, *, sort_candidate_pairs: bool = True):
         self.profile = profile
-        self.pairwise_dict = pairwise_dict(
-            profile, sort_candidate_pairs=sort_candidate_pairs
-        )
+        self.pairwise_dict = pairwise_dict(profile, sort_candidate_pairs=sort_candidate_pairs)
         self.pairwise_graph: nx.DiGraph = self.__build_graph()
 
     def __build_graph(self) -> nx.DiGraph:
@@ -372,9 +367,7 @@ class PairwiseComparisonGraph(nx.DiGraph):
 
         list_of_cycles = nx.recursive_simple_cycles(graph_to_use)
         # Filtering for cycles with length > 2 as per docstring definition
-        return [
-            set(x) for x in sorted(list_of_cycles, key=lambda x: len(x)) if len(x) > 2
-        ]
+        return [set(x) for x in sorted(list_of_cycles, key=lambda x: len(x)) if len(x) > 2]
 
     def has_condorcet_cycles(self) -> bool:
         """

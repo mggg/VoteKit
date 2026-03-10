@@ -1,9 +1,9 @@
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
-from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
 from votekit.cleaning import remove_and_condense_rank_profile
-from votekit.utils import elect_cands_from_set_ranking, borda_scores
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.graphs import PairwiseComparisonGraph
+from votekit.pref_profile import RankProfile
+from votekit.utils import borda_scores, elect_cands_from_set_ranking
 
 
 class CondoBorda(RankingElection):
@@ -60,9 +60,7 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_and_condense_rank_profile(
-            [c for s in elected for c in s], profile
-        )
+        new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
 
         if store_states:
             self.election_states.append(

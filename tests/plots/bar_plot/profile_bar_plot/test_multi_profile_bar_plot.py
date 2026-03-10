@@ -1,20 +1,21 @@
-from votekit.plots.profiles import multi_profile_bar_plot
-from votekit.pref_profile import PreferenceProfile
-from votekit.utils import COLOR_LIST, first_place_votes
-from votekit.ballot import Ballot
-from matplotlib.axes import Axes
-import pytest
 import matplotlib.pyplot as plt
+import pytest
+from matplotlib.axes import Axes
 
-ballot_1 = Ballot(
+from votekit.ballot import RankBallot
+from votekit.plots.profiles import multi_profile_bar_plot
+from votekit.pref_profile import RankProfile
+from votekit.utils import COLOR_LIST, first_place_votes
+
+ballot_1 = RankBallot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1
 )
-ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
-ballot_3 = Ballot(ranking=(frozenset({"Chris"}),), weight=1)
-ballot_4 = Ballot(ranking=(frozenset({"Peter"}),), weight=1)
+ballot_2 = RankBallot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
+ballot_3 = RankBallot(ranking=(frozenset({"Chris"}),), weight=1)
+ballot_4 = RankBallot(ranking=(frozenset({"Peter"}),), weight=1)
 
-profile_1 = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
-profile_2 = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_4))
+profile_1 = RankProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
+profile_2 = RankProfile(ballots=(ballot_1, ballot_2, ballot_4))
 
 
 def test_barplot_with_defaults():
@@ -57,9 +58,7 @@ def test_barplot_with_no_defaults():
 
 
 def test_wrapped_errors():
-    with pytest.raises(
-        ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} profiles."
-    ):
+    with pytest.raises(ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} profiles."):
         multi_profile_bar_plot(
             {f"Profile_{i}": profile_1 for i in range(len(COLOR_LIST) + 2)},
             stat_function=first_place_votes,

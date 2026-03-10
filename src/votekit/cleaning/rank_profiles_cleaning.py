@@ -1,12 +1,14 @@
 from functools import partial
 from typing import Callable, Union
+
+import numpy as np
+import pandas as pd
+
 from votekit.pref_profile import (
-    RankProfile,
     CleanedRankProfile,
     ProfileError,
+    RankProfile,
 )
-import pandas as pd
-import numpy as np
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -30,8 +32,7 @@ def _iterate_and_clean_ranking_tuples(
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     orig_rows = [
-        tuple(vals)
-        for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
+        tuple(vals) for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
     ]
     cleaned_rows = [clean_ranking_func(row) for row in orig_rows]
 
@@ -40,12 +41,8 @@ def _iterate_and_clean_ranking_tuples(
     tilde = frozenset({"~"})
     idxs = cleaned_df.index
 
-    unaltr_idxs = {
-        idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c
-    }
-    no_rank_altr_idxs = {
-        idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)
-    }
+    unaltr_idxs = {idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c}
+    no_rank_altr_idxs = {idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)}
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
     no_wt_altr_idxs: set[int] = set()
 
@@ -100,15 +97,9 @@ def clean_rank_profile(
 
     if remove_empty_ballots:
         assert profile.max_ranking_length is not None
-        ranking_cols = [
-            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
-        mask = (
-            cleaned_df[ranking_cols]
-            .map(lambda x: x == frozenset({"~"}))  # type: ignore[operator]
-            .all(axis=1)
-        )
+        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
 
         cleaned_df = cleaned_df[~mask]
 
@@ -307,14 +298,10 @@ def condense_ranking_row(
 
     """
     max_ranking_length = len(ranking_tup)
-    condensed_ranking = [
-        cand_set for cand_set in ranking_tup if cand_set != frozenset()
-    ]
+    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != frozenset()]
 
     if len(condensed_ranking) < max_ranking_length:
-        condensed_ranking += [frozenset("~")] * (
-            max_ranking_length - len(condensed_ranking)
-        )
+        condensed_ranking += [frozenset("~")] * (max_ranking_length - len(condensed_ranking))
 
     return tuple(condensed_ranking)
 
@@ -395,9 +382,7 @@ def condense_rank_profile(
     )
 
     new_unaltr_idxs = condensed_profile.unaltr_idxs | additional_unaltr_idxs
-    new_nonempty_altr_idxs = condensed_profile.nonempty_altr_idxs.difference(
-        additional_unaltr_idxs
-    )
+    new_nonempty_altr_idxs = condensed_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
 
     return CleanedRankProfile(
         df=condensed_profile.df,
@@ -520,9 +505,7 @@ def remove_and_condense_rank_profile(
     )
 
     new_unaltr_idxs = cleaned_profile.unaltr_idxs | additional_unaltr_idxs
-    new_nonempty_altr_idxs = cleaned_profile.nonempty_altr_idxs.difference(
-        additional_unaltr_idxs
-    )
+    new_nonempty_altr_idxs = cleaned_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
 
     return CleanedRankProfile(
         df=cleaned_profile.df,

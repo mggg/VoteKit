@@ -1,15 +1,20 @@
-from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile, ProfileError
-from .utils import (
-    rank_profile_to_ballot_dict,
-    score_profile_to_ballot_dict,
-    rank_profile_to_ranking_dict,
-    score_profile_to_scores_dict,
+from votekit.pref_profile.cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
+from votekit.pref_profile.pref_profile import (
+    PreferenceProfile,
+    ProfileError,
+    RankProfile,
+    ScoreProfile,
+)
+from votekit.pref_profile.utils import (
+    convert_rank_profile_to_score_profile_via_score_vector,
+    convert_row_to_rank_ballot,
     profile_df_head,
     profile_df_tail,
-    convert_row_to_rank_ballot,
-    convert_rank_profile_to_score_profile_via_score_vector,
+    rank_profile_to_ballot_dict,
+    rank_profile_to_ranking_dict,
+    score_profile_to_ballot_dict,
+    score_profile_to_scores_dict,
 )
-from .cleaned_pref_profile import CleanedRankProfile, CleanedScoreProfile
 
 __all__ = [
     "PreferenceProfile",

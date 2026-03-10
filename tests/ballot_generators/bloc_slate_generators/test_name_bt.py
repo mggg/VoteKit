@@ -1,14 +1,13 @@
+import itertools as it
+
 from votekit.ballot_generator import (
+    BlocSlateConfig,
     name_bt_profile_generator,
     name_bt_profiles_by_bloc_generator,
-    BlocSlateConfig,
 )
-from votekit.pref_profile import RankProfile
+from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import _calc_prob as bt_prob
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
-from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
-    _calc_prob as bt_prob,
-)
-import itertools as it
+from votekit.pref_profile import RankProfile
 
 
 def test_NBT_completion():
@@ -98,9 +97,7 @@ def test_NBT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
 
     assert isinstance(generated_profile, RankProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        final_ballot_prob_dict, generated_profile
-    )
+    assert do_ballot_probs_match_ballot_dist_rank_profile(final_ballot_prob_dict, generated_profile)
 
 
 def test_NBT_3_bloc(do_ballot_probs_match_ballot_dist_rank_profile):
@@ -213,9 +210,7 @@ def test_NBT_probability_calculation():
         * (x_pref_interval["W2"] / (x_pref_interval["W2"] + x_pref_interval["C2"]))
     )
     assert (
-        bt_prob(permutations=[permutation], cand_support_dict=dict(x_pref_interval))[
-            permutation
-        ]
+        bt_prob(permutations=[permutation], cand_support_dict=dict(x_pref_interval))[permutation]
         == prob
     )
 

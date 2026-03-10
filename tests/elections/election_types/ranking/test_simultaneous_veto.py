@@ -1,4 +1,5 @@
 from itertools import product
+from typing import Literal, cast
 
 import pytest
 
@@ -11,13 +12,9 @@ from votekit.pref_profile import RankProfile
 # ---------------------------------------------------------------------------
 
 
-def make_profile(
-    raw: dict[tuple[str, ...], float], max_ranking_length=None
-) -> RankProfile:
+def make_profile(raw: dict[tuple[str, ...], float], max_ranking_length=None) -> RankProfile:
     """Shorthand: {("A", "B", "C"): 3} -> RankBallot with that ranking and weight."""
-    ballots = [
-        RankBallot(ranking=ranking, weight=weight) for ranking, weight in raw.items()
-    ]
+    ballots = [RankBallot(ranking=ranking, weight=weight) for ranking, weight in raw.items()]
     if max_ranking_length is None:
         return RankProfile(ballots=ballots)
     else:
@@ -120,12 +117,16 @@ class TestValidation:
 
     def test_invalid_candidate_weights_string(self, basic_profile):
         with pytest.raises(ValueError, match="invalid input"):
-            SimultaneousVeto(basic_profile, candidate_weights="banana")
+            SimultaneousVeto(
+                basic_profile,
+                candidate_weights=cast(
+                    Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int,
+                    "banana",
+                ),
+            )
 
     def test_invalid_candidate_weights_k_too_large(self, basic_profile):
-        with pytest.raises(
-            ValueError, match="not valid for a profile with max_ranking_length"
-        ):
+        with pytest.raises(ValueError, match="not valid for a profile with max_ranking_length"):
             SimultaneousVeto(basic_profile, candidate_weights=42)
 
     def test_invalid_candidate_weights_k_too_small(self, basic_profile):
@@ -209,9 +210,7 @@ class TestCandidateWeights:
             "B": 3 + 3.2 * 1 / 2 + 2 * 1 / 3,
             "C": 2 + 3 * 1 / 2 + 3.2 * 1 / 3,
         }
-        assert all(
-            election.initial_scores[c] - expected_scores[c] < 1e-5 for c in "ABC"
-        )
+        assert all(election.initial_scores[c] - expected_scores[c] < 1e-5 for c in "ABC")
 
     def test_top2(self, basic_profile):
         election = SimultaneousVeto(basic_profile, candidate_weights=2)
@@ -376,9 +375,7 @@ class TestBallotTies:
         """Ballot where two candidates are tied at rank 1."""
         ballots = [
             RankBallot(ranking=(frozenset({"A", "B"}), frozenset({"C"})), weight=5),
-            RankBallot(
-                ranking=(frozenset({"C"}), frozenset({"A"}), frozenset({"B"})), weight=3
-            ),
+            RankBallot(ranking=(frozenset({"C"}), frozenset({"A"}), frozenset({"B"})), weight=3),
         ]
         profile = RankProfile(ballots=ballots)
         election = SimultaneousVeto(profile, candidate_weights="first_place")
@@ -390,12 +387,8 @@ class TestBallotTies:
         """Ballot where two candidates are tied at rank 2."""
         ballots = [
             RankBallot(ranking=(frozenset({"A"}), frozenset({"B", "C"})), weight=5),
-            RankBallot(
-                ranking=(frozenset({"B"}), frozenset({"C"}), frozenset({"A"})), weight=3
-            ),
-            RankBallot(
-                ranking=(frozenset({"C"}), frozenset({"A"}), frozenset({"B"})), weight=2
-            ),
+            RankBallot(ranking=(frozenset({"B"}), frozenset({"C"}), frozenset({"A"})), weight=3),
+            RankBallot(ranking=(frozenset({"C"}), frozenset({"A"}), frozenset({"B"})), weight=2),
         ]
         profile = RankProfile(ballots=ballots)
         election = SimultaneousVeto(profile)
@@ -574,9 +567,7 @@ class TestSimultaneousEliminations:
             profile, m=1, candidate_weights="first_place", tiebreak="first_place"
         )
         # this should be a 3-way tie
-        assert (
-            frozenset({"A", "B", "C"}) in election.election_states[-1].tiebreaks.keys()
-        )
+        assert frozenset({"A", "B", "C"}) in election.election_states[-1].tiebreaks.keys()
         assert len(elected_set(election)) == 1
 
     def test_three_way_tie(self):

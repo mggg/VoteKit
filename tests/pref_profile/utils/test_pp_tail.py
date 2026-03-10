@@ -1,7 +1,8 @@
+import numpy as np
+import pandas as pd
+
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import PreferenceProfile, profile_df_tail
-import pandas as pd
-import numpy as np
 
 
 def test_pp_df_tail_rankings():
@@ -86,6 +87,4 @@ def test_pp_df_tail_scores():
     true_df.index.name = "Ballot Index"
     true_df.loc["Total"] = [""] * 5 + [4, f"{1:.2%}"]
 
-    assert profile_df_tail(pp, n=4, percents=True, totals=True, n_decimals=2).equals(
-        true_df
-    )
+    assert profile_df_tail(pp, n=4, percents=True, totals=True, n_decimals=2).equals(true_df)

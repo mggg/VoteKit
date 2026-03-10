@@ -1,8 +1,10 @@
-from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile
-import numpy as np
 import itertools as it
+
+import numpy as np
+
+from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
+from votekit.pref_profile import RankProfile
 
 
 def candidate_distance(i: str, j: str, ballot: RankBallot) -> float:
@@ -38,9 +40,7 @@ def candidate_distance(i: str, j: str, ballot: RankBallot) -> float:
         return positions[j] - positions[i]
 
 
-def candidate_distance_matrix(
-    pref_profile: RankProfile, candidates: list[str]
-) -> np.ndarray:
+def candidate_distance_matrix(pref_profile: RankProfile, candidates: list[str]) -> np.ndarray:
     """
     Takes a preference profile and converts to a matrix
     where the i,j entry shows the average distance between i and j when i >= j on the same

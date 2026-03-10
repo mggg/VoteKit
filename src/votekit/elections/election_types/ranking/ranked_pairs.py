@@ -1,14 +1,13 @@
 import networkx as nx
 
-from votekit.pref_profile import RankProfile
-from votekit.graphs.pairwise_comparison_graph import (
-    pairwise_dict,
-    get_dominating_tiers_digraph,
-)
-from votekit.utils import tiebreak_set
-
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.graphs.pairwise_comparison_graph import (
+    get_dominating_tiers_digraph,
+    pairwise_dict,
+)
+from votekit.pref_profile import RankProfile
+from votekit.utils import tiebreak_set
 
 
 class RankedPairs(RankingElection):
@@ -94,9 +93,7 @@ class RankedPairs(RankingElection):
                 ordered_winners[(b, a)] = weight_b - weight_a
 
         # Lock the order
-        sorted_winners = sorted(
-            ordered_winners.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_winners = sorted(ordered_winners.items(), key=lambda x: x[1], reverse=True)
 
         graph: nx.DiGraph = nx.DiGraph()
         graph.add_nodes_from(profile.candidates_cast)
@@ -118,9 +115,7 @@ class RankedPairs(RankingElection):
                 )
 
         ordered_candidates = [
-            candidate
-            for candidate_set in dominating_tiers
-            for candidate in sorted(candidate_set)
+            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
         ]
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])
