@@ -16,8 +16,21 @@ vars:
   UV_PYTHON_INSTALL_DIR_WINDOWS: "{{.UV_STATE_DIR_WINDOWS}}\\python"
 
 tasks:
-  setup:
-    desc: Set up the project environment for development
+  sync:
+    desc: Sync the project environment with optional extras
+    internal: true
+    silent: true
+    cmds:
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: python install {{.PYTHON_VERSION}}
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: --managed-python sync --locked --all-groups --python {{.PYTHON_VERSION}}
+
+  sync-animation:
+    desc: Sync the project environment with animation dependencies
+    internal: true
     silent: true
     cmds:
       - task: uv-{{OS}}
@@ -26,8 +39,23 @@ tasks:
       - task: uv-{{OS}}
         vars:
           UV_ARGS: >-
-            --managed-python sync --locked --all-groups --all-extras --python
-            {{.PYTHON_VERSION}}
+            --managed-python sync --locked --all-groups --extra animation
+            --python {{.PYTHON_VERSION}}
+
+  setup:
+    desc: Set up the project environment for development
+    silent: true
+    cmds:
+      - task: sync
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pre-commit install
+
+  setup-animation:
+    desc: Set up the project environment for animation development
+    silent: true
+    cmds:
+      - task: sync-animation
       - task: uv-{{OS}}
         vars:
           UV_ARGS: run pre-commit install
@@ -76,7 +104,10 @@ tasks:
     env:
       TERM: xterm
     cmds:
-      - task: setup
+      - task: sync-animation
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pre-commit install
       - task: uv-{{OS}}
         vars:
           UV_ARGS: run pytest tests
@@ -87,7 +118,10 @@ tasks:
     env:
       TERM: xterm
     cmds:
-      - task: setup
+      - task: sync-animation
+      - task: uv-{{OS}}
+        vars:
+          UV_ARGS: run pre-commit install
       - task: uv-{{OS}}
         vars:
           UV_ARGS: run pytest tests --runslow
