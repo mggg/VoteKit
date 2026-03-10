@@ -101,3 +101,8 @@ markers = [
   "slow: long-running tests",
 ]
 testpaths = ["tests"]
+filterwarnings = [
+  "ignore:The '__version__' attribute is deprecated and will be removed in Click 9\\.1.*:DeprecationWarning:cloup\\._util",
+  "ignore:invalid escape sequence '\\\\\\(':SyntaxWarning:pydub\\.utils",
+  "ignore:'audioop' is deprecated and slated for removal in Python 3\\.13:DeprecationWarning:pydub\\.utils",
+]

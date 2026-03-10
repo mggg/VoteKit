@@ -1,3 +1,5 @@
+import pytest
+
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
     condense_rank_profile,
@@ -53,7 +55,9 @@ def test_remove_mult_cands():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
 
-    assert set(cleaned_profile.group_ballots().ballots) == set(
+    with pytest.warns(UserWarning, match="Grouping the ballots of a CleanedRankProfile"):
+        grouped = cleaned_profile.group_ballots()
+    assert set(grouped.ballots) == set(
         [
             RankBallot(ranking=[{"C"}], weight=7 / 2),
         ]
@@ -71,7 +75,9 @@ def test_remove_and_condense_with_ties():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
 
-    assert set(cleaned_profile.group_ballots().ballots) == set(
+    with pytest.warns(UserWarning, match="Grouping the ballots of a CleanedRankProfile"):
+        grouped = cleaned_profile.group_ballots()
+    assert set(grouped.ballots) == set(
         [
             RankBallot(ranking=[{"C"}], weight=7 / 2),
         ]

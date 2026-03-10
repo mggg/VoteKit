@@ -77,6 +77,14 @@ tasks:
         vars:
           UV_ARGS: run ty check src tests
 
+  all-checks:
+    desc: Run all checks (formatting, linting, type checking)
+    silent: true
+    cmds:
+      - task: format-check
+      - task: lint
+      - task: typecheck
+
   test:
     desc: Run tests using pytest
     silent: true

@@ -1,3 +1,5 @@
+import pytest
+
 from votekit.ballot import RankBallot
 from votekit.cleaning import remove_repeat_cands_rank_profile
 from votekit.pref_profile import CleanedRankProfile, RankProfile
@@ -12,9 +14,9 @@ def test_remove_repeated_candidates():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
 
-    assert cleaned_profile.group_ballots().ballots == (
-        RankBallot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=2),
-    )
+    with pytest.warns(UserWarning, match="Grouping the ballots of a CleanedRankProfile"):
+        grouped = cleaned_profile.group_ballots()
+    assert grouped.ballots == (RankBallot(ranking=({"A"}, frozenset(), {"B"}, {"C"}), weight=2),)
 
     assert cleaned_profile != profile
     assert cleaned_profile.no_wt_altr_idxs == set()
@@ -39,9 +41,9 @@ def test_remove_repeated_candidates_ties():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile
 
-    assert cleaned_profile.group_ballots().ballots == (
-        RankBallot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=2),
-    )
+    with pytest.warns(UserWarning, match="Grouping the ballots of a CleanedRankProfile"):
+        grouped = cleaned_profile.group_ballots()
+    assert grouped.ballots == (RankBallot(ranking=[{"C", "A"}, frozenset(), {"B"}], weight=2),)
 
     assert cleaned_profile != profile
     assert cleaned_profile.no_wt_altr_idxs == set()

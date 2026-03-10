@@ -70,9 +70,12 @@ def compute_MDS(
 
     mds = manifold.MDS(
         n_components=2,
+        metric_mds=True,
+        metric="precomputed",
+        n_init=4,
+        init="random",
         max_iter=3000,
         eps=1e-9,
-        dissimilarity="precomputed",
         n_jobs=1,
         normalized_stress="auto",
         random_state=random_seed,
