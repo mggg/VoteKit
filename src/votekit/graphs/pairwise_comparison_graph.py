@@ -346,17 +346,35 @@ class PairwiseComparisonGraph(nx.DiGraph):
             raise ValueError("There is no condorcet winner.")
 
     @cache
-    def get_condorcet_cycles(self) -> list[set[str]]:
+    def get_condorcet_cycles(self, strict: bool = False) -> list[set[str]]:
         """
-        Returns a list of condorcet cycles in the graph, which we define as any cycle of length
-        greater than 2.
+        Returns a list of condorcet cycles in the graph.
+
+        A cycle is defined as any cycle of length greater than 2.
+
+        Args:
+            strict (bool, optional): If True, only considers strict wins (weight > 0).
+                If False, includes ties (weak condorcet cycles). Defaults to False.
 
         Returns:
             list[set[str]]: List of condorcet cycles sorted by length.
         """
+        graph_to_use = self.pairwise_graph
+        if strict:
+            # We filter for edges with weight > 0 to find strict cycles
+            strict_edges = []
+            for u, v, data in self.pairwise_graph.edges(data=True):
+                if data.get("weight", 0) > 0:
+                    strict_edges.append((u, v, data))
 
-        list_of_cycles = nx.recursive_simple_cycles(self.pairwise_graph)
-        return [set(x) for x in sorted(list_of_cycles, key=lambda x: len(x))]
+            graph_to_use = nx.DiGraph()
+            graph_to_use.add_edges_from(strict_edges)
+
+        list_of_cycles = nx.recursive_simple_cycles(graph_to_use)
+        # Filtering for cycles with length > 2 as per docstring definition
+        return [
+            set(x) for x in sorted(list_of_cycles, key=lambda x: len(x)) if len(x) > 2
+        ]
 
     def has_condorcet_cycles(self) -> bool:
         """

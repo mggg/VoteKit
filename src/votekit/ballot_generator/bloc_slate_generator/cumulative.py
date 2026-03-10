@@ -15,7 +15,7 @@ from typing import Optional
 
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 
 # ===========================================================
 # ================= Interior Work Functions =================

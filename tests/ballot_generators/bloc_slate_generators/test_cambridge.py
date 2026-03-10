@@ -1,5 +1,5 @@
 from votekit.pref_interval import PreferenceInterval
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
@@ -104,6 +104,7 @@ def test_Cambridge_errors(
 ):
     config = BlocSlateConfig(
         n_voters=100_000,
+        allow_zero_support_candidates=True,
         slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"], "C": ["C1", "C2"]},
         bloc_proportions={"A": 2 / 3, "B": 1 / 3},
         preference_mapping={
@@ -132,6 +133,7 @@ def test_Cambridge_errors(
 
     config = BlocSlateConfig(
         n_voters=100_000,
+        allow_zero_support_candidates=True,
         slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"]},
         bloc_proportions={"A": 1 / 3, "B": 1 / 3, "C": 1 / 3},
         preference_mapping={
@@ -328,6 +330,7 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
 def test_cambridge_zero_support_slates():
     config = BlocSlateConfig(
         n_voters=100_000,
+        allow_zero_support_candidates=True,
         slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"]},
         bloc_proportions={"A": 1 / 3, "B": 2 / 3},
         preference_mapping={

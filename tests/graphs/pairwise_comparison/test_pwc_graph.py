@@ -125,3 +125,22 @@ def test_draw_pwcg_non_candidate_error():
         match="Invalid candidates found:",
     ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])
+
+
+def test_strict_condorcet_cycles():
+    weak_cycle_profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"}))), weight=2),
+            RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"C"}, {"A"}))), weight=2),
+            RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"A"}, {"B"}))), weight=1),
+            RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"B"}, {"A"}))), weight=1),
+        )
+    )
+    pwcg = PairwiseComparisonGraph(weak_cycle_profile)
+
+    weak_cycles = pwcg.get_condorcet_cycles(strict=False)
+    assert len(weak_cycles) == 1
+    assert weak_cycles[0] == {"A", "B", "C"}
+
+    strict_cycles = pwcg.get_condorcet_cycles(strict=True)
+    assert len(strict_cycles) == 0

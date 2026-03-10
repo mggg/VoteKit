@@ -12,9 +12,12 @@ from .ranking import (
     CondoBorda,
     TopTwo,
     PluralityVeto,
+    SerialVeto,
+    SimultaneousVeto,
     RandomDictator,
     BoostedRandomDictator,
     RankedPairs,
+    Schulze,
 )
 
 
@@ -41,7 +44,10 @@ __all__ = [
     "Approval",
     "BlocPlurality",
     "PluralityVeto",
+    "SerialVeto",
+    "SimultaneousVeto",
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Schulze",
 ]

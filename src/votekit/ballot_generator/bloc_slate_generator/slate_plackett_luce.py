@@ -12,7 +12,7 @@ The main API functions in this module are:
 import apportionment.methods as apportion
 
 from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _convert_slate_ballots_to_profile,
     _append_zero_slate_symbols,

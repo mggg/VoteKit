@@ -30,12 +30,13 @@ def onedim_spacial_profile_generator(
     number_of_ballots: int,
 ) -> RankProfile:
     """
-    Generates a ranked preference profile where voters and candidates
-    are positioned on a one-dimensional line according to a normal
-    distribution. Voter preferences are determined by their proximity
-    to candidates on this line.
+    Generate a 1D spatial rank profile.
+
+    Voters and candidates are sampled from normal distributions on a line.
+    Each ballot ranks candidates by absolute distance from the voter.
 
     Args:
+        candidates (Sequence[str]): Candidate names used in each generated ballot.
         number_of_ballots (int): The number of ballots to generate.
 
     Returns:
@@ -81,16 +82,40 @@ def spacial_profile_and_positions_generator(
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
 ) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
     """
-    Samples a metric position for number_of_ballots voters from
-    the voter distribution. Samples a metric position for each candidate
-    from the input candidate distribution. With sampled
-    positions, this method then creates a ranked RankProfile in which
-    voter's preferences are consistent with their distances to the candidates
-    in the metric space.
+    Generate a spatial rank profile and sampled positions.
+
+    Samples voter and candidate positions in a metric space, then ranks each
+    ballot by candidate distance from the sampled voter position.
+
+    Example:
+        profile, cand_pos, voter_pos = spacial_profile_and_positions_generator(
+            number_of_ballots=100,
+            candidates=["A", "B", "C"],
+            voter_dist=np.random.normal,
+            voter_dist_kwargs={"loc": 0.0, "scale": 1.0, "size": 2},
+            candidate_dist=np.random.uniform,
+            candidate_dist_kwargs={"low": -1.0, "high": 1.0, "size": 2},
+        )
 
     Args:
         number_of_ballots (int): The number of ballots to generate.
-        by_bloc (bool): Dummy variable from parent class.
+        candidates (list[str]): Candidate names used when building rankings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
+            to draw each voter position. Defaults to ``np.random.uniform``.
+        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+            passed to ``voter_dist`` for each sample. If None, uses
+            ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
+            ``np.random.uniform`` and ``{}`` for other distributions.
+        candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
+            used to draw each candidate position. Defaults to
+            ``np.random.uniform``.
+        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+            arguments passed to ``candidate_dist`` for each sample. If None, uses
+            ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
+            ``np.random.uniform`` and ``{}`` for other distributions.
+        distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
+            function used to compare voter and candidate positions. Defaults to
+            ``euclidean_dist``.
 
     Returns:
         Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
@@ -177,18 +202,43 @@ def clustered_spacial_profile_and_positions_generator(
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
 ) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
     """
-    Samples a metric position for each candidate
-    from the input candidate distribution. For each candidate, then sample
-    number_of_ballots[candidate] metric positions for voters
-    which will be centered around the candidate.
-    With sampled positions, this method then creates a ranked RankProfile in which
-    voter's preferences are consistent with their distances to the candidates
-    in the metric space.
+    Generate a clustered spatial rank profile and sampled positions.
+
+    Samples candidate positions first, then samples each voter around the
+    candidate they are assigned to in ``number_of_ballots``.
+
+    Example:
+        profile, cand_pos, voter_pos = clustered_spacial_profile_and_positions_generator(
+            number_of_ballots={"A": 40, "B": 35, "C": 25},
+            candidates=["A", "B", "C"],
+            voter_dist=np.random.normal,
+            voter_dist_kwargs={"loc": 0.0, "scale": 0.5, "size": 2},
+            candidate_dist=np.random.uniform,
+            candidate_dist_kwargs={"low": -1.0, "high": 1.0, "size": 2},
+        )
 
     Args:
         number_of_ballots (dict[str, int]): The number of voters attributed
                     to each candidate {candidate string: # voters}.
-        by_bloc (bool): Dummy variable from parent class.
+        candidates (list[str]): Candidate names used when building rankings.
+        voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
+            to draw voter positions centered at each candidate location. Defaults
+            to ``np.random.normal``.
+        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+            passed to ``voter_dist`` while generating voter positions. If None,
+            uses ``{"loc": 0, "std": np.array(1.0), "size": np.array(2.0)}``
+            for ``np.random.normal`` and ``{}`` for other supported
+            distributions.
+        candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
+            used to draw each candidate position. Defaults to
+            ``np.random.uniform``.
+        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+            arguments passed to ``candidate_dist`` for each sample. If None, uses
+            ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
+            ``np.random.uniform`` and ``{}`` for other distributions.
+        distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
+            function used to compare voter and candidate positions. Defaults to
+            ``euclidean_dist``.
 
     Returns:
         Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
