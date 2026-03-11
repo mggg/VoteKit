@@ -6,6 +6,17 @@ vars:
   PYTHON_VERSION: "3.11"
 
 tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task: help
+
+  help:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list-all
+
   ensure-uv-linux: &ensure-uv-unix
     desc: Install uv if not already available
     internal: true
