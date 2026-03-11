@@ -4,78 +4,70 @@ version: "3"
 
 vars:
   PYTHON_VERSION: "3.11"
-  UV_STATE_DIR_UNIX: "{{.ROOT_DIR}}/.task-tools/uv"
-  UV_STATE_DIR_WINDOWS: "{{.ROOT_DIR}}\\.task-tools\\uv"
-  UV_INSTALL_DIR_UNIX: "{{.ROOT_DIR}}/.task-tools/uv/bin"
-  UV_BIN_UNIX: "{{.UV_INSTALL_DIR_UNIX}}/uv"
-  UV_CACHE_DIR_UNIX: "{{.UV_STATE_DIR_UNIX}}/cache"
-  UV_PYTHON_INSTALL_DIR_UNIX: "{{.UV_STATE_DIR_UNIX}}/python"
-  UV_INSTALL_DIR_WINDOWS: "{{.UV_STATE_DIR_WINDOWS}}\\bin"
-  UV_BIN_WINDOWS: "{{.UV_INSTALL_DIR_WINDOWS}}\\uv.exe"
-  UV_CACHE_DIR_WINDOWS: "{{.UV_STATE_DIR_WINDOWS}}\\cache"
-  UV_PYTHON_INSTALL_DIR_WINDOWS: "{{.UV_STATE_DIR_WINDOWS}}\\python"
 
 tasks:
+  ensure-uv-linux: &ensure-uv-unix
+    desc: Install uv if not already available
+    internal: true
+    silent: true
+    status:
+      - command -v uv
+    cmds:
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  ensure-uv-darwin: *ensure-uv-unix
+
+  ensure-uv-windows:
+    internal: true
+    silent: true
+    status:
+      - where uv
+    cmds:
+      - powershell -ExecutionPolicy ByPass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+
   sync:
     desc: Sync the project environment with optional extras
     internal: true
     silent: true
+    deps: ["ensure-uv-{{OS}}"]
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: python install {{.PYTHON_VERSION}}
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: >-
-            --managed-python sync --locked --all-groups --extra animation
-            --python {{.PYTHON_VERSION}}
+      - uv python install {{.PYTHON_VERSION}}
+      - >-
+        uv --managed-python sync --locked --all-groups --all-extras
+        --python {{.PYTHON_VERSION}}
 
   setup:
     desc: Set up the project environment for development
     silent: true
     cmds:
       - task: sync
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run pre-commit install
+      - uv run pre-commit install
 
   format:
     desc: Format the codebase using Black and isort
     silent: true
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run black src tests
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run isort src tests
+      - uv run black src tests
+      - uv run isort src tests
 
   format-check:
     desc: Check code formatting using Black and isort
     silent: true
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run black --check --diff src tests
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run isort --check-only --diff src tests
+      - uv run black --check --diff src tests
+      - uv run isort --check-only --diff src tests
 
   lint:
     desc: Lint the codebase using Ruff
     silent: true
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run ruff check src tests
+      - uv run ruff src tests
 
   typecheck:
     desc: Run type checks using Ty
     silent: true
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run ty check src tests
+      - uv run ty check src tests
 
   all-checks:
     desc: Run all checks (formatting, linting, type checking)
@@ -85,53 +77,65 @@ tasks:
       - task: lint
       - task: typecheck
 
-  test:
-    desc: Run tests using pytest
+  pytest:
+    internal: true
     silent: true
     env:
       TERM: xterm
     cmds:
       - task: sync
-      - task: uv-{{OS}}
+      - uv run pytest {{.PYTEST_ARGS}}
+
+  test:
+    desc: Run tests using pytest (`task test -- tests/foo` to scope the run)
+    silent: true
+    cmds:
+      - task: pytest
         vars:
-          UV_ARGS: run pre-commit install
-      - task: uv-{{OS}}
+          PYTEST_ARGS: '{{.CLI_ARGS | default "tests"}}'
+
+  test:*:
+    desc: Run tests in a specific path (`task test:tests/foo`)
+    silent: true
+    vars:
+      TEST_PATH: "{{index .MATCH 0}}"
+    cmds:
+      - task: pytest
         vars:
-          UV_ARGS: run pytest tests
+          PYTEST_ARGS: "{{.TEST_PATH}}"
 
   test-slow:
     desc: Run tests using pytest, including slow tests
     silent: true
-    env:
-      TERM: xterm
     cmds:
-      - task: sync
-      - task: uv-{{OS}}
+      - task: pytest
         vars:
-          UV_ARGS: run pre-commit install
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run pytest tests --runslow
+          PYTEST_ARGS: '{{.CLI_ARGS | default "tests"}} --runslow'
 
   coverage:
     desc: Run tests with coverage reporting
     silent: true
-    env:
-      TERM: xterm
     cmds:
-      - task: sync
-      - task: uv-{{OS}}
+      - task: pytest
         vars:
-          UV_ARGS: run pre-commit install
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run pytest tests --runslow --cov=src/votekit --cov-report=term-missing
+          PYTEST_ARGS: >-
+            {{.CLI_ARGS | default "tests"}} --runslow --cov=src/votekit
+            --cov-report=term-missing
 
   clean:
     desc: Clean up build artifacts
     silent: true
     cmds:
       - task: clean-{{OS}}
+
+  clean-linux: &clean-unix
+    internal: true
+    cmds:
+      - rm -rf dist build *.egg-info .venv .pytest_cache .ruff_cache
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+
+  clean-darwin: *clean-unix
 
   clean-windows:
     internal: true
@@ -142,101 +146,18 @@ tasks:
       - cmd /c "if exist .venv rmdir /s /q .venv"
       - cmd /c "if exist .pytest_cache rmdir /s /q .pytest_cache"
       - cmd /c "if exist .ruff_cache rmdir /s /q .ruff_cache"
-      - cmd /c "if exist {{.UV_CACHE_DIR_WINDOWS}} rmdir /s /q {{.UV_CACHE_DIR_WINDOWS}}"
       - for /r . %d in (__pycache__) do @if exist "%d" rmdir /s /q "%d"
-
-  clean-linux:
-    internal: true
-    cmds:
-      - rm -rf dist build *.egg-info .venv .pytest_cache .ruff_cache "{{.UV_CACHE_DIR_UNIX}}"
-      - find . -type d -name "__pycache__" -exec rm -rf {} +
-      - find . -type f -name "*.pyc" -delete
-
-  clean-darwin:
-    internal: true
-    cmds:
-      - rm -rf dist build *.egg-info .venv .pytest_cache .ruff_cache "{{.UV_CACHE_DIR_UNIX}}"
-      - find . -type d -name "__pycache__" -exec rm -rf {} +
-      - find . -type f -name "*.pyc" -delete
 
   docs:
     desc: Build the documentation
     silent: true
     cmds:
       - task: sync-contributing-doc
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run jupyter nbconvert --to rst notebooks/*.ipynb --output-dir docs/user/tutorial/
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run sphinx-build -b dirhtml docs docs/_build
+      - uv run jupyter nbconvert --to rst notebooks/*.ipynb --output-dir docs/user/tutorial/
+      - uv run sphinx-build -b dirhtml docs docs/_build
 
   sync-contributing-doc:
     desc: Sync the docs contributing page from CONTRIBUTING.md
     silent: true
     cmds:
-      - task: uv-{{OS}}
-        vars:
-          UV_ARGS: run python docs/sync_contributing.py
-
-  ensure-uv-linux:
-    internal: true
-    silent: true
-    status:
-      - test -x "{{.UV_BIN_UNIX}}"
-    cmds:
-      - |
-        mkdir -p "{{.UV_INSTALL_DIR_UNIX}}"
-        curl -LsSf https://astral.sh/uv/install.sh \
-          | env UV_UNMANAGED_INSTALL="{{.UV_INSTALL_DIR_UNIX}}" sh
-
-  ensure-uv-darwin:
-    internal: true
-    silent: true
-    status:
-      - test -x "{{.UV_BIN_UNIX}}"
-    cmds:
-      - |
-        mkdir -p "{{.UV_INSTALL_DIR_UNIX}}"
-        curl -LsSf https://astral.sh/uv/install.sh \
-          | env UV_UNMANAGED_INSTALL="{{.UV_INSTALL_DIR_UNIX}}" sh
-
-  ensure-uv-windows:
-    internal: true
-    silent: true
-    status:
-      - cmd /c if exist "{{.UV_BIN_WINDOWS}}" exit 0 else exit 1
-    cmds:
-      - >
-        powershell -ExecutionPolicy ByPass -Command "$env:UV_UNMANAGED_INSTALL =
-        '{{.UV_INSTALL_DIR_WINDOWS}}'; irm https://astral.sh/uv/install.ps1 | iex"
-
-  uv-linux:
-    internal: true
-    silent: true
-    cmds:
-      - task: ensure-uv-linux
-      - >
-        env UV_CACHE_DIR="{{.UV_CACHE_DIR_UNIX}}"
-        UV_PYTHON_INSTALL_DIR="{{.UV_PYTHON_INSTALL_DIR_UNIX}}"
-        "{{.UV_BIN_UNIX}}" {{.UV_ARGS}}
-
-  uv-darwin:
-    internal: true
-    silent: true
-    cmds:
-      - task: ensure-uv-darwin
-      - >
-        env UV_CACHE_DIR="{{.UV_CACHE_DIR_UNIX}}"
-        UV_PYTHON_INSTALL_DIR="{{.UV_PYTHON_INSTALL_DIR_UNIX}}"
-        "{{.UV_BIN_UNIX}}" {{.UV_ARGS}}
-
-  uv-windows:
-    internal: true
-    silent: true
-    cmds:
-      - task: ensure-uv-windows
-      - >
-        cmd /c "set UV_CACHE_DIR={{.UV_CACHE_DIR_WINDOWS}}&& set
-        UV_PYTHON_INSTALL_DIR={{.UV_PYTHON_INSTALL_DIR_WINDOWS}}&&
-        {{.UV_BIN_WINDOWS}} {{.UV_ARGS}}"
+      - uv run python docs/sync_contributing.py
