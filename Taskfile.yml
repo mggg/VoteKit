@@ -61,7 +61,7 @@ tasks:
     desc: Lint the codebase using Ruff
     silent: true
     cmds:
-      - uv run ruff src tests
+      - uv run ruff check src tests
 
   typecheck:
     desc: Run type checks using Ty
