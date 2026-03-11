@@ -15,7 +15,7 @@ tasks:
     desc: List available tasks
     silent: true
     cmds:
-      - task --list-all
+      - sh -c 'command -v task >/dev/null 2>&1 && task --list-all || go-task --list-all'
 
   ensure-uv-linux: &ensure-uv-unix
     desc: Install uv if not already available
