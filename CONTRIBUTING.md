@@ -34,9 +34,8 @@ Recommended setup:
 2. Fork and clone the repository.
 3. From the repository root, run `task setup`.
 
-`task setup` bootstraps Astral's official standalone `uv`, installs Python 3.11 if needed,
-stores its cache and managed Python under `.task-tools/`, syncs the pinned dependencies, and
-installs the pre-commit hooks.
+`task setup` installs Astral's official standalone `uv` if you don't have it, installs a managed
+Python 3.11 environment, syncs the pinned dependencies, and installs the pre-commit hooks. 
 
 If you already have `uv` installed and prefer to run the steps directly, the equivalent setup is:
 
