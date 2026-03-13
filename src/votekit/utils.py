@@ -1,12 +1,14 @@
-from typing import Sequence, Optional, Literal, Union
-from itertools import permutations
 import math
 import random
+from itertools import permutations
+from typing import Literal, Optional, Sequence, Union
+
+import numpy as np
+import pandas as pd
+from numpy.typing import NDArray
+
 from votekit.ballot import Ballot, RankBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
-import pandas as pd
-import numpy as np
-from numpy.typing import NDArray
 
 COLOR_LIST = [
     "#0099cd",
@@ -126,9 +128,7 @@ def add_missing_cands(profile: RankProfile) -> RankProfile:
             missing_cands = candidates.difference(b_cands)
 
             new_ranking = (
-                list(ballot.ranking) + [missing_cands]
-                if len(missing_cands) > 0
-                else ballot.ranking
+                list(ballot.ranking) + [missing_cands] if len(missing_cands) > 0 else ballot.ranking
             )
 
             new_ballots[i] = RankBallot(
@@ -216,9 +216,9 @@ def _score_dict_from_rankings_df_no_ties(
     flat_arr = arr.ravel()
 
     # Slick way of converting frozensets to integer codes:
-    codes_flat: NDArray[np.int64] = pd.Categorical(
-        flat_arr, categories=all_frznst
-    ).codes.astype(np.int64)
+    codes_flat: NDArray[np.int64] = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(
+        np.int64
+    )
 
     # Take care of error codes (-1)
     if (codes_flat == -1).any():
@@ -229,9 +229,7 @@ def _score_dict_from_rankings_df_no_ties(
     weights_flat = weight_matrix.ravel()
     bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
 
-    return {
-        next(iter(k)): round(bucket_sums[idx], 10) for idx, k in enumerate(cand_frznst)
-    }
+    return {next(iter(k)): round(bucket_sums[idx], 10) for idx, k in enumerate(cand_frznst)}
 
 
 def score_dict_from_score_vector(
@@ -286,10 +284,7 @@ def score_dict_from_score_vector(
 
     if tie_convention not in ["high", "average", "low"]:
         raise ValueError(
-            (
-                "tie_convention must be one of 'high', 'low', 'average', "
-                f"not {tie_convention}"
-            )
+            ("tie_convention must be one of 'high', 'low', 'average', " f"not {tie_convention}")
         )
 
     tilde = frozenset({"~"})
@@ -472,21 +467,13 @@ def tiebreak_set(
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(
-            frozenset({c}) for c in random.sample(list(r_set), k=len(r_set))
-        )
+        new_ranking = tuple(frozenset({c}) for c in random.sample(list(r_set), k=len(r_set)))
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
-            tiebreak_scores = borda_scores(
-                profile, tie_convention=scoring_tie_convention
-            )
+            tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)
         else:
-            tiebreak_scores = first_place_votes(
-                profile, tie_convention=scoring_tie_convention
-            )
-        tiebreak_scores = {
-            c: score for c, score in tiebreak_scores.items() if c in r_set
-        }
+            tiebreak_scores = first_place_votes(profile, tie_convention=scoring_tie_convention)
+        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in r_set}
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
     elif profile is None:
@@ -513,14 +500,10 @@ def tiebreak_set(
             "lex",
         ]:
             print("Initial tiebreak was unsuccessful, performing alphabetic tiebreak")
-            new_ranking, _ = tiebroken_ranking(
-                new_ranking, profile=profile, tiebreak="lex"
-            )
+            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="lex")
         elif backup_tiebreak_convention == "random":
             print("Initial tiebreak was unsuccessful, performing random tiebreak")
-            new_ranking, _ = tiebroken_ranking(
-                new_ranking, profile=profile, tiebreak="random"
-            )
+            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="random")
         else:
             raise ValueError("Invalid backup tiebreak code was provided")
 
@@ -531,9 +514,7 @@ def tiebroken_ranking(
     ranking: tuple[frozenset[str], ...],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
-) -> tuple[
-    tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str], ...]]
-]:
+) -> tuple[tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str], ...]]]:
     """
     Breaks ties in a list-of-sets ranking according to a given scheme.
 
@@ -550,9 +531,7 @@ def tiebroken_ranking(
             candidate sets). The second entry is a dictionary that maps tied sets to their
             resolution.
     """
-    new_ranking: list[frozenset[str]] = [frozenset()] * len(
-        [c for s in ranking for c in s]
-    )
+    new_ranking: list[frozenset[str]] = [frozenset()] * len([c for s in ranking for c in s])
 
     i = 0
     tied_dict = {}
@@ -653,9 +632,7 @@ def elect_cands_from_set_ranking(
         num_elected += len(ranking_fs[i])
         if num_elected > m:
             if tiebreak is None:
-                raise ValueError(
-                    "Cannot elect correct number of candidates without breaking ties."
-                )
+                raise ValueError("Cannot elect correct number of candidates without breaking ties.")
             # back out the overfill
             elected.pop()
             num_elected -= len(ranking_fs[i])
@@ -728,9 +705,7 @@ def resolve_profile_ties(profile: RankProfile) -> RankProfile:
         RankProfile: A RankProfile with resolved ties.
     """
 
-    new_ballots = tuple(
-        [b for ballot in profile.ballots for b in expand_tied_ballot(ballot)]
-    )
+    new_ballots = tuple([b for ballot in profile.ballots for b in expand_tied_ballot(ballot)])
     return RankProfile(ballots=new_ballots)
 
 
@@ -845,17 +820,13 @@ def index_to_lexicographic_ballot(
     candidates = list(range(n_candidates))
     out = []
     if always_use_total_valid_ballots_method:
-        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (
-            n_candidates + 1
-        )
+        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (n_candidates + 1)
     else:
         bn = chunk_size(n_candidates + 1, max_length + 1)
 
     for i in range(n_candidates, 0, -1):
         if always_use_total_valid_ballots_method:
-            bn = total_valid_ballots_method(
-                n_candidates=i, max_ballot_length=max_length
-            ) // (i)
+            bn = total_valid_ballots_method(n_candidates=i, max_ballot_length=max_length) // (i)
         else:
             bn = (bn - 1) // i
         # Perform Euclidean division of index by bn
@@ -886,9 +857,7 @@ def build_df_from_ballot_samples(
     df_data = []
     n_cands = len(candidates)
     for ballot in ballots_freq_dict.keys():
-        ballot_as_frozenset_entries = tuple(
-            [frozenset([candidates[i]]) for i in ballot]
-        )
+        ballot_as_frozenset_entries = tuple([frozenset([candidates[i]]) for i in ballot])
         completed_ballot = (
             ballot_as_frozenset_entries
             + tuple(
@@ -899,6 +868,5 @@ def build_df_from_ballot_samples(
         df_data.append(completed_ballot)
     return pd.DataFrame(
         df_data,
-        columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)]
-        + ["Weight", "Voter Set"],
+        columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)] + ["Weight", "Voter Set"],
     )

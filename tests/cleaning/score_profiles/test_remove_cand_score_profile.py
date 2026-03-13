@@ -1,6 +1,8 @@
-from votekit.pref_profile import ScoreProfile, CleanedScoreProfile
+import pytest
+
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
+from votekit.pref_profile import CleanedScoreProfile, ScoreProfile
 
 profile = ScoreProfile(
     ballots=[
@@ -58,7 +60,9 @@ def test_remove_mult_cands():
     assert isinstance(cleaned_profile, CleanedScoreProfile)
     assert cleaned_profile.parent_profile == profile
 
-    assert set(cleaned_profile.group_ballots().ballots) == set(
+    with pytest.warns(UserWarning, match="Grouping the ballots of a CleanedScoreProfile"):
+        grouped = cleaned_profile.group_ballots()
+    assert set(grouped.ballots) == set(
         [
             ScoreBallot(scores={"C": 1.4}, weight=1),
             ScoreBallot(

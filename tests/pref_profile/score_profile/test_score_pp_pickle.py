@@ -1,7 +1,9 @@
-import urllib
+from urllib.error import URLError
+
+import pytest
+
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
-import pytest
 
 filepath = "tests/pref_profile/data/pickle"
 
@@ -35,5 +37,5 @@ def test_pkl_url():
 
     assert isinstance(profile, ScoreProfile)
 
-    with pytest.raises(urllib.error.URLError):
+    with pytest.raises(URLError):
         ScoreProfile.from_pickle("https://www.fail.com")

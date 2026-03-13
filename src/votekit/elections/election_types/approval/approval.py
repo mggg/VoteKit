@@ -1,6 +1,7 @@
+from typing import Optional
+
 from votekit.elections.election_types.scores import GeneralRating
 from votekit.pref_profile import ScoreProfile
-from typing import Optional
 
 
 class Approval(GeneralRating):
@@ -16,9 +17,7 @@ class Approval(GeneralRating):
 
     """
 
-    def __init__(
-        self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None
-    ):
+    def __init__(self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None):
         # limit one per candidate,  but no total budget limit
         super().__init__(profile, m=m, L=1, tiebreak=tiebreak)
 

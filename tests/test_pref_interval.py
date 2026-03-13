@@ -1,14 +1,13 @@
-from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 import pytest
+
+from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 
 
 def test_from_dirichlet():
     # check that we don't get zero support cands randomly
     for _ in range(10_000):
         for alpha in [0.001, 0.01, 1, 10, 100]:
-            pi = PreferenceInterval.from_dirichlet(
-                candidates=["A", "B", "C"], alpha=alpha
-            )
+            pi = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], alpha=alpha)
             assert isinstance(pi, PreferenceInterval)
 
 
@@ -39,16 +38,12 @@ def test_zero_support_allowed_with_flag():
 
 
 def test_all_zero_support_error():
-    with pytest.raises(
-        ValueError, match="Support values must sum to a positive number."
-    ):
+    with pytest.raises(ValueError, match="Support values must sum to a positive number."):
         PreferenceInterval(interval={"A": 0, "B": 0})
 
 
 def test_all_zero_support_error_with_flag():
-    with pytest.raises(
-        ValueError, match="Support values must sum to a positive number."
-    ):
+    with pytest.raises(ValueError, match="Support values must sum to a positive number."):
         PreferenceInterval(interval={"A": 0, "B": 0}, allow_zero_support=True)
 
 

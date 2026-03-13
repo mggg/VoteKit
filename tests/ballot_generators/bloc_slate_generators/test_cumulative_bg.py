@@ -11,9 +11,7 @@ def test_name_cumulative_total_points_None_is_n_cands():
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
 
     preference_mapping = {
-        "all_voters": {
-            "all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})
-        }
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
 
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
@@ -44,9 +42,7 @@ def test_name_cumulative_total_points_less_than_n_candidates():
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
 
     preference_mapping = {
-        "all_voters": {
-            "all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})
-        }
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
 
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
@@ -65,9 +61,7 @@ def test_name_cumulative_total_points_less_than_n_candidates():
 
     assert all(df[["A", "B", "C"]].sum(axis=1) == total_points)
     assert all(df[["A", "B", "C"]].max(axis=1) <= total_points)
-    assert (
-        df[["A", "B", "C"]].sum(axis=1) * df["Weight"]
-    ).sum() == total_points * n_voters
+    assert (df[["A", "B", "C"]].sum(axis=1) * df["Weight"]).sum() == total_points * n_voters
 
 
 def test_name_cumulative_total_points_more_than_n_candidates():
@@ -77,9 +71,7 @@ def test_name_cumulative_total_points_more_than_n_candidates():
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
 
     preference_mapping = {
-        "all_voters": {
-            "all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})
-        }
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
 
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
@@ -98,9 +90,7 @@ def test_name_cumulative_total_points_more_than_n_candidates():
 
     assert all(df[["A", "B", "C"]].sum(axis=1) == total_points)
     assert all(df[["A", "B", "C"]].max(axis=1) <= total_points)
-    assert (
-        df[["A", "B", "C"]].sum(axis=1) * df["Weight"]
-    ).sum() == total_points * n_voters
+    assert (df[["A", "B", "C"]].sum(axis=1) * df["Weight"]).sum() == total_points * n_voters
 
 
 def test_name_cumulative_total_points_zero_errors():
@@ -110,9 +100,7 @@ def test_name_cumulative_total_points_zero_errors():
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
 
     preference_mapping = {
-        "all_voters": {
-            "all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})
-        }
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
 
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
@@ -136,9 +124,7 @@ def test_name_cumulative_total_points_negative_errors():
     slate_to_candidates = {"all_voters": ["A", "B", "C"]}
 
     preference_mapping = {
-        "all_voters": {
-            "all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})
-        }
+        "all_voters": {"all_voters": PreferenceInterval({"A": 0.80, "B": 0.15, "C": 0.05})}
     }
 
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
@@ -193,14 +179,12 @@ def test_name_cumulative_distribution(do_ballot_probs_match_ballot_dist_score_pr
     pp = bg.name_cumulative_profile_generator(config)
 
     ballot_prob_dict = {
-        "AA": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
-        ** 2,
+        "AA": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"] ** 2,
         "AB": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
         * config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"],
         "BA": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["A"]
         * config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"],
-        "BB": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"]
-        ** 2,
+        "BB": config.get_preference_interval_for_bloc_and_slate("W", "W").interval["B"] ** 2,
     }
 
     assert isinstance(pp, ScoreProfile)

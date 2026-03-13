@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from votekit.cvr_loaders import load_scottish
-import votekit.cleaning as clean
-from votekit.elections import Election
 import votekit.ballot_generator as bg
+import votekit.cleaning as clean
 import votekit.elections.election_types as elections
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
+from votekit.cvr_loaders import load_scottish
+from votekit.elections import Election
 from votekit.pref_interval import PreferenceInterval
+from votekit.pref_profile import PreferenceProfile, RankProfile
 
 
 def test_load_clean_completion():
@@ -66,12 +66,12 @@ def test_generate_election_completion():
     assert isinstance(election_borda, Election)
 
 
-def make_ballot(ranking, weight):
-    ballot_rank = []
+def make_ballot(ranking: list[str], weight: int | float) -> RankBallot:
+    ballot_rank: list[set[str]] = []
     for cand in ranking:
         ballot_rank.append({cand})
 
-    return Ballot(ranking=ballot_rank, weight=weight)
+    return RankBallot(ranking=ballot_rank, weight=weight)
 
 
 def test_generate_election_diff_res():
@@ -81,12 +81,12 @@ def test_generate_election_diff_res():
     b4 = make_ballot(ranking=["D", "C", "E", "B", "A"], weight=4)
     b5 = make_ballot(ranking=["E", "B", "D", "C", "A"], weight=4)
     b6 = make_ballot(ranking=["E", "C", "D", "B", "A"], weight=2)
-    pp = PreferenceProfile(ballots=[b1, b2, b3, b4, b5, b6])
+    pp = RankProfile(ballots=[b1, b2, b3, b4, b5, b6])
 
-    election_borda = elections.Borda(pp, 1, score_vector=None)  # type: ignore
-    election_irv = elections.STV(pp)  # type: ignore
-    election_plurality = elections.Plurality(pp)  # type: ignore
-    election_seq = elections.SequentialRCV(pp)  # type: ignore
+    election_borda = elections.Borda(pp, 1, score_vector=None)
+    election_irv = elections.STV(pp)
+    election_plurality = elections.Plurality(pp)
+    election_seq = elections.SequentialRCV(pp)
 
     outcome_borda = election_borda.get_elected()
     outcome_irv = election_irv.get_elected()

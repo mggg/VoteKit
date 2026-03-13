@@ -1,16 +1,15 @@
 import networkx as nx
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.graphs.ballot_graph import BallotGraph
-from votekit.pref_profile import PreferenceProfile
+from votekit.pref_profile import RankProfile
 
-
-three_cand = PreferenceProfile(
+three_cand = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=4),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
-        Ballot(ranking=[{"C"}, {"B"}], weight=2),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=4),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+        RankBallot(ranking=[{"C"}, {"B"}], weight=2),
     ]
 )
 
@@ -53,7 +52,7 @@ def test_graph_labels():
 def test_k_neighbors_no_weights():
     test = BallotGraph(3)
     with pytest.raises(TypeError):
-        test.k_heaviest_neighborhoods(k=2, int=2)
+        test.k_heaviest_neighborhoods(k=2, **{"int": 2})
 
 
 def test_k_neighborhoods():

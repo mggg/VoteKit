@@ -1,8 +1,9 @@
-from votekit.pref_profile import RankProfile, ProfileError
-from typing import Optional, Callable
-from votekit.models import Election
-from votekit.elections.election_state import ElectionState
 from abc import abstractmethod
+from typing import Callable, Optional
+
+from votekit.elections.election_state import ElectionState
+from votekit.models import Election
+from votekit.pref_profile import ProfileError, RankProfile
 
 
 class RankingElection(Election[RankProfile]):
@@ -49,9 +50,7 @@ class RankingElection(Election[RankProfile]):
             raise ProfileError("Profile must be of type RankProfile.")
 
         assert profile.max_ranking_length is not None
-        ranking_cols = [
-            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
         try:
             np_arr = profile.df[ranking_cols].to_numpy()
             tilde = frozenset("~")

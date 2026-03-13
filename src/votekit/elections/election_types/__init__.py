@@ -1,28 +1,26 @@
+from .approval import Approval, BlocPlurality
 from .ranking import (
-    RankingElection,
-    Plurality,
-    SNTV,
-    Borda,
-    STV,
-    FastSTV,
     IRV,
+    SNTV,
+    STV,
     Alaska,
-    DominatingSets,
-    SequentialRCV,
+    BoostedRandomDictator,
+    Borda,
     CondoBorda,
-    TopTwo,
+    DominatingSets,
+    FastSTV,
+    Plurality,
     PluralityVeto,
+    RandomDictator,
+    RankedPairs,
+    RankingElection,
+    Schulze,
+    SequentialRCV,
     SerialVeto,
     SimultaneousVeto,
-    RandomDictator,
-    BoostedRandomDictator,
-    RankedPairs,
-    Schulze,
+    TopTwo,
 )
-
-
-from .scores import GeneralRating, Rating, Limited, Cumulative
-from .approval import Approval, BlocPlurality
+from .scores import Cumulative, GeneralRating, Limited, Rating
 
 __all__ = [
     "RankingElection",

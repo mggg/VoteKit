@@ -1,18 +1,19 @@
-from votekit.plots import profile_bar_plot
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
-from votekit.utils import borda_scores
-from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
-ballot_1 = Ballot(
+from votekit.ballot import RankBallot
+from votekit.plots import profile_bar_plot
+from votekit.pref_profile import RankProfile
+from votekit.utils import borda_scores
+
+ballot_1 = RankBallot(
     ranking=(frozenset({"Chris"}), frozenset({"Peter"}), frozenset({"Moon"})), weight=1
 )
-ballot_2 = Ballot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
-ballot_3 = Ballot(ranking=(frozenset({"Chris"}),), weight=1)
-ballot_4 = Ballot(ranking=(frozenset({"Peter"}),), weight=1)
+ballot_2 = RankBallot(ranking=(frozenset({"Moon"}), frozenset({"Peter"})), weight=4)
+ballot_3 = RankBallot(ranking=(frozenset({"Chris"}),), weight=1)
+ballot_4 = RankBallot(ranking=(frozenset({"Peter"}),), weight=1)
 
-profile = PreferenceProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
+profile = RankProfile(ballots=(ballot_1, ballot_2, ballot_3, ballot_4))
 
 
 def test_profile_barplot_with_defaults():

@@ -1,23 +1,20 @@
 from .abstract_ranking import RankingElection
-
-from .plurality import (
-    Plurality,
-    SNTV,
-)
-
-from .borda import Borda
-from .stv import FastSTV, STV, IRV, SequentialRCV
 from .alaska import Alaska
-from .top_two import TopTwo
-from .dominating_sets import DominatingSets
-from .condo_borda import CondoBorda
-from .plurality_veto import PluralityVeto
-from .plurality_veto import SerialVeto
-from .simultaneous_veto import SimultaneousVeto
-from .random_dictator import RandomDictator
 from .boosted_random_dictator import BoostedRandomDictator
+from .borda import Borda
+from .condo_borda import CondoBorda
+from .dominating_sets import DominatingSets
+from .plurality import (
+    SNTV,
+    Plurality,
+)
+from .plurality_veto import PluralityVeto, SerialVeto
+from .random_dictator import RandomDictator
 from .ranked_pairs import RankedPairs
 from .schulze import Schulze
+from .simultaneous_veto import SimultaneousVeto
+from .stv import IRV, STV, FastSTV, SequentialRCV
+from .top_two import TopTwo
 
 __all__ = [
     "RankingElection",

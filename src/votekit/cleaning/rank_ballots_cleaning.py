@@ -1,5 +1,6 @@
-from votekit.ballot import RankBallot
 from typing import Union
+
+from votekit.ballot import RankBallot
 
 
 def condense_rank_ballot(

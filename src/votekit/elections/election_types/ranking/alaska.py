@@ -1,18 +1,20 @@
-from .abstract_ranking import RankingElection
-from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
+from functools import partial
+from typing import Callable, Literal, Union
+
+from votekit.ballot import RankBallot
 from votekit.cleaning import remove_and_condense_rank_profile
-from votekit.utils import first_place_votes
-from votekit.elections.election_types.ranking import Plurality
-from votekit.elections.election_types.ranking.stv.stv import STV
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.plurality import Plurality
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     QuotaType,
     TiebreakType,
 )
+from votekit.elections.election_types.ranking.stv.stv import STV
 from votekit.elections.transfers import fractional_transfer
-from votekit.ballot import RankBallot
-from typing import Callable, Union, Literal
-from functools import partial
+from votekit.pref_profile import RankProfile
+from votekit.utils import first_place_votes
+
+from .abstract_ranking import RankingElection
 
 
 class Alaska(RankingElection):
@@ -74,9 +76,7 @@ class Alaska(RankingElection):
         self.tiebreak = tiebreak
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
             sort_high_low=True,
         )
 

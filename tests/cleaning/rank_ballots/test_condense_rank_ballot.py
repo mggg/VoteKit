@@ -1,5 +1,5 @@
-from votekit.cleaning import condense_rank_ballot
 from votekit.ballot import RankBallot
+from votekit.cleaning import condense_rank_ballot
 
 
 def test_condense_rank_ballot():

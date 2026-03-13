@@ -1,6 +1,7 @@
-from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile, ProfileError
 import pytest
+
+from votekit.ballot import RankBallot
+from votekit.pref_profile import ProfileError, RankProfile
 
 
 def test_pp_candidate_list():

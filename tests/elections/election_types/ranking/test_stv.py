@@ -1,29 +1,32 @@
-from votekit.elections import STV, ElectionState
-from votekit.pref_profile import PreferenceProfile, ProfileError
-from votekit.ballot import Ballot
+from typing import Literal, cast
+
 import pandas as pd
 import pytest
 
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import STV, ElectionState
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
+
 # taken from STV wiki
-simult_same_as_one_by_one_profile = PreferenceProfile(
+simult_same_as_one_by_one_profile = RankProfile(
     ballots=tuple(
         [
-            Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
-            Ballot(
+            RankBallot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
                 weight=8,
             ),
-            Ballot(
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])),
                 weight=1,
             ),
-            Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
-            Ballot(
+            RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
                 weight=1,
             ),
-            Ballot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
-            Ballot(
+            RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
                 weight=3,
             ),
@@ -33,144 +36,110 @@ simult_same_as_one_by_one_profile = PreferenceProfile(
 )
 
 profile_list = [
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
-                Ballot(
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=3),
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
                     weight=8,
                 ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
-                    ),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
                     weight=3,
                 ),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=3),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2
-                ),
-                Ballot(
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=3),
+                RankBallot(ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2),
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
                     weight=3,
                 ),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Orange"}])),
                     weight=3,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2
-                ),
-                Ballot(
+                RankBallot(ranking=tuple(map(frozenset, [{"Strawberry"}, {"Cake"}])), weight=2),
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}])),
                     weight=1,
                 ),
-                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=3),
-                Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
-                ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=3),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
-                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=5),
-                Ballot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
-                ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=5),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Burger"}])), weight=1),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3
-                ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Chicken"}, {"Burger"}])), weight=3),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
-                Ballot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=7),
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=7),
             ]
         ),
         max_ranking_length=3,
     ),
-    PreferenceProfile(
+    RankProfile(
         ballots=tuple(
             [
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}])), weight=4),
             ]
         ),
         max_ranking_length=3,
@@ -378,10 +347,10 @@ def test_get_status_df():
 
 
 def test_fpv_tie():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"A"}),)),
-            Ballot(ranking=(frozenset({"B"}),)),
+            RankBallot(ranking=(frozenset({"A"}),)),
+            RankBallot(ranking=(frozenset({"B"}),)),
         ),
         candidates=("A", "B", "C"),
     )
@@ -392,10 +361,10 @@ def test_fpv_tie():
 
 
 def test_simul_v_1by1_():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"A"}),)),
-            Ballot(ranking=(frozenset({"B"}),)),
+            RankBallot(ranking=(frozenset({"A"}),)),
+            RankBallot(ranking=(frozenset({"B"}),)),
         ),
         candidates=("A", "B", "C"),
     )
@@ -425,10 +394,10 @@ def test_errors():
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
-        profile = PreferenceProfile(
+        profile = RankProfile(
             ballots=(
-                Ballot(ranking=(frozenset({"A"}),)),
-                Ballot(ranking=(frozenset({"B"}),)),
+                RankBallot(ranking=(frozenset({"A"}),)),
+                RankBallot(ranking=(frozenset({"B"}),)),
             ),
             candidates=("A", "B", "C"),
         )
@@ -438,21 +407,21 @@ def test_errors():
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
         STV(
-            PreferenceProfile(ballots=(Ballot(ranking=(frozenset({"A"}),)),)),
+            RankProfile(ballots=(RankBallot(ranking=(frozenset({"A"}),)),)),
             m=1,
-            quota="Drip",
+            quota=cast(Literal["droop", "hare"] | None, "Drip"),
         )
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        STV(PreferenceProfile(ballots=(Ballot(scores={"A": 4}),)))
+        STV(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
 
 
 def test_stv_cands_cast():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=(frozenset({"A"}),), weight=4),
-            Ballot(ranking=(frozenset({"B"}),), weight=2),
-            Ballot(ranking=(frozenset({"C"}),), weight=5),
+            RankBallot(ranking=(frozenset({"A"}),), weight=4),
+            RankBallot(ranking=(frozenset({"B"}),), weight=2),
+            RankBallot(ranking=(frozenset({"C"}),), weight=5),
         ),
         candidates=("A", "B", "C", "D", "E"),
     )
@@ -463,35 +432,25 @@ def test_stv_cands_cast():
 @pytest.mark.slow
 def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
     for _ in range(100):
-        profile = PreferenceProfile(
+        profile = RankProfile(
             ballots=(
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
-                Ballot(
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
                     weight=8,
                 ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
-                    ),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
                     weight=2,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
                     weight=4,
                 ),
             ),
@@ -508,39 +467,29 @@ def test_stv_resolves_losing_tiebreaks_consistently_on_rerun():
 @pytest.mark.slow
 def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
     for _ in range(100):
-        profile = PreferenceProfile(
+        profile = RankProfile(
             ballots=(
-                Ballot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
-                Ballot(
+                RankBallot(ranking=tuple(map(frozenset, [{"Orange"}, {"Pear"}])), weight=5),
+                RankBallot(
                     ranking=tuple(map(frozenset, [{"Pear"}, {"Strawberry"}, {"Cake"}])),
                     weight=10,
                 ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])
-                    ),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Strawberry"}, {"Orange"}, {"Pear"}])),
                     weight=1,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}, {"Chocolate"}])), weight=3),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chocolate"}, {"Cake"}, {"Burger"}])),
                     weight=2,
                 ),
-                Ballot(
-                    ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4
-                ),
-                Ballot(
-                    ranking=tuple(
-                        map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])
-                    ),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}, {"Chicken"}])), weight=4),
+                RankBallot(
+                    ranking=tuple(map(frozenset, [{"Chicken"}, {"Chocolate"}, {"Burger"}])),
                     weight=4,
                 ),
-                Ballot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=2),
-                Ballot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=6),
+                RankBallot(ranking=tuple(map(frozenset, [{"Cake"}])), weight=2),
+                RankBallot(ranking=tuple(map(frozenset, [{"Burger"}])), weight=6),
             ),
             max_ranking_length=3,
         )
@@ -574,12 +523,10 @@ def test_stv_rounding_errors():
 
     # Old issue: Rounding errors occur every time the droop quota of 11 is subtracted from A's votes.
 
-    ballotA = Ballot(
-        ranking=[{candidate} for candidate in [f"A{i+1}" for i in range(5)]]
-    )
-    ballotB = Ballot(ranking=[{"B1"}])
+    ballotA = RankBallot(ranking=[{candidate} for candidate in [f"A{i+1}" for i in range(5)]])
+    ballotB = RankBallot(ranking=[{"B1"}])
     ballots = [ballotA] * A + [ballotB] * (N - A)
-    profile = PreferenceProfile(ballots=ballots)
+    profile = RankProfile(ballots=ballots)
 
     stv_election = STV(profile=profile, m=5)
     assert stv_election.get_elected() == ({"A1"}, {"A2"}, {"A3"}, {"A4"}, {"B1"})

@@ -1,9 +1,9 @@
+from votekit.ballot import RankBallot
 from votekit.matrices import comention
-from votekit.ballot import Ballot
 
 
 def test_comention_ranked():
-    b = Ballot(ranking=({"Chris"}, {"Peter"}, {"Moon"}))
+    b = RankBallot(ranking=({"Chris"}, {"Peter"}, {"Moon"}))
 
     assert comention(["Chris", "Peter"], b)
     assert comention(["Moon", "Peter"], b)

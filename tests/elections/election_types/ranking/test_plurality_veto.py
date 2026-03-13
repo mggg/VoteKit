@@ -18,10 +18,7 @@ CANDIDATES = ("A", "B", "C", "D")
 def make_complete_ballots(candidates: Sequence[str]) -> RankProfile:
     """Creates all complete and partial ballots, each with weight BALLOT_WEIGHT."""
     full_power = list(
-        list(
-            list(itertools.permutations(x))
-            for x in itertools.combinations(candidates, r)
-        )
+        list(list(itertools.permutations(x)) for x in itertools.combinations(candidates, r))
         for r in range(1, len(candidates) + 1)
     )
     powerset = [x for sublist in full_power for item in sublist for x in item]
@@ -44,9 +41,7 @@ def run_election_once(test_profile, tiebreak):
 
 
 def test_plurality_veto_errors():
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         PluralityVeto(RankProfile(), m=1)
 
     with pytest.raises(ValueError, match="m must be positive."):
@@ -57,9 +52,7 @@ def test_plurality_veto_errors():
         b2 = RankBallot()
         PluralityVeto(RankProfile(ballots=(b1, b2)), m=1)
 
-    non_int_weight_msg = (
-        r"Ballot RankBallot\n1.\) A, \nWeight: 0.5 has non-integer weight."
-    )
+    non_int_weight_msg = r"Ballot RankBallot\n1.\) A, \nWeight: 0.5 has non-integer weight."
     with pytest.raises(ValueError, match=non_int_weight_msg):
         b1 = RankBallot(ranking=("A",), weight=1 / 2)
         PluralityVeto(RankProfile(ballots=(b1,)), m=1)
@@ -101,8 +94,7 @@ def test_plurality_veto_4_candidates_deterministic_tiebreaking():
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(TEST_PROFILE, tiebreak="first_place")
-        for _ in range(TRIALS)
+        delayed(run_election_once)(TEST_PROFILE, tiebreak="first_place") for _ in range(TRIALS)
     )
 
     winner_counts = {c: results.count(c) for c in CANDIDATES}
@@ -122,8 +114,7 @@ def test_plurality_veto_4_candidates_random_tiebreaking():
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(TEST_PROFILE, tiebreak="random")
-        for _ in range(TRIALS)
+        delayed(run_election_once)(TEST_PROFILE, tiebreak="random") for _ in range(TRIALS)
     )
 
     winner_counts = {c: results.count(c) for c in CANDIDATES}

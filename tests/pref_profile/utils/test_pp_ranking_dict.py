@@ -1,7 +1,10 @@
+from typing import cast
+
+import pytest
+
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.utils import rank_profile_to_ranking_dict
-import pytest
 
 
 def test_to_ranking_dict():
@@ -28,4 +31,4 @@ def test_ranking_dict_warn():
         TypeError,
         match=("Profile must be a RankProfile"),
     ):
-        rank_profile_to_ranking_dict(profile)
+        rank_profile_to_ranking_dict(cast(RankProfile, profile))

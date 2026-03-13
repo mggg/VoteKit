@@ -1,7 +1,8 @@
+import numpy as np
+import pandas as pd
+
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
-import pandas as pd
-import numpy as np
 
 ballots_scores = [
     ScoreBallot(

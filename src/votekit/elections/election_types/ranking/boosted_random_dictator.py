@@ -1,14 +1,15 @@
+import random
+from functools import partial
+from typing import Literal
+
+from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.utils import (
     first_place_votes,
     score_dict_to_ranking,
 )
-import random
-from typing import Literal
-from functools import partial
 
 
 class BoostedRandomDictator(RankingElection):
@@ -45,9 +46,7 @@ class BoostedRandomDictator(RankingElection):
 
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
         )
 
     def _is_finished(self) -> bool:

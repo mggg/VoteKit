@@ -1,7 +1,8 @@
-from votekit.pref_profile import RankProfile
+import warnings
 from itertools import combinations
 from typing import Optional
-import warnings
+
+from votekit.pref_profile import RankProfile
 
 
 def r_representation_score(

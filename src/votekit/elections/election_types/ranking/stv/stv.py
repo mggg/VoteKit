@@ -1,35 +1,36 @@
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
-from votekit.elections.transfers import fractional_transfer
-from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
-from votekit.pref_profile import RankProfile, ProfileError
-from votekit.elections.election_state import ElectionState
+from typing import Callable, Union
+from warnings import warn
+
+import numpy as np
+from numpy.typing import NDArray
+
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
+    condense_rank_ballot,
     remove_and_condense_rank_profile,
     remove_cand_rank_ballot,
-    condense_rank_ballot,
 )
-from votekit.utils import (
-    _first_place_votes_from_df_no_ties,
-    ballots_by_first_cand,
-    tiebreak_set,
-    elect_cands_from_set_ranking,
-    score_dict_to_ranking,
-)
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
-    NumpySTVBase,
+    ElectionPlay,
     NumpyElectionDataTracker,
+    NumpySTVBase,
     NumpySTVSentinel,
     QuotaType,
     TiebreakType,
     TransferType,
-    ElectionPlay,
 )
-
-from typing import Callable, Union
-import numpy as np
-from numpy.typing import NDArray
-from warnings import warn
+from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
+from votekit.elections.transfers import fractional_transfer
+from votekit.pref_profile import ProfileError, RankProfile
+from votekit.utils import (
+    _first_place_votes_from_df_no_ties,
+    ballots_by_first_cand,
+    elect_cands_from_set_ranking,
+    score_dict_to_ranking,
+    tiebreak_set,
+)
 
 
 class NumpyInnerSTV(NumpySTVBase):
@@ -185,9 +186,7 @@ class NumpyInnerSTV(NumpySTVBase):
             for winner_idx in winners:
                 if self.transfer == "cambridge_random":
                     mutated_fpv_vec[
-                        winner_row_indices[
-                            next_fpv_vec == NumpySTVSentinel.BLANK_RANKING.value
-                        ]
+                        winner_row_indices[next_fpv_vec == NumpySTVSentinel.BLANK_RANKING.value]
                     ] = NumpySTVSentinel.BLANK_RANKING.value
                 surplus = int(tallies[winner_idx] - quota)
                 counts = numpy_random_transfer(
@@ -449,9 +448,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 winners, mutant_record = self._find_winners(
                     tallies, round_number, quota, *mutant_record
                 )
-                mutant_engine = self._update_because_winner(
-                    winners, tallies, quota, *mutant_engine
-                )
+                mutant_engine = self._update_because_winner(winners, tallies, quota, *mutant_engine)
                 play_by_play.append(
                     ElectionPlay(
                         round_number=int(round_number),
@@ -472,9 +469,7 @@ class NumpyInnerSTV(NumpySTVBase):
             if len(winner_list) == m:
                 break
             if len(eliminated_or_exhausted) - len(winner_list) == ncands - m:
-                still_standing = [
-                    int(i) for i in range(ncands) if i not in eliminated_or_exhausted
-                ]
+                still_standing = [int(i) for i in range(ncands) if i not in eliminated_or_exhausted]
                 winner_list += still_standing
                 play_by_play.append(
                     ElectionPlay(
@@ -489,9 +484,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 fpv_scores_by_round.append(np.zeros(ncands, dtype=np.float64))
                 tiebreak_record.append({})
                 break
-            loser_idx, mutant_record = self._find_loser(
-                tallies, round_number, *mutant_record
-            )
+            loser_idx, mutant_record = self._find_loser(tallies, round_number, *mutant_record)
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
             play_by_play.append(
                 ElectionPlay(
@@ -736,9 +729,7 @@ class STV(RankingElection):
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
         assert profile.max_ranking_length is not None
-        ranking_rows = [
-            f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_rows = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
         try:
             np_arr = profile.df[ranking_rows].to_numpy()
             weight_col = profile.df["Weight"]
@@ -839,22 +830,16 @@ class STV(RankingElection):
             [c for s in elected for c in s]
         ):
             transfer_ballots = tuple(ballots_by_fpv[candidate])
-            new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
-                transfer_ballots
-            )
+            new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = transfer_ballots
             ballot_index += len(transfer_ballots)
 
         cleaned_ballots = tuple(
-            condense_rank_ballot(
-                remove_cand_rank_ballot([c for s in elected for c in s], b)
-            )
+            condense_rank_ballot(remove_cand_rank_ballot([c for s in elected for c in s], b))
             for b in new_ballots
             if b.ranking
         )
 
-        remaining_cands = set(profile.candidates_cast).difference(
-            [c for s in elected for c in s]
-        )
+        remaining_cands = set(profile.candidates_cast).difference([c for s in elected for c in s])
 
         new_profile = RankProfile(
             ballots=cleaned_ballots,
@@ -863,9 +848,7 @@ class STV(RankingElection):
         )
         return (tuple(elected), new_profile)
 
-    def _single_elect_step(
-        self, profile: RankProfile, prev_state: ElectionState
-    ) -> tuple[
+    def _single_elect_step(self, profile: RankProfile, prev_state: ElectionState) -> tuple[
         tuple[frozenset[str], ...],
         dict[frozenset[str], tuple[frozenset[str], ...]],
         RankProfile,
@@ -913,9 +896,7 @@ class STV(RankingElection):
             ballots_by_fpv[elected_c],
             self.threshold,
         )
-        new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = (
-            transfer_ballots
-        )
+        new_ballots[ballot_index : (ballot_index + len(transfer_ballots))] = transfer_ballots
         ballot_index += len(transfer_ballots)
 
         for s in remaining:
@@ -932,9 +913,7 @@ class STV(RankingElection):
             if b.ranking
         )
 
-        remaining_cands = set(profile.candidates_cast).difference(
-            [c for s in elected for c in s]
-        )
+        remaining_cands = set(profile.candidates_cast).difference([c for s in elected for c in s])
         new_profile = RankProfile(
             ballots=cleaned_ballots,
             candidates=tuple(remaining_cands),
@@ -975,14 +954,10 @@ class STV(RankingElection):
 
         if len(above_thresh_cands) > 0:
             if self.simultaneous:
-                elected, new_profile = self._simultaneous_elect_step(
-                    profile, prev_state
-                )
+                elected, new_profile = self._simultaneous_elect_step(profile, prev_state)
 
             else:
-                elected, tiebreaks, new_profile = self._single_elect_step(
-                    profile, prev_state
-                )
+                elected, tiebreaks, new_profile = self._single_elect_step(profile, prev_state)
             # no one eliminated in elect round
             eliminated: tuple[frozenset[str], ...] = (frozenset(),)
 
@@ -1132,10 +1107,7 @@ class SequentialRCV(STV):
                 tuple[RankBallot, ...]: The transferred ballots after removing the winner and condensing rankings.
             """
             del _fpv, _threshold  # unused and del on atomics is okay
-            return tuple(
-                condense_rank_ballot(remove_cand_rank_ballot(winner, b))
-                for b in ballots
-            )
+            return tuple(condense_rank_ballot(remove_cand_rank_ballot(winner, b)) for b in ballots)
 
         super().__init__(
             profile,

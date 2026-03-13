@@ -1,8 +1,9 @@
-from votekit.elections import Rating, ElectionState
-from votekit.pref_profile import ScoreProfile
-from votekit.ballot import ScoreBallot
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import ScoreBallot
+from votekit.elections import ElectionState, Rating
+from votekit.pref_profile import ScoreProfile
 
 profile_no_tied_rating = ScoreProfile(
     ballots=[
@@ -142,7 +143,5 @@ def test_validate_profile():
         profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1})])
         Rating(profile, m=1, L=2)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Rating(ScoreProfile(candidates=["A"]), m=1)

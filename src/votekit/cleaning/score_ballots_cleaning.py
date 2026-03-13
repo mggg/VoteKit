@@ -1,5 +1,6 @@
-from votekit.ballot import ScoreBallot
 from typing import Union
+
+from votekit.ballot import ScoreBallot
 
 
 def remove_cand_score_ballot(

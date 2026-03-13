@@ -1,14 +1,23 @@
-from votekit.pref_profile import RankProfile
-from votekit.pref_interval import PreferenceInterval
+from collections import Counter
+from numbers import Real
+
+import pytest
+
+from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
 )
-from collections import Counter
-import pytest
+from votekit.pref_interval import PreferenceInterval
+from votekit.pref_profile import RankProfile
 
 PROB_THRESHOLD = 0.01
+
+
+def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[str], ...]:
+    assert ballot.ranking is not None
+    return ballot.ranking
 
 
 def compute_probability_of_ballot_by_slate(
@@ -33,9 +42,12 @@ def compute_probability_of_ballot_by_slate(
     num_cands_per_slate = {
         slate: len(cand_list) for slate, cand_list in config.slate_to_candidates.items()
     }
-    prob_of_slate: dict[str, float] = {
-        slate: float(config.cohesion_df.loc[bloc][slate]) for slate in config.slates
-    }
+    prob_of_slate: dict[str, float] = {}
+    for slate in config.slates:
+        cohesion_value = config.cohesion_df.loc[bloc, slate]
+        if not isinstance(cohesion_value, Real):
+            raise TypeError(f"Expected numeric cohesion for slate {slate!r}.")
+        prob_of_slate[slate] = float(cohesion_value)
 
     ballot_prob = 1.0
     for i, slate in enumerate(slate_ballot_type):
@@ -45,8 +57,7 @@ def compute_probability_of_ballot_by_slate(
         if num_cands_seen_per_slate[slate] == num_cands_per_slate[slate]:
             del prob_of_slate[slate]
             prob_of_slate = {
-                slate: prob / sum(prob_of_slate.values())
-                for slate, prob in prob_of_slate.items()
+                slate: prob / sum(prob_of_slate.values()) for slate, prob in prob_of_slate.items()
             }
 
     return ballot_prob
@@ -110,14 +121,11 @@ def test_two_bloc_two_slate_spl_distribution_matches_slate_ballot_dist(
         slate_ballot_counts = {}
 
         for ballot in profile.ballots:
-            if any(len(cand_set) > 1 for cand_set in ballot.ranking):
-                raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
+            ranking = ballot_ranking(ballot)
+            if any(len(cand_set) > 1 for cand_set in ranking):
+                raise ValueError(f"Tie occurred in ballot {ranking}")
             slate_ballot_type = tuple(
-                [
-                    cand_to_slate_dict[cand]
-                    for cand_set in ballot.ranking
-                    for cand in cand_set
-                ]
+                [cand_to_slate_dict[cand] for cand_set in ranking for cand in cand_set]
             )
             slate_ballot_counts[slate_ballot_type] = (
                 slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -126,9 +134,7 @@ def test_two_bloc_two_slate_spl_distribution_matches_slate_ballot_dist(
         assert all(
             abs(
                 slate_ballot_weight / profile.total_ballot_wt
-                - compute_probability_of_ballot_by_slate(
-                    bloc, config, slate_ballot_type
-                )
+                - compute_probability_of_ballot_by_slate(bloc, config, slate_ballot_type)
             )
             < PROB_THRESHOLD
             for slate_ballot_type, slate_ballot_weight in slate_ballot_counts.items()
@@ -147,10 +153,7 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
 
         a_comparisons_profile = [
             tuple(
-                cand
-                for cand_set in ballot.ranking
-                for cand in cand_set
-                if cand[0] == "A"
+                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "A"
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
@@ -158,10 +161,7 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
 
         b_comparisons_profile = [
             tuple(
-                cand
-                for cand_set in ballot.ranking
-                for cand in cand_set
-                if cand[0] == "B"
+                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "B"
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
@@ -171,10 +171,7 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
             abs(
                 a_comparisons_profile.count(("A1", "A2")) / profile.total_ballot_wt
                 - config.preference_df.loc[bloc]["A1"]
-                / (
-                    config.preference_df.loc[bloc]["A1"]
-                    + config.preference_df.loc[bloc]["A2"]
-                )
+                / (config.preference_df.loc[bloc]["A1"] + config.preference_df.loc[bloc]["A2"])
             )
             < PROB_THRESHOLD
         )
@@ -183,10 +180,7 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
             abs(
                 b_comparisons_profile.count(("B1", "B2")) / profile.total_ballot_wt
                 - config.preference_df.loc[bloc]["B1"]
-                / (
-                    config.preference_df.loc[bloc]["B1"]
-                    + config.preference_df.loc[bloc]["B2"]
-                )
+                / (config.preference_df.loc[bloc]["B1"] + config.preference_df.loc[bloc]["B2"])
             )
             < PROB_THRESHOLD
         )
@@ -200,22 +194,17 @@ def test_one_bloc_three_slate_spl_distribution_matches_slate_ballot_dist(
     profile = slate_pl_profile_generator(config, group_ballots=True)
 
     cand_to_slate_dict = {
-        cand: slate
-        for slate, cand_list in config.slate_to_candidates.items()
-        for cand in cand_list
+        cand: slate for slate, cand_list in config.slate_to_candidates.items() for cand in cand_list
     }
     slate_ballot_counts = {}
     bloc = "X"
 
     for ballot in profile.ballots:
-        if any(len(cand_set) > 1 for cand_set in ballot.ranking):
-            raise ValueError(f"Tie occurred in ballot {ballot.ranking}")
+        ranking = ballot_ranking(ballot)
+        if any(len(cand_set) > 1 for cand_set in ranking):
+            raise ValueError(f"Tie occurred in ballot {ranking}")
         slate_ballot_type = tuple(
-            [
-                cand_to_slate_dict[cand]
-                for cand_set in ballot.ranking
-                for cand in cand_set
-            ]
+            [cand_to_slate_dict[cand] for cand_set in ranking for cand in cand_set]
         )
         slate_ballot_counts[slate_ballot_type] = (
             slate_ballot_counts.get(slate_ballot_type, 0) + ballot.weight
@@ -242,7 +231,7 @@ def test_one_bloc_three_slate_spl_distribution_matches_name_ballot_dist(
         cand_comparisons_profile = [
             tuple(
                 cand
-                for cand_set in ballot.ranking
+                for cand_set in ballot_ranking(ballot)
                 for cand in cand_set
                 if cand[0] == slate and cand[-1] in ["1", "2"]
             )
@@ -252,8 +241,7 @@ def test_one_bloc_three_slate_spl_distribution_matches_name_ballot_dist(
 
         assert (
             abs(
-                cand_comparisons_profile.count((f"{slate}1", f"{slate}2"))
-                / profile.total_ballot_wt
+                cand_comparisons_profile.count((f"{slate}1", f"{slate}2")) / profile.total_ballot_wt
                 - config.preference_df.loc["X"][f"{slate}1"]
                 / (
                     config.preference_df.loc["X"][f"{slate}1"]
@@ -282,12 +270,7 @@ def test_spl_zero_support_slates():
 
     profile = slate_pl_profile_generator(config)
     zero_support_slate_perms = [
-        tuple(
-            cand[0]
-            for cand_set in ballot.ranking
-            for cand in cand_set
-            if cand[0] != "A"
-        )
+        tuple(cand[0] for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] != "A")
         for ballot in profile.ballots
         for _ in range(int(ballot.weight))
     ]
@@ -298,6 +281,5 @@ def test_spl_zero_support_slates():
     }
 
     assert all(
-        abs(prob - 1 / 3) < PROB_THRESHOLD
-        for prob in zero_support_slate_perms_dist.values()
+        abs(prob - 1 / 3) < PROB_THRESHOLD for prob in zero_support_slate_perms_dist.values()
     )

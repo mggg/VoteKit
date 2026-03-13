@@ -1,20 +1,18 @@
-from pandas.errors import EmptyDataError, DataError
 from pathlib import Path
+
 import pytest
+from pandas.errors import DataError, EmptyDataError
 
 from votekit.ballot import Ballot
 from votekit.cvr_loaders import load_scottish
 from votekit.pref_profile import RankProfile
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CSV_DIR = BASE_DIR / "data/csv/"
 
 
 def test_scot_csv_parse():
-    pp, seats, cand_list, cand_to_party, ward = load_scottish(
-        CSV_DIR / "scot_wardy_mc_ward.csv"
-    )
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(CSV_DIR / "scot_wardy_mc_ward.csv")
 
     assert seats == 1
     assert isinstance(pp, RankProfile)
@@ -31,9 +29,7 @@ def test_scot_csv_parse():
     assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
     assert (
         Ballot(
-            ranking=tuple(
-                [frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]
-            ),
+            ranking=tuple([frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]),
             weight=1,
         )
         in pp.ballots
@@ -41,9 +37,7 @@ def test_scot_csv_parse():
 
 
 def test_scot_csv_blank_rows():
-    pp, seats, cand_list, cand_to_party, ward = load_scottish(
-        CSV_DIR / "scot_blank_rows.csv"
-    )
+    pp, seats, cand_list, cand_to_party, ward = load_scottish(CSV_DIR / "scot_blank_rows.csv")
 
     assert seats == 1
     assert isinstance(pp, RankProfile)
@@ -60,9 +54,7 @@ def test_scot_csv_blank_rows():
     assert Ballot(ranking=tuple([frozenset({"Paul"})]), weight=126) in pp.ballots
     assert (
         Ballot(
-            ranking=tuple(
-                [frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]
-            ),
+            ranking=tuple([frozenset({"Ringo"}), frozenset({"George"}), frozenset({"Paul"})]),
             weight=1,
         )
         in pp.ballots

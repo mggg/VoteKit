@@ -1,45 +1,49 @@
-from votekit.elections import TopTwo, ElectionState
-from votekit.pref_profile import (
-    PreferenceProfile,
-    ProfileError,
-)
-from votekit.ballot import Ballot
-import pytest
+from typing import cast
+
 import pandas as pd
+import pytest
 
-profile_no_tied_pl_no_tied_top_two = PreferenceProfile(
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.elections import ElectionState, TopTwo
+from votekit.pref_profile import (
+    ProfileError,
+    RankProfile,
+    ScoreProfile,
+)
+
+profile_no_tied_pl_no_tied_top_two = RankProfile(
     ballots=[
-        Ballot(ranking=({"A"}, {"B"}, {"C"})),
-        Ballot(ranking=({"A"}, {"C"}, {"B"})),
-        Ballot(ranking=({"B"}, {"A"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+        RankBallot(ranking=({"A"}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {"A"}, {"C"})),
     ],
     max_ranking_length=3,
 )
 
 
-profile_no_tied_pl_no_tied_top_two_round_1 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"A"}, {"B"}), weight=2), Ballot(ranking=({"B"}, {"A"}))],
+profile_no_tied_pl_no_tied_top_two_round_1 = RankProfile(
+    ballots=[RankBallot(ranking=({"A"}, {"B"}), weight=2), RankBallot(ranking=({"B"}, {"A"}))],
     max_ranking_length=3,
 )
 
-profile_no_tied_pl_no_tied_top_two_round_2 = PreferenceProfile(
-    ballots=[Ballot(ranking=({"B"},), weight=3)],
+profile_no_tied_pl_no_tied_top_two_round_2 = RankProfile(
+    ballots=[RankBallot(ranking=({"B"},), weight=3)],
     max_ranking_length=3,
 )
 
-profile_with_tied_pl = PreferenceProfile(
+profile_with_tied_pl = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
-        Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}]),
+        RankBallot(ranking=[{"B"}, {"C"}, {"A"}]),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}]),
     ],
     max_ranking_length=3,
 )
 
-profile_with_tied_top_two = PreferenceProfile(
+profile_with_tied_top_two = RankProfile(
     ballots=[
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
-        Ballot(ranking=[{"B"}, {"C"}, {"A"}]),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}]),
+        RankBallot(ranking=[{"B"}, {"C"}, {"A"}]),
     ],
     max_ranking_length=3,
 )
@@ -86,9 +90,7 @@ def test_ties():
     e = TopTwo(profile_with_tied_pl, tiebreak="random")
     assert len([c for s in e.get_elected(2) for c in s]) == 1
 
-    e = TopTwo(
-        profile_with_tied_top_two, tiebreak="borda"
-    )  # will perform random tie on top 2
+    e = TopTwo(profile_with_tied_top_two, tiebreak="borda")  # will perform random tie on top 2
     assert len([c for s in e.get_elected(2) for c in s]) == 1
 
     e = TopTwo(profile_with_tied_top_two, tiebreak="random")
@@ -172,4 +174,9 @@ def test_errors():
         TopTwo(profile_with_tied_top_two)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
-        TopTwo(PreferenceProfile(ballots=(Ballot(scores={"A": 4, "B": 3}),)))
+        TopTwo(
+            cast(
+                RankProfile,
+                ScoreProfile(ballots=(ScoreBallot(scores={"A": 4, "B": 3}),)),
+            )
+        )
