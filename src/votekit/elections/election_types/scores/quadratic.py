@@ -2,6 +2,7 @@ from .rating import GeneralRating
 from votekit.pref_profile import ScoreProfile
 import math
 from typing import Optional
+import copy
 
 class Quadratic(GeneralRating):
     """
@@ -34,7 +35,7 @@ class Quadratic(GeneralRating):
     ):
         if not k.is_integer():
             raise TypeError(f"Credit budget k must be a whole number.")
-        self._check_credits(profile, k, isCredits)
+        profile = self._check_credits(profile, k, isCredits)
         super().__init__(profile, m=m, k=k, tiebreak=tiebreak)
 
     def _check_credits(self, profile: ScoreProfile, k:float = None, isCredits=False):
@@ -43,7 +44,8 @@ class Quadratic(GeneralRating):
         Ensures that if ballots give credits, that credits are perfect squares 
         converts those credits into votes. 
         """
-        for b in profile.ballots:
+        profile_copy = copy.deepcopy(profile)
+        for b in profile_copy.ballots:
             #check to make sure that scores are whole numbers
             if not all(isinstance(v, float) and v.is_integer() for v in b.scores.values()):
                 raise TypeError(f"Scores must be whole numbers.")
@@ -62,6 +64,7 @@ class Quadratic(GeneralRating):
                 #check to make sure credits are in budget
                 if sum(v**2 for v in b.scores.values()) > k:
                     raise TypeError(f"Ballot {b} violates credit budget {k}.")
+        return profile_copy
 
 
 
