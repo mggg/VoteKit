@@ -1,586 +1,821 @@
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Any, TypeAlias
+
 import numpy as np
-from numpy.typing import NDArray
-from .numpy_stv_base import NumpySTVBase, NumpyElectionDataTracker
-from typing import Optional
-from itertools import permutations
-from math import factorial
+from numpy.typing import DTypeLike, NDArray
+
+from votekit import RankProfile
+from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
+    ElectionPlay,
+    NumpyElectionDataTracker,
+    NumpySTVBase,
+    TiebreakType,
+)
+
+
+@dataclass
+class KeepFactorCalibrationCache:
+    """
+    Round-local compressed representation of the data needed to calibrate keep factors.
+
+    Stores the compressed support of the current winner_combination_vec,
+        together with the ballot-to-support mapping and the grouped masses
+        needed for keep-factor calibration and final tally reconstruction.
+    N is the number of ballots in the ballot matrix.
+    P is the number of unique winner combinations observed in the current round.
+    Lmax is the maximum ranking length of the profile.
+        In the future, Lmax could also refer to the maximum number of winners a
+        ballot is allowed to transfer to.
+
+    Attributes:
+        support_comb_ids: the unique winner_combination_vec values observed
+            in this round, in ascending order.
+        ballot_to_support_row: maps each index of the ballot matrix to
+            the index of its winner combination in support_comb_ids.
+        sliced_winner_matrix: view of the winner_permutation_matrix containing
+            only the observed winner combinations.
+        valid_mask: boolean mask indicating which entries of sliced_winner_matrix
+            contain valid winner positions (as opposed to padding).
+        permutation_lengths: the number of winners in each
+            observed winner combination.
+        support_total_mass: The total starting ballot weight attached to
+            each observed winner-combination.
+        support_nonexhausted_mass: The total starting ballot weight attached to
+            nonexhausting ballots in each observed winner-combination.
+        exhausted_mask: Ballot-level boolean mask for whether each
+            ballot row is currently exhausted.
+        fpv_vec: The current first-preference candidate for each ballot row.
+        initial_wt_vec: The initial weight of each ballot row.
+    """
+
+    support_comb_ids: NDArray  # shape (P,)
+    ballot_to_support_row: NDArray  # shape (N,)
+    sliced_winner_matrix: NDArray  # shape (P, Lmax), padded with safe values
+    valid_mask: NDArray  # shape (P, Lmax), True where sliced_winner_matrix is meaningful
+    permutation_lengths: NDArray  # shape (P,)
+    support_total_mass: NDArray  # shape (P,)
+    support_nonexhausted_mass: NDArray  # shape (P,)
+    exhausted_mask: NDArray  # shape (N,)
+    fpv_vec: NDArray  # shape (N,)
+    initial_wt_vec: NDArray  # shape (N,)
+
+
+LoserMutantBundle: TypeAlias = tuple[
+    list[int],
+    list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+    NDArray,
+    NDArray,
+    NDArray,
+]
 
 
 class MeekSTV(NumpySTVBase):
+    """
+    STV variant with keep factors instead of transfer values.
+
+    Winners can still receive transfers after being seated,
+        in which case they decrease their keep factor.
+    Quota is recalculated each round, and keep factors are lowered
+        until all seated winner tallies are within tolerance of quota.
+    Election rounds are simultaneous by definition.
+    Loser tiebreaks use first round tallies by default, but can be specified otherwise.
+    """
 
     def __init__(
         self,
-        profile,
+        profile: RankProfile,
         m: int = 1,
-        tiebreak: Optional[str] = None,
-        tolerance: float = 1e-6,
-        epsilon: float = 1e-6,
-        max_iterations: int = 500,
+        tiebreak: TiebreakType | None = None,
+        tolerance: float | None = 1e-6,
+        epsilon: float | None = 1e-6,
+        max_iterations: int | None = 500,
     ):
+        """
+        Initialize a Meek STV election with advanced options.
+
+        Args:
+            profile (RankProfile): RankProfile to run election on.
+            m (int): Number of seats to be elected. Defaults to 1.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
+                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is
+                raised if a tiebreak is needed.
+            tolerance (float, optional): Margin by which a winner's tally is allowed to exceed quota
+                without further keep factor adjustments. Defaults to 1e-6.
+            epsilon (float, optional): Small value added to quota to ensure that no more than m candidates
+                can have a quota's worth of the active votes within a round. Defaults to 1e-6.
+            max_iterations (int, optional): Maximum number of keep factor iterations to go through
+                before breaking out of the calibration process. Defaults to 500.
+        """
         super().__init__(profile=profile, m=m, tiebreak=tiebreak)
 
         self._num_cands = len(self.candidates)
-        self._perm_m = self.m + 1
-        self.tolerance = tolerance
-        self.epsilon = epsilon
-        self._max_iterations = max_iterations
+        self._max_ranking_length = min(profile.max_ranking_length, self._num_cands)
+        self.tolerance = 1e-6 if tolerance is None else float(tolerance)
+        self.epsilon = 1e-6 if epsilon is None else float(epsilon)
+        self._max_iterations = 500 if max_iterations is None else int(max_iterations)
 
-        self._wt_calculator = WeightVectorCalculator(self.m, self._perm_m)
+        self._dense = True  # TODO: implement a backup protocol when m, L are large
 
         self._run_and_store()
-        helper_vecs = self._data.extras.get("helper_vecs_per_round", [])
-        if helper_vecs:
-            self._winner_to_cand = helper_vecs[-1]["winner_to_cand"]
 
-    def detailed_tally_per_deg(self, round=0):
-        # this was a development function that will be removed before Meek goes live
-        if "helper_vecs_per_round" not in self._data.extras:
-            self._run_and_store()
-        record = self._data.extras["helper_vecs_per_round"][round]
-        fpv_vec = record["fpv_vec"]
-        winner_combination_vec = record["winner_combination_vec"]
-        winners = record["winner_to_cand"]
+    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
+        list[NDArray],
+        list[ElectionPlay],
+        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+    ]:
+        """
+        Core election logic for Meek STV.
 
-        unique_winner_combos = np.unique(winner_combination_vec).astype(int)
-        total_weight_dict = {}
-        exhausted_weight_dict = {}
-        for perm_idx in unique_winner_combos:
-            perm = idx_to_perm(perm_idx, self._perm_m)
-            translated_perm = tuple([winners[i] for i in perm])
+        Args:
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile
+                converted to numpy arrays.
 
-            ballot_mask = winner_combination_vec == perm_idx
-            exhausted_mask = ballot_mask & (fpv_vec < 0)
+        Returns:
+            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
+            play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
+                 taken in each round.
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                List of dictionaries representing tiebreak resolutions for each round.
+        """
+        ballot_matrix = data.ballot_matrix
+        initial_wt_vec = np.copy(data.wt_vec)
+        winner_combination_vec = np.zeros_like(initial_wt_vec, dtype=np.int64)
+        winner_bitstring_vec = np.zeros_like(initial_wt_vec, dtype=np.int32)
+        pos_vec = np.zeros_like(initial_wt_vec, dtype=np.int8)
+        winner_list = []
+        fpv_vec = np.copy(ballot_matrix[:, 0])
+        m = self.m
 
-            total_weight_dict[translated_perm] = sum(self._data.wt_vec[ballot_mask])
-            exhausted_weight_dict[translated_perm] = sum(
-                self._data.wt_vec[exhausted_mask]
+        fpv_scores_by_round = []
+        play_by_play: list[ElectionPlay] = []
+        round_number = 0
+        eliminated_candidates: list[int] = []
+        tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
+        bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
+
+        if self._dense:
+            winner_combination_matrix = permutation_matrix_constructor(
+                m, self._max_ranking_length, dtype=np.dtype(np.int8)
             )
-        return total_weight_dict, exhausted_weight_dict
+        else:
+            raise NotImplementedError("Sparse mode not implemented yet.")
 
-    def _initialize_helpers(self):
-        num_ballots = self._data.ballot_matrix.shape[0]
-        pos_vec = np.zeros(num_ballots, dtype=np.int8)
-        fpv_vec = self._data.ballot_matrix[
-            np.arange(self._data.ballot_matrix.shape[0]), pos_vec
-        ]
-        winner_comb_vec = np.zeros(num_ballots)
-        bool_ballot_matrix = self._data.ballot_matrix != -127
-        return pos_vec, fpv_vec, winner_comb_vec, bool_ballot_matrix
+        winner_combination_mutant_bundle = (
+            winner_combination_vec,
+            winner_bitstring_vec,
+            fpv_vec,
+            bool_ballot_matrix,
+            pos_vec,
+        )
+        keep_factor_calibrator_bundle = (
+            initial_wt_vec,
+            fpv_vec,
+            winner_list,
+            winner_combination_vec,
+            winner_combination_matrix,
+        )
+        loser_mutant_bundle: LoserMutantBundle = (
+            eliminated_candidates,
+            tiebreak_record,
+            fpv_vec,
+            pos_vec,
+            bool_ballot_matrix,
+        )
 
-    def _update_helpers(
+        while len(winner_list) < m:
+            tallies, keep_factors, current_quota, num_iterations = self._keep_factor_calibrator(
+                *keep_factor_calibrator_bundle
+            )
+            fpv_scores_by_round.append(tallies.copy())
+            masked_tallies = np.where(
+                np.isin(np.arange(len(tallies)), winner_list),
+                0,
+                tallies,
+            )
+            while np.any(masked_tallies >= current_quota):
+                winners = np.where(tallies >= current_quota)[0]
+                winners = winners[~np.isin(winners, winner_list)]
+                winners = winners[np.argsort(-tallies[winners])]
+                winner_list.extend(winners)
+                tiebreak_record.append({})
+                winner_combination_mutant_bundle = self._update_winner_comb_vec(
+                    *winner_combination_mutant_bundle, all_winners=winner_list
+                )
+                play_by_play.append(
+                    ElectionPlay(
+                        round_number=int(round_number),
+                        winners=[int(c) for c in winners],
+                        threshold=current_quota,
+                        round_type="election",
+                    )
+                )
+                round_number += 1
+                tallies, keep_factors, current_quota, num_iterations = self._keep_factor_calibrator(
+                    *keep_factor_calibrator_bundle
+                )
+                fpv_scores_by_round.append(tallies.copy())
+                masked_tallies = np.where(
+                    np.isin(np.arange(len(tallies)), winner_list),
+                    0,
+                    tallies,
+                )
+            if len(winner_list) == m:
+                break
+            loser_idx, loser_mutant_bundle = self._find_and_eliminate_loser(
+                tallies, round_number, *loser_mutant_bundle
+            )
+            winner_combination_mutant_bundle = self._update_winner_comb_vec(
+                *winner_combination_mutant_bundle, all_winners=winner_list
+            )
+            play_by_play.append(
+                ElectionPlay(
+                    round_number=int(round_number),
+                    loser=[int(loser_idx)],
+                    threshold=current_quota,
+                    round_type="elimination",
+                )
+            )
+            round_number += 1
+        return fpv_scores_by_round, play_by_play, tiebreak_record
+
+    def _keep_factor_calibrator(
         self,
-        pos_vec=None,
-        fpv_vec=None,
-        winner_comb_vec=None,
-        bool_ballot_matrix=None,
-        winner_to_cand=[],
-        new_losers=[],
-    ):
-        num_ballots = self._data.ballot_matrix.shape[0]
-        cand_to_winner = np.zeros(self._num_cands, dtype=np.int8) - 1
-        for idx, cand in enumerate(winner_to_cand):
-            cand_to_winner[cand] = idx
-        if pos_vec is None:
-            pos_vec = np.zeros(num_ballots, dtype=np.int8)
-        if fpv_vec is None:
-            fpv_vec = self._data.ballot_matrix[
-                np.arange(self._data.ballot_matrix.shape[0]), pos_vec
-            ]
-        if winner_comb_vec is None:
-            winner_comb_vec = np.zeros(num_ballots)
-        if bool_ballot_matrix is None:
-            bool_ballot_matrix = self._data.ballot_matrix != -127
-        if len(new_losers) > 0:
-            bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, new_losers)
-            needs_update = np.isin(fpv_vec, new_losers)
-            pos_vec[needs_update] = np.argmax(
-                bool_ballot_matrix[needs_update, :], axis=1
-            )
-            fpv_vec[needs_update] = self._data.ballot_matrix[
-                needs_update, pos_vec[needs_update]
-            ]
-        for _ in range(len(winner_to_cand)):
-            needs_update = np.isin(fpv_vec, winner_to_cand)
-            winner_comb_vec[needs_update] = update_perm_idx_vectorized(
-                winner_comb_vec[needs_update],
-                cand_to_winner[fpv_vec[needs_update]],
-                self._perm_m,
-            )
-            bool_ballot_matrix[needs_update, pos_vec[needs_update]] = False
-            pos_vec[needs_update] = np.argmax(
-                bool_ballot_matrix[needs_update, :], axis=1
-            )
-            fpv_vec[needs_update] = self._data.ballot_matrix[
-                needs_update, pos_vec[needs_update]
-            ]
-        return pos_vec, fpv_vec, winner_comb_vec, bool_ballot_matrix
+        initial_wt_vec: NDArray,
+        fpv_vec: NDArray,
+        winners: list[int],
+        winner_combination_vec: NDArray,
+        winner_combination_matrix: NDArray,
+    ) -> tuple[NDArray, NDArray, float, int]:
+        """
+        Runs steps 1-3 of the keep factor calibration process.
 
-    def tally_calculator(
-        self, fpv_vec, winner_combination_vec, keep_factors, winner_to_cand
-    ):
-        unique_winner_combos = np.unique(winner_combination_vec)
-        overall_tallies = np.zeros(self._num_cands)
-        for perm_idx in unique_winner_combos:
-            ballot_mask = winner_combination_vec == perm_idx
-            non_exhausted_mask = ballot_mask & (fpv_vec >= 0)
+        Step 1: condense and cache the information about the observed winner combinations.
+        Step 2: iteratively adjust keep factors and re-compute the tallies of *winners only*
+            until all winners are within tolerance of quota.
+        Step 3: use the leftover mass of ballots to compute the tallies of non-winner candidates.
+        If there are no elected winners yet, skip steps 1 and 2.
 
-            wt_vec_for_this_permutation = self._wt_calculator.make_wt_vec(
-                perm_idx, keep_factors
-            )
-            weights_per_winner = (
-                sum(self._data.wt_vec[ballot_mask]) * wt_vec_for_this_permutation[:-1]
-            )
+        Args:
+            initial_wt_vec: (NDArray) initial weight (i.e. multiplicity) of each
+                ballot in the ballot_matrix.
+            fpv_vec: (NDArray) current first preference candidate of each
+                ballot in the ballot_matrix.
+            winners: list of currently seated winners, indexed according to their
+                position in self.candidates.
+            winner_combination_vec: (NDArray) current winner combination index for each ballot.
+            winner_combination_matrix: (NDArray) matrix mapping winner combination indices
+                to winner combinations; each row is a different combination.
 
-            leftover_weight = wt_vec_for_this_permutation[-1]
-            leftover_tally = np.bincount(
-                fpv_vec[non_exhausted_mask],
-                weights=self._data.wt_vec[non_exhausted_mask] * leftover_weight,
-                minlength=self._num_cands,
-            )
-            leftover_tally = leftover_tally.astype(np.float64)
-            leftover_tally[winner_to_cand] += weights_per_winner[: len(winner_to_cand)]
-            overall_tallies += leftover_tally
-        return overall_tallies
+        Returns:
+            tallies: (NDArray) final tallies for all candidates after keep factors have converged.
+            keep_factors: (NDArray) final keep factors for all seated winners.
+            quota: the quota calculated in the final iteration of the calibration process.
+            iterations_used: the number of iterations of keep factor adjustment that were used.
+        """
 
-    def calibrate_keep_factors(
-        self, fpv_vec, winner_combination_vec, winner_to_cand, keep_factors
-    ):
-        for iteration in range(self._max_iterations):
-            tallies = self.tally_calculator(
-                fpv_vec, winner_combination_vec, keep_factors, winner_to_cand
-            )
-            active_votes = sum(tallies)
+        if len(winners) == 0:
+            exhausting_mask = fpv_vec < 0
+            active_votes = float(initial_wt_vec[~exhausting_mask].sum())
             quota = self._get_threshold(
-                quota_type="droop",
-                total_ballot_wt=active_votes,
+                "droop",
+                active_votes,
                 floor=False,
                 epsilon=self.epsilon,
             )
-            if np.all(tallies[winner_to_cand] - quota < self.tolerance):
-                break
-            new_keep_factors = quota / tallies[winner_to_cand]
-            keep_factors *= new_keep_factors
-        if np.any(keep_factors > 1.0):
-            print(f"Warning! Keep factors exceeded 1.0: {keep_factors}.")
-        return tallies, keep_factors, iteration + 1, quota
-
-    def meek_stv_engine(
-        self,
-        pos_vec,
-        fpv_vec,
-        winner_combination_vec,
-        bool_ballot_matrix,
-        winner_to_cand,
-        hopeful,
-        starting_keep_factors,
-        tiebreak_record,
-    ):
-        # 1) calibrate keep factors
-        # 2) record info and determine loser/winner (non-simultaneous is same as simultaneous, and cleaner)
-        # 3) update helpers
-        keep_factors = starting_keep_factors.copy()
-        tallies, keep_factors, iterations, current_quota = self.calibrate_keep_factors(
-            fpv_vec, winner_combination_vec, winner_to_cand, keep_factors=keep_factors
-        )
-        non_winner_tallies = np.copy(tallies)
-        non_winner_tallies[winner_to_cand] = -1
-        if np.any(non_winner_tallies > current_quota):  # elect highest winner
-            max_tally = np.max(non_winner_tallies)
-            highest_cands = np.where(non_winner_tallies == max_tally)[0].tolist()
-            if len(highest_cands) > 1:
-                winner, tiebreak_record = self._run_winner_tiebreak(
-                    tied_winners=highest_cands,
-                    turn=0,
-                    mutant_tiebreak_record=tiebreak_record,
-                )
-            else:
-                winner = int(highest_cands[0])
-                tiebreak_record.append({})
-            winner_to_cand.append(winner)
-            keep_factors = np.append(keep_factors, np.float64(1.0))
-            round_type = "election"
-            new_losers = []
-        else:  # eliminate loser
-            hopeful_tallies = tallies[hopeful]
-            lowest_tally = np.min(hopeful_tallies)
-            lowest_cands = np.where(hopeful_tallies == lowest_tally)[0].tolist()
-            if len(lowest_cands) > 1:
-                print(
-                    f"Tie for lowest hopeful tallies among candidates {[hopeful[i] for i in lowest_cands]} with tally {lowest_tally}. Running tiebreak."
-                )
-                new_loser, tiebreak_record = self._run_loser_tiebreak(
-                    tied_losers=[hopeful[i] for i in lowest_cands],
-                    turn=0,
-                    mutant_tiebreak_record=tiebreak_record,
-                )
-            else:
-                new_loser = int(hopeful[lowest_cands[0]])
-                tiebreak_record.append({})
-            new_losers = [new_loser]
-            if new_loser not in hopeful:
-                raise ValueError(
-                    f"Tried to eliminate candidate {new_loser} who is not in hopeful list {hopeful}, tallies {tallies}, hopeful_tallies {hopeful_tallies}."
-                )
-            hopeful.remove(new_loser)
-            round_type = "elimination"
-            winner = None
-        pos_vec, fpv_vec, winner_combination_vec, bool_ballot_matrix = (
-            self._update_helpers(
-                pos_vec=pos_vec,
-                fpv_vec=fpv_vec,
-                winner_comb_vec=winner_combination_vec,
-                bool_ballot_matrix=bool_ballot_matrix,
-                winner_to_cand=winner_to_cand,
-                new_losers=new_losers,
+            keep_factors = np.array([], dtype=np.float64)
+            tallies = np.bincount(
+                fpv_vec[~exhausting_mask],
+                weights=initial_wt_vec[~exhausting_mask],
+                minlength=self._num_cands,
             )
-        )
-        return (
-            tallies,
-            keep_factors,
-            iterations,
-            current_quota,
-            pos_vec,
-            fpv_vec,
-            winner_combination_vec,
-            bool_ballot_matrix,
-            round_type,
-            new_losers,
-            [winner],
-            winner_to_cand,
-            hopeful,
-            tiebreak_record,
-        )
+            iterations = 0
 
-    def _run_election(self, data: NumpyElectionDataTracker):
-        fpv_by_round = []
-        quota_by_round = []
-        helper_vecs_per_round = []
-        play_by_play = []
-        tiebreak_record = []
-
-        pos_vec, fpv_vec, winner_combination_vec, bool_ballot_matrix = (
-            self._initialize_helpers()
-        )
-        winner_to_cand = []
-        _, keep_factors, _, _ = self.calibrate_keep_factors(
-            fpv_vec=fpv_vec,
-            winner_combination_vec=winner_combination_vec,
-            winner_to_cand=winner_to_cand,
-            keep_factors=np.ones(len(winner_to_cand)),
-        )
-
-        hopeful = np.arange(0, self._num_cands).tolist()
-
-        round_number = 0
-        while len(winner_to_cand) < self.m:
-            (
-                tallies,
-                keep_factors,
-                iterations,
-                current_quota,
-                pos_vec,
-                fpv_vec,
-                winner_combination_vec,
-                bool_ballot_matrix,
-                round_type,
-                new_losers,
-                new_winners,
-                winner_to_cand,
-                hopeful,
-                tiebreak_record,
-            ) = self.meek_stv_engine(
-                pos_vec,
-                fpv_vec,
-                winner_combination_vec,
-                bool_ballot_matrix,
-                winner_to_cand,
-                hopeful,
-                keep_factors,
-                tiebreak_record,
-            )
-            fpv_by_round.append(tallies.copy())
-            quota_by_round.append(current_quota)
-            # tiebreak_record.append #TODO: tiebreaks
-            helper_vecs_per_round.append(
-                {
-                    "fpv_vec": fpv_vec.copy(),
-                    "winner_combination_vec": winner_combination_vec.copy(),
-                    "winner_to_cand": winner_to_cand.copy(),
-                    "quota": current_quota,
-                }
-            )
-            play = {
-                "round_number": int(round_number),
-                "keep_factors": keep_factors.copy(),
-                # "quota": current_quota,
-                "iterations": iterations,
-                "round_type": round_type,
-            }
-            if play["round_type"] == "elimination":
-                play["loser"] = new_losers
-            elif play["round_type"] == "election":
-                play["winners"] = new_winners
-            play_by_play.append(play)
-            round_number += 1
-        final_tallies, keep_factors, _, final_quota = self.calibrate_keep_factors(
-            fpv_vec=fpv_vec,
-            winner_combination_vec=winner_combination_vec,
-            winner_to_cand=winner_to_cand,
-            keep_factors=keep_factors,
-        )
-        # print(keep_factors)
-        fpv_by_round.append(final_tallies)
-        quota_by_round.append(final_quota)
-
-        data.extras["helper_vecs_per_round"] = helper_vecs_per_round
-        data.extras["quota_by_round"] = quota_by_round
-        data.extras["winner_to_cand"] = winner_to_cand
-
-        return fpv_by_round, play_by_play, tiebreak_record
-
-
-class WeightVectorCalculator:
-    """
-    Lightweight calculator that knows how ballot weight is split across a
-    permutation of winners for a given keep-factor vector.
-    """
-
-    def __init__(self, num_winners, m=None):
-        """
-        Args:
-            num_winners: number of possible winners (L)
-            m: parameter for idx_to_perm; should be L + 1 (elements 0..L-1)
-        """
-        self.num_winners = num_winners
-        self.m = m if m is not None else num_winners + 1
-        if self.m != self.num_winners + 1:
-            raise ValueError(
-                f"WeightVectorCalculator expects m = num_winners + 1 (got {self.m} vs {self.num_winners})."
-            )
-
-        # number of permutations of up to L elements: sum_{l=0..L} L!/(L-l)!
-        self.num_perms = sum(
-            factorial(num_winners) // factorial(num_winners - l)
-            for l in range(num_winners + 1)
-        )
-
-        # Precompute the canonical permutations so make_wt_vec can stay simple.
-        self.perms = [
-            idx_to_perm(perm_idx, self.m) for perm_idx in range(self.num_perms)
-        ]
-
-    def make_wt_vec(self, perm_idx, keep_factors):
-        """
-        Fast weight vector calculation using precomputed structure.
-
-        Args:
-            perm_idx: Index of the permutation
-            keep_factors: Array of keep factors for each winner
-
-        Returns:
-            Weight vector of length num_winners + 1
-        """
-        perm = self.perms[int(perm_idx)]
-        wt_vec = np.zeros(self.num_winners + 1)
-
-        carry = 1.0
-        for winner_idx in perm:
-            if winner_idx >= len(keep_factors):
-                raise IndexError(
-                    f"Permutation index {perm_idx} refers to winner {winner_idx}, "
-                    f"but keep_factors has length {len(keep_factors)}."
-                )
-            wt_vec[winner_idx] = carry * keep_factors[winner_idx]
-            carry *= 1 - keep_factors[winner_idx]
-
-        wt_vec[-1] = carry
-        return wt_vec
-
-    def make_wt_vec_vectorized(self, perm_indices, keep_factors):
-        """
-        Vectorized version that computes weight vectors for multiple permutations.
-
-        Args:
-            perm_indices: Array of permutation indices
-            keep_factors: Array of keep factors for each winner
-
-        Returns:
-            2D array where each row is a weight vector
-        """
-        n = len(perm_indices)
-        result = np.zeros((n, self.num_winners + 1))
-
-        for i, perm_idx in enumerate(perm_indices):
-            result[i] = self.make_wt_vec(perm_idx, keep_factors)
-
-        return result
-
-
-def update_perm_idx_vectorized(idx_vec, j_vec, m):
-    """
-    Vectorized version of update_perm_idx.
-
-    Returns indices that result from appending elements j_vec to permutations at idx_vec.
-
-    Args:
-        idx_vec: Array of indices of original permutations
-        j_vec: Array of elements to append (0 <= j < m-1)
-        m: The parameter defining the range; pass num_winners + 1
-
-    Returns:
-        Array of indices of extended permutations
-
-    Example:
-        update_perm_idx_vectorized(np.array([2, 1]), np.array([0, 1]), 3)
-        returns np.array([4, 3])
-    """
-    idx_vec = np.asarray(idx_vec, dtype=int)
-    j_vec = np.asarray(j_vec, dtype=int)
-
-    elements = m - 1
-    n = len(idx_vec)
-    result = np.zeros(n, dtype=int)
-
-    # Precompute factorial values
-    fact = np.array([factorial(i) for i in range(elements + 1)])
-
-    # For each index, determine its length group
-    lengths = np.zeros(n, dtype=int)
-    pos_in_length = np.zeros(n, dtype=int)
-
-    for i in range(n):
-        current_idx = 0
-        for l in range(m):
-            count = fact[elements] // fact[elements - l] if l <= elements else 0
-            if current_idx + count > idx_vec[i]:
-                lengths[i] = l
-                pos_in_length[i] = idx_vec[i] - current_idx
-                break
-            current_idx += count
-
-    # Process each element
-    for i in range(n):
-        length = lengths[i]
-        new_length = length + 1
-
-        # Count of permutations before the new length group
-        idx_before_new_length = 0
-        for l in range(new_length):
-            count = fact[elements] // fact[elements - l] if l <= elements else 0
-            idx_before_new_length += count
-
-        if length == 0:
-            # Original is empty (), extended is (j,)
-            result[i] = idx_before_new_length + j_vec[i]
         else:
-            # Decode the original permutation
-            available = list(range(elements))
-            perm_list = []
-            remaining_pos = pos_in_length[i]
+            cache = self._build_keep_factor_calibration_cache(
+                initial_wt_vec=initial_wt_vec,
+                fpv_vec=fpv_vec,
+                winner_combination_vec=winner_combination_vec,
+                winner_combination_matrix=winner_combination_matrix,
+            )
 
-            for pos in range(length):
-                remaining_slots = length - pos - 1
-                perms_per_choice = fact[elements - pos - 1] // fact[elements - length]
+            keep_factors, winner_tallies, leftover_factor, quota, iterations = (
+                self._iterate_keep_factors_from_cache(
+                    cache=cache,
+                    num_winners=len(winners),
+                )
+            )
 
-                choice_idx = remaining_pos // perms_per_choice
-                perm_list.append(available[choice_idx])
-                available.pop(choice_idx)
-                remaining_pos %= perms_per_choice
+            tallies = self._finalize_tallies_from_cache(
+                cache=cache,
+                winners=winners,
+                winner_tallies=winner_tallies,
+                leftover_factor_by_support=leftover_factor,
+            )
 
-            # Check if j is already in the permutation
-            if j_vec[i] in perm_list:
-                raise ValueError(
-                    f"Element {j_vec[i]} is already in the permutation at index {i}"
+        return tallies, keep_factors, quota, iterations
+
+    def _build_keep_factor_calibration_cache(
+        self,
+        initial_wt_vec: NDArray,
+        fpv_vec: NDArray,
+        winner_combination_vec: NDArray,
+        winner_combination_matrix: NDArray,
+    ) -> KeepFactorCalibrationCache:
+        """
+        Compress and cache ballot-level data about winner combinations.
+
+        Args:
+            initial_wt_vec: (NDArray) initial weight (i.e. multiplicity) of each
+                ballot in the ballot_matrix.
+            fpv_vec: (NDArray) current first preference candidate of each
+                ballot in the ballot_matrix.
+            winner_combination_vec: (NDArray) current winner combination index for each ballot.
+            winner_combination_matrix: (NDArray) matrix mapping winner combination indices
+                to winner combinations; each row is a different combination.
+                In sparse mode, we might use a list of arrays instead of this matrix,
+                and materialize it as an array at this stage of the process.
+
+        Returns:
+            KeepFactorCalibrationCache: a cache ready to be decoded by the later stages of
+                the calibration process.
+        """
+        support_comb_ids, ballot_to_support_row = np.unique(
+            winner_combination_vec,
+            return_inverse=True,
+        )
+
+        exhausted_mask = fpv_vec < 0
+
+        support_total_mass = np.bincount(
+            ballot_to_support_row,
+            weights=initial_wt_vec,
+            minlength=len(support_comb_ids),
+        ).astype(np.int32)
+
+        support_nonexhausted_mass = np.bincount(
+            ballot_to_support_row[~exhausted_mask],
+            weights=initial_wt_vec[~exhausted_mask],
+            minlength=len(support_comb_ids),
+        ).astype(np.int32)
+
+        raw_view_of_permutation_matrix = winner_combination_matrix[support_comb_ids]
+
+        valid_mask = raw_view_of_permutation_matrix >= 0
+        permutation_lengths = valid_mask.sum(axis=1).astype(np.int8)
+
+        sliced_winner_matrix = raw_view_of_permutation_matrix.copy()
+        sliced_winner_matrix[~valid_mask] = 0
+
+        return KeepFactorCalibrationCache(
+            support_comb_ids=support_comb_ids,
+            ballot_to_support_row=ballot_to_support_row,
+            sliced_winner_matrix=sliced_winner_matrix,
+            valid_mask=valid_mask,
+            permutation_lengths=permutation_lengths,
+            support_total_mass=support_total_mass,
+            support_nonexhausted_mass=support_nonexhausted_mass,
+            exhausted_mask=exhausted_mask,
+            fpv_vec=fpv_vec,
+            initial_wt_vec=initial_wt_vec,
+        )
+
+    def _iterate_keep_factors_from_cache(
+        self,
+        cache: KeepFactorCalibrationCache,
+        num_winners: int,  # should I have an optional argument here to store each iteration somewhere?
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
+        """
+        Logic for the kernel of the keep factor calibration process.
+
+        Deliberately initializes keep factors to 1 (rather than start from the previous round's
+            keep factors) for auditability.
+
+        Args:
+            cache: the compressed data cache for the current round, containing information
+                about the observed winner combinations and their masses.
+            num_winners: the number of winners currently seated, which determines
+                the shape of keep_factors and winner_tallies.
+
+        Returns:
+            keep_factors: (NDarray) final keep factors for all seated winners after convergence.
+            winner_tallies: (NDarray) final tallies for all seated winners after convergence.
+            leftover_factor_by_support: (NDarray) fraction of each support row entry's mass that
+                remains after transferring through their winners.
+            quota: (float) the final value of quota when the process converged.
+            iterations_used: (int) the number of iterations that ran before convergence.
+        """
+        keep_factors = np.ones(num_winners, dtype=np.float64)
+
+        P, Lmax = cache.sliced_winner_matrix.shape
+
+        k_mat = np.zeros((P, Lmax), dtype=np.float64)
+        prefix = np.ones((P, Lmax), dtype=np.float64)
+        carry_before = np.zeros((P, Lmax), dtype=np.float64)
+        contrib = np.zeros((P, Lmax), dtype=np.float64)
+
+        winner_tallies = np.zeros(num_winners, dtype=np.float64)
+        leftover_factor = np.ones(P, dtype=np.float64)
+
+        nonempty_rows = cache.permutation_lengths > 0
+        nonempty_idx = np.where(nonempty_rows)[0]
+
+        iterations_used = 0
+
+        for iteration in range(self._max_iterations):  # let me know if you want these comments gone
+            iterations_used = iteration + 1
+
+            # k_mat[p, j] = keep factor for the winner at position j of support row p
+            k_mat.fill(0.0)
+            k_mat[cache.valid_mask] = keep_factors[cache.sliced_winner_matrix[cache.valid_mask]]
+
+            # prefix = inclusive prefix products of (1 - k) along each support row
+            prefix.fill(1.0)
+            prefix[cache.valid_mask] -= k_mat[cache.valid_mask]
+            np.cumprod(prefix, axis=1, out=prefix)
+
+            # carry_before = exclusive prefix products
+            carry_before.fill(0.0)
+            carry_before[:, 0] = 1.0
+            if Lmax > 1:
+                carry_before[:, 1:] = prefix[:, :-1]
+            carry_before[~cache.valid_mask] = 0.0
+
+            # contrib[p, j] = total mass in support row p assigned to winner at position j
+            contrib[:] = carry_before
+            contrib *= k_mat
+            contrib *= cache.support_total_mass[:, None]
+            contrib[~cache.valid_mask] = 0.0
+
+            # Scatter-add support-row/position contributions into winner tallies.
+            winner_tallies.fill(0.0)
+            for j in range(Lmax):
+                not_empty_position = cache.valid_mask[:, j]
+                if np.any(not_empty_position):
+                    np.add.at(
+                        winner_tallies,
+                        cache.sliced_winner_matrix[not_empty_position, j],
+                        contrib[not_empty_position, j],
+                    )
+
+            # leftover_factor[p] = fraction of a ballot in support row p
+            # that remains after transferring through their winners.
+            leftover_factor.fill(1.0)
+            if len(nonempty_idx) > 0:
+                leftover_factor[nonempty_idx] = prefix[
+                    nonempty_idx,
+                    cache.permutation_lengths[nonempty_idx] - 1,
+                ]
+
+            # Active votes = winner tallies + nonexhausted leftover mass.
+            active_votes = float(
+                winner_tallies.sum() + np.dot(cache.support_nonexhausted_mass, leftover_factor)
+            )
+
+            quota = self._get_threshold(
+                "droop",
+                active_votes,
+                floor=False,
+                epsilon=self.epsilon,
+            )
+
+            if np.all(winner_tallies <= quota + self.tolerance):
+                break
+
+            # Meek update: k_i <- k_i * min(q / T_i, 1)
+            scale = np.ones_like(keep_factors)
+            positive = winner_tallies > 0.0
+            scale[positive] = np.minimum(quota / winner_tallies[positive], 1.0)
+            keep_factors *= scale
+
+        return keep_factors, winner_tallies, leftover_factor, quota, iterations_used
+
+    def _finalize_tallies_from_cache(
+        self,
+        cache: KeepFactorCalibrationCache,
+        winners: list[int],
+        winner_tallies: NDArray,
+        leftover_factor_by_support: NDArray,
+    ) -> NDArray:
+        """
+        After keep factors have converged, compute full candidate tallies for other candidates.
+
+        Args:
+            cache (KeepFactorCalibrationCache): the compressed data cache for the current round.
+            winners (list[int]): the list of seated winners in the current round.
+            winner_tallies (NDArray): the already-computed tallies of the winning candidates.
+            leftover_factor_by_support (NDArray): the fractional ballot weight
+                (not including multiplicity) for each observed winner combination.
+
+        Returns:
+            tallies (NDArray): the final tallies for all candidates.
+        """
+        actual_wt_vec = (
+            cache.initial_wt_vec * leftover_factor_by_support[cache.ballot_to_support_row]
+        )
+
+        tallies = np.bincount(
+            cache.fpv_vec[~cache.exhausted_mask],
+            weights=actual_wt_vec[~cache.exhausted_mask],
+            minlength=self._num_cands,
+        ).astype(np.float64)
+
+        if len(winners) > 0:
+            tallies[np.asarray(winners, dtype=int)] = winner_tallies
+
+        return tallies
+
+    def _update_winner_comb_vec(
+        self,
+        mutant_winner_comb_vec: NDArray,
+        mutant_winner_bitstring_vec: NDArray,
+        mutant_fpv_vec: NDArray,
+        mutant_bool_ballot_matrix: NDArray,
+        mutant_pos_vec: NDArray,
+        all_winners: list[int],
+        m: int | None = None,
+        L: int | None = None,
+    ):
+        """
+        Advance ballots whose current first-preference candidate is already seated.
+
+        Updates both the winner-combination index and the winner bitstring until
+        no ballot currently points to a seated winner.
+
+        Args:
+            mutant_winner_comb_vec: (NDArray) the previous winner combination index
+                for each ballot.
+            mutant_winner_bitstring_vec: (NDArray) the previous winner bitstring
+                for each ballot.
+            mutant_fpv_vec: (NDArray) the current first-preference vector for each ballot.
+            mutant_bool_ballot_matrix: (NDArray) the boolean ballot matrix indicating
+                available positions for each ballot.
+            mutant_pos_vec: (NDArray) the current position of the fpv on each ballot.
+            all_winners: (list[int]) the list of seated winners in the current round,
+                in the order they were seated in.
+            m: (int | None) the number of candidates to consider.
+                Defaults to self.m.
+            L: (int | None) the maximum ranking length.
+                Defaults to self._max_ranking_length.
+
+        Returns:
+            mutant_winner_comb_vec: (NDArray) mutated in place.
+            mutant_winner_bitstring_vec: (NDArray) mutated in place.
+            mutant_fpv_vec: (NDArray) mutated in place.
+            mutant_bool_ballot_matrix: (NDArray) mutated in place.
+            mutant_pos_vec: (NDArray) mutated in place.
+
+        """
+        if m is None:
+            m = self.m
+        if L is None:
+            L = self._max_ranking_length
+
+        if len(all_winners) == 0:
+            return (
+                mutant_winner_comb_vec,
+                mutant_winner_bitstring_vec,
+                mutant_fpv_vec,
+                mutant_bool_ballot_matrix,
+                mutant_pos_vec,
+            )
+
+        winner_array = np.asarray(all_winners, dtype=int)
+
+        cand_to_winner_pos = np.full(self._num_cands, -1, dtype=np.int32)
+        cand_to_winner_pos[winner_array] = np.arange(winner_array.size, dtype=np.int32)
+
+        max_passes = winner_array.size
+        num_passes = 0
+
+        while True:
+            current_winner_pos = np.full(mutant_fpv_vec.shape, -1, dtype=np.int32)
+            active_rows = mutant_fpv_vec >= 0
+            current_winner_pos[active_rows] = cand_to_winner_pos[mutant_fpv_vec[active_rows]]
+
+            needs_update = current_winner_pos >= 0
+            if not np.any(needs_update):
+                break
+
+            num_passes += 1
+            if num_passes > max_passes:
+                raise RuntimeError(
+                    "Winner-combination update exceeded the expected number of passes. "
+                    "This suggests some ballots are repeatedly landing on seated winners "
+                    "without making progress."
                 )
 
-            # Create the extended permutation
-            extended_perm = perm_list + [j_vec[i]]
+            updated_comb, updated_bits = vectorized_perm_updater(
+                mutant_winner_comb_vec[needs_update],
+                m,
+                L,
+                mutant_winner_bitstring_vec[needs_update],
+                current_winner_pos[needs_update],
+            )
+            mutant_winner_comb_vec[needs_update] = updated_comb
+            mutant_winner_bitstring_vec[needs_update] = updated_bits
 
-            # Find the position of this extended permutation in the new length group
-            available_new = list(range(elements))
-            new_pos = 0
+            mutant_bool_ballot_matrix[needs_update, mutant_pos_vec[needs_update]] = False
 
-            for pos in range(new_length):
-                elem = extended_perm[pos]
-                elem_idx = available_new.index(elem)
+            mutant_pos_vec[needs_update] = mutant_bool_ballot_matrix[needs_update].argmax(axis=1)
 
-                remaining_slots = new_length - pos - 1
-                perms_per_choice = (
-                    fact[elements - pos - 1] // fact[elements - new_length]
-                )
-                new_pos += elem_idx * perms_per_choice
+            mutant_fpv_vec[needs_update] = self._data.ballot_matrix[
+                needs_update,
+                mutant_pos_vec[needs_update],
+            ]
 
-                available_new.remove(elem)
+        return (
+            mutant_winner_comb_vec,
+            mutant_winner_bitstring_vec,
+            mutant_fpv_vec,
+            mutant_bool_ballot_matrix,
+            mutant_pos_vec,
+        )
 
-            result[i] = idx_before_new_length + new_pos
+    def _find_and_eliminate_loser(
+        self,
+        tallies: NDArray,
+        round_number: int,
+        mutant_eliminated_candidates: list[int],
+        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        mutant_fpv_vec: NDArray,
+        mutant_pos_vec: NDArray,
+        mutant_bool_ballot_matrix: NDArray,
+    ) -> tuple[int, LoserMutantBundle]:
+        """
+        Identifies the candidate with the lowest tally and eliminates them in place.
 
-    return result
+        Breaks and records ties as needed.
+        Args:
+            tallies: (NDArray) the current tallies for all candidates.
+            round_number: (int) the current round number, used for tiebreak record keeping.
+            mutant_eliminated_candidates: (list[int]) list of already eliminated candidates.
+            mutant_tiebreak_record: (list[dict[frozenset[str], tuple[frozenset[str], ...]]])
+                A record of all tiebreaks containing one entry per round.
+            mutant_fpv_vec: (NDArray) the current first-preference vector for each ballot.
+            mutant_pos_vec: (NDArray) the current position of the fpv on each ballot.
+            mutant_bool_ballot_matrix: (NDArray) the boolean ballot matrix indicating
+                available positions for each ballot.
+
+        Returns:
+            loser_idx: (int) the index of the candidate to be eliminated.
+            mutant_eliminated_candidates: (list[int]) mutated in place.
+            mutant_tiebreak_record: (list[dict[frozenset[str], tuple[frozenset[str], ...]]])
+                mutated in place.
+            mutant_fpv_vec: (NDArray) mutated in place.
+            mutant_pos_vec: (NDArray) mutated in place.
+            mutant_bool_ballot_matrix: (NDArray) mutated in place.
+        """
+        masked_tallies: NDArray = np.where(
+            np.isin(np.arange(len(tallies)), mutant_eliminated_candidates),
+            np.inf,
+            tallies,
+        )
+        if np.count_nonzero(masked_tallies == np.min(masked_tallies)) > 1:
+            potential_losers: list[int] = (
+                np.where(masked_tallies == masked_tallies.min())[0].astype(int).tolist()
+            )
+            loser_idx, mutant_tiebreak_record = self._run_loser_tiebreak(
+                potential_losers, round_number, mutant_tiebreak_record
+            )
+        else:
+            loser_idx = int(np.argmin(masked_tallies))
+            mutant_tiebreak_record.append({})
+        mutant_eliminated_candidates.append(loser_idx)
+        mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, loser_idx)  # same
+        rows_with_loser_fpv = mutant_fpv_vec == loser_idx
+        allowed_pos_matrix = mutant_bool_ballot_matrix[rows_with_loser_fpv]
+        mutant_pos_vec[rows_with_loser_fpv] = allowed_pos_matrix.argmax(axis=1)
+        mutant_fpv_vec[rows_with_loser_fpv] = (
+            self._data.ballot_matrix[  # this would be self._data.ballot_matrix in the class context
+                rows_with_loser_fpv, mutant_pos_vec[rows_with_loser_fpv]
+            ]
+        )
+
+        return (
+            loser_idx,
+            (
+                mutant_eliminated_candidates,
+                mutant_tiebreak_record,
+                mutant_fpv_vec,
+                mutant_pos_vec,
+                mutant_bool_ballot_matrix,
+            ),
+        )
 
 
-def idx_to_perm(idx, m):
+@lru_cache(maxsize=None)
+def build_section_list(m: int, L: int) -> list[int]:
     """
-    Maps an index to a canonical permutation of elements 0 to m-2.
-    (In this file, m is normally num_winners + 1.)
+    Helper function listing the number of ballots with prescribed lengths and number of candidates.
 
-    Canonical order:
-    - First by length (0, 1, 2, ..., m-1)
-    - Within each length, lexicographically
+    Similar to the _child_block_size Peter is adding to votekit.utils.
 
     Args:
-        idx: The index of the permutation
-        m: The parameter defining the range (elements are 0 to m-2)
+        m: (int) number of candidates that the permutation is picking from.
+        L: (int) maximum length of the permutation.
 
     Returns:
-        A tuple representing the permutation
-
-    Example for m=3:
-        idx_to_perm(0, 3) = ()
-        idx_to_perm(1, 3) = (0,)
-        idx_to_perm(2, 3) = (1,)
-        idx_to_perm(3, 3) = (0, 1)
-        idx_to_perm(4, 3) = (1, 0)
+        section_list (list[int]): list where entry i corresponds to the number of permutations of m
+            items with length at most L where the first i positions have been prescribed.
+            Includes the empty permutation as an option (at every depth).
     """
-    elements = list(range(m - 1))
-    current_idx = 0
-
-    # Generate permutations by length
-    for length in range(m):
-        # Get all permutations of this length
-        perms = sorted(permutations(elements, length))
-
-        # Check if our target index is in this length group
-        if current_idx + len(perms) > idx:
-            # Found the right length group
-            perm_idx = idx - current_idx
-            return perms[perm_idx]
-
-        current_idx += len(perms)
-
-    raise IndexError(f"Index {idx} out of range for m={m}")
+    section = 1
+    section_list = [1]
+    for k in range(L - 1, -1, -1):
+        section = section * (m - k) + 1
+        section_list.append(section)
+    section_list.reverse()
+    return section_list
 
 
-def perm_to_idx(perm, m):
+def vectorized_perm_updater(
+    winner_comb_vec: NDArray, m: int, L: int, winner_bitsring_vec: NDArray, winner_vec: NDArray
+):
     """
-    Maps a permutation to its canonical index.
+    Vectorized updater for a winner combination vec when new winners are added in each position.
+
+    For each index in winner_comb_vec, computes the index of the new winner combination
+        that results from adding the new winner specified in winner_vec.
+    This updater never constructs explicit permutations and uses the section_list instead.
 
     Args:
-        perm: A tuple representing the permutation
-        m: The parameter defining the range (elements are 0 to m-2)
-
-    Returns:
-        The index of the permutation
+        winner_comb_vec: (NDArray) the previous winner combination indices in need of update.
+        m: (int) the number of candidates.
+        L: (int) the maximum ranking length.
+        winner_bitsring_vec: (NDArray) the previous winner bitstring for each ballot,
+        winner_vec: (NDArray) the new winners to be added for each permutation.
     """
-    elements = list(range(m - 1))
-    current_idx = 0
-    length = len(perm)
+    winner_mask_array = np.left_shift(1, winner_vec.astype(np.int64)) - 1
+    truncated_winner_mask_array = np.bitwise_and(winner_mask_array, winner_bitsring_vec)
+    no_update_needed = np.bitwise_and(winner_mask_array + 1, winner_bitsring_vec) != 0
+    update_needed = ~no_update_needed
+    if np.any(no_update_needed):
+        raise ValueError(
+            f"skipping update for winner_vec indices {np.where(no_update_needed)[0]} since candidate is already in the winner combination.\n winner_vec: {winner_vec}\n winner_bitstring_vec: {winner_bitsring_vec}\n winner_mask_array: {winner_mask_array}"
+        )
+    sections = build_section_list(m, L)
+    L_vec = np.bitwise_count(winner_bitsring_vec[update_needed])
+    section_vec = np.array(sections)[L_vec + 1]
+    shift_vec = np.bitwise_count(truncated_winner_mask_array[update_needed])
+    return winner_comb_vec + section_vec * (winner_vec - shift_vec) + 1, np.bitwise_or(
+        winner_bitsring_vec, winner_mask_array + 1
+    )
 
-    # Add counts for all shorter lengths
-    for l in range(length):
-        perms = list(permutations(elements, l))
-        current_idx += len(perms)
 
-    # Find position within permutations of this length
-    perms_of_length = sorted(permutations(elements, length))
-    current_idx += perms_of_length.index(perm)
+def permutation_matrix_constructor(
+    m: int,
+    L: int,
+    sections: list[int] | None = None,
+    dtype: DTypeLike | None = None,
+):
+    """
+    Return a dense matrix where each row is a permutation of m items with length at most L.
 
-    return current_idx
+    Row i of this matrix should correspond to
+        `index_to_lexicographic_ballot(index: i-1, n_candidates: m, max_length: L)`
+        from votekit.utils.
+    Building this matrix is a bad idea when m, L are greater than 10.
+
+    Args:
+        m: (int) number of candidates that each permutation is picking from.
+        L: (int) the maximum ranking length of each permutation.
+        sections: (list[int] | None) pre-computed section list for the given m, L.
+            If None, this will be computed by the function.
+        dtype: (np.dtype | None) the dtype of the output array. If None, this will be int8 if possible
+            and int16 otherwise.
+    """
+    if sections is None:
+        sections = build_section_list(m, L)
+
+    if len(sections) != L + 1:
+        raise ValueError("sections must have length L+1")
+
+    if dtype is None:
+        out_dtype: np.dtype[Any] = np.dtype(np.int16 if m > np.iinfo(np.int8).max else np.int8)
+    else:
+        out_dtype = np.dtype(dtype)
+
+    A = np.full((sections[0], L), -1, dtype=out_dtype)
+    used = np.zeros(m, dtype=bool)
+
+    def fill(start, depth):
+        if depth == L:
+            return
+
+        section = sections[depth + 1]
+        row = start + 1
+
+        for x in range(m):
+            if used[x]:
+                continue
+
+            A[row : row + section, depth] = x
+            used[x] = True
+            fill(row, depth + 1)
+            used[x] = False
+
+            row += section
+
+    fill(0, 0)
+    return A
