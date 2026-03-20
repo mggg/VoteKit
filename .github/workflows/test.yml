@@ -37,5 +37,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: snapshot-frames-py${{ matrix.python-version }}
-          path: /tmp/pytest-runner/pytest-*/test_stv_animation_video_snaps*/frames/
+          path: /tmp/pytest-of-runner/pytest-*/test_stv_animation_video_snaps*/frames/
           if-no-files-found: ignore

@@ -41,6 +41,9 @@ Before making a pull request, run the following:
 - `task test`
 - `task coverage`
 
+To scope a test run to a subdirectory or file, use `task test -- tests/<path>` or
+`task test:tests/<path>`.
+
 If you already have `uv` on your `PATH`, you can also run the underlying commands directly with
 `uv run`, for example `uv run pytest tests --cov=src/votekit --cov-report=term-missing` for a
 coverage run or `uv run pytest tests --runslow` for the full test suite. The repository

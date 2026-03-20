@@ -34,9 +34,8 @@ Recommended setup:
 2. Fork and clone the repository.
 3. From the repository root, run `task setup`.
 
-`task setup` bootstraps Astral's official standalone `uv`, installs Python 3.11 if needed,
-stores its cache and managed Python under `.task-tools/`, syncs the pinned dependencies, and
-installs the pre-commit hooks.
+`task setup` installs Astral's official standalone `uv` if you don't have it, installs a managed
+Python 3.11 environment, syncs the pinned dependencies, and installs the pre-commit hooks. 
 
 If you already have `uv` installed and prefer to run the steps directly, the equivalent setup is:
 
@@ -74,6 +73,8 @@ task format
 task lint
 task typecheck
 task test
+task test -- <pytest cli args>
+task test:tests/path
 task coverage
 task docs
 ```
@@ -94,6 +95,7 @@ uv run pre-commit run --all-files
 Notes:
 
 - Slow tests are marked with `@pytest.mark.slow` and only run when you pass `--runslow`.
+- To scope a Task-based test run, use `task test -- tests/<path>` or `task test:tests/<path>`.
 - `task coverage` runs the default test suite with a terminal coverage summary for `src/votekit`.
 - If you change public documentation or tutorial content, run `task docs`.
 - If you touch plotting or animation behavior, check the relevant snapshot tests.
