@@ -274,9 +274,9 @@ def test_large_set_timing():
         )
     end = time()
 
-    assert (
-        end - start < 120
-    ), f"RankedPairs runtime took too long. Expected < 120 seconds, got {end - start} seconds."
+    assert end - start < 120, (
+        f"RankedPairs runtime took too long. Expected < 120 seconds, got {end - start} seconds."
+    )
 
 
 states = [

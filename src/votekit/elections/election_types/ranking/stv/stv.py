@@ -58,18 +58,19 @@ class NumpyInnerSTV(NumpySTVBase):
         Args:
             profile (RankProfile): RankProfile to run election on.
             m (int): Number of seats to be elected. Defaults to 1.
-            transfer (TransferType, optional): Transfer method to be used. Accepts "fractional", "fractional_random", "cambridge_random", and "random".
+            transfer (TransferType, optional): Transfer method to be used. Accepts
+                "fractional", "fractional_random", "cambridge_random", and "random".
                 Defaults to "fractional".
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round
                 are elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
-            dynamic_threshold (bool, optional): If True, threshold is recalculated each round based on
-                the number of remaining active votes. Defaults to False.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda", "random", and "cambridge_random". Defaults to
+                None, in which case a ValueError is raised if a tiebreak is needed.
+            dynamic_threshold (bool, optional): If True, threshold is recalculated each
+                round based on the number of remaining active votes. Defaults to False.
             block_rcv (bool, optional): If True, blocks ranked-choice voting. Defaults to False.
         """
         self.__check_profile_and_seats_and_candidates_and_transfer(profile, m, transfer)
@@ -117,11 +118,13 @@ class NumpyInnerSTV(NumpySTVBase):
             "random",
         ]:
             raise ValueError(
-                "Transfer method must be either 'fractional', 'cambridge_random', 'fractional_random', or 'random'."
+                "Transfer method must be either 'fractional', "
+                "'cambridge_random', 'fractional_random', or 'random'."
             )
         if transfer == "random":
             warn(
-                "The 'random' transfer method is ambiguous, and being interpreted as 'cambridge_random'. "
+                "The 'random' transfer method is ambiguous, and being "
+                "interpreted as 'cambridge_random'. "
                 "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning."
             )
 
@@ -384,7 +387,9 @@ class NumpyInnerSTV(NumpySTVBase):
         _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
+    def _run_election(
+        self, data: NumpyElectionDataTracker
+    ) -> tuple[
         list[NDArray],
         list[ElectionPlay],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
@@ -519,16 +524,18 @@ class FastSTV(NumpyInnerSTV):
         Args:
             profile (RankProfile): RankProfile to run election on.
             m (int, optional): Number of seats to be elected. Defaults to 1.
-            transfer (TransferType, optional): Transfer method to be used. Accepts "fractional", "random",
-                "fractional_random", and "cambridge_random". Defaults to "fractional".
+            transfer (TransferType, optional): Transfer method to be used. Accepts
+                "fractional", "random", "fractional_random", and "cambridge_random".
+                Defaults to "fractional".
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a
+                tiebreak is needed. Accepts "borda", "random", and
+                "cambridge_random". Defaults to None, in which case a
+                ValueError is raised if a tiebreak is needed.
         """
         super().__init__(
             profile=profile,
@@ -563,16 +570,17 @@ class AlbanySTV(NumpyInnerSTV):
         Args:
             profile (RankProfile): RankProfile to run election on.
             m (int, optional): Number of seats to be elected. Defaults to 1.
-            transfer (TransferType, optional): Transfer method to be used. Accepts "fractional", "random",
-                "fractional_random", and "cambridge_random". Defaults to "fractional".
+            transfer (TransferType, optional): Transfer method to be used. Accepts
+                "fractional", "random", "fractional_random", and "cambridge_random".
+                Defaults to "fractional".
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda", "random", and "cambridge_random". Defaults to
+                None, in which case a ValueError is raised if a tiebreak is needed.
         """
         super().__init__(
             profile=profile,
@@ -605,9 +613,10 @@ class FastIRV(NumpyInnerSTV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a
+                tiebreak is needed. Accepts "borda", "random", and
+                "cambridge_random". Defaults to None, in which case a
+                ValueError is raised if a tiebreak is needed.
         """
         super().__init__(
             profile=profile,
@@ -622,7 +631,8 @@ class FastSequentialRCV(NumpyInnerSTV):
     """
     STV election in which votes are not transferred from elected candidates.
 
-    This system just runs a series of IRV elections until the desired number of candidates are elected.
+    This system just runs a series of IRV elections until the desired number of candidates
+    are elected.
 
     Notes:
      - Used in parts of Utah.
@@ -647,9 +657,9 @@ class FastSequentialRCV(NumpyInnerSTV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda", "random", and "cambridge_random". Defaults to
+                None, in which case a ValueError is raised if a tiebreak is needed.
         """
         super().__init__(
             profile=profile,
@@ -694,9 +704,9 @@ class STV(RankingElection):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place votes
                 who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda" and "random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda" and "random". Defaults to None, in which case a
+                ValueError is raised if a tiebreak is needed.
         """
         self._stv_validate_profile(profile)
 
@@ -740,7 +750,7 @@ class STV(RankingElection):
         for idx, row in enumerate(np_arr):
             if any(len(s) > 1 for s in row):
                 raise TypeError(
-                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight = weight_col[idx])} "
+                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight=weight_col[idx])} "
                     "contains a tied ranking."
                 )
             if (row == tilde).all():
@@ -848,7 +858,9 @@ class STV(RankingElection):
         )
         return (tuple(elected), new_profile)
 
-    def _single_elect_step(self, profile: RankProfile, prev_state: ElectionState) -> tuple[
+    def _single_elect_step(
+        self, profile: RankProfile, prev_state: ElectionState
+    ) -> tuple[
         tuple[frozenset[str], ...],
         dict[frozenset[str], tuple[frozenset[str], ...]],
         RankProfile,
@@ -1046,9 +1058,10 @@ class IRV(STV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda" and "random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a
+                tiebreak is needed. Accepts "borda" and "random". Defaults to
+                None, in which case a ValueError is raised if a tiebreak is
+                needed.
         """
         super().__init__(profile, m=1, quota=quota, tiebreak=tiebreak)
 
@@ -1057,7 +1070,8 @@ class SequentialRCV(STV):
     """
     STV election in which votes are not transferred from elected candidates.
 
-    This system just runs a series of IRV elections until the desired number of candidates are elected.
+    This system just runs a series of IRV elections until the desired number of candidates
+    are elected.
 
     Notes:
      - Used in parts of Utah.
@@ -1083,9 +1097,9 @@ class SequentialRCV(STV):
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place
                 votes who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda" and "random". Defaults to None, in which case a ValueError is raised if
-                a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda" and "random". Defaults to None, in which case a
+                ValueError is raised if a tiebreak is needed.
         """
 
         def _transfer(
@@ -1104,7 +1118,8 @@ class SequentialRCV(STV):
                 _threshold (int): The threshold for election in this round.
 
             Returns:
-                tuple[RankBallot, ...]: The transferred ballots after removing the winner and condensing rankings.
+                tuple[RankBallot, ...]: The transferred ballots after removing the winner
+                    and condensing rankings.
             """
             del _fpv, _threshold  # unused and del on atomics is okay
             return tuple(condense_rank_ballot(remove_cand_rank_ballot(winner, b)) for b in ballots)

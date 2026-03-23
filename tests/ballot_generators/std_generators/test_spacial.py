@@ -41,7 +41,7 @@ def test_spatial_generator():
 
     with pytest.raises(
         TypeError,
-        match="Distance function is invalid or " "incompatible with voter/candidate distributions.",
+        match="Distance function is invalid or incompatible with voter/candidate distributions.",
     ):
         spacial_profile_and_positions_generator(
             number_of_ballots=1,
@@ -84,7 +84,7 @@ def test_clustered_spatial_generator():
 
     with pytest.raises(
         TypeError,
-        match="Distance function is invalid or " "incompatible with voter/candidate distributions.",
+        match="Distance function is invalid or incompatible with voter/candidate distributions.",
     ):
         clustered_spacial_profile_and_positions_generator(
             number_of_ballots=cast(dict[str, int], 1),

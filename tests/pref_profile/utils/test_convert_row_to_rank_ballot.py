@@ -56,7 +56,7 @@ def test_convert_row_to_rank_ballot_errors():
 
     with pytest.raises(
         ValueError,
-        match="has '~' between valid ranking positions. " "'~' values can only trail on a ranking.",
+        match="has '~' between valid ranking positions. '~' values can only trail on a ranking.",
     ):
         convert_row_to_rank_ballot(
             pd.Series(

@@ -93,7 +93,6 @@ def partitions_with_permutations_of_size(set_, subset_size):
 
 @pytest.fixture
 def all_possible_ranked_ballots():
-
     def inner(cand_set):
         if len(cand_set) > 5:
             raise ValueError("Can only generate ballots for sets of size 5 or less.")

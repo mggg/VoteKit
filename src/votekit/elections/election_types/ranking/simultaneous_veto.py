@@ -274,7 +274,8 @@ class SimultaneousVeto(RankingElection):
                     )
                 if not isinstance(candidate_weights, Mapping):
                     raise TypeError(
-                        "Exected for 'candidate_weights' to be either a string or a dictionary mapping "
+                        "Exected for 'candidate_weights' to be either a string or a "
+                        "dictionary mapping "
                         f"candidate names to their weights. Found {type(candidate_weights)!r}"
                     )
                 missing_cands = self.candidates.difference(candidate_weights.keys())

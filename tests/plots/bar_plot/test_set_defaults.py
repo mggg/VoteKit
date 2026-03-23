@@ -11,7 +11,6 @@ data = {
 
 
 def test_set_defaults_none_provided():
-
     default_dict = _set_default_bar_plot_args(
         data=data,
         data_set_colors=None,

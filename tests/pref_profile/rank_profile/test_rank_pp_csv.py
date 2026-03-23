@@ -56,31 +56,31 @@ def test_csv_filepath_error():
 def test_csv_misformatted_header_rows_error():
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 0 should be " "'VoteKit RankProfile'."),
+        match=("csv file is improperly formatted. Row 0 should be 'VoteKit RankProfile'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_0.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 1 should be " "'Candidates'."),
+        match=("csv file is improperly formatted. Row 1 should be 'Candidates'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_1.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 3 should be " "'Max Ranking Length'."),
+        match=("csv file is improperly formatted. Row 3 should be 'Max Ranking Length'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_3.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 5 should be " "'Includes Voter Set'."),
+        match=("csv file is improperly formatted. Row 5 should be 'Includes Voter Set'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_5.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 7 should be " "'=,=,=,=,=,=,=,=,=,='."),
+        match=("csv file is improperly formatted. Row 7 should be '=,=,=,=,=,=,=,=,=,='."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_7.csv")
 
@@ -118,13 +118,13 @@ def test_csv_misformatted_header_values_error():
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 6 should be " "'True' or 'False'."),
+        match=("csv file is improperly formatted. Row 6 should be 'True' or 'False'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_6_1.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 6 should be " "'True' or 'False'."),
+        match=("csv file is improperly formatted. Row 6 should be 'True' or 'False'."),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_6_2.csv")
 
@@ -137,19 +137,15 @@ def test_csv_misformatted_ballot_header_values_error():
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_header_2.csv")
 
     with pytest.raises(ValueError, match="Row 8 should include 'Weight' column."):
-        RankProfile.from_csv(
-            (f"{filepath}/test_csv_pp_misformat_ballot_header_" "weight_missing.csv")
-        )
+        RankProfile.from_csv((f"{filepath}/test_csv_pp_misformat_ballot_header_weight_missing.csv"))
 
     with pytest.raises(ValueError, match="Includes Voter Set is not set to the correct value"):
         RankProfile.from_csv(
-            (f"{filepath}/test_csv_pp_misformat_ballot_header_" "voter_set_false.csv")
+            (f"{filepath}/test_csv_pp_misformat_ballot_header_voter_set_false.csv")
         )
 
     with pytest.raises(ValueError, match="Includes Voter Set is not set to the correct value"):
-        RankProfile.from_csv(
-            (f"{filepath}/test_csv_pp_misformat_ballot_header_" "voter_set_true.csv")
-        )
+        RankProfile.from_csv((f"{filepath}/test_csv_pp_misformat_ballot_header_voter_set_true.csv"))
 
 
 def test_csv_misformatted_ballot_ranking_error():
@@ -163,12 +159,12 @@ def test_csv_misformatted_ballot_ranking_error():
 def test_csv_misformatted_ballot_weight_error():
     with pytest.raises(
         ValueError,
-        match=("Ballot in row 16 has a weight" " entry that is too long or short. "),
+        match=("Ballot in row 16 has a weight entry that is too long or short. "),
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_weight_long.csv")
 
     with pytest.raises(
-        match="Ballot in row 16 has a " f"weight entry that can't be converted to float {'a'}. "
+        match=f"Ballot in row 16 has a weight entry that can't be converted to float {'a'}. "
     ):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_weight_non_float.csv")
 

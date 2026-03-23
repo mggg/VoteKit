@@ -72,7 +72,7 @@ def test_reindexing_df():
 def test_no_wt_altr_idxs_subset_error():
     with pytest.raises(
         ValueError,
-        match=("no_wt_altr_idxs is not a subset of " "the parent profile df index column."),
+        match=("no_wt_altr_idxs is not a subset of the parent profile df index column."),
     ):
         CleanedScoreProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -86,7 +86,7 @@ def test_no_wt_altr_idxs_subset_error():
 def test_no_scores_altr_subset_error():
     with pytest.raises(
         ValueError,
-        match=("no_scores_altr_idxs is not a subset of " "the parent profile df index column."),
+        match=("no_scores_altr_idxs is not a subset of the parent profile df index column."),
     ):
         CleanedScoreProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -101,7 +101,7 @@ def test_no_scores_altr_subset_error():
 def test_valid_but_alt_subset_error():
     with pytest.raises(
         ValueError,
-        match=("nonempty_altr_idxs is not a subset of " "the parent profile df index column."),
+        match=("nonempty_altr_idxs is not a subset of the parent profile df index column."),
     ):
         CleanedScoreProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -116,7 +116,7 @@ def test_valid_but_alt_subset_error():
 def test_unaltr_subset_error():
     with pytest.raises(
         ValueError,
-        match=("unaltr_idxs is not a subset of " "the parent profile df index column."),
+        match=("unaltr_idxs is not a subset of the parent profile df index column."),
     ):
         CleanedScoreProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],
@@ -130,7 +130,7 @@ def test_unaltr_subset_error():
 def test_index_set_union_error():
     with pytest.raises(
         ValueError,
-        match=("Union of ballot indices must equal the parent profile " "df index "),
+        match=("Union of ballot indices must equal the parent profile df index "),
     ):
         CleanedScoreProfile(
             ballots=[b for b in profile.ballots if b.weight > 0],

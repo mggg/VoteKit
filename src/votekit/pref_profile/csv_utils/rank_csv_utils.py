@@ -259,7 +259,7 @@ def _validate_rank_csv_ballot_header_row(
     )
 
     header_row = ballot_rows[0]
-    ranking_cols = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
+    ranking_cols = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
 
     if max_ranking_length > 0 and any(r_col not in header_row for r_col in ranking_cols):
         raise ValueError(
@@ -324,7 +324,7 @@ def _validate_rank_csv_ballot_ranking(
         raise ValueError(
             (
                 f"csv file is improperly formatted. Ballot in row {row_index} has rankings "
-                f"but it should not: {ballot_row[break_idxs[0]:break_idxs[1]]}. " + boiler_plate
+                f"but it should not: {ballot_row[break_idxs[0] : break_idxs[1]]}. " + boiler_plate
             )
         )
     elif max_ranking_length == 0:

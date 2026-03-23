@@ -209,7 +209,7 @@ def test_score_profile_from_rankings_errors():
         )
     with pytest.raises(
         ValueError,
-        match=("tie_convention must be one of 'high', 'low', 'average', " "not highlo"),
+        match=("tie_convention must be one of 'high', 'low', 'average', not highlo"),
     ):
         score_dict_from_score_vector(
             profile_no_ties,

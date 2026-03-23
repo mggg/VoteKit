@@ -46,7 +46,8 @@ class NumpyElectionDataTracker:
     Data container for internal use in numpy-based elections.
 
     Attributes:
-        ballot_matrix (NDArray): Matrix of ballots (each row is a unique ballot) with sentinel padding.
+        ballot_matrix (NDArray): Matrix of ballots (each row is a unique ballot) with
+            sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
         initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
         fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
@@ -78,12 +79,13 @@ class NumpySTVBase(ABC):
             to correspond to ballot matrix entries.
         profile (RankProfile): The original RankProfile for reference.
         m (int): Number of seats to be elected.
-        election_states (list[ElectionState]): List of ElectionState objects representing each round in
-            chronological order.
+        election_states (list[ElectionState]): List of ElectionState objects representing
+            each round in chronological order.
         tiebreak (TiebreakType, optional): User-specified method to be used if a tiebreak is needed.
             Defaults to None.
         _data (NumpyElectionDataTracker): Internal data tracker.
-        _winner_tiebreak (TiebreakType, optional): Tiebreak method for winners, set to `None` by default.
+        _winner_tiebreak (TiebreakType, optional): Tiebreak method for winners, set to
+            `None` by default.
         _loser_tiebreak (TiebreakType): Tiebreak method for losers, set to "first_place" by default.
     """
 
@@ -164,9 +166,12 @@ class NumpySTVBase(ABC):
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # Add padding -- a lot of the election logic needs at least one entry of each row of the ballot matrix to be negative.
-        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set to 0 only when candidates are eliminated/elected.
-        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having at least one entry in each row be 0.
+        # Add padding. A lot of the election logic needs at least one entry in each row of the
+        # ballot matrix to be negative.
+        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are
+        # set to 0 only when candidates are eliminated/elected.
+        # We use an argmax on the bool_ballot_matrix to find the next preference for each
+        # ballot, which relies on having at least one entry in each row be 0.
         ballot_matrix: NDArray = np.full(
             (num_rows, num_cols + 1),
             NumpySTVSentinel.BLANK_RANKING.value,
@@ -243,7 +248,9 @@ class NumpySTVBase(ABC):
         )
 
     @abstractmethod
-    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
+    def _run_election(
+        self, data: NumpyElectionDataTracker
+    ) -> tuple[
         list[NDArray],
         list[ElectionPlay],
         list[dict[frozenset[str], tuple[frozenset[str], ...]]],
@@ -256,15 +263,15 @@ class NumpySTVBase(ABC):
         in the `extras` field of the data tracker if needed.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to
-                numpy arrays.
+            data (NumpyElectionDataTracker): The initialized data tracker with the profile
+                converted to numpy arrays.
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
             play_by_play (list[ElectionPlay]): List of dictionaries representing the
                 actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries
-                representing tiebreak resolutions for each round.
+            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+                List of dictionaries representing tiebreak resolutions for each round.
         """
         pass
 
@@ -407,8 +414,8 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated, remaining), and the
-                round their status updated.
+            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated,
+                remaining), and the round their status updated.
         """
         status_df = pd.DataFrame(
             {
@@ -502,7 +509,7 @@ class NumpySTVBase(ABC):
         obj = lut[out.astype(np.int16, copy=False) + 128]  # dtype=object, frozensets
 
         # --- 5) to DataFrame with Ranking_i columns ---
-        data = {f"Ranking_{i+1}": obj[:, i] for i in range(n_cols)}
+        data = {f"Ranking_{i + 1}": obj[:, i] for i in range(n_cols)}
         df = pd.DataFrame(data)
 
         # --- 6) Ballot Index column & set as index ---
@@ -599,7 +606,8 @@ class NumpySTVBase(ABC):
         Args:
             quota_type: Quota type to use ("droop" or "hare").
             total_ballot_wt (float): Total weight of ballots to compute threshold.
-            floor (bool, optional): Whether to floor the quota before applying epsilon. Defaults to True.
+            floor (bool, optional): Whether to floor the quota before applying epsilon.
+                Defaults to True.
             epsilon (float, optional): Offset applied to the computed quota. Defaults to 1.0.
 
         Returns:
