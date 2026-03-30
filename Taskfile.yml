@@ -124,14 +124,14 @@ tasks:
           PYTEST_ARGS: '{{.CLI_ARGS | default "tests"}} --runslow'
 
   coverage:
-    desc: Run tests with coverage reporting
+    desc: Run tests with coverage reporting (`task coverage COV_TARGET=src/foo -- tests/bar`)
     silent: true
     cmds:
       - task: pytest
         vars:
           PYTEST_ARGS: >-
-            {{.CLI_ARGS | default "tests"}} --runslow --cov=src/votekit
-            --cov-report=term-missing
+            {{.CLI_ARGS | default "tests"}} --runslow --cov={{.COV_TARGET | default "src/votekit"}}
+            --cov-report={{.COV_REPORT | default "term-missing"}}
 
   clean:
     desc: Clean up build artifacts

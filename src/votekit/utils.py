@@ -770,76 +770,130 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
     return ballot_lengths
 
 
-def index_to_lexicographic_ballot(
-    ballot_index: int,
-    n_candidates: int,
-    max_length: int,
-    total_valid_ballots_method,
-    always_use_total_valid_ballots_method: bool = True,
-) -> list[int]:
+def fixed_zero_index_lex_block_size(n_candidates: int, max_length: int) -> int:
     """
-    Convert an index to one ballot with candidates taken from the list range(n_candidates), and
-    where the ballot has length at most max_length.
-    The ordering of the ballots is lexicographic, i.e., the first ballot is the
-    lexicographically smallest ballot and continues in that order:
+    Calculate the number of ballots in a single top-level branch of the
+    lexicographic ballot tree.
 
-    (0,),
-    (0,1),
-    (0,1,2),
-    ...
-    (0,2),
-    (0,2,1),
-    ...
-    (n-1, n-2, ..., n-l)
-
-    where n is the number of candidates and l is the maximum ballot length.
+    That is, the number of ballots beginning with any fixed first candidate,
+    with ballot lengths at most max_length.
 
     Args:
-        ballot_index (int): The index to convert.
         n_candidates (int): The number of candidates.
-        max_length (int): The maximum allowed ballot rank.
-        total_valid_ballots_method: ((n_candidates, max_length) ->
-            integer) a method which returns the total number of
-            allowed ballots.
-        always_use_total_valid_ballots_method (bool): a flag
-            indicating whether the given total valid ballots method
-            should be used when computing b_n. If
-            total_valid_ballots_method is using a cache then this
-            should be True for maximum runtime efficiency.
+        max_length (int): The maximum ballot length.
 
     Returns:
-        list[int]: A list representing the ballot corresponding to index.
+        int: The number of ballots in a single top-level branch of the lexicographic ballot tree.
     """
-    total_valid_ballots = total_valid_ballots_method(n_candidates, max_length)
-    if ballot_index >= total_valid_ballots:
-        raise Exception(
-            f"Given ballot index {ballot_index} out of range. Max index: {total_valid_ballots}"
-        )
+    if max_length < 1 or max_length > n_candidates:
+        raise ValueError("invalid max_length")
 
-    def chunk_size(n_cands: int, ballot_len: int) -> int:
-        return total_valid_ballots_method(n_cands, ballot_len) // n_cands
+    # Let B(r, d) be the number of ballots in one branch when there are:
+    #   - r candidates available total at this level, and
+    #   - room for at most d positions in the ballot.
+    #
+    # "One branch" means we have fixed the next candidate already.
+    #
+    # After fixing that next candidate, there are two possibilities:
+    #
+    #   1. Stop immediately.
+    #      This contributes 1 ballot: the current prefix itself.
+    #
+    #   2. Continue.
+    #      Then we choose one of the remaining (r - 1) candidates next, and
+    #      for each such choice we get another full branch of size B(r - 1, d - 1).
+    #
+    # Therefore:
+    #
+    #   B(r, d) = 1 + (r - 1) * B(r - 1, d - 1)
+    #
+    # with base case:
+    #
+    #   B(r, 1) = 1
+    #
+    # because if only one more position is allowed, then after choosing the
+    # fixed candidate the only ballot in that branch is the ballot that stops there.
+    #
+    # We compute this recurrence iteratively rather than recursively.
+    # Starting from B(*, 1) = 1, each loop step increases both r and d by 1.
 
-    candidates = list(range(n_candidates))
+    block_size = 1
+
+    # The loop reconstructs:
+    #
+    #   B(n_candidates, max_length)
+    #
+    # from the base case B(n_candidates - max_length + 1, 1) = 1.
+    #
+    # Each step applies:
+    #
+    #   B(r, d) = 1 + (r - 1) * B(r - 1, d - 1)
+    #
+    # where `r` is the current value in the loop.
+    for r in range(n_candidates - max_length + 2, n_candidates + 1):
+        block_size = 1 + (r - 1) * block_size
+    return block_size
+
+
+def index_to_lexicographic_ballot(
+    index: int,
+    n_candidates: int,
+    max_length: int,
+) -> list[int]:
+    """
+    Return the ballot at the given index in true lexicographic order, with ballot
+    lengths at most max_length.
+
+    This matches the order produced by a depth-first lexicographic generator:
+        [0]
+        [0, 1]
+        [0, 1, 2]
+        ...
+        [0, 2]
+        ...
+        [1]
+        ...
+
+    Args:
+        index (int): The index to convert.
+        n_candidates (int): The number of candidates.
+        max_length (int): The maximum ballot length.
+
+    Returns:
+        list[int]: A list representing the ballot corresponding to the index.
+    """
+    if max_length < 1 or max_length > n_candidates:
+        raise ValueError("invalid max_length")
+
+    block_size = fixed_zero_index_lex_block_size(n_candidates, max_length)
+    total = n_candidates * block_size
+
+    if index < 0 or index >= total:
+        raise ValueError(f"index out of range [0, {total - 1}]")
+
+    remaining_candidates = list(range(n_candidates))
     out = []
-    if always_use_total_valid_ballots_method:
-        bn = total_valid_ballots_method(n_candidates + 1, max_length + 1) // (n_candidates + 1)
-    else:
-        bn = chunk_size(n_candidates + 1, max_length + 1)
 
-    for i in range(n_candidates, 0, -1):
-        if always_use_total_valid_ballots_method:
-            bn = total_valid_ballots_method(n_candidates=i, max_ballot_length=max_length) // (i)
-        else:
-            bn = (bn - 1) // i
-        # Perform Euclidean division of index by bn
-        section = ballot_index // bn
-        remaining = ballot_index % bn
-        out.append(candidates.pop(section))
-        if remaining == 0:
-            # Cut off the ballot here
-            break
-        ballot_index = remaining - 1
-    return out
+    n_remaining = n_candidates
+    depth_remaining = max_length
+
+    while True:
+        branch, offset = divmod(index, block_size)
+
+        out.append(remaining_candidates.pop(branch))
+
+        if offset == 0 or depth_remaining == 1:
+            return out
+
+        index = offset - 1
+        n_remaining -= 1
+        depth_remaining -= 1
+
+        # From:
+        #   C(r, d) = 1 + (r - 1) * C(r - 1, d - 1)
+        # so:
+        #   C(r - 1, d - 1) = (C(r, d) - 1) // (r - 1)
+        block_size = (block_size - 1) // n_remaining
 
 
 def build_df_from_ballot_samples(
