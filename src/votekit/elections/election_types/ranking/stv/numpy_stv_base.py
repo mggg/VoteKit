@@ -78,7 +78,7 @@ class NumpySTVBase(ABC):
         candidates (list[str]): List of candidate names, indexed
             to correspond to ballot matrix entries.
         profile (RankProfile): The original RankProfile for reference.
-        m (int): Number of seats to be elected.
+        n_seats (int): Number of seats to be elected.
         election_states (list[ElectionState]): List of ElectionState objects representing
             each round in chronological order.
         tiebreak (TiebreakType, optional): User-specified method to be used if a tiebreak is needed.
@@ -91,7 +91,7 @@ class NumpySTVBase(ABC):
 
     candidates: list[str]
     profile: RankProfile
-    m: int
+    n_seats: int
     election_states: list[ElectionState]
     threshold: float
     tiebreak: TiebreakType | None
@@ -102,7 +102,7 @@ class NumpySTVBase(ABC):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
     ):
         """
@@ -110,13 +110,13 @@ class NumpySTVBase(ABC):
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int, optional): Number of seats to be elected. Defaults to 1.
+            n_seats (int, optional): Number of seats to be elected. Defaults to 1.
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
                 Defaults to None. Accepts "borda", "random", and "first_place".
                 If None, a ValueError is raised if a winner tiebreak is needed.
         """
         self.profile = profile
-        self.m = m
+        self.n_seats = n_seats
         self.candidates = list(profile.candidates)
         self.tiebreak = tiebreak
         self._winner_tiebreak = tiebreak
@@ -614,13 +614,13 @@ class NumpySTVBase(ABC):
             float: Value of the threshold.
         """
         if quota_type == "droop":
-            fractional_quota = total_ballot_wt / (self.m + 1)
+            fractional_quota = total_ballot_wt / (self.n_seats + 1)
             if floor:
                 return int(fractional_quota) + epsilon
             else:
                 return fractional_quota + epsilon
         elif quota_type == "hare":
-            fractional_quota = total_ballot_wt / self.m
+            fractional_quota = total_ballot_wt / self.n_seats
             if floor:
                 return int(fractional_quota)
             else:

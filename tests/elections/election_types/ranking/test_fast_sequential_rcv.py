@@ -119,7 +119,7 @@ states = [
 
 
 def test_init():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_elected() == (
         frozenset({"Pear"}),
         frozenset({"Strawberry"}),
@@ -128,55 +128,55 @@ def test_init():
 
 
 def test_simul_match_1by1():
-    e_simul = SequentialRCV(simult_same_as_one_by_one_profile, m=3, simultaneous=True)
-    e_1by1 = SequentialRCV(simult_same_as_one_by_one_profile, m=3, simultaneous=False)
+    e_simul = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3, simultaneous=True)
+    e_1by1 = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3, simultaneous=False)
 
     assert e_simul.get_elected() == e_1by1.get_elected()
 
 
 def test_quotas():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3, quota="droop")
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3, quota="droop")
     assert e.threshold == 6
 
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3, quota="hare")
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3, quota="hare")
     assert e.threshold == 7
 
 
 def test_profiles():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert [e.get_profile(i) for i in range(len(e.election_states))] == profile_list
 
 
 def test_state_list():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.election_states == states
 
 
 def test_get_profile():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_profile(0) == simult_same_as_one_by_one_profile
     assert e.get_profile(-1) == profile_list[-1]
 
 
 def test_get_step():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_step(-1) == (profile_list[-1], states[-1])
 
 
 def test_get_elected():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_elected(0) == tuple()
     assert e.get_elected(1) == (frozenset({"Pear"}),)
 
 
 def test_get_eliminated():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_eliminated(0) == tuple()
     assert e.get_eliminated(1) == tuple()
 
 
 def test_get_remaining():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_remaining(0) == (
         frozenset({"Pear"}),
         frozenset({"Burger"}),
@@ -187,7 +187,7 @@ def test_get_remaining():
 
 
 def test_get_ranking():
-    e = SequentialRCV(simult_same_as_one_by_one_profile, m=3)
+    e = SequentialRCV(simult_same_as_one_by_one_profile, n_seats=3)
     assert e.get_ranking(0) == (
         frozenset({"Pear"}),
         frozenset({"Burger"}),
@@ -214,7 +214,7 @@ def test_fpv_tie():
     )
 
     # A and B are tied
-    e = SequentialRCV(profile, m=2, simultaneous=False, tiebreak="random")
+    e = SequentialRCV(profile, n_seats=2, simultaneous=False, tiebreak="random")
     assert len([c for s in e.get_elected() for c in s]) == 2
 
 
@@ -227,8 +227,8 @@ def test_simul_v_1by1_():
         candidates=("A", "B", "C"),
     )
 
-    e_simul = SequentialRCV(profile, m=2, simultaneous=True)
-    e_1by1 = SequentialRCV(profile, m=2, simultaneous=False, tiebreak="random")
+    e_simul = SequentialRCV(profile, n_seats=2, simultaneous=True)
+    e_1by1 = SequentialRCV(profile, n_seats=2, simultaneous=False, tiebreak="random")
 
     assert e_simul.election_states != e_1by1.election_states
     assert e_simul.get_remaining(1) == (frozenset(),)
@@ -238,15 +238,15 @@ def test_simul_v_1by1_():
 def test_errors():
     with pytest.raises(
         ValueError,
-        match="m must be positive.",
+        match="n_seats must be positive.",
     ):
-        SequentialRCV(simult_same_as_one_by_one_profile, m=0)
+        SequentialRCV(simult_same_as_one_by_one_profile, n_seats=0)
 
     with pytest.raises(
         ValueError,
         match="Not enough candidates received votes to be elected.",
     ):
-        SequentialRCV(simult_same_as_one_by_one_profile, m=8)
+        SequentialRCV(simult_same_as_one_by_one_profile, n_seats=8)
 
     with pytest.raises(
         ValueError,
@@ -261,12 +261,12 @@ def test_errors():
         )
 
         # A and B are tied
-        SequentialRCV(profile, m=2, simultaneous=False)
+        SequentialRCV(profile, n_seats=2, simultaneous=False)
 
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
         SequentialRCV(
             RankProfile(ballots=(RankBallot(ranking=({"a"},)),)),
-            m=1,
+            n_seats=1,
             quota=cast(Literal["droop", "hare"] | None, "Drip"),
         )
 

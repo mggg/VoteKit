@@ -42,26 +42,26 @@ def run_election_once(test_profile, tiebreak):
 
 def test_plurality_veto_errors():
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        PluralityVeto(RankProfile(), m=1)
+        PluralityVeto(RankProfile(), n_seats=1)
 
-    with pytest.raises(ValueError, match="m must be positive."):
-        PluralityVeto(RankProfile(), m=0)
+    with pytest.raises(ValueError, match="n_seats must be positive."):
+        PluralityVeto(RankProfile(), n_seats=0)
 
     with pytest.raises(ValueError, match="Ballots must have rankings."):
         b1 = RankBallot(ranking=("A",))
         b2 = RankBallot()
-        PluralityVeto(RankProfile(ballots=(b1, b2)), m=1)
+        PluralityVeto(RankProfile(ballots=(b1, b2)), n_seats=1)
 
     non_int_weight_msg = r"Ballot RankBallot\n1.\) A, \nWeight: 0.5 has non-integer weight."
     with pytest.raises(ValueError, match=non_int_weight_msg):
         b1 = RankBallot(ranking=("A",), weight=1 / 2)
-        PluralityVeto(RankProfile(ballots=(b1,)), m=1)
+        PluralityVeto(RankProfile(ballots=(b1,)), n_seats=1)
 
 
 def test_get_profile_does_not_corrupt_state():
     """Calling get_profile (which replays the election) should not corrupt election state."""
     profile = make_complete_ballots(candidates=("A", "B", "C"))
-    election = PluralityVeto(profile, m=1, tiebreak="first_place")
+    election = PluralityVeto(profile, n_seats=1, tiebreak="first_place")
 
     winners_before = election.get_elected()
     states_before = list(election.election_states)

@@ -40,7 +40,7 @@ def election_happy():
         ),
         max_ranking_length=3,
     )
-    return STV(profile_happy, m=3)
+    return STV(profile_happy, n_seats=3)
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def election_multi():
             RankBallot(ranking=({"Strawberry"},), weight=11),
         ),
     )
-    return STV(profile_multi, m=2)
+    return STV(profile_multi, n_seats=2)
 
 
 def test_STVAnimation_init(election_happy):

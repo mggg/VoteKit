@@ -9,18 +9,18 @@ from votekit.utils import borda_scores, elect_cands_from_set_ranking
 class CondoBorda(RankingElection):
     """
     Just like DominatingSets (Smith method), but user gets to choose the number of winners,
-    :math:`m`.  Ties are broken with Borda scores.
+    :math:`n_\text{seats}`.  Ties are broken with Borda scores.
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
 
     """
 
-    def __init__(self, profile: RankProfile, m: int = 1):
-        if len(profile.candidates_cast) < m:
+    def __init__(self, profile: RankProfile, n_seats: int = 1):
+        if len(profile.candidates_cast) < n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        self.n_seats = n_seats
         super().__init__(profile, score_function=borda_scores)
 
     def _is_finished(self):
@@ -34,7 +34,7 @@ class CondoBorda(RankingElection):
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
-        Compute the dominating tiers, and return the top :math:`m` candidates by tier.
+        Compute the dominating tiers, and return the top :math:`n_\text{seats}` candidates by tier.
         Breaks ties using Borda scores.
 
         Args:
@@ -52,7 +52,7 @@ class CondoBorda(RankingElection):
 
         dt_ranking = tuple([frozenset(s) for s in dominating_tiers])
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
-            dt_ranking, self.m, profile, tiebreak="borda"
+            dt_ranking, self.n_seats, profile, tiebreak="borda"
         )
 
         if tiebreak:
