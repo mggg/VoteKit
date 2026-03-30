@@ -21,9 +21,7 @@ VoteKit uses:
 
 - [uv](https://astral.sh/uv/) for environment and dependency management
 - [go-task](https://taskfile.dev/) for common development commands
-- [ruff](https://astral.sh/ruff/) for linting
-- [black](https://black.readthedocs.io/en/stable/) for formatting
-- [isort](https://pycqa.github.io/isort/) for import sorting
+- [ruff](https://astral.sh/ruff/) for linting, import sorting, and formatting
 - [ty](https://github.com/astral-sh/ty) for type checking
 - [pytest](https://docs.pytest.org/) for tests
 - [pre-commit](https://pre-commit.com/) for local quality checks
@@ -82,8 +80,8 @@ task docs
 If you already have `uv` on your `PATH`, the equivalent direct commands are:
 
 ```bash
-uv run black src tests
-uv run isort src tests
+uv run ruff check --select I --fix src tests
+uv run ruff format src tests
 uv run ruff check src tests
 uv run ty check src tests
 uv run pytest tests
@@ -117,7 +115,8 @@ Small pull requests are much easier to review and merge than large mixed changes
 VoteKit is a mixed but steadily modernizing Python 3.11+ codebase. When contributing, prefer
 the current conventions below and avoid style-only churn in unrelated files.
 
-- Follow the repo tooling first: `black`, `isort`, and `ruff` define the baseline style.
+- Follow the repo tooling first: Ruff defines the baseline style for formatting, import order,
+  and linting.
 - Keep lines at roughly 100 characters to match the configured formatter and linter settings.
 - Add type annotations for function parameters and return values. Run `uv run ty check src tests`
   on changes that add or reshape APIs.

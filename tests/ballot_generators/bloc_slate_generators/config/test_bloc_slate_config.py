@@ -471,7 +471,7 @@ def test_validate_cohesion_mapping_mismatch_silent_suppresses_warnings(valid_con
     assert not any(isinstance(x.message, ConfigurationWarning) for x in w)
 
 
-# ====================================================================================================================================
+# ---------------------------------------------------------------------------
 
 
 def _det_errs(config: BlocSlateConfig):

@@ -29,7 +29,6 @@ animation = ["manim (>=0.19.0, <0.20.0)"]
 [dependency-groups]
 dev = [
     "ruff>=0.13.2,<0.14.0",
-    "black>=25.9.0,<26.0.0",
     "pytest>=8.4.2,<9.0.0",
     "pytest-cov>=7.0.0,<8.0.0",
     "pre-commit>=4.3.0,<5.0.0",
@@ -40,7 +39,6 @@ dev = [
     "scipy-stubs>=1.16.1.0,<2.0.0",
     "pytest-mpl>=0.17.0,<0.18.0",
     "pillow>=11.2.0,<12.0.0",
-    "isort>=8.0.1",
 ]
 docs = [
     "sphinx>=8.2.3,<9.0.0",
@@ -50,29 +48,15 @@ docs = [
     "nbconvert>=7.16.6,<8.0.0",
 ]
 
-[tool.black]
-line-length = 100
-
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "W", "F"]
-ignore = [
-    "E501",  # line length handled by black
-    "E203",  # whitespace before ':', handled by black
-    "E731",  # do not assign lambda expression
-    "F541",  # f-string is missing placeholders
-]
+select = ["E", "W", "F", "I"]
 task-tags = ["TODO", "FIXME", "XXX", "HACK", "NOTE", "FIX", "BUG"]
 
 [tool.ruff.lint.pycodestyle]
+max-doc-length = 100
 ignore-overlong-task-comments = true
 
 [tool.ty]

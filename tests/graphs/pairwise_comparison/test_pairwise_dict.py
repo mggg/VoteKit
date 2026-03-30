@@ -49,7 +49,7 @@ def test_restrict_pairwise_cand_error():
     with pytest.raises(
         ValueError,
         match=(
-            "are found in cand_subset but " "not in the list of candidates found in the dictionary:"
+            "are found in cand_subset but not in the list of candidates found in the dictionary:"
         ),
     ):
         restrict_pairwise_dict_to_subset(["A", "E"], pwd)

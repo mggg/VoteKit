@@ -51,7 +51,7 @@ def onedim_spacial_profile_generator(
     ballot_pool = np.full((number_of_ballots, n_candidates), frozenset("~"), dtype=object)
 
     for i, vp in enumerate(voter_positions):
-        distance_tuples = [(c, abs(v - vp)) for c, v, in candidate_position_dict.items()]
+        distance_tuples = [(c, abs(v - vp)) for c, v in candidate_position_dict.items()]
         candidate_ranking = np.array(
             [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
         )
@@ -153,7 +153,7 @@ def spacial_profile_and_positions_generator(
         distance(v, c)
     except TypeError:
         raise TypeError(
-            "Distance function is invalid or incompatible " "with voter/candidate distributions."
+            "Distance function is invalid or incompatible with voter/candidate distributions."
         )
 
     candidate_position_dict = {c: candidate_dist(**candidate_dist_kwargs) for c in candidates}
@@ -164,7 +164,7 @@ def spacial_profile_and_positions_generator(
     for i in range(number_of_ballots):
         distance_tuples = [
             (c, distance(voter_positions[i], c_position))
-            for c, c_position, in candidate_position_dict.items()
+            for c, c_position in candidate_position_dict.items()
         ]
         candidate_ranking = np.array(
             [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]
@@ -284,7 +284,7 @@ def clustered_spacial_profile_and_positions_generator(
         distance(v, c)
     except TypeError:
         raise TypeError(
-            "Distance function is invalid or incompatible " "with voter/candidate distributions."
+            "Distance function is invalid or incompatible with voter/candidate distributions."
         )
 
     candidate_position_dict: dict[str, NDArray] = {
@@ -306,7 +306,7 @@ def clustered_spacial_profile_and_positions_generator(
         v_position = voter_positions[i]
         distance_tuples = [
             (c, distance(v_position, c_position))
-            for c, c_position, in candidate_position_dict.items()
+            for c, c_position in candidate_position_dict.items()
         ]
         candidate_ranking = np.array(
             [frozenset({t[0]}) for t in sorted(distance_tuples, key=lambda x: x[1])]

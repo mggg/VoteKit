@@ -128,7 +128,6 @@ class PreferenceProfile:
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
     ):
-
         if not df.equals(pd.DataFrame()) and len(ballots) != 0:
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
@@ -226,7 +225,7 @@ class PreferenceProfile:
             raise ProfileError(
                 "Candidates cast are not a subset of candidates list. The following "
                 " candidates are in candidates_cast but not candidates: "
-                f"{set(self.candidates_cast)-set(self.candidates)}."
+                f"{set(self.candidates_cast) - set(self.candidates)}."
             )
 
         self.candidates = tuple([c.strip() for c in self.candidates])
@@ -265,7 +264,6 @@ class PreferenceProfile:
         return True
 
     def __str__(self) -> str:
-
         repr_str = "PrefenceProfile"
         repr_str += (
             f"Candidates: {self.candidates}\n"
@@ -397,17 +395,17 @@ class RankProfile(PreferenceProfile):
                         )
                 if rank_ballot.weight > 0 and c not in candidates_cast:
                     candidates_cast.append(c)
-            if f"Ranking_{j+1}" not in rank_ballot_data:
+            if f"Ranking_{j + 1}" not in rank_ballot_data:
                 assert self.max_ranking_length is not None
 
                 if self.max_ranking_length > 0:
                     raise ProfileError(
                         f"Max ranking length {self.max_ranking_length} given but "
-                        f"ballot {rank_ballot} has length at least {j+1}."
+                        f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"Ranking_{j+1}"] = [frozenset("~")] * num_ballots
+                rank_ballot_data[f"Ranking_{j + 1}"] = [frozenset("~")] * num_ballots
 
-            rank_ballot_data[f"Ranking_{j+1}"][idx] = cand_set
+            rank_ballot_data[f"Ranking_{j + 1}"][idx] = cand_set
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -465,7 +463,7 @@ class RankProfile(PreferenceProfile):
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
                 {
-                    f"Ranking_{i+1}": [frozenset("~")] * num_ballots
+                    f"Ranking_{i + 1}": [frozenset("~")] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )
@@ -575,11 +573,11 @@ class RankProfile(PreferenceProfile):
         if df.index.name != "Ballot Index":
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         assert self.max_ranking_length is not None
-        if any(f"Ranking_{i+1}" not in df.columns for i in range(self.max_ranking_length)):
+        if any(f"Ranking_{i + 1}" not in df.columns for i in range(self.max_ranking_length)):
             for i in range(self.max_ranking_length):
-                if f"Ranking_{i+1}" not in df.columns:
+                if f"Ranking_{i + 1}" not in df.columns:
                     raise ProfileError(
-                        f"Ranking column 'Ranking_{i+1}' not in dataframe: {df.columns}"
+                        f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
                     )
 
     def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[str, ...]:
@@ -760,7 +758,6 @@ class RankProfile(PreferenceProfile):
         return super().__eq__(other)
 
     def __str__(self) -> str:
-
         repr_str = "RankProfile\n"
         repr_str += f"Maximum ranking length: {self.max_ranking_length}\n"
 
@@ -861,7 +858,7 @@ class RankProfile(PreferenceProfile):
             candidate_mapping (dict[str, str]): Maps candidate names to prefixes.
         """
         assert self.max_ranking_length is not None
-        data_col_names = [f"Ranking_{i+1}" for i in range(self.max_ranking_length)]
+        data_col_names = [f"Ranking_{i + 1}" for i in range(self.max_ranking_length)]
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:
@@ -960,7 +957,6 @@ class RankProfile(PreferenceProfile):
 
 
 class ScoreProfile(PreferenceProfile):
-
     def __init__(
         self,
         *,
@@ -1136,7 +1132,6 @@ class ScoreProfile(PreferenceProfile):
         candidates_cast: list[str] = []
 
         for i, b in enumerate(ballots):
-
             self.__update_score_ballot_data_attrs(
                 score_ballot_data=score_ballot_data,
                 idx=i,
@@ -1319,7 +1314,6 @@ class ScoreProfile(PreferenceProfile):
         return super().__eq__(other)
 
     def __str__(self) -> str:
-
         repr_str = "ScoreProfile\n"
 
         repr_str += (

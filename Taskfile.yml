@@ -55,18 +55,18 @@ tasks:
       - uv run pre-commit install
 
   format:
-    desc: Format the codebase using Black and isort
+    desc: Format the codebase using Ruff
     silent: true
     cmds:
-      - uv run black src tests
-      - uv run isort src tests
+      - uv run ruff check --select I --fix src tests
+      - uv run ruff format src tests
 
   format-check:
-    desc: Check code formatting using Black and isort
+    desc: Check code formatting using Ruff
     silent: true
     cmds:
-      - uv run black --check --diff src tests
-      - uv run isort --check-only --diff src tests
+      - uv run ruff check --select I --diff src tests
+      - uv run ruff format --check src tests
 
   lint:
     desc: Lint the codebase using Ruff

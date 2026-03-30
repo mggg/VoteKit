@@ -521,9 +521,10 @@ def test_stv_rounding_errors():
     # Droop quote is 11, so 4 candidates from A should be elected and then
     # the 5th candidate from A should tie with B's only candidate.
 
-    # Old issue: Rounding errors occur every time the droop quota of 11 is subtracted from A's votes.
+    # Old issue: Rounding errors occur every time the droop quota of 11 is subtracted from A's
+    # votes.
 
-    ballotA = RankBallot(ranking=[{candidate} for candidate in [f"A{i+1}" for i in range(5)]])
+    ballotA = RankBallot(ranking=[{candidate} for candidate in [f"A{i + 1}" for i in range(5)]])
     ballotB = RankBallot(ranking=[{"B1"}])
     ballots = [ballotA] * A + [ballotB] * (N - A)
     profile = RankProfile(ballots=ballots)
@@ -531,7 +532,7 @@ def test_stv_rounding_errors():
     stv_election = STV(profile=profile, m=5)
     assert stv_election.get_elected() == ({"A1"}, {"A2"}, {"A3"}, {"A4"}, {"B1"})
 
-    assert [stv_election.election_states[i].scores[f"A{i+1}"] for i in range(5)] == [
+    assert [stv_election.election_states[i].scores[f"A{i + 1}"] for i in range(5)] == [
         52,
         41,
         30,

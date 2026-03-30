@@ -37,25 +37,25 @@ def test_csv_filepath_error():
 def test_csv_misformatted_header_rows_error():
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 0 should be " "'VoteKit ScoreProfile'."),
+        match=("csv file is improperly formatted. Row 0 should be 'VoteKit ScoreProfile'."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_0.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 1 should be " "'Candidates'."),
+        match=("csv file is improperly formatted. Row 1 should be 'Candidates'."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_1.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 3 should be " "'Includes Voter Set'."),
+        match=("csv file is improperly formatted. Row 3 should be 'Includes Voter Set'."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_3.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 5 should be " "'=,=,=,=,=,=,=,=,=,='."),
+        match=("csv file is improperly formatted. Row 5 should be '=,=,=,=,=,=,=,=,=,='."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_5.csv")
 
@@ -66,21 +66,19 @@ def test_csv_misformatted_header_values_error():
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 4 should be " "'True' or 'False'."),
+        match=("csv file is improperly formatted. Row 4 should be 'True' or 'False'."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_4_1.csv")
 
     with pytest.raises(
         ValueError,
-        match=("csv file is improperly formatted. Row 4 should be " "'True' or 'False'."),
+        match=("csv file is improperly formatted. Row 4 should be 'True' or 'False'."),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_4_2.csv")
 
 
 def test_csv_misformatted_ballot_header_values_error():
-    with pytest.raises(
-        ValueError, match="Row 6 should include all " "candidates before the first &."
-    ):
+    with pytest.raises(ValueError, match="Row 6 should include all candidates before the first &."):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_header_candidates.csv")
 
     with pytest.raises(ValueError, match="Row 6 should include 'Weight' column."):
@@ -110,12 +108,12 @@ def test_csv_misformatted_ballot_score_error():
 def test_csv_misformatted_ballot_weight_error():
     with pytest.raises(
         ValueError,
-        match=("Ballot in row 14 has a weight" " entry that is too long or short. "),
+        match=("Ballot in row 14 has a weight entry that is too long or short. "),
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_weight_long.csv")
 
     with pytest.raises(
-        match="Ballot in row 14 has a " f"weight entry that can't be converted to float {'a'}. "
+        match=f"Ballot in row 14 has a weight entry that can't be converted to float {'a'}. "
     ):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_weight_non_float.csv")
 

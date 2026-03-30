@@ -415,8 +415,11 @@ def test_errors():
 
     with pytest.warns(
         Warning,
-        match="The 'random' transfer method is ambiguous, and being interpreted as 'cambridge_random'. "
-        "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning.",
+        match=(
+            "The 'random' transfer method is ambiguous, and being "
+            "interpreted as 'cambridge_random'. "
+            "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning."
+        ),
     ):
         STV(
             RankProfile(ballots=(RankBallot(ranking=(frozenset({"A"}),)),)),
@@ -527,7 +530,8 @@ def test_stv_resolves_winning_tiebreaks_consistently_on_rerun():
 
 def test_random_transfers():
     # in the below profile, B always wins with Cambridge-styled random transfers,
-    # but C would always win with fractional transfers, and wins with probability P > 1 - (1/2)**49 with the "fractional_random" method
+    # but C would always win with fractional transfers and wins with probability
+    # P > 1 - (1/2)**49 with the "fractional_random" method
     reducto_ad_absurdum = RankProfile(
         ballots=(
             RankBallot(ranking=(frozenset({"A"}), frozenset({"B"})), weight=50),

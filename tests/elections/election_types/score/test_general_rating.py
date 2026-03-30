@@ -26,6 +26,9 @@ def test_errors():
     with pytest.raises(ValueError, match="L must be less than or equal to k."):
         GeneralRating(ScoreProfile(), L=4, k=2)
 
+    with pytest.raises(ValueError, match="tiebreak must be None or 'random'."):
+        GeneralRating(ScoreProfile(), tiebreak="borda")
+
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):

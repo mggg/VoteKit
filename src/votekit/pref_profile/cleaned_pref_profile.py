@@ -56,7 +56,6 @@ class CleanedRankProfile(RankProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
-
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column
         self.no_wt_altr_idxs = no_wt_altr_idxs
@@ -162,7 +161,6 @@ class CleanedRankProfile(RankProfile):
         return super().group_ballots()
 
     def __str__(self) -> str:
-
         return "Profile has been cleaned\n" + super().__str__()
 
     __repr__ = __str__
@@ -214,7 +212,6 @@ class CleanedScoreProfile(ScoreProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
-
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column
         self.no_wt_altr_idxs = no_wt_altr_idxs
@@ -320,7 +317,6 @@ class CleanedScoreProfile(ScoreProfile):
         return super().group_ballots()
 
     def __str__(self) -> str:
-
         return "Profile has been cleaned\n" + super().__str__()
 
     __repr__ = __str__

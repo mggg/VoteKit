@@ -3,7 +3,6 @@ from votekit.pref_profile import ScoreProfile
 
 
 def test_pp_total_ballot_wt():
-
     pp = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 2}, weight=2),

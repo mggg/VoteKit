@@ -3,8 +3,8 @@ Generate scored preference profiles using the name-Cumulative model.
 
 The main API functions in this module are:
 
-- `name_cumulative_profile_generator`: Generates a single preference profile using the name-Cumulative
-    model.
+- `name_cumulative_profile_generator`: Generates a single preference profile
+    using the name-Cumulative model.
 - `name_cumulative_ballot_generator_by_bloc`: Generates preference profiles by bloc using the
     name-Cumulative model.
 """

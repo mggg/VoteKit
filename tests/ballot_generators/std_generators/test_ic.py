@@ -54,7 +54,8 @@ def test_ic_non_short_helper_defaults_max_ballot_length(monkeypatch):
     assert len(profile.ballots) == 1
     assert profile.ballots[0].weight == 2
     assert tuple(
-        next(iter(rank)) for rank in profile.ballots[0].ranking  # ty: ignore[not-iterable]
+        next(iter(rank))
+        for rank in profile.ballots[0].ranking  # ty: ignore[not-iterable]
     ) == (
         "C",
         "A",
@@ -81,7 +82,8 @@ def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):
 
     ballot_weights = {
         tuple(
-            next(iter(rank)) for rank in ballot.ranking  # ty: ignore[not-iterable]
+            next(iter(rank))
+            for rank in ballot.ranking  # ty: ignore[not-iterable]
         ): ballot.weight
         for ballot in profile.ballots
     }
@@ -108,7 +110,8 @@ def test_ic_short_helper_defaults_max_ballot_length(monkeypatch):
     assert profile.ballots is not None
     ballot_weights = {
         tuple(
-            next(iter(rank)) for rank in ballot.ranking  # ty: ignore[not-iterable]
+            next(iter(rank))
+            for rank in ballot.ranking  # ty: ignore[not-iterable]
         ): ballot.weight
         for ballot in profile.ballots
     }

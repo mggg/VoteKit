@@ -61,7 +61,6 @@ def test_remove_mult_cands():
 
 
 def test_remove_cand_with_ties():
-
     cleaned_profile = remove_cand_rank_profile(["A", "B"], profile_with_ties)
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties

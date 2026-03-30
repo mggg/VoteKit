@@ -285,10 +285,14 @@ def test_NBT_probability_calculation():
 #
 #     number_of_ballots = 3001
 #
-#     # Error where minority bloc needs 0.3*10,000 = 3,000 number of ballots, where 10,000 is the preset chain_length
+#     # Error where minority bloc needs 0.3*10,000 = 3,000 ballots, where 10,000 is the preset
+#     # chain_length.
 #     with pytest.raises(
 #         ValueError,
-#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#         match=(
+#             "The number of ballots to be sampled is more than the chain length; "
+#             "supply a greater chain length."
+#         ),
 #     ):
 #         bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
 #
@@ -297,7 +301,10 @@ def test_NBT_probability_calculation():
 #
 #     with pytest.raises(
 #         ValueError,
-#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#         match=(
+#             "The number of ballots to be sampled is more than the chain length; "
+#             "supply a greater chain length."
+#         ),
 #     ):
 #         bt.generate_profile_MCMC_even_subsample(
 #             number_of_ballots=number_of_ballots, chain_length=chain_length

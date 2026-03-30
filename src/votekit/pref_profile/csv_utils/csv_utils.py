@@ -30,7 +30,6 @@ def _validate_csv_ballot_weight(
         )
 
     else:
-
         try:
             float(ballot_row[break_idxs[0] + 1])
 

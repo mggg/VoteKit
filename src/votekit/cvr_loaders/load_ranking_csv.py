@@ -31,7 +31,7 @@ def __validate_df_contains_column_idxs(
         for idx in col_idxs:
             if idx < 0 or idx > len(df.columns) - 1:
                 raise ValueError(
-                    f"{error_label} column index {idx} must be in [0, {len(df.columns) -1}] "
+                    f"{error_label} column index {idx} must be in [0, {len(df.columns) - 1}] "
                     "because Python is 0-indexed."
                 )
 
@@ -58,7 +58,6 @@ def __validate_weight_col_values(df: pd.DataFrame, weight_col: int):
     try:
         df[weight_col].astype(float)
     except ValueError:
-
         for idx, weight in df[weight_col].items():
             try:
                 float(weight)
@@ -185,7 +184,7 @@ def __format_df(
 
     """
     mutated_df = mutated_df.copy()
-    renamed_columns = {r_col: f"Ranking_{i+1}" for i, r_col in enumerate(rank_cols)}
+    renamed_columns = {r_col: f"Ranking_{i + 1}" for i, r_col in enumerate(rank_cols)}
 
     if weight_col is not None:
         renamed_columns.update({weight_col: "Weight"})
