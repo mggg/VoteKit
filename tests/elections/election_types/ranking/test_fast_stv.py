@@ -416,9 +416,9 @@ def test_errors():
     with pytest.warns(
         Warning,
         match=(
-            "The 'random' transfer method is ambiguous and is being interpreted as "
-            "'cambridge_random'. Please specify 'cambridge_random' or "
-            "'fractional_random' to avoid this warning."
+            "The 'random' transfer method is ambiguous, and being "
+            "interpreted as 'cambridge_random'. "
+            "Please specify 'cambridge_random' or 'fractional_random' to avoid this warning."
         ),
     ):
         STV(
