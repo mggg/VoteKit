@@ -440,6 +440,9 @@ class PluralityVeto(_IterativeVetoBase):
             eliminated.update(c for c, score in scores.items() if score <= 0)
 
         while not eliminated:
+            if self._voter_order_current_index >= len(self._voter_order):
+                elected = self.candidates - self._eliminated
+                break
             voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)
             veto = self._get_veto(ballot_idx)
