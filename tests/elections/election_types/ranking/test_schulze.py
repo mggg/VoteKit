@@ -220,81 +220,81 @@ def test_wikipedia_example():
 
     Expected winner is E according to the Wikipedia article.
     """
-    e = Schulze(wikipedia_profile, m=1)
+    e = Schulze(wikipedia_profile, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["E"])
 
 
 def test_init():
-    e = Schulze(electowiki_profile, m=1)
+    e = Schulze(electowiki_profile, n_seats=1)
     assert e.get_elected() == (frozenset({"Nashville"}),)
 
 
 def test_init_with_empty():
-    e = Schulze(profile_with_skips, m=3)
+    e = Schulze(profile_with_skips, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["D", "A", "C"])
 
 
 def test_init_with_empty_errors_out_when_too_many_elected():
     with pytest.raises(ValueError):
-        Schulze(profile_with_skips, m=4)
+        Schulze(profile_with_skips, n_seats=4)
 
 
 def test_limit_case():
-    e = Schulze(test_profile_limit_case, m=2)
+    e = Schulze(test_profile_limit_case, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["C", "A"])
 
 
 def test_borda_ambiguous_profile_returns_lexicographic_order():
-    e = Schulze(borda_ambiguous_profile, m=1)
+    e = Schulze(borda_ambiguous_profile, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = Schulze(borda_ambiguous_profile, m=2)
+    e = Schulze(borda_ambiguous_profile, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = Schulze(borda_ambiguous_profile, m=3)
+    e = Schulze(borda_ambiguous_profile, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
 def test_dominating_ambigous_profile_returns_lexicographic_order():
-    e = Schulze(dominating_ambiguous_profile, m=1)
+    e = Schulze(dominating_ambiguous_profile, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = Schulze(dominating_ambiguous_profile, m=2)
+    e = Schulze(dominating_ambiguous_profile, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = Schulze(dominating_ambiguous_profile, m=3)
+    e = Schulze(dominating_ambiguous_profile, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
 def test_tied_set():
-    e = Schulze(profile_tied_set, m=1)
+    e = Schulze(profile_tied_set, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = Schulze(profile_tied_set, m=2)
+    e = Schulze(profile_tied_set, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = Schulze(profile_tied_set, m=3)
+    e = Schulze(profile_tied_set, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
 def test_profile_cycle():
-    e = Schulze(profile_cycle, m=1)
+    e = Schulze(profile_cycle, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = Schulze(profile_cycle, m=2)
+    e = Schulze(profile_cycle, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = Schulze(profile_cycle, m=3)
+    e = Schulze(profile_cycle, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
 def test_tied_borda():
-    e = Schulze(profile_tied_borda, m=1)
+    e = Schulze(profile_tied_borda, n_seats=1)
     assert e.get_elected() == convert_to_fs_tuple(["A"])
-    e = Schulze(profile_tied_borda, m=2)
+    e = Schulze(profile_tied_borda, n_seats=2)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B"])
-    e = Schulze(profile_tied_borda, m=3)
+    e = Schulze(profile_tied_borda, n_seats=3)
     assert e.get_elected() == convert_to_fs_tuple(["A", "B", "C"])
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
-        Schulze(profile_tied_set, m=0)
+    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
+        Schulze(profile_tied_set, n_seats=0)
 
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        Schulze(profile_tied_set, m=4)
+        Schulze(profile_tied_set, n_seats=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         Schulze(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
@@ -329,7 +329,7 @@ def test_large_set_timing():
     for _ in range(10):
         Schulze(
             prof,
-            m=5,
+            n_seats=5,
         )
     end = time()
 

@@ -19,7 +19,7 @@ def run_election_once(test_profile):
 
 def test_boosted_random_dictator_error():
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        BoostedRandomDictator(RankProfile(), m=1)
+        BoostedRandomDictator(RankProfile(), n_seats=1)
 
 
 @pytest.mark.slow

@@ -55,8 +55,8 @@ def test_init():
 
 
 def test_multiwinner_ties():
-    e_random = Plurality(profile_with_tied_fpv, m=3, tiebreak="random")
-    e_borda = Plurality(profile_with_tied_fpv, m=3, tiebreak="borda")
+    e_random = Plurality(profile_with_tied_fpv, n_seats=3, tiebreak="random")
+    e_borda = Plurality(profile_with_tied_fpv, n_seats=3, tiebreak="borda")
 
     assert e_borda.election_states[1].tiebreaks == {
         frozenset({"C", "D"}): (frozenset({"C"}), frozenset({"D"}))
@@ -80,47 +80,47 @@ def test_multiwinner_ties():
 
 
 def test_state_list():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.election_states == states
 
 
 def test_get_profile():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_profile(0) == profile_no_tied_fpv
     assert e.get_profile(1) == profile_no_tied_fpv_round_1
 
 
 def test_get_step():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_step(1) == (profile_no_tied_fpv_round_1, states[1])
 
 
 def test_get_elected():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_elected(0) == tuple()
     assert e.get_elected(1) == (frozenset({"A"}), frozenset({"B"}))
 
 
 def test_get_eliminated():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_eliminated(0) == tuple()
     assert e.get_eliminated(1) == tuple()
 
 
 def test_get_remaining():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_remaining(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.get_remaining(1) == (frozenset({"C"}),)
 
 
 def test_get_ranking():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
     assert e.get_ranking(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.get_ranking(1) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_get_status_df():
-    e = Plurality(profile_no_tied_fpv, m=2)
+    e = Plurality(profile_no_tied_fpv, n_seats=2)
 
     df_0 = pd.DataFrame(
         {"Status": ["Remaining"] * 3, "Round": [0] * 3},
@@ -136,17 +136,17 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
-        Plurality(profile_no_tied_fpv, m=0)
+    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
+        Plurality(profile_no_tied_fpv, n_seats=0)
 
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        Plurality(profile_no_tied_fpv, m=4)
+        Plurality(profile_no_tied_fpv, n_seats=4)
 
     with pytest.raises(
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
-        Plurality(profile_with_tied_fpv, m=3)
+        Plurality(profile_with_tied_fpv, n_seats=3)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         Plurality(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

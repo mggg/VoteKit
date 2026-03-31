@@ -13,15 +13,16 @@ from votekit.utils import (
 
 class GeneralRating(Election[ScoreProfile]):
     """
-    General rating election. To fill :math:`m` seats, voters score each candidate from
-    :math:`0-L`, where :math:`L` is some user-specified limit.  There is also a total budget of
-    :math:`k` points per voter. The :math:`m` winners are those with the highest total score.
+    General rating election. To fill :math:`n_\text{seats}` seats, voters score each candidate
+    from :math:`0` to ``per_candidate_limit``.  There is also a total budget
+    of ``budget`` points per voter. The :math:`n_\text{seats}` winners are those with the highest
+    total score.
 
     Args:
         profile (ScoreProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
-        L (float, optional): Rating per candidate limit. Defaults to 1.
-        k (float, optional): Budget per ballot limit. Defaults to None, in which
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
+        per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
+        budget (float, optional): Budget per ballot limit. Defaults to None, in which
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
@@ -31,24 +32,24 @@ class GeneralRating(Election[ScoreProfile]):
     def __init__(
         self,
         profile: ScoreProfile,
-        m: int = 1,
-        L: float = 1,
-        k: Optional[float] = None,
+        n_seats: int = 1,
+        per_candidate_limit: float = 1,
+        budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
     ):
-        if m <= 0:
-            raise ValueError("m must be positive.")
-        self.m = m
+        if n_seats <= 0:
+            raise ValueError("n_seats must be positive.")
+        self.n_seats = n_seats
         if tiebreak not in (None, "random"):
             raise ValueError("tiebreak must be None or 'random'.")
-        if L <= 0:
-            raise ValueError("L must be positive.")
-        self.L = L
-        if k and k <= 0:
-            raise ValueError("k must be positive.")
-        if k and L > k:
-            raise ValueError("L must be less than or equal to k.")
-        self.k = k
+        if per_candidate_limit <= 0:
+            raise ValueError("per_candidate_limit must be positive.")
+        self.per_candidate_limit = per_candidate_limit
+        if budget and budget <= 0:
+            raise ValueError("budget must be positive.")
+        if budget and per_candidate_limit > budget:
+            raise ValueError("per_candidate_limit must be less than or equal to budget.")
+        self.budget = budget
         self.tiebreak = tiebreak
         self._validate_profile(profile)
         super().__init__(
@@ -71,7 +72,7 @@ class GeneralRating(Election[ScoreProfile]):
             ValueError: Ballot violates score budget.
             ValueError: Not enough candidates received votes to be elected.
         """
-        if len(profile.candidates_cast) < self.m:
+        if len(profile.candidates_cast) < self.n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
 
         for b in profile.ballots:
@@ -79,14 +80,16 @@ class GeneralRating(Election[ScoreProfile]):
                 raise TypeError(f"Ballot {b} must be of type ScoreBallot")
             elif b.scores is None:
                 raise TypeError("All ballots must have score dictionary.")
-            elif any(score > self.L for score in b.scores.values()):
-                raise TypeError(f"Ballot {b} violates score limit {self.L} per candidate.")
+            elif any(score > self.per_candidate_limit for score in b.scores.values()):
+                raise TypeError(
+                    f"Ballot {b} violates score limit {self.per_candidate_limit} per candidate."
+                )
             elif any(score < 0 for score in b.scores.values()):
                 raise TypeError(f"Ballot {b} must have non-negative scores.")
 
-            if self.k:
-                if sum(b.scores.values()) > self.k:
-                    raise TypeError(f"Ballot {b} violates total score budget {self.k}.")
+            if self.budget:
+                if sum(b.scores.values()) > self.budget:
+                    raise TypeError(f"Ballot {b} violates total score budget {self.budget}.")
 
     def _is_finished(self):
         # single round election
@@ -115,7 +118,7 @@ class GeneralRating(Election[ScoreProfile]):
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
             prev_state.remaining,
-            self.m,
+            self.n_seats,
             tiebreak=self.tiebreak,
         )
 
@@ -147,14 +150,14 @@ class GeneralRating(Election[ScoreProfile]):
 
 class Rating(GeneralRating):
     """
-    Rating election. To fill :math:`m` seats, voters score each candidate independently from
-    :math:`0-L`, where :math:`L` is some user-specified limit.  The :math:`m` winners are those with
-    the highest total score.
+    Rating election. To fill :math:`n_\text{seats}` seats, voters score each candidate
+    independently from :math:`0` to ``per_candidate_limit``.  The
+    :math:`n_\text{seats}` winners are those with the highest total score.
 
     Args:
         profile (ScoreProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
-        L (float, optional): Rating per candidate limit. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
+        per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
 
@@ -163,22 +166,24 @@ class Rating(GeneralRating):
     def __init__(
         self,
         profile: ScoreProfile,
-        m: int = 1,
-        L: float = 1,
+        n_seats: int = 1,
+        per_candidate_limit: float = 1,
         tiebreak: Optional[str] = None,
     ):
-        super().__init__(profile, m=m, L=L, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=n_seats, per_candidate_limit=per_candidate_limit, tiebreak=tiebreak
+        )
 
 
 class Limited(GeneralRating):
     r"""
-    Voters can score each candidate, but have a total budget of :math:`k\le m` points.
-    Winners are those with highest total score.
+    Voters can score each candidate, but have a total budget of
+    :math:`\text{budget}\le n_\text{seats}` points. Winners are those with highest total score.
 
     Args:
         profile (ScoreProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
-        k (float, optional): Total budget per voter. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
+        budget (float, optional): Total budget per voter. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
     """
@@ -186,27 +191,30 @@ class Limited(GeneralRating):
     def __init__(
         self,
         profile: ScoreProfile,
-        m: int = 1,
-        k: float = 1,
+        n_seats: int = 1,
+        budget: float = 1,
         tiebreak: Optional[str] = None,
     ):
-        if k > m:
-            raise ValueError("k must be less than or equal to m.")
+        if budget > n_seats:
+            raise ValueError("budget must be less than or equal to n_seats.")
 
-        super().__init__(profile, m=m, L=k, k=k, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=n_seats, per_candidate_limit=budget, budget=budget, tiebreak=tiebreak
+        )
 
 
 class Cumulative(Limited):
     """
-    Voters can score each candidate, but have a total budget of :math:`m` points, where :math:`m` is
-    the number of seats to be filled. Winners are those with highest total score.
+    Voters can score each candidate, but have a total budget of :math:`n_\text{seats}` points,
+    where :math:`n_\text{seats}` is the number of seats to be filled. Winners are those with
+    highest total score.
 
     Args:
         profile (PreferenceProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
     """
 
-    def __init__(self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None):
-        super().__init__(profile, m=m, k=m, tiebreak=tiebreak)
+    def __init__(self, profile: ScoreProfile, n_seats: int = 1, tiebreak: Optional[str] = None):
+        super().__init__(profile, n_seats=n_seats, budget=n_seats, tiebreak=tiebreak)

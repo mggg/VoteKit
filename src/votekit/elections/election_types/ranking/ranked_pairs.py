@@ -25,20 +25,20 @@ class RankedPairs(RankingElection):
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
     """
 
     def __init__(
         self,
         profile: RankProfile,
         tiebreak: str = "lexicographic",
-        m: int = 1,
+        n_seats: int = 1,
     ):
-        if m <= 0:
-            raise ValueError("m must be strictly positive")
-        if len(profile.candidates_cast) < m:
+        if n_seats <= 0:
+            raise ValueError("n_seats must be strictly positive")
+        if len(profile.candidates_cast) < n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        self.n_seats = n_seats
         self.tiebreak = tiebreak
 
         def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
@@ -63,7 +63,7 @@ class RankedPairs(RankingElection):
         # single round election
         elected_cands = [c for s in self.get_elected() for c in s]
 
-        if len(elected_cands) == self.m:
+        if len(elected_cands) == self.n_seats:
             return True
         return False
 
@@ -118,8 +118,8 @@ class RankedPairs(RankingElection):
             candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
         ]
 
-        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])
-        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.m :])
+        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
+        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])
 
         if store_states:
             new_state = ElectionState(

@@ -585,7 +585,7 @@ def score_dict_to_ranking(
 
 def elect_cands_from_set_ranking(
     ranking: Sequence[Union[frozenset[str], set[str]]],
-    m: int,
+    n_seats: int,
     profile: Optional[RankProfile] = None,
     tiebreak: Optional[str] = None,
 ) -> tuple[
@@ -594,7 +594,7 @@ def elect_cands_from_set_ranking(
     Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]],
 ]:
     """
-    Given a ranking, elect the top m candidates in the ranking.
+    Given a ranking, elect the top n_seats candidates in the ranking.
     If a tie set overlaps the desired number of seats, it breaks the tie with the provided
     method or raises a ValueError if tiebreak is set to None.
     Returns a tuple of elected candidates, remaining candidates, and a tuple whose first entry
@@ -602,7 +602,7 @@ def elect_cands_from_set_ranking(
 
     Args:
         ranking (tuple[frozenset[str],...]): A list-of-set ranking of candidates.
-        m (int): Number of seats to elect.
+        n_seats (int): Number of seats to elect.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
@@ -615,10 +615,10 @@ def elect_cands_from_set_ranking(
             and a tuple whose first entry is a tie set and whose second entry is the resolution of
             the tie. If no ties were broken, the tuple returns None.
     """
-    if m < 1:
-        raise ValueError("m must be strictly positive")
-    if m > len([c for s in ranking for c in s]):
-        raise ValueError("m must be no more than the number of candidates.")
+    if n_seats < 1:
+        raise ValueError("n_seats must be strictly positive")
+    if n_seats > len([c for s in ranking for c in s]):
+        raise ValueError("n_seats must be no more than the number of candidates.")
 
     ranking_fs: tuple[frozenset[str], ...] = tuple(
         s if isinstance(s, frozenset) else frozenset(s) for s in ranking
@@ -629,10 +629,10 @@ def elect_cands_from_set_ranking(
     i = 0
     tiebreak_ranking: Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]] = None
 
-    while num_elected < m:
+    while num_elected < n_seats:
         elected.append(ranking_fs[i])
         num_elected += len(ranking_fs[i])
-        if num_elected > m:
+        if num_elected > n_seats:
             if tiebreak is None:
                 raise ValueError("Cannot elect correct number of candidates without breaking ties.")
             # back out the overfill
@@ -640,9 +640,9 @@ def elect_cands_from_set_ranking(
             num_elected -= len(ranking_fs[i])
 
             tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
-            elected += tiebroken[: (m - num_elected)]
+            elected += tiebroken[: (n_seats - num_elected)]
 
-            remaining: list[frozenset[str]] = list(tiebroken[(m - num_elected) :])
+            remaining: list[frozenset[str]] = list(tiebroken[(n_seats - num_elected) :])
             if i < len(ranking_fs):
                 remaining += list(ranking_fs[(i + 1) :])
 

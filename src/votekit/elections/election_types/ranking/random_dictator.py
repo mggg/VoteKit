@@ -20,7 +20,7 @@ class RandomDictator(RankingElection):
 
     Args:
       profile (RankProfile): RankProfile to run election on.
-      m (int): Number of seats to elect.
+      n_seats (int): Number of seats to elect.
       fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
@@ -29,14 +29,14 @@ class RandomDictator(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        m: int,
+        n_seats: int,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
     ):
-        if m <= 0:
-            raise ValueError("m must be positive.")
-        elif len(profile.candidates_cast) < m:
+        if n_seats <= 0:
+            raise ValueError("n_seats must be positive.")
+        elif len(profile.candidates_cast) < n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        self.n_seats = n_seats
         super().__init__(
             profile,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
@@ -44,7 +44,7 @@ class RandomDictator(RankingElection):
 
     def _is_finished(self) -> bool:
         cands_elected = [len(s) for s in self.get_elected()]
-        return sum(cands_elected) >= self.m
+        return sum(cands_elected) >= self.n_seats
 
     def _run_step(
         self, profile: RankProfile, prev_state: ElectionState, store_states=False

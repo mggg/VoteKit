@@ -81,8 +81,8 @@ After that, we will use VoteKit to perform the rest of the cleaning.
 
     Downloading...
     From: https://drive.google.com/uc?id=1ly3IcjeQTpet-zvxd49DM_OmY_i4uftB
-    To: /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/notebooks/Portland_D1_raw_from_city.csv
-    100%|██████████| 104M/104M [00:04<00:00, 23.7MB/s] 
+    To: /home/peter/SCRAP/VoteKit/notebooks/Portland_D1_raw_from_city.csv
+    100%|██████████| 104M/104M [00:02<00:00, 41.1MB/s] 
 
 
 
@@ -320,6 +320,13 @@ voters put more than one candidate in a ranking.
     for rank_position in range(1,7):
         D1_voters_df[f"Rank {rank_position}"] = ranking_data[rank_position]
 
+
+.. parsed-literal::
+
+    /tmp/ipykernel_2537036/4031408051.py:26: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+      D1_voters_df[f"Rank {rank_position}"] = ranking_data[rank_position]
+
+
 .. code:: ipython3
 
     D1_voters_df.head()
@@ -516,8 +523,8 @@ our cleaning using VoteKit’s built in cleaning tools.
 
     RankProfile
     Maximum ranking length: 6
-    Candidates: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
-    Candidates who received votes: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
+    Candidates: ('Write-in-122', 'Uncertified Write In', 'Thomas Shervey', 'Candace Avalos', 'Write-in-121', 'Michael (Mike) Sands', 'Joe Allen', 'David Linn', 'Joe Furi', 'Cayle Tern', 'overvote', 'Doug Clove', 'Steph Routh', 'Loretta Smith', 'Jamie Dunphy', 'Write-in-120', 'Peggy Sue Owens', 'Timur Ender', 'Noah Ernst', 'Deian Salazar', 'Terrence Hayes')
+    Candidates who received votes: ('Write-in-122', 'Uncertified Write In', 'Thomas Shervey', 'Candace Avalos', 'Write-in-121', 'Michael (Mike) Sands', 'Joe Allen', 'David Linn', 'Joe Furi', 'Cayle Tern', 'overvote', 'Doug Clove', 'Steph Routh', 'Loretta Smith', 'Jamie Dunphy', 'Write-in-120', 'Peggy Sue Owens', 'Timur Ender', 'Noah Ernst', 'Deian Salazar', 'Terrence Hayes')
     Total number of Ballot objects: 43669
     Total weight of Ballot objects: 43669.0
     
@@ -688,7 +695,7 @@ other stats we can double check, are given
     
     
     # 3 seat election
-    election = STV(profile, m=3)
+    election = STV(profile, n_seats=3)
     print("Winners in order of election")
     i=0
     for cand_set in election.get_elected():
@@ -1208,7 +1215,7 @@ was made?
     deduplicated_ballots = [Ballot(ranking=b.ranking, weight=1) for b in profile.ballots for _ in range(int(b.weight))]
     ballots_with_ids = [Ballot(ranking=b.ranking, voter_set = {f"{i}"}, weight = 1) for i,b in enumerate(deduplicated_ballots)]
     profile_with_ids = PreferenceProfile(ballots=ballots_with_ids)
-    election_with_ids = STV(profile_with_ids, m=3)
+    election_with_ids = STV(profile_with_ids, n_seats=3)
     
     initial_ballot_count = profile.total_ballot_wt
     
@@ -1312,9 +1319,9 @@ other election systems.
     from votekit.elections import CondoBorda, Plurality, Borda
     
     
-    alt_elections = {"Condorcet": CondoBorda(profile, m=3),
-                     "Borda": Borda(profile, m=3),
-                     "Plurality": Plurality(profile, m=3),
+    alt_elections = {"Condorcet": CondoBorda(profile, n_seats=3),
+                     "Borda": Borda(profile, n_seats=3),
+                     "Plurality": Plurality(profile, n_seats=3),
                      }
     
     for e_name, e in alt_elections.items():
@@ -1360,7 +1367,7 @@ We can also see who the most representative winner set would have been.
 .. code:: ipython3
 
     for r in [1,3,6]:
-        winner_sets_score_dict = winner_sets_r_representation_scores(profile, m=3, r=r)
+        winner_sets_score_dict = winner_sets_r_representation_scores(profile, n_seats=3, r=r)
         winner_sets_score_tuples = [(set(k),v) for k,v in winner_sets_score_dict.items()]
         sorted_winner_sets = sorted(winner_sets_score_tuples, reverse=True, key= lambda x: x[1])
     
@@ -1374,28 +1381,28 @@ We can also see who the most representative winner set would have been.
 .. parsed-literal::
 
     1-representation winner sets, top 5 most representative
-    {'Loretta Smith', 'Candace Avalos', 'Jamie Dunphy'} 44.2%
+    {'Loretta Smith', 'Jamie Dunphy', 'Candace Avalos'} 44.2%
     {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 41.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 41.7%
-    {'Loretta Smith', 'Candace Avalos', 'Steph Routh'} 41.5%
-    {'Loretta Smith', 'Candace Avalos', 'Timur Ender'} 40.7%
+    {'Loretta Smith', 'Terrence Hayes', 'Candace Avalos'} 41.7%
+    {'Loretta Smith', 'Steph Routh', 'Candace Avalos'} 41.5%
+    {'Loretta Smith', 'Timur Ender', 'Candace Avalos'} 40.7%
     
     --------------------
     
     3-representation winner sets, top 5 most representative
     {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 74.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 72.9%
-    {'Noah Ernst', 'Candace Avalos', 'Steph Routh'} 71.4%
-    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 71.3%
-    {'Terrence Hayes', 'Candace Avalos', 'Steph Routh'} 71.1%
+    {'Loretta Smith', 'Terrence Hayes', 'Candace Avalos'} 72.9%
+    {'Noah Ernst', 'Steph Routh', 'Candace Avalos'} 71.4%
+    {'Noah Ernst', 'Terrence Hayes', 'Candace Avalos'} 71.3%
+    {'Terrence Hayes', 'Steph Routh', 'Candace Avalos'} 71.1%
     
     --------------------
     
     6-representation winner sets, top 5 most representative
     {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 82.8%
-    {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 81.0%
-    {'Loretta Smith', 'Candace Avalos', 'Doug Clove'} 80.3%
-    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 80.3%
+    {'Loretta Smith', 'Terrence Hayes', 'Candace Avalos'} 81.0%
+    {'Loretta Smith', 'Doug Clove', 'Candace Avalos'} 80.3%
+    {'Noah Ernst', 'Terrence Hayes', 'Candace Avalos'} 80.3%
     {'Loretta Smith', 'Noah Ernst', 'Steph Routh'} 79.9%
     
     --------------------

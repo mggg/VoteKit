@@ -64,12 +64,12 @@ def test_winner_sets_r_rep_score_error_r():
 
 
 def test_winner_sets_r_rep_score_error_m():
-    with pytest.raises(ValueError, match="Number of seats m \\(0\\) must be at least 1."):
+    with pytest.raises(ValueError, match="Number of seats n_seats \\(0\\) must be at least 1."):
         winner_sets_r_representation_scores(RankProfile(), 0, 1)
 
     with pytest.raises(
         ValueError,
-        match="Number of seats m \\(2\\) must be less than number of candidates \\(1\\).",
+        match="Number of seats n_seats \\(2\\) must be less than number of candidates \\(1\\).",
     ):
         winner_sets_r_representation_scores(RankProfile(), 2, 1, ["Chris"])
 

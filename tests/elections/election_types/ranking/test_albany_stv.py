@@ -192,7 +192,7 @@ def looser_equality_for_election_states(state1, state2, precision):
 
 
 def test_albany_state_list():
-    albany_elec = AlbanySTV(albany_profile, m=2)
+    albany_elec = AlbanySTV(albany_profile, n_seats=2)
     for i in [0, 1, 2]:  # these states all have integer scores
         assert albany_elec.election_states[i] == albany_states[i]
     for i in [3, 4]:  # these do not
@@ -204,7 +204,7 @@ def test_albany_state_list():
 
 
 def test_albany_not_same_as_wigm():
-    elec = AlbanySTV(albany_not_same_as_wigm_profile, m=2)
+    elec = AlbanySTV(albany_not_same_as_wigm_profile, n_seats=2)
     play_by_play = elec._data.play_by_play
     assert all(
         play_by_play[i]["threshold"] == not_same_as_wigm_quotas[i] for i in range(len(play_by_play))
@@ -213,7 +213,7 @@ def test_albany_not_same_as_wigm():
 
 
 def test_three_winners_with_sharp_quotas():
-    elec = AlbanySTV(three_winners_with_sharp_quotas_profile, m=3)
+    elec = AlbanySTV(three_winners_with_sharp_quotas_profile, n_seats=3)
     play_by_play = elec._data.play_by_play
     assert all(
         play_by_play[i]["threshold"] == three_winners_with_sharp_quotas_quotas[i]
@@ -227,8 +227,8 @@ def test_three_winners_with_sharp_quotas():
 
 def test_interaction_with_simultaneous():
     # could maybe also test quota values for both elections? idk I'm tired
-    simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=True)
-    non_simultaneous_elec = AlbanySTV(interaction_with_simultaneous, m=3, simultaneous=False)
+    simultaneous_elec = AlbanySTV(interaction_with_simultaneous, n_seats=3, simultaneous=True)
+    non_simultaneous_elec = AlbanySTV(interaction_with_simultaneous, n_seats=3, simultaneous=False)
     assert simultaneous_elec.get_elected() == (
         frozenset({"A", "B"}),
         frozenset({"D"}),

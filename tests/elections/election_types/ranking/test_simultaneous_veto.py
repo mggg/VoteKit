@@ -100,20 +100,20 @@ def mutated_oakland_profile():
 
 class TestValidation:
     def test_m_zero(self, basic_profile):
-        with pytest.raises(ValueError, match="m must be positive"):
-            SimultaneousVeto(basic_profile, m=0)
+        with pytest.raises(ValueError, match="n_seats must be positive"):
+            SimultaneousVeto(basic_profile, n_seats=0)
 
     def test_m_negative(self, basic_profile):
-        with pytest.raises(ValueError, match="m must be positive"):
-            SimultaneousVeto(basic_profile, m=-1)
+        with pytest.raises(ValueError, match="n_seats must be positive"):
+            SimultaneousVeto(basic_profile, n_seats=-1)
 
     def test_m_exceeds_candidates(self, basic_profile):
         with pytest.raises(ValueError, match="Not enough candidates"):
-            SimultaneousVeto(basic_profile, m=10)
+            SimultaneousVeto(basic_profile, n_seats=10)
 
     def test_empty_profile(self):
         with pytest.raises(ValueError, match="Not enough candidates"):
-            SimultaneousVeto(RankProfile(), m=1)
+            SimultaneousVeto(RankProfile(), n_seats=1)
 
     def test_invalid_candidate_weights_string(self, basic_profile):
         with pytest.raises(ValueError, match="invalid input"):
@@ -145,7 +145,7 @@ class TestValidation:
 
 
 # ---------------------------------------------------------------------------
-# All parameter combinations (m=1, str-valued params)
+# All parameter combinations (n_seats=1, str-valued params)
 # ---------------------------------------------------------------------------
 
 CANDIDATE_WEIGHTS_STR = ["first_place", "uniform", "borda", "harmonic", 2]
@@ -171,7 +171,7 @@ class TestParameterCombinations:
         """Election should run without error for all valid str parameter combinations."""
         election = SimultaneousVeto(
             basic_profile,
-            m=1,
+            n_seats=1,
             candidate_weights=candidate_weights,
             tiebreak=tiebreak,
             scoring_tie_convention=scoring_tie_convention,
@@ -224,19 +224,19 @@ class TestCandidateWeights:
 
 
 # ---------------------------------------------------------------------------
-# Multi-winner (m=2)
+# Multi-winner (n_seats=2)
 # ---------------------------------------------------------------------------
 
 
 class TestMultiWinner:
     def test_m_equals_2(self, basic_profile):
-        election = SimultaneousVeto(basic_profile, m=2)
+        election = SimultaneousVeto(basic_profile, n_seats=2)
         winners = elected_set(election)
         assert len(winners) == 2
 
     def test_m_equals_num_candidates(self, basic_profile):
         """When m == n, everyone should be elected immediately."""
-        election = SimultaneousVeto(basic_profile, m=3)
+        election = SimultaneousVeto(basic_profile, n_seats=3)
         winners = elected_set(election)
         assert winners == {"A", "B", "C"}
 
@@ -273,7 +273,7 @@ class TestScoringTieConvention:
         profile = self._profile_with_first_place_tie()
         election = SimultaneousVeto(
             profile,
-            m=1,
+            n_seats=1,
             candidate_weights="first_place",
             scoring_tie_convention="high",
             tiebreak="lex",
@@ -295,7 +295,7 @@ class TestScoringTieConvention:
         profile = self._profile_with_first_place_tie()
         election = SimultaneousVeto(
             profile,
-            m=1,
+            n_seats=1,
             candidate_weights="first_place",
             scoring_tie_convention="low",
             tiebreak="lex",
@@ -508,7 +508,7 @@ class TestSimultaneousEliminations:
         )
         election = SimultaneousVeto(
             profile,
-            m=1,
+            n_seats=1,
             candidate_weights="first_place",
             tiebreak="lex",
         )
@@ -556,7 +556,7 @@ class TestSimultaneousEliminations:
         assert eliminated_order(election)[0] == "M"
 
     def test_three_way_tie_with_m(self):
-        """With m=1, a 3-way tie should be broken via tiebreak."""
+        """With n_seats=1, a 3-way tie should be broken via tiebreak."""
         profile = make_profile(
             {
                 ("A", "C", "B"): 1,
@@ -564,7 +564,7 @@ class TestSimultaneousEliminations:
             }
         )
         election = SimultaneousVeto(
-            profile, m=1, candidate_weights="first_place", tiebreak="first_place"
+            profile, n_seats=1, candidate_weights="first_place", tiebreak="first_place"
         )
         # this should be a 3-way tie
         assert frozenset({"A", "B", "C"}) in election.election_states[-1].tiebreaks.keys()
@@ -597,7 +597,7 @@ class TestOakland:
     def test_oakland_first_place(self, oakland_profile):
         election = SimultaneousVeto(
             oakland_profile,
-            m=1,
+            n_seats=1,
             candidate_weights="first_place",
             tiebreak="veto_pressure",
         )
@@ -606,7 +606,7 @@ class TestOakland:
     def test_oakland_borda(self, oakland_profile):
         election = SimultaneousVeto(
             oakland_profile,
-            m=1,
+            n_seats=1,
             candidate_weights="borda",
             tiebreak="veto_pressure",
         )

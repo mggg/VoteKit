@@ -29,14 +29,14 @@ class _IterativeVetoBase(RankingElection, ABC):
         - In PluralityVeto, candidates are eliminated immediately when their score reaches zero.
         - In SerialVeto, candidates with zero score are only eliminated when a voter attempts
             to veto them, which does not use up that voter's veto.
-    In either case, the last m candidates standing are the winners.
+    In either case, the last n_seats candidates standing are the winners.
 
     Partial ballots are handled by assuming that unranked candidates tie for last place.
 
     Args:
         profile (RankProfile): RankProfile to run election on.
             All ballots must have integer weights.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
             Used to determine veto when multiple candidates are tied for last place on a ballot.
             Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
@@ -49,15 +49,15 @@ class _IterativeVetoBase(RankingElection, ABC):
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
 
     Attributes:
-        m (int): The number of seats to be filled in the election.
+        n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[str]): The set of candidates in the election.
         tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
     Raises:
         ValueError: If any of the following:
-            - ``m`` is less than or equal to 0
-            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - ``n_seats`` is less than or equal to 0
+            - ``n_seats`` exceeds the number of candidates in the profile who received votes,
             - a ballot has no ranking,
             - a ballot has non-integer weight.
     """
@@ -65,13 +65,13 @@ class _IterativeVetoBase(RankingElection, ABC):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int = 1,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         grouped_profile = profile.group_ballots()
 
-        self.m = m
+        self.n_seats = n_seats
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
         self._pv_validate_input(grouped_profile)
@@ -137,9 +137,9 @@ class _IterativeVetoBase(RankingElection, ABC):
                 - a ballot has no ranking,
                 - a ballot has non-integer weight.
         """
-        if self.m <= 0:
-            raise ValueError("m must be positive.")
-        elif len(profile.candidates_cast) < self.m:
+        if self.n_seats <= 0:
+            raise ValueError("n_seats must be positive.")
+        elif len(profile.candidates_cast) < self.n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
 
         for ballot in profile.ballots:
@@ -307,7 +307,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         """
         Runs one round of the election.
 
-        If only ``m`` candidates remain, they are all elected.
+        If only ``n_seats`` candidates remain, they are all elected.
         Otherwise, runs the veto loop to eliminate the next candidate.
 
         Args:
@@ -334,7 +334,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         new_scores = prev_state.scores.copy()
         remaining_set = self.candidates - self._eliminated
-        if len(remaining_set) == self.m:
+        if len(remaining_set) == self.n_seats:
             electable_candidates = remaining_set
             eliminated_set: frozenset[str] = frozenset()
         else:
@@ -353,7 +353,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self.scoring_tie_convention,
                 backup_tiebreak_convention="lex",
             )
-            elected = tiebroken_order[: self.m]
+            elected = tiebroken_order[: self.n_seats]
             new_profile = RankProfile()
         else:
             elected = (frozenset(),)
@@ -394,7 +394,7 @@ class PluralityVeto(_IterativeVetoBase):
     Args:
         profile (RankProfile): RankProfile to run election on.
             All ballots must have integer weights.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
             Used to determine veto when multiple candidates are tied for last place on a ballot.
             Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
@@ -407,15 +407,15 @@ class PluralityVeto(_IterativeVetoBase):
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
 
     Attributes:
-        m (int): The number of seats to be filled in the election.
+        n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[str]): The set of candidates in the election.
         tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
     Raises:
         ValueError: If any of the following:
-            - ``m`` is less than or equal to 0
-            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - ``n_seats`` is less than or equal to 0
+            - ``n_seats`` exceeds the number of candidates in the profile who received votes,
             - a ballot has no ranking,
             - a ballot has non-integer weight.
     """
@@ -440,6 +440,9 @@ class PluralityVeto(_IterativeVetoBase):
             eliminated.update(c for c, score in scores.items() if score <= 0)
 
         while not eliminated:
+            if self._voter_order_current_index >= len(self._voter_order):
+                elected = self.candidates - self._eliminated
+                break
             voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)
             veto = self._get_veto(ballot_idx)
@@ -462,14 +465,14 @@ class SerialVeto(_IterativeVetoBase):
     least favorite remaining candidate.
     Candidates with zero score are only eliminated when a voter attempts to veto
     them, which does not use up that voter's veto.
-    The last ``m`` candidates remaining are the winners.
+    The last ``n_seats`` candidates remaining are the winners.
 
     Partial ballots are handled by assuming that unranked candidates tie for last place.
 
     Args:
         profile (RankProfile): RankProfile to run election on.
             All ballots must have integer weights.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method. Can be 'first_place', 'random', or 'borda'.
         Used to determine veto when multiple candidates are tied for last place on a ballot.
             Defaults to 'first_place'. If ``tiebreak`` is not 'random', tiebreak order is
@@ -482,15 +485,15 @@ class SerialVeto(_IterativeVetoBase):
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
 
     Attributes:
-        m (int): The number of seats to be filled in the election.
+        n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[str]): The set of candidates in the election.
         tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
     Raises:
         ValueError: If any of the following:
-            - ``m`` is less than or equal to 0,
-            - ``m`` exceeds the number of candidates in the profile who received votes,
+            - ``n_seats`` is less than or equal to 0,
+            - ``n_seats`` exceeds the number of candidates in the profile who received votes,
             - a ballot has no ranking, or
             - a ballot has non-integer weight.
     """

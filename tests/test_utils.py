@@ -600,10 +600,10 @@ def test_index_to_lexicographic_ballot_errors(
 
 
 def test_elect_cands_from_set_ranking_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
+    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
         elect_cands_from_set_ranking(({"A", "B"},), 0)
 
-    with pytest.raises(ValueError, match="m must be no more than the number of candidates."):
+    with pytest.raises(ValueError, match="n_seats must be no more than the number of candidates."):
         elect_cands_from_set_ranking(({"A", "B"},), 3)
 
     with pytest.raises(
