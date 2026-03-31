@@ -152,3 +152,8 @@ def test_rank_and_score():
         TypeError, match="Only one of ranking or scores can be provided."
     ):
         RankBallot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_rank_ballot_ranking_coercion():
+    ballot = RankBallot(ranking=[{"A", "B"}, {"C"}])
+    assert ballot.ranking == (frozenset({"A", "B"}), frozenset({"C"}))

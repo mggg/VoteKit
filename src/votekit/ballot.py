@@ -163,7 +163,16 @@ class RankBallot(Ballot):
         if ranking is None:
             return None
 
-        return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
+        normalized_ranking = []
+        for cand_set in ranking:
+            if isinstance(cand_set, str):
+                iterable = (cand_set,)
+            else:
+                iterable = cand_set
+
+            normalized_ranking.append(frozenset(c.strip() for c in iterable))
+
+        return tuple(normalized_ranking)
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
