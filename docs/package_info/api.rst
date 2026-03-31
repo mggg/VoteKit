@@ -32,9 +32,21 @@ Preference Profiles
 .. autoclass:: votekit.pref_profile.CleanedScoreProfile
     :members:
 
-.. automodule:: votekit.pref_profile.utils
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.pref_profile.rank_profile_to_ballot_dict
+
+.. autofunction:: votekit.pref_profile.score_profile_to_ballot_dict
+
+.. autofunction:: votekit.pref_profile.rank_profile_to_ranking_dict
+
+.. autofunction:: votekit.pref_profile.score_profile_to_scores_dict
+
+.. autofunction:: votekit.pref_profile.profile_df_head
+
+.. autofunction:: votekit.pref_profile.profile_df_tail
+
+.. autofunction:: votekit.pref_profile.convert_row_to_rank_ballot
+
+.. autofunction:: votekit.pref_profile.convert_rank_profile_to_score_profile_via_score_vector
 
 Preference Intervals
 --------------------
@@ -59,17 +71,22 @@ Cleaning
 Elections
 ---------
 
-.. autoclass:: votekit.elections.election_state.ElectionState
+.. autoclass:: votekit.elections.ElectionState
     :members:
 
-.. autoclass:: votekit.models.Election
+.. autoclass:: votekit.elections.Election
     :members:
 
 
 
 Approval-based
 ~~~~~~~~~~~~~~~
-.. automodule:: votekit.elections.election_types.approval.approval
+
+.. autoclass:: votekit.elections.Approval
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.BlocPlurality
     :members:
     :show-inheritance:
 
@@ -77,132 +94,186 @@ Approval-based
 Ranking-based
 ~~~~~~~~~~~~~~
 
-.. automodule:: votekit.elections.election_types.ranking.abstract_ranking
+.. autoclass:: votekit.elections.RankingElection
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.alaska
+.. autoclass:: votekit.elections.Alaska
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.borda
+.. autoclass:: votekit.elections.Borda
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.boosted_random_dictator
+.. autoclass:: votekit.elections.BoostedRandomDictator
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.condo_borda
+.. autoclass:: votekit.elections.CondoBorda
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.dominating_sets
+.. autoclass:: votekit.elections.DominatingSets
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.plurality_veto
+.. autoclass:: votekit.elections.Plurality
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.plurality
+.. autoclass:: votekit.elections.SNTV
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.random_dictator
+.. autoclass:: votekit.elections.PluralityVeto
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.ranked_pairs
+.. autoclass:: votekit.elections.SerialVeto
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.stv
+.. autoclass:: votekit.elections.SimultaneousVeto
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.elections.election_types.ranking.top_two
+.. autoclass:: votekit.elections.RandomDictator
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.RankedPairs
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.Schulze
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.STV
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.FastSTV
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.IRV
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.SequentialRCV
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.TopTwo
     :members:
     :show-inheritance:
 
 Score-based
 ~~~~~~~~~~~~
 
-.. automodule:: votekit.elections.election_types.scores.rating
+.. autoclass:: votekit.elections.GeneralRating
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.Rating
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.Cumulative
+    :members:
+    :show-inheritance:
+
+.. autoclass:: votekit.elections.Limited
     :members:
     :show-inheritance:
 
 Graphs and Viz.
 ---------------
-.. autoclass:: votekit.graphs.ballot_graph.BallotGraph
+
+.. autoclass:: votekit.graphs.BallotGraph
     :members:
 
-.. automodule:: votekit.graphs.pairwise_comparison_graph
-    :members:
-    :show-inheritance:
-
-.. automodule:: votekit.plots.mds   
+.. autoclass:: votekit.graphs.PairwiseComparisonGraph
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.plots.bar_plot
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.graphs.pairwise_dict
 
-.. automodule:: votekit.plots.profiles.profile_bar_plot
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.graphs.restrict_pairwise_dict_to_subset
 
-.. automodule:: votekit.plots.profiles.multi_profile_bar_plot
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.plots.compute_MDS
 
-Cast Vote Records 
+.. autofunction:: votekit.plots.plot_MDS
+
+.. autofunction:: votekit.plots.bar_plot
+
+.. autofunction:: votekit.plots.multi_bar_plot
+
+.. autofunction:: votekit.plots.profile_bar_plot
+
+.. autofunction:: votekit.plots.profile_borda_plot
+
+.. autofunction:: votekit.plots.profile_ballot_lengths_plot
+
+.. autofunction:: votekit.plots.profile_fpv_plot
+
+.. autofunction:: votekit.plots.profile_mentions_plot
+
+.. autofunction:: votekit.plots.multi_profile_bar_plot
+
+.. autofunction:: votekit.plots.multi_profile_ballot_lengths_plot
+
+.. autofunction:: votekit.plots.multi_profile_borda_plot
+
+.. autofunction:: votekit.plots.multi_profile_fpv_plot
+
+.. autofunction:: votekit.plots.multi_profile_mentions_plot
+
+Cast Vote Records
 -----------------
 
-.. automodule:: votekit.cvr_loaders   
-    :members:
-    :show-inheritance:
-
-.. automodule:: votekit.cleaning   
+.. automodule:: votekit.cvr_loaders
     :members:
     :show-inheritance:
 
 Matrices
 --------
 
-.. automodule:: votekit.matrices.heatmap
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.matrices.matrix_heatmap
+
+.. autofunction:: votekit.matrices.boost_prob
+
+.. autofunction:: votekit.matrices.boost_matrix
+
+.. autofunction:: votekit.matrices.candidate_distance
+
+.. autofunction:: votekit.matrices.candidate_distance_matrix
+
+.. autofunction:: votekit.matrices.comention
+
+.. autofunction:: votekit.matrices.comention_above
+
+.. autofunction:: votekit.matrices.comentions_matrix
 
 
-.. automodule:: votekit.matrices.candidate.boost
-    :members:
-    :show-inheritance:
-
-.. automodule:: votekit.matrices.candidate.candidate_distance
-    :members:
-    :show-inheritance:
-
-.. automodule:: votekit.matrices.candidate.comentions
-    :members:
-    :show-inheritance:
-
-
-Misc. 
+Misc.
 -----
 
-.. automodule:: votekit.elections.transfers   
+.. autofunction:: votekit.elections.fractional_transfer
+
+.. autofunction:: votekit.elections.random_transfer
+
+.. automodule:: votekit.utils
     :members:
     :show-inheritance:
 
-.. automodule:: votekit.utils   
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.metrics.earth_mover_dist
 
-.. automodule:: votekit.metrics.distances   
-    :members:
-    :show-inheritance:
+.. autofunction:: votekit.metrics.lp_dist
+
+.. autofunction:: votekit.metrics.euclidean_dist
 
 .. automodule:: votekit.representation_scores.representation_score
     :show-inheritance:

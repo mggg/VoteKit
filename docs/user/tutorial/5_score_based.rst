@@ -48,10 +48,10 @@ ranking, you can use the ``score_dict_to_ranking`` function from the
 
 .. parsed-literal::
 
-    Ranking: (frozenset({'A', 'C'}), frozenset({'B'}))
+    Ranking: (frozenset({'C', 'A'}), frozenset({'B'}))
     
      RankBallot
-    1.) A, C, (tie)
+    1.) C, A, (tie)
     2.) B, 
     Weight: 3.0
 
@@ -94,12 +94,19 @@ all to ranked, you could do so as follows.
     Total weight of Ballot objects: 13.0
     
     Ranked profile
-                  Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0               (A, C)       (B)       (~)        {}     3.0
-    1                  (C)       (B)       (A)        {}     2.0
-    2                  (B)       (C)       (A)        {}     5.0
-    3                  (B)       (~)       (~)        {}     3.0
+                           Ranking_1       Ranking_2       Ranking_3 Voter Set  \
+    Ballot Index                                                                
+    0             frozenset({C, A})  frozenset({B})  frozenset({~})        {}   
+    1                frozenset({C})  frozenset({B})  frozenset({A})        {}   
+    2                frozenset({B})  frozenset({C})  frozenset({A})        {}   
+    3                frozenset({B})  frozenset({~})  frozenset({~})        {}   
+    
+                  Weight  
+    Ballot Index          
+    0                3.0  
+    1                2.0  
+    2                5.0  
+    3                3.0  
 
 
 Score ballots are flexible enough to allow any non-zero score, including
@@ -144,7 +151,7 @@ total score.
     )
     
     # elect 1 seat, each voter can rate candidates up to 5 points independently
-    election = Rating(score_profile, m=1, L=5)
+    election = Rating(score_profile, n_seats=1, per_candidate_limit=5)
     print(election)
 
 
@@ -178,7 +185,7 @@ running the election. All of these code blocks should raise
     
     # should raise a TypeError since this profile has no scores
     try:
-        election = Rating(ranking_profile, m=1, L=5)
+        election = Rating(ranking_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -201,7 +208,7 @@ running the election. All of these code blocks should raise
     
     # should raise a TypeError since this profile has negative score
     try:
-        election = Rating(negative_profile, m=1, L=5)
+        election = Rating(negative_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -221,7 +228,7 @@ running the election. All of these code blocks should raise
     
     # should raise a TypeError since this profile has score over 5
     try:
-        election = Rating(over_L_profile, m=1, L=5)
+        election = Rating(over_L_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -260,7 +267,7 @@ points is known as “plumping” the vote.
     )
     
     # elect 2 seat, each voter can rate candidates up to 2 points total
-    election = Cumulative(score_profile, m=2)
+    election = Cumulative(score_profile, n_seats=2)
     print(election)
     print(election.get_ranking())
     print(election.election_states[0].scores)
@@ -269,10 +276,10 @@ points is known as “plumping” the vote.
 .. parsed-literal::
 
           Status  Round
-    B    Elected      1
     C    Elected      1
+    B    Elected      1
     A  Remaining      1
-    (frozenset({'B', 'C'}), frozenset({'A'}))
+    (frozenset({'C', 'B'}), frozenset({'A'}))
     {'A': 8.0, 'B': 10.0, 'C': 10.0}
 
 
@@ -286,7 +293,7 @@ Again, the Cumulative class does validation for us.
     
     # should raise a TypeError since this profile has total score over 2
     try:
-        election = Cumulative(over_m_profile, m=2)
+        election = Cumulative(over_m_profile, n_seats=2)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -344,11 +351,11 @@ known as “plumping”).
 
                     A    B    C  Weight Voter Set
     Ballot Index                                 
-    0             1.0  1.0  NaN    24.0        {}
-    1             1.0  NaN  1.0     7.0        {}
-    2             2.0  NaN  NaN    66.0        {}
-    3             NaN  1.0  1.0     2.0        {}
-    4             NaN  2.0  NaN     1.0        {}
+    0             1.0  1.0  NaN    25.0        {}
+    1             1.0  NaN  1.0    10.0        {}
+    2             2.0  NaN  NaN    62.0        {}
+    3             NaN  1.0  1.0     1.0        {}
+    4             NaN  2.0  NaN     2.0        {}
 
 
 Verify that the ballots make sense given the interval. ``A`` should
