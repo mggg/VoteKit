@@ -1,6 +1,6 @@
-from .approval import Approval, BlocPlurality
+from .approval import Approval
 
-__all__ = ["Approval", "BlocPlurality"]
+__all__ = ["Approval"]
 
 # Patch __module__ on every exported symbol so that Sphinx autodoc displays
 # the canonical public import path instead of the full internal path where

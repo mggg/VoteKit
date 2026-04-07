@@ -1,23 +1,22 @@
 from typing import Optional
 
-from votekit.elections.election_types.scores import GeneralRating
+from votekit.elections.election_types.scores.limited import Limited
 from votekit.pref_profile import ScoreProfile
 
 
-class Approval(GeneralRating):
+class Cumulative(Limited):
     """
-    Approval election. Standard approval voting lets voters choose any subset of candidates to
-    approve.  Winners are the :math:`n_\text{seats}` candidates who received the most approval
-    votes.
+    Scoring election where voters distribute up to ``n_seats`` points total.
+
+    Voters can score each candidate, but have a total budget of :math:`n_\text{seats}` points.
+    Winners are those with the highest total score.
 
     Args:
         profile (ScoreProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
-
     """
 
     def __init__(self, profile: ScoreProfile, n_seats: int = 1, tiebreak: Optional[str] = None):
-        # limit one per candidate,  but no total budget limit
-        super().__init__(profile, n_seats=n_seats, per_candidate_limit=1, tiebreak=tiebreak)
+        super().__init__(profile, n_seats=n_seats, budget=n_seats, tiebreak=tiebreak)

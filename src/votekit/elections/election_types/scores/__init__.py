@@ -1,4 +1,6 @@
-from .rating import Cumulative, GeneralRating, Limited, Rating
+from votekit.elections.election_types.scores.cumulative import Cumulative
+from votekit.elections.election_types.scores.limited import Limited
+from votekit.elections.election_types.scores.rating import GeneralRating, Rating
 
 __all__ = [
     "GeneralRating",
