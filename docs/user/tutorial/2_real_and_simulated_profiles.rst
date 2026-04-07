@@ -299,9 +299,8 @@ handles validating these parameters.
 
 We call s-BT the deliberative voter model because part of the generation
 process involves making all pairwise comparisons between candidates on
-the ballot. A more detailed discussion can be found in our `social
-choice
-documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
+the ballot. A more detailed discussion can be found in our
+:ref:`social choice documentation <slate-bradley-terry>`.
 
 .. code:: ipython3
 

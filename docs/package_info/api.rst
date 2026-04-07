@@ -86,7 +86,7 @@ Approval-based
     :members:
     :show-inheritance:
 
-.. autoclass:: votekit.elections.BlocPlurality
+.. autoclass:: votekit.elections.BlockPlurality
     :members:
     :show-inheritance:
 
