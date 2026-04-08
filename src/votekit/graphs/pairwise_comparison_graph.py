@@ -101,7 +101,7 @@ def pairwise_dict(
     elif not all(b.ranking is not None for b in profile.ballots):
         raise ValueError("All ballots must have rankings.")
 
-    candidates_lst = list(profile.candidates)
+    candidates_lst = list(profile.candidates_cast)
 
     if sort_candidate_pairs:
         candidates_lst.sort()
