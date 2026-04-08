@@ -67,7 +67,6 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
-        self._validate_params(profile)
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
         )

@@ -11,10 +11,8 @@ def _handle_deprecated_kwargs(kwargs: dict, renames: dict[str, str]) -> dict[str
         renames (dict[str, str]): Mapping of old_name -> new_name.
 
     Returns:
-        dict[str, Any]: Mapping of new_name -> value for each deprecated kwarg found.
-
-    Raises:
-        TypeError: If kwargs contains keys not in renames.
+        dict[str, Any]: Mapping of new_name -> value for each deprecated kwarg found. Any
+            other kwargs are left unchanged in the returned dict.
     """
     for old_name, new_name in renames.items():
         if old_name in kwargs:

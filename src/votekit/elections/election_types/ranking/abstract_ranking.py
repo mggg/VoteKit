@@ -40,7 +40,6 @@ class RankingElection(Election[RankProfile]):
         if n_seats <= 0:
             raise ValueError("n_seats must be positive.")
         self.n_seats = n_seats
-        self._validate_params(profile)
         super().__init__(profile, score_function, sort_high_low)
 
     def _validate_params(self, profile: RankProfile):

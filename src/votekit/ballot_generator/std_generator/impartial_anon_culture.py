@@ -195,6 +195,6 @@ def iac_profile_generator(
     pp_df.index.name = "Ballot Index"
     return RankProfile(
         df=pp_df,
-        max_ranking_length=len(candidates),
+        max_ranking_length=max_ballot_length,
         candidates=candidates,
     )

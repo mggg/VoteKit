@@ -1,5 +1,6 @@
 from time import time
 from typing import cast
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -427,3 +428,25 @@ def test_get_status_df():
 
     assert e.get_status_df(0).sort_index().equals(df_0)
     assert e.get_status_df(1).sort_index().equals(df_1)
+
+
+def test_tiebreak_respected_within_tied_tier():
+    """Regression test: ordered_candidates must use tiebreak_resolutions
+    within tied dominating tiers, not always sorted() (lexicographic).
+
+    profile_tied_borda creates a perfect 3-way cycle where A, B, C all land
+    in a single dominating tier. By mocking tiebreak_set to return reverse-lex
+    ordering (C, B, A), we verify the election result follows the tiebreak
+    rather than defaulting to lexicographic order.
+    """
+    reverse_lex = (frozenset({"C"}), frozenset({"B"}), frozenset({"A"}))
+
+    with patch(
+        "votekit.elections.election_types.ranking.schulze.tiebreak_set",
+        return_value=reverse_lex,
+    ):
+        e = Schulze(profile_tied_borda, tiebreak="random", n_seats=1)
+        assert e.get_elected() == convert_to_fs_tuple(["C"])
+
+        e = Schulze(profile_tied_borda, tiebreak="random", n_seats=2)
+        assert e.get_elected() == convert_to_fs_tuple(["C", "B"])

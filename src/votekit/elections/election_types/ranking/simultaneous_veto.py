@@ -208,7 +208,7 @@ class SimultaneousVeto(RankingElection):
             )
         if scoring_tie_convention not in self.VALID_TIE_CONVENTIONS:
             raise ValueError(
-                f"tiebreak={scoring_tie_convention} is not valid. "
+                f"scoring_tie_convention={scoring_tie_convention} is not valid. "
                 f"Did you mean one of {self.VALID_TIE_CONVENTIONS}?"
             )
 

@@ -21,6 +21,7 @@ docs/package_info/contributing.md
 dev_files
 __pycache__
 TODO.md
+*.mp4
 
 # These are used by maintainers in development process, but should not be committed to the 
 # repository.

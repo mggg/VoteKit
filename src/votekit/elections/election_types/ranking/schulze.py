@@ -148,9 +148,14 @@ class Schulze(RankingElection):
                     frozenset(candidate_tier_set), tiebreak=self.tiebreak
                 )
 
-        ordered_candidates = [
-            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
-        ]
+        ordered_candidates = []
+        for candidate_set in dominating_tiers:
+            if len(candidate_set) == 1:
+                ordered_candidates.extend(candidate_set)
+            else:
+                tier_key = frozenset(candidate_set)
+                for s in tiebreak_resolutions[tier_key]:
+                    ordered_candidates.extend(sorted(s))
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
         remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])
