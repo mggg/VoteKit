@@ -5,7 +5,7 @@ import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.elections import Approval, ElectionState
-from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 profile_no_tied_approval = ScoreProfile(
     ballots=[
@@ -149,7 +149,7 @@ def test_validate_profile():
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
         Approval(profile, n_seats=1)
 
-    with pytest.raises(TypeError, match="must be of type ScoreBallot"):
+    with pytest.raises(ProfileError, match="Profile must be of type ScoreProfile."):
         profile = RankProfile(ballots=[RankBallot(ranking=({"A"},))])
         Approval(cast(ScoreProfile, profile), n_seats=1)
 

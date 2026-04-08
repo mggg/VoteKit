@@ -1,8 +1,10 @@
+from typing import cast
+
 import pytest
 
-from votekit.ballot import ScoreBallot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.elections import GeneralRating
-from votekit.pref_profile import ScoreProfile
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 
 
 def test_init():
@@ -30,6 +32,12 @@ def test_errors():
 
     with pytest.raises(ValueError, match="tiebreak must be None or 'random'."):
         GeneralRating(ScoreProfile(), tiebreak="borda")
+
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        GeneralRating(ScoreProfile())
+
+    with pytest.raises(ProfileError, match="Profile must be of type ScoreProfile."):
+        GeneralRating(cast(ScoreProfile, RankProfile(ballots=[RankBallot(ranking=({"A"},))])))
 
 
 def test_validate_profile():

@@ -38,14 +38,9 @@ class BoostedRandomDictator(RankingElection):
         n_seats: int,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
     ):
-        if n_seats <= 0:
-            raise ValueError("n_seats must be positive.")
-        elif len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.n_seats = n_seats
-
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
         )
 

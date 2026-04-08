@@ -136,7 +136,7 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
+    with pytest.raises(ValueError, match="n_seats must be positive."):
         Plurality(profile_no_tied_fpv, n_seats=0)
 
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
@@ -150,6 +150,15 @@ def test_errors():
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         Plurality(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))
+
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        Plurality(RankProfile())
+
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        Plurality(RankProfile(ballots=(RankBallot(),)))
+
+    with pytest.raises(TypeError, match="has no ranking"):
+        Plurality(RankProfile(ballots=(RankBallot(ranking=({"A"},)), RankBallot())))
 
 
 def test_SNTV_Wrapper():

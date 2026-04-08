@@ -31,14 +31,10 @@ class Plurality(RankingElection):
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
-        if n_seats <= 0:
-            raise ValueError("n_seats must be strictly positive")
-        if len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.n_seats = n_seats
         self.tiebreak = tiebreak
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
             sort_high_low=True,
         )

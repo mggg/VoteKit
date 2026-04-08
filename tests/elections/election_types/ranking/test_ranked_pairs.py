@@ -231,7 +231,7 @@ def test_tied_borda():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
+    with pytest.raises(ValueError, match="n_seats must be positive."):
         RankedPairs(profile_tied_set, n_seats=0)
 
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
