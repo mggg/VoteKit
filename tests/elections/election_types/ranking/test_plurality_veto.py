@@ -89,6 +89,7 @@ def test_get_profile_does_not_corrupt_state():
 
 @pytest.mark.slow
 def test_plurality_veto_4_candidates_deterministic_tiebreaking():
+    state = random.getstate()
     random.seed(919717)
 
     # Parallel execution
@@ -105,10 +106,12 @@ def test_plurality_veto_4_candidates_deterministic_tiebreaking():
     assert np.allclose(0, winner_counts["B"] / TRIALS, atol=4e-2)
     assert np.allclose(0, winner_counts["C"] / TRIALS, atol=4e-2)
     assert np.allclose(0, winner_counts["D"] / TRIALS, atol=8e-2)
+    random.setstate(state)
 
 
 @pytest.mark.slow
 def test_plurality_veto_4_candidates_random_tiebreaking():
+    state = random.getstate()
     random.seed(919717)
 
     # Parallel execution
@@ -122,6 +125,7 @@ def test_plurality_veto_4_candidates_random_tiebreaking():
     assert np.allclose(1 / 4, winner_counts["B"] / TRIALS, atol=8e-2)
     assert np.allclose(1 / 4, winner_counts["C"] / TRIALS, atol=8e-2)
     assert np.allclose(1 / 4, winner_counts["D"] / TRIALS, atol=8e-2)
+    random.setstate(state)
 
 
 def test_serial_veto():

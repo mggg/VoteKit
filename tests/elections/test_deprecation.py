@@ -29,6 +29,8 @@ from votekit.elections import (
 )
 from votekit.pref_profile import RankProfile, ScoreProfile
 
+pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
+
 # =====================
 # == Shared fixtures ==
 # =====================

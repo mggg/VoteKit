@@ -6,7 +6,7 @@ from votekit.pref_profile import ScoreProfile
 filepath = "tests/pref_profile/data/score_profile"
 
 
-def test_csv_bijection_scores():
+def test_csv_bijection_scores(tmp_path):
     profile = ScoreProfile(
         ballots=(
             ScoreBallot(scores={"Alex": 2, "Allen": 4, "D": 1}, voter_set={"Chris"}),
@@ -24,8 +24,9 @@ def test_csv_bijection_scores():
         * 5,
         candidates=["Alex", "Allen", "C", "D", "E"],
     )
-    profile.to_csv(f"{filepath}/test_csv_pp_scores.csv", include_voter_set=True)
-    read_profile = ScoreProfile.from_csv(f"{filepath}/test_csv_pp_scores.csv")
+    out = str(tmp_path / "test_csv_pp_scores.csv")
+    profile.to_csv(out, include_voter_set=True)
+    read_profile = ScoreProfile.from_csv(out)
     assert profile == read_profile
 
 
@@ -123,10 +124,23 @@ def test_csv_misformatted_voter_set_error():
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_no_voter_set.csv")
 
 
-def test_csv_voter_set_whitespace():
+def test_csv_voter_set_whitespace(tmp_path):
+    expected = ScoreProfile(
+        ballots=(
+            ScoreBallot(scores={"Alex": 2, "Allen": 4, "D": 1}, voter_set={"Chris"}),
+            ScoreBallot(scores={"Alex": 2, "Allen": 4, "D": 1}, voter_set={"Peter", "Moon"}),
+            ScoreBallot(scores={"Alex": 2, "Allen": 4, "C": 1}),
+            ScoreBallot(scores={"Alex": 2, "Allen": 4, "C": 1}),
+            ScoreBallot(scores={"Alex": 5, "Allen": 4, "C": 1}),
+        )
+        * 5,
+        candidates=["Alex", "Allen", "C", "D", "E"],
+    )
+    ref = str(tmp_path / "ref.csv")
+    expected.to_csv(ref, include_voter_set=True)
     assert ScoreProfile.from_csv(
         f"{filepath}/test_csv_pp_voter_set_whitespace.csv"
-    ) == ScoreProfile.from_csv(f"{filepath}/test_csv_pp_scores.csv")
+    ) == ScoreProfile.from_csv(ref)
 
 
 def test_csv_backward_compat_old_prefix_format():

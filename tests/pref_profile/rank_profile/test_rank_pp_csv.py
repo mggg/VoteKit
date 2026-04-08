@@ -6,7 +6,7 @@ from votekit.pref_profile import RankProfile
 filepath = "tests/pref_profile/data/rank_profile"
 
 
-def test_csv_bijection_rankings():
+def test_csv_bijection_rankings(tmp_path):
     profile_rankings = RankProfile(
         ballots=(
             RankBallot(
@@ -43,8 +43,9 @@ def test_csv_bijection_rankings():
         candidates=["Aleine", "Alex", "C", "D", "E"],
     )
 
-    profile_rankings.to_csv(f"{filepath}/test_csv_pp_rankings.csv", include_voter_set=True)
-    read_profile = RankProfile.from_csv(f"{filepath}/test_csv_pp_rankings.csv")
+    out = str(tmp_path / "test_csv_pp_rankings.csv")
+    profile_rankings.to_csv(out, include_voter_set=True)
+    read_profile = RankProfile.from_csv(out)
     assert profile_rankings == read_profile
 
 
@@ -174,10 +175,33 @@ def test_csv_misformatted_voter_set_error():
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_ballot_no_voter_set.csv")
 
 
-def test_csv_voter_set_whitespace():
+def test_csv_voter_set_whitespace(tmp_path):
+    expected = RankProfile(
+        ballots=(
+            RankBallot(
+                ranking=({"Aleine", "Alex"}, frozenset(), {"C"}),
+                voter_set={"Chris", "Peter"},
+                weight=1.5,
+            ),
+            RankBallot(
+                ranking=({"Aleine", "Alex"}, frozenset(), {"C"}),
+                voter_set={"Moon"},
+                weight=0.5,
+            ),
+            RankBallot(ranking=({"Aleine"}, {"Alex"})),
+            RankBallot(ranking=({"Aleine"}, {"Alex"})),
+            RankBallot(ranking=({"Aleine"}, {"Alex"})),
+        )
+        * 5,
+        max_ranking_length=3,
+        candidates=["Aleine", "Alex", "C", "D", "E"],
+    )
+    # Write a clean reference CSV so the comparison is self-contained
+    ref = str(tmp_path / "ref.csv")
+    expected.to_csv(ref, include_voter_set=True)
     assert RankProfile.from_csv(
         f"{filepath}/test_csv_pp_voter_set_whitespace.csv"
-    ) == RankProfile.from_csv(f"{filepath}/test_csv_pp_rankings.csv")
+    ) == RankProfile.from_csv(ref)
 
 
 def test_csv_backward_compat_old_prefix_format():

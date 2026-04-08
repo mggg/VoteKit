@@ -3,7 +3,7 @@
 version: "3"
 
 vars:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.13"
 
 tasks:
   default:
@@ -46,6 +46,13 @@ tasks:
       - >-
         uv --managed-python sync --locked --all-groups --all-extras
         --python {{.PYTHON_VERSION}}
+
+  update-venv:
+    desc: Generates a new lock file for dev use and syncs current enviroment
+    silent: true
+    cmds:
+      - uv python install {{.PYTHON_VERSION}}
+      - uv sync --all-groups --all-extras
 
   setup:
     desc: Set up the project environment for development
