@@ -211,6 +211,49 @@ def test_csv_backward_compat_old_prefix_format():
     assert profile.max_ranking_length == 3
 
 
+def test_csv_to_string_round_trip(tmp_path):
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+            RankBallot(ranking=({"B"}, {"A"}, {"C"})),
+        ],
+        max_ranking_length=3,
+    )
+    csv_str = profile.to_csv()
+    assert isinstance(csv_str, str)
+
+    out = tmp_path / "round_trip.csv"
+    out.write_text(csv_str, encoding="utf-8")
+    read_profile = RankProfile.from_csv(str(out))
+    assert profile == read_profile
+
+
+def test_csv_to_string_into_zipfile(tmp_path):
+    import zipfile
+
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+            RankBallot(ranking=({"B"}, {"A"}, {"C"})),
+        ],
+        max_ranking_length=3,
+    )
+    csv_str = profile.to_csv()
+
+    assert csv_str is not None
+
+    zip_path = tmp_path / "profiles.zip"
+    with zipfile.ZipFile(str(zip_path), "w") as zf:
+        zf.writestr("profile.csv", csv_str)
+
+    with zipfile.ZipFile(str(zip_path), "r") as zf:
+        extracted = tmp_path / "extracted.csv"
+        extracted.write_bytes(zf.read("profile.csv"))
+
+    read_profile = RankProfile.from_csv(str(extracted))
+    assert profile == read_profile
+
+
 def test_csv_nine_errors():
     with pytest.raises(ValueError, match="There are errors on 7 lines"):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_7_errors.csv")

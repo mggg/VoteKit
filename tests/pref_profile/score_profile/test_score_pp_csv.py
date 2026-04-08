@@ -149,6 +149,49 @@ def test_csv_backward_compat_old_prefix_format():
     assert profile.candidates == ("Alex", "Allen", "C", "D", "E")
 
 
+def test_csv_to_string_round_trip(tmp_path):
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 2, "B": 1, "C": 0}),
+            ScoreBallot(scores={"A": 0, "B": 3, "C": 1}),
+        ],
+        candidates=["A", "B", "C"],
+    )
+    csv_str = profile.to_csv()
+    assert isinstance(csv_str, str)
+
+    out = tmp_path / "round_trip.csv"
+    out.write_text(csv_str, encoding="utf-8")
+    read_profile = ScoreProfile.from_csv(str(out))
+    assert profile == read_profile
+
+
+def test_csv_to_string_into_zipfile(tmp_path):
+    import zipfile
+
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 2, "B": 1, "C": 0}),
+            ScoreBallot(scores={"A": 0, "B": 3, "C": 1}),
+        ],
+        candidates=["A", "B", "C"],
+    )
+    csv_str = profile.to_csv()
+
+    assert csv_str is not None
+
+    zip_path = tmp_path / "profiles.zip"
+    with zipfile.ZipFile(str(zip_path), "w") as zf:
+        zf.writestr("profile.csv", csv_str)
+
+    with zipfile.ZipFile(str(zip_path), "r") as zf:
+        extracted = tmp_path / "extracted.csv"
+        extracted.write_bytes(zf.read("profile.csv"))
+
+    read_profile = ScoreProfile.from_csv(str(extracted))
+    assert profile == read_profile
+
+
 def test_csv_seven_errors():
     with pytest.raises(ValueError, match="There are errors on 7 lines"):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_7_errors.csv")

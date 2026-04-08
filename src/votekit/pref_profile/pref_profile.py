@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import os
 import pickle
 import urllib.request
@@ -864,23 +865,28 @@ class RankProfile(PreferenceProfile):
 
     def to_csv(
         self,
-        fpath: Union[str, PathLike, Path],
+        fpath: str | PathLike | Path | None = None,
         include_voter_set: bool = False,
         weight_precision: int = 2,
-    ):
+    ) -> str | None:
         """
         Saves PreferenceProfile to a custom CSV format.
 
         Args:
-            fpath (Union[str, PathLike, Path]): Path to the saved csv.
+            fpath (str | PathLike | Path | None, optional): Path to the saved csv. If None,
+                returns the CSV content as a string instead of writing to disk. Defaults to None.
             include_voter_set (bool, optional): Whether or not to include the voter set of each
                 ballot. Defaults to False.
             weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+
+        Returns:
+            str | None: The CSV content as a string when ``fpath`` is None, otherwise None.
+
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
             ValueError: File path must be provided.
         """
-        if fpath == "":
+        if fpath is not None and str(fpath) == "":
             raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
@@ -896,6 +902,12 @@ class RankProfile(PreferenceProfile):
         ]
         rows = header + [data_col_names] + ballot_rows
 
+        if fpath is None:
+            sio = io.StringIO(newline="")
+            writer = csv.writer(sio)
+            writer.writerows(rows)
+            return sio.getvalue()
+
         with open(
             str(fpath),
             "w",
@@ -904,6 +916,7 @@ class RankProfile(PreferenceProfile):
         ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
+        return None
 
     @classmethod
     def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
@@ -1400,24 +1413,28 @@ class ScoreProfile(PreferenceProfile):
 
     def to_csv(
         self,
-        fpath: Union[str, PathLike, Path],
+        fpath: str | PathLike | Path | None = None,
         include_voter_set: bool = False,
         weight_precision: int = 2,
-    ):
+    ) -> str | None:
         """
         Saves PreferenceProfile to a custom CSV format.
 
         Args:
-            fpath (Union[str, PathLike, Path]): Path to the saved csv.
+            fpath (str | PathLike | Path | None, optional): Path to the saved csv. If None,
+                returns the CSV content as a string instead of writing to disk. Defaults to None.
             include_voter_set (bool, optional): Whether or not to include the voter set of each
                 ballot. Defaults to False.
             weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+
+        Returns:
+            str | None: The CSV content as a string when ``fpath`` is None, otherwise None.
 
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
             ValueError: File path must be provided.
         """
-        if fpath == "":
+        if fpath is not None and str(fpath) == "":
             raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
@@ -1433,6 +1450,12 @@ class ScoreProfile(PreferenceProfile):
         ]
         rows = header + [data_col_names] + ballot_rows
 
+        if fpath is None:
+            sio = io.StringIO(newline="")
+            writer = csv.writer(sio)
+            writer.writerows(rows)
+            return sio.getvalue()
+
         with open(
             str(fpath),
             "w",
@@ -1441,6 +1464,7 @@ class ScoreProfile(PreferenceProfile):
         ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
+        return None
 
     @classmethod
     def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
