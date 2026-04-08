@@ -11,9 +11,10 @@ from votekit.pref_profile import RankProfile
 from votekit.utils import first_place_votes
 
 
-def run_election_once(test_profile: RankProfile, rng_seed: int = 42) -> str:
+def run_election_once(test_profile: RankProfile, seed: int) -> str:
     """Run one election and return the winner."""
-    np.random.seed(rng_seed)  # Ensure randomness in each parallel execution
+    random.seed(seed)
+    np.random.seed(seed)
     election = RandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
 
@@ -33,13 +34,14 @@ def test_random_dictator_simple():
     ]
     test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
-    winner_counts = {c: 0 for c in candidates}
     trials = 1000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile, rng_seed) for rng_seed in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -52,8 +54,6 @@ def test_random_dictator_simple():
 
 @pytest.mark.slow
 def test_random_dictator_4_candidates_without_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     full_power = list(
@@ -77,11 +77,13 @@ def test_random_dictator_4_candidates_without_ties():
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
     trials = 750
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -94,8 +96,6 @@ def test_random_dictator_4_candidates_without_ties():
 
 @pytest.mark.slow
 def test_random_dictator_4_candidates_with_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     powerset = list(
@@ -109,6 +109,8 @@ def test_random_dictator_4_candidates_with_ties():
     test_profile = RankProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
 
     trials = 750
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -117,7 +119,7 @@ def test_random_dictator_4_candidates_with_ties():
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -130,13 +132,13 @@ def test_random_dictator_4_candidates_with_ties():
 
 @pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     ballots = all_possible_ranked_ballots(candidates)
 
     trials = 500
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:
@@ -151,7 +153,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}

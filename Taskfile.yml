@@ -95,7 +95,7 @@ tasks:
       TERM: xterm
     cmds:
       - task: sync
-      - uv run pytest {{.PYTEST_ARGS}}
+      - PYTHONHASHSEED=0 uv run pytest {{.PYTEST_ARGS}}
 
   test:
     desc: Run tests using pytest (`task test -- tests/foo` to scope the run)
