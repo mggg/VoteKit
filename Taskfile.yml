@@ -65,27 +65,27 @@ tasks:
     desc: Format the codebase using Ruff
     silent: true
     cmds:
-      - uv run ruff check --select I --fix src tests
-      - uv run ruff format src tests
+      - uv run ruff check --select I --fix src tests scripts
+      - uv run ruff format src tests scripts
 
   format-check:
     desc: Check code formatting using Ruff
     silent: true
     cmds:
-      - uv run ruff check --select I --diff src tests
-      - uv run ruff format --check src tests
+      - uv run ruff check --select I --diff src tests scripts
+      - uv run ruff format --check src tests scripts
 
   lint:
     desc: Lint the codebase using Ruff
     silent: true
     cmds:
-      - uv run ruff check src tests
+      - uv run ruff check src tests scripts
 
   typecheck:
     desc: Run type checks using Ty
     silent: true
     cmds:
-      - uv run ty check src tests
+      - uv run ty check src tests scripts
 
   all-checks:
     desc: Run all checks (formatting, linting, type checking)
@@ -165,6 +165,32 @@ tasks:
       - cmd /c "if exist .pytest_cache rmdir /s /q .pytest_cache"
       - cmd /c "if exist .ruff_cache rmdir /s /q .ruff_cache"
       - for /r . %d in (__pycache__) do @if exist "%d" rmdir /s /q "%d"
+
+  draft-release:
+    desc: Bump version, update docs, and create a tagged commit (`task draft-release -- 3.5.0`)
+    silent: true
+    preconditions:
+      - sh: test -n "{{.CLI_ARGS}}"
+        msg: "Usage: task draft-release -- <version>  (e.g. task draft-release -- 3.5.0)"
+    vars:
+      VERSION: "{{.CLI_ARGS}}"
+    cmds:
+      - uv run python scripts/draft_release.py {{.VERSION}}
+      - git add pyproject.toml CHANGELOG.md
+      - git commit -m "Release v{{.VERSION}}"
+      - git tag -a "v{{.VERSION}}" -m "v{{.VERSION}}"
+      - echo "Created commit and tag v{{.VERSION}}. Review with 'git log --oneline -1' and 'git tag -l'."
+      - echo "When ready, run 'git push origin main --tags' then 'task publish'."
+
+  publish:
+    desc: Build and publish to PyPI (run after pushing a tagged release)
+    silent: true
+    cmds:
+      - task: sync
+      - task: all-checks
+      - task: test-slow
+      - uv build
+      - uv publish
 
   docs:
     desc: Build the documentation
