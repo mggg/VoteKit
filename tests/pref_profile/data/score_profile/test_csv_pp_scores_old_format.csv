@@ -1,10 +1,10 @@
 VoteKit ScoreProfile
 Candidates
-(Alex:0),(Allen:1),(C:2),(D:3),(E:4)
+(Alex:Ale),(Allen:All),(C:C),(D:D),(E:E)
 Includes Voter Set
 True
 =,=,=,=,=,=,=,=,=,=
-0,1,2,3,4,&,Weight,&,Voter Set
+Ale,All,C,D,E,&,Weight,&,Voter Set
 2.0,4.0,0.0,1.0,0.0,&,1.0,&,Chris
 2.0,4.0,0.0,1.0,0.0,&,1.0,&,Moon,Peter
 2.0,4.0,1.0,0.0,0.0,&,1.0,&

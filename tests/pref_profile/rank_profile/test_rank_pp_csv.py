@@ -180,6 +180,13 @@ def test_csv_voter_set_whitespace():
     ) == RankProfile.from_csv(f"{filepath}/test_csv_pp_rankings.csv")
 
 
+def test_csv_backward_compat_old_prefix_format():
+    profile = RankProfile.from_csv(f"{filepath}/test_csv_pp_rankings_old_format.csv")
+    assert len(profile.ballots) == 25
+    assert profile.candidates == ("Aleine", "Alex", "C", "D", "E")
+    assert profile.max_ranking_length == 3
+
+
 def test_csv_nine_errors():
     with pytest.raises(ValueError, match="There are errors on 7 lines"):
         RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_7_errors.csv")

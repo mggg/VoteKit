@@ -129,6 +129,12 @@ def test_csv_voter_set_whitespace():
     ) == ScoreProfile.from_csv(f"{filepath}/test_csv_pp_scores.csv")
 
 
+def test_csv_backward_compat_old_prefix_format():
+    profile = ScoreProfile.from_csv(f"{filepath}/test_csv_pp_scores_old_format.csv")
+    assert len(profile.ballots) == 25
+    assert profile.candidates == ("Alex", "Allen", "C", "D", "E")
+
+
 def test_csv_seven_errors():
     with pytest.raises(ValueError, match="There are errors on 7 lines"):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_7_errors.csv")

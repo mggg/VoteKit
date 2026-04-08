@@ -886,11 +886,7 @@ class RankProfile(PreferenceProfile):
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        prefix_idx = 1
-        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
-        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
-            prefix_idx += 1
-            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 
         header = self.__to_rank_csv_header(candidate_mapping, include_voter_set)
         data_col_names = self.__to_rank_csv_data_column_names(include_voter_set, candidate_mapping)
@@ -1427,11 +1423,7 @@ class ScoreProfile(PreferenceProfile):
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        prefix_idx = 1
-        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
-        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
-            prefix_idx += 1
-            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 
         header = self.__to_score_csv_header(candidate_mapping, include_voter_set)
         data_col_names = self.__to_score_csv_data_column_names(include_voter_set, candidate_mapping)
