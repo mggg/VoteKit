@@ -34,11 +34,6 @@ class RankedPairs(RankingElection):
         tiebreak: str = "lexicographic",
         n_seats: int = 1,
     ):
-        if n_seats <= 0:
-            raise ValueError("n_seats must be strictly positive")
-        if len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.n_seats = n_seats
         self.tiebreak = tiebreak
 
         def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
@@ -52,6 +47,7 @@ class RankedPairs(RankingElection):
 
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=quick_tiebreak_candidates,
             sort_high_low=True,
         )

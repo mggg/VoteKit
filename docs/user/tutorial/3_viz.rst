@@ -252,8 +252,8 @@ notions of distance between ``PreferenceProfiles``. A multidimensional
 scaling plot (MDS) is a 2D representation of high-dimensional data that
 attempts to minimize the distortion of the data. VoteKit comes with two
 kinds of distance metrics: earth-mover distance and :math:`L_p`
-distance. You can read about these in the `VoteKit
-documentation <../../social_choice_docs/scr.html#distances-between-preferenceprofiles>`__.
+distance. You can read about these in the
+:ref:`VoteKit documentation <distances-between-preferenceprofiles>`.
 
 Let’s explore how an MDS plot can provide a powerful visualization.
 First we will initialize our generators.

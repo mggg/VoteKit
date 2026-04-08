@@ -292,6 +292,8 @@ without replacement from each individual preference interval (we do not
 concatenate them!).
 
 
+.. _slate-bradley-terry:
+
 Slate-Bradley-Terry
 ~~~~~~~~~~~~~~~~~~~
 
@@ -552,6 +554,8 @@ Bloc Plurality
 Like approval voting, but there is a user-specified limit of :math:`k` approvals per voter.  
 Most commonly, this would be run with :math:`k=m`.
 
+
+.. _distances-between-preferenceprofiles:
 
 Distances between PreferenceProfiles
 ====================================

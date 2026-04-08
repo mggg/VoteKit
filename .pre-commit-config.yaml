@@ -8,16 +8,19 @@ repos:
     hooks:
       - id: format-check
         name: format-check
-        entry: sh -c 'command -v task >/dev/null 2>&1 && task format-check || go-task format-check'
+        entry: sh -c 'uv run ruff check --select I --diff "$@" && uv run ruff format --check "$@"' --
         language: system
-        pass_filenames: false
+        types: [python]
+        pass_filenames: true
       - id: lint
         name: lint
-        entry: sh -c 'command -v task >/dev/null 2>&1 && task lint || go-task lint'
+        entry: uv run ruff check
         language: system
-        pass_filenames: false
+        types: [python]
+        pass_filenames: true
       - id: typecheck
         name: typecheck
         entry: sh -c 'command -v task >/dev/null 2>&1 && task typecheck || go-task typecheck'
         language: system
+        types: [python]
         pass_filenames: false

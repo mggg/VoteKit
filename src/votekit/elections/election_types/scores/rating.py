@@ -3,6 +3,7 @@ from typing import Optional
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
 from votekit.elections.election_state import ElectionState
+from votekit.exceptions import ProfileError
 from votekit.models import Election
 from votekit.pref_profile import ScoreProfile
 from votekit.utils import (
@@ -51,29 +52,42 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
-        self._validate_profile(profile)
+        self._validate_params(profile)
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
         )
 
-    def _validate_profile(self, profile: ScoreProfile):
+    def _validate_params(self, profile: ScoreProfile):
         """
-        Ensures that every ballot has a score dictionary and each voter has not gone over their
-        score limit per candidate and total budget. Raises a TypeError if no score dictionary,
-        and a value error for budget/score limit violation.
+        Validates election parameters against the profile.
 
         Args:
-            profile (PreferenceProfile): Profile to validate.
+            profile (ScoreProfile): Profile of ballots.
 
         Raises:
-            TypeError: no score dictionary in a ballot.
-            TypeError: Ballot must have non-negative scores.
-            ValueError: Ballot violates score limit per candidate.
-            ValueError: Ballot violates score budget.
-            ValueError: Not enough candidates received votes to be elected.
+            ValueError: If there are not enough candidates who received votes to fill
+                the requested seats.
         """
         if len(profile.candidates_cast) < self.n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
+
+    def _validate_profile(self, profile: ScoreProfile):
+        """
+        Validates that every ballot has a score dictionary and each voter has not gone over
+        their score limit per candidate and total budget.
+
+        Args:
+            profile (ScoreProfile): Profile to validate.
+
+        Raises:
+            ProfileError: If profile is not a ScoreProfile or is empty.
+            TypeError: If a ballot has no scores, negative scores, or violates limits.
+        """
+        if not isinstance(profile, ScoreProfile):
+            raise ProfileError("Profile must be of type ScoreProfile.")
+
+        if profile.df.empty:
+            raise ProfileError("Profile must contain at least one ballot.")
 
         for b in profile.ballots:
             if not isinstance(b, ScoreBallot):
@@ -173,48 +187,3 @@ class Rating(GeneralRating):
         super().__init__(
             profile, n_seats=n_seats, per_candidate_limit=per_candidate_limit, tiebreak=tiebreak
         )
-
-
-class Limited(GeneralRating):
-    r"""
-    Voters can score each candidate, but have a total budget of
-    :math:`\text{budget}\le n_\text{seats}` points. Winners are those with highest total score.
-
-    Args:
-        profile (ScoreProfile): Profile to conduct election on.
-        n_seats (int, optional): Number of seats to elect. Defaults to 1.
-        budget (float, optional): Total budget per voter. Defaults to 1.
-        tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
-            Defaults to None, in which case a tie raises a ValueError.
-    """
-
-    def __init__(
-        self,
-        profile: ScoreProfile,
-        n_seats: int = 1,
-        budget: float = 1,
-        tiebreak: Optional[str] = None,
-    ):
-        if budget > n_seats:
-            raise ValueError("budget must be less than or equal to n_seats.")
-
-        super().__init__(
-            profile, n_seats=n_seats, per_candidate_limit=budget, budget=budget, tiebreak=tiebreak
-        )
-
-
-class Cumulative(Limited):
-    """
-    Voters can score each candidate, but have a total budget of :math:`n_\text{seats}` points,
-    where :math:`n_\text{seats}` is the number of seats to be filled. Winners are those with
-    highest total score.
-
-    Args:
-        profile (PreferenceProfile): Profile to conduct election on.
-        n_seats (int, optional): Number of seats to elect. Defaults to 1.
-        tiebreak (str, optional): Tiebreak method to use. Options are None, and 'random'.
-            Defaults to None, in which case a tie raises a ValueError.
-    """
-
-    def __init__(self, profile: ScoreProfile, n_seats: int = 1, tiebreak: Optional[str] = None):
-        super().__init__(profile, n_seats=n_seats, budget=n_seats, tiebreak=tiebreak)

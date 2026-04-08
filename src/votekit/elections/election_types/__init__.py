@@ -1,4 +1,5 @@
-from .approval import Approval, BlocPlurality
+from .approval import Approval
+from .block_plurality import BlockPlurality
 from .ranking import (
     IRV,
     SNTV,
@@ -21,6 +22,7 @@ from .ranking import (
     TopTwo,
 )
 from .scores import Cumulative, GeneralRating, Limited, Rating
+from .scores.block_plurality import BlocPlurality
 
 __all__ = [
     "RankingElection",
@@ -40,6 +42,7 @@ __all__ = [
     "Limited",
     "Cumulative",
     "Approval",
+    "BlockPlurality",
     "BlocPlurality",
     "PluralityVeto",
     "SerialVeto",

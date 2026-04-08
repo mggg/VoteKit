@@ -157,7 +157,7 @@ def test_errors():
     with pytest.raises(ValueError, match="Misspelled or unknown quota type."):
         Alaska(test_profile, quota=cast(Literal["droop", "hare"] | None, "drip"))
 
-    with pytest.raises(TypeError, match="has no ranking"):
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
         Alaska(RankProfile(ballots=(RankBallot(),)))
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):

@@ -144,7 +144,7 @@ class SimultaneousVeto(RankingElection):
 
         self._sv_states: dict[int, _SVState] = {}
 
-        super().__init__(grouped_profile, score_function=score_func)
+        super().__init__(grouped_profile, n_seats=n_seats, score_function=score_func)
 
     def _compute_scores_dict(self) -> dict[str, float]:
         """

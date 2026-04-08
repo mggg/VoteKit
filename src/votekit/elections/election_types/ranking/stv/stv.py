@@ -712,8 +712,6 @@ class STV(RankingElection):
 
         if n_seats <= 0:
             raise ValueError("n_seats must be positive.")
-        elif len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
         self.n_seats = n_seats
         self.transfer = transfer
         self.quota = quota
@@ -725,6 +723,7 @@ class STV(RankingElection):
 
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=_first_place_votes_from_df_no_ties,
             sort_high_low=True,
         )

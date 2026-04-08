@@ -45,9 +45,6 @@ class Borda(RankingElection):
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
     ):
-        if len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.n_seats = n_seats
         self.tiebreak = tiebreak
         if score_vector is None:
             if not isinstance(profile, RankProfile):
@@ -62,7 +59,9 @@ class Borda(RankingElection):
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
-        super().__init__(profile, score_function=score_function, sort_high_low=True)
+        super().__init__(
+            profile, n_seats=n_seats, score_function=score_function, sort_high_low=True
+        )
 
     def _is_finished(self):
         # single round election

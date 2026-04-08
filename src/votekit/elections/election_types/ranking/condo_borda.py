@@ -18,10 +18,7 @@ class CondoBorda(RankingElection):
     """
 
     def __init__(self, profile: RankProfile, n_seats: int = 1):
-        if len(profile.candidates_cast) < n_seats:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.n_seats = n_seats
-        super().__init__(profile, score_function=borda_scores)
+        super().__init__(profile, n_seats=n_seats, score_function=borda_scores)
 
     def _is_finished(self):
         # single round election

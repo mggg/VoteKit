@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_rank_csv,
     _parse_ballot_from_score_csv,
@@ -26,11 +27,6 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
-
-
-class ProfileError(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
 
 
 class PreferenceProfile:

@@ -33,21 +33,45 @@ class RankingElection(Election[RankProfile]):
     def __init__(
         self,
         profile: RankProfile,
+        n_seats: int = 1,
         score_function: Optional[Callable[[RankProfile], dict[str, float]]] = None,
         sort_high_low: bool = True,
     ):
+        if n_seats <= 0:
+            raise ValueError("n_seats must be positive.")
+        self.n_seats = n_seats
+        self._validate_params(profile)
         super().__init__(profile, score_function, sort_high_low)
+
+    def _validate_params(self, profile: RankProfile):
+        """
+        Validates election parameters against the profile.
+
+        Args:
+            profile (RankProfile): Profile of ballots.
+
+        Raises:
+            ValueError: If there are not enough candidates who received votes to fill
+                the requested seats.
+        """
+        if len(profile.candidates_cast) < self.n_seats:
+            raise ValueError("Not enough candidates received votes to be elected.")
 
     def _validate_profile(self, profile: RankProfile):
         """
-        Validate that a profile contains appropriate ballots for election. Raises
-        TypeError if not.
+        Validates that a profile contains appropriate ballots for the election.
 
         Args:
             profile (RankProfile): Profile of ballots.
         """
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
+
+        if profile.df.empty:
+            raise ProfileError("Profile must contain at least one ballot.")
+
+        if profile.max_ranking_length is None or profile.max_ranking_length < 1:
+            raise ProfileError("Profile must contain at least one ranked candidate.")
 
         assert profile.max_ranking_length is not None
         ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]

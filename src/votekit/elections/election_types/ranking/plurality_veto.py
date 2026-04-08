@@ -120,6 +120,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         # Election base class calls _run_election on instantiation, so this must be at the end
         super().__init__(
             grouped_profile,
+            n_seats=n_seats,
             score_function=partial(first_place_votes, tie_convention=scoring_tie_convention),
         )
 

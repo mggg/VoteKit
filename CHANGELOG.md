@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-03-31
+
+## Added
+- New election methods:
+    - `SimultaneousVeto`, which supports `'first_place'`, `'uniform'`, `'borda'`, and `'harmonic'` candidate weighting schemes. (PR #333)
+    - `SerialVeto`, a variant of `PluralityVeto`. Both are now subclasses of a shared `SequentialVeto` base class. (PR #325)
+    - `Schulze`, implementing the Schulze/beatpath method. (PR #320, closes #318)
+    - `AlbanySTV`, `FastIRV`, and `FastSequentialRCV`, built on the new `NumpyInnerSTV` abstract base class. (PR #249)
+- `STVAnimation`, a new module for visualizing STV elections as animations via the optional `manim` dependency.
+  Supports light/dark mode, custom color palettes, candidate nicknames, and inline notebook rendering. (PR #249)
+- A `strict` parameter to `PairwiseComparisonGraph.get_condorcet_cycles` for detecting strict Condorcet cycles. (PR #330, closes #327)
+- An `allow_zero_support_candidates` parameter to `BlocSlateConfig`. (PR #338, closes #298)
+- Docstrings for all spatial ballot generator models. (PR #329, closes #328)
+- `go-task` task runner and updated contributing guide. (PR #342, closes #277)
+
+## Changed
+- Renamed the `m` parameter to `n_seats` in all election classes and in `r_representation_score`.
+  This is a breaking change for any code using `m` as a keyword argument. (PR #355)
+- Renamed `BlocPlurality` to `BlockPlurality`. `BlocPlurality` still works but is now deprecated. (PR #355)
+- Renamed parameters in the score election classes: (PR #355)
+    - `GeneralRating`: `m` → `n_seats`, `k` → `per_candidate_limit`, and added `budget`.
+    - `Cumulative` and `Limited`: `m` → `n_seats`, `k` → `budget`.
+- Overhauled `PluralityVeto`: `tiebreak=None` is no longer accepted (default `'first_place'`,
+  backup `'lex'`), added a `tiebreak_order` attribute, ~50-60x faster for deterministic
+  tiebreaks, and unranked candidates are now eligible to be vetoed. (PR #325)
+- Refactored `BlocSlateConfig` to reduce nesting; `get_preference_interval_for_bloc_and_slate`
+  now only validates the target bloc/slate. (PR #338, closes #299)
+- Restructured STV as a subpackage; refactored `NumpyElection` into the abstract base class
+  `NumpyInnerSTV`. Removed `ElectionCore`, `STVCore`, and `NumpyElection`. (PR #249)
+- Migrated to `uv` for package management and `go-task` for task running.
+  Replaced `black`/`isort`/`mypy` with `ruff`/`ty`. (PR #342, #352)
+
+## Fixed
+- Issues #325, #334, #338, #348
+
 ## [3.3.1] - 2025-11-24
 ## Added
 
