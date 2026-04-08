@@ -36,9 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NumpyInnerSTV`. Removed `ElectionCore`, `STVCore`, and `NumpyElection`. (PR #249)
 - Migrated to `uv` for package management and `go-task` for task running.
   Replaced `black`/`isort`/`mypy` with `ruff`/`ty`. (PR #342, #352)
+- `PreferenceProfile.to_csv` now uses integer IDs instead of shortened prefix strings
+  for candidate labels. Old-format CSVs are still readable. (PR #361)
+- `BlockPlurality` now accepts both `RankProfile` and `ScoreProfile`. (PR #360, closes #351)
+- `RankingElection` validates non-empty profiles and sufficient candidates for seats. (PR #360, closes #356)
+- Pre-commit hooks now only run on staged files. (PR #360)
 
 ## Fixed
-- Issues #325, #334, #338, #348
+- Issues #309, #325, #334, #338, #339, #348, #350, #351, #356
 
 ## [3.3.1] - 2025-11-24
 ## Added
