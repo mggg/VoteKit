@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - Renamed the `m` parameter to `n_seats` in all election classes and in `r_representation_score`.
-  This is a breaking change for any code using `m` as a keyword argument. (PR #355)
+  Old names still accepted via `**kwargs` with a `DeprecationWarning`. (PR #355)
 - Renamed `BlocPlurality` to `BlockPlurality`. `BlocPlurality` still works but is now deprecated. (PR #355)
-- Renamed parameters in the score election classes: (PR #355)
+- Renamed parameters in the score election classes (old names still accepted with deprecation warnings): (PR #355)
     - `GeneralRating`: `m` → `n_seats`, `k` → `per_candidate_limit`, and added `budget`.
     - `Cumulative` and `Limited`: `m` → `n_seats`, `k` → `budget`.
 - Overhauled `PluralityVeto`: `tiebreak=None` is no longer accepted (default `'first_place'`,

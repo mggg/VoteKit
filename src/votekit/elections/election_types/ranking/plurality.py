@@ -2,6 +2,7 @@ from functools import partial
 from typing import Literal, Optional
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -27,10 +28,18 @@ class Plurality(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
         super().__init__(
             profile,
@@ -111,5 +120,18 @@ class SNTV(Plurality):
 
     """
 
-    def __init__(self, profile: RankProfile, n_seats: int = 1, tiebreak: Optional[str] = None):
+    def __init__(
+        self,
+        profile: RankProfile,
+        n_seats: int | None = None,
+        tiebreak: Optional[str] = None,
+        **kwargs,
+    ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         super().__init__(profile, n_seats, tiebreak)

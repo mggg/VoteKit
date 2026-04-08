@@ -1,5 +1,6 @@
 from typing import Literal, Optional, Union
 
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_types.ranking.block_plurality import _RankedBlockPlurality
 from votekit.elections.election_types.scores.block_plurality import (
     _ScoreBlockPlurality,
@@ -34,10 +35,11 @@ class BlockPlurality(Election):
     def __init__(
         self,
         profile: Union[RankProfile, ScoreProfile],
-        n_seats: int = 1,
+        n_seats: int | None = None,
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        **kwargs,
     ) -> None:
         # Never called; __new__ returns a different type.
         # Added as a stub for the type checker
@@ -46,11 +48,19 @@ class BlockPlurality(Election):
     def __new__(
         cls,
         profile: Union[RankProfile, ScoreProfile],
-        n_seats: int = 1,
+        n_seats: int | None = None,
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        **kwargs,
     ) -> _RankedBlockPlurality | _ScoreBlockPlurality:
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         if isinstance(profile, RankProfile):
             return _RankedBlockPlurality(
                 profile,

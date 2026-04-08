@@ -2,6 +2,7 @@ from functools import partial
 from typing import Literal, Optional, Sequence
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import ProfileError, RankProfile
@@ -40,11 +41,19 @@ class Borda(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         score_vector: Optional[Sequence[float]] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
         if score_vector is None:
             if not isinstance(profile, RankProfile):

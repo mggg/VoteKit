@@ -6,6 +6,7 @@ from typing import Literal
 import numpy as np
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -65,10 +66,18 @@ class _IterativeVetoBase(RankingElection, ABC):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         grouped_profile = profile.group_ballots()
 
         self.n_seats = n_seats

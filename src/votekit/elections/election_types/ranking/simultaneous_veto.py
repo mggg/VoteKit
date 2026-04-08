@@ -8,6 +8,7 @@ import numpy as np
 from typing_extensions import Sentinel
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -92,7 +93,7 @@ class SimultaneousVeto(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         candidate_weights: (
             Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int
         ) = "first_place",
@@ -101,7 +102,15 @@ class SimultaneousVeto(RankingElection):
         ] = "first_place",
         scoring_tie_convention: Literal["high", "average", "low"] = "average",
         return_all_tied_winners: bool = False,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self._sv_validate_input(profile, n_seats, tiebreak, scoring_tie_convention)
         self.n_seats = n_seats
         self.candidate_weights = candidate_weights

@@ -1,5 +1,6 @@
 import networkx as nx
 
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.graphs.pairwise_comparison_graph import (
@@ -32,8 +33,16 @@ class RankedPairs(RankingElection):
         self,
         profile: RankProfile,
         tiebreak: str = "lexicographic",
-        n_seats: int = 1,
+        n_seats: int | None = None,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
 
         def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:

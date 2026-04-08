@@ -3,6 +3,7 @@ from functools import partial
 from typing import Literal
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -35,9 +36,17 @@ class BoostedRandomDictator(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int,
+        n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            raise TypeError("Missing required argument: 'n_seats'.")
         super().__init__(
             profile,
             n_seats=n_seats,

@@ -10,6 +10,7 @@ from votekit.cleaning import (
     remove_and_condense_rank_profile,
     remove_cand_rank_ballot,
 )
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
@@ -512,11 +513,12 @@ class FastSTV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         transfer: TransferType = "fractional",
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        **kwargs,
     ):
         """
         Initialize a fast STV election.
@@ -537,6 +539,13 @@ class FastSTV(NumpyInnerSTV):
                 "cambridge_random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
         """
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         super().__init__(
             profile=profile,
             n_seats=n_seats,
@@ -558,11 +567,12 @@ class AlbanySTV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         transfer: TransferType = "fractional",
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        **kwargs,
     ):
         """
         Initialize an Albany STV election.
@@ -582,6 +592,13 @@ class AlbanySTV(NumpyInnerSTV):
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
         """
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         super().__init__(
             profile=profile,
             n_seats=n_seats,
@@ -641,10 +658,11 @@ class FastSequentialRCV(NumpyInnerSTV):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int | None = 1,
+        n_seats: int | None = None,
         quota: QuotaType | None = "droop",
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
+        **kwargs,
     ):
         """
         Initialize a fast sequential RCV election.
@@ -661,6 +679,13 @@ class FastSequentialRCV(NumpyInnerSTV):
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
         """
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         super().__init__(
             profile=profile,
             n_seats=n_seats,
@@ -679,7 +704,7 @@ class STV(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         transfer: Callable[
             [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
@@ -687,7 +712,15 @@ class STV(RankingElection):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         """
         Initialize an STV election.
 
@@ -1080,10 +1113,11 @@ class SequentialRCV(STV):
     def __init__(
         self,
         profile: RankProfile,
-        n_seats: int = 1,
+        n_seats: int | None = None,
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        **kwargs,
     ):
         """
         Initialize a sequential RCV election.
@@ -1100,6 +1134,13 @@ class SequentialRCV(STV):
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
         """
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
 
         def _transfer(
             winner: str,

@@ -2,6 +2,7 @@ from typing import Optional
 
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.exceptions import ProfileError
 from votekit.models import Election
@@ -33,11 +34,25 @@ class GeneralRating(Election[ScoreProfile]):
     def __init__(
         self,
         profile: ScoreProfile,
-        n_seats: int = 1,
-        per_candidate_limit: float = 1,
+        n_seats: int | None = None,
+        per_candidate_limit: float | None = None,
         budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if "per_candidate_limit" in kwargs:
+            if per_candidate_limit is not None:
+                raise TypeError("Cannot pass both 'k' and 'per_candidate_limit'.")
+            per_candidate_limit = kwargs.pop("per_candidate_limit")
+        if n_seats is None:
+            n_seats = 1
+        if per_candidate_limit is None:
+            per_candidate_limit = 1
         if n_seats <= 0:
             raise ValueError("n_seats must be positive.")
         self.n_seats = n_seats
@@ -180,10 +195,24 @@ class Rating(GeneralRating):
     def __init__(
         self,
         profile: ScoreProfile,
-        n_seats: int = 1,
-        per_candidate_limit: float = 1,
+        n_seats: int | None = None,
+        per_candidate_limit: float | None = None,
         tiebreak: Optional[str] = None,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if "per_candidate_limit" in kwargs:
+            if per_candidate_limit is not None:
+                raise TypeError("Cannot pass both 'k' and 'per_candidate_limit'.")
+            per_candidate_limit = kwargs.pop("per_candidate_limit")
+        if n_seats is None:
+            n_seats = 1
+        if per_candidate_limit is None:
+            per_candidate_limit = 1
         super().__init__(
             profile, n_seats=n_seats, per_candidate_limit=per_candidate_limit, tiebreak=tiebreak
         )

@@ -1,5 +1,6 @@
 from typing import Optional
 
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_types.scores.rating import GeneralRating
 from votekit.pref_profile import ScoreProfile
 
@@ -26,10 +27,24 @@ class Limited(GeneralRating):
     def __init__(
         self,
         profile: ScoreProfile,
-        n_seats: int = 1,
-        budget: float = 1,
+        n_seats: int | None = None,
+        budget: float | None = None,
         tiebreak: Optional[str] = None,
+        **kwargs,
     ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "budget"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if "budget" in kwargs:
+            if budget is not None:
+                raise TypeError("Cannot pass both 'k' and 'budget'.")
+            budget = kwargs.pop("budget")
+        if n_seats is None:
+            n_seats = 1
+        if budget is None:
+            budget = 1
         if budget > n_seats:
             raise ValueError("budget must be less than or equal to n_seats.")
 

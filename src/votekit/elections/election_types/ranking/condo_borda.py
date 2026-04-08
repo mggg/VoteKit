@@ -1,4 +1,5 @@
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.graphs import PairwiseComparisonGraph
@@ -17,7 +18,14 @@ class CondoBorda(RankingElection):
 
     """
 
-    def __init__(self, profile: RankProfile, n_seats: int = 1):
+    def __init__(self, profile: RankProfile, n_seats: int | None = None, **kwargs):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         super().__init__(profile, n_seats=n_seats, score_function=borda_scores)
 
     def _is_finished(self):
