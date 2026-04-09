@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## Added
+
+## Changed
+
+## Fixed
+
+
+## [3.4.0] - 2026-04-08
+
+## Added
 - New election methods:
     - `SimultaneousVeto`, which supports `'first_place'`, `'uniform'`, `'borda'`, and `'harmonic'` candidate weighting schemes. (PR #333)
     - `SerialVeto`, a variant of `PluralityVeto`. Both are now subclasses of a shared `SequentialVeto` base class. (PR #325)
