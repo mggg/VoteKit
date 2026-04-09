@@ -48,10 +48,10 @@ ranking, you can use the ``score_dict_to_ranking`` function from the
 
 .. parsed-literal::
 
-    Ranking: (frozenset({'C', 'A'}), frozenset({'B'}))
+    Ranking: (frozenset({'A', 'C'}), frozenset({'B'}))
     
      RankBallot
-    1.) C, A, (tie)
+    1.) A, C, (tie)
     2.) B, 
     Weight: 3.0
 
@@ -75,8 +75,7 @@ all to ranked, you could do so as follows.
     print(score_profile)
     
     ranked_ballots = [
-        Ballot(ranking=score_dict_to_ranking(b.scores), weight=b.weight)
-        for b in score_profile.ballots
+        Ballot(ranking=score_dict_to_ranking(b.scores), weight=b.weight) for b in score_profile.ballots
     ]
     
     ranked_profile = PreferenceProfile(ballots=ranked_ballots)
@@ -96,7 +95,7 @@ all to ranked, you could do so as follows.
     Ranked profile
                            Ranking_1       Ranking_2       Ranking_3 Voter Set  \
     Ballot Index                                                                
-    0             frozenset({C, A})  frozenset({B})  frozenset({~})        {}   
+    0             frozenset({A, C})  frozenset({B})  frozenset({~})        {}   
     1                frozenset({C})  frozenset({B})  frozenset({A})        {}   
     2                frozenset({B})  frozenset({C})  frozenset({A})        {}   
     3                frozenset({B})  frozenset({~})  frozenset({~})        {}   
@@ -193,18 +192,12 @@ running the election. All of these code blocks should raise
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: Ballot RankBallot
-    1.) A, 
-    2.) B, 
-    3.) C, 
-    Weight: 1.0 must be of type ScoreBallot
+    	ProfileError: Profile must be of type ScoreProfile.
 
 
 .. code:: ipython3
 
-    negative_profile = PreferenceProfile(
-        ballots=[Ballot(scores={"A": -1, "B": 3.14159, "C": 0})]
-    )
+    negative_profile = PreferenceProfile(ballots=[Ballot(scores={"A": -1, "B": 3.14159, "C": 0})])
     
     # should raise a TypeError since this profile has negative score
     try:
@@ -276,10 +269,10 @@ points is known as “plumping” the vote.
 .. parsed-literal::
 
           Status  Round
-    C    Elected      1
     B    Elected      1
+    C    Elected      1
     A  Remaining      1
-    (frozenset({'C', 'B'}), frozenset({'A'}))
+    (frozenset({'B', 'C'}), frozenset({'A'}))
     {'A': 8.0, 'B': 10.0, 'C': 10.0}
 
 
@@ -331,11 +324,13 @@ known as “plumping”).
     
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
     
-    config = bg.BlocSlateConfig(n_voters=100,
-                bloc_proportions=bloc_proportions,
-                slate_to_candidates=slate_to_candidates,
-                preference_mapping=preference_mapping,
-                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        preference_mapping=preference_mapping,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     # the num_votes parameter says how many total points the voter is given
     # for a cumulative election, this is m, the number of seats
@@ -351,11 +346,11 @@ known as “plumping”).
 
                     A    B    C  Weight Voter Set
     Ballot Index                                 
-    0             1.0  1.0  NaN    25.0        {}
-    1             1.0  NaN  1.0    10.0        {}
-    2             2.0  NaN  NaN    62.0        {}
-    3             NaN  1.0  1.0     1.0        {}
-    4             NaN  2.0  NaN     2.0        {}
+    0             1.0  1.0  NaN    23.0        {}
+    1             1.0  NaN  1.0    12.0        {}
+    2             2.0  NaN  NaN    58.0        {}
+    3             NaN  1.0  1.0     3.0        {}
+    4             NaN  2.0  NaN     4.0        {}
 
 
 Verify that the ballots make sense given the interval. ``A`` should

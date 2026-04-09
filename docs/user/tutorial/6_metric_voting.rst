@@ -2,6 +2,7 @@
 
     import sys
     import os
+    import warnings
     import numpy as np
     import matplotlib.pyplot as plt
     import random
@@ -10,7 +11,10 @@
     
     from votekit.pref_profile import PreferenceProfile
     from votekit.ballot import Ballot
-    from votekit.ballot_generator import spacial_profile_and_positions_generator, clustered_spacial_profile_and_positions_generator
+    from votekit.ballot_generator import (
+        spacial_profile_and_positions_generator,
+        clustered_spacial_profile_and_positions_generator,
+    )
     from votekit.elections import (
         SNTV,
         STV,
@@ -20,6 +24,10 @@
         PluralityVeto,
         fractional_transfer,
     )
+    
+    # Suppress pandas PerformanceWarning about DataFrame fragmentation;
+    # these are expected with large generated profiles and clutter the tutorial output.
+    warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
 
 Metric Ballot Generation
 ========================
@@ -61,7 +69,8 @@ ranking the candidates by distance to each voter.
     distance = lambda point1, point2: np.linalg.norm(point1 - point2)
     
     # Now we may pass all of to the Spatial generation method and generate a profile
-    profile, candidate_position_dict, voter_positions= spacial_profile_and_positions_generator(number_of_ballots=n,
+    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(
+        number_of_ballots=n,
         candidates=candidates,
         voter_dist=np.random.normal,
         voter_dist_kwargs=voter_params,
@@ -69,7 +78,6 @@ ranking the candidates by distance to each voter.
         candidate_dist_kwargs=candidate_params,
         distance=distance,
     )
-
 
 .. code:: ipython3
 
@@ -90,7 +98,7 @@ ranking the candidates by distance to each voter.
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a86ae350>
+    <matplotlib.legend.Legend at 0x7f4af804d2b0>
 
 
 
@@ -120,15 +128,17 @@ ranking the candidates by distance to each voter.
     voter_params = {"scale": 0.1, "size": 2}
     
     # Now we may pass all of to the Spatial generation method
-    profile, candidate_position_dict, voter_positions = clustered_spacial_profile_and_positions_generator(number_of_ballots=ballots_per,
-        candidates=candidates,
-        voter_dist=np.random.normal,
-        voter_dist_kwargs=voter_params,
-        candidate_dist=np.random.uniform,
-        candidate_dist_kwargs=candidate_params,
-        distance=distance,
+    profile, candidate_position_dict, voter_positions = (
+        clustered_spacial_profile_and_positions_generator(
+            number_of_ballots=ballots_per,
+            candidates=candidates,
+            voter_dist=np.random.normal,
+            voter_dist_kwargs=voter_params,
+            candidate_dist=np.random.uniform,
+            candidate_dist_kwargs=candidate_params,
+            distance=distance,
+        )
     )
-
 
 .. code:: ipython3
 
@@ -149,7 +159,7 @@ ranking the candidates by distance to each voter.
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a870a710>
+    <matplotlib.legend.Legend at 0x7f4af7f1b110>
 
 
 
@@ -189,7 +199,8 @@ Here voters and vandidates are both drawn from the
     candidate_params = {"loc": 0, "scale": 1, "size": 2}
     distance = lambda point1, point2: np.linalg.norm(point1 - point2)
     
-    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(number_of_ballots=n,
+    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(
+        number_of_ballots=n,
         candidates=candidates,
         voter_dist=np.random.normal,
         voter_dist_kwargs=voter_params,
@@ -217,7 +228,7 @@ Here voters and vandidates are both drawn from the
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a8880c50>
+    <matplotlib.legend.Legend at 0x7f4af5587890>
 
 
 
@@ -252,15 +263,11 @@ Elections
     
     # k-Boosted Random Dictator
     boosted_random_election = BoostedRandomDictator(profile, num_seats)
-    boosted_random_winners = [
-        int(list(i)[0]) for i in boosted_random_election.get_elected()
-    ]
+    boosted_random_winners = [int(list(i)[0]) for i in boosted_random_election.get_elected()]
     
     # k-Plurality Veto
     plurality_veto_election = PluralityVeto(profile, num_seats)
-    plurality_veto_winners = [
-        int(list(i)[0]) for i in plurality_veto_election.get_elected()
-    ]
+    plurality_veto_winners = [int(list(i)[0]) for i in plurality_veto_election.get_elected()]
 
 
 .. parsed-literal::
@@ -433,16 +440,6 @@ Elections
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
-
-
-.. parsed-literal::
-
-    /home/peter/SCRAP/VoteKit/src/votekit/pref_profile/pref_profile.py:741: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
-      ).reset_index()
-
-
-.. parsed-literal::
-
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
 
@@ -451,9 +448,7 @@ Elections
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 10))
     
-    axes[0][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][0].scatter(
         candidate_positions[sntv_winners, 0],
         candidate_positions[sntv_winners, 1],
@@ -463,9 +458,7 @@ Elections
     axes[0][0].set_title("SNTV")
     axes[0][0].legend()
     
-    axes[0][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][1].scatter(
         candidate_positions[stv_winners, 0],
         candidate_positions[stv_winners, 1],
@@ -474,9 +467,7 @@ Elections
     )
     axes[0][1].set_title("STV")
     
-    axes[0][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][2].scatter(
         candidate_positions[borda_winners, 0],
         candidate_positions[borda_winners, 1],
@@ -485,9 +476,7 @@ Elections
     )
     axes[0][2].set_title("Borda")
     
-    axes[1][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][0].scatter(
         candidate_positions[random_winners, 0],
         candidate_positions[random_winners, 1],
@@ -496,9 +485,7 @@ Elections
     )
     axes[1][0].set_title("Random Dictator")
     
-    axes[1][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][1].scatter(
         candidate_positions[boosted_random_winners, 0],
         candidate_positions[boosted_random_winners, 1],
@@ -507,9 +494,7 @@ Elections
     )
     axes[1][1].set_title("Boosted Random Dictator")
     
-    axes[1][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][2].scatter(
         candidate_positions[plurality_veto_winners, 0],
         candidate_positions[plurality_veto_winners, 1],
@@ -559,7 +544,8 @@ Uniform Disc Generation
     candidate_params = {"radius": 1}
     distance = lambda point1, point2: np.linalg.norm(point1 - point2)
     
-    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(number_of_ballots=n,
+    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(
+        number_of_ballots=n,
         candidates=candidates,
         voter_dist=sample_uniform_disc,
         voter_dist_kwargs=voter_params,
@@ -587,7 +573,7 @@ Uniform Disc Generation
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a870d4d0>
+    <matplotlib.legend.Legend at 0x7f4af38f9810>
 
 
 
@@ -622,15 +608,11 @@ Elections
     
     # k-Boosted Random Dictator
     boosted_random_election = BoostedRandomDictator(profile, num_seats)
-    boosted_random_winners = [
-        int(list(i)[0]) for i in boosted_random_election.get_elected()
-    ]
+    boosted_random_winners = [int(list(i)[0]) for i in boosted_random_election.get_elected()]
     
     # k-Plurality Veto
     plurality_veto_election = PluralityVeto(profile, num_seats)
-    plurality_veto_winners = [
-        int(list(i)[0]) for i in plurality_veto_election.get_elected()
-    ]
+    plurality_veto_winners = [int(list(i)[0]) for i in plurality_veto_election.get_elected()]
 
 
 .. parsed-literal::
@@ -804,18 +786,6 @@ Elections
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-
-
-.. parsed-literal::
-
-    /home/peter/SCRAP/VoteKit/src/votekit/pref_profile/pref_profile.py:741: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
-      ).reset_index()
-
-
-.. parsed-literal::
-
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
 
@@ -824,9 +794,7 @@ Elections
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 10))
     
-    axes[0][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][0].scatter(
         candidate_positions[sntv_winners, 0],
         candidate_positions[sntv_winners, 1],
@@ -836,9 +804,7 @@ Elections
     axes[0][0].set_title("SNTV")
     axes[0][0].legend()
     
-    axes[0][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][1].scatter(
         candidate_positions[stv_winners, 0],
         candidate_positions[stv_winners, 1],
@@ -847,9 +813,7 @@ Elections
     )
     axes[0][1].set_title("STV")
     
-    axes[0][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][2].scatter(
         candidate_positions[borda_winners, 0],
         candidate_positions[borda_winners, 1],
@@ -858,9 +822,7 @@ Elections
     )
     axes[0][2].set_title("Borda")
     
-    axes[1][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][0].scatter(
         candidate_positions[random_winners, 0],
         candidate_positions[random_winners, 1],
@@ -869,9 +831,7 @@ Elections
     )
     axes[1][0].set_title("Random Dictator")
     
-    axes[1][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][1].scatter(
         candidate_positions[boosted_random_winners, 0],
         candidate_positions[boosted_random_winners, 1],
@@ -880,9 +840,7 @@ Elections
     )
     axes[1][1].set_title("Boosted Random Dictator")
     
-    axes[1][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][2].scatter(
         candidate_positions[plurality_veto_winners, 0],
         candidate_positions[plurality_veto_winners, 1],
@@ -916,7 +874,8 @@ Here voters and candidates both follow the
     candidate_params = {"low": 0, "high": 1, "size": 2}
     distance = lambda point1, point2: np.linalg.norm(point1 - point2)
     
-    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(number_of_ballots=n,
+    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(
+        number_of_ballots=n,
         candidates=candidates,
         voter_dist=np.random.uniform,
         voter_dist_kwargs=voter_params,
@@ -944,7 +903,7 @@ Here voters and candidates both follow the
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a4540210>
+    <matplotlib.legend.Legend at 0x7f4af3ef1e50>
 
 
 
@@ -979,15 +938,11 @@ Elections
     
     # k-Boosted Random Dictator
     boosted_random_election = BoostedRandomDictator(profile, num_seats)
-    boosted_random_winners = [
-        int(list(i)[0]) for i in boosted_random_election.get_elected()
-    ]
+    boosted_random_winners = [int(list(i)[0]) for i in boosted_random_election.get_elected()]
     
     # k-Plurality Veto
     plurality_veto_election = PluralityVeto(profile, num_seats)
-    plurality_veto_winners = [
-        int(list(i)[0]) for i in plurality_veto_election.get_elected()
-    ]
+    plurality_veto_winners = [int(list(i)[0]) for i in plurality_veto_election.get_elected()]
 
 
 .. parsed-literal::
@@ -1160,19 +1115,6 @@ Elections
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-
-
-.. parsed-literal::
-
-    /home/peter/SCRAP/VoteKit/src/votekit/pref_profile/pref_profile.py:741: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
-      ).reset_index()
-
-
-.. parsed-literal::
-
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
 
@@ -1181,9 +1123,7 @@ Elections
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 10))
     
-    axes[0][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][0].scatter(
         candidate_positions[sntv_winners, 0],
         candidate_positions[sntv_winners, 1],
@@ -1193,9 +1133,7 @@ Elections
     axes[0][0].set_title("SNTV")
     axes[0][0].legend()
     
-    axes[0][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][1].scatter(
         candidate_positions[stv_winners, 0],
         candidate_positions[stv_winners, 1],
@@ -1204,9 +1142,7 @@ Elections
     )
     axes[0][1].set_title("STV")
     
-    axes[0][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][2].scatter(
         candidate_positions[borda_winners, 0],
         candidate_positions[borda_winners, 1],
@@ -1215,9 +1151,7 @@ Elections
     )
     axes[0][2].set_title("Borda")
     
-    axes[1][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][0].scatter(
         candidate_positions[random_winners, 0],
         candidate_positions[random_winners, 1],
@@ -1226,9 +1160,7 @@ Elections
     )
     axes[1][0].set_title("Random Dictator")
     
-    axes[1][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][1].scatter(
         candidate_positions[boosted_random_winners, 0],
         candidate_positions[boosted_random_winners, 1],
@@ -1237,9 +1169,7 @@ Elections
     )
     axes[1][1].set_title("Boosted Random Dictator")
     
-    axes[1][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][2].scatter(
         candidate_positions[plurality_veto_winners, 0],
         candidate_positions[plurality_veto_winners, 1],
@@ -1300,7 +1230,8 @@ distribution.
     
     distance = lambda point1, point2: np.linalg.norm(point1 - point2)
     
-    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(number_of_ballots=n,
+    profile, candidate_position_dict, voter_positions = spacial_profile_and_positions_generator(
+        number_of_ballots=n,
         candidates=candidates,
         voter_dist=sample_from_mixture,
         voter_dist_kwargs=voter_params,
@@ -1328,7 +1259,7 @@ distribution.
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x7f13a4771dd0>
+    <matplotlib.legend.Legend at 0x7f4af1229810>
 
 
 
@@ -1363,15 +1294,11 @@ Elections
     
     # k-Boosted Random Dictator
     boosted_random_election = BoostedRandomDictator(profile, num_seats)
-    boosted_random_winners = [
-        int(list(i)[0]) for i in boosted_random_election.get_elected()
-    ]
+    boosted_random_winners = [int(list(i)[0]) for i in boosted_random_election.get_elected()]
     
     # k-Plurality Veto
     plurality_veto_election = PluralityVeto(profile, num_seats)
-    plurality_veto_winners = [
-        int(list(i)[0]) for i in plurality_veto_election.get_elected()
-    ]
+    plurality_veto_winners = [int(list(i)[0]) for i in plurality_veto_election.get_elected()]
 
 
 .. parsed-literal::
@@ -1544,19 +1471,6 @@ Elections
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
     Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-    Initial tiebreak was unsuccessful, performing random tiebreak
-
-
-.. parsed-literal::
-
-    /home/peter/SCRAP/VoteKit/src/votekit/pref_profile/pref_profile.py:741: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
-      ).reset_index()
-
-
-.. parsed-literal::
-
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
     Initial tiebreak was unsuccessful, performing alphabetic tiebreak
 
@@ -1565,9 +1479,7 @@ Elections
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 10))
     
-    axes[0][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][0].scatter(
         candidate_positions[sntv_winners, 0],
         candidate_positions[sntv_winners, 1],
@@ -1577,9 +1489,7 @@ Elections
     axes[0][0].set_title("SNTV")
     axes[0][0].legend()
     
-    axes[0][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][1].scatter(
         candidate_positions[stv_winners, 0],
         candidate_positions[stv_winners, 1],
@@ -1588,9 +1498,7 @@ Elections
     )
     axes[0][1].set_title("STV")
     
-    axes[0][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[0][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[0][2].scatter(
         candidate_positions[borda_winners, 0],
         candidate_positions[borda_winners, 1],
@@ -1599,9 +1507,7 @@ Elections
     )
     axes[0][2].set_title("Borda")
     
-    axes[1][0].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][0].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][0].scatter(
         candidate_positions[random_winners, 0],
         candidate_positions[random_winners, 1],
@@ -1610,9 +1516,7 @@ Elections
     )
     axes[1][0].set_title("Random Dictator")
     
-    axes[1][1].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][1].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][1].scatter(
         candidate_positions[boosted_random_winners, 0],
         candidate_positions[boosted_random_winners, 1],
@@ -1621,9 +1525,7 @@ Elections
     )
     axes[1][1].set_title("Boosted Random Dictator")
     
-    axes[1][2].scatter(
-        voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4]
-    )
+    axes[1][2].scatter(voter_positions[:, 0], voter_positions[:, 1], label="voters", color=pal[4])
     axes[1][2].scatter(
         candidate_positions[plurality_veto_winners, 0],
         candidate_positions[plurality_veto_winners, 1],

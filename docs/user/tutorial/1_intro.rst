@@ -98,7 +98,7 @@ can do that in VoteKit.
     A ballot with overvotes: RankBallot
     1.) A, D, (tie)
     2.) B, 
-    3.) C, E, F, B, (tie)
+    3.) E, C, F, B, (tie)
     Weight: 1.0
 
 
@@ -173,7 +173,6 @@ of candidates. The following code should raise an error.
         ballot = Ballot(ranking=[{"C"}, {"B"}, {"A"}], scores={"A": 4, "B": 3, "C": 4})
     except Exception as e:
         print(e)
-
 
 
 .. parsed-literal::
@@ -273,7 +272,7 @@ profile, as follows.
     RankProfile
     Maximum ranking length: 3
     Candidates: ('A', 'B', 'C')
-    Candidates who received votes: ('A', 'C', 'B')
+    Candidates who received votes: ('B', 'C', 'A')
     Total number of Ballot objects: 3
     Total weight of Ballot objects: 8.0
     
@@ -296,6 +295,7 @@ ballots by weight.
 .. code:: ipython3
 
     from votekit.pref_profile import profile_df_head
+    
     ballots = [
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
@@ -346,10 +346,10 @@ so with an empty set in the ballot, which would look like this.
 
 .. code:: ipython3
 
-    ballot_1 = Ballot(ranking=({"A"}, set(), {"C"})) # a skipped position
-    ballot_2 = Ballot(ranking=({"A"}, {"D"})) # a ballot that left off one possible ranking
+    ballot_1 = Ballot(ranking=({"A"}, set(), {"C"}))  # a skipped position
+    ballot_2 = Ballot(ranking=({"A"}, {"D"}))  # a ballot that left off one possible ranking
     
-    profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length= 3)
+    profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length=3)
     
     print(profile.df)
 
@@ -536,7 +536,7 @@ You can also do most of these with the pandas ``DataFrame`` methods.
     # this will print the top 8 in order of input
     print(profile.df.head(8))
     print()
-     
+    
     # and the bottom 8
     print(profile.df.tail(8))
     print()
@@ -687,28 +687,29 @@ all this syntax means for now; we will return to it in a later tutorial.
     # but there is only one bloc and slate
     cohesion_mapping = {"all_voters": {"all_candidates": 1}}
     
-    config = bg.BlocSlateConfig(n_voters = 1000,
-                                preference_mapping = preference_mapping,
-                                bloc_proportions=bloc_proportions,
-                                slate_to_candidates=slate_to_candidates,
-                                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=1000,
+        preference_mapping=preference_mapping,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     
     profile = bg.slate_pl_profile_generator(config)
-    print(profile_df_head(profile,10))
-
+    print(profile_df_head(profile, 10))
 
 
 .. parsed-literal::
 
                        Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
     Ballot Index                                                                  
-    0             frozenset({A})  frozenset({B})  frozenset({C})   598.0        {}
-    1             frozenset({A})  frozenset({C})  frozenset({B})   219.0        {}
-    3             frozenset({B})  frozenset({A})  frozenset({C})   128.0        {}
-    5             frozenset({C})  frozenset({A})  frozenset({B})    40.0        {}
-    4             frozenset({C})  frozenset({B})  frozenset({A})     8.0        {}
-    2             frozenset({B})  frozenset({C})  frozenset({A})     7.0        {}
+    5             frozenset({A})  frozenset({B})  frozenset({C})   578.0        {}
+    4             frozenset({A})  frozenset({C})  frozenset({B})   211.0        {}
+    0             frozenset({B})  frozenset({A})  frozenset({C})   158.0        {}
+    2             frozenset({C})  frozenset({A})  frozenset({B})    40.0        {}
+    1             frozenset({B})  frozenset({C})  frozenset({A})     7.0        {}
+    3             frozenset({C})  frozenset({B})  frozenset({A})     6.0        {}
 
 
 Re-run the above block several times to see that the elections will come
@@ -770,21 +771,23 @@ particular bloc stick to their slate.
         "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
     }
     
-    config = bg.BlocSlateConfig(n_voters = 10000,
-                                preference_mapping = preference_mapping,
-                                bloc_proportions=bloc_proportions,
-                                slate_to_candidates=slate_to_candidates,
-                                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=10000,
+        preference_mapping=preference_mapping,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     # by using the by_bloc generator we can see which ballots came from which blocs of voters
     profile_dict = bg.name_pl_profiles_by_bloc_generator(config)
-    print("The ballots from Alpha voters\n", profile_df_head(profile_dict["Alpha"],10))
+    print("The ballots from Alpha voters\n", profile_df_head(profile_dict["Alpha"], 10))
     
-    print("The ballots from Xenon voters\n", profile_df_head(profile_dict["Xenon"],10))
+    print("The ballots from Xenon voters\n", profile_df_head(profile_dict["Xenon"], 10))
     
     # to create the aggregate profile, we just sum the profiles in the dictionary
     agg_profile = profile_dict["Alpha"] + profile_dict["Xenon"]
-    print("Aggregated ballots\n", profile_df_head(agg_profile,10))
+    print("Aggregated ballots\n", profile_df_head(agg_profile, 10))
 
 
 .. parsed-literal::
@@ -792,81 +795,81 @@ particular bloc stick to their slate.
     The ballots from Alpha voters
                         Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
     Ballot Index                                                                   
-    0             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
-    2             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
-    1             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
-    14            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
-    5             frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
-    8             frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
-    15            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
-    3             frozenset({A})  frozenset({Y})  frozenset({X})  frozenset({B})   
-    4             frozenset({A})  frozenset({X})  frozenset({Y})  frozenset({B})   
-    23            frozenset({X})  frozenset({A})  frozenset({B})  frozenset({Y})   
+    6             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    8             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    7             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    12            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    10            frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    13            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    18            frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
+    9             frozenset({A})  frozenset({Y})  frozenset({X})  frozenset({B})   
+    11            frozenset({A})  frozenset({X})  frozenset({Y})  frozenset({B})   
+    0             frozenset({X})  frozenset({A})  frozenset({B})  frozenset({Y})   
     
                   Weight Voter Set  
     Ballot Index                    
-    0               2570        {}  
-    2               1258        {}  
-    1               1134        {}  
-    14               899        {}  
-    5                421        {}  
-    8                381        {}  
-    15               379        {}  
-    3                196        {}  
-    4                152        {}  
-    23               137        {}  
+    6               2571        {}  
+    8               1247        {}  
+    7               1112        {}  
+    12               900        {}  
+    10               457        {}  
+    13               388        {}  
+    18               331        {}  
+    9                198        {}  
+    11               188        {}  
+    0                140        {}  
     The ballots from Xenon voters
                         Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
     Ballot Index                                                                   
-    7             frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
-    0             frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
-    1             frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
-    6             frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
-    9             frozenset({X})  frozenset({B})  frozenset({Y})  frozenset({A})   
-    5             frozenset({Y})  frozenset({A})  frozenset({X})  frozenset({B})   
-    2             frozenset({Y})  frozenset({B})  frozenset({X})  frozenset({A})   
-    11            frozenset({X})  frozenset({A})  frozenset({Y})  frozenset({B})   
-    13            frozenset({A})  frozenset({X})  frozenset({Y})  frozenset({B})   
-    19            frozenset({B})  frozenset({X})  frozenset({Y})  frozenset({A})   
+    0             frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    1             frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    9             frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    8             frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
+    11            frozenset({Y})  frozenset({B})  frozenset({X})  frozenset({A})   
+    4             frozenset({X})  frozenset({B})  frozenset({Y})  frozenset({A})   
+    3             frozenset({X})  frozenset({A})  frozenset({Y})  frozenset({B})   
+    7             frozenset({Y})  frozenset({A})  frozenset({X})  frozenset({B})   
+    19            frozenset({B})  frozenset({Y})  frozenset({X})  frozenset({A})   
+    21            frozenset({B})  frozenset({X})  frozenset({Y})  frozenset({A})   
     
                   Weight Voter Set  
     Ballot Index                    
-    7                383        {}  
-    0                382        {}  
-    1                356        {}  
-    6                336        {}  
-    9                 83        {}  
-    5                 77        {}  
-    2                 74        {}  
-    11                68        {}  
-    13                52        {}  
-    19                49        {}  
+    0                394        {}  
+    1                367        {}  
+    9                359        {}  
+    8                350        {}  
+    11                79        {}  
+    4                 78        {}  
+    3                 74        {}  
+    7                 70        {}  
+    19                48        {}  
+    21                48        {}  
     Aggregated ballots
                         Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
     Ballot Index                                                                   
-    0             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
-    2             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
-    1             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
-    14            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
-    5             frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
-    31            frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
-    24            frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
-    8             frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
-    15            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
-    25            frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    6             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    8             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    7             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    12            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    10            frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    24            frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    13            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    25            frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    33            frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    32            frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
     
                   Weight Voter Set  
     Ballot Index                    
-    0               2570        {}  
-    2               1258        {}  
-    1               1134        {}  
-    14               899        {}  
-    5                421        {}  
-    31               383        {}  
-    24               382        {}  
-    8                381        {}  
-    15               379        {}  
-    25               356        {}  
+    6               2571        {}  
+    8               1247        {}  
+    7               1112        {}  
+    12               900        {}  
+    10               457        {}  
+    24               394        {}  
+    13               388        {}  
+    25               367        {}  
+    33               359        {}  
+    32               350        {}  
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say

@@ -599,6 +599,7 @@ class STVAnimation:
     def render(
         self,
         preview: bool = False,
+        display_width: int = 720,
     ) -> None:
         """
         Renders the STV animation using Manim.
@@ -611,6 +612,8 @@ class STVAnimation:
                 immediately upon completing the render. Ignored when running inside a
                 Jupyter notebook, where the video is always displayed as inline cell
                 output. Defaults to False.
+            display_width (int, optional): Width in pixels for the inline video player
+                in Jupyter notebooks. Defaults to 720.
         """
         in_notebook = STVAnimation._is_notebook()
         # Render into a temporary directory so we don't pollute the user's
@@ -639,7 +642,7 @@ class STVAnimation:
             if in_notebook:
                 from IPython.display import Video, display
 
-                display(Video(str(self._video_path), embed=True))
+                display(Video(str(self._video_path), embed=True, width=display_width))
 
     def save(self, save_path: str | Path) -> None:
         """

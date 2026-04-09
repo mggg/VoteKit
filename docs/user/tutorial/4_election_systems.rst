@@ -28,10 +28,20 @@ all of the same cleaning we did before.
 
     from votekit.cvr_loaders import load_ranking_csv
     from votekit.elections import STV
-    from votekit.cleaning import remove_repeat_cands_rank_profile, remove_cand_rank_profile, condense_rank_profile
+    from votekit.cleaning import (
+        remove_repeat_cands_rank_profile,
+        remove_cand_rank_profile,
+        condense_rank_profile,
+    )
     
-    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0,1,2], header_row=0)
-    minneapolis_profile = condense_rank_profile(remove_repeat_cands_rank_profile(remove_cand_rank_profile(["undervote", "overvote", "UWI"], minneapolis_profile)))
+    minneapolis_profile = load_ranking_csv(
+        "mn_2013_cast_vote_record.csv", rank_cols=[0, 1, 2], header_row=0
+    )
+    minneapolis_profile = condense_rank_profile(
+        remove_repeat_cands_rank_profile(
+            remove_cand_rank_profile(["undervote", "overvote", "UWI"], minneapolis_profile)
+        )
+    )
     
     minn_election = STV(profile=minneapolis_profile, n_seats=1)
     print(minn_election)
@@ -41,8 +51,8 @@ all of the same cleaning we did before.
 
     RankProfile
     Maximum ranking length: 3
-    Candidates: ('TROY BENJEGERDES', 'CAPTAIN JACK SPARROW', 'ABDUL M RAHAMAN "THE ROCK"', 'JAYMIE KELLY', 'OLE SAVIOR', 'BOB FINE', 'DON SAMUELS', 'JOSHUA REA', 'NEAL BAXTER', 'BETSY HODGES', 'CYD GORMAN', 'MIKE GOULD', 'CAM WINTON', 'BOB "AGAIN" CARNEY JR', 'DOUG MANN', 'EDMUND BERNARD BRUYERE', 'DAN COHEN', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'ALICIA K. BENNETT', 'JEFFREY ALAN WAGNER', 'UWI', 'CHRISTOPHER CLARK', 'KURTIS W. HANNA', 'JOHN LESLIE HARTWIG', 'TONY LANE', 'MARK V ANDERSON', 'overvote', 'BILL KAHN', 'MARK ANDREW', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'MERRILL ANDERSON', 'undervote', 'JAMES EVERETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'RAHN V. WORKCUFF')
-    Candidates who received votes: ('TROY BENJEGERDES', 'CAPTAIN JACK SPARROW', 'ABDUL M RAHAMAN "THE ROCK"', 'JAYMIE KELLY', 'OLE SAVIOR', 'BOB FINE', 'DON SAMUELS', 'JOSHUA REA', 'NEAL BAXTER', 'BETSY HODGES', 'CYD GORMAN', 'MIKE GOULD', 'CAM WINTON', 'BOB "AGAIN" CARNEY JR', 'DOUG MANN', 'EDMUND BERNARD BRUYERE', 'DAN COHEN', 'JAMES "JIMMY" L. STROUD, JR.', 'JACKIE CHERRYHOMES', 'ALICIA K. BENNETT', 'JEFFREY ALAN WAGNER', 'UWI', 'CHRISTOPHER CLARK', 'KURTIS W. HANNA', 'JOHN LESLIE HARTWIG', 'TONY LANE', 'MARK V ANDERSON', 'overvote', 'BILL KAHN', 'MARK ANDREW', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'MERRILL ANDERSON', 'undervote', 'JAMES EVERETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'GREGG A. IVERSON', 'RAHN V. WORKCUFF')
+    Candidates: ('MARK ANDREW', 'DON SAMUELS', 'BILL KAHN', 'DAN COHEN', 'undervote', 'BOB FINE', 'JAMES EVERETT', 'TROY BENJEGERDES', 'STEPHANIE WOODRUFF', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'MERRILL ANDERSON', 'JEFFREY ALAN WAGNER', 'EDMUND BERNARD BRUYERE', 'JAYMIE KELLY', 'DOUG MANN', 'JOHN LESLIE HARTWIG', 'JOHN CHARLES WILSON', 'CHRISTOPHER CLARK', 'MIKE GOULD', 'OLE SAVIOR', 'BOB "AGAIN" CARNEY JR', 'JAMES "JIMMY" L. STROUD, JR.', 'ABDUL M RAHAMAN "THE ROCK"', 'GREGG A. IVERSON', 'RAHN V. WORKCUFF', 'KURTIS W. HANNA', 'ALICIA K. BENNETT', 'JACKIE CHERRYHOMES', 'BETSY HODGES', 'JOSHUA REA', 'UWI', 'MARK V ANDERSON', 'NEAL BAXTER', 'CYD GORMAN', 'overvote', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
+    Candidates who received votes: ('MARK ANDREW', 'DON SAMUELS', 'BILL KAHN', 'DAN COHEN', 'undervote', 'BOB FINE', 'JAMES EVERETT', 'TROY BENJEGERDES', 'STEPHANIE WOODRUFF', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'MERRILL ANDERSON', 'JEFFREY ALAN WAGNER', 'EDMUND BERNARD BRUYERE', 'JAYMIE KELLY', 'DOUG MANN', 'JOHN LESLIE HARTWIG', 'JOHN CHARLES WILSON', 'CHRISTOPHER CLARK', 'MIKE GOULD', 'OLE SAVIOR', 'BOB "AGAIN" CARNEY JR', 'JAMES "JIMMY" L. STROUD, JR.', 'ABDUL M RAHAMAN "THE ROCK"', 'GREGG A. IVERSON', 'RAHN V. WORKCUFF', 'KURTIS W. HANNA', 'ALICIA K. BENNETT', 'JACKIE CHERRYHOMES', 'BETSY HODGES', 'JOSHUA REA', 'UWI', 'MARK V ANDERSON', 'NEAL BAXTER', 'CYD GORMAN', 'overvote', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
     Total number of Ballot objects: 80101
     Total weight of Ballot objects: 80101.0
     
@@ -237,7 +247,7 @@ can see who wins in the first round is by looking at the next
     
     eliminated (frozenset(),)
     
-    remaining (frozenset({'F'}), frozenset({'C', 'D', 'A', 'G'}), frozenset({'E'}))
+    remaining (frozenset({'F'}), frozenset({'D', 'C', 'A', 'G'}), frozenset({'E'}))
 
 
 :math:`B` passed the threshold by 2 votes with a total of 8, so the
@@ -299,11 +309,11 @@ returns the ``PreferenceProfile`` after a particular round.
         </tr>
         <tr>
           <th>1</th>
-          <td>frozenset({G})</td>
-          <td>frozenset({E})</td>
-          <td>frozenset({F})</td>
+          <td>frozenset({C})</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({~})</td>
           <td>{}</td>
-          <td>3.0</td>
+          <td>1.0</td>
         </tr>
         <tr>
           <th>2</th>
@@ -323,11 +333,11 @@ returns the ``PreferenceProfile`` after a particular round.
         </tr>
         <tr>
           <th>4</th>
-          <td>frozenset({C})</td>
-          <td>frozenset({A})</td>
-          <td>frozenset({~})</td>
+          <td>frozenset({G})</td>
+          <td>frozenset({E})</td>
+          <td>frozenset({F})</td>
           <td>{}</td>
-          <td>1.0</td>
+          <td>3.0</td>
         </tr>
         <tr>
           <th>5</th>
@@ -373,21 +383,21 @@ and state of a given round.
 
 .. parsed-literal::
 
-    fpv after round 1: {'C': np.float64(3.0), 'D': np.float64(3.0), 'G': np.float64(3.0), 'E': np.float64(1.0), 'F': np.float64(4.0), 'A': np.float64(3.0)}
+    fpv after round 1: {'C': np.float64(3.0), 'D': np.float64(3.0), 'A': np.float64(3.0), 'E': np.float64(1.0), 'G': np.float64(3.0), 'F': np.float64(4.0)}
     go to the next step
     
     elected (frozenset(),)
     
     eliminated (frozenset({'E'}),)
     
-    remaining (frozenset({'D', 'F'}), frozenset({'C', 'A', 'G'}))
+    remaining (frozenset({'D', 'F'}), frozenset({'A', 'C', 'G'}))
                        Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
     Ballot Index                                                                  
     0             frozenset({C})  frozenset({D})  frozenset({~})        {}     2.0
-    1             frozenset({G})  frozenset({F})  frozenset({~})        {}     3.0
+    1             frozenset({C})  frozenset({A})  frozenset({~})        {}     1.0
     2             frozenset({D})  frozenset({~})  frozenset({~})        {}     3.0
     3             frozenset({A})  frozenset({~})  frozenset({~})        {}     3.0
-    4             frozenset({C})  frozenset({A})  frozenset({~})        {}     1.0
+    4             frozenset({G})  frozenset({F})  frozenset({~})        {}     3.0
     5             frozenset({D})  frozenset({F})  frozenset({~})        {}     1.0
     6             frozenset({F})  frozenset({G})  frozenset({~})        {}     4.0
 
@@ -412,7 +422,7 @@ will be eliminated.
 
 .. parsed-literal::
 
-    fpv after round 2: {'F': np.float64(4.0), 'D': np.float64(4.0), 'A': np.float64(3.0), 'C': np.float64(3.0), 'G': np.float64(3.0)}
+    fpv after round 2: {'D': np.float64(4.0), 'A': np.float64(3.0), 'G': np.float64(3.0), 'C': np.float64(3.0), 'F': np.float64(4.0)}
     go to the next step
     
     elected (frozenset(),)
@@ -421,15 +431,15 @@ will be eliminated.
     
     remaining (frozenset({'D'}), frozenset({'A', 'F'}), frozenset({'G'}))
     
-    tiebreak resolution {frozenset({'C', 'A', 'G'}): (frozenset({'G'}), frozenset({'A'}), frozenset({'C'}))}
+    tiebreak resolution {frozenset({'A', 'C', 'G'}): (frozenset({'G'}), frozenset({'A'}), frozenset({'C'}))}
     
                        Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
     Ballot Index                                                                  
     0             frozenset({D})  frozenset({~})  frozenset({~})        {}     2.0
-    1             frozenset({G})  frozenset({F})  frozenset({~})        {}     3.0
+    1             frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
     2             frozenset({D})  frozenset({~})  frozenset({~})        {}     3.0
     3             frozenset({A})  frozenset({~})  frozenset({~})        {}     3.0
-    4             frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
+    4             frozenset({G})  frozenset({F})  frozenset({~})        {}     3.0
     5             frozenset({D})  frozenset({F})  frozenset({~})        {}     1.0
     6             frozenset({F})  frozenset({G})  frozenset({~})        {}     4.0
 
@@ -510,8 +520,8 @@ low-tech physical way to do the transfers.)
     B     Elected      1
     D     Elected      7
     F  Eliminated      6
-    C  Eliminated      5
-    A  Eliminated      4
+    A  Eliminated      5
+    C  Eliminated      4
     E  Eliminated      3
     G  Eliminated      2
 
@@ -564,24 +574,24 @@ using the ``score_vector`` parameter.
 
                        Ranking_1       Ranking_2       Ranking_3       Ranking_4       Ranking_5       Ranking_6  Weight Voter Set
     Ballot Index                                                                                                                  
-    0             frozenset({A})  frozenset({~})  frozenset({~})  frozenset({~})  frozenset({~})  frozenset({~})       1        {}
-    1             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({D})  frozenset({~})  frozenset({~})       1        {}
-    2             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({D})  frozenset({E})  frozenset({~})       2        {}
-    3             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({D})  frozenset({E})  frozenset({F})       1        {}
-    4             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({D})  frozenset({F})  frozenset({E})       1        {}
-    5             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({E})  frozenset({F})  frozenset({D})       2        {}
-    6             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({F})  frozenset({~})  frozenset({~})       1        {}
-    7             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({F})  frozenset({D})  frozenset({~})       1        {}
-    8             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({F})  frozenset({E})  frozenset({~})       5        {}
-    9             frozenset({A})  frozenset({B})  frozenset({D})  frozenset({C})  frozenset({~})  frozenset({~})       2        {}
+    0             frozenset({A})  frozenset({~})  frozenset({~})  frozenset({~})  frozenset({~})  frozenset({~})       2        {}
+    1             frozenset({A})  frozenset({B})  frozenset({~})  frozenset({~})  frozenset({~})  frozenset({~})       1        {}
+    2             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({~})  frozenset({~})  frozenset({~})       1        {}
+    3             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({D})  frozenset({~})  frozenset({~})       1        {}
+    4             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({E})  frozenset({D})  frozenset({~})       2        {}
+    5             frozenset({A})  frozenset({B})  frozenset({C})  frozenset({F})  frozenset({D})  frozenset({~})       1        {}
+    6             frozenset({A})  frozenset({B})  frozenset({D})  frozenset({E})  frozenset({~})  frozenset({~})       1        {}
+    7             frozenset({A})  frozenset({B})  frozenset({D})  frozenset({E})  frozenset({F})  frozenset({C})       1        {}
+    8             frozenset({A})  frozenset({B})  frozenset({D})  frozenset({F})  frozenset({C})  frozenset({~})       2        {}
+    9             frozenset({A})  frozenset({B})  frozenset({D})  frozenset({F})  frozenset({E})  frozenset({~})       1        {}
     
           Status  Round
-    B    Elected      1
-    C    Elected      1
     A    Elected      1
+    C    Elected      1
+    F    Elected      1
     D  Remaining      1
-    F  Remaining      1
     E  Remaining      1
+    B  Remaining      1
 
 
 The Borda election is one-shot (like plurality), so running a step or
@@ -604,17 +614,17 @@ the election is equivalent. Let’s see what the election stores.
 
 .. parsed-literal::
 
-    Winners: (frozenset({'B'}), frozenset({'C'}), frozenset({'A'}))
+    Winners: (frozenset({'A'}), frozenset({'C'}), frozenset({'F'}))
     Eliminated: ()
-    Ranking: (frozenset({'B'}), frozenset({'C'}), frozenset({'A'}), frozenset({'D'}), frozenset({'F'}), frozenset({'E'}))
+    Ranking: (frozenset({'A'}), frozenset({'C'}), frozenset({'F'}), frozenset({'D'}), frozenset({'E'}), frozenset({'B'}))
     Outcome of round 1:
            Status  Round
-    B    Elected      1
-    C    Elected      1
     A    Elected      1
+    C    Elected      1
+    F    Elected      1
     D  Remaining      1
-    F  Remaining      1
     E  Remaining      1
+    B  Remaining      1
 
 
 **Try it yourself**
@@ -805,7 +815,7 @@ an STV election where there are many rounds.
     
     Winners: ()
     Eliminated: (frozenset({'RAHN V. WORKCUFF'}), frozenset({'BOB "AGAIN" CARNEY JR'}), frozenset({'CYD GORMAN'}), frozenset({'JOHN CHARLES WILSON'}))
-    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'ABDUL M RAHAMAN "THE ROCK"', 'JAMES EVERETT'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}))
+    Remaining: (frozenset({'BETSY HODGES'}), frozenset({'MARK ANDREW'}), frozenset({'DON SAMUELS'}), frozenset({'CAM WINTON'}), frozenset({'JACKIE CHERRYHOMES'}), frozenset({'BOB FINE'}), frozenset({'DAN COHEN'}), frozenset({'STEPHANIE WOODRUFF'}), frozenset({'MARK V ANDERSON'}), frozenset({'DOUG MANN'}), frozenset({'OLE SAVIOR'}), frozenset({'JAMES EVERETT', 'ABDUL M RAHAMAN "THE ROCK"'}), frozenset({'ALICIA K. BENNETT'}), frozenset({'CAPTAIN JACK SPARROW'}), frozenset({'TONY LANE'}), frozenset({'MIKE GOULD'}), frozenset({'KURTIS W. HANNA'}), frozenset({'JAYMIE KELLY'}), frozenset({'CHRISTOPHER CLARK'}), frozenset({'CHRISTOPHER ROBIN ZIMMERMAN'}), frozenset({'JEFFREY ALAN WAGNER'}), frozenset({'NEAL BAXTER'}), frozenset({'TROY BENJEGERDES'}), frozenset({'GREGG A. IVERSON'}), frozenset({'JOSHUA REA'}), frozenset({'MERRILL ANDERSON'}), frozenset({'BILL KAHN'}), frozenset({'JOHN LESLIE HARTWIG'}), frozenset({'EDMUND BERNARD BRUYERE'}), frozenset({'JAMES "JIMMY" L. STROUD, JR.'}))
                                       Status  Round
     BETSY HODGES                   Remaining      4
     MARK ANDREW                    Remaining      4
@@ -818,8 +828,8 @@ an STV election where there are many rounds.
     MARK V ANDERSON                Remaining      4
     DOUG MANN                      Remaining      4
     OLE SAVIOR                     Remaining      4
-    ABDUL M RAHAMAN "THE ROCK"     Remaining      4
     JAMES EVERETT                  Remaining      4
+    ABDUL M RAHAMAN "THE ROCK"     Remaining      4
     ALICIA K. BENNETT              Remaining      4
     CAPTAIN JACK SPARROW           Remaining      4
     TONY LANE                      Remaining      4
@@ -993,12 +1003,12 @@ works, and how to know when it’s over.
 .. parsed-literal::
 
           Status  Round
-    D    Elected      1
-    E    Elected      2
-    F    Elected      3
-    C  Remaining      3
-    B  Remaining      3
-    A  Remaining      3
+    F    Elected      1
+    D  Remaining      1
+    E  Remaining      1
+    A  Remaining      1
+    C  Remaining      1
+    B  Remaining      1
 
 
 **Try it yourself**
