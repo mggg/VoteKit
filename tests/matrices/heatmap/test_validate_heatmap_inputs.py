@@ -1,6 +1,7 @@
-import pytest
-from votekit.matrices.heatmap import _validate_heatmap_inputs
 import numpy as np
+import pytest
+
+from votekit.matrices.heatmap import _validate_heatmap_inputs
 
 
 def test_2d_numpy():
@@ -20,9 +21,7 @@ def test_row_labels():
         ValueError,
         match="Please provide (.*?) labels for the rows of the matrix. Found (.*?) labels.",
     ):
-        _validate_heatmap_inputs(
-            matrix=np.array([[1, 2, 3], [4, 5, 6]]), row_labels=["chris"]
-        )
+        _validate_heatmap_inputs(matrix=np.array([[1, 2, 3], [4, 5, 6]]), row_labels=["chris"])
 
 
 def test_col_labels():
@@ -30,9 +29,7 @@ def test_col_labels():
         ValueError,
         match="Please provide (.*?) labels for the columns of the matrix. Found (.*?) labels.",
     ):
-        _validate_heatmap_inputs(
-            matrix=np.array([[1, 2, 3], [4, 5, 6]]), column_labels=["chris"]
-        )
+        _validate_heatmap_inputs(matrix=np.array([[1, 2, 3], [4, 5, 6]]), column_labels=["chris"])
 
 
 def test_row_legend():
@@ -45,9 +42,7 @@ def test_row_legend():
 
 
 def test_col_legend():
-    with pytest.raises(
-        ValueError, match="Column labels do not match column legend keys."
-    ):
+    with pytest.raises(ValueError, match="Column labels do not match column legend keys."):
         _validate_heatmap_inputs(
             matrix=np.array([[1, 2, 3], [4, 5, 6]]),
             column_labels=["chris", "peter", "moon"],

@@ -1,7 +1,8 @@
-from votekit.pref_profile import RankProfile
+import warnings
 from itertools import combinations
 from typing import Optional
-import warnings
+
+from votekit.pref_profile import RankProfile
 
 
 def r_representation_score(
@@ -61,7 +62,7 @@ def r_representation_score(
 
 def winner_sets_r_representation_scores(
     profile: RankProfile,
-    m: int,
+    n_seats: int,
     r: int,
     candidate_list: Optional[list[str]] = None,
 ) -> dict[frozenset, float]:
@@ -72,7 +73,7 @@ def winner_sets_r_representation_scores(
 
     Args:
         profile (RankProfile): Profile to compute score from.
-        m (int): Number of seats.
+        n_seats (int): Number of seats.
         r (int): Consider a voter represented if a member of the candidate_set is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
@@ -83,28 +84,28 @@ def winner_sets_r_representation_scores(
         dict[frozenset, float]: Dictonary mapping possible winning sets to representation scores.
 
     Raises:
-        ValueError: m must be at least 1.
-        ValueError: m must be at most the number of candidates.
+        ValueError: n_seats must be at least 1.
+        ValueError: n_seats must be at most the number of candidates.
         ValueError: r must be at least 1.
         ValueError: ballots must have ranking.
     """
     if candidate_list is None:
         candidate_list = list(profile.candidates_cast)
 
-    if m < 1:
-        raise ValueError(f"Number of seats m ({m}) must be at least 1.")
+    if n_seats < 1:
+        raise ValueError(f"Number of seats n_seats ({n_seats}) must be at least 1.")
 
-    elif m > len(candidate_list):
+    elif n_seats > len(candidate_list):
         raise ValueError(
             (
-                f"Number of seats m ({m}) must be less than "
+                f"Number of seats n_seats ({n_seats}) must be less than "
                 f"number of candidates ({len(candidate_list)})."
             )
         )
 
     subset_scores = {
         frozenset(cand_set): r_representation_score(profile, r, list(cand_set))
-        for cand_set in combinations(candidate_list, m)
+        for cand_set in combinations(candidate_list, n_seats)
     }
 
     return subset_scores

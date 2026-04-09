@@ -1,10 +1,12 @@
-import pandas as pd
-from typing import Optional, Union
 import os
-from pathlib import Path
-import numpy as np
-from votekit.pref_profile import RankProfile
 import warnings
+from pathlib import Path
+from typing import Optional, Union
+
+import numpy as np
+import pandas as pd
+
+from votekit.pref_profile import RankProfile
 
 
 def __validate_df_contains_column_idxs(
@@ -29,7 +31,7 @@ def __validate_df_contains_column_idxs(
         for idx in col_idxs:
             if idx < 0 or idx > len(df.columns) - 1:
                 raise ValueError(
-                    f"{error_label} column index {idx} must be in [0, {len(df.columns) -1}] "
+                    f"{error_label} column index {idx} must be in [0, {len(df.columns) - 1}] "
                     "because Python is 0-indexed."
                 )
 
@@ -56,14 +58,11 @@ def __validate_weight_col_values(df: pd.DataFrame, weight_col: int):
     try:
         df[weight_col].astype(float)
     except ValueError:
-
         for idx, weight in df[weight_col].items():
             try:
                 float(weight)
             except ValueError:
-                raise ValueError(
-                    f"Weight {weight} in row {idx} must be able to be cast to float."
-                )
+                raise ValueError(f"Weight {weight} in row {idx} must be able to be cast to float.")
 
 
 def __validate_distinct_cols(
@@ -84,14 +83,10 @@ def __validate_distinct_cols(
     """
 
     if id_col is not None and id_col in rank_cols:
-        raise ValueError(
-            f"ID column {id_col} must not be a ranking column {rank_cols}."
-        )
+        raise ValueError(f"ID column {id_col} must not be a ranking column {rank_cols}.")
 
     if weight_col is not None and weight_col in rank_cols:
-        raise ValueError(
-            f"Weight column {weight_col} must not be a ranking column {rank_cols}."
-        )
+        raise ValueError(f"Weight column {weight_col} must not be a ranking column {rank_cols}.")
 
 
 def __validate_columns(
@@ -138,9 +133,7 @@ def __validate_columns(
     return rank_cols, id_col, weight_col
 
 
-def __format_ranking_cols(
-    mutated_df: pd.DataFrame, rank_cols: list[str]
-) -> pd.DataFrame:
+def __format_ranking_cols(mutated_df: pd.DataFrame, rank_cols: list[str]) -> pd.DataFrame:
     """
     Formats the datatype of the ranking columns.
 
@@ -152,9 +145,7 @@ def __format_ranking_cols(
         pd.DataFrame: The mutated dataframe.
 
     """
-    mutated_df[rank_cols] = mutated_df[rank_cols].astype(
-        object
-    )  # ensure object dtype for sets
+    mutated_df[rank_cols] = mutated_df[rank_cols].astype(object)  # ensure object dtype for sets
 
     def _format_row(row: pd.Series) -> pd.Series:
         vals = row.to_list()
@@ -193,7 +184,7 @@ def __format_df(
 
     """
     mutated_df = mutated_df.copy()
-    renamed_columns = {r_col: f"Ranking_{i+1}" for i, r_col in enumerate(rank_cols)}
+    renamed_columns = {r_col: f"Ranking_{i + 1}" for i, r_col in enumerate(rank_cols)}
 
     if weight_col is not None:
         renamed_columns.update({weight_col: "Weight"})
@@ -203,7 +194,13 @@ def __format_df(
     if id_col is not None:
         renamed_columns.update({id_col: "Voter Set"})
     else:
-        mutated_df["Voter Set"] = [set() for _ in range(len(mutated_df))]
+        mutated_df.insert(
+            len(mutated_df.columns),
+            "Voter Set",
+            pd.Series(
+                [set() for _ in range(len(mutated_df))], dtype=object, index=mutated_df.index
+            ),
+        )
 
     mutated_df.rename(columns=renamed_columns, inplace=True)
     mutated_df.index.name = "Ballot Index"
@@ -334,9 +331,7 @@ def load_ranking_csv(
 
     df.columns = pd.Index(range(len(df.columns)))
 
-    rank_cols, id_col, weight_col = __validate_columns(
-        df, rank_cols, id_col, weight_col
-    )
+    rank_cols, id_col, weight_col = __validate_columns(df, rank_cols, id_col, weight_col)
 
     df, str_rank_cols = __format_df(df, rank_cols, id_col, weight_col)
 

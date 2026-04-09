@@ -14,24 +14,23 @@ The main API functions in this module are:
 """
 
 import itertools as it
+import math
+import random
+import sys
+from typing import Sequence, cast
+
+import apportionment.methods as apportion
 import numpy as np
 from numpy.typing import NDArray
-import math
-import sys
 
-import random
-
-from typing import Sequence, cast
-import apportionment.methods as apportion
-
-from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
-from votekit.ballot_generator.utils import system_memory
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _lexicographic_symbol_tuple_iterator,
-    _convert_slate_ballots_to_profile,
     _append_zero_slate_symbols,
+    _convert_slate_ballots_to_profile,
+    _lexicographic_symbol_tuple_iterator,
 )
+from votekit.ballot_generator.utils import system_memory
+from votekit.pref_profile import RankProfile
 
 # ====================================================
 # ================= Helper Functions =================
@@ -105,9 +104,7 @@ def _compute_ballot_type_dist(
     """
 
     slate_list = [
-        s_name
-        for s_name in non_zero_slate_set
-        for c_name in config.slate_to_candidates[s_name]
+        s_name for s_name in non_zero_slate_set for c_name in config.slate_to_candidates[s_name]
     ]
 
     bloc_series = config.cohesion_df.loc[bloc]
@@ -115,9 +112,7 @@ def _compute_ballot_type_dist(
     bloc_series = bloc_series.astype(float)
     bloc_series = bloc_series[bloc_series != 0]  # type: ignore
 
-    slate_cohesion_dict_for_bloc: dict[str, float] = cast(
-        dict[str, float], bloc_series.to_dict()
-    )
+    slate_cohesion_dict_for_bloc: dict[str, float] = cast(dict[str, float], bloc_series.to_dict())
 
     pmf = {}
     for ballot_type in _lexicographic_symbol_tuple_iterator(slate_list):
@@ -175,9 +170,7 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
         MemoryError: If there is not enough memory to generate the pmf.
     """
     n_cands = len(config.candidates)
-    slate_counts = {
-        slate: len(cands) for slate, cands in config.slate_to_candidates.items()
-    }
+    slate_counts = {slate: len(cands) for slate, cands in config.slate_to_candidates.items()}
     total_arrangements = math.factorial(n_cands) / math.prod(
         math.factorial(count) for count in slate_counts.values()
     )
@@ -194,9 +187,7 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
     candidate_with_longest_name = max(config.candidates, key=len)
     est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
     est_bytes_profile = (
-        config.n_voters
-        * n_cands
-        * sys.getsizeof(frozenset({candidate_with_longest_name}))
+        config.n_voters * n_cands * sys.getsizeof(frozenset({candidate_with_longest_name}))
     )
     est_bytes = float(est_bytes_pmf + est_bytes_profile)
 
@@ -240,13 +231,12 @@ def _sample_bt_slate_ballots_mcmc(
     # randomly permute the seed ballot type
     seed_ballot_type = random.sample(seed_ballot_type, k=len(seed_ballot_type))
 
-    ballots: list[tuple[str, ...]] = [("~",)] * n_ballots
+    ballots: list[tuple[str, ...]] = [("~",) for _ in range(n_ballots)]
     current_ranking = seed_ballot_type
 
     # presample swap indices
     swap_indices = [
-        (j1, j1 + 1)
-        for j1 in np.random.choice(len(seed_ballot_type) - 1, size=n_ballots)
+        (j1, j1 + 1) for j1 in np.random.choice(len(seed_ballot_type) - 1, size=n_ballots)
     ]
 
     for i in range(n_ballots):
@@ -302,9 +292,7 @@ def _inner_slate_bradley_terry(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -341,9 +329,7 @@ def _inner_slate_bradley_terry(
                 slate_ballots, zero_slate_set, n_ballots, config
             )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots
-        )
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
 
     return pref_profile_by_bloc
 
@@ -353,9 +339,7 @@ def _inner_slate_bradley_terry(
 # =================================================
 
 
-def slate_bt_profile_generator(
-    config: BlocSlateConfig, *, group_ballots=True
-) -> RankProfile:
+def slate_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
 

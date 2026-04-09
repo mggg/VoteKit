@@ -1,14 +1,14 @@
 import networkx as nx
 
-from votekit.pref_profile import RankProfile
-from votekit.graphs.pairwise_comparison_graph import (
-    pairwise_dict,
-    get_dominating_tiers_digraph,
-)
-from votekit.utils import tiebreak_set
-
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.graphs.pairwise_comparison_graph import (
+    get_dominating_tiers_digraph,
+    pairwise_dict,
+)
+from votekit.pref_profile import RankProfile
+from votekit.utils import tiebreak_set
 
 
 class RankedPairs(RankingElection):
@@ -26,20 +26,23 @@ class RankedPairs(RankingElection):
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
     """
 
     def __init__(
         self,
         profile: RankProfile,
         tiebreak: str = "lexicographic",
-        m: int = 1,
+        n_seats: int | None = None,
+        **kwargs,
     ):
-        if m <= 0:
-            raise ValueError("m must be strictly positive")
-        if len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
 
         def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
@@ -53,6 +56,7 @@ class RankedPairs(RankingElection):
 
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=quick_tiebreak_candidates,
             sort_high_low=True,
         )
@@ -64,7 +68,7 @@ class RankedPairs(RankingElection):
         # single round election
         elected_cands = [c for s in self.get_elected() for c in s]
 
-        if len(elected_cands) == self.m:
+        if len(elected_cands) == self.n_seats:
             return True
         return False
 
@@ -94,9 +98,7 @@ class RankedPairs(RankingElection):
                 ordered_winners[(b, a)] = weight_b - weight_a
 
         # Lock the order
-        sorted_winners = sorted(
-            ordered_winners.items(), key=lambda x: x[1], reverse=True
-        )
+        sorted_winners = sorted(ordered_winners.items(), key=lambda x: x[1], reverse=True)
 
         graph: nx.DiGraph = nx.DiGraph()
         graph.add_nodes_from(profile.candidates_cast)
@@ -118,13 +120,11 @@ class RankedPairs(RankingElection):
                 )
 
         ordered_candidates = [
-            candidate
-            for candidate_set in dominating_tiers
-            for candidate in sorted(candidate_set)
+            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
         ]
 
-        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])
-        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.m :])
+        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
+        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])
 
         if store_states:
             new_state = ElectionState(

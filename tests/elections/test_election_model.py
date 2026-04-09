@@ -1,16 +1,17 @@
-from votekit.elections import ElectionState, Election
-from votekit.pref_profile import RankProfile
-from votekit.ballot import RankBallot
-from votekit.utils import score_dict_to_ranking
 import pandas as pd
 import pytest
+
+from votekit.ballot import RankBallot
+from votekit.elections import Election, ElectionState
+from votekit.pref_profile import RankProfile
+from votekit.utils import score_dict_to_ranking
 
 
 class TestElection(Election):
     __test__ = False  # prevents Pytest from trying to collect this
     """
     Elect the first person observed on first ballot. Eliminate second person. Rest remain.
-    Discard entire ballot. Repeat for one more round. Scores are just index of letter in string 
+    Discard entire ballot. Repeat for one more round. Scores are just index of letter in string
     ABCDEF
     """
 
@@ -192,9 +193,7 @@ def test_get_elected_errors():
 
 
 def test_get_eliminated():
-    assert e.get_eliminated() == e.get_eliminated(
-        2
-    )  # default behavior is get last round
+    assert e.get_eliminated() == e.get_eliminated(2)  # default behavior is get last round
     assert e.get_eliminated(0) == tuple()
     assert e.get_eliminated(1) == ({"B"},)
     assert e.get_eliminated(2) == ({"D"}, {"B"})
@@ -283,9 +282,7 @@ def test_get_status_df():
         index=["A", "C", "F", "E", "D", "B"],
     )
 
-    assert e.get_status_df().equals(
-        e.get_status_df(2)
-    )  # default behavior is get last round
+    assert e.get_status_df().equals(e.get_status_df(2))  # default behavior is get last round
     assert e.get_status_df(0).equals(round_0)
     assert e.get_status_df(1).equals(round_1)
     assert e.get_status_df(2).equals(round_2)

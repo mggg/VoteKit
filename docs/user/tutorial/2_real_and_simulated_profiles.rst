@@ -27,7 +27,11 @@ First we load the appropriate modules.
 
     from votekit.cvr_loaders import load_ranking_csv
     from votekit.elections import IRV
-    from votekit.cleaning import remove_cand_rank_profile, remove_repeat_cands_rank_profile, condense_rank_profile
+    from votekit.cleaning import (
+        remove_cand_rank_profile,
+        remove_repeat_cands_rank_profile,
+        condense_rank_profile,
+    )
 
 Next we’ll use the ``load_ranking_csv`` function to load the data. The
 data should be a csv file, where each row is a ballot, and there is a
@@ -48,16 +52,15 @@ is being deprecated in favor of ``load_ranking_csv``.
 
 .. code:: ipython3
 
-    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols= [0,1,2])
-
+    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols=[0, 1, 2])
 
 
 .. parsed-literal::
 
     RankProfile
     Maximum ranking length: 3
-    Candidates: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'MIKE GOULD', 'Rank2', 'CHRISTOPHER CLARK', 'overvote', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'UWI', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'rank3', 'MARK ANDREW', 'JACKIE CHERRYHOMES', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'rank1', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'undervote')
-    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'MIKE GOULD', 'Rank2', 'CHRISTOPHER CLARK', 'overvote', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'UWI', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'rank3', 'MARK ANDREW', 'JACKIE CHERRYHOMES', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'rank1', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'undervote')
+    Candidates: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'rank1', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'Rank2', 'CHRISTOPHER CLARK', 'overvote', 'UWI', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'undervote', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'rank3', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
+    Candidates who received votes: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'rank1', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'Rank2', 'CHRISTOPHER CLARK', 'overvote', 'UWI', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'undervote', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'rank3', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
     Total number of Ballot objects: 80102
     Total weight of Ballot objects: 80102.0
     
@@ -71,16 +74,17 @@ default assumes there is no header.
 
 .. code:: ipython3
 
-    minneapolis_profile = load_ranking_csv("mn_2013_cast_vote_record.csv", rank_cols= [0,1,2], header_row = 0)
-
+    minneapolis_profile = load_ranking_csv(
+        "mn_2013_cast_vote_record.csv", rank_cols=[0, 1, 2], header_row=0
+    )
 
 
 .. parsed-literal::
 
     RankProfile
     Maximum ranking length: 3
-    Candidates: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'overvote', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'UWI', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'undervote')
-    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'overvote', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'UWI', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON', 'undervote')
+    Candidates: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'overvote', 'UWI', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'undervote', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
+    Candidates who received votes: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'overvote', 'UWI', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'undervote', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
     Total number of Ballot objects: 80101
     Total weight of Ballot objects: 80101.0
     
@@ -180,15 +184,15 @@ We will address the removal of “()” later on.
 
     There were 38 candidates
     
-    ('ABDUL M RAHAMAN "THE ROCK"', 'MIKE GOULD', 'DAN COHEN', 'CHRISTOPHER CLARK', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
+    ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
     
     There are now 35 candidates.
     
     Profile has been cleaned
     RankProfile
     Maximum ranking length: 3
-    Candidates: ('ABDUL M RAHAMAN "THE ROCK"', 'MIKE GOULD', 'DAN COHEN', 'CHRISTOPHER CLARK', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
-    Candidates who received votes: ('ABDUL M RAHAMAN "THE ROCK"', 'DAN COHEN', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'JOSHUA REA', 'DON SAMUELS', 'JAYMIE KELLY', 'BOB "AGAIN" CARNEY JR', 'NEAL BAXTER', 'JAMES "JIMMY" L. STROUD, JR.', 'TROY BENJEGERDES', 'ALICIA K. BENNETT', 'JOHN LESLIE HARTWIG', 'TONY LANE', 'BILL KAHN', 'MARK V ANDERSON', 'JACKIE CHERRYHOMES', 'MARK ANDREW', 'RAHN V. WORKCUFF', 'JEFFREY ALAN WAGNER', 'KURTIS W. HANNA', 'CYD GORMAN', 'BETSY HODGES', 'STEPHANIE WOODRUFF', 'JOHN CHARLES WILSON', 'DOUG MANN', 'BOB FINE', 'JAMES EVERETT', 'OLE SAVIOR', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'CHRISTOPHER ROBIN ZIMMERMAN', 'MERRILL ANDERSON', 'CAPTAIN JACK SPARROW', 'CAM WINTON')
+    Candidates: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'MIKE GOULD', 'CHRISTOPHER CLARK', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
+    Candidates who received votes: ('OLE SAVIOR', 'DAN COHEN', 'BETSY HODGES', 'JAYMIE KELLY', 'DON SAMUELS', 'EDMUND BERNARD BRUYERE', 'GREGG A. IVERSON', 'BOB FINE', 'DOUG MANN', 'NEAL BAXTER', 'CAPTAIN JACK SPARROW', 'ALICIA K. BENNETT', 'CHRISTOPHER ROBIN ZIMMERMAN', 'TONY LANE', 'BOB "AGAIN" CARNEY JR', 'JAMES EVERETT', 'JACKIE CHERRYHOMES', 'JOHN CHARLES WILSON', 'CAM WINTON', 'JEFFREY ALAN WAGNER', 'JAMES "JIMMY" L. STROUD, JR.', 'CHRISTOPHER CLARK', 'MIKE GOULD', 'MERRILL ANDERSON', 'KURTIS W. HANNA', 'MARK V ANDERSON', 'ABDUL M RAHAMAN "THE ROCK"', 'MARK ANDREW', 'JOSHUA REA', 'BILL KAHN', 'STEPHANIE WOODRUFF', 'CYD GORMAN', 'TROY BENJEGERDES', 'RAHN V. WORKCUFF', 'JOHN LESLIE HARTWIG')
     Total number of Ballot objects: 80101
     Total weight of Ballot objects: 80101.0
     
@@ -206,7 +210,7 @@ become “A () B”.
 
 .. code:: ipython3
 
-    clean_profile = remove_repeat_cands_rank_profile(clean_profile) 
+    clean_profile = remove_repeat_cands_rank_profile(clean_profile)
 
 The removal of candidates and repeated candidates has caused some of our
 ballots to have empty ranking positions. The final step of cleaning is
@@ -331,11 +335,13 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
         "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
     }
     
-    config = bg.BlocSlateConfig(n_voters=100, 
-                    bloc_proportions=bloc_proportions, 
-                    cohesion_mapping=cohesion_mapping, 
-                    preference_mapping=preference_mapping,
-                    slate_to_candidates=slate_to_candidates)
+    config = bg.BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions=bloc_proportions,
+        cohesion_mapping=cohesion_mapping,
+        preference_mapping=preference_mapping,
+        slate_to_candidates=slate_to_candidates,
+    )
     
     profile = bg.slate_bt_profile_generator(config)
     print(profile.df)
@@ -343,36 +349,49 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    0                  (B)       (A)       (Y)       (X)     6.0        {}
-    1                  (B)       (A)       (X)       (Y)     3.0        {}
-    2                  (B)       (X)       (A)       (Y)     1.0        {}
-    3                  (B)       (Y)       (A)       (X)     1.0        {}
-    4                  (A)       (X)       (B)       (Y)     4.0        {}
-    5                  (A)       (B)       (Y)       (X)    39.0        {}
-    6                  (A)       (B)       (X)       (Y)    22.0        {}
-    7                  (A)       (Y)       (B)       (X)     3.0        {}
-    8                  (X)       (A)       (B)       (Y)     1.0        {}
-    9                  (X)       (B)       (Y)       (A)     1.0        {}
-    10                 (X)       (Y)       (B)       (A)     4.0        {}
-    11                 (X)       (Y)       (A)       (B)     3.0        {}
-    12                 (Y)       (X)       (B)       (A)     4.0        {}
-    13                 (Y)       (X)       (A)       (B)     7.0        {}
-    14                 (Y)       (B)       (X)       (A)     1.0        {}
+                       Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
+    Ballot Index                                                                   
+    0             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    1             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    2             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    3             frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    4             frozenset({B})  frozenset({X})  frozenset({Y})  frozenset({A})   
+    5             frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    6             frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    7             frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    8             frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    9             frozenset({X})  frozenset({A})  frozenset({B})  frozenset({Y})   
+    10            frozenset({X})  frozenset({A})  frozenset({Y})  frozenset({B})   
+    11            frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
+    12            frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    13            frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
+    
+                  Weight Voter Set  
+    Ballot Index                    
+    0                5.0        {}  
+    1               44.0        {}  
+    2               15.0        {}  
+    3                4.0        {}  
+    4                1.0        {}  
+    5                6.0        {}  
+    6                3.0        {}  
+    7                7.0        {}  
+    8                3.0        {}  
+    9                1.0        {}  
+    10               3.0        {}  
+    11               5.0        {}  
+    12               2.0        {}  
+    13               1.0        {}  
 
 
-.. admonition:: A note on s-BT 
-    :class: note 
-        
-        The probability distribution
-        that s-BT samples from can be too cumbersome to compute for large
-        numbers of candidates. The function ``slate_bt_profile_generator``
-        computes the memory need based on your computer’s specs. If there is not
-        enough memory, then we have implemented a Markov chain Monte Carlo
-        (MCMC) sampling method to account for this. Simply use
-        ``slate_bt_profile_generator_using_mcmc``. The sample size should be
-        increased to ensure mixing of the chain.
+.. admonition:: A note on s-BT :class: note The probability distribution
+that s-BT samples from can be too cumbersome to compute for large
+numbers of candidates. The function ``slate_bt_profile_generator``
+computes the memory need based on your computer’s specs. If there is not
+enough memory, then we have implemented a Markov chain Monte Carlo
+(MCMC) sampling method to account for this. Simply use
+``slate_bt_profile_generator_using_mcmc``. The sample size should be
+increased to ensure mixing of the chain.
 
 .. code:: ipython3
 
@@ -383,23 +402,39 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    0                  (B)       (A)       (Y)       (X)     6.0        {}
-    1                  (B)       (A)       (X)       (Y)     3.0        {}
-    2                  (B)       (X)       (A)       (Y)     1.0        {}
-    3                  (B)       (Y)       (A)       (X)     1.0        {}
-    4                  (A)       (X)       (B)       (Y)     4.0        {}
-    5                  (A)       (B)       (Y)       (X)    39.0        {}
-    6                  (A)       (B)       (X)       (Y)    22.0        {}
-    7                  (A)       (Y)       (B)       (X)     3.0        {}
-    8                  (X)       (A)       (B)       (Y)     1.0        {}
-    9                  (X)       (B)       (Y)       (A)     1.0        {}
-    10                 (X)       (Y)       (B)       (A)     4.0        {}
-    11                 (X)       (Y)       (A)       (B)     3.0        {}
-    12                 (Y)       (X)       (B)       (A)     4.0        {}
-    13                 (Y)       (X)       (A)       (B)     7.0        {}
-    14                 (Y)       (B)       (X)       (A)     1.0        {}
+                       Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
+    Ballot Index                                                                   
+    0             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    1             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    2             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    3             frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    4             frozenset({B})  frozenset({X})  frozenset({Y})  frozenset({A})   
+    5             frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    6             frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    7             frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    8             frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    9             frozenset({X})  frozenset({A})  frozenset({B})  frozenset({Y})   
+    10            frozenset({X})  frozenset({A})  frozenset({Y})  frozenset({B})   
+    11            frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
+    12            frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    13            frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
+    
+                  Weight Voter Set  
+    Ballot Index                    
+    0                5.0        {}  
+    1               44.0        {}  
+    2               15.0        {}  
+    3                4.0        {}  
+    4                1.0        {}  
+    5                6.0        {}  
+    6                3.0        {}  
+    7                7.0        {}  
+    8                3.0        {}  
+    9                1.0        {}  
+    10               3.0        {}  
+    11               5.0        {}  
+    12               2.0        {}  
+    13               1.0        {}  
 
 
 Generating Preference Intervals from Hyperparameters
@@ -439,7 +474,7 @@ of all preference intervals.
 .. figure:: ../../_static/assets/candidate_simplex.png
    :alt: png
 
-
+   png
 
 Dirichlet Distribution
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -468,7 +503,7 @@ be “big.”
 .. figure:: ../../_static/assets/dirichlet_distribution.png
    :alt: png
 
-
+   png
 
 It is easy to sample a ``PreferenceInterval`` from the Dirichlet
 distribution. Rerun the code below several times to get a feel for how
@@ -476,27 +511,21 @@ these change with randomness.
 
 .. code:: ipython3
 
-    strong_pref_interval = PreferenceInterval.from_dirichlet(
-        candidates=["A", "B", "C"], alpha=0.1
-    )
+    strong_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], alpha=0.1)
     print("Strong preference for one candidate", strong_pref_interval)
     
-    abo_pref_interval = PreferenceInterval.from_dirichlet(
-        candidates=["A", "B", "C"], alpha=1
-    )
+    abo_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], alpha=1)
     print("All bets are off preference", abo_pref_interval)
     
-    unif_pref_interval = PreferenceInterval.from_dirichlet(
-        candidates=["A", "B", "C"], alpha=10
-    )
+    unif_pref_interval = PreferenceInterval.from_dirichlet(candidates=["A", "B", "C"], alpha=10)
     print("Uniform preference for all candidates", unif_pref_interval)
 
 
 .. parsed-literal::
 
-    Strong preference for one candidate {'A': np.float64(0.8203), 'B': np.float64(0.1797), 'C': np.float64(0.0)}
-    All bets are off preference {'A': np.float64(0.054), 'B': np.float64(0.1007), 'C': np.float64(0.8453)}
-    Uniform preference for all candidates {'A': np.float64(0.2827), 'B': np.float64(0.2634), 'C': np.float64(0.4539)}
+    Strong preference for one candidate {'A': np.float64(0.0424), 'B': np.float64(0.9576), 'C': np.float64(0.0)}
+    All bets are off preference {'A': np.float64(0.813), 'B': np.float64(0.0403), 'C': np.float64(0.1467)}
+    Uniform preference for all candidates {'A': np.float64(0.325), 'B': np.float64(0.3904), 'C': np.float64(0.2846)}
 
 
 Let’s initialize the s-PL model from the Dirichlet distribution, using
@@ -519,7 +548,8 @@ the opposing candidates.
     
     # the from_params method allows us to sample from
     # the Dirichlet distribution for our intervals
-    config = bg.BlocSlateConfig(n_voters = 100,
+    config = bg.BlocSlateConfig(
+        n_voters=100,
         bloc_proportions=bloc_proportions,
         cohesion_mapping=cohesion_mapping,
         slate_to_candidates=slate_to_candidates,
@@ -542,35 +572,46 @@ the opposing candidates.
 .. parsed-literal::
 
     Preference interval for X bloc and all candidates
-    X1    0.408341
-    X2    0.591659
-    Y1    0.426503
-    Y2    0.573497
+    X1    0.901017
+    X2    0.098983
+    Y1    0.532273
+    Y2    0.467727
     Name: X, dtype: float64
     
     Preference interval for Y bloc and all candidates
-    X1    0.368456
-    X2    0.631544
-    Y1    0.102943
-    Y2    0.897057
+    X1    0.910822
+    X2    0.089178
+    Y1    0.836838
+    Y2    0.163162
     Name: Y, dtype: float64
     
-                 Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    0                 (X2)      (X1)      (Y2)      (Y1)      19        {}
-    1                 (X2)      (X1)      (Y1)      (Y2)      17        {}
-    2                 (X2)      (Y2)      (X1)      (Y1)       1        {}
-    3                 (X2)      (Y1)      (Y2)      (X1)       1        {}
-    4                 (X2)      (Y1)      (X1)      (Y2)       3        {}
-    5                 (X1)      (X2)      (Y2)      (Y1)      13        {}
-    6                 (X1)      (X2)      (Y1)      (Y2)      13        {}
-    7                 (X1)      (Y2)      (X2)      (Y1)       1        {}
-    8                 (X1)      (Y1)      (X2)      (Y2)       1        {}
-    9                 (Y2)      (X1)      (X2)      (Y1)       4        {}
-    10                (Y2)      (X2)      (Y1)      (X1)       1        {}
-    11                (Y2)      (Y1)      (X1)      (X2)       1        {}
-    12                (Y1)      (X1)      (X2)      (Y2)       1        {}
-    13                (Y1)      (X2)      (X1)      (Y2)       4        {}
+                        Ranking_1        Ranking_2        Ranking_3  \
+    Ballot Index                                                      
+    0             frozenset({X1})  frozenset({X2})  frozenset({Y2})   
+    1             frozenset({X1})  frozenset({X2})  frozenset({Y1})   
+    2             frozenset({X1})  frozenset({Y2})  frozenset({Y1})   
+    3             frozenset({X1})  frozenset({Y2})  frozenset({X2})   
+    4             frozenset({X1})  frozenset({Y1})  frozenset({Y2})   
+    5             frozenset({X1})  frozenset({Y1})  frozenset({X2})   
+    6             frozenset({Y1})  frozenset({X1})  frozenset({X2})   
+    7             frozenset({Y1})  frozenset({Y2})  frozenset({X1})   
+    8             frozenset({X2})  frozenset({X1})  frozenset({Y2})   
+    9             frozenset({X2})  frozenset({X1})  frozenset({Y1})   
+    10            frozenset({Y2})  frozenset({X1})  frozenset({X2})   
+    
+                        Ranking_4  Weight Voter Set  
+    Ballot Index                                     
+    0             frozenset({Y1})      35        {}  
+    1             frozenset({Y2})      29        {}  
+    2             frozenset({X2})       2        {}  
+    3             frozenset({Y1})       2        {}  
+    4             frozenset({X2})       1        {}  
+    5             frozenset({Y2})       1        {}  
+    6             frozenset({Y2})       3        {}  
+    7             frozenset({X2})       1        {}  
+    8             frozenset({Y1})       3        {}  
+    9             frozenset({Y2})       1        {}  
+    10            frozenset({Y1})       2        {}  
 
 
 Let’s confirm that the intervals and ballots look reasonable. We have
@@ -618,7 +659,8 @@ data.
     
     slate_to_candidates = {"W": ["W1", "W2", "W3"], "C": ["C1", "C2"]}
     
-    config = bg.BlocSlateConfig(n_voters = 1000,
+    config = bg.BlocSlateConfig(
+        n_voters=1000,
         bloc_proportions=bloc_proportions,
         cohesion_mapping=cohesion_mapping,
         slate_to_candidates=slate_to_candidates,
@@ -627,25 +669,24 @@ data.
     config.set_dirichlet_alphas(alphas)
     
     
-    
     profile = bg.cambridge_profile_generator(config)
     print(profile.df.head(10).to_string())
 
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Ranking_4 Ranking_5  Weight Voter Set
-    Ballot Index                                                                    
-    0                 (W2)      (W3)      (C2)      (W1)      (C1)    14.0        {}
-    1                 (W2)      (W3)      (C2)      (W1)       (~)     3.0        {}
-    2                 (W2)      (W3)      (C2)       (~)       (~)     5.0        {}
-    3                 (W2)      (W3)      (C2)      (C1)       (~)     3.0        {}
-    4                 (W2)      (W3)      (C2)      (C1)      (W1)     8.0        {}
-    5                 (W2)      (W3)      (C1)      (W1)       (~)     5.0        {}
-    6                 (W2)      (W3)      (C1)      (W1)      (C2)     7.0        {}
-    7                 (W2)      (W3)      (C1)       (~)       (~)     9.0        {}
-    8                 (W2)      (W3)      (C1)      (C2)       (~)     3.0        {}
-    9                 (W2)      (W3)      (C1)      (C2)      (W1)     2.0        {}
+                        Ranking_1        Ranking_2        Ranking_3        Ranking_4        Ranking_5  Weight Voter Set
+    Ballot Index                                                                                                       
+    0             frozenset({W1})  frozenset({C1})  frozenset({W2})  frozenset({W3})  frozenset({C2})     8.0        {}
+    1             frozenset({W1})  frozenset({C1})  frozenset({W2})  frozenset({C2})   frozenset({~})     2.0        {}
+    2             frozenset({W1})  frozenset({C1})  frozenset({W2})  frozenset({C2})  frozenset({W3})     3.0        {}
+    3             frozenset({W1})  frozenset({C1})   frozenset({~})   frozenset({~})   frozenset({~})     5.0        {}
+    4             frozenset({W1})  frozenset({C1})  frozenset({W3})   frozenset({~})   frozenset({~})     4.0        {}
+    5             frozenset({W1})  frozenset({C1})  frozenset({W3})  frozenset({W2})  frozenset({C2})    13.0        {}
+    6             frozenset({W1})  frozenset({C1})  frozenset({W3})  frozenset({W2})   frozenset({~})     3.0        {}
+    7             frozenset({W1})  frozenset({C1})  frozenset({W3})  frozenset({C2})   frozenset({~})     2.0        {}
+    8             frozenset({W1})  frozenset({C1})  frozenset({W3})  frozenset({C2})  frozenset({W2})     8.0        {}
+    9             frozenset({W1})  frozenset({C1})  frozenset({C2})  frozenset({W3})   frozenset({~})     1.0        {}
 
 
 Note: the ballot type (as in, Ws and Cs) is strictly drawn from the

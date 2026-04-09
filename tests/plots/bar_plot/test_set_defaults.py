@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
 from votekit.plots.bar_plot import _set_default_bar_plot_args
 from votekit.utils import COLOR_LIST
-from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
 
 data = {
     "Profile 1": {"Chris": 5, "Peter": 6, "Moon": 7},
@@ -10,7 +11,6 @@ data = {
 
 
 def test_set_defaults_none_provided():
-
     default_dict = _set_default_bar_plot_args(
         data=data,
         data_set_colors=None,

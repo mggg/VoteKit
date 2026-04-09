@@ -32,7 +32,7 @@ case.
     
     # initializing the ballot generator
     ic_profile = bg.ic_profile_generator(candidates=candidates, number_of_ballots=1000)
-    iac_profile  = bg.iac_profile_generator(candidates=candidates, number_of_ballots=1000)
+    iac_profile = bg.iac_profile_generator(candidates=candidates, number_of_ballots=1000)
     
     
     print("IC profile:")
@@ -45,33 +45,32 @@ case.
 .. parsed-literal::
 
     IC profile:
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    0                  (B)       (A)       (C)     149        {}
-    1                  (A)       (C)       (B)     187        {}
-    2                  (C)       (A)       (B)     162        {}
-    3                  (A)       (B)       (C)     177        {}
-    4                  (B)       (C)       (A)     171        {}
-    5                  (C)       (B)       (A)     154        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    0             frozenset({C})  frozenset({A})  frozenset({B})     163        {}
+    1             frozenset({B})  frozenset({A})  frozenset({C})     154        {}
+    2             frozenset({B})  frozenset({C})  frozenset({A})     171        {}
+    3             frozenset({A})  frozenset({C})  frozenset({B})     162        {}
+    4             frozenset({A})  frozenset({B})  frozenset({C})     161        {}
+    5             frozenset({C})  frozenset({B})  frozenset({A})     189        {}
     
     IAC profile:
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    0                  (C)       (B)       (A)     130        {}
-    1                  (A)       (~)       (~)     202        {}
-    2                  (A)       (B)       (~)      68        {}
-    3                  (A)       (B)       (C)       3        {}
-    4                  (A)       (C)       (~)      26        {}
-    5                  (A)       (C)       (B)     123        {}
-    6                  (B)       (~)       (~)      60        {}
-    7                  (B)       (A)       (~)      26        {}
-    8                  (B)       (A)       (C)      42        {}
-    9                  (B)       (C)       (~)      48        {}
-    10                 (B)       (C)       (A)       2        {}
-    11                 (C)       (~)       (~)      73        {}
-    12                 (C)       (A)       (~)     163        {}
-    13                 (C)       (A)       (B)      26        {}
-    14                 (C)       (B)       (~)       8        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({~})  frozenset({~})     172        {}
+    1             frozenset({A})  frozenset({B})  frozenset({~})      21        {}
+    2             frozenset({A})  frozenset({B})  frozenset({C})     204        {}
+    3             frozenset({A})  frozenset({C})  frozenset({~})       3        {}
+    4             frozenset({A})  frozenset({C})  frozenset({B})      24        {}
+    5             frozenset({B})  frozenset({A})  frozenset({~})      43        {}
+    6             frozenset({B})  frozenset({A})  frozenset({C})     255        {}
+    7             frozenset({B})  frozenset({C})  frozenset({~})      75        {}
+    8             frozenset({B})  frozenset({C})  frozenset({A})      86        {}
+    9             frozenset({C})  frozenset({~})  frozenset({~})      42        {}
+    10            frozenset({C})  frozenset({A})  frozenset({~})      12        {}
+    11            frozenset({C})  frozenset({A})  frozenset({B})       2        {}
+    12            frozenset({C})  frozenset({B})  frozenset({~})      52        {}
+    13            frozenset({C})  frozenset({B})  frozenset({A})       9        {}
 
 
 Now we’ll plot some summary statistics for the generated profiles.
@@ -175,7 +174,8 @@ times :math:`B` is preferred to :math:`A`.
     
     slate_to_candidates = {"W": ["W1", "W2"], "C": ["C1", "C2"]}
     
-    config = bg.BlocSlateConfig(n_voters = 1000,
+    config = bg.BlocSlateConfig(
+        n_voters=1000,
         bloc_proportions=bloc_proportions,
         cohesion_mapping=cohesion_mapping,
         slate_to_candidates=slate_to_candidates,
@@ -196,9 +196,9 @@ times :math:`B` is preferred to :math:`A`.
 
     RankProfile
     Maximum ranking length: 4
-    Candidates: ('C2', 'W2', 'W1', 'C1')
-    Candidates who received votes: ('W2', 'W1', 'C1', 'C2')
-    Total number of Ballot objects: 94
+    Candidates: ('C1', 'C2', 'W1', 'W2')
+    Candidates who received votes: ('C1', 'C2', 'W1', 'W2')
+    Total number of Ballot objects: 62
     Total weight of Ballot objects: 1000.0
     
 
@@ -240,7 +240,7 @@ that beats every lower-tier candidate in a head-to-head comparison.
 
 .. parsed-literal::
 
-    tiers: [{'W2'}, {'W1'}, {'C1'}, {'C2'}]
+    tiers: [{'W2'}, {'W1'}, {'C2'}, {'C1'}]
     The Condorcet candidate is: W2
 
 
@@ -279,20 +279,21 @@ First we will initialize our generators.
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
     
     
-    config_1 = bg.BlocSlateConfig(n_voters = 100,
-                            bloc_proportions=bloc_proportions,
-                            preference_mapping=preference_mapping_1,
-                            slate_to_candidates=slate_to_candidates,
-                            cohesion_mapping=cohesion_mapping)
+    config_1 = bg.BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions=bloc_proportions,
+        preference_mapping=preference_mapping_1,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
     
-    config_2 = bg.BlocSlateConfig(n_voters = 100,
-                            bloc_proportions=bloc_proportions,
-                            preference_mapping=preference_mapping_2,
-                            slate_to_candidates=slate_to_candidates,
-                            cohesion_mapping=cohesion_mapping)
-    
-    
-
+    config_2 = bg.BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions=bloc_proportions,
+        preference_mapping=preference_mapping_2,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
 
 We have uncoupled the computation and plotting features since the
 computation is often time intensive, and this allows users to fiddle
@@ -300,6 +301,12 @@ with the plot without recomputing the coordinates.
 
 .. code:: ipython3
 
+    import warnings
+    
+    # Suppress sklearn FutureWarning about n_init default change;
+    # not relevant to this tutorial and embeds machine-specific paths in output.
+    warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
+    
     import matplotlib.pyplot as plt
     
     # the data is a dictionary whose keys correspond to data labels
@@ -330,14 +337,8 @@ with the plot without recomputing the coordinates.
     )
 
 
-.. parsed-literal::
 
-    /Users/cdonnay/PycharmProjects/VoteKit/.venv/lib/python3.11/site-packages/sklearn/manifold/_mds.py:677: FutureWarning: The default value of `n_init` will change from 4 to 1 in 1.9.
-      warnings.warn(
-
-
-
-.. image:: 3_viz_files/3_viz_17_1.png
+.. image:: 3_viz_files/3_viz_17_0.png
 
 
 In this plot, each red mark represents a simulated election built from
@@ -485,7 +486,7 @@ Now let’s generate a ballot graph from election data.
     RankProfile
     Maximum ranking length: 3
     Candidates: ('A', 'B', 'C')
-    Candidates who received votes: ('C', 'B', 'A')
+    Candidates who received votes: ('B', 'C', 'A')
     Total number of Ballot objects: 6
     Total weight of Ballot objects: 1000
     
@@ -498,14 +499,14 @@ Now let’s generate a ballot graph from election data.
 .. parsed-literal::
 
     (1,) {'weight': 0, 'cast': False}
-    (1, 2, 3) {'weight': 161.0, 'cast': True}
-    (1, 3, 2) {'weight': 183.0, 'cast': True}
+    (1, 2, 3) {'weight': 170.0, 'cast': True}
+    (1, 3, 2) {'weight': 165.0, 'cast': True}
     (2,) {'weight': 0, 'cast': False}
     (2, 3, 1) {'weight': 162.0, 'cast': True}
-    (2, 1, 3) {'weight': 143.0, 'cast': True}
+    (2, 1, 3) {'weight': 188.0, 'cast': True}
     (3,) {'weight': 0, 'cast': False}
-    (3, 1, 2) {'weight': 173.0, 'cast': True}
-    (3, 2, 1) {'weight': 178.0, 'cast': True}
+    (3, 1, 2) {'weight': 161.0, 'cast': True}
+    (3, 2, 1) {'weight': 154.0, 'cast': True}
 
 
 Check that this is reasonable: only ballots that were in the
@@ -603,7 +604,7 @@ and place it in your working directory (the same folder as your code).
     RankProfile
     Maximum ranking length: 4
     Candidates: ('Catherine Macdonald', 'D J Macrae', 'Philip Robert Mclean', 'David Cameron Wilson')
-    Candidates who received votes: ('Catherine Macdonald', 'D J Macrae', 'David Cameron Wilson', 'Philip Robert Mclean')
+    Candidates who received votes: ('Philip Robert Mclean', 'D J Macrae', 'Catherine Macdonald', 'David Cameron Wilson')
     Total number of Ballot objects: 57
     Total weight of Ballot objects: 802.0
     

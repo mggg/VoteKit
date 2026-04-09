@@ -75,8 +75,7 @@ all to ranked, you could do so as follows.
     print(score_profile)
     
     ranked_ballots = [
-        Ballot(ranking=score_dict_to_ranking(b.scores), weight=b.weight)
-        for b in score_profile.ballots
+        Ballot(ranking=score_dict_to_ranking(b.scores), weight=b.weight) for b in score_profile.ballots
     ]
     
     ranked_profile = PreferenceProfile(ballots=ranked_ballots)
@@ -94,12 +93,19 @@ all to ranked, you could do so as follows.
     Total weight of Ballot objects: 13.0
     
     Ranked profile
-                  Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0               (A, C)       (B)       (~)        {}     3.0
-    1                  (C)       (B)       (A)        {}     2.0
-    2                  (B)       (C)       (A)        {}     5.0
-    3                  (B)       (~)       (~)        {}     3.0
+                           Ranking_1       Ranking_2       Ranking_3 Voter Set  \
+    Ballot Index                                                                
+    0             frozenset({A, C})  frozenset({B})  frozenset({~})        {}   
+    1                frozenset({C})  frozenset({B})  frozenset({A})        {}   
+    2                frozenset({B})  frozenset({C})  frozenset({A})        {}   
+    3                frozenset({B})  frozenset({~})  frozenset({~})        {}   
+    
+                  Weight  
+    Ballot Index          
+    0                3.0  
+    1                2.0  
+    2                5.0  
+    3                3.0  
 
 
 Score ballots are flexible enough to allow any non-zero score, including
@@ -144,7 +150,7 @@ total score.
     )
     
     # elect 1 seat, each voter can rate candidates up to 5 points independently
-    election = Rating(score_profile, m=1, L=5)
+    election = Rating(score_profile, n_seats=1, per_candidate_limit=5)
     print(election)
 
 
@@ -178,7 +184,7 @@ running the election. All of these code blocks should raise
     
     # should raise a TypeError since this profile has no scores
     try:
-        election = Rating(ranking_profile, m=1, L=5)
+        election = Rating(ranking_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -186,22 +192,16 @@ running the election. All of these code blocks should raise
 .. parsed-literal::
 
     Found the following error:
-    	TypeError: Ballot RankBallot
-    1.) A, 
-    2.) B, 
-    3.) C, 
-    Weight: 1.0 must be of type ScoreBallot
+    	ProfileError: Profile must be of type ScoreProfile.
 
 
 .. code:: ipython3
 
-    negative_profile = PreferenceProfile(
-        ballots=[Ballot(scores={"A": -1, "B": 3.14159, "C": 0})]
-    )
+    negative_profile = PreferenceProfile(ballots=[Ballot(scores={"A": -1, "B": 3.14159, "C": 0})])
     
     # should raise a TypeError since this profile has negative score
     try:
-        election = Rating(negative_profile, m=1, L=5)
+        election = Rating(negative_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -221,7 +221,7 @@ running the election. All of these code blocks should raise
     
     # should raise a TypeError since this profile has score over 5
     try:
-        election = Rating(over_L_profile, m=1, L=5)
+        election = Rating(over_L_profile, n_seats=1, per_candidate_limit=5)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -260,7 +260,7 @@ points is known as “plumping” the vote.
     )
     
     # elect 2 seat, each voter can rate candidates up to 2 points total
-    election = Cumulative(score_profile, m=2)
+    election = Cumulative(score_profile, n_seats=2)
     print(election)
     print(election.get_ranking())
     print(election.election_states[0].scores)
@@ -286,7 +286,7 @@ Again, the Cumulative class does validation for us.
     
     # should raise a TypeError since this profile has total score over 2
     try:
-        election = Cumulative(over_m_profile, m=2)
+        election = Cumulative(over_m_profile, n_seats=2)
     except Exception as e:
         print(f"Found the following error:\n\t{e.__class__.__name__}: {e}")
 
@@ -324,11 +324,13 @@ known as “plumping”).
     
     cohesion_mapping = {"all_voters": {"all_voters": 1}}
     
-    config = bg.BlocSlateConfig(n_voters=100,
-                bloc_proportions=bloc_proportions,
-                slate_to_candidates=slate_to_candidates,
-                preference_mapping=preference_mapping,
-                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=100,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        preference_mapping=preference_mapping,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     # the num_votes parameter says how many total points the voter is given
     # for a cumulative election, this is m, the number of seats
@@ -344,11 +346,11 @@ known as “plumping”).
 
                     A    B    C  Weight Voter Set
     Ballot Index                                 
-    0             1.0  1.0  NaN    24.0        {}
-    1             1.0  NaN  1.0     7.0        {}
-    2             2.0  NaN  NaN    66.0        {}
-    3             NaN  1.0  1.0     2.0        {}
-    4             NaN  2.0  NaN     1.0        {}
+    0             1.0  1.0  NaN    23.0        {}
+    1             1.0  NaN  1.0    12.0        {}
+    2             2.0  NaN  NaN    58.0        {}
+    3             NaN  1.0  1.0     3.0        {}
+    4             NaN  2.0  NaN     4.0        {}
 
 
 Verify that the ballots make sense given the interval. ``A`` should

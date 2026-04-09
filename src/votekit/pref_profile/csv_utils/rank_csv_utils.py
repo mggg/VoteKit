@@ -1,11 +1,13 @@
 from __future__ import annotations
+
+from typing import Tuple
+
 from ...ballot import RankBallot
 from .csv_utils import (
-    _validate_csv_ballot_weight,
-    _validate_csv_ballot_voter_set,
     _validate_csv_ballot_row_break_idxs,
+    _validate_csv_ballot_voter_set,
+    _validate_csv_ballot_weight,
 )
-from typing import Tuple
 
 
 def _parse_profile_data_from_rank_csv(
@@ -30,9 +32,7 @@ def _parse_profile_data_from_rank_csv(
     includes_voter_set = csv_data[6][0] == "True"
 
     ballot_data_column_names = csv_data[8]
-    break_indices = [
-        i for i, col_name in enumerate(ballot_data_column_names) if col_name == "&"
-    ]
+    break_indices = [i for i, col_name in enumerate(ballot_data_column_names) if col_name == "&"]
 
     return (
         inv_candidate_mapping,
@@ -77,9 +77,7 @@ def _parse_ballot_from_rank_csv(
         )
 
     ranking = ballot_row[ranking_start:ranking_end]
-    temp_ranking = [
-        cand_set.strip("{}").split(", ") for cand_set in ranking if cand_set != ""
-    ]
+    temp_ranking = [cand_set.strip("{}").split(", ") for cand_set in ranking if cand_set != ""]
     formatted_ranking = tuple(
         [
             (
@@ -261,16 +259,13 @@ def _validate_rank_csv_ballot_header_row(
     )
 
     header_row = ballot_rows[0]
-    ranking_cols = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
+    ranking_cols = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
 
-    if max_ranking_length > 0 and any(
-        r_col not in header_row for r_col in ranking_cols
-    ):
+    if max_ranking_length > 0 and any(r_col not in header_row for r_col in ranking_cols):
         raise ValueError(
             (
                 "csv file is improperly formatted. Row 8 should include 'Ranking_i' for "
-                f"i going from 1 to max ranking length, not {header_row}. "
-                + boiler_plate
+                f"i going from 1 to max ranking length, not {header_row}. " + boiler_plate
             )
         )
     elif max_ranking_length == 0 and any("Ranking_" in col for col in header_row):
@@ -329,8 +324,7 @@ def _validate_rank_csv_ballot_ranking(
         raise ValueError(
             (
                 f"csv file is improperly formatted. Ballot in row {row_index} has rankings "
-                f"but it should not: {ballot_row[break_idxs[0]:break_idxs[1]]}. "
-                + boiler_plate
+                f"but it should not: {ballot_row[break_idxs[0] : break_idxs[1]]}. " + boiler_plate
             )
         )
     elif max_ranking_length == 0:
@@ -382,9 +376,7 @@ def _validate_rank_csv_ballot_rows(csv_data: list[list[str]]):
     max_ranking_length = int(max_ranking_row[0])
     include_voter_set = include_voter_set_row[0] == "True"
 
-    _validate_rank_csv_ballot_header_row(
-        csv_data[8:], max_ranking_length, include_voter_set
-    )
+    _validate_rank_csv_ballot_header_row(csv_data[8:], max_ranking_length, include_voter_set)
     error_rows = []
     for i, ballot_row in enumerate(csv_data[9:]):
         try:

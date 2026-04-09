@@ -1,21 +1,26 @@
-# default_language_version:
-#     python: python3.10
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.13.2"
+  - repo: local
     hooks:
-      - id: ruff
-  - repo: https://github.com/ambv/black
-    rev: 25.9.0
-    hooks:
-      - id: black
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: "v1.1.1"
-  #   hooks:
-  #     - id: mypy
-  #       args: [src]
+      - id: format-check
+        name: format-check
+        entry: sh -c 'uv run ruff check --select I --diff "$@" && uv run ruff format --check "$@"' --
+        language: system
+        types: [python]
+        pass_filenames: true
+      - id: lint
+        name: lint
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        pass_filenames: true
+      - id: typecheck
+        name: typecheck
+        entry: sh -c 'command -v task >/dev/null 2>&1 && task typecheck || go-task typecheck'
+        language: system
+        types: [python]
+        pass_filenames: false

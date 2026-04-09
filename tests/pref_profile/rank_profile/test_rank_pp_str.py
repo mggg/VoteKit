@@ -1,7 +1,6 @@
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 
-
 ballots = [
     RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
     RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),

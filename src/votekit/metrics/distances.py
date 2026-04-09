@@ -1,9 +1,11 @@
-from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
+from typing import Optional, Sequence, Union
+
 import numpy as np
-from typing import Union, Optional, Sequence
 from scipy.optimize import linprog
-from scipy.sparse import identity, kron, vstack, csr_matrix
+from scipy.sparse import csr_matrix, identity, kron, vstack
 from scipy.stats import kendalltau
+
+from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
 
 
 def emd_via_scipy_linear_program(
@@ -57,9 +59,7 @@ def emd_via_scipy_linear_program(
         return 0.0
 
     if (source_distribution < 0).any() or (target_distribution < 0).any():
-        raise ValueError(
-            "Negative entries in source or target distributions are not allowed."
-        )
+        raise ValueError("Negative entries in source or target distributions are not allowed.")
 
     # Trim to only nonzero entries to reduce LP size
     trimmed_source = source_distribution[nonzero_source_mask]
@@ -208,7 +208,7 @@ def __compute_bubble_sort_distance(
     tau, _ = kendalltau(ranking1_sort_idx, ranking2_sort_idx)
     full_ranking_count = len(full_ranking_set)
     t_value = (full_ranking_count * (full_ranking_count - 1)) / 2
-    return int(round(t_value * (1 - float(tau)) / 2))  # type: ignore[return-value]
+    return int(round(t_value * (1 - float(tau)) / 2))
 
 
 def compute_ranking_distance_on_ballot_graph(
@@ -238,18 +238,12 @@ def compute_ranking_distance_on_ballot_graph(
         ranking1, ranking2, n_candidates
     )
 
-    bubble_sort_distance = __compute_bubble_sort_distance(
-        ranking1, ranking2, full_ranking_set
-    )
+    bubble_sort_distance = __compute_bubble_sort_distance(ranking1, ranking2, full_ranking_set)
 
     insertion_deletion_set = ranked1_set.symmetric_difference(ranked2_set)
     insertion_deletion_distance = len(insertion_deletion_set) / 2
 
-    if (
-        ranked1_set.intersection(ranked2_set) == set()
-        and len(ranking1) > 0
-        and len(ranking2) > 0
-    ):
+    if ranked1_set.intersection(ranked2_set) == set() and len(ranking1) > 0 and len(ranking2) > 0:
         # Case where there might an insertion and a deletion at the end. Both are free, so we
         # credit them back 0.5 each.
         insertion_credit = 1 if len(full_ranking_set) == n_candidates else 0.0
@@ -292,9 +286,7 @@ def __build_simultaneous_profile_distribution(
     profile1 = pp1.group_ballots()
     profile2 = pp2.group_ballots()
 
-    cand_to_index_mapping = {
-        cand: i for i, cand in enumerate(sorted(profile1.candidates))
-    }
+    cand_to_index_mapping = {cand: i for i, cand in enumerate(sorted(profile1.candidates))}
 
     profile_distribution_dict = dict()
 
@@ -306,9 +298,7 @@ def __build_simultaneous_profile_distribution(
     profile1_wt_vector = profile1_wt_vector / np.sum(profile1_wt_vector)
 
     if (profile1_ranking_array == frozenset({})).any():
-        raise ValueError(
-            "The first profile contains an empty ranking, which is not allowed."
-        )
+        raise ValueError("The first profile contains an empty ranking, which is not allowed.")
 
     for idx, ranking_tuple in enumerate(profile1_ranking_array):
         tup = tuple(
@@ -330,9 +320,7 @@ def __build_simultaneous_profile_distribution(
     profile2_wt_vector = profile2_wt_vector / np.sum(profile2_wt_vector)
 
     if (profile2_ranking_array == frozenset({})).any():
-        raise ValueError(
-            "The second profile contains an empty ranking, which is not allowed."
-        )
+        raise ValueError("The second profile contains an empty ranking, which is not allowed.")
 
     for idx, ranking_tuple in enumerate(profile2_ranking_array):
         tup = tuple(
@@ -364,13 +352,14 @@ def earth_mover_dist(pp1: RankProfile, pp2: RankProfile) -> float:
     Returns:
         float: Earth Mover's Distance between two profiles.
     """
-    if set(pp1.candidates) != set(pp2.candidates):
-        raise ValueError("The two profiles must have the same candidates.")
-
     if not isinstance(pp1, RankProfile) or not isinstance(pp2, RankProfile):
         raise ValueError(
             "Both profiles must contain rankings to compute the Earth Mover's Distance."
         )
+
+    if set(pp1.candidates) != set(pp2.candidates):
+        raise ValueError("The two profiles must have the same candidates.")
+
     if pp1.max_ranking_length != pp2.max_ranking_length:
         raise ValueError(
             "Both profiles must have the same maximum ranking length to compute the Earth Mover's "

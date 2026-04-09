@@ -9,6 +9,7 @@
 import os
 import sys
 
+DOCS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # -- Path setup --------------------------------------------------------------
 
@@ -21,7 +22,12 @@ import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
 # autodoc needs to find our code.
-sys.path.insert(0, os.path.abspath("../src"))
+sys.path.insert(0, DOCS_DIR)
+sys.path.insert(0, os.path.abspath(os.path.join(DOCS_DIR, "../src")))
+
+from sync_contributing import sync_contributing_doc  # noqa: E402
+
+sync_contributing_doc()
 
 # -- Project information -----------------------------------------------------
 
@@ -185,6 +191,4 @@ add_module_names = True
 autodoc_inherit_docstrings = False
 autosectionlabel_prefix_document = True
 
-suppress_warnings = [
-    "autosectionlabel.*"
-]  # removes warnings about repeated section headers
+suppress_warnings = ["autosectionlabel.*"]  # removes warnings about repeated section headers

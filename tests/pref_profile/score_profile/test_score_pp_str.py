@@ -1,7 +1,6 @@
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
 
-
 ballots = [
     ScoreBallot(scores={"A": 2}, weight=2),
     ScoreBallot(scores={"B": 2}, voter_set={"Chris"}),

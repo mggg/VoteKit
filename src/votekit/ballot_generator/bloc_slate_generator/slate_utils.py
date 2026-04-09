@@ -1,8 +1,10 @@
+from typing import Iterator, Sequence
+
 import numpy as np
-from typing import Sequence, Iterator
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 import pandas as pd
 from numpy.typing import NDArray
+
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
 
 
@@ -201,17 +203,14 @@ def _convert_slate_ballots_to_profile(
     n_ballots = len(slate_ballots)
 
     # full orderings of all candidates in each slate
-    cand_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(
-        config, bloc, n_ballots
-    )
+    cand_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(config, bloc, n_ballots)
 
     ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
     for i, slate_ballot in enumerate(slate_ballots):
         ranking = _convert_slate_ballot_type_to_ranking(
             ballot_type=slate_ballot,
             cand_ordering_by_slate={
-                s: cand_ordering[i]
-                for s, cand_ordering in cand_orderings_by_slate.items()
+                s: cand_ordering[i] for s, cand_ordering in cand_orderings_by_slate.items()
             },
             final_max_ranking_length=n_candidates,
         )
@@ -221,7 +220,11 @@ def _convert_slate_ballots_to_profile(
     df.index.name = "Ballot Index"
     df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
     df["Weight"] = 1
-    df["Voter Set"] = [frozenset()] * len(df)
+    df.insert(
+        len(df.columns),
+        "Voter Set",
+        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+    )
     pp = RankProfile(
         candidates=config.candidates,
         df=df,
@@ -256,11 +259,7 @@ def _append_zero_slate_symbols(
     ]
     noise = np.random.random(size=(n_ballots, len(zero_slate_symbols)))
     permutation_indices = np.argsort(noise, axis=1)
-    zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[
-        permutation_indices
-    ]
+    zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[permutation_indices]
 
-    ballots = [
-        ballot + tuple(zero_slate_orderings[i]) for i, ballot in enumerate(ballots)
-    ]
+    ballots = [ballot + tuple(zero_slate_orderings[i]) for i, ballot in enumerate(ballots)]
     return ballots

@@ -1,8 +1,10 @@
-from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile
-from votekit.matrices._utils import _convert_dict_to_matrix
-import numpy as np
 from typing import Union
+
+import numpy as np
+
+from votekit.ballot import RankBallot
+from votekit.matrices._utils import _convert_dict_to_matrix
+from votekit.pref_profile import RankProfile
 
 
 def comention(cands: Union[str, list[str]], ballot: RankBallot):
@@ -81,7 +83,6 @@ def comentions_matrix(
     for i in candidates:
         for j in candidates:
             for ballot in pref_profile.ballots:
-
                 if symmetric:
                     if comention([i, j], ballot):
                         comentions_matrix[i][j] += ballot.weight

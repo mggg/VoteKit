@@ -1,7 +1,8 @@
-from votekit.pref_profile import ScoreProfile, ProfileError
-from votekit.ballot import ScoreBallot, RankBallot
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.pref_profile import ProfileError, ScoreProfile
 
 profile = ScoreProfile(
     ballots=(
@@ -38,9 +39,7 @@ def test_from_df_init_errors():
         match="Profile cannot contain RankBallots and ScoreBallots. "
         "There are 1 ScoreBallots and 1 RankBallots.",
     ):
-        ScoreProfile(
-            ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1}))
-        )
+        ScoreProfile(ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1})))
 
     with pytest.raises(
         ProfileError,

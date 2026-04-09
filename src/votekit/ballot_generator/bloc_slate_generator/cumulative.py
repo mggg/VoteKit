@@ -3,28 +3,27 @@ Generate scored preference profiles using the name-Cumulative model.
 
 The main API functions in this module are:
 
-- `name_cumulative_profile_generator`: Generates a single preference profile using the name-Cumulative
-    model.
+- `name_cumulative_profile_generator`: Generates a single preference profile
+    using the name-Cumulative model.
 - `name_cumulative_ballot_generator_by_bloc`: Generates preference profiles by bloc using the
     name-Cumulative model.
 """
 
-import numpy as np
-import apportionment.methods as apportion
 from typing import Optional
 
+import apportionment.methods as apportion
+import numpy as np
+
 from votekit.ballot import ScoreBallot
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import ScoreProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
 
 # ===========================================================
 # ================= Interior Work Functions =================
 # ===========================================================
 
 
-def _inner_name_cumulative(
-    config: BlocSlateConfig, total_points: int
-) -> dict[str, ScoreProfile]:
+def _inner_name_cumulative(config: BlocSlateConfig, total_points: int) -> dict[str, ScoreProfile]:
     """
     Inner function to generate cumulative profiles by bloc using the name-Cumulative model.
 
@@ -40,9 +39,7 @@ def _inner_name_cumulative(
     bloc_lst = config.blocs
     n_voters = int(config.n_voters)
 
-    bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), n_voters
-    )
+    bloc_counts = apportion.compute("huntington", list(config.bloc_proportions.values()), n_voters)
     if not isinstance(bloc_counts, list):
         bloc_counts = [int(bloc_counts)]
 
@@ -73,8 +70,7 @@ def _inner_name_cumulative(
         counts = rng.multinomial(n=total_points, pvals=p, size=num_ballots)
 
         ballots = [
-            ScoreBallot(scores=dict(zip(cands, row.astype(float))), weight=1)
-            for row in counts
+            ScoreBallot(scores=dict(zip(cands, row.astype(float))), weight=1) for row in counts
         ]
         pp_by_bloc[bloc] = ScoreProfile(ballots=tuple(ballots))
 

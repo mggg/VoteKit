@@ -1,8 +1,9 @@
-from votekit.elections import Limited, ElectionState
-from votekit.pref_profile import ScoreProfile
-from votekit.ballot import ScoreBallot
-import pytest
 import pandas as pd
+import pytest
+
+from votekit.ballot import ScoreBallot
+from votekit.elections import ElectionState, Limited
+from votekit.pref_profile import ScoreProfile
 
 profile_no_tied_limited = ScoreProfile(
     ballots=[
@@ -47,22 +48,22 @@ states = [
 
 
 def test_init():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_elected() == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_ties():
-    e_random = Limited(profile_tied_limited, m=3, k=2, tiebreak="random")
+    e_random = Limited(profile_tied_limited, n_seats=3, budget=2, tiebreak="random")
     assert len([c for s in e_random.get_elected() for c in s]) == 3
 
 
 def test_state_list():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.election_states == states
 
 
 def test_get_profile():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_profile(0) == profile_no_tied_limited
     print(e.get_profile(1).df.to_string())
     print(profile_no_tied_limited_round_1.df.to_string())
@@ -70,24 +71,24 @@ def test_get_profile():
 
 
 def test_get_step():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_step(1) == (profile_no_tied_limited_round_1, states[1])
 
 
 def test_get_elected():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_elected(0) == tuple()
     assert e.get_elected(1) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_get_eliminated():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_eliminated(0) == tuple()
     assert e.get_eliminated(1) == tuple()
 
 
 def test_get_remaining():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_remaining(0) == (
         frozenset({"A"}),
         frozenset({"B"}),
@@ -98,7 +99,7 @@ def test_get_remaining():
 
 
 def test_get_ranking():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_ranking(0) == (
         frozenset({"A"}),
         frozenset({"B"}),
@@ -114,7 +115,7 @@ def test_get_ranking():
 
 
 def test_get_status_df():
-    e = Limited(profile_no_tied_limited, m=3, k=2)
+    e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
 
     df_0 = pd.DataFrame(
         {"Status": ["Remaining"] * 4, "Round": [0] * 4},
@@ -130,39 +131,35 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="m must be positive."):
-        Limited(profile_no_tied_limited, m=0, k=0)
+    with pytest.raises(ValueError, match="n_seats must be positive."):
+        Limited(profile_no_tied_limited, n_seats=0, budget=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
-        Limited(profile_no_tied_limited, m=5, k=2)
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        Limited(profile_no_tied_limited, n_seats=5, budget=2)
 
     with pytest.raises(
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
-        Limited(profile_tied_limited, m=3, k=2)
+        Limited(profile_tied_limited, n_seats=3, budget=2)
 
-    with pytest.raises(ValueError, match="k must be less than or equal to m."):
-        Limited(profile_tied_limited, m=2, k=3)
+    with pytest.raises(ValueError, match="budget must be less than or equal to n_seats."):
+        Limited(profile_tied_limited, n_seats=2, budget=3)
 
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3, "B": 2})])
-        Limited(profile, m=2, k=2)
+        Limited(profile, n_seats=2, budget=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})])
-        Limited(profile, m=2, k=2)
+        Limited(profile, n_seats=2, budget=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
-        Limited(profile, m=1)
+        Limited(profile, n_seats=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = ScoreProfile(
-            ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})]
-        )
-        Limited(profile, m=2)
+        profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})])
+        Limited(profile, n_seats=2)

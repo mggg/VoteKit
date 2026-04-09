@@ -1,38 +1,19 @@
+from typing import Optional
+
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_types.scores import GeneralRating
 from votekit.pref_profile import ScoreProfile
-from typing import Optional
 
 
 class Approval(GeneralRating):
     """
     Approval election. Standard approval voting lets voters choose any subset of candidates to
-    approve.  Winners are the :math:`m` candidates who received the most approval votes.
+    approve.  Winners are the :math:`n_\text{seats}` candidates who received the most approval
+    votes.
 
     Args:
         profile (ScoreProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
-        tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
-            Defaults to None, in which case a tie raises a ValueError.
-
-    """
-
-    def __init__(
-        self, profile: ScoreProfile, m: int = 1, tiebreak: Optional[str] = None
-    ):
-        # limit one per candidate,  but no total budget limit
-        super().__init__(profile, m=m, L=1, tiebreak=tiebreak)
-
-
-class BlocPlurality(GeneralRating):
-    """
-    Like approval voting, but there is a user-specified limit of :math:`k` approvals per voter.
-    Most commonly, this would be run with :math:`k=m`.
-
-    Args:
-        profile (ScoreProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
-        k (int, optional): Total budget per voter. Defaults to None, which results in ``m``
-            approvals per voter.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
 
@@ -41,11 +22,16 @@ class BlocPlurality(GeneralRating):
     def __init__(
         self,
         profile: ScoreProfile,
-        m: int = 1,
-        k: Optional[int] = None,
+        n_seats: int | None = None,
         tiebreak: Optional[str] = None,
+        **kwargs,
     ):
-        if k is None or k == 0:
-            k = m
-        # limit one per candidate, total budget limit k
-        super().__init__(profile, m=m, L=1, k=k, tiebreak=tiebreak)
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
+        # limit one per candidate,  but no total budget limit
+        super().__init__(profile, n_seats=n_seats, per_candidate_limit=1, tiebreak=tiebreak)

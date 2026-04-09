@@ -1,51 +1,48 @@
 from votekit.ballot_generator.ballot_generator import BallotGenerator
 from votekit.ballot_generator.bloc_slate_generator import (
-    name_bt_profile_generator,
-    name_bt_profiles_by_bloc_generator,
-    name_bt_profile_generator_using_mcmc,
-    name_bt_profiles_by_bloc_generator_using_mcmc,
-    name_pl_profile_generator,
-    name_pl_profiles_by_bloc_generator,
-    name_cumulative_profile_generator,
-    name_cumulative_ballot_generator_by_bloc,
+    BlocSlateConfig,
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
-    slate_pl_profile_generator,
-    slate_pl_profiles_by_bloc_generator,
-    slate_bt_profile_generator,
-    slate_bt_profiles_by_bloc_generator,
-    slate_bt_profile_generator_using_mcmc,
-    slate_bt_profiles_by_bloc_generator_using_mcmc,
+    convert_bloc_proportion_map_to_series,
     convert_cohesion_map_to_cohesion_df,
     convert_preference_map_to_preference_df,
-    convert_bloc_proportion_map_to_series,
-    BlocSlateConfig,
+    name_bt_profile_generator,
+    name_bt_profile_generator_using_mcmc,
+    name_bt_profiles_by_bloc_generator,
+    name_bt_profiles_by_bloc_generator_using_mcmc,
+    name_cumulative_ballot_generator_by_bloc,
+    name_cumulative_profile_generator,
+    name_pl_profile_generator,
+    name_pl_profiles_by_bloc_generator,
+    slate_bt_profile_generator,
+    slate_bt_profile_generator_using_mcmc,
+    slate_bt_profiles_by_bloc_generator,
+    slate_bt_profiles_by_bloc_generator_using_mcmc,
+    slate_pl_profile_generator,
+    slate_pl_profiles_by_bloc_generator,
 )
-
-from votekit.ballot_generator.std_generator import (
-    ic_profile_generator,
-    iac_profile_generator,
-    onedim_spacial_profile_generator,
-    spacial_profile_and_positions_generator,
-    clustered_spacial_profile_and_positions_generator,
-)
-
 from votekit.ballot_generator.deprecated_classes import (
+    AlternatingCrossover,
+    CambridgeSampler,
+    ClusteredSpatial,
+    ImpartialAnonymousCulture,
+    ImpartialCulture,
+    OneDimSpatial,
+    Spatial,
     name_BradleyTerry,
+    name_Cumulative,
     name_PlackettLuce,
     short_name_PlackettLuce,
-    name_Cumulative,
-    CambridgeSampler,
-    slate_PlackettLuce,
     slate_BradleyTerry,
-    ImpartialCulture,
-    ImpartialAnonymousCulture,
-    Spatial,
-    OneDimSpatial,
-    ClusteredSpatial,
-    AlternatingCrossover,
+    slate_PlackettLuce,
 )
-
+from votekit.ballot_generator.std_generator import (
+    clustered_spacial_profile_and_positions_generator,
+    iac_profile_generator,
+    ic_profile_generator,
+    onedim_spacial_profile_generator,
+    spacial_profile_and_positions_generator,
+)
 
 __all__ = [
     "BallotGenerator",
@@ -88,3 +85,11 @@ __all__ = [
     "ClusteredSpatial",
     "AlternatingCrossover",
 ]
+
+# Patch __module__ on every exported symbol so that Sphinx autodoc displays
+# the canonical public import path (e.g. votekit.ballot_generator.BallotGenerator)
+# instead of the full internal path where each object is defined.
+for _name in __all__:
+    _obj = globals().get(_name)
+    if _obj is not None and hasattr(_obj, "__module__"):
+        _obj.__module__ = __name__

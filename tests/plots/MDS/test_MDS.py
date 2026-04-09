@@ -1,9 +1,10 @@
-from votekit.plots import compute_MDS, plot_MDS  # , plot_summary_stats
-from votekit.ballot_generator import BlocSlateConfig, name_pl_profile_generator
-from votekit.metrics import lp_dist
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
+
+from votekit.ballot_generator import BlocSlateConfig, name_pl_profile_generator
+from votekit.metrics import lp_dist
+from votekit.plots import compute_MDS, plot_MDS  # , plot_summary_stats
 
 
 def test_compute_MDS():

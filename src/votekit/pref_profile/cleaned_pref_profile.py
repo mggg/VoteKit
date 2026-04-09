@@ -1,7 +1,10 @@
 from __future__ import annotations
-from votekit.pref_profile import RankProfile, ScoreProfile
+
 import warnings
+
 import pandas as pd
+
+from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
 
 
 class CleanedRankProfile(RankProfile):
@@ -53,7 +56,6 @@ class CleanedRankProfile(RankProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
-
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column
         self.no_wt_altr_idxs = no_wt_altr_idxs
@@ -125,11 +127,7 @@ class CleanedRankProfile(RankProfile):
             )
 
         if set().union(*index_sets) != set(self.parent_profile.df.index):
-            sym_dif = (
-                set()
-                .union(*index_sets)
-                .symmetric_difference(self.parent_profile.df.index)
-            )
+            sym_dif = set().union(*index_sets).symmetric_difference(self.parent_profile.df.index)
             raise ValueError(
                 (
                     "Union of ballot indices must equal the parent profile df index "
@@ -146,9 +144,7 @@ class CleanedRankProfile(RankProfile):
 
         """
         if len(self.df) != len(self.df_index_column):
-            raise ValueError(
-                "df_index_column does not have the same length as the ballot list."
-            )
+            raise ValueError("df_index_column does not have the same length as the ballot list.")
 
         df_copy = self.df.copy()
         df_copy.index = pd.Index(self.df_index_column)
@@ -165,7 +161,6 @@ class CleanedRankProfile(RankProfile):
         return super().group_ballots()
 
     def __str__(self) -> str:
-
         return "Profile has been cleaned\n" + super().__str__()
 
     __repr__ = __str__
@@ -217,7 +212,6 @@ class CleanedScoreProfile(ScoreProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
-
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column
         self.no_wt_altr_idxs = no_wt_altr_idxs
@@ -256,9 +250,7 @@ class CleanedScoreProfile(ScoreProfile):
             )
 
         if not self.no_scores_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.no_scores_altr_idxs.difference(
-                self.parent_profile.df.index
-            )
+            set_minus = self.no_scores_altr_idxs.difference(self.parent_profile.df.index)
             raise ValueError(
                 (
                     "no_scores_altr_idxs is not a subset of the"
@@ -291,11 +283,7 @@ class CleanedScoreProfile(ScoreProfile):
             )
 
         if set().union(*index_sets) != set(self.parent_profile.df.index):
-            sym_dif = (
-                set()
-                .union(*index_sets)
-                .symmetric_difference(self.parent_profile.df.index)
-            )
+            sym_dif = set().union(*index_sets).symmetric_difference(self.parent_profile.df.index)
             raise ValueError(
                 (
                     "Union of ballot indices must equal the parent profile df index "
@@ -312,9 +300,7 @@ class CleanedScoreProfile(ScoreProfile):
 
         """
         if len(self.df) != len(self.df_index_column):
-            raise ValueError(
-                "df_index_column does not have the same length as the ballot list."
-            )
+            raise ValueError("df_index_column does not have the same length as the ballot list.")
 
         df_copy = self.df.copy()
         df_copy.index = pd.Index(self.df_index_column)
@@ -331,7 +317,6 @@ class CleanedScoreProfile(ScoreProfile):
         return super().group_ballots()
 
     def __str__(self) -> str:
-
         return "Profile has been cleaned\n" + super().__str__()
 
     __repr__ = __str__

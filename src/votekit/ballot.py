@@ -1,6 +1,7 @@
-from typing import Optional, Union, TypeAlias, Iterable, Sequence
-from numbers import Real
+from __future__ import annotations
 
+from numbers import Real
+from typing import Iterable, Optional, Sequence, TypeAlias, Union, overload
 
 Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
 RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
@@ -44,6 +45,36 @@ class Ballot:
         "_frozen",
     ]
 
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: Sequence[Iterable[str]],
+        scores: None = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> RankBallot: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: None = None,
+        scores: dict[str, Union[int, float]],
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> ScoreBallot: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ranking: Optional[Sequence[Iterable[str]]] = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
+        weight: Union[float, int] = 1.0,
+        voter_set: Union[set[str], frozenset[str]] = frozenset(),
+    ) -> Ballot: ...
+
     def __new__(
         cls,
         *,
@@ -69,10 +100,7 @@ class Ballot:
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
-
-        self.voter_set = (
-            frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
-        )
+        self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
 
         if weight < 0:
             raise ValueError("Ballot weight cannot be negative.")
@@ -142,9 +170,12 @@ class RankBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
+        scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
+        if scores is not None:
+            raise TypeError("Only one of ranking or scores can be provided.")
         self._validate_ranking_candidates(ranking)
         self.ranking = self._strip_whitespace_ranking_candidates(ranking)
         super().__init__(weight=weight, voter_set=voter_set)
@@ -182,7 +213,7 @@ class RankBallot(Ballot):
 
         if self.ranking:
             for i, s in enumerate(self.ranking):
-                ranking_str += f"{i+1}.) "
+                ranking_str += f"{i + 1}.) "
                 for c in s:
                     ranking_str += f"{c}, "
 
@@ -220,18 +251,19 @@ class ScoreBallot(Ballot):
     def __init__(
         self,
         *,
+        ranking: RankingLike = None,
         scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
+        if ranking is not None:
+            raise TypeError("Only one of ranking or scores can be provided.")
         self._validate_scores_candidates(scores)
         self.scores = self._convert_scores_to_float_strip_whitespace(scores)
 
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _validate_scores_candidates(
-        self, scores: Optional[dict[str, Union[int, float]]]
-    ):
+    def _validate_scores_candidates(self, scores: Optional[dict[str, Union[int, float]]]):
         if scores is not None:
             if "~" in scores:
                 raise ValueError(
@@ -259,7 +291,6 @@ class ScoreBallot(Ballot):
         return super().__eq__(other)
 
     def __hash__(self):
-
         return (
             hash(
                 tuple(sorted((c, s) for c, s in self.scores.items()))

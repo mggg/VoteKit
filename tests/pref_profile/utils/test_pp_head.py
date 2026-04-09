@@ -1,7 +1,8 @@
+import numpy as np
+import pandas as pd
+
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import PreferenceProfile, profile_df_head
-import pandas as pd
-import numpy as np
 
 
 def test_pp_df_head_rankings():
@@ -29,9 +30,9 @@ def test_pp_df_head_rankings():
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
-            f"{.5:.1%}",
-            f"{.25:.1%}",
-            f"{.25:.1%}",
+            f"{0.5:.1%}",
+            f"{0.25:.1%}",
+            f"{0.25:.1%}",
             f"{0:.1%}",
         ],
     }
@@ -75,9 +76,9 @@ def test_pp_df_head_scores():
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [2.0, 1.0, 1.0, 0.0],
         "Percent": [
-            f"{.5:.2%}",
-            f"{.25:.2%}",
-            f"{.25:.2%}",
+            f"{0.5:.2%}",
+            f"{0.25:.2%}",
+            f"{0.25:.2%}",
             f"{0:.2%}",
         ],
     }
@@ -86,6 +87,4 @@ def test_pp_df_head_scores():
     true_df.index.name = "Ballot Index"
     true_df.loc["Total"] = [""] * 5 + [4, f"{1:.2%}"]
 
-    assert profile_df_head(pp, n=4, percents=True, totals=True, n_decimals=2).equals(
-        true_df
-    )
+    assert profile_df_head(pp, n=4, percents=True, totals=True, n_decimals=2).equals(true_df)

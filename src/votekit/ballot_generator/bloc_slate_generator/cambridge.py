@@ -8,16 +8,18 @@ The main API functions in this module are:
     Cambridge model.
 """
 
-import numpy as np
-from pathlib import Path
 import json
+from pathlib import Path
 from typing import Optional
+
 import apportionment.methods as apportion
-from votekit.pref_profile import RankProfile
+import numpy as np
+
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _convert_slate_ballots_to_profile,
 )
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.pref_profile import RankProfile
 
 # ====================================================
 # ================= Helper Functions =================
@@ -123,9 +125,7 @@ def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int) -> st
             new_ballot += "C"
             c_count -= 1
         elif char not in "WC":
-            raise ValueError(
-                f"Encountered unexpected character in ballot ranking:  '{char}'"
-            )
+            raise ValueError(f"Encountered unexpected character in ballot ranking:  '{char}'")
     return new_ballot
 
 
@@ -147,8 +147,10 @@ def _reduce_ballot_pmfs(
 
 
     Args:
-        historical_majority_ballot_data_path (Path): The path to the JSON file containing the historical majority ballot frequencies.
-        historical_minority_ballot_data_path (Path): The path to the JSON file containing the historical minority ballot frequencies.
+        historical_majority_ballot_data_path (Path): Path to the JSON file containing
+            historical majority ballot frequencies.
+        historical_minority_ballot_data_path (Path): Path to the JSON file containing
+            historical minority ballot frequencies.
         config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
         majority_bloc (str): The name of the group in the config corresponding to the historical
             majority slate.
@@ -243,9 +245,7 @@ def _inner_cambridge_sampler(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -264,9 +264,7 @@ def _inner_cambridge_sampler(
             historical_slate_to_config_slate,
         )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots
-        )
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
 
     return pref_profile_by_bloc
 
@@ -309,9 +307,11 @@ def _determine_and_validate_majority_and_minority_blocs(
 ) -> tuple[str, str]:
     """
     Determines the majority and minority groups for the Cambridge model.
-    Validates that the names are in the config, and that the majority and minority groups are distinct.
+    Validates that the names are in the config and that the majority and minority groups
+    are distinct.
 
-    If the majority and minority groups are not provided, they are determined by the bloc proportions.
+    If the majority and minority groups are not provided, they are determined by the
+    bloc proportions.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -348,8 +348,7 @@ def _determine_and_validate_majority_and_minority_blocs(
             )
     if majority_bloc == minority_bloc:
         raise ValueError(
-            f"Majority group {majority_bloc} and minority group {minority_bloc} must be "
-            "distinct."
+            f"Majority group {majority_bloc} and minority group {minority_bloc} must be distinct."
         )
     if minority_bloc is None:
         minority_bloc = [b for b in config.blocs if b != majority_bloc][0]

@@ -1,13 +1,14 @@
-import os
 import csv
 import io
+import os
 import urllib.request
 from pathlib import Path
-from pandas.errors import EmptyDataError, DataError
 from typing import Union
 
-from votekit.pref_profile import RankProfile
+from pandas.errors import DataError, EmptyDataError
+
 from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
 
 
 def load_scottish(
@@ -109,7 +110,5 @@ def load_scottish(
 
         ballots[i] = RankBallot(ranking=ranking, weight=ballot_weight)
 
-    profile = RankProfile(
-        ballots=tuple(ballots), candidates=tuple(cand_list)
-    ).group_ballots()
+    profile = RankProfile(ballots=tuple(ballots), candidates=tuple(cand_list)).group_ballots()
     return (profile, seats, cand_list, cand_to_party, ward)

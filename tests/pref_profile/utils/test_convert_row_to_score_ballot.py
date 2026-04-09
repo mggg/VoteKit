@@ -1,4 +1,5 @@
 import pandas as pd
+
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile.utils import convert_row_to_score_ballot
 
@@ -14,7 +15,7 @@ def test_convert_row_to_score_ballot():
                 "CD": pd.NA,
             }
         ),
-        candidates=["A", "B", "CD"],
+        candidates=("A", "B", "CD"),
     )
 
     assert isinstance(b, ScoreBallot)
@@ -32,7 +33,7 @@ def test_convert_row_to_score_ballot():
                 "CD": pd.NA,
             }
         ),
-        candidates=["A", "B", "CD"],
+        candidates=("A", "B", "CD"),
     )
 
     assert isinstance(b, ScoreBallot)

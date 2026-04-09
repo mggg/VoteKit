@@ -1,31 +1,34 @@
-from .election_state import ElectionState
-from ..models import Election
-from .transfers import fractional_transfer, random_transfer
-from .election_types import (
-    RankingElection,
-    Plurality,
-    SNTV,
-    Borda,
-    STV,
-    FastSTV,
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types import (
     IRV,
-    SequentialRCV,
+    SNTV,
+    STV,
     Alaska,
-    DominatingSets,
-    CondoBorda,
-    TopTwo,
-    GeneralRating,
-    Rating,
-    Limited,
-    Cumulative,
     Approval,
+    BlockPlurality,
     BlocPlurality,
+    BoostedRandomDictator,
+    Borda,
+    CondoBorda,
+    Cumulative,
+    DominatingSets,
+    FastSTV,
+    GeneralRating,
+    Limited,
+    Plurality,
     PluralityVeto,
     RandomDictator,
-    BoostedRandomDictator,
     RankedPairs,
+    RankingElection,
+    Rating,
+    Schulze,
+    SequentialRCV,
+    SerialVeto,
+    SimultaneousVeto,
+    TopTwo,
 )
-
+from votekit.elections.transfers import fractional_transfer, random_transfer
+from votekit.models import Election
 
 __all__ = [
     "ElectionState",
@@ -49,9 +52,21 @@ __all__ = [
     "Cumulative",
     "Limited",
     "Approval",
+    "BlockPlurality",
     "BlocPlurality",
     "PluralityVeto",
+    "SerialVeto",
+    "SimultaneousVeto",
     "RandomDictator",
     "BoostedRandomDictator",
     "RankedPairs",
+    "Schulze",
 ]
+
+# Patch __module__ on every exported symbol so that Sphinx autodoc displays
+# the canonical public import path (e.g. votekit.elections.RankingElection)
+# instead of the full internal path where each object is defined.
+for _name in __all__:
+    _obj = globals().get(_name)
+    if _obj is not None and hasattr(_obj, "__module__"):
+        _obj.__module__ = __name__

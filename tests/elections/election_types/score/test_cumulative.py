@@ -1,10 +1,11 @@
-from votekit.elections import Cumulative, ElectionState
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import ScoreBallot
-import pytest
 import pandas as pd
+import pytest
 
-profile_no_tied_cumulative = PreferenceProfile(
+from votekit.ballot import ScoreBallot
+from votekit.elections import Cumulative, ElectionState
+from votekit.pref_profile import ScoreProfile
+
+profile_no_tied_cumulative = ScoreProfile(
     ballots=[
         ScoreBallot(scores={"A": 1, "B": 1, "C": 0}, weight=2),
         ScoreBallot(scores={"A": 2, "B": 0, "C": 0}),
@@ -14,13 +15,13 @@ profile_no_tied_cumulative = PreferenceProfile(
 # 4,3,1
 
 
-profile_no_tied_cumulative_round_1 = PreferenceProfile(
+profile_no_tied_cumulative_round_1 = ScoreProfile(
     ballots=[
         ScoreBallot(scores={"C": 1}, weight=1),
     ]
 )
 
-profile_tied_cumulative = PreferenceProfile(
+profile_tied_cumulative = ScoreProfile(
     ballots=[
         ScoreBallot(scores={"A": 2, "B": 0, "C": 0}),
         ScoreBallot(scores={"A": 0, "B": 2, "C": 0}),
@@ -44,57 +45,57 @@ states = [
 
 
 def test_init():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_elected() == (frozenset({"A"}), frozenset({"B"}))
 
 
 def test_ties():
-    e_random = Cumulative(profile_tied_cumulative, m=2, tiebreak="random")
+    e_random = Cumulative(profile_tied_cumulative, n_seats=2, tiebreak="random")
     assert len([c for s in e_random.get_elected() for c in s]) == 2
 
 
 def test_state_list():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.election_states == states
 
 
 def test_get_profile():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_profile(0) == profile_no_tied_cumulative
     assert e.get_profile(1) == profile_no_tied_cumulative_round_1
 
 
 def test_get_step():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_step(1) == (profile_no_tied_cumulative_round_1, states[1])
 
 
 def test_get_elected():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_elected(0) == tuple()
     assert e.get_elected(1) == (frozenset({"A"}), frozenset({"B"}))
 
 
 def test_get_eliminated():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_eliminated(0) == tuple()
     assert e.get_eliminated(1) == tuple()
 
 
 def test_get_remaining():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_remaining(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.get_remaining(1) == (frozenset({"C"}),)
 
 
 def test_get_ranking():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
     assert e.get_ranking(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     assert e.get_ranking(1) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
 
 def test_get_status_df():
-    e = Cumulative(profile_no_tied_cumulative, m=2)
+    e = Cumulative(profile_no_tied_cumulative, n_seats=2)
 
     df_0 = pd.DataFrame(
         {"Status": ["Remaining"] * 3, "Round": [0] * 3},
@@ -110,38 +111,32 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="m must be positive."):
-        Cumulative(profile_no_tied_cumulative, m=0)
+    with pytest.raises(ValueError, match="n_seats must be positive."):
+        Cumulative(profile_no_tied_cumulative, n_seats=0)
 
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
-        Cumulative(profile_no_tied_cumulative, m=4)
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        Cumulative(profile_no_tied_cumulative, n_seats=4)
 
     with pytest.raises(
         ValueError,
         match="Cannot elect correct number of candidates without breaking ties.",
     ):
-        Cumulative(profile_tied_cumulative, m=2)
+        Cumulative(profile_tied_cumulative, n_seats=2)
 
 
 def test_validate_profile():
     with pytest.raises(TypeError, match="violates score limit"):
-        profile = PreferenceProfile(ballots=[ScoreBallot(scores={"A": 3, "B": 4})])
-        Cumulative(profile, m=2)
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3, "B": 4})])
+        Cumulative(profile, n_seats=2)
 
     with pytest.raises(TypeError, match="violates total score budget"):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})]
-        )
-        Cumulative(profile, m=2)
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})])
+        Cumulative(profile, n_seats=2)
 
     with pytest.raises(TypeError, match="must have non-negative scores."):
-        profile = PreferenceProfile(ballots=[ScoreBallot(scores={"A": -3})])
-        Cumulative(profile, m=1)
+        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
+        Cumulative(profile, n_seats=1)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
-        profile = PreferenceProfile(
-            ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})]
-        )
-        Cumulative(profile, m=2)
+        profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 1, "B": 1})])
+        Cumulative(profile, n_seats=2)

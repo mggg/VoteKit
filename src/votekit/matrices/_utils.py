@@ -1,4 +1,5 @@
 from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -20,15 +21,10 @@ def _convert_dict_to_matrix(data_dict: dict[str, dict[str, Any]]) -> np.ndarray:
         if i == 0:
             inner_keys = set(v.keys())
         else:
-            assert inner_keys == set(
-                v.keys()
-            ), "Inner keys do not match across all rows"
+            assert inner_keys == set(v.keys()), "Inner keys do not match across all rows"
 
     df = pd.DataFrame.from_dict(data_dict).T
 
-    # ignoring mypy error, mypy not up to date with pandas deprecating applymap
-    df = df.map(
-        lambda x: float(x) if x not in ("NaN", "nan", None, np.nan) else np.nan
-    )  # type: ignore[operator]
+    df = df.map(lambda x: float(x) if x not in ("NaN", "nan", None, np.nan) else np.nan)
 
     return df.to_numpy()

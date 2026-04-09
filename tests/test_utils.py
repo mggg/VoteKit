@@ -1,67 +1,106 @@
-from votekit.ballot import Ballot
-from votekit.pref_profile import PreferenceProfile
-from votekit.utils import (
-    ballots_by_first_cand,
-    add_missing_cands,
-    validate_score_vector,
-    score_dict_from_score_vector,
-    first_place_votes,
-    mentions,
-    borda_scores,
-    tiebreak_set,
-    tiebroken_ranking,
-    score_dict_to_ranking,
-    elect_cands_from_set_ranking,
-    expand_tied_ballot,
-    resolve_profile_ties,
-    score_profile_from_ballot_scores,
-    ballot_lengths,
-)
+from itertools import permutations
+from typing import Literal, cast
+
 import pytest
 
-profile_no_ties = PreferenceProfile(
+from votekit.ballot import RankBallot, ScoreBallot
+from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.utils import (
+    add_missing_cands,
+    ballot_lengths,
+    ballots_by_first_cand,
+    borda_scores,
+    elect_cands_from_set_ranking,
+    expand_tied_ballot,
+    first_place_votes,
+    index_to_lexicographic_ballot,
+    mentions,
+    resolve_profile_ties,
+    score_dict_from_score_vector,
+    score_dict_to_ranking,
+    score_profile_from_ballot_scores,
+    tiebreak_set,
+    tiebroken_ranking,
+    validate_score_vector,
+)
+
+profile_no_ties = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
-        Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
+        RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3),
     )
 )
 
-profile_with_ties = PreferenceProfile(
+profile_with_ties = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, [{"A", "B"}])), weight=1),
-        Ballot(ranking=tuple(map(frozenset, [{"A", "B", "C"}])), weight=1 / 2),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
+        RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}])), weight=1),
+        RankBallot(ranking=tuple(map(frozenset, [{"A", "B", "C"}])), weight=1 / 2),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
     )
 )
 
-profile_with_missing = PreferenceProfile(
+profile_with_missing = RankProfile(
     ballots=(
-        Ballot(ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}])), weight=1),
-        Ballot(ranking=tuple(map(frozenset, [{"A", "B", "C", "D"}])), weight=1 / 2),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}, {"D"}, {"E"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}])), weight=1),
+        RankBallot(ranking=tuple(map(frozenset, [{"A", "B", "C", "D"}])), weight=1 / 2),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}, {"D"}, {"E"}]))),
     ),
     candidates=("A", "B", "C", "D", "E"),
 )
 
 
+def _expected_lexicographic_ballots(n_candidates: int, max_length: int) -> list[list[int]]:
+    return [
+        list(ballot)
+        for ballot in sorted(
+            ballot
+            for length in range(1, max_length + 1)
+            for ballot in permutations(range(n_candidates), length)
+        )
+    ]
+
+
+class TestShortBallot:
+    # this profile has max_ranking_length = 1 but max_candidates_ranked = 2
+    # A and B are tied for first on the sole ballot
+    def test_illegal_short_profile(self):
+        with pytest.raises(
+            ValueError,
+            match="number of candidates exceeds the length of the longest ranking.",
+        ):
+            _ = RankProfile(ballots=(RankBallot(ranking=("AB",), weight=5),))
+
+    def test_legal_short_profile(self):
+        profile = RankProfile(
+            ballots=(
+                RankBallot(
+                    ranking=("AB",),
+                    weight=5,
+                ),
+            ),
+            max_ranking_length=2,
+        )
+        assert profile.max_candidates_ranked == profile.max_ranking_length
+
+
 def test_ballots_by_first_cand():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
-            Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
+            RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3),
         )
     )
     cand_dict = ballots_by_first_cand(profile)
     partition = {
         "A": [
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
         ],
         "B": [],
-        "C": [Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3)],
+        "C": [RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=3)],
     }
 
     assert cand_dict == partition
@@ -72,24 +111,24 @@ def test_ballots_by_first_cand_error():
         ballots_by_first_cand(profile_with_ties)
 
     with pytest.raises(TypeError, match="Ballots must have rankings."):
-        ballots_by_first_cand(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+        ballots_by_first_cand(
+            cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),)))
+        )
 
 
 def test_add_missing_cands():
-    true_add = PreferenceProfile(
+    true_add = RankProfile(
         ballots=(
-            Ballot(
-                ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}, {"C", "E"}])), weight=1
-            ),
-            Ballot(
+            RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}, {"D"}, {"C", "E"}])), weight=1),
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"A", "B", "C", "D"}, {"E"}])),
                 weight=1 / 2,
             ),
-            Ballot(
+            RankBallot(
                 ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}, {"D", "E"}])),
                 weight=3,
             ),
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}, {"D"}, {"E"}]))),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}, {"D"}, {"E"}]))),
         )
     )
 
@@ -99,7 +138,10 @@ def test_add_missing_cands():
 def test_add_missing_cands_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         add_missing_cands(
-            PreferenceProfile(ballots=(Ballot(scores={"A": 3}),), candidates=("A", "B"))
+            cast(
+                RankProfile,
+                ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),), candidates=("A", "B")),
+            )
         )
 
 
@@ -162,27 +204,30 @@ def test_score_profile_from_rankings_avg():
 
 def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
-        score_dict_from_score_vector(PreferenceProfile(), [3, 2, -1])
+        score_dict_from_score_vector(RankProfile(), [3, 2, -1])
 
     with pytest.raises(ValueError, match="Score vector must be non-increasing."):
-        score_dict_from_score_vector(PreferenceProfile(), [3, 2, 3])
+        score_dict_from_score_vector(RankProfile(), [3, 2, 3])
 
     with pytest.raises(TypeError, match="Profile must only contain ranked ballots."):
         score_dict_from_score_vector(
-            PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)), [3, 2, 1]
+            cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))),
+            [3, 2, 1],
         )
 
     with pytest.raises(TypeError, match="has an empty ranking position."):
         score_dict_from_score_vector(
-            PreferenceProfile(ballots=(Ballot(ranking=({"A"}, frozenset(), {"B"})),)),
+            RankProfile(ballots=(RankBallot(ranking=({"A"}, frozenset(), {"B"})),)),
             [3, 2, 1],
         )
     with pytest.raises(
         ValueError,
-        match=("tie_convention must be one of 'high', 'low', 'average', " "not highlo"),
+        match=("tie_convention must be one of 'high', 'low', 'average', not highlo"),
     ):
         score_dict_from_score_vector(
-            profile_no_ties, [5, 4, 3, 2, 1], tie_convention="highlo"  # type: ignore[arg-type]
+            profile_no_ties,
+            [5, 4, 3, 2, 1],
+            tie_convention=cast(Literal["high", "average", "low"], "highlo"),
         )
 
 
@@ -196,7 +241,7 @@ def test_first_place_votes():
 
 def test_fpv_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
-        first_place_votes(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+        first_place_votes(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
 def test_mentions():
@@ -208,7 +253,7 @@ def test_mentions():
 
 def test_mentions_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
-        mentions(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+        mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
 def test_borda_no_ties():
@@ -237,10 +282,10 @@ def test_borda_short_ballot():
     }
 
     borda = borda_scores(
-        PreferenceProfile(
+        RankProfile(
             ballots=(
-                Ballot(ranking=(frozenset({"A"}), frozenset({"B"}))),
-                Ballot(ranking=(frozenset({"C"}), frozenset({"B"}))),
+                RankBallot(ranking=(frozenset({"A"}), frozenset({"B"}))),
+                RankBallot(ranking=(frozenset({"C"}), frozenset({"B"}))),
             ),
             candidates=("A", "B", "C", "D"),
         )
@@ -255,8 +300,8 @@ def test_borda_short_ballot():
     }
 
     borda = borda_scores(
-        PreferenceProfile(
-            ballots=(Ballot(ranking=({"A"}, {"B"})), Ballot(ranking=({"C"}, {"B"}))),
+        RankProfile(
+            ballots=(RankBallot(ranking=({"A"}, {"B"})), RankBallot(ranking=({"C"}, {"B"}))),
             candidates=["A", "B", "C", "D"],
         ),
         borda_max=1,
@@ -273,8 +318,8 @@ def test_borda_mismatched_length():
     }
 
     borda = borda_scores(
-        PreferenceProfile(
-            ballots=(Ballot(ranking=({"A"}, {"B"})), Ballot(ranking=({"C"}, {"B"}))),
+        RankProfile(
+            ballots=(RankBallot(ranking=({"A"}, {"B"})), RankBallot(ranking=({"C"}, {"B"}))),
             candidates=["A", "B", "C", "D"],
         ),
         borda_max=50,
@@ -289,10 +334,10 @@ def test_borda_mismatched_length():
     }
 
     borda = borda_scores(
-        PreferenceProfile(
+        RankProfile(
             ballots=(
-                Ballot(ranking=({"A"}, {"B"}, {"C"})),
-                Ballot(ranking=({"C"}, {"B"})),
+                RankBallot(ranking=({"A"}, {"B"}, {"C"})),
+                RankBallot(ranking=({"C"}, {"B"})),
             ),
             candidates=["A", "B", "C", "D"],
         ),
@@ -304,7 +349,7 @@ def test_borda_mismatched_length():
 
 def test_borda_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
-        borda_scores(PreferenceProfile(ballots=(Ballot(scores={"A": 3}),)))
+        borda_scores(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
 def test_tiebreak_set():
@@ -313,11 +358,11 @@ def test_tiebreak_set():
     lex_ranking = (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
     tied_set = frozenset({"A", "C", "B"})
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(ranking=[{"B"}], weight=1.5),
-            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+            RankBallot(ranking=[{"B"}], weight=1.5),
+            RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
         ]
     )
 
@@ -336,11 +381,11 @@ def test_tiebreak_set_longer_names():
     lex_ranking = (frozenset({"Abby"}), frozenset({"Bob"}), frozenset({"Cynthia"}))
     tied_set = frozenset({"Abby", "Cynthia", "Bob"})
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(ranking=[{"Bob"}], weight=2),
-            Ballot(ranking=[{"Abby", "Bob", "Cynthia"}], weight=1),
-            Ballot(ranking=[{"Abby"}, {"Cynthia"}, {"Bob"}], weight=7),
+            RankBallot(ranking=[{"Bob"}], weight=2),
+            RankBallot(ranking=[{"Abby", "Bob", "Cynthia"}], weight=1),
+            RankBallot(ranking=[{"Abby"}, {"Cynthia"}, {"Bob"}], weight=7),
         ]
     )
 
@@ -364,11 +409,11 @@ def test_tiebreak_set_errors():
 
 
 def test_tiebreak_no_res():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(ranking=({"A"},), weight=2),
-            Ballot(ranking=({"B"},), weight=2),
-            Ballot(ranking=({"C"},)),
+            RankBallot(ranking=({"A"},), weight=2),
+            RankBallot(ranking=({"B"},), weight=2),
+            RankBallot(ranking=({"C"},)),
         ]
     )
 
@@ -390,11 +435,11 @@ def test_tiebreak_no_res():
 
 
 def test_tiebroken_ranking():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(ranking=[{"B"}], weight=1.5),
-            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+            RankBallot(ranking=[{"B"}], weight=1.5),
+            RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
         ],
         candidates=["A", "B", "C", "D"],
     )
@@ -461,11 +506,11 @@ def test_elect_cands_from_set_ranking():
 def test_elect_cands_from_set_ranking_tiebreaks():
     ranking = ({"D", "E"}, {"A"}, {"B", "C"}, {"F"})
 
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(ranking=[{"B"}], weight=1.5),
-            Ballot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-            Ballot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+            RankBallot(ranking=[{"B"}], weight=1.5),
+            RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
         ],
         candidates=["A", "B", "C", "D", "E", "F"],
     )
@@ -501,13 +546,64 @@ def test_elect_cands_from_set_ranking_tiebreaks():
     assert len([c for s in random_elected for c in s]) == 4
 
 
+@pytest.mark.parametrize(
+    ("n_candidates", "max_length"),
+    [(1, 1), (3, 1), (3, 2), (4, 2), (4, 4)],
+)
+def test_index_to_lexicographic_ballot_matches_lexicographic_order(
+    n_candidates: int, max_length: int
+):
+    expected = _expected_lexicographic_ballots(n_candidates, max_length)
+    actual = [
+        index_to_lexicographic_ballot(i, n_candidates, max_length) for i in range(len(expected))
+    ]
+
+    assert actual == expected
+
+
+def test_index_to_lexicographic_ballot_truncates_to_max_length():
+    expected = _expected_lexicographic_ballots(5, 3)
+
+    assert index_to_lexicographic_ballot(0, 5, 3) == [0]
+    assert index_to_lexicographic_ballot(1, 5, 3) == [0, 1]
+    assert index_to_lexicographic_ballot(2, 5, 3) == [0, 1, 2]
+    assert index_to_lexicographic_ballot(len(expected) - 1, 5, 3) == expected[-1]
+    assert all(len(ballot) <= 3 for ballot in expected)
+
+
+@pytest.mark.parametrize("n_candidates", [1, 2, 3, 5])
+def test_index_to_lexicographic_ballot_matches_full_length_lexicographic_order(
+    n_candidates: int,
+):
+    expected = _expected_lexicographic_ballots(n_candidates, n_candidates)
+    actual = [
+        index_to_lexicographic_ballot(i, n_candidates, n_candidates) for i in range(len(expected))
+    ]
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("index", "n_candidates", "max_length", "message"),
+    [
+        (-1, 3, 2, r"index out of range \[0, 8\]"),
+        (9, 3, 2, r"index out of range \[0, 8\]"),
+        (0, 3, 0, "invalid max_length"),
+        (0, 3, 4, "invalid max_length"),
+    ],
+)
+def test_index_to_lexicographic_ballot_errors(
+    index: int, n_candidates: int, max_length: int, message: str
+):
+    with pytest.raises(ValueError, match=message):
+        index_to_lexicographic_ballot(index, n_candidates, max_length)
+
+
 def test_elect_cands_from_set_ranking_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
+    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
         elect_cands_from_set_ranking(({"A", "B"},), 0)
 
-    with pytest.raises(
-        ValueError, match="m must be no more than the number of candidates."
-    ):
+    with pytest.raises(ValueError, match="n_seats must be no more than the number of candidates."):
         elect_cands_from_set_ranking(({"A", "B"},), 3)
 
     with pytest.raises(
@@ -523,12 +619,12 @@ def test_elect_cands_from_set_ranking_errors():
 
 
 def test_expand_tied_ballot():
-    ballot = Ballot(ranking=tuple(map(frozenset, [{"A", "B"}, {"C", "D"}])), weight=4)
+    ballot = RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}, {"C", "D"}])), weight=4)
     no_ties = [
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}]))),
-        Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}, {"D"}]))),
-        Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"D"}, {"C"}]))),
-        Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"D"}, {"C"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}, {"D"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"D"}, {"C"}]))),
+        RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"D"}, {"C"}]))),
     ]
 
     assert set(expand_tied_ballot(ballot)) == set(no_ties)
@@ -536,22 +632,20 @@ def test_expand_tied_ballot():
 
 def test_expand_tied_ballot_errors():
     with pytest.raises(TypeError, match="Ballot must be of type RankBallot."):
-        expand_tied_ballot(Ballot(scores={"A": 3}))
+        expand_tied_ballot(cast(RankBallot, ScoreBallot(scores={"A": 3})))
 
 
 def test_resolve_profile_ties():
-    no_ties = PreferenceProfile(
+    no_ties = RankProfile(
         ballots=[
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1 / 2),
-            Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}])), weight=1 / 2),
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 12),
-            Ballot(ranking=tuple(map(frozenset, [{"B"}, {"C"}, {"A"}])), weight=1 / 12),
-            Ballot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=1 / 12),
-            Ballot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=1 / 12),
-            Ballot(ranking=tuple(map(frozenset, [{"C"}, {"A"}, {"B"}])), weight=1 / 12),
-            Ballot(
-                ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=37 / 12
-            ),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}])), weight=1 / 2),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}])), weight=1 / 2),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 12),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"C"}, {"A"}])), weight=1 / 12),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"A"}, {"C"}])), weight=1 / 12),
+            RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"B"}, {"A"}])), weight=1 / 12),
+            RankBallot(ranking=tuple(map(frozenset, [{"C"}, {"A"}, {"B"}])), weight=1 / 12),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=37 / 12),
         ]
     )
 
@@ -559,9 +653,9 @@ def test_resolve_profile_ties():
 
 
 def test_score_profile_from_ballot_scores_float():
-    profile = PreferenceProfile(
+    profile = ScoreProfile(
         ballots=[
-            Ballot(
+            ScoreBallot(
                 scores={"A": 3},
             ),
         ]
@@ -572,21 +666,19 @@ def test_score_profile_from_ballot_scores_float():
 
 
 def test_score_profile_from_ballot_scores_error():
-    profile = PreferenceProfile(
-        ballots=(Ballot(ranking=(frozenset({"A"}),), weight=2),)
-    )
+    profile = RankProfile(ballots=(RankBallot(ranking=(frozenset({"A"}),), weight=2),))
     with pytest.raises(TypeError, match="Profile must be of type ScoreProfile."):
-        score_profile_from_ballot_scores(profile)
+        score_profile_from_ballot_scores(cast(ScoreProfile, profile))
 
 
 def test_ballot_lengths():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=(
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}]))),
-            Ballot(ranking=tuple(map(frozenset, [{"B", "A"}, {"C"}, {"D"}]))),
-            Ballot(ranking=tuple(map(frozenset, [{"B", "A"}, {"C"}, {"D"}]))),
-            Ballot(ranking=tuple(map(frozenset, [{"A"}, {"C"}])), weight=3 / 2),
-            Ballot(ranking=tuple(map(frozenset, [{"B"}])), weight=2),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}]))),
+            RankBallot(ranking=tuple(map(frozenset, [{"B", "A"}, {"C"}, {"D"}]))),
+            RankBallot(ranking=tuple(map(frozenset, [{"B", "A"}, {"C"}, {"D"}]))),
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}])), weight=3 / 2),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}])), weight=2),
         ),
         max_ranking_length=5,
     )
@@ -595,6 +687,6 @@ def test_ballot_lengths():
 
 
 def test_ballot_lengths_ranking_error():
-    profile = PreferenceProfile(ballots=(Ballot(scores={"A": 3}),))
+    profile = ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))
     with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
-        ballot_lengths(profile)
+        ballot_lengths(cast(RankProfile, profile))

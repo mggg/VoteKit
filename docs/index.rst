@@ -41,6 +41,7 @@ repository, where :doc:`bug reports and feature requests <./package_info/issues>
    user/tutorial/4_election_systems
    user/tutorial/5_score_based
    user/tutorial/7_portland_case_study
+   user/tutorial/8_animating_STV_elections
 
 .. toctree::
     :caption: Social Choice Reference
@@ -54,8 +55,7 @@ repository, where :doc:`bug reports and feature requests <./package_info/issues>
     :maxdepth: 1
 
     package_info/issues.rst
-    package_info/contributing.rst
+    package_info/contributing
     package_info/related_resources.rst
     package_info/api.rst
-
 

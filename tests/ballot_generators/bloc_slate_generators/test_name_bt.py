@@ -1,14 +1,13 @@
+import itertools as it
+
 from votekit.ballot_generator import (
+    BlocSlateConfig,
     name_bt_profile_generator,
     name_bt_profiles_by_bloc_generator,
-    BlocSlateConfig,
 )
-from votekit.pref_profile import RankProfile
+from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import _calc_prob as bt_prob
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
-from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import (
-    _calc_prob as bt_prob,
-)
-import itertools as it
+from votekit.pref_profile import RankProfile
 
 
 def test_NBT_completion():
@@ -98,9 +97,7 @@ def test_NBT_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
 
     assert isinstance(generated_profile, RankProfile)
     # Test
-    assert do_ballot_probs_match_ballot_dist_rank_profile(
-        final_ballot_prob_dict, generated_profile
-    )
+    assert do_ballot_probs_match_ballot_dist_rank_profile(final_ballot_prob_dict, generated_profile)
 
 
 def test_NBT_3_bloc(do_ballot_probs_match_ballot_dist_rank_profile):
@@ -213,9 +210,7 @@ def test_NBT_probability_calculation():
         * (x_pref_interval["W2"] / (x_pref_interval["W2"] + x_pref_interval["C2"]))
     )
     assert (
-        bt_prob(permutations=[permutation], cand_support_dict=dict(x_pref_interval))[
-            permutation
-        ]
+        bt_prob(permutations=[permutation], cand_support_dict=dict(x_pref_interval))[permutation]
         == prob
     )
 
@@ -290,10 +285,14 @@ def test_NBT_probability_calculation():
 #
 #     number_of_ballots = 3001
 #
-#     # Error where minority bloc needs 0.3*10,000 = 3,000 number of ballots, where 10,000 is the preset chain_length
+#     # Error where minority bloc needs 0.3*10,000 = 3,000 ballots, where 10,000 is the preset
+#     # chain_length.
 #     with pytest.raises(
 #         ValueError,
-#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#         match=(
+#             "The number of ballots to be sampled is more than the chain length; "
+#             "supply a greater chain length."
+#         ),
 #     ):
 #         bt.generate_profile_MCMC_even_subsample(number_of_ballots=number_of_ballots)
 #
@@ -302,7 +301,10 @@ def test_NBT_probability_calculation():
 #
 #     with pytest.raises(
 #         ValueError,
-#         match="The number of ballots to be sampled is more than the chain length; supply a greater chain length.",
+#         match=(
+#             "The number of ballots to be sampled is more than the chain length; "
+#             "supply a greater chain length."
+#         ),
 #     ):
 #         bt.generate_profile_MCMC_even_subsample(
 #             number_of_ballots=number_of_ballots, chain_length=chain_length

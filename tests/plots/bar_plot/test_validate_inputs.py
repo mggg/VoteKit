@@ -48,9 +48,7 @@ def test_validate_sub_dictionary_keys():
 
 def test_validate_number_of_data_sets():
     data = {f"Label_{i}": {"C": 4} for i in range(len(COLOR_LIST) + 1)}
-    with pytest.raises(
-        ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} data sets."
-    ):
+    with pytest.raises(ValueError, match=f"Cannot plot more than {len(COLOR_LIST)} data sets."):
         _validate_bar_plot_args(
             data=data,
             category_ordering=["C"],
@@ -144,9 +142,7 @@ def test_validate_categories_legend():
             "Peter": 3,
         },
     }
-    with pytest.raises(
-        ValueError, match="{'xyz'} in categories_legend must be a subset of"
-    ):
+    with pytest.raises(ValueError, match="{'xyz'} in categories_legend must be a subset of"):
         _validate_bar_plot_args(
             data=data,
             category_ordering=["Peter", "Chris"],

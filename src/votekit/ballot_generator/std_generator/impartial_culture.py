@@ -6,37 +6,22 @@ The main API functions in this module are:
 - `ic_profile_generator`: Generates a single preference profile using the IC distribution.
 """
 
-import math
-import numpy as np
 import random
-from typing import Sequence, Optional
-from functools import lru_cache
 from collections import Counter
+from typing import Optional, Sequence
+
+import numpy as np
 
 from votekit.pref_profile import RankProfile
-from votekit.utils import index_to_lexicographic_ballot, build_df_from_ballot_samples
+from votekit.utils import (
+    build_df_from_ballot_samples,
+    fixed_zero_index_lex_block_size,
+    index_to_lexicographic_ballot,
+)
 
 # ====================================================
 # ================= Helper Functions =================
 # ====================================================
-
-
-@lru_cache
-def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
-    """
-    Calculate the total number of valid ballots given n_candidates and max_ballot_length.
-
-    Args:
-        n_candidates (int): the number of candidates in the election
-        max_ballot_length (int): the maximum length of a ballot
-
-    Returns:
-        int: the total number of valid ballots
-    """
-    return sum(
-        math.comb(n_candidates, i) * math.factorial(i)
-        for i in range(1, max_ballot_length + 1)
-    )
 
 
 # ===========================================================
@@ -104,19 +89,14 @@ def _generate_profile_optimized_with_short(
     num_cands = len(candidates)
     if max_ballot_length is None:
         max_ballot_length = num_cands
-    total_ballots = _total_num_ballots(num_cands, max_ballot_length)
+
+    total_ballots = num_cands * fixed_zero_index_lex_block_size(num_cands, max_ballot_length)
 
     # sample indices (representing allowed ballots) uniformally at
     # random
-    ballot_inds = [
-        random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)
-    ]
+    ballot_inds = [random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
-        tuple(
-            index_to_lexicographic_ballot(
-                ballot_ind, num_cands, max_ballot_length, _total_num_ballots
-            )
-        )
+        tuple(index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
         for ballot_ind in ballot_inds
     ]
 
@@ -167,6 +147,4 @@ def ic_profile_generator(
             candidates, number_of_ballots, max_ballot_length
         )
 
-    return _generate_profile_optimized_non_short(
-        candidates, number_of_ballots, max_ballot_length
-    )
+    return _generate_profile_optimized_non_short(candidates, number_of_ballots, max_ballot_length)

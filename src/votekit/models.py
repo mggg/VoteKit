@@ -1,11 +1,13 @@
 from abc import abstractmethod
-from votekit.elections import ElectionState
-from votekit.pref_profile import PreferenceProfile
+from typing import Callable, Generic, Optional, TypeVar
+
 import pandas as pd
+
+from votekit.elections.election_state import ElectionState
+from votekit.pref_profile.pref_profile import PreferenceProfile
 from votekit.utils import (
     score_dict_to_ranking,
 )
-from typing import Callable, Optional, Generic, TypeVar
 
 P = TypeVar("P", bound=PreferenceProfile)
 
@@ -40,7 +42,7 @@ class Election(Generic[P]):
         score_function: Optional[Callable[[P], dict[str, float]]] = None,
         sort_high_low: bool = True,
     ):
-        self._validate_profile(profile)
+        self._validate_params_and_profile(profile)
         self._profile = profile
         self.score_function = score_function
         self.sort_high_low = sort_high_low
@@ -242,6 +244,27 @@ class Election(Generic[P]):
         status_df = status_df.reindex(new_index)
         return status_df
 
+    def _validate_params_and_profile(self, profile: P):
+        """
+        Validates election parameters and the profile. Calls ``_validate_params``
+        followed by ``_validate_profile``.
+
+        Args:
+            profile (PreferenceProfile): Profile of ballots.
+        """
+        self._validate_params(profile)
+        self._validate_profile(profile)
+
+    @abstractmethod
+    def _validate_params(self, profile: P):
+        """
+        Validate election-specific parameters against the profile.
+
+        Args:
+            profile (PreferenceProfile): Profile of ballots.
+        """
+        pass
+
     @abstractmethod
     def _validate_profile(self, profile: P):
         """
@@ -298,9 +321,7 @@ class Election(Generic[P]):
         self.election_states.append(ElectionState(remaining=remaining, scores=scores))
 
         while not self._is_finished():
-            profile = self._run_step(
-                profile, self.election_states[-1], store_states=True
-            )
+            profile = self._run_step(profile, self.election_states[-1], store_states=True)
 
     def __len__(self):
         return self.length

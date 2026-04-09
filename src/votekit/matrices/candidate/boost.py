@@ -1,8 +1,10 @@
-from votekit.pref_profile import RankProfile
-from votekit.matrices.candidate.comentions import comention
-import numpy as np
 from typing import Tuple
+
+import numpy as np
+
 from votekit.matrices._utils import _convert_dict_to_matrix
+from votekit.matrices.candidate.comentions import comention
+from votekit.pref_profile import RankProfile
 
 
 def boost_prob(i: str, j: str, pref_profile: RankProfile) -> Tuple[float, float]:

@@ -1,15 +1,16 @@
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
+from time import time
+
 import numpy as np
 import pytest
 from scipy.stats import wasserstein_distance
-from time import time
 
+from votekit.ballot import RankBallot
 from votekit.metrics.distances import (
+    __vaildate_ranking_distance_inputs,
     earth_mover_dist,
     emd_via_scipy_linear_program,
-    __vaildate_ranking_distance_inputs,
 )
+from votekit.pref_profile import RankProfile
 
 
 def test_lp_perfect_match():
@@ -58,17 +59,12 @@ def test_lp_unequal_sizes_simple_distances_movement_urged():
 
 
 def test_against_scipy_wasserstein():
-
     vector_length = 50
 
     for _ in range(100):
-        source = np.random.choice(np.arange(vector_length), size=vector_length).astype(
-            np.float64
-        )
+        source = np.random.choice(np.arange(vector_length), size=vector_length).astype(np.float64)
         source /= np.sum(source)  # Normalize to sum to 1
-        target = np.random.choice(np.arange(vector_length), size=vector_length).astype(
-            np.float64
-        )
+        target = np.random.choice(np.arange(vector_length), size=vector_length).astype(np.float64)
         target /= np.sum(target)  # Normalize to sum to 1
         bins = np.arange(vector_length)
         cost = np.abs(bins[:, None] - bins[None, :])
@@ -99,19 +95,19 @@ def test_emd_scipy_negative_error():
         emd_via_scipy_linear_program(source, target, cost)
 
 
-def _ballot(candidate_list: list[str], wt: int = 1) -> Ballot:
+def _ballot(candidate_list: list[str], wt: int = 1) -> RankBallot:
     """
     Helper function to create a ballot with a ranking of candidates.
     This makes it so mypy stops complaining about the ballot types
     """
-    return Ballot(
+    return RankBallot(
         ranking=tuple(map(lambda x: frozenset({x}), candidate_list)),
         weight=wt,
     )
 
 
 def test_earth_mover_dist_same_profile_is_zero():
-    profile1 = PreferenceProfile(
+    profile1 = RankProfile(
         ballots=(_ballot(["A", "B"]), _ballot(["B", "A"])),
     )
 
@@ -119,10 +115,10 @@ def test_earth_mover_dist_same_profile_is_zero():
 
 
 def test_earth_mover_dist_transposition():
-    profile1 = PreferenceProfile(
+    profile1 = RankProfile(
         ballots=(_ballot(["A", "B"]),),
     )
-    profile2 = PreferenceProfile(
+    profile2 = RankProfile(
         ballots=(_ballot(["B", "A"]),),
     )
 
@@ -130,28 +126,24 @@ def test_earth_mover_dist_transposition():
 
 
 def test_earth_mover_dist_transposition_short_ballots():
-    profile1 = PreferenceProfile(ballots=(_ballot(["A"]),), candidates=("A", "B"))
-    profile2 = PreferenceProfile(ballots=(_ballot(["B"]),), candidates=("A", "B"))
+    profile1 = RankProfile(ballots=(_ballot(["A"]),), candidates=("A", "B"))
+    profile2 = RankProfile(ballots=(_ballot(["B"]),), candidates=("A", "B"))
 
     assert earth_mover_dist(profile1, profile2) == 1.0
 
 
 def test_earth_mover_dist_move_one_ballot():
-    profile1 = PreferenceProfile(
-        ballots=(_ballot(["A", "B"], 2), _ballot(["B", "C"], 1))
-    )
-    profile2 = PreferenceProfile(
-        ballots=(_ballot(["A", "B"], 1), _ballot(["B", "C"], 2))
-    )
+    profile1 = RankProfile(ballots=(_ballot(["A", "B"], 2), _ballot(["B", "C"], 1)))
+    profile2 = RankProfile(ballots=(_ballot(["A", "B"], 1), _ballot(["B", "C"], 2)))
 
     assert earth_mover_dist(profile1, profile2) == 2 * (1 / 3)
 
 
 def test_earth_mover_dist_move_several_ballots():
-    profile1 = PreferenceProfile(
+    profile1 = RankProfile(
         ballots=(_ballot(["A", "B"], 2), _ballot(["B", "C"], 1), _ballot(["C"], 1))
     )
-    profile2 = PreferenceProfile(
+    profile2 = RankProfile(
         ballots=(_ballot(["A", "B"], 1), _ballot(["B", "C"], 2), _ballot(["A"], 1))
     )
 
@@ -159,23 +151,17 @@ def test_earth_mover_dist_move_several_ballots():
 
 
 def test_earth_mover_dist_readjust_weights():
-    profile1 = PreferenceProfile(
-        ballots=(_ballot(["A", "B"], 2), _ballot(["B", "C"], 1))
-    )
-    profile2 = PreferenceProfile(
-        ballots=(_ballot(["A", "B"], 1), _ballot(["B", "C"], 1))
-    )
+    profile1 = RankProfile(ballots=(_ballot(["A", "B"], 2), _ballot(["B", "C"], 1)))
+    profile2 = RankProfile(ballots=(_ballot(["A", "B"], 1), _ballot(["B", "C"], 1)))
 
     assert abs(earth_mover_dist(profile1, profile2) - 2 * (1 / 6)) < 1e-8
 
 
 def test_earth_mover_dist_secretly_equivalent_profiles():
-    profile1 = PreferenceProfile(
+    profile1 = RankProfile(
         ballots=(_ballot(["A", "B"]),), candidates=("A", "B"), max_ranking_length=2
     )
-    profile2 = PreferenceProfile(
-        ballots=(_ballot(["A"]),), candidates=("A", "B"), max_ranking_length=2
-    )
+    profile2 = RankProfile(ballots=(_ballot(["A"]),), candidates=("A", "B"), max_ranking_length=2)
 
     assert earth_mover_dist(profile1, profile2) == 0
 
@@ -205,55 +191,49 @@ def test_emd_validate_errors():
 def test_emd_profile_errors():
     with pytest.raises(ValueError, match="contains duplicates"):
         earth_mover_dist(
-            PreferenceProfile(ballots=(_ballot(["A", "B"]),), candidates=("A", "B")),
-            PreferenceProfile(ballots=(_ballot(["A", "A"]),), candidates=("A", "B")),
+            RankProfile(ballots=(_ballot(["A", "B"]),), candidates=("A", "B")),
+            RankProfile(ballots=(_ballot(["A", "A"]),), candidates=("A", "B")),
         )
 
-    with pytest.raises(
-        ValueError, match="The two profiles must have the same candidates"
-    ):
+    with pytest.raises(ValueError, match="The two profiles must have the same candidates"):
         earth_mover_dist(
-            PreferenceProfile(ballots=(_ballot(["A", "B"]),)),
-            PreferenceProfile(ballots=(_ballot(["A"]),)),
+            RankProfile(ballots=(_ballot(["A", "B"]),)),
+            RankProfile(ballots=(_ballot(["A"]),)),
         )
 
     with pytest.raises(ValueError, match="Both profiles must contain rankings"):
         earth_mover_dist(
-            PreferenceProfile(ballots=(_ballot(["A", "B"]),), candidates=("A", "B")),
-            PreferenceProfile(
-                ballots=(Ballot(scores={"A": 1, "B": 1}),),
+            RankProfile(ballots=(_ballot(["A", "B"]),), candidates=("A", "B")),
+            RankProfile(
+                ballots=(RankBallot(scores={"A": 1, "B": 1}),),
                 candidates=("A", "B"),
             ),
         )
 
-    with pytest.raises(
-        ValueError, match="Both profiles must have the same maximum ranking length"
-    ):
+    with pytest.raises(ValueError, match="Both profiles must have the same maximum ranking length"):
         earth_mover_dist(
-            PreferenceProfile(ballots=(_ballot(["A", "B"]),)),
-            PreferenceProfile(ballots=(_ballot(["A", "B", "B"]),)),
+            RankProfile(ballots=(_ballot(["A", "B"]),)),
+            RankProfile(ballots=(_ballot(["A", "B", "B"]),)),
         )
 
     with pytest.raises(ValueError, match="The first profile contains an empty ranking"):
         earth_mover_dist(
-            PreferenceProfile(
+            RankProfile(
                 ballots=(
                     _ballot(["A", "B"]),
-                    Ballot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
+                    RankBallot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
                 )
             ),
-            PreferenceProfile(ballots=(_ballot(["A", "B", "C"]),)),
+            RankProfile(ballots=(_ballot(["A", "B", "C"]),)),
         )
 
-    with pytest.raises(
-        ValueError, match="The second profile contains an empty ranking"
-    ):
+    with pytest.raises(ValueError, match="The second profile contains an empty ranking"):
         earth_mover_dist(
-            PreferenceProfile(ballots=(_ballot(["A", "B", "C"]),)),
-            PreferenceProfile(
+            RankProfile(ballots=(_ballot(["A", "B", "C"]),)),
+            RankProfile(
                 ballots=(
                     _ballot(["A", "B"]),
-                    Ballot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
+                    RankBallot(ranking=(frozenset("B"), frozenset({}), frozenset({"C"}))),
                 )
             ),
         )
@@ -277,8 +257,7 @@ def test_new_emd_speed():
     assert total_time < 10
 
 
-def make_random_profile(n_voters: int, cand_list: list[str]) -> PreferenceProfile:
-
+def make_random_profile(n_voters: int, cand_list: list[str]) -> RankProfile:
     weights = np.unique_counts(list(map(int, np.random.gamma(5, 1, n_voters))))[1]
 
     n_cands = len(cand_list)
@@ -299,13 +278,13 @@ def make_random_profile(n_voters: int, cand_list: list[str]) -> PreferenceProfil
             ranking.append(*(all_cand_set - set(ranking)))
 
         ballot_list.append(
-            Ballot(
+            RankBallot(
                 ranking=tuple(ranking),
                 weight=wt,
             )
         )
 
-    return PreferenceProfile(
+    return RankProfile(
         ballots=tuple(ballot_list),
         candidates=tuple(cand_list),
         max_ranking_length=n_cands,

@@ -1,73 +1,63 @@
-from votekit.pref_profile import PreferenceProfile
-from votekit.ballot import Ballot
-from votekit.elections import BoostedRandomDictator
-import random
-import numpy as np
-from joblib import Parallel, delayed
 import itertools
-from votekit.utils import first_place_votes
+import random
+
+import numpy as np
 import pytest
+from joblib import Parallel, delayed
+
+from votekit.ballot import RankBallot
+from votekit.elections import BoostedRandomDictator
+from votekit.pref_profile import RankProfile
+from votekit.utils import first_place_votes
 
 
-def run_election_once(test_profile):
+def run_election_once(test_profile, seed):
     """Run one election and return the winner."""
+    random.seed(seed)
+    np.random.seed(seed)
     election = BoostedRandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
 
 
 def test_boosted_random_dictator_error():
-    with pytest.raises(
-        ValueError, match="Not enough candidates received votes to be elected."
-    ):
-        BoostedRandomDictator(PreferenceProfile(), m=1)
+    with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
+        BoostedRandomDictator(RankProfile(), n_seats=1)
 
 
 @pytest.mark.slow
 def test_boosted_random_dictator_simple():
-    random.seed(919717)
-
     candidates = ["A", "B", "C"]
     ballots = [
-        Ballot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
-        Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
-        Ballot(ranking=[{"C"}, {"B"}, {"A"}]),
+        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+        RankBallot(ranking=[{"B"}, {"A"}, {"C"}]),
+        RankBallot(ranking=[{"C"}, {"B"}, {"A"}]),
     ]
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
-    winner_counts = {c: 0 for c in candidates}
     trials = 3000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
-    winner_counts = {c: results.count(c) for c in candidates}  # type: ignore
+    winner_counts = {c: results.count(c) for c in candidates}
 
     # check to make sure that the fraction of wins matches the true probability
-    assert np.allclose(
-        1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=2e-2
-    )
-    assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=2e-2
-    )
-    assert np.allclose(
-        1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=2e-2
-    )
+    assert np.allclose(1 / 2 * 3 / 5 + 1 / 2 * 9 / 11, winner_counts["A"] / trials, atol=2e-2)
+    assert np.allclose(1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["B"] / trials, atol=2e-2)
+    assert np.allclose(1 / 2 * 1 / 5 + 1 / 2 * 1 / 11, winner_counts["C"] / trials, atol=2e-2)
 
 
 @pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_without_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     full_power = list(
-        list(
-            list(itertools.permutations(x))
-            for x in itertools.combinations(candidates, r)
-        )
+        list(list(itertools.permutations(x)) for x in itertools.combinations(candidates, r))
         for r in range(1, len(candidates) + 1)
     )
 
@@ -75,14 +65,12 @@ def test_boosted_random_dictator_4_candidates_without_ties():
 
     ballots = list(
         map(
-            lambda x: Ballot(
-                ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1
-            ),
+            lambda x: RankBallot(ranking=list(set(y) for y in x), weight=3 if x[0] == "A" else 1),
             powerset,
         )
     )
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     fpv = first_place_votes(test_profile)
     tot_fpv = sum(fpv.values())
@@ -91,11 +79,13 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
     trials = 3500
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -124,8 +114,6 @@ def test_boosted_random_dictator_4_candidates_without_ties():
 
 @pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_with_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     powerset = list(
@@ -134,13 +122,13 @@ def test_boosted_random_dictator_4_candidates_with_ties():
         )
     )
 
-    ballots = list(
-        map(lambda x: Ballot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset)
-    )
+    ballots = list(map(lambda x: RankBallot(ranking=[x], weight=3 if "A" in x[0] else 1), powerset))
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
 
     trials = 4000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -151,7 +139,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -179,19 +167,19 @@ def test_boosted_random_dictator_4_candidates_with_ties():
 
 @pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     ballots = all_possible_ranked_ballots(candidates)
 
     trials = 3000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:
-            ballots[i] = Ballot(ranking=ballot.ranking, weight=500)
+            ballots[i] = RankBallot(ranking=ballot.ranking, weight=500)
 
-    test_profile = PreferenceProfile(ballots=ballots, candidates=candidates)
+    test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -202,7 +190,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}

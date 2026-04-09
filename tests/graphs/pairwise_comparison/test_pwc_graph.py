@@ -1,31 +1,25 @@
+from pathlib import Path
+from typing import cast
+
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
+import pytest
+from matplotlib.axes import Axes
 
 from votekit.ballot import RankBallot
 from votekit.graphs.pairwise_comparison_graph import PairwiseComparisonGraph
 from votekit.pref_profile import RankProfile
 
-from matplotlib.axes import Axes
-import pytest
-
-from pathlib import Path
-
 BASE_DIR = Path(__file__).resolve().parents[2]
 CSV_DIR = BASE_DIR / "data/csv/"
-portland_profile = RankProfile.from_csv(
-    CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv"
+portland_profile = cast(
+    RankProfile, RankProfile.from_csv(CSV_DIR / "Portland_D3_Condensed_remove_skipped.csv")
 )
 
 ballot_list = (
-    RankBallot(
-        ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10
-    ),
-    RankBallot(
-        ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}, {"E"}])), weight=10
-    ),
-    RankBallot(
-        ranking=tuple(map(frozenset, [{"D"}, {"A"}, {"E"}, {"B"}, {"C"}])), weight=10
-    ),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"D"}, {"B"}, {"E"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}, {"D"}, {"E"}])), weight=10),
+    RankBallot(ranking=tuple(map(frozenset, [{"D"}, {"A"}, {"E"}, {"B"}, {"C"}])), weight=10),
     RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=24),
 )
 TEST_PROFILE = RankProfile(ballots=ballot_list)
@@ -57,9 +51,7 @@ def test_graph_build():
 
     target_graph = nx.DiGraph()
     target_graph.add_nodes_from(["A", "B", "C"])
-    target_graph.add_weighted_edges_from(
-        [("A", "C", 10), ("B", "A", 10), ("C", "B", 10)]
-    )
+    target_graph.add_weighted_edges_from([("A", "C", 10), ("B", "A", 10), ("C", "B", 10)])
 
     edge_match = iso.numerical_edge_match("weight", 1)
     assert nx.is_isomorphic(pwcg_graph, target_graph, edge_match=edge_match)
@@ -125,3 +117,22 @@ def test_draw_pwcg_non_candidate_error():
         match="Invalid candidates found:",
     ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])
+
+
+def test_strict_condorcet_cycles():
+    weak_cycle_profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=tuple(map(frozenset, ({"A"}, {"B"}, {"C"}))), weight=2),
+            RankBallot(ranking=tuple(map(frozenset, ({"B"}, {"C"}, {"A"}))), weight=2),
+            RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"A"}, {"B"}))), weight=1),
+            RankBallot(ranking=tuple(map(frozenset, ({"C"}, {"B"}, {"A"}))), weight=1),
+        )
+    )
+    pwcg = PairwiseComparisonGraph(weak_cycle_profile)
+
+    weak_cycles = pwcg.get_condorcet_cycles(strict=False)
+    assert len(weak_cycles) == 1
+    assert weak_cycles[0] == {"A", "B", "C"}
+
+    strict_cycles = pwcg.get_condorcet_cycles(strict=True)
+    assert len(strict_cycles) == 0

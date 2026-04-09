@@ -1,13 +1,20 @@
-from .abstract_ranking import RankingElection
-from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
-from votekit.cleaning import remove_and_condense_rank_profile
-from votekit.utils import first_place_votes
-from votekit.elections.election_types.ranking import Plurality, STV
-from votekit.elections.transfers import fractional_transfer
-from votekit.ballot import RankBallot
-from typing import Optional, Callable, Union, Literal
 from functools import partial
+from typing import Callable, Literal, Union
+
+from votekit.ballot import RankBallot
+from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.plurality import Plurality
+from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
+    QuotaType,
+    TiebreakType,
+)
+from votekit.elections.election_types.ranking.stv.stv import STV
+from votekit.elections.transfers import fractional_transfer
+from votekit.pref_profile import RankProfile
+from votekit.utils import first_place_votes
+
+from .abstract_ranking import RankingElection
 
 
 class Alaska(RankingElection):
@@ -32,8 +39,9 @@ class Alaska(RankingElection):
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
             who crosses the threshold is elected in a round. Defaults to True.
-        tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
-            Defaults to None, in which case a tie raises a ValueError.
+        tiebreak (TiebreakType | None, optional): Tiebreak method to use. Options are
+            None, 'random', and 'borda'. Defaults to None, in which case a tie raises a
+            ValueError.
         fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
@@ -50,9 +58,9 @@ class Alaska(RankingElection):
             [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
-        quota: str = "droop",
+        quota: QuotaType | None = "droop",
         simultaneous: bool = True,
-        tiebreak: Optional[str] = None,
+        tiebreak: TiebreakType | None = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
     ):
         if m_1 <= 0:
@@ -69,9 +77,7 @@ class Alaska(RankingElection):
         self.tiebreak = tiebreak
         super().__init__(
             profile,
-            score_function=partial(
-                first_place_votes, tie_convention=fpv_tie_convention
-            ),
+            score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
             sort_high_low=True,
         )
 

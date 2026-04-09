@@ -1,5 +1,6 @@
-from votekit.ballot import RankBallot, Ballot
 import pytest
+
+from votekit.ballot import Ballot, RankBallot
 
 
 def test_ballot_init():
@@ -136,10 +137,7 @@ def test_ballot_str():
         voter_set={"Chris"},
     )
 
-    assert (
-        str(b)
-        == "RankBallot\n1.) A, \n2.) B, \n3.) C, \nWeight: 3.0\nVoter set: {'Chris'}"
-    )
+    assert str(b) == "RankBallot\n1.) A, \n2.) B, \n3.) C, \nWeight: 3.0\nVoter set: {'Chris'}"
 
 
 def test_rank_sub_ballot():
@@ -148,7 +146,5 @@ def test_rank_sub_ballot():
 
 
 def test_rank_and_score():
-    with pytest.raises(
-        TypeError, match="Only one of ranking or scores can be provided."
-    ):
+    with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         RankBallot(ranking=[{"A"}], scores={"A": 1})

@@ -1,7 +1,8 @@
 import pandas as pd
+import pytest
+
 from votekit.ballot import RankBallot
 from votekit.pref_profile.utils import convert_row_to_rank_ballot
-import pytest
 
 
 def test_convert_row_to_rank_ballot():
@@ -55,8 +56,7 @@ def test_convert_row_to_rank_ballot_errors():
 
     with pytest.raises(
         ValueError,
-        match="has '~' between valid ranking positions. "
-        "'~' values can only trail on a ranking.",
+        match="has '~' between valid ranking positions. '~' values can only trail on a ranking.",
     ):
         convert_row_to_rank_ballot(
             pd.Series(

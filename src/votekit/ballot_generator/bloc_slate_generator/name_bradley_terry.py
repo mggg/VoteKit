@@ -14,18 +14,19 @@ The main API functions in this module are:
 """
 
 import itertools as it
-import numpy as np
-import random
-from typing import Mapping, Optional
-import apportionment.methods as apportion
 import math
-import pandas as pd
+import random
 import sys
+from typing import Mapping, Optional
+
+import apportionment.methods as apportion
+import numpy as np
+import pandas as pd
 
 from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
+from votekit.pref_profile import RankProfile
 
 # ====================================================
 # ================= Helper Functions =================
@@ -123,9 +124,7 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
     candidate_with_longest_name = max(config.candidates, key=len)
     est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
     est_bytes_profile = (
-        config.n_voters
-        * n_cands
-        * sys.getsizeof(frozenset({candidate_with_longest_name}))
+        config.n_voters * n_cands * sys.getsizeof(frozenset({candidate_with_longest_name}))
     )
     est_bytes = float(est_bytes_pmf + est_bytes_profile)
 
@@ -168,9 +167,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -185,9 +182,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
 
         # Directly initialize the list using good memory trick
         ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"), dtype=object)
-        single_bloc_pdf_dict = _bradley_terry_pdf(
-            pref_interval_by_bloc_dict[bloc].interval
-        )
+        single_bloc_pdf_dict = _bradley_terry_pdf(pref_interval_by_bloc_dict[bloc].interval)
 
         # Directly use the keys and values from the dictionary for sampling
         rankings, probs = zip(*single_bloc_pdf_dict.items())
@@ -211,7 +206,11 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
         df.index.name = "Ballot Index"
         df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
         df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
+        df.insert(
+            len(df.columns),
+            "Voter Set",
+            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        )
         pp = RankProfile(
             candidates=config.candidates,
             df=df,
@@ -269,8 +268,7 @@ def _bradley_terry_mcmc(
     if verbose:
         print(f"Burn in time: {burn_in_time}")
     swap_indices = [
-        (j1, j1 + 1)
-        for j1 in random.choices(range(n_candidates - 1), k=n_ballots + burn_in_time)
+        (j1, j1 + 1) for j1 in random.choices(range(n_candidates - 1), k=n_ballots + burn_in_time)
     ]
 
     for i in range(burn_in_time):
@@ -320,9 +318,7 @@ def _bradley_terry_mcmc(
         raise ValueError("Some element of ballots list is not a ballot.")
 
     if n_ballots > chain_length:
-        raise ValueError(
-            "The Markov Chain length cannot be less than the number of ballots."
-        )
+        raise ValueError("The Markov Chain length cannot be less than the number of ballots.")
 
     if verbose:
         print(f"The number of ballots before is {len(ballots)}")
@@ -336,7 +332,7 @@ def _bradley_terry_mcmc(
     if verbose:
         print(f"The number of ballots after is {len(ballots)}")
 
-    pp = RankProfile(ballots=ballots)  # type: ignore
+    pp = RankProfile(ballots=ballots)
     return pp
 
 
@@ -372,9 +368,7 @@ def _inner_name_bradley_terry_mcmc(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -438,9 +432,7 @@ def name_bt_profiles_by_bloc_generator(
     return pp_by_bloc
 
 
-def name_bt_profile_generator(
-    config: BlocSlateConfig, *, group_ballots=True
-) -> RankProfile:
+def name_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
 
@@ -672,9 +664,7 @@ def _bradley_terry_mcmc_shortcut(
         raise ValueError("Some element of ballots list is not a ballot.")
 
     if n_ballots > chain_length:
-        raise ValueError(
-            "The Markov Chain length cannot be less than the number of ballots."
-        )
+        raise ValueError("The Markov Chain length cannot be less than the number of ballots.")
 
     if verbose:
         print(f"The number of ballots before is {len(ballots)}")

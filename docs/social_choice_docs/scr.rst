@@ -292,6 +292,8 @@ without replacement from each individual preference interval (we do not
 concatenate them!).
 
 
+.. _slate-bradley-terry:
+
 Slate-Bradley-Terry
 ~~~~~~~~~~~~~~~~~~~
 
@@ -495,6 +497,25 @@ Just like Smith method, but user gets to choose the number of winners, :math:`m`
 Ties are broken with Borda scores.  
 
 
+Ranked Pairs
+~~~~~~~~~~~~~
+A Condorcet method that ranks candidates by looking at pairwise victories. For each pair of 
+candidates, the "margin of victory" is computed as the difference between the number of voters 
+who prefer one candidate over the other. These margins are sorted from largest to smallest, 
+and edges are added to a directed graph in this order, skipping any edge that would create a 
+cycle. The final ranking is determined by the dominating tiers of this graph.
+
+
+Schulze
+~~~~~~~
+A Condorcet method based on indirect victories through "beatpaths." If Alice beats Bob 
+head-to-head, and Bob beats Charlie, then Alice indirectly beats Charlie. A beatpath's 
+strength is determined by its weakest link. For example, if Alice beats Bob by 2 votes,
+Bob beats Charlie by 4 votes, then the beatpath strength from Alice to Bob is 2. Alice 
+has a "beatpath-win" over Bob if Alice's strongest beatpath to Bob is stronger than Bob's 
+strongest beatpath back to Alice. The winner is the candidate not beaten by anyone via 
+beatpath-wins. Always elects the Condorcet winner when one exists. This method is capable 
+of producing an output ranking of candidates.
 
 
 Score-based
@@ -533,6 +554,8 @@ Bloc Plurality
 Like approval voting, but there is a user-specified limit of :math:`k` approvals per voter.  
 Most commonly, this would be run with :math:`k=m`.
 
+
+.. _distances-between-preferenceprofiles:
 
 Distances between PreferenceProfiles
 ====================================

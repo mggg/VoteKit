@@ -1,16 +1,14 @@
-from votekit.pref_profile import PreferenceProfile, CleanedRankProfile
-from votekit.ballot import Ballot
+from votekit.ballot import RankBallot
 from votekit.cleaning import condense_rank_profile
+from votekit.pref_profile import CleanedRankProfile, RankProfile
 
 
 def test_condense_profile():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(
-                ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2
-            ),
-            Ballot(ranking=({"C"}, frozenset(), frozenset())),
-            Ballot(ranking=(frozenset(),)),
+            RankBallot(ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2),
+            RankBallot(ranking=({"C"}, frozenset(), frozenset())),
+            RankBallot(ranking=(frozenset(),)),
         ]
     )
     cleaned_profile = condense_rank_profile(profile)
@@ -19,8 +17,8 @@ def test_condense_profile():
     assert cleaned_profile.parent_profile == profile
 
     assert cleaned_profile.ballots == (
-        Ballot(ranking=({"A"}, {"B"}), weight=2),
-        Ballot(ranking=({"C"},)),
+        RankBallot(ranking=({"A"}, {"B"}), weight=2),
+        RankBallot(ranking=({"C"},)),
     )
     assert cleaned_profile != profile
     assert cleaned_profile.no_wt_altr_idxs == set()
@@ -30,13 +28,11 @@ def test_condense_profile():
 
 
 def test_condense_profile_idempotent():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(
-                ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2
-            ),
-            Ballot(ranking=({"C"}, frozenset(), frozenset())),
-            Ballot(ranking=(frozenset(),)),
+            RankBallot(ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2),
+            RankBallot(ranking=({"C"}, frozenset(), frozenset())),
+            RankBallot(ranking=(frozenset(),)),
         ]
     )
 
@@ -47,13 +43,11 @@ def test_condense_profile_idempotent():
 
 
 def test_condense_profile_equivalence():
-    profile = PreferenceProfile(
+    profile = RankProfile(
         ballots=[
-            Ballot(
-                ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2
-            ),
-            Ballot(ranking=({"C"}, frozenset(), frozenset())),
-            Ballot(ranking=(frozenset(),)),
+            RankBallot(ranking=({"A"}, frozenset(), frozenset(), {"B"}, frozenset()), weight=2),
+            RankBallot(ranking=({"C"}, frozenset(), frozenset())),
+            RankBallot(ranking=(frozenset(),)),
         ]
     )
 

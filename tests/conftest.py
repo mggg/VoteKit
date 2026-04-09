@@ -1,14 +1,16 @@
-import pytest
-from votekit import Ballot
 import itertools
+import math
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import pytest
 import seaborn as sns
-import math
-from votekit.pref_profile import RankProfile, ScoreProfile
 from scipy import stats
+
+from votekit import Ballot
 from votekit.ballot_generator import BlocSlateConfig
 from votekit.pref_interval import PreferenceInterval
+from votekit.pref_profile import RankProfile, ScoreProfile
 
 
 # NOTE: Lock down the rendering for snapshot tests
@@ -34,9 +36,7 @@ def stable_matplotlib_rc():
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--runslow", action="store_true", default=False, help="run tests marked slow"
-    )
+    parser.addoption("--runslow", action="store_true", default=False, help="run tests marked slow")
 
 
 def pytest_configure(config):
@@ -93,16 +93,13 @@ def partitions_with_permutations_of_size(set_, subset_size):
 
 @pytest.fixture
 def all_possible_ranked_ballots():
-
     def inner(cand_set):
         if len(cand_set) > 5:
             raise ValueError("Can only generate ballots for sets of size 5 or less.")
 
         results = []
         for i in range(1, len(cand_set) + 1):
-            full_subsets = {
-                x: 0 for x in partitions_with_permutations_of_size(cand_set, i)
-            }
+            full_subsets = {x: 0 for x in partitions_with_permutations_of_size(cand_set, i)}
 
             results += list(list(x) for x in full_subsets)
 
@@ -173,21 +170,13 @@ def do_ballot_probs_match_ballot_dist_rank_profile():
         for b in ballot_conf_dict.keys():
             b_list = [{c} for c in b]
             ballot = next(
-                (
-                    element
-                    for element in generated_profile.ballots
-                    if element.ranking == b_list
-                ),
+                (element for element in generated_profile.ballots if element.ranking == b_list),
                 None,
             )
             ballot_weight = 0.0
             if ballot is not None:
                 ballot_weight = ballot.weight
-            if not (
-                int(ballot_conf_dict[b][0])
-                <= ballot_weight
-                <= int(ballot_conf_dict[b][1])
-            ):
+            if not (int(ballot_conf_dict[b][0]) <= ballot_weight <= int(ballot_conf_dict[b][1])):
                 failed += 1
 
         # allow for small margin of error given confidence intereval
@@ -219,11 +208,7 @@ def do_ballot_probs_match_ballot_dist_score_profile():
             ballot_weight = 0.0
             if ballot is not None:
                 ballot_weight = ballot.weight
-            if not (
-                int(ballot_conf_dict[b][0])
-                <= ballot_weight
-                <= int(ballot_conf_dict[b][1])
-            ):
+            if not (int(ballot_conf_dict[b][0]) <= ballot_weight <= int(ballot_conf_dict[b][1])):
                 failed += 1
 
         # allow for small margin of error given confidence intereval

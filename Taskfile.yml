@@ -1,0 +1,207 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+vars:
+  PYTHON_VERSION: "3.13"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task: help
+
+  help:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - sh -c 'command -v task >/dev/null 2>&1 && task --list-all || go-task --list-all'
+
+  ensure-uv-linux: &ensure-uv-unix
+    desc: Install uv if not already available
+    internal: true
+    silent: true
+    status:
+      - command -v uv
+    cmds:
+      - curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  ensure-uv-darwin: *ensure-uv-unix
+
+  ensure-uv-windows:
+    internal: true
+    silent: true
+    status:
+      - where uv
+    cmds:
+      - powershell -ExecutionPolicy ByPass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+
+  sync:
+    desc: Sync the project environment with optional extras
+    internal: true
+    silent: true
+    deps: ["ensure-uv-{{OS}}"]
+    cmds:
+      - uv python install {{.PYTHON_VERSION}}
+      - >-
+        uv --managed-python sync --locked --all-groups --all-extras
+        --python {{.PYTHON_VERSION}}
+
+  update-venv:
+    desc: Generates a new lock file for dev use and syncs current enviroment
+    silent: true
+    cmds:
+      - uv python install {{.PYTHON_VERSION}}
+      - uv sync --all-groups --all-extras
+
+  setup:
+    desc: Set up the project environment for development
+    silent: true
+    cmds:
+      - task: sync
+      - uv run pre-commit install
+
+  format:
+    desc: Format the codebase using Ruff
+    silent: true
+    cmds:
+      - uv run ruff check --select I --fix src tests scripts
+      - uv run ruff format src tests scripts notebooks
+
+  format-check:
+    desc: Check code formatting using Ruff
+    silent: true
+    cmds:
+      - uv run ruff check --select I --diff src tests scripts
+      - uv run ruff format --check src tests scripts
+
+  lint:
+    desc: Lint the codebase using Ruff
+    silent: true
+    cmds:
+      - uv run ruff check src tests scripts
+
+  typecheck:
+    desc: Run type checks using Ty
+    silent: true
+    cmds:
+      - uv run ty check src tests scripts
+
+  all-checks:
+    desc: Run all checks (formatting, linting, type checking)
+    silent: true
+    cmds:
+      - task: format-check
+      - task: lint
+      - task: typecheck
+
+  pytest:
+    internal: true
+    silent: true
+    env:
+      TERM: xterm
+    cmds:
+      - task: sync
+      - PYTHONHASHSEED=0 uv run pytest {{.PYTEST_ARGS}}
+
+  test:
+    desc: Run tests using pytest (`task test -- tests/foo` to scope the run)
+    silent: true
+    cmds:
+      - task: pytest
+        vars:
+          PYTEST_ARGS: '{{.CLI_ARGS | default "tests"}}'
+
+  test:*:
+    desc: Run tests in a specific path (`task test:tests/foo`)
+    silent: true
+    vars:
+      TEST_PATH: "{{index .MATCH 0}}"
+    cmds:
+      - task: pytest
+        vars:
+          PYTEST_ARGS: "{{.TEST_PATH}}"
+
+  test-slow:
+    desc: Run tests using pytest, including slow tests
+    silent: true
+    cmds:
+      - task: pytest
+        vars:
+          PYTEST_ARGS: '{{.CLI_ARGS | default "tests"}} --runslow'
+
+  coverage:
+    desc: Run tests with coverage reporting (`task coverage COV_TARGET=src/foo -- tests/bar`)
+    silent: true
+    cmds:
+      - task: pytest
+        vars:
+          PYTEST_ARGS: >-
+            {{.CLI_ARGS | default "tests"}} --runslow --cov={{.COV_TARGET | default "src/votekit"}}
+            --cov-report={{.COV_REPORT | default "term-missing"}}
+
+  clean:
+    desc: Clean up build artifacts
+    silent: true
+    cmds:
+      - task: clean-{{OS}}
+
+  clean-linux: &clean-unix
+    internal: true
+    cmds:
+      - rm -rf dist build *.egg-info .venv .pytest_cache .ruff_cache
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+
+  clean-darwin: *clean-unix
+
+  clean-windows:
+    internal: true
+    cmds:
+      - cmd /c "if exist dist rmdir /s /q dist"
+      - cmd /c "if exist build rmdir /s /q build"
+      - cmd /c "if exist *.egg-info rmdir /s /q *.egg-info"
+      - cmd /c "if exist .venv rmdir /s /q .venv"
+      - cmd /c "if exist .pytest_cache rmdir /s /q .pytest_cache"
+      - cmd /c "if exist .ruff_cache rmdir /s /q .ruff_cache"
+      - for /r . %d in (__pycache__) do @if exist "%d" rmdir /s /q "%d"
+
+  draft-release:
+    desc: Bump version, update docs, and create a tagged commit (`task draft-release -- 3.5.0`)
+    silent: true
+    preconditions:
+      - sh: test -n "{{.CLI_ARGS}}"
+        msg: "Usage: task draft-release -- <version>  (e.g. task draft-release -- 3.5.0)"
+    vars:
+      VERSION: "{{.CLI_ARGS}}"
+    cmds:
+      - uv run python scripts/draft_release.py {{.VERSION}}
+      - git add pyproject.toml CHANGELOG.md
+      - git commit -m "Release v{{.VERSION}}"
+      - git tag -a "v{{.VERSION}}" -m "v{{.VERSION}}"
+      - echo "Created commit and tag v{{.VERSION}}. Review with 'git log --oneline -1' and 'git tag -l'."
+      - echo "When ready, run 'git push origin main --tags' then 'task publish'."
+
+  publish:
+    desc: Build and publish to PyPI (run after pushing a tagged release)
+    silent: true
+    cmds:
+      - task: sync
+      - task: all-checks
+      - task: test-slow
+      - uv build
+      - uv publish
+
+  docs:
+    desc: Build the documentation
+    silent: true
+    cmds:
+      - task: sync-contributing-doc
+      - uv run jupyter nbconvert --to rst notebooks/*.ipynb --output-dir docs/user/tutorial/
+      - uv run sphinx-build -b dirhtml docs docs/_build
+
+  sync-contributing-doc:
+    desc: Sync the docs contributing page from CONTRIBUTING.md
+    silent: true
+    cmds:
+      - uv run python docs/sync_contributing.py

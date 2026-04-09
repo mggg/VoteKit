@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+    from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+
+from functools import partial
+from typing import Optional, Sequence
+
+import numpy as np
+import pandas as pd
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
-from typing import Optional, Sequence
-import pandas as pd
-from functools import partial
-import numpy as np
 
 
 def _convert_ranking_cols_to_ranking(
@@ -28,7 +31,7 @@ def _convert_ranking_cols_to_ranking(
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking_cols_idxs = [f"Ranking_{i+1}" for i in range(max_ranking_length)]
+    ranking_cols_idxs = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
@@ -43,16 +46,12 @@ def _convert_ranking_cols_to_ranking(
             "'~' values can only trail on a ranking."
         )
 
-    ranking = [
-        row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")
-    ]
+    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")]
 
     return tuple(ranking) if len(ranking) > 0 else None
 
 
-def convert_row_to_rank_ballot(
-    row: pd.Series, max_ranking_length: int = 0
-) -> RankBallot:
+def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> RankBallot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
 
@@ -77,9 +76,7 @@ def convert_row_to_rank_ballot(
     )
 
 
-def convert_row_to_score_ballot(
-    row: pd.Series, candidates: tuple[str, ...]
-) -> ScoreBallot:
+def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[str, ...]) -> ScoreBallot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
 
@@ -120,7 +117,7 @@ def _df_to_rank_ballot_tuple(
         return tuple()
 
     return tuple(
-        df.apply(  # type: ignore[call-overload]
+        df.apply(
             partial(
                 convert_row_to_rank_ballot,
                 max_ranking_length=max_ranking_length,
@@ -217,7 +214,7 @@ def rank_profile_to_ranking_dict(
     Raises:
         TypeError: Profile must be a RankProfile.
     """
-    from .pref_profile import RankProfile
+    from votekit.pref_profile.pref_profile import RankProfile
 
     if not isinstance(rank_profile, RankProfile):
         raise TypeError(("Profile must be a RankProfile."))
@@ -235,7 +232,7 @@ def rank_profile_to_ranking_dict(
 
 def score_profile_to_scores_dict(
     score_profile: ScoreProfile, standardize: bool = False
-) -> dict[tuple[str, float], float]:
+) -> dict[tuple[tuple[str, float], ...] | None, float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
@@ -246,19 +243,19 @@ def score_profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[str, float], float]:
+        dict[tuple[tuple[str, float], ...] | None, float]:
             A dictionary with scores (keys) and corresponding total weights (values).
 
     Raises:
         TypeError: Profile must be a ScoreProfile.
     """
-    from .pref_profile import ScoreProfile
+    from votekit.pref_profile.pref_profile import ScoreProfile
 
     if not isinstance(score_profile, ScoreProfile):
         raise TypeError(("Profile must be a ScoreProfile."))
 
     tot_weight = score_profile.total_ballot_wt
-    di: dict = {}
+    di: dict[tuple[tuple[str, float], ...] | None, float] = {}
     for ballot in score_profile.ballots:
         scores = tuple(ballot.scores.items()) if ballot.scores else None
         weight = ballot.weight
@@ -306,9 +303,7 @@ def profile_df_head(
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
-            raise ZeroDivisionError(
-                "Profile has 0 total ballot weight; cannot show percentages."
-            )
+            raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
         df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
 
     if totals:
@@ -358,9 +353,7 @@ def profile_df_tail(
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
-            raise ZeroDivisionError(
-                "Profile has 0 total ballot weight; cannot show percentages."
-            )
+            raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
         df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
 
     if totals:
@@ -396,8 +389,8 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         ValueError: Score vector must be non-increasing and non-negative.
     """
     # here to prevent circular import
+    from votekit.pref_profile.pref_profile import ScoreProfile
     from votekit.utils import validate_score_vector
-    from votekit.pref_profile import ScoreProfile
 
     validate_score_vector(score_vector)
     score_vector = list(score_vector)
@@ -406,16 +399,13 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
-    ranking_cols = [
-        f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)
-    ]
+    ranking_cols = [f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)]
     rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
     if any(len(x) > 1 for x in rankings_arr):
         raise ValueError("Ballots must not contain ties.")
 
     cand_to_score_list = {
-        c: [np.nan for _ in range(len(rank_profile.df))]
-        for c in rank_profile.candidates
+        c: [np.nan for _ in range(len(rank_profile.df))] for c in rank_profile.candidates
     }
 
     for df_tuple in rank_profile.df[ranking_cols].itertuples():

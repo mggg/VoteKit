@@ -1,27 +1,32 @@
-from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
-from votekit.pref_profile import RankProfile
-from votekit.elections.election_state import ElectionState
 from votekit.cleaning import remove_and_condense_rank_profile
-from votekit.utils import elect_cands_from_set_ranking, borda_scores
+from votekit.elections._deprecation import _handle_deprecated_kwargs
+from votekit.elections.election_state import ElectionState
+from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.graphs import PairwiseComparisonGraph
+from votekit.pref_profile import RankProfile
+from votekit.utils import borda_scores, elect_cands_from_set_ranking
 
 
 class CondoBorda(RankingElection):
     """
     Just like DominatingSets (Smith method), but user gets to choose the number of winners,
-    :math:`m`.  Ties are broken with Borda scores.
+    :math:`n_\text{seats}`.  Ties are broken with Borda scores.
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
 
     """
 
-    def __init__(self, profile: RankProfile, m: int = 1):
-        if len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
-        super().__init__(profile, score_function=borda_scores)
+    def __init__(self, profile: RankProfile, n_seats: int | None = None, **kwargs):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
+        super().__init__(profile, n_seats=n_seats, score_function=borda_scores)
 
     def _is_finished(self):
         # single round election
@@ -34,7 +39,7 @@ class CondoBorda(RankingElection):
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
-        Compute the dominating tiers, and return the top :math:`m` candidates by tier.
+        Compute the dominating tiers, and return the top :math:`n_\text{seats}` candidates by tier.
         Breaks ties using Borda scores.
 
         Args:
@@ -52,7 +57,7 @@ class CondoBorda(RankingElection):
 
         dt_ranking = tuple([frozenset(s) for s in dominating_tiers])
         elected, remaining, tiebreak = elect_cands_from_set_ranking(
-            dt_ranking, self.m, profile, tiebreak="borda"
+            dt_ranking, self.n_seats, profile, tiebreak="borda"
         )
 
         if tiebreak:
@@ -60,9 +65,7 @@ class CondoBorda(RankingElection):
         else:
             tiebreaks = {}
 
-        new_profile = remove_and_condense_rank_profile(
-            [c for s in elected for c in s], profile
-        )
+        new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
 
         if store_states:
             self.election_states.append(

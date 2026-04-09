@@ -30,7 +30,6 @@ def _validate_csv_ballot_weight(
         )
 
     else:
-
         try:
             float(ballot_row[break_idxs[0] + 1])
 
@@ -44,9 +43,7 @@ def _validate_csv_ballot_weight(
             )
 
 
-def _validate_csv_ballot_voter_set(
-    ballot_row: list[str], row_index: int, include_voter_set: bool
-):
+def _validate_csv_ballot_voter_set(ballot_row: list[str], row_index: int, include_voter_set: bool):
     """
     Validate that the ballot voter set is formatted correctly.
 
@@ -70,8 +67,7 @@ def _validate_csv_ballot_voter_set(
         raise ValueError(
             (
                 f"csv file is improperly formatted. Ballot in row {row_index} has a "
-                f"voter set but it should not: {ballot_row[break_idxs[-1] + 1 :]} "
-                + boiler_plate
+                f"voter set but it should not: {ballot_row[break_idxs[-1] + 1 :]} " + boiler_plate
             )
         )
 

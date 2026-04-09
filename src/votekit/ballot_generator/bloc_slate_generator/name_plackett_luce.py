@@ -9,14 +9,14 @@ The main API functions in this module are:
     name-Plackett-Luce model.
 """
 
-import numpy as np
 from typing import Optional
-import pandas as pd
+
 import apportionment.methods as apportion
+import numpy as np
+import pandas as pd
 
-from votekit.ballot_generator.bloc_slate_generator.model import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
-
 
 # ===========================================================
 # ================= Interior Work Functions =================
@@ -55,9 +55,7 @@ def _inner_name_plackett_luce(
     )
     if not isinstance(bloc_counts, list):
         if not isinstance(bloc_counts, int):
-            raise TypeError(
-                f"Unexpected type from apportionment got {type(bloc_counts)}"
-            )
+            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
 
         bloc_counts = [bloc_counts]
 
@@ -70,9 +68,7 @@ def _inner_name_plackett_luce(
         n_ballots = ballots_per_bloc[bloc]
         ballot_pool = np.full((n_ballots, ballot_length), frozenset("~"))
         cands = list(pref_interval_by_bloc_dict[bloc].candidates)
-        pref_interval_values = [
-            pref_interval_by_bloc_dict[bloc].interval[c] for c in cands
-        ]
+        pref_interval_values = [pref_interval_by_bloc_dict[bloc].interval[c] for c in cands]
 
         for i in range(n_ballots):
             non_zero_ranking = list(
@@ -91,7 +87,11 @@ def _inner_name_plackett_luce(
         df.index.name = "Ballot Index"
         df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
         df["Weight"] = 1
-        df["Voter Set"] = [frozenset()] * len(df)
+        df.insert(
+            len(df.columns),
+            "Voter Set",
+            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        )
         pp = RankProfile(
             candidates=config.candidates,
             df=df,
