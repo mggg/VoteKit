@@ -41,6 +41,7 @@ __all__ = [
     "SNTV",
     "Borda",
     "STV",
+    "MeekSTV",
     "FastSTV",
     "IRV",
     "SequentialRCV",
