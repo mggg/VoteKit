@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Iterable, Literal, NotRequired, TypeAlias, TypedDict, cast
+from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -437,7 +437,7 @@ class NumpySTVBase(ABC):
                 status_df.at[cand_string, "Round"] = round_number
         status_df = status_df.reindex(new_index)
         return status_df
-    
+
     def get_profile(self, round_number: int = -1) -> RankProfile:
         """
         Return the RankProfile of the given round number.
