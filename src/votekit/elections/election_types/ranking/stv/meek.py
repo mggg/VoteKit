@@ -608,7 +608,7 @@ class MeekSTV(NumpySTVBase):
                     "without making progress."
                 )
 
-            updated_comb, updated_bits = vectorized_perm_updater(
+            updated_comb, updated_bits = _vectorized_perm_updater(
                 mutant_winner_comb_vec[needs_update],
                 m,
                 L,
@@ -732,7 +732,7 @@ def build_section_list(m: int, L: int) -> list[int]:
     return section_list
 
 
-def vectorized_perm_updater(
+def _vectorized_perm_updater(
     winner_comb_vec: NDArray, m: int, L: int, winner_bitsring_vec: NDArray, winner_vec: NDArray
 ):
     """
