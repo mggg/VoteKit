@@ -112,7 +112,7 @@ class MeekSTV(NumpySTVBase):
 
         if n_seats > 10:
             raise NotImplementedError(
-                "Meek STV with more than 10 seats is not currently supported due to the " \
+                "Meek STV with more than 10 seats is not currently supported due to the "
                 "combinatorial explosion of winner combinations."
             )
             self._dense = False
