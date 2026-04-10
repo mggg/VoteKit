@@ -14,7 +14,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 )
 
 
-@dataclass(frozen = True, slots = True)
+@dataclass(frozen=True, slots=True)
 class KeepFactorCalibrationCache:
     """
     Round-local compressed representation of the data needed to calibrate keep factors.
@@ -111,9 +111,10 @@ class MeekSTV(NumpySTVBase):
 
         if m > 10:
             raise NotImplementedError(
-                "Meek STV with more than 10 seats is not currently supported due to the combinatorial explosion of winner combinations.")
+                "Meek STV with more than 10 seats is not currently supported due to the combinatorial explosion of winner combinations."
+            )
             self._dense = False
-        else: 
+        else:
             self._dense = True  # TODO: implement a backup protocol when m, L are large
         self._num_cands = len(self.candidates)
         self._max_ranking_length = min(profile.max_ranking_length, self._num_cands)
@@ -121,10 +122,11 @@ class MeekSTV(NumpySTVBase):
         self.epsilon = 1e-6 if epsilon is None else float(epsilon)
         self._max_iterations = 500 if max_iterations is None else int(max_iterations)
 
-
         self._run_and_store()
 
-    def _run_election(self, mutable_data_tracker: NumpyElectionDataTracker) -> NumpyElectionDataTracker:
+    def _run_election(
+        self, mutable_data_tracker: NumpyElectionDataTracker
+    ) -> NumpyElectionDataTracker:
         """
         Core election logic for Meek STV.
 

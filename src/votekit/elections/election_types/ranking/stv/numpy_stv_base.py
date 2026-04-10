@@ -272,7 +272,7 @@ class NumpySTVBase(ABC):
         """
         Run the election core logic and store results on the data tracker.
         """
-        #fpv_by_round, play_by_play, tiebreak_record = self._run_election(self._data)
+        # fpv_by_round, play_by_play, tiebreak_record = self._run_election(self._data)
         self._data = self._run_election(self._data)
         self.election_states = self._make_election_states()
 

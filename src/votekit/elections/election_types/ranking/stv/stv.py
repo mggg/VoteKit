@@ -384,7 +384,9 @@ class NumpyInnerSTV(NumpySTVBase):
         _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def _run_election(self, mutable_data_tracker: NumpyElectionDataTracker) -> NumpyElectionDataTracker:
+    def _run_election(
+        self, mutable_data_tracker: NumpyElectionDataTracker
+    ) -> NumpyElectionDataTracker:
         """
         Core election logic for STV.
 
