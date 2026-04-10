@@ -160,7 +160,7 @@ class MeekSTV(NumpySTVBase):
         bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
 
         if self._dense:
-            winner_combination_matrix = permutation_matrix_constructor(
+            winner_combination_matrix = _permutation_matrix_constructor(
                 m, self._max_ranking_length, dtype=np.dtype(np.int8)
             )
 
@@ -766,7 +766,7 @@ def _vectorized_perm_updater(
     )
 
 
-def permutation_matrix_constructor(
+def _permutation_matrix_constructor(
     m: int,
     L: int,
     sections: list[int] | None = None,
