@@ -131,15 +131,12 @@ class MeekSTV(NumpySTVBase):
         Core election logic for Meek STV.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile
-                converted to numpy arrays.
+            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with
+                the profile converted to numpy arrays.
 
         Returns:
-            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
-                 taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                List of dictionaries representing tiebreak resolutions for each round.
+            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with
+                election results.
         """
         ballot_matrix = mutable_data_tracker.ballot_matrix
         initial_wt_vec = np.copy(mutable_data_tracker.wt_vec)

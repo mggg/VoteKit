@@ -243,11 +243,9 @@ class NumpySTVBase(ABC):
         )
 
     @abstractmethod
-    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
-        list[NDArray],
-        list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ]:
+    def _run_election(
+        self, mutable_data_tracker: NumpyElectionDataTracker
+    ) -> NumpyElectionDataTracker:
         """
         Core election logic to be implemented by child classes.
 
@@ -256,15 +254,12 @@ class NumpySTVBase(ABC):
         in the `extras` field of the data tracker if needed.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile converted to
-                numpy arrays.
+            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with
+                the profile converted to numpy arrays.
 
         Returns:
-            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the
-                actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]): List of dictionaries
-                representing tiebreak resolutions for each round.
+            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with
+                election results.
         """
         pass
 

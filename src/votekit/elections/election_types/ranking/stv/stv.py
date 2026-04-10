@@ -391,14 +391,12 @@ class NumpyInnerSTV(NumpySTVBase):
         Core election logic for STV.
 
         Args:
-            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with the profile
-                converted to numpy arrays.
+            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with
+                the profile converted to numpy arrays.
 
         Returns:
-            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with election results.
-                 taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                List of dictionaries representing tiebreak resolutions for each round.
+            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with
+                election results.
         """
         ballot_matrix = mutable_data_tracker.ballot_matrix
         wt_vec = np.copy(mutable_data_tracker.wt_vec)
