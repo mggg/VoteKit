@@ -85,7 +85,7 @@ class MeekSTV(NumpySTVBase):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
         tolerance: float | None = 1e-6,
         epsilon: float | None = 1e-6,
@@ -96,26 +96,26 @@ class MeekSTV(NumpySTVBase):
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int): Number of seats to be elected. Defaults to 1.
+            n_seats (int): Number of seats to be elected. Defaults to 1.
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
                 "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is
                 raised if a tiebreak is needed.
             tolerance (float, optional): Margin by which a winner's tally is allowed to exceed quota
                 without further keep factor adjustments. Defaults to 1e-6.
-            epsilon (float, optional): Small value added to quota to ensure that no more than m candidates
+            epsilon (float, optional): Small value added to quota to ensure that no more than n_seats candidates
                 can have a quota's worth of the active votes within a round. Defaults to 1e-6.
             max_iterations (int, optional): Maximum number of keep factor iterations to go through
                 before breaking out of the calibration process. Defaults to 500.
         """
-        super().__init__(profile=profile, m=m, tiebreak=tiebreak)
+        super().__init__(profile=profile, n_seats=n_seats, tiebreak=tiebreak)
 
-        if m > 10:
+        if n_seats > 10:
             raise NotImplementedError(
                 "Meek STV with more than 10 seats is not currently supported due to the combinatorial explosion of winner combinations."
             )
             self._dense = False
         else:
-            self._dense = True  # TODO: implement a backup protocol when m, L are large
+            self._dense = True  # TODO: implement a backup protocol when n_seats, L are large
         self._num_cands = len(self.candidates)
         self._max_ranking_length = min(profile.max_ranking_length, self._num_cands)
         self.tolerance = 1e-6 if tolerance is None else float(tolerance)
@@ -145,7 +145,7 @@ class MeekSTV(NumpySTVBase):
         pos_vec = np.zeros_like(initial_wt_vec, dtype=np.int8)
         winner_list = []
         fpv_vec = np.copy(ballot_matrix[:, 0])
-        m = self.m
+        n_seats = self.n_seats
 
         fpv_scores_by_round = []
         num_iterations_by_round = []
@@ -158,7 +158,7 @@ class MeekSTV(NumpySTVBase):
 
         if self._dense:
             winner_combination_matrix = _permutation_matrix_constructor(
-                m, self._max_ranking_length, dtype=np.dtype(np.int8)
+                n_seats, self._max_ranking_length, dtype=np.dtype(np.int8)
             )
 
         winner_combination_mutant_bundle = (
@@ -183,7 +183,7 @@ class MeekSTV(NumpySTVBase):
             bool_ballot_matrix,
         )
 
-        while len(winner_list) < m:
+        while len(winner_list) < n_seats:
             tallies, keep_factors, current_quota, num_iterations = self._keep_factor_calibrator(
                 *keep_factor_calibrator_bundle
             )
@@ -224,7 +224,7 @@ class MeekSTV(NumpySTVBase):
                     0,
                     tallies,
                 )
-            if len(winner_list) == m:
+            if len(winner_list) == n_seats:
                 break
             loser_idx, loser_mutant_bundle = self._find_and_eliminate_loser(
                 tallies, round_number, *loser_mutant_bundle
@@ -542,7 +542,7 @@ class MeekSTV(NumpySTVBase):
         mutant_bool_ballot_matrix: NDArray,
         mutant_pos_vec: NDArray,
         all_winners: list[int],
-        m: int | None = None,
+        n_seats: int | None = None,
         L: int | None = None,
     ):
         """
@@ -562,8 +562,8 @@ class MeekSTV(NumpySTVBase):
             mutant_pos_vec: (NDArray) the current position of the fpv on each ballot.
             all_winners: (list[int]) the list of seated winners in the current round,
                 in the order they were seated in.
-            m: (int | None) the number of candidates to consider.
-                Defaults to self.m.
+            n_seats: (int | None) the number of seats to be filled.
+                Defaults to self.n_seats.
             L: (int | None) the maximum ranking length.
                 Defaults to self._max_ranking_length.
 
@@ -575,8 +575,8 @@ class MeekSTV(NumpySTVBase):
             mutant_pos_vec: (NDArray) mutated in place.
 
         """
-        if m is None:
-            m = self.m
+        if n_seats is None:
+            n_seats = self.n_seats
         if L is None:
             L = self._max_ranking_length
 
@@ -616,7 +616,7 @@ class MeekSTV(NumpySTVBase):
 
             updated_comb, updated_bits = _vectorized_perm_updater(
                 mutant_winner_comb_vec[needs_update],
-                m,
+                self._num_cands,
                 L,
                 mutant_winner_bitstring_vec[needs_update],
                 current_winner_pos[needs_update],

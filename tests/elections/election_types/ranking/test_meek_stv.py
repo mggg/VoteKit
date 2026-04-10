@@ -197,7 +197,7 @@ def looser_equality_for_election_states(state1, state2, precision):
 
 
 def test_basic_profile_1():
-    elec = MeekSTV(basic_profile_1, m=2)
+    elec = MeekSTV(basic_profile_1, n_seats=2)
     assert all(
         looser_equality_for_election_states(
             elec.election_states[i], basic_profile_1_states[i], precision=1e-6
@@ -207,7 +207,7 @@ def test_basic_profile_1():
 
 
 def test_basic_profile_2():
-    elec = MeekSTV(basic_profile_2, m=2)
+    elec = MeekSTV(basic_profile_2, n_seats=2)
     assert all(
         looser_equality_for_election_states(
             elec.election_states[i], basic_profile_2_states[i], precision=1e-6
@@ -217,7 +217,7 @@ def test_basic_profile_2():
 
 
 def test_advanced_profile_1():
-    elec = MeekSTV(advanced_profile_1, m=2)
+    elec = MeekSTV(advanced_profile_1, n_seats=2)
     assert all(
         looser_equality_for_election_states(
             elec.election_states[i], advanced_profile_1_states[i], precision=1e-6
@@ -227,7 +227,7 @@ def test_advanced_profile_1():
 
 
 def test_advanced_profile_2():
-    elec = MeekSTV(advanced_profile_2, m=3)
+    elec = MeekSTV(advanced_profile_2, n_seats=3)
     assert all(
         looser_equality_for_election_states(
             elec.election_states[i], advanced_profile_2_states[i], precision=1e-6
