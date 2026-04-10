@@ -3,6 +3,7 @@ from votekit.elections.election_types import (
     IRV,
     SNTV,
     STV,
+    MeekSTV,
     Alaska,
     Approval,
     BlockPlurality,

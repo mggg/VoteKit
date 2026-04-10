@@ -4,6 +4,7 @@ from .ranking import (
     IRV,
     SNTV,
     STV,
+    MeekSTV,
     Alaska,
     BoostedRandomDictator,
     Borda,
