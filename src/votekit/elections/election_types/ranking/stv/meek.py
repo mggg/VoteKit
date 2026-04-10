@@ -109,13 +109,18 @@ class MeekSTV(NumpySTVBase):
         """
         super().__init__(profile=profile, m=m, tiebreak=tiebreak)
 
+        if m > 10:
+            raise NotImplementedError(
+                "Meek STV with more than 10 seats is not currently supported due to the combinatorial explosion of winner combinations.")
+            self._dense = False
+        else: 
+            self._dense = True  # TODO: implement a backup protocol when m, L are large
         self._num_cands = len(self.candidates)
         self._max_ranking_length = min(profile.max_ranking_length, self._num_cands)
         self.tolerance = 1e-6 if tolerance is None else float(tolerance)
         self.epsilon = 1e-6 if epsilon is None else float(epsilon)
         self._max_iterations = 500 if max_iterations is None else int(max_iterations)
 
-        self._dense = True  # TODO: implement a backup protocol when m, L are large
 
         self._run_and_store()
 
@@ -158,8 +163,6 @@ class MeekSTV(NumpySTVBase):
             winner_combination_matrix = permutation_matrix_constructor(
                 m, self._max_ranking_length, dtype=np.dtype(np.int8)
             )
-        else:
-            raise NotImplementedError("Sparse mode not implemented yet.")
 
         winner_combination_mutant_bundle = (
             winner_combination_vec,
