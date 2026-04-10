@@ -14,7 +14,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 )
 
 
-@dataclass
+@dataclass(frozen = True, slots = True)
 class KeepFactorCalibrationCache:
     """
     Round-local compressed representation of the data needed to calibrate keep factors.
