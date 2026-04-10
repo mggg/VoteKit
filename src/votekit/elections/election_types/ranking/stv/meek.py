@@ -124,11 +124,7 @@ class MeekSTV(NumpySTVBase):
 
         self._run_and_store()
 
-    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
-        list[NDArray],
-        list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ]:
+    def _run_election(self, mutable_data_tracker: NumpyElectionDataTracker) -> NumpyElectionDataTracker:
         """
         Core election logic for Meek STV.
 
@@ -143,8 +139,8 @@ class MeekSTV(NumpySTVBase):
             tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
         """
-        ballot_matrix = data.ballot_matrix
-        initial_wt_vec = np.copy(data.wt_vec)
+        ballot_matrix = mutable_data_tracker.ballot_matrix
+        initial_wt_vec = np.copy(mutable_data_tracker.wt_vec)
         winner_combination_vec = np.zeros_like(initial_wt_vec, dtype=np.int64)
         winner_bitstring_vec = np.zeros_like(initial_wt_vec, dtype=np.int32)
         pos_vec = np.zeros_like(initial_wt_vec, dtype=np.int8)
@@ -153,6 +149,8 @@ class MeekSTV(NumpySTVBase):
         m = self.m
 
         fpv_scores_by_round = []
+        num_iterations_by_round = []
+        keep_factor_by_round = []
         play_by_play: list[ElectionPlay] = []
         round_number = 0
         eliminated_candidates: list[int] = []
@@ -191,6 +189,8 @@ class MeekSTV(NumpySTVBase):
                 *keep_factor_calibrator_bundle
             )
             fpv_scores_by_round.append(tallies.copy())
+            keep_factor_by_round.append(keep_factors.copy())
+            num_iterations_by_round.append(num_iterations)
             masked_tallies = np.where(
                 np.isin(np.arange(len(tallies)), winner_list),
                 0,
@@ -217,6 +217,8 @@ class MeekSTV(NumpySTVBase):
                 tallies, keep_factors, current_quota, num_iterations = self._keep_factor_calibrator(
                     *keep_factor_calibrator_bundle
                 )
+                keep_factor_by_round.append(keep_factors.copy())
+                num_iterations_by_round.append(num_iterations)
                 fpv_scores_by_round.append(tallies.copy())
                 masked_tallies = np.where(
                     np.isin(np.arange(len(tallies)), winner_list),
@@ -240,7 +242,12 @@ class MeekSTV(NumpySTVBase):
                 )
             )
             round_number += 1
-        return fpv_scores_by_round, play_by_play, tiebreak_record
+        mutable_data_tracker.fpv_by_round = fpv_scores_by_round
+        mutable_data_tracker.play_by_play = play_by_play
+        mutable_data_tracker.tiebreak_record = tiebreak_record
+        mutable_data_tracker.extras["keep_factor_by_round"] = keep_factor_by_round
+        mutable_data_tracker.extras["num_iterations_by_round"] = num_iterations_by_round
+        return mutable_data_tracker
 
     def _keep_factor_calibrator(
         self,

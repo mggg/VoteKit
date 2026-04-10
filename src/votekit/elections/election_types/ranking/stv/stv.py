@@ -384,27 +384,22 @@ class NumpyInnerSTV(NumpySTVBase):
         _mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, newly_gone)
         return _mutant_bool_ballot_matrix
 
-    def _run_election(self, data: NumpyElectionDataTracker) -> tuple[
-        list[NDArray],
-        list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ]:
+    def _run_election(self, mutable_data_tracker: NumpyElectionDataTracker) -> NumpyElectionDataTracker:
         """
         Core election logic for STV.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile
+            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with the profile
                 converted to numpy arrays.
 
         Returns:
-            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
+            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with election results.
                  taken in each round.
             tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
         """
-        ballot_matrix = data.ballot_matrix
-        wt_vec = np.copy(data.wt_vec)
+        ballot_matrix = mutable_data_tracker.ballot_matrix
+        wt_vec = np.copy(mutable_data_tracker.wt_vec)
         fpv_vec = np.copy(ballot_matrix[:, 0])
         m = self.m
         ncands = len(self.candidates)
@@ -496,7 +491,10 @@ class NumpyInnerSTV(NumpySTVBase):
             if self.dynamic_threshold:
                 play_by_play[-1]["threshold"] = float(quota)
             round_number += 1
-        return fpv_scores_by_round, play_by_play, tiebreak_record
+        mutable_data_tracker.fpv_by_round = fpv_scores_by_round
+        mutable_data_tracker.play_by_play = play_by_play
+        mutable_data_tracker.tiebreak_record = tiebreak_record
+        return mutable_data_tracker
 
 
 class FastSTV(NumpyInnerSTV):

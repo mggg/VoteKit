@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
+from typing import Any, Iterable, Literal, NotRequired, TypeAlias, TypedDict, cast
 
 import numpy as np
 import pandas as pd
@@ -272,10 +272,8 @@ class NumpySTVBase(ABC):
         """
         Run the election core logic and store results on the data tracker.
         """
-        fpv_by_round, play_by_play, tiebreak_record = self._run_election(self._data)
-        self._data.fpv_by_round = fpv_by_round
-        self._data.play_by_play = play_by_play
-        self._data.tiebreak_record = tiebreak_record
+        #fpv_by_round, play_by_play, tiebreak_record = self._run_election(self._data)
+        self._data = self._run_election(self._data)
         self.election_states = self._make_election_states()
 
     # ==================
