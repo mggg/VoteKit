@@ -162,7 +162,6 @@ class MeekSTV(NumpySTVBase):
             winner_combination_matrix = _permutation_matrix_constructor(
                 n_seats, min(self._max_ranking_length, self.n_seats), dtype=np.dtype(np.int8)
             )
-            print("winner_combination_matrix when initialized", winner_combination_matrix)
 
         winner_combination_mutant_bundle = (
             winner_combination_vec,
