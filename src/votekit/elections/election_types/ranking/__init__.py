@@ -13,7 +13,7 @@ from .random_dictator import RandomDictator
 from .ranked_pairs import RankedPairs
 from .schulze import Schulze
 from .simultaneous_veto import SimultaneousVeto
-from .stv import IRV, STV, FastSTV, SequentialRCV, MeekSTV
+from .stv import IRV, STV, FastSTV, MeekSTV, SequentialRCV
 from .top_two import TopTwo
 
 __all__ = [

@@ -1,5 +1,5 @@
-from .stv import IRV, STV, FastSTV, SequentialRCV
 from .meek import MeekSTV
+from .stv import IRV, STV, FastSTV, SequentialRCV
 
 __all__ = [
     "STV",
