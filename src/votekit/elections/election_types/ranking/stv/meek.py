@@ -61,7 +61,7 @@ class KeepFactorCalibrationCache:
     initial_wt_vec: NDArray  # shape (N,)
 
 
-LoserMutantBundle: TypeAlias = tuple[
+MutableLoserBundle: TypeAlias = tuple[
     list[int],
     list[dict[frozenset[str], tuple[frozenset[str], ...]]],
     NDArray,
@@ -175,7 +175,7 @@ class MeekSTV(NumpySTVBase):
             winner_combination_vec,
             winner_combination_matrix,
         )
-        loser_mutant_bundle: LoserMutantBundle = (
+        loser_mutant_bundle: MutableLoserBundle = (
             eliminated_candidates,
             tiebreak_record,
             fpv_vec,
@@ -641,7 +641,7 @@ class MeekSTV(NumpySTVBase):
         mutant_fpv_vec: NDArray,
         mutant_pos_vec: NDArray,
         mutant_bool_ballot_matrix: NDArray,
-    ) -> tuple[int, LoserMutantBundle]:
+    ) -> tuple[int, MutableLoserBundle]:
         """
         Identifies the candidate with the lowest tally and eliminates them in place.
 
