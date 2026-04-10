@@ -97,13 +97,14 @@ class MeekSTV(NumpySTVBase):
         Args:
             profile (RankProfile): RankProfile to run election on.
             n_seats (int): Number of seats to be elected. Defaults to 1.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed. Accepts
-                "borda", "random", and "cambridge_random". Defaults to None, in which case a ValueError is
-                raised if a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
+                needed. Accepts "borda", "random", and "cambridge_random". Defaults to None,
+                in which case a ValueError is raised if a tiebreak is needed.
             tolerance (float, optional): Margin by which a winner's tally is allowed to exceed quota
                 without further keep factor adjustments. Defaults to 1e-6.
-            epsilon (float, optional): Small value added to quota to ensure that no more than n_seats candidates
-                can have a quota's worth of the active votes within a round. Defaults to 1e-6.
+            epsilon (float, optional): Small value added to quota to ensure that no more
+                than n_seats candidates can have a quota's worth of the active votes within
+                a round. Defaults to 1e-6.
             max_iterations (int, optional): Maximum number of keep factor iterations to go through
                 before breaking out of the calibration process. Defaults to 500.
         """
@@ -111,7 +112,8 @@ class MeekSTV(NumpySTVBase):
 
         if n_seats > 10:
             raise NotImplementedError(
-                "Meek STV with more than 10 seats is not currently supported due to the combinatorial explosion of winner combinations."
+                "Meek STV with more than 10 seats is not currently supported due to the " \
+                "combinatorial explosion of winner combinations."
             )
             self._dense = False
         else:
@@ -392,7 +394,7 @@ class MeekSTV(NumpySTVBase):
     def _iterate_keep_factors_from_cache(
         self,
         cache: KeepFactorCalibrationCache,
-        num_winners: int,  # should I have an optional argument here to store each iteration somewhere?
+        num_winners: int,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
         """
         Logic for the kernel of the keep factor calibration process.
@@ -761,7 +763,8 @@ def _vectorized_perm_updater(
     update_needed = ~no_update_needed
     if np.any(no_update_needed):
         raise ValueError(
-            f"skipping update for winner_vec indices {np.where(no_update_needed)[0]} since candidate is already in the winner combination.\n winner_vec: {winner_vec}\n winner_bitstring_vec: {winner_bitsring_vec}\n winner_mask_array: {winner_mask_array}"
+            "_vectorized_perm_updater was called to add winners that are "
+            "already present in some winner combinations."
         )
     sections = build_section_list(m, L)
     L_vec = np.bitwise_count(winner_bitsring_vec[update_needed])
@@ -791,8 +794,8 @@ def _permutation_matrix_constructor(
         L: (int) the maximum ranking length of each permutation.
         sections: (list[int] | None) pre-computed section list for the given m, L.
             If None, this will be computed by the function.
-        dtype: (np.dtype | None) the dtype of the output array. If None, this will be int8 if possible
-            and int16 otherwise.
+        dtype: (np.dtype | None) the dtype of the output array. If None, this will be
+            int8 if possible and int16 otherwise.
     """
     if sections is None:
         sections = build_section_list(m, L)
