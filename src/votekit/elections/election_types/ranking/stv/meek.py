@@ -160,8 +160,9 @@ class MeekSTV(NumpySTVBase):
 
         if self._dense:
             winner_combination_matrix = _permutation_matrix_constructor(
-                n_seats, self._max_ranking_length, dtype=np.dtype(np.int8)
+                n_seats, min(self._max_ranking_length, self.n_seats), dtype=np.dtype(np.int8)
             )
+            print("winner_combination_matrix when initialized", winner_combination_matrix)
 
         winner_combination_mutant_bundle = (
             winner_combination_vec,
@@ -618,7 +619,7 @@ class MeekSTV(NumpySTVBase):
 
             updated_comb, updated_bits = _vectorized_perm_updater(
                 mutant_winner_comb_vec[needs_update],
-                self._num_cands,
+                self.n_seats,
                 L,
                 mutant_winner_bitstring_vec[needs_update],
                 current_winner_pos[needs_update],
