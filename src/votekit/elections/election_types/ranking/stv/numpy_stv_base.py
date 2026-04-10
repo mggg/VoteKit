@@ -46,7 +46,8 @@ class NumpyElectionDataTracker:
     Data container for internal use in numpy-based elections.
 
     Attributes:
-        ballot_matrix (NDArray): Matrix of ballots (each row is a unique ballot) with sentinel padding.
+        ballot_matrix (NDArray): Matrix of ballots (each row is a unique ballot) with
+            sentinel padding.
         wt_vec (NDArray): Starting weight vector for each ballot row.
         initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
         fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
@@ -77,19 +78,20 @@ class NumpySTVBase(ABC):
         candidates (list[str]): List of candidate names, indexed
             to correspond to ballot matrix entries.
         profile (RankProfile): The original RankProfile for reference.
-        m (int): Number of seats to be elected.
-        election_states (list[ElectionState]): List of ElectionState objects representing each round in
-            chronological order.
+        n_seats (int): Number of seats to be elected.
+        election_states (list[ElectionState]): List of ElectionState objects representing
+            each round in chronological order.
         tiebreak (TiebreakType, optional): User-specified method to be used if a tiebreak is needed.
             Defaults to None.
         _data (NumpyElectionDataTracker): Internal data tracker.
-        _winner_tiebreak (TiebreakType, optional): Tiebreak method for winners, set to `None` by default.
+        _winner_tiebreak (TiebreakType, optional): Tiebreak method for winners, set to
+            `None` by default.
         _loser_tiebreak (TiebreakType): Tiebreak method for losers, set to "first_place" by default.
     """
 
     candidates: list[str]
     profile: RankProfile
-    m: int
+    n_seats: int
     election_states: list[ElectionState]
     threshold: float
     tiebreak: TiebreakType | None
@@ -100,7 +102,7 @@ class NumpySTVBase(ABC):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
     ):
         """
@@ -108,13 +110,13 @@ class NumpySTVBase(ABC):
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int, optional): Number of seats to be elected. Defaults to 1.
+            n_seats (int, optional): Number of seats to be elected. Defaults to 1.
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
                 Defaults to None. Accepts "borda", "random", and "first_place".
                 If None, a ValueError is raised if a winner tiebreak is needed.
         """
         self.profile = profile
-        self.m = m
+        self.n_seats = n_seats
         self.candidates = list(profile.candidates)
         self.tiebreak = tiebreak
         self._winner_tiebreak = tiebreak
@@ -164,9 +166,12 @@ class NumpySTVBase(ABC):
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # Add padding -- a lot of the election logic needs at least one entry of each row of the ballot matrix to be negative.
-        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set to 0 only when candidates are eliminated/elected.
-        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot, which relies on having at least one entry in each row be 0.
+        # Add padding. A lot of the election logic needs at least one entry in each row of the
+        # ballot matrix to be negative.
+        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are
+        # set to 0 only when candidates are eliminated/elected.
+        # We use an argmax on the bool_ballot_matrix to find the next preference for each
+        # ballot, which relies on having at least one entry in each row be 0.
         ballot_matrix: NDArray = np.full(
             (num_rows, num_cols + 1),
             NumpySTVSentinel.BLANK_RANKING.value,
@@ -400,8 +405,8 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated, remaining), and the
-                round their status updated.
+            pd.DataFrame: Dataframe displaying candidate, status (elected, eliminated,
+                remaining), and the round their status updated.
         """
         status_df = pd.DataFrame(
             {
@@ -495,7 +500,7 @@ class NumpySTVBase(ABC):
         obj = lut[out.astype(np.int16, copy=False) + 128]  # dtype=object, frozensets
 
         # --- 5) to DataFrame with Ranking_i columns ---
-        data = {f"Ranking_{i+1}": obj[:, i] for i in range(n_cols)}
+        data = {f"Ranking_{i + 1}": obj[:, i] for i in range(n_cols)}
         df = pd.DataFrame(data)
 
         # --- 6) Ballot Index column & set as index ---
@@ -592,20 +597,21 @@ class NumpySTVBase(ABC):
         Args:
             quota_type: Quota type to use ("droop" or "hare").
             total_ballot_wt (float): Total weight of ballots to compute threshold.
-            floor (bool, optional): Whether to floor the quota before applying epsilon. Defaults to True.
+            floor (bool, optional): Whether to floor the quota before applying epsilon.
+                Defaults to True.
             epsilon (float, optional): Offset applied to the computed quota. Defaults to 1.0.
 
         Returns:
             float: Value of the threshold.
         """
         if quota_type == "droop":
-            fractional_quota = total_ballot_wt / (self.m + 1)
+            fractional_quota = total_ballot_wt / (self.n_seats + 1)
             if floor:
                 return int(fractional_quota) + epsilon
             else:
                 return fractional_quota + epsilon
         elif quota_type == "hare":
-            fractional_quota = total_ballot_wt / self.m
+            fractional_quota = total_ballot_wt / self.n_seats
             if floor:
                 return int(fractional_quota)
             else:

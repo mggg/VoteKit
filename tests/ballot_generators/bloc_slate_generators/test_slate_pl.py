@@ -99,7 +99,10 @@ def test_SPL_invalid_config():
     )
     with pytest.raises(
         KeyError,
-        match=r"cohesion_df columns \(slates\) must be exactly \['Z', 'B'\] as defined in the 'slate_to_candidates' parameter. Got \['A', 'B'\]",
+        match=(
+            r"cohesion_df columns \(slates\) must be exactly \['Z', 'B'\] as defined in the "
+            r"'slate_to_candidates' parameter. Got \['A', 'B'\]"
+        ),
     ):
         slate_pl_profile_generator(config)
 

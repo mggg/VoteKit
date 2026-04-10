@@ -100,7 +100,6 @@ class Ballot:
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
-
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
 
         if weight < 0:
@@ -214,7 +213,7 @@ class RankBallot(Ballot):
 
         if self.ranking:
             for i, s in enumerate(self.ranking):
-                ranking_str += f"{i+1}.) "
+                ranking_str += f"{i + 1}.) "
                 for c in s:
                     ranking_str += f"{c}, "
 
@@ -292,7 +291,6 @@ class ScoreBallot(Ballot):
         return super().__eq__(other)
 
     def __hash__(self):
-
         return (
             hash(
                 tuple(sorted((c, s) for c, s in self.scores.items()))

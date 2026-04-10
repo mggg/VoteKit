@@ -2,6 +2,7 @@ from functools import partial
 from typing import Literal, Optional
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -10,11 +11,11 @@ from votekit.utils import elect_cands_from_set_ranking, first_place_votes
 
 class Plurality(RankingElection):
     """
-    Plurality election. Winners are the m candidates with the most first-place votes.
+    Plurality election. Winners are the n_seats candidates with the most first-place votes.
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
         fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
@@ -27,18 +28,22 @@ class Plurality(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int | None = None,
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        **kwargs,
     ):
-        if m <= 0:
-            raise ValueError("m must be strictly positive")
-        if len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
             sort_high_low=True,
         )
@@ -47,7 +52,7 @@ class Plurality(RankingElection):
         # single round election
         elected_cands = [c for s in self.get_elected() for c in s]
 
-        if len(elected_cands) == self.m:
+        if len(elected_cands) == self.n_seats:
             return True
         return False
 
@@ -56,8 +61,8 @@ class Plurality(RankingElection):
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
-        In a Plurality election, find the :math:`m` candidates with the highest first-place vote
-        totals.
+        In a Plurality election, find the :math:`n_\text{seats}` candidates with the highest
+        first-place vote totals.
 
         Args:
             profile (RankProfile): Profile of ballots.
@@ -73,7 +78,7 @@ class Plurality(RankingElection):
         # are ranked by fpv
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
+            prev_state.remaining, self.n_seats, profile=profile, tiebreak=self.tiebreak
         )
 
         new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
@@ -104,15 +109,29 @@ class Plurality(RankingElection):
 
 class SNTV(Plurality):
     """
-    Wrapper for Plurality election. Winners are the m candidates with the most first-place votes.
+    Wrapper for Plurality election. Winners are the n_seats candidates with the most first-place
+    votes.
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
 
     """
 
-    def __init__(self, profile: RankProfile, m: int = 1, tiebreak: Optional[str] = None):
-        super().__init__(profile, m, tiebreak)
+    def __init__(
+        self,
+        profile: RankProfile,
+        n_seats: int | None = None,
+        tiebreak: Optional[str] = None,
+        **kwargs,
+    ):
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
+        super().__init__(profile, n_seats, tiebreak)

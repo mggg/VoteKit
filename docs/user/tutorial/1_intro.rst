@@ -96,9 +96,9 @@ can do that in VoteKit.
 .. parsed-literal::
 
     A ballot with overvotes: RankBallot
-    1.) D, A, (tie)
+    1.) A, D, (tie)
     2.) B, 
-    3.) B, E, C, F, (tie)
+    3.) E, C, F, B, (tie)
     Weight: 1.0
 
 
@@ -175,7 +175,6 @@ of candidates. The following code should raise an error.
         print(e)
 
 
-
 .. parsed-literal::
 
     Only one of ranking or scores can be provided.
@@ -230,14 +229,14 @@ collection of ballots in a compact format.
     Total weight of Ballot objects: 8.0
     
     
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0                  (A)       (B)       (C)        {}     3.0
-    1                  (B)       (A)       (C)        {}     1.0
-    2                  (C)       (B)       (A)        {}     1.0
-    3                  (A)       (B)       (C)        {}     1.0
-    4                  (A)       (B)       (C)        {}     1.0
-    5                  (B)       (A)       (C)        {}     1.0
+                       Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})        {}     3.0
+    1             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
+    2             frozenset({C})  frozenset({B})  frozenset({A})        {}     1.0
+    3             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    4             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    5             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
 
 
 For super users: notice that while we input a ``PreferenceProfile``,
@@ -278,11 +277,11 @@ profile, as follows.
     Total weight of Ballot objects: 8.0
     
     
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    0                  (A)       (B)       (C)     5.0        {}
-    1                  (B)       (A)       (C)     2.0        {}
-    2                  (C)       (B)       (A)     1.0        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})     5.0        {}
+    1             frozenset({B})  frozenset({A})  frozenset({C})     2.0        {}
+    2             frozenset({C})  frozenset({B})  frozenset({A})     1.0        {}
 
 
 In these examples, the profiles are very short, so we can print the
@@ -296,6 +295,7 @@ ballots by weight.
 .. code:: ipython3
 
     from votekit.pref_profile import profile_df_head
+    
     ballots = [
         Ballot(ranking=[{"A"}, {"B"}, {"C"}]),
         Ballot(ranking=[{"B"}, {"A"}, {"C"}]),
@@ -322,18 +322,18 @@ ballots by weight.
     Total weight of Ballot objects: 36.0
     
     
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0                  (A)       (B)       (C)        {}     1.0
-    1                  (B)       (A)       (C)        {}     1.0
-    20                 (C)       (B)       (A)        {}     1.0
-    21                 (A)       (~)       (~)        {}     1.0
-    22                 (A)       (B)       (C)        {}     1.0
-    23                 (B)       (A)       (~)        {}     1.0
-    24                 (A)       (B)       (C)        {}     1.0
-    25                 (B)       (A)       (C)        {}     1.0
-    26                 (C)       (B)       (A)        {}     1.0
-    27                 (A)       (~)       (~)        {}     1.0
+                       Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    1             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
+    2             frozenset({C})  frozenset({B})  frozenset({A})        {}     1.0
+    3             frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
+    4             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    5             frozenset({B})  frozenset({A})  frozenset({~})        {}     1.0
+    6             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    7             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
+    8             frozenset({C})  frozenset({B})  frozenset({A})        {}     1.0
+    9             frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
 
 
 The ``~`` symbols indicate that the end of a ranking, i.e. the voter
@@ -346,20 +346,20 @@ so with an empty set in the ballot, which would look like this.
 
 .. code:: ipython3
 
-    ballot_1 = Ballot(ranking=({"A"}, set(), {"C"})) # a skipped position
-    ballot_2 = Ballot(ranking=({"A"}, {"D"})) # a ballot that left off one possible ranking
+    ballot_1 = Ballot(ranking=({"A"}, set(), {"C"}))  # a skipped position
+    ballot_2 = Ballot(ranking=({"A"}, {"D"}))  # a ballot that left off one possible ranking
     
-    profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length= 3)
+    profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length=3)
     
     print(profile.df)
 
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0                  (A)        ()       (C)        {}     1.0
-    1                  (A)       (D)       (~)        {}     1.0
+                       Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
+    Ballot Index                                                                  
+    0             frozenset({A})   frozenset({})  frozenset({C})        {}     1.0
+    1             frozenset({A})  frozenset({D})  frozenset({~})        {}     1.0
 
 
 ``profile_df_head`` and ``tail`` come with some helpful parameters.
@@ -426,90 +426,90 @@ so with an empty set in the ballot, which would look like this.
       <tbody>
         <tr>
           <th>0</th>
-          <td>(A)</td>
-          <td>(B)</td>
-          <td>(C)</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({C})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>1</th>
-          <td>(B)</td>
-          <td>(A)</td>
-          <td>(C)</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({C})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>2</th>
-          <td>(C)</td>
-          <td>(B)</td>
-          <td>(A)</td>
+          <td>frozenset({C})</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({A})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>3</th>
-          <td>(A)</td>
-          <td>(~)</td>
-          <td>(~)</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({~})</td>
+          <td>frozenset({~})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>4</th>
-          <td>(A)</td>
-          <td>(B)</td>
-          <td>(C)</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({C})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>5</th>
-          <td>(B)</td>
-          <td>(A)</td>
-          <td>(~)</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({~})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>6</th>
-          <td>(A)</td>
-          <td>(B)</td>
-          <td>(C)</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({C})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>7</th>
-          <td>(B)</td>
-          <td>(A)</td>
-          <td>(C)</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({C})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>8</th>
-          <td>(C)</td>
-          <td>(B)</td>
-          <td>(A)</td>
+          <td>frozenset({C})</td>
+          <td>frozenset({B})</td>
+          <td>frozenset({A})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
         </tr>
         <tr>
           <th>9</th>
-          <td>(A)</td>
-          <td>(~)</td>
-          <td>(~)</td>
+          <td>frozenset({A})</td>
+          <td>frozenset({~})</td>
+          <td>frozenset({~})</td>
           <td>{}</td>
           <td>1.0</td>
           <td>2.778%</td>
@@ -536,7 +536,7 @@ You can also do most of these with the pandas ``DataFrame`` methods.
     # this will print the top 8 in order of input
     print(profile.df.head(8))
     print()
-     
+    
     # and the bottom 8
     print(profile.df.tail(8))
     print()
@@ -553,66 +553,67 @@ You can also do most of these with the pandas ``DataFrame`` methods.
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    0                  (A)       (B)       (C)        {}     1.0
-    1                  (B)       (A)       (C)        {}     1.0
-    2                  (C)       (B)       (A)        {}     1.0
-    3                  (A)       (~)       (~)        {}     1.0
-    4                  (A)       (B)       (C)        {}     1.0
-    5                  (B)       (A)       (~)        {}     1.0
-    6                  (A)       (B)       (C)        {}     1.0
-    7                  (B)       (A)       (C)        {}     1.0
+                       Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    1             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
+    2             frozenset({C})  frozenset({B})  frozenset({A})        {}     1.0
+    3             frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
+    4             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    5             frozenset({B})  frozenset({A})  frozenset({~})        {}     1.0
+    6             frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    7             frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
     
-                 Ranking_1 Ranking_2 Ranking_3 Voter Set  Weight
-    Ballot Index                                                
-    28                 (A)       (B)       (C)        {}     1.0
-    29                 (B)       (A)       (~)        {}     1.0
-    30                 (A)       (B)       (C)        {}     1.0
-    31                 (B)       (A)       (C)        {}     1.0
-    32                 (C)       (B)       (A)        {}     1.0
-    33                 (A)       (~)       (~)        {}     1.0
-    34                 (A)       (B)       (C)        {}     1.0
-    35                 (B)       (A)       (~)        {}     1.0
+                       Ranking_1       Ranking_2       Ranking_3 Voter Set  Weight
+    Ballot Index                                                                  
+    28            frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    29            frozenset({B})  frozenset({A})  frozenset({~})        {}     1.0
+    30            frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    31            frozenset({B})  frozenset({A})  frozenset({C})        {}     1.0
+    32            frozenset({C})  frozenset({B})  frozenset({A})        {}     1.0
+    33            frozenset({A})  frozenset({~})  frozenset({~})        {}     1.0
+    34            frozenset({A})  frozenset({B})  frozenset({C})        {}     1.0
+    35            frozenset({B})  frozenset({A})  frozenset({~})        {}     1.0
     
-    Ranking_1    (A)
-    Ranking_2    (B)
-    Ranking_3    (C)
-    Voter Set     {}
-    Weight       1.0
+    Ranking_1    frozenset({A})
+    Ranking_2    frozenset({B})
+    Ranking_3    frozenset({C})
+    Voter Set                {}
+    Weight                  1.0
     Name: 10, dtype: object
     
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    0                  (A)       (B)       (C)    12.0        {}
-    1                  (A)       (~)       (~)     6.0        {}
-    2                  (B)       (A)       (C)     6.0        {}
-    3                  (B)       (A)       (~)     6.0        {}
-    4                  (C)       (B)       (A)     6.0        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})    12.0        {}
+    1             frozenset({A})  frozenset({~})  frozenset({~})     6.0        {}
+    2             frozenset({B})  frozenset({A})  frozenset({C})     6.0        {}
+    3             frozenset({B})  frozenset({A})  frozenset({~})     6.0        {}
+    4             frozenset({C})  frozenset({B})  frozenset({A})     6.0        {}
 
 
 A few other useful attributes/methods are listed here. Use
 ``profile.ATTR`` for each one.
 
--  ``candidates`` returns the list of candidates input to the profile.
+- ``candidates`` returns the list of candidates input to the profile.
 
--  ``candidates_cast`` returns the list of candidates who received
-   votes.
+- ``candidates_cast`` returns the list of candidates who received votes.
 
--  ``ballots`` returns the list of ballots (useful if you want to
-   extract the ballots to write custom code, say).
+- ``ballots`` returns the list of ballots (useful if you want to extract
+  the ballots to write custom code, say).
 
--  ``num_ballots`` returns the number of ballots, which is the length of
-   ``ballots``.
+- ``num_ballots`` returns the number of ballots, which is the length of
+  ``ballots``.
 
--  ``total_ballot_wt`` returns the sum of the ballot weights.
+- ``total_ballot_wt`` returns the sum of the ballot weights.
 
-- ``to_pickle("name_of_file.pkl")`` saves the profile as a pkl
+- ``to_pickle("name_of_file.pkl")`` saves the profile as a pkl (useful
+  if you want to replicate runs of an experiment).
+
+- ``to_csv("name_of_file.csv")`` saves the profile as a csv (useful if
+  you want to replicate runs of an experiment).
+
+- ``to_csv(fpath = "name_of_file.csv")`` saves the profile as a csv
   (useful if you want to replicate runs of an experiment).
-
-- ``to_csv("name_of_file.csv")`` saves the profile as a csv 
-  (useful if you want to replicate runs of an experiment).
-
 
 **Try it yourself**
 ~~~~~~~~~~~~~~~~~~~
@@ -654,7 +655,7 @@ We require that all candidates have non-zero support.
 .. figure:: ../../_static/assets/preference_interval.png
    :alt: png
 
-
+   png
 
 One of the generative models is called the **slate-Plackett-Luce
 model**, or s-PL. In s-PL, voters fill in their ballot from the top
@@ -686,28 +687,29 @@ all this syntax means for now; we will return to it in a later tutorial.
     # but there is only one bloc and slate
     cohesion_mapping = {"all_voters": {"all_candidates": 1}}
     
-    config = bg.BlocSlateConfig(n_voters = 1000,
-                                preference_mapping = preference_mapping,
-                                bloc_proportions=bloc_proportions,
-                                slate_to_candidates=slate_to_candidates,
-                                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=1000,
+        preference_mapping=preference_mapping,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     
     profile = bg.slate_pl_profile_generator(config)
-    print(profile_df_head(profile,10))
-
+    print(profile_df_head(profile, 10))
 
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    1                  (A)       (B)       (C)   619.0        {}
-    0                  (A)       (C)       (B)   175.0        {}
-    3                  (B)       (A)       (C)   140.0        {}
-    5                  (C)       (A)       (B)    48.0        {}
-    2                  (B)       (C)       (A)    11.0        {}
-    4                  (C)       (B)       (A)     7.0        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    5             frozenset({A})  frozenset({B})  frozenset({C})   578.0        {}
+    4             frozenset({A})  frozenset({C})  frozenset({B})   211.0        {}
+    0             frozenset({B})  frozenset({A})  frozenset({C})   158.0        {}
+    2             frozenset({C})  frozenset({A})  frozenset({B})    40.0        {}
+    1             frozenset({B})  frozenset({C})  frozenset({A})     7.0        {}
+    3             frozenset({C})  frozenset({B})  frozenset({A})     6.0        {}
 
 
 Re-run the above block several times to see that the elections will come
@@ -769,64 +771,105 @@ particular bloc stick to their slate.
         "Xenon": {"Xenon": 0.9, "Alpha": 0.1},
     }
     
-    config = bg.BlocSlateConfig(n_voters = 10000,
-                                preference_mapping = preference_mapping,
-                                bloc_proportions=bloc_proportions,
-                                slate_to_candidates=slate_to_candidates,
-                                cohesion_mapping=cohesion_mapping)
+    config = bg.BlocSlateConfig(
+        n_voters=10000,
+        preference_mapping=preference_mapping,
+        bloc_proportions=bloc_proportions,
+        slate_to_candidates=slate_to_candidates,
+        cohesion_mapping=cohesion_mapping,
+    )
     
     # by using the by_bloc generator we can see which ballots came from which blocs of voters
     profile_dict = bg.name_pl_profiles_by_bloc_generator(config)
-    print("The ballots from Alpha voters\n", profile_df_head(profile_dict["Alpha"],10))
+    print("The ballots from Alpha voters\n", profile_df_head(profile_dict["Alpha"], 10))
     
-    print("The ballots from Xenon voters\n", profile_df_head(profile_dict["Xenon"],10))
+    print("The ballots from Xenon voters\n", profile_df_head(profile_dict["Xenon"], 10))
     
     # to create the aggregate profile, we just sum the profiles in the dictionary
     agg_profile = profile_dict["Alpha"] + profile_dict["Xenon"]
-    print("Aggregated ballots\n", profile_df_head(agg_profile,10))
+    print("Aggregated ballots\n", profile_df_head(agg_profile, 10))
 
 
 .. parsed-literal::
 
     The ballots from Alpha voters
-                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    6                  (A)       (B)       (Y)       (X)    2628        {}
-    8                  (A)       (Y)       (B)       (X)    1234        {}
-    7                  (A)       (B)       (X)       (Y)    1041        {}
-    0                  (B)       (A)       (Y)       (X)     930        {}
-    11                 (A)       (X)       (B)       (Y)     437        {}
-    1                  (B)       (A)       (X)       (Y)     391        {}
-    12                 (Y)       (A)       (B)       (X)     390        {}
-    9                  (A)       (Y)       (X)       (B)     191        {}
-    10                 (A)       (X)       (Y)       (B)     188        {}
-    19                 (X)       (A)       (B)       (Y)     120        {}
+                        Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
+    Ballot Index                                                                   
+    6             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    8             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    7             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    12            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    10            frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    13            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    18            frozenset({Y})  frozenset({A})  frozenset({B})  frozenset({X})   
+    9             frozenset({A})  frozenset({Y})  frozenset({X})  frozenset({B})   
+    11            frozenset({A})  frozenset({X})  frozenset({Y})  frozenset({B})   
+    0             frozenset({X})  frozenset({A})  frozenset({B})  frozenset({Y})   
+    
+                  Weight Voter Set  
+    Ballot Index                    
+    6               2571        {}  
+    8               1247        {}  
+    7               1112        {}  
+    12               900        {}  
+    10               457        {}  
+    13               388        {}  
+    18               331        {}  
+    9                198        {}  
+    11               188        {}  
+    0                140        {}  
     The ballots from Xenon voters
-                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    7                  (X)       (Y)       (B)       (A)     385        {}
-    6                  (X)       (Y)       (A)       (B)     365        {}
-    0                  (Y)       (X)       (A)       (B)     357        {}
-    1                  (Y)       (X)       (B)       (A)     347        {}
-    3                  (Y)       (B)       (X)       (A)      82        {}
-    5                  (Y)       (A)       (X)       (B)      79        {}
-    11                 (X)       (A)       (Y)       (B)      76        {}
-    9                  (X)       (B)       (Y)       (A)      71        {}
-    13                 (A)       (X)       (Y)       (B)      54        {}
-    15                 (A)       (Y)       (X)       (B)      46        {}
+                        Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
+    Ballot Index                                                                   
+    0             frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    1             frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    9             frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    8             frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
+    11            frozenset({Y})  frozenset({B})  frozenset({X})  frozenset({A})   
+    4             frozenset({X})  frozenset({B})  frozenset({Y})  frozenset({A})   
+    3             frozenset({X})  frozenset({A})  frozenset({Y})  frozenset({B})   
+    7             frozenset({Y})  frozenset({A})  frozenset({X})  frozenset({B})   
+    19            frozenset({B})  frozenset({Y})  frozenset({X})  frozenset({A})   
+    21            frozenset({B})  frozenset({X})  frozenset({Y})  frozenset({A})   
+    
+                  Weight Voter Set  
+    Ballot Index                    
+    0                394        {}  
+    1                367        {}  
+    9                359        {}  
+    8                350        {}  
+    11                79        {}  
+    4                 78        {}  
+    3                 74        {}  
+    7                 70        {}  
+    19                48        {}  
+    21                48        {}  
     Aggregated ballots
-                  Ranking_1 Ranking_2 Ranking_3 Ranking_4  Weight Voter Set
-    Ballot Index                                                          
-    6                  (A)       (B)       (Y)       (X)    2628        {}
-    8                  (A)       (Y)       (B)       (X)    1234        {}
-    7                  (A)       (B)       (X)       (Y)    1041        {}
-    0                  (B)       (A)       (Y)       (X)     930        {}
-    11                 (A)       (X)       (B)       (Y)     437        {}
-    1                  (B)       (A)       (X)       (Y)     391        {}
-    12                 (Y)       (A)       (B)       (X)     390        {}
-    31                 (X)       (Y)       (B)       (A)     385        {}
-    30                 (X)       (Y)       (A)       (B)     365        {}
-    24                 (Y)       (X)       (A)       (B)     357        {}
+                        Ranking_1       Ranking_2       Ranking_3       Ranking_4  \
+    Ballot Index                                                                   
+    6             frozenset({A})  frozenset({B})  frozenset({Y})  frozenset({X})   
+    8             frozenset({A})  frozenset({Y})  frozenset({B})  frozenset({X})   
+    7             frozenset({A})  frozenset({B})  frozenset({X})  frozenset({Y})   
+    12            frozenset({B})  frozenset({A})  frozenset({Y})  frozenset({X})   
+    10            frozenset({A})  frozenset({X})  frozenset({B})  frozenset({Y})   
+    24            frozenset({X})  frozenset({Y})  frozenset({B})  frozenset({A})   
+    13            frozenset({B})  frozenset({A})  frozenset({X})  frozenset({Y})   
+    25            frozenset({X})  frozenset({Y})  frozenset({A})  frozenset({B})   
+    33            frozenset({Y})  frozenset({X})  frozenset({A})  frozenset({B})   
+    32            frozenset({Y})  frozenset({X})  frozenset({B})  frozenset({A})   
+    
+                  Weight Voter Set  
+    Ballot Index                    
+    6               2571        {}  
+    8               1247        {}  
+    7               1112        {}  
+    12               900        {}  
+    10               457        {}  
+    24               394        {}  
+    13               388        {}  
+    25               367        {}  
+    33               359        {}  
+    32               350        {}  
 
 
 Scan this to be sure it is reasonable, recalling that our intervals say
@@ -866,18 +909,18 @@ it should.
     print(profile.df)
     
     # m is the number of seats to elect
-    election = Plurality(profile=profile, m=1)
+    election = Plurality(profile=profile, n_seats=1)
     
     print(election)
 
 
 .. parsed-literal::
 
-                 Ranking_1 Ranking_2 Ranking_3  Weight Voter Set
-    Ballot Index                                                
-    0                  (A)       (B)       (C)    18.0        {}
-    1                  (B)       (A)       (C)    12.0        {}
-    2                  (C)       (B)       (A)     6.0        {}
+                       Ranking_1       Ranking_2       Ranking_3  Weight Voter Set
+    Ballot Index                                                                  
+    0             frozenset({A})  frozenset({B})  frozenset({C})    18.0        {}
+    1             frozenset({B})  frozenset({A})  frozenset({C})    12.0        {}
+    2             frozenset({C})  frozenset({B})  frozenset({A})     6.0        {}
           Status  Round
     A    Elected      1
     B  Remaining      1
@@ -915,13 +958,13 @@ Extra Prompts
 If you have finished this section and are looking to extend your
 understanding, try the following prompts:
 
--  Write your own profile with four candidates named Trump, Rubio, Cruz,
-   and Kasich, a preference interval of your choice, and with the bloc
-   name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
-   how they should be given your preference interval?
--  Create a preference profile where candidates :math:`B,C` should be
-   elected under a 2-seat plurality election. Run the election and
-   confirm!
--  Generate ballots for two voter blocs W and POC, and three slates,
-   Republican, Democrat, and Independent. This is to show you that the
-   blocs and slates can be changed independently of each other.
+- Write your own profile with four candidates named Trump, Rubio, Cruz,
+  and Kasich, a preference interval of your choice, and with the bloc
+  name set to “Repubs2016”. Generate 1000 ballots. Are they distributed
+  how they should be given your preference interval?
+- Create a preference profile where candidates :math:`B,C` should be
+  elected under a 2-seat plurality election. Run the election and
+  confirm!
+- Generate ballots for two voter blocs W and POC, and three slates,
+  Republican, Democrat, and Independent. This is to show you that the
+  blocs and slates can be changed independently of each other.

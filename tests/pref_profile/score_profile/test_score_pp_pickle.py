@@ -5,10 +5,8 @@ import pytest
 from votekit.ballot import ScoreBallot
 from votekit.pref_profile import ScoreProfile
 
-filepath = "tests/pref_profile/data/pickle"
 
-
-def test_pkl_bijection_scores():
+def test_pkl_bijection_scores(tmp_path):
     profile_1 = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 2}, weight=2),
@@ -19,9 +17,9 @@ def test_pkl_bijection_scores():
         candidates=["A", "B", "C", "D"],
     )
 
-    profile_1.to_pickle(f"{filepath}/test_pkl_pp_scores.pkl")
-    read_profile = ScoreProfile.from_pickle(f"{filepath}/test_pkl_pp_scores.pkl")
-    print(type(read_profile))
+    out = str(tmp_path / "test_pkl_pp_scores.pkl")
+    profile_1.to_pickle(out)
+    read_profile = ScoreProfile.from_pickle(out)
     assert profile_1 == read_profile
 
 

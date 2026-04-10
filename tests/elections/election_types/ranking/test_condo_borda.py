@@ -75,7 +75,7 @@ def test_init():
 
 
 def test_multiwinner():
-    e = CondoBorda(profile_no_tied_set, m=2)
+    e = CondoBorda(profile_no_tied_set, n_seats=2)
 
     assert e.get_ranking(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
@@ -84,7 +84,7 @@ def test_multiwinner():
         frozenset({"B"}),
     )
 
-    e = CondoBorda(profile_no_tied_set, m=3)
+    e = CondoBorda(profile_no_tied_set, n_seats=3)
 
     assert e.get_ranking(0) == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
 
@@ -161,11 +161,11 @@ def test_get_status_df():
 
 
 def test_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
-        CondoBorda(profile_tied_set, m=0)
+    with pytest.raises(ValueError, match="n_seats must be positive."):
+        CondoBorda(profile_tied_set, n_seats=0)
 
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        CondoBorda(profile_tied_set, m=4)
+        CondoBorda(profile_tied_set, n_seats=4)
 
     with pytest.raises(ProfileError, match="Profile must be of type RankProfile."):
         CondoBorda(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 4}),))))

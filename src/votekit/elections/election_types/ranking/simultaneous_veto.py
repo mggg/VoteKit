@@ -8,6 +8,7 @@ import numpy as np
 from typing_extensions import Sentinel
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
@@ -47,7 +48,7 @@ class SimultaneousVeto(RankingElection):
 
     Args:
         profile (RankProfile): Profile to run election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         candidate_weights (Literal['first_place', 'uniform', 'borda', 'harmonic'] | dict[str, float]
             | int, optional): Initial candidate scores. 'first_place' means candidates begin with
             their first-place vote count. 'uniform' means all candidates begin with the same
@@ -63,7 +64,7 @@ class SimultaneousVeto(RankingElection):
             award points for ties in rankings when ``candidate_weights`` is 'first_place'
             or 'borda'. Defaults to "average".
         return_all_tied_winners (bool): If True, election returns a winner set of all tied winners,
-            even if it is larger than ``m``. Defaults to False.
+            even if it is larger than ``n_seats``. Defaults to False.
 
     Attributes:
         candidates (frozenset[str]): Candidates in the initial profile.
@@ -71,7 +72,7 @@ class SimultaneousVeto(RankingElection):
 
     Raises:
         ValueError: If any of the following:
-            - ``m`` is not positive or exceeds the number of candidates.
+            - ``n_seats`` is not positive or exceeds the number of candidates.
             - any ballot lacks a ranking.
             - ``candidate_weights`` is a dict missing candidates as keys.
             - ``candidate_weights`` is an unrecognized string.
@@ -92,7 +93,7 @@ class SimultaneousVeto(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int | None = None,
         candidate_weights: (
             Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int
         ) = "first_place",
@@ -101,9 +102,17 @@ class SimultaneousVeto(RankingElection):
         ] = "first_place",
         scoring_tie_convention: Literal["high", "average", "low"] = "average",
         return_all_tied_winners: bool = False,
+        **kwargs,
     ):
-        self._sv_validate_input(profile, m, tiebreak, scoring_tie_convention)
-        self.m = m
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
+        self._sv_validate_input(profile, n_seats, tiebreak, scoring_tie_convention)
+        self.n_seats = n_seats
         self.candidate_weights = candidate_weights
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
@@ -144,7 +153,7 @@ class SimultaneousVeto(RankingElection):
 
         self._sv_states: dict[int, _SVState] = {}
 
-        super().__init__(grouped_profile, score_function=score_func)
+        super().__init__(grouped_profile, n_seats=n_seats, score_function=score_func)
 
     def _compute_scores_dict(self) -> dict[str, float]:
         """
@@ -162,20 +171,20 @@ class SimultaneousVeto(RankingElection):
     def _sv_validate_input(
         self,
         profile: RankProfile,
-        m: int,
+        n_seats: int,
         tiebreak: str,
         scoring_tie_convention: str,
     ):
         """
         Validates input to SimultaneousVeto.
 
-        Checks that each ballot has a ranking, that ``m`` is valid,
+        Checks that each ballot has a ranking, that ``n_seats`` is valid,
         that enough candidates received votes to fill all the seats,
         and that if candidate_weights is an int, it's valid.
 
         Args:
             profile (RankProfile): RankProfile to run election on.
-            m (int, optional): Number of seats to elect. Defaults to 1.
+            n_seats (int, optional): Number of seats to elect. Defaults to 1.
             tiebreak (str, optional): Method for breaking ties when multiple candidates
                 are eliminated simultaneously. Defaults to "first_place".
                 Backup tiebreak is lexicographic/alphabetical.
@@ -183,13 +192,13 @@ class SimultaneousVeto(RankingElection):
                 when ``candidate_weights`` is 'first_place' or 'borda'. Defaults to "average".
 
         Raises:
-            ValueError: If ``m`` is not positive or exceeds the number of
+            ValueError: If ``n_seats`` is not positive or exceeds the number of
                 candidates, any ballot lacks a ranking, tiebreak is not valid,
                 or scoring_tie_convention is not valid.
         """
-        if m <= 0:
-            raise ValueError("m must be positive.")
-        if len(profile.candidates_cast) < m:
+        if n_seats <= 0:
+            raise ValueError("n_seats must be positive.")
+        if len(profile.candidates_cast) < n_seats:
             raise ValueError("Not enough candidates received votes to be elected.")
         if any(ballot.ranking is None for ballot in profile.ballots):
             raise ValueError("Ballots must have rankings.")
@@ -199,7 +208,7 @@ class SimultaneousVeto(RankingElection):
             )
         if scoring_tie_convention not in self.VALID_TIE_CONVENTIONS:
             raise ValueError(
-                f"tiebreak={scoring_tie_convention} is not valid. "
+                f"scoring_tie_convention={scoring_tie_convention} is not valid. "
                 f"Did you mean one of {self.VALID_TIE_CONVENTIONS}?"
             )
 
@@ -274,7 +283,8 @@ class SimultaneousVeto(RankingElection):
                     )
                 if not isinstance(candidate_weights, Mapping):
                     raise TypeError(
-                        "Exected for 'candidate_weights' to be either a string or a dictionary mapping "
+                        "Exected for 'candidate_weights' to be either a string or a "
+                        "dictionary mapping "
                         f"candidate names to their weights. Found {type(candidate_weights)!r}"
                     )
                 missing_cands = self.candidates.difference(candidate_weights.keys())
@@ -484,7 +494,7 @@ class SimultaneousVeto(RankingElection):
         Handles the case in which all remaining candidates' scores hit zero simultaneously.
 
         This represents the end of the election, and the remaining candidates are tied winners.
-        Because there may be more than ``m`` candidate remaining, prepares a tiebroken order.
+        Because there may be more than ``n_seats`` candidate remaining, prepares a tiebroken order.
 
         Args:
             profile (RankProfile): RankProfile of the current round.
@@ -584,7 +594,7 @@ class SimultaneousVeto(RankingElection):
         """
         Runs one round of a SimultaneousVeto election.
 
-        If exactly m candidates remain, they are elected.
+        If exactly n_seats candidates remain, they are elected.
         Otherwise, runs the veto step, which either eliminates a single candidate
         or reduces all candidates' scores to zero, ending the election.
 
@@ -611,7 +621,7 @@ class SimultaneousVeto(RankingElection):
         tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
 
         remaining_set = self.candidates - self._eliminated
-        if len(remaining_set) <= self.m:
+        if len(remaining_set) <= self.n_seats:
             new_profile = RankProfile()
             elected = prev_state.remaining
         else:
@@ -627,7 +637,7 @@ class SimultaneousVeto(RankingElection):
                 if self.return_all_tied_winners:
                     elected = (remaining_set,)
                 else:
-                    elected = tiebreaks[remaining_set][: self.m]  # elect top m
+                    elected = tiebreaks[remaining_set][: self.n_seats]  # elect top n_seats
             else:
                 assert isinstance(eliminated_candidate, str)
                 eliminated = (frozenset((eliminated_candidate,)),)

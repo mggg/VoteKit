@@ -2,6 +2,7 @@ from functools import partial
 from typing import Literal, Optional, Sequence
 
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import ProfileError, RankProfile
@@ -22,7 +23,7 @@ class Borda(RankingElection):
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         score_vector (Sequence[float], optional): Score vector. Should be
             non-increasing and non-negative. Vector should be as long as the number of candidates.
             If it is shorter, we add 0s. Defaults to None, which is the conventional Borda vector.
@@ -40,14 +41,19 @@ class Borda(RankingElection):
     def __init__(
         self,
         profile: RankProfile,
-        m: int = 1,
+        n_seats: int | None = None,
         score_vector: Optional[Sequence[float]] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        **kwargs,
     ):
-        if len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
         if score_vector is None:
             if not isinstance(profile, RankProfile):
@@ -62,7 +68,9 @@ class Borda(RankingElection):
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
-        super().__init__(profile, score_function=score_function, sort_high_low=True)
+        super().__init__(
+            profile, n_seats=n_seats, score_function=score_function, sort_high_low=True
+        )
 
     def _is_finished(self):
         # single round election
@@ -90,7 +98,7 @@ class Borda(RankingElection):
         # are ranked by borda scores
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining, self.m, profile=profile, tiebreak=self.tiebreak
+            prev_state.remaining, self.n_seats, profile=profile, tiebreak=self.tiebreak
         )
 
         new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)

@@ -21,6 +21,12 @@ docs/package_info/contributing.md
 dev_files
 __pycache__
 TODO.md
+*.mp4
+
+# These are used by maintainers in development process, but should not be committed to the 
+# repository.
+dev_notes.md
+release_notes.md 
 
 tests/data/csv/test_csv_pp_mixed_no_voter_set.csv
 tests/data/csv/test_csv_pp_mixed.csv

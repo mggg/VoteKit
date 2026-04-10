@@ -74,15 +74,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
     url = f"https://drive.google.com/uc?id={file_id}"
     save_to = "Portland_D1_raw_from_city.csv"
     
-    gdown.download(url, save_to, quiet=False)
-
-
-.. parsed-literal::
-
-    Downloading...
-    From: https://drive.google.com/uc?id=1ly3IcjeQTpet-zvxd49DM_OmY_i4uftB
-    To: /Users/cdonnay/Documents/GitHub/MGGG/VoteKit/notebooks/Portland_D1_raw_from_city.csv
-    100%|██████████| 104M/104M [00:04<00:00, 23.7MB/s] 
+    gdown.download(url, save_to, quiet=True)
 
 
 
@@ -95,7 +87,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
 
 .. code:: ipython3
 
-    D1_df = pd.read_csv(save_to) 
+    D1_df = pd.read_csv(save_to)
     # D1_df = pd.read_csv("file_name.csv") # if you downloaded the file directly, uncomment this and insert the file name
     D1_df.head()
 
@@ -276,7 +268,7 @@ After that, we will use VoteKit to perform the rest of the cleaning.
 .. code:: ipython3
 
     # stores all columns that have ranking information
-    rank_columns = {i:[col for col in D1_df.columns if f'{i}:Number' in col] for i in range(1,7)}
+    rank_columns = {i: [col for col in D1_df.columns if f"{i}:Number" in col] for i in range(1, 7)}
     all_rank_cols = [col for col_list in rank_columns.values() for col in col_list]
 
 The code below scrubs any voter who did not cast at least one vote,
@@ -284,7 +276,9 @@ which in turn removes any voter not from district 1.
 
 .. code:: ipython3
 
-    D1_voters_df = D1_df[D1_df[all_rank_cols].sum(axis=1) > 0].reset_index(drop=True) # just resets the index of the df
+    D1_voters_df = D1_df[D1_df[all_rank_cols].sum(axis=1) > 0].reset_index(
+        drop=True
+    )  # just resets the index of the df
 
 We now add the new ranking columns that match the VoteKit format.
 
@@ -293,15 +287,15 @@ voters put more than one candidate in a ranking.
 
 .. code:: ipython3
 
-    ranking_data = {i:[-1 for _ in range(len(D1_voters_df))] for i in range(1,7)}
+    ranking_data = {i: [-1 for _ in range(len(D1_voters_df))] for i in range(1, 7)}
     
     for voter_index, row in D1_voters_df.iterrows():
-        for rank_position in range(1,7):
+        for rank_position in range(1, 7):
             num_votes_cast = row[rank_columns[rank_position]].sum()
     
             if num_votes_cast == 0:
                 cast_vote = ""
-            
+    
             elif num_votes_cast > 1:
                 cast_vote = "overvote"
     
@@ -314,11 +308,18 @@ voters put more than one candidate in a ranking.
                 cast_vote_column_name = pd_series.loc[pd_series == 1].index.tolist()[0]
                 cast_vote = cast_vote_column_name.split(":")[-2]
     
-            ranking_data[rank_position][voter_index] = cast_vote 
+            ranking_data[rank_position][voter_index] = cast_vote
     
-    # add the new columns
-    for rank_position in range(1,7):
-        D1_voters_df[f"Rank {rank_position}"] = ranking_data[rank_position]
+    # add the new columns all at once to avoid DataFrame fragmentation
+    D1_voters_df = pd.concat(
+        [
+            D1_voters_df,
+            pd.DataFrame(
+                {f"Rank {rank_index}": ranking_data[rank_index] for rank_index in range(1, 7)}
+            ),
+        ],
+        axis=1,
+    )
 
 .. code:: ipython3
 
@@ -500,7 +501,9 @@ voters put more than one candidate in a ranking.
 
 .. code:: ipython3
 
-    D1_voters_df[[f"Rank {rank_position}" for rank_position in range(1,7)]].to_csv("Portland_D1_raw_votekit_format.csv")
+    D1_voters_df[[f"Rank {rank_position}" for rank_position in range(1, 7)]].to_csv(
+        "Portland_D1_raw_votekit_format.csv"
+    )
 
 Now that the csv is in the correct format for VoteKit, we can complete
 our cleaning using VoteKit’s built in cleaning tools.
@@ -509,15 +512,17 @@ our cleaning using VoteKit’s built in cleaning tools.
 
     from votekit.cvr_loaders import load_ranking_csv
     
-    profile = load_ranking_csv("Portland_D1_raw_votekit_format.csv", rank_cols=[1,2,3,4,5,6], header_row=0)
+    profile = load_ranking_csv(
+        "Portland_D1_raw_votekit_format.csv", rank_cols=[1, 2, 3, 4, 5, 6], header_row=0
+    )
 
 
 .. parsed-literal::
 
     RankProfile
     Maximum ranking length: 6
-    Candidates: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
-    Candidates who received votes: ('Write-in-121', 'overvote', 'Write-in-122', 'David Linn', 'Terrence Hayes', 'Noah Ernst', 'Thomas Shervey', 'Joe Furi', 'Uncertified Write In', 'Loretta Smith', 'Michael (Mike) Sands', 'Steph Routh', 'Joe Allen', 'Write-in-120', 'Jamie Dunphy', 'Peggy Sue Owens', 'Deian Salazar', 'Cayle Tern', 'Timur Ender', 'Candace Avalos', 'Doug Clove')
+    Candidates: ('Jamie Dunphy', 'Loretta Smith', 'Cayle Tern', 'Michael (Mike) Sands', 'Noah Ernst', 'overvote', 'Doug Clove', 'Timur Ender', 'Steph Routh', 'Terrence Hayes', 'Write-in-121', 'Candace Avalos', 'Deian Salazar', 'Write-in-120', 'Write-in-122', 'Joe Furi', 'Uncertified Write In', 'David Linn', 'Peggy Sue Owens', 'Thomas Shervey', 'Joe Allen')
+    Candidates who received votes: ('Jamie Dunphy', 'Loretta Smith', 'Cayle Tern', 'Michael (Mike) Sands', 'Noah Ernst', 'overvote', 'Doug Clove', 'Timur Ender', 'Steph Routh', 'Terrence Hayes', 'Write-in-121', 'Candace Avalos', 'Deian Salazar', 'Write-in-120', 'Write-in-122', 'Joe Furi', 'Uncertified Write In', 'David Linn', 'Peggy Sue Owens', 'Thomas Shervey', 'Joe Allen')
     Total number of Ballot objects: 43669
     Total weight of Ballot objects: 43669.0
     
@@ -539,10 +544,16 @@ place, as well as how many occurred anywhere on the ballot.
     num_ballots_cast = profile.total_ballot_wt
     
     num_overvotes_first_place = sum(b.weight for b in profile.ballots if b.ranking[0] == {"overvote"})
-    num_ballots_with_overvotes = sum(b.weight for b in profile.ballots if any(cand_set == {"overvote"} for cand_set in b.ranking))
+    num_ballots_with_overvotes = sum(
+        b.weight for b in profile.ballots if any(cand_set == {"overvote"} for cand_set in b.ranking)
+    )
     
-    print(f"There were {num_overvotes_first_place} overvotes in first place, or {num_overvotes_first_place/num_ballots_cast:.1%} of the ballots.")
-    print(f"There were {num_ballots_with_overvotes} ballots with overvotes in any place, or {num_ballots_with_overvotes/num_ballots_cast:.1%} of the ballots.")
+    print(
+        f"There were {num_overvotes_first_place} overvotes in first place, or {num_overvotes_first_place / num_ballots_cast:.1%} of the ballots."
+    )
+    print(
+        f"There were {num_ballots_with_overvotes} ballots with overvotes in any place, or {num_ballots_with_overvotes / num_ballots_cast:.1%} of the ballots."
+    )
 
 
 .. parsed-literal::
@@ -575,13 +586,21 @@ the percentage of ballots that are spoiled.
     
     cleaned_profile_1 = remove_and_condense_rank_profile("overvote", profile)
     
-    num_ballots_spoiled_by_ov_skips = num_ballots_cast - cleaned_profile_1.total_ballot_wt 
-    print(f"{num_ballots_spoiled_by_ov_skips} ballots, or {num_ballots_spoiled_by_ov_skips/num_ballots_cast:.1%} of all ballots, were spoiled by overvotes or skips in D1.")
+    num_ballots_spoiled_by_ov_skips = num_ballots_cast - cleaned_profile_1.total_ballot_wt
+    print(
+        f"{num_ballots_spoiled_by_ov_skips} ballots, or {num_ballots_spoiled_by_ov_skips / num_ballots_cast:.1%} of all ballots, were spoiled by overvotes or skips in D1."
+    )
     
-    cleaned_profile_2 = remove_and_condense_rank_profile(['Write-in-120', 'Write-in-121', 'Write-in-122'], cleaned_profile_1)
+    cleaned_profile_2 = remove_and_condense_rank_profile(
+        ["Write-in-120", "Write-in-121", "Write-in-122"], cleaned_profile_1
+    )
     
-    num_ballots_scrubbed_by_wi = num_ballots_cast - num_ballots_spoiled_by_ov_skips-cleaned_profile_2.total_ballot_wt 
-    print(f"{num_ballots_scrubbed_by_wi} ballots, or {num_ballots_scrubbed_by_wi/num_ballots_cast:.1%} of all ballots, were scrubbed by write ins in D1.")
+    num_ballots_scrubbed_by_wi = (
+        num_ballots_cast - num_ballots_spoiled_by_ov_skips - cleaned_profile_2.total_ballot_wt
+    )
+    print(
+        f"{num_ballots_scrubbed_by_wi} ballots, or {num_ballots_scrubbed_by_wi / num_ballots_cast:.1%} of all ballots, were scrubbed by write ins in D1."
+    )
 
 
 .. parsed-literal::
@@ -612,20 +631,21 @@ which ballots were altered along the way.
 
     def find_all_parents(profile):
         """
-        Find all of the parent profiles of a CleanedProfile. 
+        Find all of the parent profiles of a CleanedProfile.
         Returns a list, where the first entry is the input profile, and the last entry is the original
         pre-cleaned profile.
         """
         if hasattr(profile, "parent_profile"):
             return [profile] + find_all_parents(profile.parent_profile)
-        
+    
         return [profile]
+    
     
     def adjusted_and_tabulated(profile):
         """
         Compute the number of ballots that were adjusted by a cleaning rule but eventually used in the
         tabulation.
-        """ 
+        """
         adj_idxs = set().union(*[p.nonempty_altr_idxs for p in find_all_parents(profile)[:-1]])
     
         adj_and_tab_idxs = list(adj_idxs.intersection(profile.df.index))
@@ -634,9 +654,9 @@ which ballots were altered along the way.
     
     
     num_adj_and_tabulated = adjusted_and_tabulated(cleaned_profile_3)
-    print(f"{num_adj_and_tabulated} ballots, or {num_adj_and_tabulated/num_ballots_cast:.2%} of all ballots, were adjusted before tabulation in D1.")
-    
-
+    print(
+        f"{num_adj_and_tabulated} ballots, or {num_adj_and_tabulated / num_ballots_cast:.2%} of all ballots, were adjusted before tabulation in D1."
+    )
 
 
 .. parsed-literal::
@@ -673,6 +693,7 @@ that of the official election.
 .. code:: ipython3
 
     from votekit.pref_profile import RankProfile
+    
     profile = RankProfile.from_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
 
 Do we have the correct candidates? Do we have the same vote totals? Do
@@ -688,22 +709,23 @@ other stats we can double check, are given
     
     
     # 3 seat election
-    election = STV(profile, m=3)
+    election = STV(profile, n_seats=3)
     print("Winners in order of election")
-    i=0
+    i = 0
     for cand_set in election.get_elected():
         for cand in cand_set:
-            i+=1
+            i += 1
             print(i, cand)
     
     # threshold
     print("\nThreshold: ", election.threshold, "\n")
     
     fpv_dict = first_place_votes(profile)
-    cands_sorted_by_fpv = sorted(zip(fpv_dict.keys(), fpv_dict.values()), # creates a list of tuples, (name, fpv)
-                                    reverse=True,  #decreasing order
-                                    key = lambda x: x[1], # sort by second element of tuple, which is fpv)
-                                        )
+    cands_sorted_by_fpv = sorted(
+        zip(fpv_dict.keys(), fpv_dict.values()),  # creates a list of tuples, (name, fpv)
+        reverse=True,  # decreasing order
+        key=lambda x: x[1],  # sort by second element of tuple, which is fpv)
+    )
     
     print("Candidates in decreasing order of first place votes.\n")
     for cand, fpv in cands_sorted_by_fpv:
@@ -769,12 +791,16 @@ election.
 
     from votekit.plots import profile_mentions_plot
     
-    ax = profile_mentions_plot(profile, 
-                                threshold_values=election.threshold, 
-                                threshold_kwds={"label": f"Threshold: {election.threshold:,}", 
-                                            "color":"black", 
-                                            "linestyle": "--"},
-                                show_profile_legend=True)
+    ax = profile_mentions_plot(
+        profile,
+        threshold_values=election.threshold,
+        threshold_kwds={
+            "label": f"Threshold: {election.threshold:,}",
+            "color": "black",
+            "linestyle": "--",
+        },
+        show_profile_legend=True,
+    )
 
 
 
@@ -786,13 +812,17 @@ relabel them.
 
 .. code:: ipython3
 
-    ax = profile_mentions_plot(profile, 
-                                threshold_values=election.threshold, 
-                                threshold_kwds={"label": f"Threshold: {election.threshold:,}", 
-                                            "color":"black", 
-                                            "linestyle": "--"},
-                                show_profile_legend=True,
-                                relabel_candidates_with_int=True)
+    ax = profile_mentions_plot(
+        profile,
+        threshold_values=election.threshold,
+        threshold_kwds={
+            "label": f"Threshold: {election.threshold:,}",
+            "color": "black",
+            "linestyle": "--",
+        },
+        show_profile_legend=True,
+        relabel_candidates_with_int=True,
+    )
 
 
 
@@ -812,11 +842,11 @@ following.
     mentions_dict = mentions(profile)
     viable_cands = [c for c, mentions in mentions_dict.items() if mentions >= election.threshold]
     
-    viable_cands = sorted(viable_cands, reverse=True, key = lambda x: mentions_dict[x])
+    viable_cands = sorted(viable_cands, reverse=True, key=lambda x: mentions_dict[x])
     print("Viable candidates in decreasing order of mentions")
     
     for i, cand in enumerate(viable_cands):
-        print(i+1, cand)
+        print(i + 1, cand)
 
 
 .. parsed-literal::
@@ -841,15 +871,22 @@ bit more work and expose the underlying function that
 
     from votekit.plots import multi_bar_plot
     
-    viable_cands_mentions = {cand:mentions for cand, mentions in mentions_dict.items() if cand in viable_cands}
-    viable_cands_fpv = {cand: fpv for cand, fpv in first_place_votes(profile).items() if cand in viable_cands}
+    viable_cands_mentions = {
+        cand: mentions for cand, mentions in mentions_dict.items() if cand in viable_cands
+    }
+    viable_cands_fpv = {
+        cand: fpv for cand, fpv in first_place_votes(profile).items() if cand in viable_cands
+    }
     
-    ax = multi_bar_plot({"Mentions": viable_cands_mentions, "FPV": viable_cands_fpv},  
-                                threshold_values=election.threshold, 
-                                threshold_kwds={"label": f"Threshold: {election.threshold:,}", 
-                                            "color":"black", 
-                                            "linestyle": "--"},
-                        )
+    ax = multi_bar_plot(
+        {"Mentions": viable_cands_mentions, "FPV": viable_cands_fpv},
+        threshold_values=election.threshold,
+        threshold_kwds={
+            "label": f"Threshold: {election.threshold:,}",
+            "color": "black",
+            "linestyle": "--",
+        },
+    )
 
 
 
@@ -861,12 +898,15 @@ to fix by adding the ``candidate_ordering`` parameter.
 
 .. code:: ipython3
 
-    ax = multi_bar_plot({"Mentions": viable_cands_mentions, "FPV": viable_cands_fpv},
-                        category_ordering = viable_cands,
-                        threshold_values=election.threshold, 
-                        threshold_kwds={"label": f"Threshold: {election.threshold:,}", 
-                                            "color":"black", 
-                                            "linestyle": "--"},
+    ax = multi_bar_plot(
+        {"Mentions": viable_cands_mentions, "FPV": viable_cands_fpv},
+        category_ordering=viable_cands,
+        threshold_values=election.threshold,
+        threshold_kwds={
+            "label": f"Threshold: {election.threshold:,}",
+            "color": "black",
+            "linestyle": "--",
+        },
     )
 
 
@@ -950,24 +990,35 @@ by candidate j.
 
 .. code:: ipython3
 
-    from votekit.matrices import matrix_heatmap, boost_matrix, candidate_distance_matrix, comentions_matrix
+    from votekit.matrices import (
+        matrix_heatmap,
+        boost_matrix,
+        candidate_distance_matrix,
+        comentions_matrix,
+    )
     
-    all_cands_sorted_by_mentions = sorted(profile.candidates, reverse=True, key = lambda x: mentions_dict[x])
+    all_cands_sorted_by_mentions = sorted(
+        profile.candidates, reverse=True, key=lambda x: mentions_dict[x]
+    )
     
     # computes the matrix
-    bm  = boost_matrix(profile, candidates = all_cands_sorted_by_mentions)
+    bm = boost_matrix(profile, candidates=all_cands_sorted_by_mentions)
 
 .. code:: ipython3
 
-    all_last_names = [name.split(" ")[-1] if "Write In" not in name 
-                                            else "UWI" 
-                                            for name in all_cands_sorted_by_mentions]
+    all_last_names = [
+        name.split(" ")[-1] if "Write In" not in name else "UWI"
+        for name in all_cands_sorted_by_mentions
+    ]
     
     # plots the matrix
-    ax  = matrix_heatmap(bm, row_labels=all_last_names, 
-                            column_labels=all_last_names,
-                            row_label_rotation = 0,
-                            column_label_rotation = 90)
+    ax = matrix_heatmap(
+        bm,
+        row_labels=all_last_names,
+        column_labels=all_last_names,
+        row_label_rotation=0,
+        column_label_rotation=90,
+    )
 
 
 
@@ -981,14 +1032,17 @@ maybe the font size as well.
 
     import matplotlib.pyplot as plt
     
-    fig, ax = plt.subplots(figsize=(12,12))
+    fig, ax = plt.subplots(figsize=(12, 12))
     
-    ax  = matrix_heatmap(bm, row_labels=all_last_names, 
-                            column_labels=all_last_names,
-                            row_label_rotation = 0,
-                            column_label_rotation = 90,
-                            ax = ax,
-                            cell_font_size = 12)
+    ax = matrix_heatmap(
+        bm,
+        row_labels=all_last_names,
+        column_labels=all_last_names,
+        row_label_rotation=0,
+        column_label_rotation=90,
+        ax=ax,
+        cell_font_size=12,
+    )
 
 
 
@@ -1018,14 +1072,17 @@ distance between candidates i and j when i >= j on the same ballot.
 
 .. code:: ipython3
 
-    cdm  = candidate_distance_matrix(profile, candidates = viable_cands)
+    cdm = candidate_distance_matrix(profile, candidates=viable_cands)
     
     last_names_viable = [name.split(" ")[-1] for name in viable_cands]
     
-    ax  = matrix_heatmap(cdm, row_labels=last_names_viable, 
-                            column_labels=last_names_viable,
-                            row_label_rotation = 0,
-                            column_label_rotation = 90)
+    ax = matrix_heatmap(
+        cdm,
+        row_labels=last_names_viable,
+        column_labels=last_names_viable,
+        row_label_rotation=0,
+        column_label_rotation=90,
+    )
 
 
 
@@ -1040,14 +1097,17 @@ the number of times that i and j were mentioned on the same ballot
 
 .. code:: ipython3
 
-    cmm_asym  = comentions_matrix(profile, candidates = viable_cands)
-    ax  = matrix_heatmap(cmm_asym, row_labels=last_names_viable, 
-                            column_labels=last_names_viable,
-                            row_label_rotation = 0,
-                            column_label_rotation = 90, 
-                            n_decimals_to_display=0)
+    cmm_asym = comentions_matrix(profile, candidates=viable_cands)
+    ax = matrix_heatmap(
+        cmm_asym,
+        row_labels=last_names_viable,
+        column_labels=last_names_viable,
+        row_label_rotation=0,
+        column_label_rotation=90,
+        n_decimals_to_display=0,
+    )
     
-    plt.title("Asymmetric Comentions") 
+    plt.title("Asymmetric Comentions")
     plt.show()
 
 
@@ -1057,12 +1117,15 @@ the number of times that i and j were mentioned on the same ballot
 
 .. code:: ipython3
 
-    cmm_sym  = comentions_matrix(profile, candidates = viable_cands, symmetric=True)
-    ax  = matrix_heatmap(cmm_sym, row_labels=last_names_viable, 
-                            column_labels=last_names_viable,
-                            row_label_rotation = 0,
-                            column_label_rotation = 90,
-                            n_decimals_to_display=0) 
+    cmm_sym = comentions_matrix(profile, candidates=viable_cands, symmetric=True)
+    ax = matrix_heatmap(
+        cmm_sym,
+        row_labels=last_names_viable,
+        column_labels=last_names_viable,
+        row_label_rotation=0,
+        column_label_rotation=90,
+        n_decimals_to_display=0,
+    )
     
     plt.title("Symmetric Comentions")
     plt.show()
@@ -1091,7 +1154,13 @@ winner set.
     from votekit.plots import profile_ballot_lengths_plot
     import matplotlib.pyplot as plt
     
-    ax = profile_ballot_lengths_plot(profile, title="Ballot Lengths in D1", normalize=True, y_axis_name="Percentage", x_axis_name="Length")
+    ax = profile_ballot_lengths_plot(
+        profile,
+        title="Ballot Lengths in D1",
+        normalize=True,
+        y_axis_name="Percentage",
+        x_axis_name="Length",
+    )
     
     # change the tick labels to percentages
     ax.set_yticks(ax.get_yticks())
@@ -1127,41 +1196,53 @@ results meaningfully.
     from votekit.plots import multi_profile_ballot_lengths_plot
     
     d1_candidate_to_race = {
-        'Noah Ernst': 'White',
-        'Joe Allen':'White',
-        'Terrence Hayes': 'Black',
-        'David Linn':'White',
-        'Jamie Dunphy': 'White',
-        'Steph Routh': 'White',
-        'Peggy Sue Owens': 'White',
-        'Loretta Smith': 'Black',
-        'Timur Ender': 'White',
-        'Doug Clove': 'White',
-        'Candace Avalos': 'Black/Latina',
-        'Cayle Tern': 'Asian'
+        "Noah Ernst": "White",
+        "Joe Allen": "White",
+        "Terrence Hayes": "Black",
+        "David Linn": "White",
+        "Jamie Dunphy": "White",
+        "Steph Routh": "White",
+        "Peggy Sue Owens": "White",
+        "Loretta Smith": "Black",
+        "Timur Ender": "White",
+        "Doug Clove": "White",
+        "Candace Avalos": "Black/Latina",
+        "Cayle Tern": "Asian",
     }
     
-    missing_race_classify = "White" # change this to non-White to see how classify the 4 cands with missing race
+    missing_race_classify = (
+        "White"  # change this to non-White to see how classify the 4 cands with missing race
+    )
     # differently would change the analysis
     
-    w_ballots = [b for b in profile.ballots if d1_candidate_to_race.get(next(iter(b.ranking[0])), missing_race_classify) == "White"]
-    poc_ballots = [b for b in profile.ballots if d1_candidate_to_race.get(next(iter(b.ranking[0])), missing_race_classify) != "White"]
+    w_ballots = [
+        b
+        for b in profile.ballots
+        if d1_candidate_to_race.get(next(iter(b.ranking[0])), missing_race_classify) == "White"
+    ]
+    poc_ballots = [
+        b
+        for b in profile.ballots
+        if d1_candidate_to_race.get(next(iter(b.ranking[0])), missing_race_classify) != "White"
+    ]
     
     sub_profile_w = PreferenceProfile(ballots=w_ballots)
-    sub_profile_poc = PreferenceProfile(ballots = poc_ballots)
+    sub_profile_poc = PreferenceProfile(ballots=poc_ballots)
     
-    ax = multi_profile_ballot_lengths_plot({"POC Rank 1": sub_profile_poc, "non-POC Rank 1": sub_profile_w}, 
-                                           show_profile_legend=True, normalize=True,
-                                           y_axis_name="Percentage",
-                                           title = "Ballot Lengths in D1 by Rank 1 Race",
-                                           x_axis_name="Length")
+    ax = multi_profile_ballot_lengths_plot(
+        {"POC Rank 1": sub_profile_poc, "non-POC Rank 1": sub_profile_w},
+        show_profile_legend=True,
+        normalize=True,
+        y_axis_name="Percentage",
+        title="Ballot Lengths in D1 by Rank 1 Race",
+        x_axis_name="Length",
+    )
     
     # change the tick labels to percentages
     ax.set_yticks(ax.get_yticks())
     ax.set_yticklabels([f"{float(x.get_text()):.0%}" for x in ax.get_yticklabels()])
     
     plt.show()
-
 
 
 
@@ -1199,16 +1280,22 @@ was made?
 
     from votekit.elections import STV
     from votekit.pref_profile import RankProfile, PreferenceProfile
+    
     profile = RankProfile.from_csv("Portland_D1_cleaned_votekit_pref_profile.csv")
 
 .. code:: ipython3
 
     from votekit.ballot import Ballot
     
-    deduplicated_ballots = [Ballot(ranking=b.ranking, weight=1) for b in profile.ballots for _ in range(int(b.weight))]
-    ballots_with_ids = [Ballot(ranking=b.ranking, voter_set = {f"{i}"}, weight = 1) for i,b in enumerate(deduplicated_ballots)]
+    deduplicated_ballots = [
+        Ballot(ranking=b.ranking, weight=1) for b in profile.ballots for _ in range(int(b.weight))
+    ]
+    ballots_with_ids = [
+        Ballot(ranking=b.ranking, voter_set={f"{i}"}, weight=1)
+        for i, b in enumerate(deduplicated_ballots)
+    ]
     profile_with_ids = PreferenceProfile(ballots=ballots_with_ids)
-    election_with_ids = STV(profile_with_ids, m=3)
+    election_with_ids = STV(profile_with_ids, n_seats=3)
     
     initial_ballot_count = profile.total_ballot_wt
     
@@ -1217,7 +1304,7 @@ was made?
     remaining_voters = [voter for b in final_profile.ballots for voter in b.voter_set]
     remaining_count = len(remaining_voters)
     
-    print(f"The active rate is {remaining_count/initial_ballot_count:.1%}.")
+    print(f"The active rate is {remaining_count / initial_ballot_count:.1%}.")
 
 
 .. parsed-literal::
@@ -1248,17 +1335,14 @@ include any winner or the last candidate eliminated?
         num_ranked_rel_cands = len(relevant_cands.intersection(ranked_cands))
     
         if num_ranked_rel_cands == 0:
-    
             if num_ranked < 6:
-                stv_exhausted+= ballot.weight
+                stv_exhausted += ballot.weight
             elif num_ranked == 6:
                 futile += ballot.weight
     
     
-    
-    print(f"The STV exhaustion rate in D1 is {stv_exhausted/initial_ballot_count:.1%}.")
-    print(f"The futility rate in D1 is {futile/initial_ballot_count:.1%}.")
-
+    print(f"The STV exhaustion rate in D1 is {stv_exhausted / initial_ballot_count:.1%}.")
+    print(f"The futility rate in D1 is {futile / initial_ballot_count:.1%}.")
 
 
 .. parsed-literal::
@@ -1284,7 +1368,10 @@ they differ across other choices of election system.
 
 .. code:: ipython3
 
-    from votekit.representation_scores import r_representation_score, winner_sets_r_representation_scores
+    from votekit.representation_scores import (
+        r_representation_score,
+        winner_sets_r_representation_scores,
+    )
     
     stv_winners = [c for s in election.get_elected() for c in s]
     stv_1_representation = r_representation_score(profile, r=1, candidate_list=stv_winners)
@@ -1312,10 +1399,11 @@ other election systems.
     from votekit.elections import CondoBorda, Plurality, Borda
     
     
-    alt_elections = {"Condorcet": CondoBorda(profile, m=3),
-                     "Borda": Borda(profile, m=3),
-                     "Plurality": Plurality(profile, m=3),
-                     }
+    alt_elections = {
+        "Condorcet": CondoBorda(profile, n_seats=3),
+        "Borda": Borda(profile, n_seats=3),
+        "Plurality": Plurality(profile, n_seats=3),
+    }
     
     for e_name, e in alt_elections.items():
         print(e_name)
@@ -1359,44 +1447,43 @@ We can also see who the most representative winner set would have been.
 
 .. code:: ipython3
 
-    for r in [1,3,6]:
-        winner_sets_score_dict = winner_sets_r_representation_scores(profile, m=3, r=r)
-        winner_sets_score_tuples = [(set(k),v) for k,v in winner_sets_score_dict.items()]
-        sorted_winner_sets = sorted(winner_sets_score_tuples, reverse=True, key= lambda x: x[1])
+    for r in [1, 3, 6]:
+        winner_sets_score_dict = winner_sets_r_representation_scores(profile, n_seats=3, r=r)
+        winner_sets_score_tuples = [(set(k), v) for k, v in winner_sets_score_dict.items()]
+        sorted_winner_sets = sorted(winner_sets_score_tuples, reverse=True, key=lambda x: x[1])
     
-        print(f'{r}-representation winner sets, top 5 most representative')
+        print(f"{r}-representation winner sets, top 5 most representative")
         for winner_set, score in sorted_winner_sets[:5]:
             print(winner_set, f"{score:.1%}")
         print("\n--------------------\n")
 
 
-
 .. parsed-literal::
 
     1-representation winner sets, top 5 most representative
-    {'Loretta Smith', 'Candace Avalos', 'Jamie Dunphy'} 44.2%
-    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 41.8%
+    {'Candace Avalos', 'Jamie Dunphy', 'Loretta Smith'} 44.2%
+    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 41.8%
     {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 41.7%
-    {'Loretta Smith', 'Candace Avalos', 'Steph Routh'} 41.5%
-    {'Loretta Smith', 'Candace Avalos', 'Timur Ender'} 40.7%
+    {'Candace Avalos', 'Steph Routh', 'Loretta Smith'} 41.5%
+    {'Timur Ender', 'Candace Avalos', 'Loretta Smith'} 40.7%
     
     --------------------
     
     3-representation winner sets, top 5 most representative
-    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 74.8%
+    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 74.8%
     {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 72.9%
     {'Noah Ernst', 'Candace Avalos', 'Steph Routh'} 71.4%
-    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 71.3%
+    {'Noah Ernst', 'Terrence Hayes', 'Candace Avalos'} 71.3%
     {'Terrence Hayes', 'Candace Avalos', 'Steph Routh'} 71.1%
     
     --------------------
     
     6-representation winner sets, top 5 most representative
-    {'Loretta Smith', 'Noah Ernst', 'Candace Avalos'} 82.8%
+    {'Noah Ernst', 'Candace Avalos', 'Loretta Smith'} 82.8%
     {'Terrence Hayes', 'Candace Avalos', 'Loretta Smith'} 81.0%
-    {'Loretta Smith', 'Candace Avalos', 'Doug Clove'} 80.3%
-    {'Terrence Hayes', 'Noah Ernst', 'Candace Avalos'} 80.3%
-    {'Loretta Smith', 'Noah Ernst', 'Steph Routh'} 79.9%
+    {'Doug Clove', 'Candace Avalos', 'Loretta Smith'} 80.3%
+    {'Noah Ernst', 'Terrence Hayes', 'Candace Avalos'} 80.3%
+    {'Noah Ernst', 'Steph Routh', 'Loretta Smith'} 79.9%
     
     --------------------
     

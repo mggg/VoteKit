@@ -180,7 +180,10 @@ class _EliminationOffscreenEvent(_AnimationEvent):
         if len(self.round_numbers) == 1:
             return f"Round {self.round_numbers[0]}: 1 candidate eliminated."
         else:
-            message = f"Rounds {self.round_numbers[0]}-{self.round_numbers[-1]}: {len(self.round_numbers)} candidates eliminated."
+            message = (
+                f"Rounds {self.round_numbers[0]}-{self.round_numbers[-1]}: "
+                f"{len(self.round_numbers)} candidates eliminated."
+            )
             return message
 
 
@@ -226,8 +229,8 @@ class STVAnimation:
             appearing on-screen. If ``"winners"``, focus only the elected candidates.
             If ``"viable"``, focus only the candidates with more mentions than the election
             threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
-        nicknames (Optional[dict[str,str]], optional): A dictionary mapping candidate names to candidate
-            "nicknames" to be used in the animation instead. The keys of ``nicknames``
+        nicknames (Optional[dict[str,str]], optional): A dictionary mapping candidate names to
+            candidate "nicknames" to be used in the animation instead. The keys of ``nicknames``
             need not contain every candidate, only the ones for which the user would like to
             provide a nickname.
         candidate_colors (Optional[Mapping[str, ParsableManimColor]], optional): A dictionary
@@ -349,8 +352,8 @@ class STVAnimation:
 
         Args:
             election (STV): An STV election from which to extract the candidates.
-            candidate_colors (Mapping[str, ParsableManimColor]): A dictionary mapping candidate names
-                to their associated color codes in the candidate dictionary.
+            candidate_colors (Mapping[str, ParsableManimColor]): A dictionary mapping candidate
+                names to their associated color codes in the candidate dictionary.
 
         Returns:
             dict[str, dict[str,object]]: A dictionary whose keys are candidate names and whose
@@ -467,15 +470,16 @@ class STVAnimation:
         event_type: Literal["win", "elimination"],
     ) -> dict[str, dict[str, float]]:
         """
-        Compute the number of votes transferred from elected/eliminated candidates to remaining candidates.
+        Compute the number of votes transferred from elected or eliminated candidates to
+        remaining candidates.
 
         Args:
             election (STV): The election.
             round_number (int): The number of the round in question.
             cands_transferred_from (List[str]): A list of the names of the elected or
                 eliminated candidates.
-            event_type (Literal["win", "elimination"]): ``"win"`` if candidates were elected this round,
-                ``"elimination"`` otherwise.
+            event_type (Literal["win", "elimination"]): ``"win"`` if candidates
+                were elected this round, ``"elimination"`` otherwise.
 
         Returns:
             dict[str, dict[str, float]]: A nested dictionary. If ``d`` is the return value,
@@ -530,7 +534,8 @@ class STVAnimation:
 
     def _condense_offscreen_events(self, events: List[_AnimationEvent]) -> List[_AnimationEvent]:
         """
-        Take a list of events and condense any consecutive offscreen events into one summarizing event.
+        Take a list of events and condense any consecutive offscreen events into one
+        summarizing event.
 
         For instance, if ``events`` contains three offscreen eliminations in a row,
         this function will condense them into one offscreen elimination of three candidates.
@@ -594,6 +599,7 @@ class STVAnimation:
     def render(
         self,
         preview: bool = False,
+        display_width: int = 720,
     ) -> None:
         """
         Renders the STV animation using Manim.
@@ -606,6 +612,8 @@ class STVAnimation:
                 immediately upon completing the render. Ignored when running inside a
                 Jupyter notebook, where the video is always displayed as inline cell
                 output. Defaults to False.
+            display_width (int, optional): Width in pixels for the inline video player
+                in Jupyter notebooks. Defaults to 720.
         """
         in_notebook = STVAnimation._is_notebook()
         # Render into a temporary directory so we don't pollute the user's
@@ -634,7 +642,7 @@ class STVAnimation:
             if in_notebook:
                 from IPython.display import Video, display
 
-                display(Video(str(self._video_path), embed=True))
+                display(Video(str(self._video_path), embed=True, width=display_width))
 
     def save(self, save_path: str | Path) -> None:
         """
@@ -667,8 +675,9 @@ class ElectionScene(manim.Scene):
         candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of
             attributes of the candidate.
         events (List[_AnimationEvent]): A list of animation events to be constructed and rendered.
-        title (Optional[str], optional): A string to be displayed at the beginning of the animation as a title screen.
-            If ``None``, the animation will skip the title screen. Defaults to ``None``.
+        title (Optional[str], optional): A string to be displayed at the beginning of the
+            animation as a title screen. If ``None``, the animation will skip the title
+            screen. Defaults to ``None``.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
             Defaults to `DARK_PALETTE`.
         font (str): The name of a font that the user prefers to use if available.
@@ -894,7 +903,8 @@ class ElectionScene(manim.Scene):
                 fill_color=ManimColor(self.color_palette.background),
                 color=ManimColor(self.color_palette.background),
                 fill_opacity=1,
-            ).shift(UP * self.ticker_tape_height)
+            )
+            .shift(UP * self.ticker_tape_height)
             # Background must be in the back, but not behind the play-by-play
             .set_z_index(_ZIndex.BACKGROUND)
         )
@@ -987,9 +997,9 @@ class ElectionScene(manim.Scene):
         some_candidate = list(self.candidate_dict.values())[0]
         if not self.quota_line:
             # If the quota line doesn't exist yet, draw it.
-            assert (
-                self.ticker_tape_line is not None
-            ), "Tried to draw the quota line before the ticker tape line."
+            assert self.ticker_tape_line is not None, (
+                "Tried to draw the quota line before the ticker tape line."
+            )
             line_bottom = self.ticker_tape_line.get_top()[1]
             line_top = manim.config.frame_height / 2
             self.quota_line = Line(
@@ -1100,9 +1110,9 @@ class ElectionScene(manim.Scene):
                 fill_color=ManimColor(candidate_color),
                 fill_opacity=self.bar_opacity,
             )
-            assert (
-                self.quota_line is not None
-            ), "Tried to animate a win event, but the quota line was never drawn."
+            assert self.quota_line is not None, (
+                "Tried to animate a win event, but the quota line was never drawn."
+            )
             if new_bars:
                 exhausted_bar.next_to(new_bars[-1], LEFT, buff=0)
             else:
@@ -1138,9 +1148,10 @@ class ElectionScene(manim.Scene):
             event (_EliminationEvent): The event to be animated.
 
         Notes:
-            While the interface supports multiple candidate eliminations in one round for
-                future extensibility, this function currently only supports elimination of one
-                candidate at a time. The cands_transferred_from argument should have exactly one entry.
+            While the interface supports multiple candidate eliminations in one round for future
+                extensibility, this function currently only supports elimination of one
+                candidate at a time. The cands_transferred_from argument should have exactly
+                one entry.
 
         Raises:
             ValueError: If the length of ``cands_transferred_from`` is not 1.

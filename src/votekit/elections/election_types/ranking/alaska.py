@@ -39,8 +39,9 @@ class Alaska(RankingElection):
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
             elected simultaneously, False if only the candidate with highest first-place votes
             who crosses the threshold is elected in a round. Defaults to True.
-        tiebreak (TiebreakType | None, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
-            Defaults to None, in which case a tie raises a ValueError.
+        tiebreak (TiebreakType | None, optional): Tiebreak method to use. Options are
+            None, 'random', and 'borda'. Defaults to None, in which case a tie raises a
+            ValueError.
         fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.

@@ -83,7 +83,6 @@ def comentions_matrix(
     for i in candidates:
         for j in candidates:
             for ballot in pref_profile.ballots:
-
                 if symmetric:
                     if comention([i, j], ballot):
                         comentions_matrix[i][j] += ballot.weight

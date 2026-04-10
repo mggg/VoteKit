@@ -5,10 +5,8 @@ import pytest
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
 
-filepath = "tests/pref_profile/data/pickle"
 
-
-def test_pkl_bijection_rankings():
+def test_pkl_bijection_rankings(tmp_path):
     profile_rankings = RankProfile(
         ballots=(
             RankBallot(
@@ -45,8 +43,9 @@ def test_pkl_bijection_rankings():
         candidates=["A", "B", "C", "D", "E"],
     )
 
-    profile_rankings.to_pickle(f"{filepath}/test_pkl_pp_rankings.pkl")
-    read_profile = RankProfile.from_pickle(f"{filepath}/test_pkl_pp_rankings.pkl")
+    out = str(tmp_path / "test_pkl_pp_rankings.pkl")
+    profile_rankings.to_pickle(out)
+    read_profile = RankProfile.from_pickle(out)
     assert profile_rankings == read_profile
 
 

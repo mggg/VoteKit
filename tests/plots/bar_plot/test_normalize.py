@@ -15,6 +15,5 @@ def test_normalize_data():
 
 
 def test_normalize_data_0():
-
     with pytest.raises(ValueError, match="Total mass of observations must be non-zero."):
         _normalize_data_dict({"Chris": 0})

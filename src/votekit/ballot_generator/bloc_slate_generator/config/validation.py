@@ -206,7 +206,8 @@ def typecheck_bloc_proportion_mapping(
 
     if not isinstance(cast(object, bloc_prop_mapping), Mapping):  # keep Pyright happy
         raise TypeError(
-            f"Bloc proportions must be a mapping or a dataframe, got '{type(bloc_prop_mapping).__name__}'"
+            "Bloc proportions must be a mapping or a dataframe, "
+            f"got '{type(bloc_prop_mapping).__name__}'"
         )
 
     for bloc, v in bloc_prop_mapping.items():

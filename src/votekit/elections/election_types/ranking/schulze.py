@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 
+from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.graphs.pairwise_comparison_graph import (
@@ -29,7 +30,7 @@ class Schulze(RankingElection):
 
     Args:
         profile (RankProfile): Profile to conduct election on.
-        m (int, optional): Number of seats to elect. Defaults to 1.
+        n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Method for breaking ties. Defaults to "lexicographic".
     """
 
@@ -37,13 +38,16 @@ class Schulze(RankingElection):
         self,
         profile: RankProfile,
         tiebreak: str = "lexicographic",
-        m: int = 1,
+        n_seats: int | None = None,
+        **kwargs,
     ):
-        if m <= 0:
-            raise ValueError("m must be strictly positive")
-        if len(profile.candidates_cast) < m:
-            raise ValueError("Not enough candidates received votes to be elected.")
-        self.m = m
+        kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
+        if "n_seats" in kwargs:
+            if n_seats is not None:
+                raise TypeError("Cannot pass both 'm' and 'n_seats'.")
+            n_seats = kwargs.pop("n_seats")
+        if n_seats is None:
+            n_seats = 1
         self.tiebreak = tiebreak
 
         def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
@@ -57,6 +61,7 @@ class Schulze(RankingElection):
 
         super().__init__(
             profile,
+            n_seats=n_seats,
             score_function=quick_tiebreak_candidates,
             sort_high_low=True,
         )
@@ -68,7 +73,7 @@ class Schulze(RankingElection):
         # single round election
         elected_cands = [c for s in self.get_elected() for c in s]
 
-        if len(elected_cands) == self.m:
+        if len(elected_cands) == self.n_seats:
             return True
         return False
 
@@ -143,12 +148,17 @@ class Schulze(RankingElection):
                     frozenset(candidate_tier_set), tiebreak=self.tiebreak
                 )
 
-        ordered_candidates = [
-            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
-        ]
+        ordered_candidates = []
+        for candidate_set in dominating_tiers:
+            if len(candidate_set) == 1:
+                ordered_candidates.extend(candidate_set)
+            else:
+                tier_key = frozenset(candidate_set)
+                for s in tiebreak_resolutions[tier_key]:
+                    ordered_candidates.extend(sorted(s))
 
-        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.m])
-        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.m :])
+        elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
+        remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])
 
         if store_states:
             new_state = ElectionState(

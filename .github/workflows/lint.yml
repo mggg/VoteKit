@@ -24,7 +24,7 @@ jobs:
       - name: Set up project environment
         run: task setup PYTHON_VERSION=3.13
 
-      - name: Black and isort (check)
+      - name: Ruff format and import order
         run: task format-check PYTHON_VERSION=3.13
 
       - name: Ruff

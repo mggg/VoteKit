@@ -63,13 +63,13 @@ def test_id_and_weight_error():
 def test_distinct_col_error():
     with pytest.raises(
         ValueError,
-        match=re.escape(f"ID column {1} must not be a ranking column {[0,1,2]}."),
+        match=re.escape(f"ID column {1} must not be a ranking column {[0, 1, 2]}."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], id_col=1)
 
     with pytest.raises(
         ValueError,
-        match=re.escape(f"Weight column {1} must not be a ranking column {[0,1,2]}."),
+        match=re.escape(f"Weight column {1} must not be a ranking column {[0, 1, 2]}."),
     ):
         load_ranking_csv(CSV_DIR / "valid_cvr.csv", rank_cols=[0, 1, 2], weight_col=1)
 

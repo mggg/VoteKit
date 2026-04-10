@@ -5,6 +5,7 @@ from votekit.elections.election_types import (
     STV,
     Alaska,
     Approval,
+    BlockPlurality,
     BlocPlurality,
     BoostedRandomDictator,
     Borda,
@@ -51,6 +52,7 @@ __all__ = [
     "Cumulative",
     "Limited",
     "Approval",
+    "BlockPlurality",
     "BlocPlurality",
     "PluralityVeto",
     "SerialVeto",
@@ -60,3 +62,11 @@ __all__ = [
     "RankedPairs",
     "Schulze",
 ]
+
+# Patch __module__ on every exported symbol so that Sphinx autodoc displays
+# the canonical public import path (e.g. votekit.elections.RankingElection)
+# instead of the full internal path where each object is defined.
+for _name in __all__:
+    _obj = globals().get(_name)
+    if _obj is not None and hasattr(_obj, "__module__"):
+        _obj.__module__ = __name__

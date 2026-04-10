@@ -59,7 +59,6 @@ def test_lp_unequal_sizes_simple_distances_movement_urged():
 
 
 def test_against_scipy_wasserstein():
-
     vector_length = 50
 
     for _ in range(100):
@@ -259,7 +258,6 @@ def test_new_emd_speed():
 
 
 def make_random_profile(n_voters: int, cand_list: list[str]) -> RankProfile:
-
     weights = np.unique_counts(list(map(int, np.random.gamma(5, 1, n_voters))))[1]
 
     n_cands = len(cand_list)

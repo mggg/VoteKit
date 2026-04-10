@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import os
 import pickle
 import urllib.request
@@ -14,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_rank_csv,
     _parse_ballot_from_score_csv,
@@ -26,11 +28,6 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
-
-
-class ProfileError(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
 
 
 class PreferenceProfile:
@@ -128,7 +125,6 @@ class PreferenceProfile:
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
     ):
-
         if not df.equals(pd.DataFrame()) and len(ballots) != 0:
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
@@ -226,7 +222,7 @@ class PreferenceProfile:
             raise ProfileError(
                 "Candidates cast are not a subset of candidates list. The following "
                 " candidates are in candidates_cast but not candidates: "
-                f"{set(self.candidates_cast)-set(self.candidates)}."
+                f"{set(self.candidates_cast) - set(self.candidates)}."
             )
 
         self.candidates = tuple([c.strip() for c in self.candidates])
@@ -265,7 +261,6 @@ class PreferenceProfile:
         return True
 
     def __str__(self) -> str:
-
         repr_str = "PrefenceProfile"
         repr_str += (
             f"Candidates: {self.candidates}\n"
@@ -397,17 +392,17 @@ class RankProfile(PreferenceProfile):
                         )
                 if rank_ballot.weight > 0 and c not in candidates_cast:
                     candidates_cast.append(c)
-            if f"Ranking_{j+1}" not in rank_ballot_data:
+            if f"Ranking_{j + 1}" not in rank_ballot_data:
                 assert self.max_ranking_length is not None
 
                 if self.max_ranking_length > 0:
                     raise ProfileError(
                         f"Max ranking length {self.max_ranking_length} given but "
-                        f"ballot {rank_ballot} has length at least {j+1}."
+                        f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"Ranking_{j+1}"] = [frozenset("~")] * num_ballots
+                rank_ballot_data[f"Ranking_{j + 1}"] = [frozenset("~")] * num_ballots
 
-            rank_ballot_data[f"Ranking_{j+1}"][idx] = cand_set
+            rank_ballot_data[f"Ranking_{j + 1}"][idx] = cand_set
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -465,7 +460,7 @@ class RankProfile(PreferenceProfile):
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
                 {
-                    f"Ranking_{i+1}": [frozenset("~")] * num_ballots
+                    f"Ranking_{i + 1}": [frozenset("~")] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )
@@ -575,11 +570,11 @@ class RankProfile(PreferenceProfile):
         if df.index.name != "Ballot Index":
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         assert self.max_ranking_length is not None
-        if any(f"Ranking_{i+1}" not in df.columns for i in range(self.max_ranking_length)):
+        if any(f"Ranking_{i + 1}" not in df.columns for i in range(self.max_ranking_length)):
             for i in range(self.max_ranking_length):
-                if f"Ranking_{i+1}" not in df.columns:
+                if f"Ranking_{i + 1}" not in df.columns:
                     raise ProfileError(
-                        f"Ranking column 'Ranking_{i+1}' not in dataframe: {df.columns}"
+                        f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
                     )
 
     def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[str, ...]:
@@ -760,7 +755,6 @@ class RankProfile(PreferenceProfile):
         return super().__eq__(other)
 
     def __str__(self) -> str:
-
         repr_str = "RankProfile\n"
         repr_str += f"Maximum ranking length: {self.max_ranking_length}\n"
 
@@ -861,7 +855,7 @@ class RankProfile(PreferenceProfile):
             candidate_mapping (dict[str, str]): Maps candidate names to prefixes.
         """
         assert self.max_ranking_length is not None
-        data_col_names = [f"Ranking_{i+1}" for i in range(self.max_ranking_length)]
+        data_col_names = [f"Ranking_{i + 1}" for i in range(self.max_ranking_length)]
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:
@@ -871,33 +865,34 @@ class RankProfile(PreferenceProfile):
 
     def to_csv(
         self,
-        fpath: Union[str, PathLike, Path],
+        fpath: str | PathLike | Path | None = None,
         include_voter_set: bool = False,
         weight_precision: int = 2,
-    ):
+    ) -> str | None:
         """
         Saves PreferenceProfile to a custom CSV format.
 
         Args:
-            fpath (Union[str, PathLike, Path]): Path to the saved csv.
+            fpath (str | PathLike | Path | None, optional): Path to the saved csv. If None,
+                returns the CSV content as a string instead of writing to disk. Defaults to None.
             include_voter_set (bool, optional): Whether or not to include the voter set of each
                 ballot. Defaults to False.
             weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+
+        Returns:
+            str | None: The CSV content as a string when ``fpath`` is None, otherwise None.
+
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
             ValueError: File path must be provided.
         """
-        if fpath == "":
+        if fpath is not None and str(fpath) == "":
             raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        prefix_idx = 1
-        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
-        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
-            prefix_idx += 1
-            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 
         header = self.__to_rank_csv_header(candidate_mapping, include_voter_set)
         data_col_names = self.__to_rank_csv_data_column_names(include_voter_set, candidate_mapping)
@@ -907,6 +902,12 @@ class RankProfile(PreferenceProfile):
         ]
         rows = header + [data_col_names] + ballot_rows
 
+        if fpath is None:
+            sio = io.StringIO(newline="")
+            writer = csv.writer(sio)
+            writer.writerows(rows)
+            return sio.getvalue()
+
         with open(
             str(fpath),
             "w",
@@ -915,6 +916,7 @@ class RankProfile(PreferenceProfile):
         ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
+        return None
 
     @classmethod
     def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
@@ -960,7 +962,6 @@ class RankProfile(PreferenceProfile):
 
 
 class ScoreProfile(PreferenceProfile):
-
     def __init__(
         self,
         *,
@@ -1136,7 +1137,6 @@ class ScoreProfile(PreferenceProfile):
         candidates_cast: list[str] = []
 
         for i, b in enumerate(ballots):
-
             self.__update_score_ballot_data_attrs(
                 score_ballot_data=score_ballot_data,
                 idx=i,
@@ -1319,7 +1319,6 @@ class ScoreProfile(PreferenceProfile):
         return super().__eq__(other)
 
     def __str__(self) -> str:
-
         repr_str = "ScoreProfile\n"
 
         repr_str += (
@@ -1414,34 +1413,34 @@ class ScoreProfile(PreferenceProfile):
 
     def to_csv(
         self,
-        fpath: Union[str, PathLike, Path],
+        fpath: str | PathLike | Path | None = None,
         include_voter_set: bool = False,
         weight_precision: int = 2,
-    ):
+    ) -> str | None:
         """
         Saves PreferenceProfile to a custom CSV format.
 
         Args:
-            fpath (Union[str, PathLike, Path]): Path to the saved csv.
+            fpath (str | PathLike | Path | None, optional): Path to the saved csv. If None,
+                returns the CSV content as a string instead of writing to disk. Defaults to None.
             include_voter_set (bool, optional): Whether or not to include the voter set of each
                 ballot. Defaults to False.
             weight_precision (int): Number of decimals to round float weights to. Defaults to 2.
+
+        Returns:
+            str | None: The CSV content as a string when ``fpath`` is None, otherwise None.
 
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
             ValueError: File path must be provided.
         """
-        if fpath == "":
+        if fpath is not None and str(fpath) == "":
             raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        prefix_idx = 1
-        candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
-        while len(set(candidate_mapping.values())) < len(candidate_mapping.values()):
-            prefix_idx += 1
-            candidate_mapping = {c: c[:prefix_idx] for c in self.candidates}
+        candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 
         header = self.__to_score_csv_header(candidate_mapping, include_voter_set)
         data_col_names = self.__to_score_csv_data_column_names(include_voter_set, candidate_mapping)
@@ -1451,6 +1450,12 @@ class ScoreProfile(PreferenceProfile):
         ]
         rows = header + [data_col_names] + ballot_rows
 
+        if fpath is None:
+            sio = io.StringIO(newline="")
+            writer = csv.writer(sio)
+            writer.writerows(rows)
+            return sio.getvalue()
+
         with open(
             str(fpath),
             "w",
@@ -1459,6 +1464,7 @@ class ScoreProfile(PreferenceProfile):
         ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
+        return None
 
     @classmethod
     def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:

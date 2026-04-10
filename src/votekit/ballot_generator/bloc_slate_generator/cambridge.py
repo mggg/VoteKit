@@ -147,8 +147,10 @@ def _reduce_ballot_pmfs(
 
 
     Args:
-        historical_majority_ballot_data_path (Path): The path to the JSON file containing the historical majority ballot frequencies.
-        historical_minority_ballot_data_path (Path): The path to the JSON file containing the historical minority ballot frequencies.
+        historical_majority_ballot_data_path (Path): Path to the JSON file containing
+            historical majority ballot frequencies.
+        historical_minority_ballot_data_path (Path): Path to the JSON file containing
+            historical minority ballot frequencies.
         config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
         majority_bloc (str): The name of the group in the config corresponding to the historical
             majority slate.
@@ -305,9 +307,11 @@ def _determine_and_validate_majority_and_minority_blocs(
 ) -> tuple[str, str]:
     """
     Determines the majority and minority groups for the Cambridge model.
-    Validates that the names are in the config, and that the majority and minority groups are distinct.
+    Validates that the names are in the config and that the majority and minority groups
+    are distinct.
 
-    If the majority and minority groups are not provided, they are determined by the bloc proportions.
+    If the majority and minority groups are not provided, they are determined by the
+    bloc proportions.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -344,8 +348,7 @@ def _determine_and_validate_majority_and_minority_blocs(
             )
     if majority_bloc == minority_bloc:
         raise ValueError(
-            f"Majority group {majority_bloc} and minority group {minority_bloc} must be "
-            "distinct."
+            f"Majority group {majority_bloc} and minority group {minority_bloc} must be distinct."
         )
     if minority_bloc is None:
         minority_bloc = [b for b in config.blocs if b != majority_bloc][0]

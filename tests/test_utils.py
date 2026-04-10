@@ -1,3 +1,4 @@
+from itertools import permutations
 from typing import Literal, cast
 
 import pytest
@@ -12,6 +13,7 @@ from votekit.utils import (
     elect_cands_from_set_ranking,
     expand_tied_ballot,
     first_place_votes,
+    index_to_lexicographic_ballot,
     mentions,
     resolve_profile_ties,
     score_dict_from_score_vector,
@@ -47,6 +49,17 @@ profile_with_missing = RankProfile(
     ),
     candidates=("A", "B", "C", "D", "E"),
 )
+
+
+def _expected_lexicographic_ballots(n_candidates: int, max_length: int) -> list[list[int]]:
+    return [
+        list(ballot)
+        for ballot in sorted(
+            ballot
+            for length in range(1, max_length + 1)
+            for ballot in permutations(range(n_candidates), length)
+        )
+    ]
 
 
 class TestShortBallot:
@@ -209,7 +222,7 @@ def test_score_profile_from_rankings_errors():
         )
     with pytest.raises(
         ValueError,
-        match=("tie_convention must be one of 'high', 'low', 'average', " "not highlo"),
+        match=("tie_convention must be one of 'high', 'low', 'average', not highlo"),
     ):
         score_dict_from_score_vector(
             profile_no_ties,
@@ -533,11 +546,64 @@ def test_elect_cands_from_set_ranking_tiebreaks():
     assert len([c for s in random_elected for c in s]) == 4
 
 
+@pytest.mark.parametrize(
+    ("n_candidates", "max_length"),
+    [(1, 1), (3, 1), (3, 2), (4, 2), (4, 4)],
+)
+def test_index_to_lexicographic_ballot_matches_lexicographic_order(
+    n_candidates: int, max_length: int
+):
+    expected = _expected_lexicographic_ballots(n_candidates, max_length)
+    actual = [
+        index_to_lexicographic_ballot(i, n_candidates, max_length) for i in range(len(expected))
+    ]
+
+    assert actual == expected
+
+
+def test_index_to_lexicographic_ballot_truncates_to_max_length():
+    expected = _expected_lexicographic_ballots(5, 3)
+
+    assert index_to_lexicographic_ballot(0, 5, 3) == [0]
+    assert index_to_lexicographic_ballot(1, 5, 3) == [0, 1]
+    assert index_to_lexicographic_ballot(2, 5, 3) == [0, 1, 2]
+    assert index_to_lexicographic_ballot(len(expected) - 1, 5, 3) == expected[-1]
+    assert all(len(ballot) <= 3 for ballot in expected)
+
+
+@pytest.mark.parametrize("n_candidates", [1, 2, 3, 5])
+def test_index_to_lexicographic_ballot_matches_full_length_lexicographic_order(
+    n_candidates: int,
+):
+    expected = _expected_lexicographic_ballots(n_candidates, n_candidates)
+    actual = [
+        index_to_lexicographic_ballot(i, n_candidates, n_candidates) for i in range(len(expected))
+    ]
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("index", "n_candidates", "max_length", "message"),
+    [
+        (-1, 3, 2, r"index out of range \[0, 8\]"),
+        (9, 3, 2, r"index out of range \[0, 8\]"),
+        (0, 3, 0, "invalid max_length"),
+        (0, 3, 4, "invalid max_length"),
+    ],
+)
+def test_index_to_lexicographic_ballot_errors(
+    index: int, n_candidates: int, max_length: int, message: str
+):
+    with pytest.raises(ValueError, match=message):
+        index_to_lexicographic_ballot(index, n_candidates, max_length)
+
+
 def test_elect_cands_from_set_ranking_errors():
-    with pytest.raises(ValueError, match="m must be strictly positive"):
+    with pytest.raises(ValueError, match="n_seats must be strictly positive"):
         elect_cands_from_set_ranking(({"A", "B"},), 0)
 
-    with pytest.raises(ValueError, match="m must be no more than the number of candidates."):
+    with pytest.raises(ValueError, match="n_seats must be no more than the number of candidates."):
         elect_cands_from_set_ranking(({"A", "B"},), 3)
 
     with pytest.raises(

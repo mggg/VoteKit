@@ -11,21 +11,21 @@ from votekit.pref_profile import RankProfile
 from votekit.utils import first_place_votes
 
 
-def run_election_once(test_profile):
+def run_election_once(test_profile, seed):
     """Run one election and return the winner."""
+    random.seed(seed)
+    np.random.seed(seed)
     election = BoostedRandomDictator(test_profile, 1)
     return list(election.get_elected()[0])[0]
 
 
 def test_boosted_random_dictator_error():
     with pytest.raises(ValueError, match="Not enough candidates received votes to be elected."):
-        BoostedRandomDictator(RankProfile(), m=1)
+        BoostedRandomDictator(RankProfile(), n_seats=1)
 
 
 @pytest.mark.slow
 def test_boosted_random_dictator_simple():
-    random.seed(919717)
-
     candidates = ["A", "B", "C"]
     ballots = [
         RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
@@ -34,13 +34,14 @@ def test_boosted_random_dictator_simple():
     ]
     test_profile = RankProfile(ballots=ballots, candidates=candidates)
 
-    winner_counts = {c: 0 for c in candidates}
     trials = 3000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -53,8 +54,6 @@ def test_boosted_random_dictator_simple():
 
 @pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_without_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     full_power = list(
@@ -80,11 +79,13 @@ def test_boosted_random_dictator_4_candidates_without_ties():
     fpv = {c: v / tot_fpv for c, v in fpv.items()}
 
     trials = 3500
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -113,8 +114,6 @@ def test_boosted_random_dictator_4_candidates_without_ties():
 
 @pytest.mark.slow
 def test_boosted_random_dictator_4_candidates_with_ties():
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     powerset = list(
@@ -128,6 +127,8 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     test_profile = RankProfile(ballots=ballots, candidates=candidates, max_ranking_length=4)
 
     trials = 4000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     fpv = first_place_votes(test_profile, tie_convention="average")
     tot_fpv = sum(fpv.values())
@@ -138,7 +139,7 @@ def test_boosted_random_dictator_4_candidates_with_ties():
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
@@ -166,13 +167,13 @@ def test_boosted_random_dictator_4_candidates_with_ties():
 
 @pytest.mark.slow
 def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
-    random.seed(919717)
-
     candidates = ["A", "B", "C", "D"]
 
     ballots = all_possible_ranked_ballots(candidates)
 
     trials = 3000
+    rng = random.Random(919717)
+    seeds = [rng.randint(0, 2**32 - 1) for _ in range(trials)]
 
     for i, ballot in enumerate(ballots):
         if "A" in ballot.ranking[0]:
@@ -189,7 +190,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     # Parallel execution
     n_jobs = -1  # Use all available cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(run_election_once)(test_profile) for _ in range(trials)
+        delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
 
     winner_counts = {c: results.count(c) for c in candidates}
