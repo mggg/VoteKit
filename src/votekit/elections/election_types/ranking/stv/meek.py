@@ -19,31 +19,31 @@ class KeepFactorCalibrationCache:
     """
     Round-local compressed representation of the data needed to calibrate keep factors.
 
-    Stores the compressed support of the current winner_combination_vec,
+    Stores the compressed support of the current winner_combination_idx_vec,
         together with the ballot-to-support mapping and the grouped masses
         needed for keep-factor calibration and final tally reconstruction.
     N is the number of ballots in the ballot matrix.
     P is the number of unique winner combinations observed in the current round.
-    Lmax is the maximum ranking length of the profile.
-        In the future, Lmax could also refer to the maximum number of winners a
+    max_winner_transfers is the maximum ranking length of the profile.
+        In the future, max_winner_transfers could also refer to the maximum number of winners a
         ballot is allowed to transfer to.
 
     Attributes:
-        support_comb_ids: the unique winner_combination_vec values observed
+        support_comb_ids: the unique winner_combination_idx_vec values observed
             in this round, in ascending order.
         ballot_to_support_row: maps each index of the ballot matrix to
             the index of its winner combination in support_comb_ids.
-        sliced_winner_matrix: view of the winner_permutation_matrix containing
+        realized_winner_combinations: view of the winner_permutation_matrix containing
             only the observed winner combinations.
-        valid_mask: boolean mask indicating which entries of sliced_winner_matrix
-            contain valid winner positions (as opposed to padding).
+        non_empty_position_mask: boolean mask indicating which entries of
+                realized_winner_combinations contain valid winner positions (i.e. not padding).
         permutation_lengths: the number of winners in each
             observed winner combination.
-        support_total_mass: The total starting ballot weight attached to
+        winner_combination_mass: The total starting ballot weight attached to
             each observed winner-combination.
         support_nonexhausted_mass: The total starting ballot weight attached to
             nonexhausting ballots in each observed winner-combination.
-        exhausted_mask: Ballot-level boolean mask for whether each
+        exhausted_ballot_mask: Ballot-level boolean mask for whether each
             ballot row is currently exhausted.
         fpv_vec: The current first-preference candidate for each ballot row.
         initial_wt_vec: The initial weight of each ballot row.
@@ -51,22 +51,56 @@ class KeepFactorCalibrationCache:
 
     support_comb_ids: NDArray  # shape (P,)
     ballot_to_support_row: NDArray  # shape (N,)
-    sliced_winner_matrix: NDArray  # shape (P, Lmax), padded with safe values
-    valid_mask: NDArray  # shape (P, Lmax), True where sliced_winner_matrix is meaningful
+    realized_winner_combinations: (
+        NDArray  # shape (P, max_winner_transfers), padded with safe values
+    )
+    non_empty_position_mask: NDArray  # shape (P, max_winner_transfers),
+    # True where realized_winner_combinations is meaningful
     permutation_lengths: NDArray  # shape (P,)
-    support_total_mass: NDArray  # shape (P,)
+    winner_combination_mass: NDArray  # shape (P,)
     support_nonexhausted_mass: NDArray  # shape (P,)
-    exhausted_mask: NDArray  # shape (N,)
+    exhausted_ballot_mask: NDArray  # shape (N,)
     fpv_vec: NDArray  # shape (N,)
     initial_wt_vec: NDArray  # shape (N,)
 
 
 MutableLoserBundle: TypeAlias = tuple[
-    list[int],
-    list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    NDArray,
-    NDArray,
-    NDArray,
+    list[int],  # eliminated_candidates: the list of candidate indices
+    # (indexed in 0, ..., len(profile.candidates)-1) that have been eliminated so far
+    list[dict[frozenset[str], tuple[frozenset[str], ...]]],  # tiebreak_record
+    NDArray,  # fpv_vec
+    NDArray,  # pos_vec
+    NDArray,  # bool_ballot_matrix
+]
+
+KeepFactorBundle: TypeAlias = tuple[
+    NDArray,  # initial_wt_vec: the initial multiplicity of row in the ballot matrix recorded
+    # in the profile
+    NDArray,  # fpv_vec: the ith entry is the candidate at index pos_vec[i] of ballot_matrix[i]
+    list[int],  # winner_list: the list of currently seated winners, indexed according to their
+    # position in self.candidates
+    NDArray,  # winner_combination_idx_vec: the current winner combination index for each ballot
+    # for each row i of the ballot matrix, we consider the permutation obtained by
+    # taking only the winners prior to entry pos_vec[i] of that row.
+    # The index j of that permutation in the winner_combination_matrix is what
+    # we store in winner_combination_idx_vec[i].
+    NDArray,  # winner_combination_matrix: every possible way to build a permutation of length
+    # \leq L out of n_seats elements -- each row is a permutation, with -1 padding
+    # at the end of the row to indicate unused positions in the permutation.
+]
+
+MutantWinnerCombBundle: TypeAlias = tuple[
+    NDArray,  # winner_combination_idx_vec: each entry is the index of a
+    # row in the winner_combination_matrix
+    NDArray,  # winner_bitstring_vec: each entry is a binary with length equal to
+    # the number of seats in the election, where a 1 in position j indicates
+    # that the winner in position j is present in the corresponding winner combination
+    NDArray,  # fpv_vec: the ith entry is the candidate at index pos_vec[i] of ballot_matrix[i]
+    NDArray,  # bool_ballot_matrix: a mask of the ballot matrix with Falses when either
+    # 1) the ranking in this position was never filled in to begin with, or
+    # 2) the candidate in this position has been eliminated or elected
+    NDArray,  # pos_vec: entry i is the current position of the first non-eliminated,
+    # non-elected candidate in row i of the ballot matrix
 ]
 
 
@@ -111,13 +145,13 @@ class MeekSTV(NumpySTVBase):
         super().__init__(profile=profile, n_seats=n_seats, tiebreak=tiebreak)
 
         if n_seats > 10:
+            self._store_all_winner_combinations = False
             raise NotImplementedError(
                 "Meek STV with more than 10 seats is not currently supported due to the "
-                "combinatorial explosion of winner combinations."
+                "combinatorial explosion of possible winner transfer paths."
             )
-            self._dense = False
         else:
-            self._dense = True  # TODO: implement a backup protocol when n_seats, L are large
+            self._store_all_winner_combinations = True
         self._num_cands = len(self.candidates)
         self._max_ranking_length = min(profile.max_ranking_length, self._num_cands)
         self.tolerance = 1e-6 if tolerance is None else float(tolerance)
@@ -142,7 +176,7 @@ class MeekSTV(NumpySTVBase):
         """
         ballot_matrix = mutable_data_tracker.ballot_matrix
         initial_wt_vec = np.copy(mutable_data_tracker.wt_vec)
-        winner_combination_vec = np.zeros_like(initial_wt_vec, dtype=np.int64)
+        winner_combination_idx_vec = np.zeros_like(initial_wt_vec, dtype=np.int64)
         winner_bitstring_vec = np.zeros_like(initial_wt_vec, dtype=np.int32)
         pos_vec = np.zeros_like(initial_wt_vec, dtype=np.int8)
         winner_list = []
@@ -158,23 +192,23 @@ class MeekSTV(NumpySTVBase):
         tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
         bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
 
-        if self._dense:
+        if self._store_all_winner_combinations:
             winner_combination_matrix = _permutation_matrix_constructor(
                 n_seats, min(self._max_ranking_length, self.n_seats), dtype=np.dtype(np.int8)
             )
 
-        winner_combination_mutant_bundle = (
-            winner_combination_vec,
+        winner_combination_mutant_bundle: MutantWinnerCombBundle = (
+            winner_combination_idx_vec,
             winner_bitstring_vec,
             fpv_vec,
             bool_ballot_matrix,
             pos_vec,
         )
-        keep_factor_calibrator_bundle = (
+        keep_factor_calibrator_bundle: KeepFactorBundle = (
             initial_wt_vec,
             fpv_vec,
             winner_list,
-            winner_combination_vec,
+            winner_combination_idx_vec,
             winner_combination_matrix,
         )
         loser_mutant_bundle: MutableLoserBundle = (
@@ -255,7 +289,7 @@ class MeekSTV(NumpySTVBase):
         initial_wt_vec: NDArray,
         fpv_vec: NDArray,
         winners: list[int],
-        winner_combination_vec: NDArray,
+        winner_combination_idx_vec: NDArray,
         winner_combination_matrix: NDArray,
     ) -> tuple[NDArray, NDArray, float, int]:
         """
@@ -274,7 +308,7 @@ class MeekSTV(NumpySTVBase):
                 ballot in the ballot_matrix.
             winners: list of currently seated winners, indexed according to their
                 position in self.candidates.
-            winner_combination_vec: (NDArray) current winner combination index for each ballot.
+            winner_combination_idx_vec: (NDArray) current winner combination index for each ballot.
             winner_combination_matrix: (NDArray) matrix mapping winner combination indices
                 to winner combinations; each row is a different combination.
 
@@ -306,7 +340,7 @@ class MeekSTV(NumpySTVBase):
             cache = self._build_keep_factor_calibration_cache(
                 initial_wt_vec=initial_wt_vec,
                 fpv_vec=fpv_vec,
-                winner_combination_vec=winner_combination_vec,
+                winner_combination_idx_vec=winner_combination_idx_vec,
                 winner_combination_matrix=winner_combination_matrix,
             )
 
@@ -330,7 +364,7 @@ class MeekSTV(NumpySTVBase):
         self,
         initial_wt_vec: NDArray,
         fpv_vec: NDArray,
-        winner_combination_vec: NDArray,
+        winner_combination_idx_vec: NDArray,
         winner_combination_matrix: NDArray,
     ) -> KeepFactorCalibrationCache:
         """
@@ -341,7 +375,7 @@ class MeekSTV(NumpySTVBase):
                 ballot in the ballot_matrix.
             fpv_vec: (NDArray) current first preference candidate of each
                 ballot in the ballot_matrix.
-            winner_combination_vec: (NDArray) current winner combination index for each ballot.
+            winner_combination_idx_vec: (NDArray) current winner combination index for each ballot.
             winner_combination_matrix: (NDArray) matrix mapping winner combination indices
                 to winner combinations; each row is a different combination.
                 In sparse mode, we might use a list of arrays instead of this matrix,
@@ -350,43 +384,63 @@ class MeekSTV(NumpySTVBase):
         Returns:
             KeepFactorCalibrationCache: a cache ready to be decoded by the later stages of
                 the calibration process.
+
+        The Attributes of the Cache are repeated here for convenience:
+            support_comb_ids: the unique winner_combination_idx_vec values observed
+                in this round, in ascending order.
+            ballot_to_support_row: maps each index of the ballot matrix to
+                the index of its winner combination in support_comb_ids.
+            realized_winner_combinations: view of the winner_permutation_matrix containing
+                only the observed winner combinations.
+            non_empty_position_mask: boolean mask indicating which entries of
+                realized_winner_combinations contain valid winner positions (i.e. not padding).
+            permutation_lengths: the number of winners in each
+                observed winner combination.
+            winner_combination_mass: The total starting ballot weight attached to
+                each observed winner-combination.
+            support_nonexhausted_mass: The total starting ballot weight attached to
+                nonexhausting ballots in each observed winner-combination.
+            exhausted_ballot_mask: Ballot-level boolean mask for whether each
+                ballot row is currently exhausted.
+            fpv_vec: The current first-preference candidate for each ballot row.
+            initial_wt_vec: The initial weight of each ballot row.
         """
         support_comb_ids, ballot_to_support_row = np.unique(
-            winner_combination_vec,
+            winner_combination_idx_vec,
             return_inverse=True,
         )
 
-        exhausted_mask = fpv_vec < 0
+        exhausted_ballot_mask = fpv_vec < 0
 
-        support_total_mass = np.bincount(
+        winner_combination_mass = np.bincount(
             ballot_to_support_row,
             weights=initial_wt_vec,
             minlength=len(support_comb_ids),
         ).astype(np.int32)
 
         support_nonexhausted_mass = np.bincount(
-            ballot_to_support_row[~exhausted_mask],
-            weights=initial_wt_vec[~exhausted_mask],
+            ballot_to_support_row[~exhausted_ballot_mask],
+            weights=initial_wt_vec[~exhausted_ballot_mask],
             minlength=len(support_comb_ids),
         ).astype(np.int32)
 
-        raw_view_of_permutation_matrix = winner_combination_matrix[support_comb_ids]
+        realized_winner_combinations = winner_combination_matrix[support_comb_ids]
 
-        valid_mask = raw_view_of_permutation_matrix >= 0
-        permutation_lengths = valid_mask.sum(axis=1).astype(np.int8)
+        non_empty_position_mask = realized_winner_combinations >= 0
+        permutation_lengths = non_empty_position_mask.sum(axis=1).astype(np.int8)
 
-        sliced_winner_matrix = raw_view_of_permutation_matrix.copy()
-        sliced_winner_matrix[~valid_mask] = 0
+        # realized_winner_combinations = realized_winner_combinations.copy()
+        # realized_winner_combinations[~non_empty_position_mask] = 0
 
         return KeepFactorCalibrationCache(
             support_comb_ids=support_comb_ids,
             ballot_to_support_row=ballot_to_support_row,
-            sliced_winner_matrix=sliced_winner_matrix,
-            valid_mask=valid_mask,
+            realized_winner_combinations=realized_winner_combinations,
+            non_empty_position_mask=non_empty_position_mask,
             permutation_lengths=permutation_lengths,
-            support_total_mass=support_total_mass,
+            winner_combination_mass=winner_combination_mass,
             support_nonexhausted_mass=support_nonexhausted_mass,
-            exhausted_mask=exhausted_mask,
+            exhausted_ballot_mask=exhausted_ballot_mask,
             fpv_vec=fpv_vec,
             initial_wt_vec=initial_wt_vec,
         )
@@ -418,62 +472,65 @@ class MeekSTV(NumpySTVBase):
         """
         keep_factors = np.ones(num_winners, dtype=np.float64)
 
-        P, Lmax = cache.sliced_winner_matrix.shape
+        n_perms_of_winners, max_winner_transfers = cache.realized_winner_combinations.shape
 
-        k_mat = np.zeros((P, Lmax), dtype=np.float64)
-        prefix = np.ones((P, Lmax), dtype=np.float64)
-        carry_before = np.zeros((P, Lmax), dtype=np.float64)
-        contrib = np.zeros((P, Lmax), dtype=np.float64)
+        k_mat = np.zeros((n_perms_of_winners, max_winner_transfers), dtype=np.float64)
+        survivor_weights = np.ones((n_perms_of_winners, max_winner_transfers), dtype=np.float64)
+        winner_contribution_weight = np.zeros(
+            (n_perms_of_winners, max_winner_transfers), dtype=np.float64
+        )
 
         winner_tallies = np.zeros(num_winners, dtype=np.float64)
-        leftover_factor = np.ones(P, dtype=np.float64)
+        leftover_factor = np.ones(n_perms_of_winners, dtype=np.float64)
 
         nonempty_rows = cache.permutation_lengths > 0
         nonempty_idx = np.where(nonempty_rows)[0]
 
         iterations_used = 0
 
-        for iteration in range(self._max_iterations):  # let me know if you want these comments gone
+        for iteration in range(self._max_iterations):
             iterations_used = iteration + 1
 
             # k_mat[p, j] = keep factor for the winner at position j of support row p
             k_mat.fill(0.0)
-            k_mat[cache.valid_mask] = keep_factors[cache.sliced_winner_matrix[cache.valid_mask]]
+            k_mat[cache.non_empty_position_mask] = keep_factors[
+                cache.realized_winner_combinations[cache.non_empty_position_mask]
+            ]
 
-            # prefix = inclusive prefix products of (1 - k) along each support row
-            prefix.fill(1.0)
-            prefix[cache.valid_mask] -= k_mat[cache.valid_mask]
-            np.cumprod(prefix, axis=1, out=prefix)
+            # survivor_weights = inclusive survivor_weights products of (1 - k)
+            # along each support row
+            survivor_weights.fill(1.0)
+            survivor_weights[cache.non_empty_position_mask] -= k_mat[cache.non_empty_position_mask]
+            np.cumprod(survivor_weights, axis=1, out=survivor_weights)
 
-            # carry_before = exclusive prefix products
-            carry_before.fill(0.0)
-            carry_before[:, 0] = 1.0
-            if Lmax > 1:
-                carry_before[:, 1:] = prefix[:, :-1]
-            carry_before[~cache.valid_mask] = 0.0
+            # carry_before = exclusive survivor_weights products
+            winner_contribution_weight.fill(0.0)
+            winner_contribution_weight[:, 0] = 1.0
+            if max_winner_transfers > 1:
+                winner_contribution_weight[:, 1:] = survivor_weights[:, :-1]
+            winner_contribution_weight[~cache.non_empty_position_mask] = 0.0
 
             # contrib[p, j] = total mass in support row p assigned to winner at position j
-            contrib[:] = carry_before
-            contrib *= k_mat
-            contrib *= cache.support_total_mass[:, None]
-            contrib[~cache.valid_mask] = 0.0
+            winner_contribution_weight *= k_mat
+            winner_contribution_weight *= cache.winner_combination_mass[:, None]
+            winner_contribution_weight[~cache.non_empty_position_mask] = 0.0
 
             # Scatter-add support-row/position contributions into winner tallies.
             winner_tallies.fill(0.0)
-            for j in range(Lmax):
-                not_empty_position = cache.valid_mask[:, j]
+            for j in range(max_winner_transfers):
+                not_empty_position = cache.non_empty_position_mask[:, j]
                 if np.any(not_empty_position):
                     np.add.at(
                         winner_tallies,
-                        cache.sliced_winner_matrix[not_empty_position, j],
-                        contrib[not_empty_position, j],
+                        cache.realized_winner_combinations[not_empty_position, j],
+                        winner_contribution_weight[not_empty_position, j],
                     )
 
             # leftover_factor[p] = fraction of a ballot in support row p
             # that remains after transferring through their winners.
             leftover_factor.fill(1.0)
             if len(nonempty_idx) > 0:
-                leftover_factor[nonempty_idx] = prefix[
+                leftover_factor[nonempty_idx] = survivor_weights[
                     nonempty_idx,
                     cache.permutation_lengths[nonempty_idx] - 1,
                 ]
@@ -526,8 +583,8 @@ class MeekSTV(NumpySTVBase):
         )
 
         tallies = np.bincount(
-            cache.fpv_vec[~cache.exhausted_mask],
-            weights=actual_wt_vec[~cache.exhausted_mask],
+            cache.fpv_vec[~cache.exhausted_ballot_mask],
+            weights=actual_wt_vec[~cache.exhausted_ballot_mask],
             minlength=self._num_cands,
         ).astype(np.float64)
 
@@ -545,7 +602,7 @@ class MeekSTV(NumpySTVBase):
         mutant_pos_vec: NDArray,
         all_winners: list[int],
         n_seats: int | None = None,
-        L: int | None = None,
+        max_winner_transfers: int | None = None,
     ):
         """
         Advance ballots whose current first-preference candidate is already seated.
@@ -566,8 +623,10 @@ class MeekSTV(NumpySTVBase):
                 in the order they were seated in.
             n_seats: (int | None) the number of seats to be filled.
                 Defaults to self.n_seats.
-            L: (int | None) the maximum ranking length.
-                Defaults to self._max_ranking_length.
+            max_winner_transfers: (int | None) the maximum number of winners a ballot is allowed
+                to transfer through -- almost always this will be self._max_ranking_length or
+                self.n_seats, but a solution to combinatorial explosion would be to manually
+                throttle this parameter.
 
         Returns:
             mutant_winner_comb_vec: (NDArray) mutated in place.
@@ -579,69 +638,45 @@ class MeekSTV(NumpySTVBase):
         """
         if n_seats is None:
             n_seats = self.n_seats
-        if L is None:
-            L = self._max_ranking_length
+        if max_winner_transfers is None:
+            max_winner_transfers = self._max_ranking_length
 
-        if len(all_winners) == 0:
-            return (
-                mutant_winner_comb_vec,
-                mutant_winner_bitstring_vec,
-                mutant_fpv_vec,
-                mutant_bool_ballot_matrix,
-                mutant_pos_vec,
-            )
-
-        winner_array = np.asarray(all_winners, dtype=int)
-
-        cand_to_winner_pos = np.full(self._num_cands, -1, dtype=np.int32)
-        cand_to_winner_pos[winner_array] = np.arange(winner_array.size, dtype=np.int32)
-
-        max_passes = winner_array.size
-        num_passes = 0
-
-        while True:
-            current_winner_pos = np.full(mutant_fpv_vec.shape, -1, dtype=np.int32)
-            active_rows = mutant_fpv_vec >= 0
-            current_winner_pos[active_rows] = cand_to_winner_pos[mutant_fpv_vec[active_rows]]
-
-            needs_update = current_winner_pos >= 0
-            if not np.any(needs_update):
-                break
-
-            num_passes += 1
-            if num_passes > max_passes:
-                raise RuntimeError(
-                    "Winner-combination update exceeded the expected number of passes. "
-                    "This suggests some ballots are repeatedly landing on seated winners "
-                    "without making progress."
-                )
-
-            updated_comb, updated_bits = _vectorized_perm_updater(
-                mutant_winner_comb_vec[needs_update],
-                self.n_seats,
-                L,
-                mutant_winner_bitstring_vec[needs_update],
-                current_winner_pos[needs_update],
-            )
-            mutant_winner_comb_vec[needs_update] = updated_comb
-            mutant_winner_bitstring_vec[needs_update] = updated_bits
-
-            mutant_bool_ballot_matrix[needs_update, mutant_pos_vec[needs_update]] = False
-
-            mutant_pos_vec[needs_update] = mutant_bool_ballot_matrix[needs_update].argmax(axis=1)
-
-            mutant_fpv_vec[needs_update] = self._data.ballot_matrix[
-                needs_update,
-                mutant_pos_vec[needs_update],
-            ]
-
-        return (
+        mutable_bundle = (
             mutant_winner_comb_vec,
             mutant_winner_bitstring_vec,
             mutant_fpv_vec,
             mutant_bool_ballot_matrix,
             mutant_pos_vec,
         )
+
+        if len(all_winners) == 0:
+            return mutable_bundle
+
+        winner_array = np.asarray(all_winners, dtype=int)
+
+        cand_to_winner_lut = np.full(self._num_cands, -1, dtype=np.int32)
+        cand_to_winner_lut[winner_array] = np.arange(winner_array.size, dtype=np.int32)
+
+        max_passes = winner_array.size
+        num_passes = 0
+
+        keep_going_flag = True
+        while keep_going_flag:
+            if num_passes > max_passes:
+                raise RuntimeError(
+                    "Exceeded maximum passes when updating winner combination vector. "
+                    "This should never happen, and indicates a bug in the update logic."
+                )
+            mutable_bundle, keep_going_flag = _single_pass_updater(
+                *mutable_bundle,
+                ballot_matrix=self._data.ballot_matrix,
+                cand_to_winner_lut=cand_to_winner_lut,
+                n_seats=self.n_seats,
+                max_winner_transfers=max_winner_transfers,
+            )
+            num_passes += 1
+
+        return mutable_bundle
 
     def _find_and_eliminate_loser(
         self,
@@ -693,15 +728,13 @@ class MeekSTV(NumpySTVBase):
             loser_idx = int(np.argmin(masked_tallies))
             mutant_tiebreak_record.append({})
         mutant_eliminated_candidates.append(loser_idx)
-        mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, loser_idx)  # same
+        mutant_bool_ballot_matrix &= ~np.isin(self._data.ballot_matrix, loser_idx)
         rows_with_loser_fpv = mutant_fpv_vec == loser_idx
         allowed_pos_matrix = mutant_bool_ballot_matrix[rows_with_loser_fpv]
         mutant_pos_vec[rows_with_loser_fpv] = allowed_pos_matrix.argmax(axis=1)
-        mutant_fpv_vec[rows_with_loser_fpv] = (
-            self._data.ballot_matrix[  # this would be self._data.ballot_matrix in the class context
-                rows_with_loser_fpv, mutant_pos_vec[rows_with_loser_fpv]
-            ]
-        )
+        mutant_fpv_vec[rows_with_loser_fpv] = self._data.ballot_matrix[
+            rows_with_loser_fpv, mutant_pos_vec[rows_with_loser_fpv]
+        ]
 
         return (
             loser_idx,
@@ -740,8 +773,89 @@ def build_section_list(m: int, L: int) -> list[int]:
     return section_list
 
 
+def _single_pass_updater(
+    mutant_winner_comb_vec: NDArray,
+    mutant_winner_bitstring_vec: NDArray,
+    mutant_fpv_vec: NDArray,
+    mutant_bool_ballot_matrix: NDArray,
+    mutant_pos_vec: NDArray,
+    ballot_matrix: NDArray,
+    cand_to_winner_lut: NDArray,
+    n_seats: int,
+    max_winner_transfers: int,
+) -> tuple[tuple[NDArray, NDArray, NDArray, NDArray, NDArray], bool]:
+    """
+    Uses the provided parameters to update the five mutable vectors used to track the winner
+        combination prefix corresponding to each row of the ballot matrix.
+    For a more in depth description of the first five parameters, cf. MutantWinnerCombBundle
+
+    Args:
+        mutant_winner_comb_vec: (NDArray) the previous winner combination index for each ballot
+            in need of an update.
+        mutant_winner_bitstring_vec: (NDArray) the previous winner bitstring for each ballot
+        mutant_fpv_vec: (NDArray) the current first preference for each ballot
+        mutant_bool_ballot_matrix: (NDArray) the boolean ballot matrix indicating active candidates
+        mutant_pos_vec: (NDArray) the current position vector for each ballot
+        ballot_matrix: (NDArray) the original ballot matrix (this should never be mutated)
+        cand_to_winner_lut: (NDArray) lookup table mapping candidates to winner positions
+        n_seats: (int) the number of seats in the election
+        max_winner_transfers: (int) the maximum number of winners a ballot is allowed to
+            transfer through (usually max_ranking_length or n_seats)
+
+    Returns:
+        mutant_winner_comb_vec: (NDArray) mutated in place
+        mutant_winner_bitstring_vec: (NDArray) mutated in place
+        mutant_fpv_vec: (NDArray) mutated in place
+        mutant_bool_ballot_matrix: (NDArray) mutated in place
+        mutant_pos_vec: (NDArray) mutated in place
+        keep_going_flag: (bool) whether another pass is needed to update ballots that still
+            point to seated winners after this pass.
+    """
+    current_winner_pos = np.full(mutant_fpv_vec.shape, -1, dtype=np.int32)
+    active_rows = mutant_fpv_vec >= 0
+    current_winner_pos[active_rows] = cand_to_winner_lut[mutant_fpv_vec[active_rows]]
+
+    needs_update = current_winner_pos >= 0
+
+    if not np.any(needs_update):
+        return (
+            mutant_winner_comb_vec,
+            mutant_winner_bitstring_vec,
+            mutant_fpv_vec,
+            mutant_bool_ballot_matrix,
+            mutant_pos_vec,
+        ), False
+
+    updated_comb, updated_bits = _vectorized_perm_updater(
+        mutant_winner_comb_vec[needs_update],
+        n_seats,
+        max_winner_transfers,
+        mutant_winner_bitstring_vec[needs_update],
+        current_winner_pos[needs_update],
+    )
+    mutant_winner_comb_vec[needs_update] = updated_comb
+    mutant_winner_bitstring_vec[needs_update] = updated_bits
+
+    mutant_bool_ballot_matrix[needs_update, mutant_pos_vec[needs_update]] = False
+
+    mutant_pos_vec[needs_update] = mutant_bool_ballot_matrix[needs_update].argmax(axis=1)
+
+    mutant_fpv_vec[needs_update] = ballot_matrix[
+        needs_update,
+        mutant_pos_vec[needs_update],
+    ]
+
+    return (
+        mutant_winner_comb_vec,
+        mutant_winner_bitstring_vec,
+        mutant_fpv_vec,
+        mutant_bool_ballot_matrix,
+        mutant_pos_vec,
+    ), True
+
+
 def _vectorized_perm_updater(
-    winner_comb_vec: NDArray, m: int, L: int, winner_bitsring_vec: NDArray, winner_vec: NDArray
+    winner_comb_vec: NDArray, m: int, L: int, winner_bitstring_vec: NDArray, winner_vec: NDArray
 ):
     """
     Vectorized updater for a winner combination vec when new winners are added in each position.
@@ -754,12 +868,12 @@ def _vectorized_perm_updater(
         winner_comb_vec: (NDArray) the previous winner combination indices in need of update.
         m: (int) the number of candidates.
         L: (int) the maximum ranking length.
-        winner_bitsring_vec: (NDArray) the previous winner bitstring for each ballot,
+        winner_bitstring_vec: (NDArray) the previous winner bitstring for each ballot,
         winner_vec: (NDArray) the new winners to be added for each permutation.
     """
     winner_mask_array = np.left_shift(1, winner_vec.astype(np.int64)) - 1
-    truncated_winner_mask_array = np.bitwise_and(winner_mask_array, winner_bitsring_vec)
-    no_update_needed = np.bitwise_and(winner_mask_array + 1, winner_bitsring_vec) != 0
+    truncated_winner_mask_array = np.bitwise_and(winner_mask_array, winner_bitstring_vec)
+    no_update_needed = np.bitwise_and(winner_mask_array + 1, winner_bitstring_vec) != 0
     update_needed = ~no_update_needed
     if np.any(no_update_needed):
         raise ValueError(
@@ -767,11 +881,11 @@ def _vectorized_perm_updater(
             "already present in some winner combinations."
         )
     sections = build_section_list(m, L)
-    L_vec = np.bitwise_count(winner_bitsring_vec[update_needed])
+    L_vec = np.bitwise_count(winner_bitstring_vec[update_needed])
     section_vec = np.array(sections)[L_vec + 1]
     shift_vec = np.bitwise_count(truncated_winner_mask_array[update_needed])
     return winner_comb_vec + section_vec * (winner_vec - shift_vec) + 1, np.bitwise_or(
-        winner_bitsring_vec, winner_mask_array + 1
+        winner_bitstring_vec, winner_mask_array + 1
     )
 
 
