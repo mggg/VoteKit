@@ -13,7 +13,7 @@ from .random_dictator import RandomDictator
 from .ranked_pairs import RankedPairs
 from .schulze import Schulze
 from .simultaneous_veto import SimultaneousVeto
-from .stv import IRV, STV, FastSTV, SequentialRCV
+from .stv import IRV, STV, FastSTV, MeekSTV, SequentialRCV
 from .top_two import TopTwo
 
 __all__ = [
@@ -36,6 +36,7 @@ __all__ = [
     "BoostedRandomDictator",
     "RankedPairs",
     "Schulze",
+    "MeekSTV",
 ]
 
 # Patch __module__ on every exported symbol so that Sphinx autodoc displays

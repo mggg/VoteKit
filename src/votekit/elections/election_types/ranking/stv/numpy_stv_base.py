@@ -166,12 +166,12 @@ class NumpySTVBase(ABC):
 
         mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
 
-        # Add padding. A lot of the election logic needs at least one entry in each row of the
-        # ballot matrix to be negative.
-        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are
-        # set to 0 only when candidates are eliminated/elected.
-        # We use an argmax on the bool_ballot_matrix to find the next preference for each
-        # ballot, which relies on having at least one entry in each row be 0.
+        # Add padding -- a lot of the election logic needs at least one entry of
+        # each row of the ballot matrix to be negative.
+        # Specifically, the bool_ballot_matrix is initialized as all 1s, and its entries are set
+        # to 0 only when candidates are eliminated/elected.
+        # We use an argmax on the bool_ballot_matrix to find the next preference for each ballot,
+        # which relies on having at least one entry in each row be 0.
         ballot_matrix: NDArray = np.full(
             (num_rows, num_cols + 1),
             NumpySTVSentinel.BLANK_RANKING.value,
@@ -249,12 +249,8 @@ class NumpySTVBase(ABC):
 
     @abstractmethod
     def _run_election(
-        self, data: NumpyElectionDataTracker
-    ) -> tuple[
-        list[NDArray],
-        list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ]:
+        self, mutable_data_tracker: NumpyElectionDataTracker
+    ) -> NumpyElectionDataTracker:
         """
         Core election logic to be implemented by child classes.
 
@@ -263,15 +259,12 @@ class NumpySTVBase(ABC):
         in the `extras` field of the data tracker if needed.
 
         Args:
-            data (NumpyElectionDataTracker): The initialized data tracker with the profile
-                converted to numpy arrays.
+            mutable_data_tracker (NumpyElectionDataTracker): The initialized data tracker with
+                the profile converted to numpy arrays.
 
         Returns:
-            fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the
-                actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                List of dictionaries representing tiebreak resolutions for each round.
+            mutable_data_tracker (NumpyElectionDataTracker): The updated data tracker with
+                election results.
         """
         pass
 
@@ -279,10 +272,7 @@ class NumpySTVBase(ABC):
         """
         Run the election core logic and store results on the data tracker.
         """
-        fpv_by_round, play_by_play, tiebreak_record = self._run_election(self._data)
-        self._data.fpv_by_round = fpv_by_round
-        self._data.play_by_play = play_by_play
-        self._data.tiebreak_record = tiebreak_record
+        self._data = self._run_election(self._data)
         self.election_states = self._make_election_states()
 
     # ==================
