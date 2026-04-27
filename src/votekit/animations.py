@@ -242,6 +242,10 @@ class STVAnimation:
         color_palette (ColorPalette, optional): A color palette to use for the animation.
             Defaults to `DARK_PALETTE`.
         font (str): The name of a font that the user prefers to use if available.
+        delay_mult (float): A multiplier for the delay times between animations.
+            Lower numbers mean shorter delays. Defaults to 1.
+        animation_duration (float): The time in seconds that each animation step should take.
+            Defaults to 1.0.
 
 
     Attributes:
@@ -255,6 +259,9 @@ class STVAnimation:
             name to a dictionary recording that candidate's support, display name, and color.
         events (List[_AnimationEvent]): A list of animation events in order of occurrence.
         font (str): The name of a font that the user prefers to use if available.
+        delay_mult (float): A multiplier for the delay times between animations.
+            Lower numbers mean shorter delays.
+        animation_duration (float): The time in seconds that each animation step should take.
 
     Raises:
         TypeError: ``focus`` was not a set, list, or recognized string literal.
@@ -271,6 +278,8 @@ class STVAnimation:
         candidate_colors: Optional[Mapping[str, ParsableManimColor]] = None,
         color_palette: ColorPalette = DARK_PALETTE,
         font: str = "",
+        delay_mult: float = 1.0,
+        animation_duration: float = 1.0,
     ):
         if nicknames is None:
             nicknames = {}
@@ -342,6 +351,8 @@ class STVAnimation:
         self.title = title
         self._video_path: Optional[Path] = None
         self.font = font
+        self.delay_mult = delay_mult
+        self.animation_duration = animation_duration
 
     def _make_candidate_dict(
         self, election: STV, candidate_colors: Mapping[str, ParsableManimColor]
@@ -634,6 +645,8 @@ class STVAnimation:
                 title=self.title,
                 color_palette=self.color_palette,
                 font=self.font,
+                delay_mult=self.delay_mult,
+                animation_duration=self.animation_duration,
             )
             manimation.render(preview=preview and not in_notebook)
 
@@ -681,6 +694,10 @@ class ElectionScene(manim.Scene):
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
             Defaults to `DARK_PALETTE`.
         font (str): The name of a font that the user prefers to use if available.
+        delay_mult (float): A multiplier for the delay times between animations.
+            Lower numbers mean shorter delays.
+        animation_duration (float): The time in seconds that each animation step should take.
+            Defaults to 1.0.
 
     """
 
@@ -691,6 +708,8 @@ class ElectionScene(manim.Scene):
         title: Optional[str] = None,
         color_palette: ColorPalette = DARK_PALETTE,
         font: str = "",
+        delay_mult: float = 1.0,
+        animation_duration: float = 1.0,
     ):
         super().__init__()
         self.candidate_dict = candidate_dict
@@ -717,6 +736,8 @@ class ElectionScene(manim.Scene):
         self.ticker_tape_line = None
         self.ticker_tape: List[Text] = []
         self.font = self._determine_font(font)
+        self.delay_mult = delay_mult
+        self.animation_duration = animation_duration
 
     def _determine_font(self, preferred_font: str) -> str:
         """
@@ -795,7 +816,8 @@ class ElectionScene(manim.Scene):
 
         # Animate each event in turn
         for event_number, event in enumerate(self.events):
-            self.wait(2)
+            if self.delay_mult > 0:
+                self.wait(2 * self.delay_mult)
             # Draw or move the quota line
             self._update_quota_line(event.quota)
 
@@ -841,9 +863,9 @@ class ElectionScene(manim.Scene):
         if text.height > max_height:
             text.scale_to_fit_height(max_height)
 
-        self.play(FadeIn(text))
+        self.play(FadeIn(text), run_time=self.animation_duration)
         self.wait(3)
-        self.play(FadeOut(text))
+        self.play(FadeOut(text), run_time=self.animation_duration)
 
     def _draw_initial_bars(self) -> None:
         """
@@ -913,8 +935,12 @@ class ElectionScene(manim.Scene):
         self.play(
             *[FadeIn(self.candidate_dict[name]["name_text"]) for name in sorted_candidates],
             FadeIn(background),
+            run_time=self.animation_duration,
         )
-        self.play(*[Create(self.candidate_dict[name]["bars"][0]) for name in sorted_candidates])
+        self.play(
+            *[Create(self.candidate_dict[name]["bars"][0]) for name in sorted_candidates],
+            run_time=self.animation_duration,
+        )
 
     def _initialize_ticker_tape(self) -> None:
         """
@@ -945,8 +971,10 @@ class ElectionScene(manim.Scene):
             new_message.set_z_index(_ZIndex.TICKER_MESSAGE)
             self.ticker_tape.append(new_message)
 
-        self.play(Create(ticker_line))
-        self.play(*[Create(message) for message in self.ticker_tape])
+        self.play(Create(ticker_line), run_time=self.animation_duration)
+        self.play(
+            *[Create(message) for message in self.ticker_tape], run_time=self.animation_duration
+        )
 
     def _ticker_animation_shift(self, event_number: int) -> None:
         """
@@ -965,7 +993,7 @@ class ElectionScene(manim.Scene):
             for i in range(len(self.ticker_tape))
             if i != event_number
         ]
-        self.play(shift_to_event, *drag_other_messages)
+        self.play(shift_to_event, *drag_other_messages, run_time=self.animation_duration)
 
     def _ticker_animation_highlight(self, event_number: int) -> None:
         """
@@ -982,7 +1010,7 @@ class ElectionScene(manim.Scene):
             for i in range(len(self.ticker_tape))
             if i != event_number
         ]
-        self.play(highlight_message, *unhighlight_other_messages)
+        self.play(highlight_message, *unhighlight_other_messages, run_time=self.animation_duration)
 
     def _update_quota_line(self, quota: float) -> None:
         """
@@ -1011,13 +1039,15 @@ class ElectionScene(manim.Scene):
             self.quota_line.shift((self.width * quota / self.max_support) * RIGHT)
             self.quota_line.set_z_index(_ZIndex.QUOTA_LINE)
 
-            self.play(Create(self.quota_line))
-            self.wait(2)
+            self.play(Create(self.quota_line), run_time=self.animation_duration)
+            if self.delay_mult > 0:
+                self.wait(2 * self.delay_mult)
         else:
             self.play(
                 self.quota_line.animate.align_to(some_candidate["bars"][0], LEFT).shift(
                     (self.width * quota / self.max_support) * RIGHT
-                )
+                ),
+                run_time=self.animation_duration,
             )
 
     def _animate_win(self, cands_transferred_from: dict[str, dict], event: _WinEvent) -> None:
@@ -1041,7 +1071,7 @@ class ElectionScene(manim.Scene):
         ]
 
         # Animate the box around the candidate name and the message text
-        self.play(*[Create(box) for box in winner_boxes])
+        self.play(*[Create(box) for box in winner_boxes], run_time=self.animation_duration)
 
         # Create and animate the subdivision and redistribution of winners' leftover votes
         for (
@@ -1128,12 +1158,13 @@ class ElectionScene(manim.Scene):
                 FadeIn(winner_bar),
                 *[FadeIn(bar) for bar in new_bars],
                 FadeIn(exhausted_bar),
+                run_time=self.animation_duration,
             )
 
             # Animate moving the sub-bars to the destination bars,
             # and the destruction of the exhausted votes
             if len(transformations) > 0:
-                self.play(*transformations)
+                self.play(*transformations, run_time=self.animation_duration)
 
     def _animate_elimination(
         self, cands_transferred_from: dict[str, dict], event: _EliminationEvent
@@ -1174,7 +1205,7 @@ class ElectionScene(manim.Scene):
             color=ManimColor(self.color_palette.elimination_line),
         )
         cross.set_stroke(width=self.strikethrough_thickness)
-        self.play(Create(cross))
+        self.play(Create(cross), run_time=self.animation_duration)
 
         # Create short bars that will replace the candidate's current bars
         candidate_color = cand_transferred_from["color"]
@@ -1222,9 +1253,10 @@ class ElectionScene(manim.Scene):
             *[bar.animate.set_opacity(self.ghost_opacity) for bar in old_bars],
             *[FadeIn(bar) for bar in new_bars],
             FadeIn(exhausted_bar),
+            run_time=self.animation_duration,
         )
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
-        self.play(Uncreate(exhausted_bar), *transformations)
+        self.play(Uncreate(exhausted_bar), *transformations, run_time=self.animation_duration)
 
     def _animate_elimination_offscreen(self, event: _EliminationOffscreenEvent) -> None:
         """
@@ -1262,7 +1294,7 @@ class ElectionScene(manim.Scene):
 
         # Animate the exhaustion of votes and moving the sub-bars to the destination bars
         if len(transformations) > 0:
-            self.play(*transformations)
+            self.play(*transformations, run_time=self.animation_duration)
 
     def _support_to_bar_width(self, support: float) -> float:
         """
