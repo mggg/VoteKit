@@ -275,6 +275,8 @@ def test_stv_animation_video_snapshots_multi(election_multi: STV, tmp_path: Path
             "color_palette": LIGHT_PALETTE,
             "candidate_colors": candidate_colors,
             "font": "Noto Serif",
+            "delay_mult": 1.3,
+            "animation_duration": 1.3,
         },
     )
 
