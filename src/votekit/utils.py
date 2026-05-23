@@ -368,8 +368,48 @@ def first_place_votes(
         profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
     )
 
+def mentions(profile: RankProfile) -> dict[str, float]:
+    """
+    Calculates total mentions for all candidates in a ``RankProfile``.
 
-def mentions(
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[str, float]:
+            Dictionary mapping candidates to mention totals (values).
+    """
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be of type RankProfile.")
+
+    assert profile.max_ranking_length is not None
+
+    ranking_cols = [
+        f"Ranking_{i}"
+        for i in range(1, profile.max_ranking_length + 1)
+    ]
+
+    rank_sets = profile.df[ranking_cols].stack()
+
+    tilde = frozenset({"~"})
+    rank_sets = rank_sets[
+        rank_sets.map(lambda s: bool(s) and s != tilde)
+    ]
+
+    exploded = rank_sets.explode()
+
+    weights = profile.df["Weight"].reindex(
+        exploded.index.get_level_values(0)
+    )
+
+    totals = weights.groupby(exploded).sum()
+
+    return {
+        c: float(totals.get(c, 0.0))
+        for c in profile.candidates
+    }
+
+def old_mentions(
     profile: RankProfile,
 ) -> dict[str, float]:
     """
