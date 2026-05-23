@@ -1,7 +1,7 @@
 import math
 import random
 from itertools import permutations
-from typing import Any, Literal, Optional, Sequence, Union, cast
+from typing import Literal, Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
