@@ -405,23 +405,18 @@ def _ballots_are_materialized(profile: RankProfile) -> bool:
 def _mentions_from_df(profile: RankProfile) -> dict[str, float]:
     assert profile.max_ranking_length is not None
 
-    ranking_cols = [
-        f"Ranking_{i}"
-        for i in range(1, profile.max_ranking_length + 1)
-    ]
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     tilde = frozenset({"~"})
 
     rank_sets = cast(
-        pd.Series[Any],
+        pd.Series,
         profile.df[ranking_cols].stack(),
     )
 
     mask = cast(
-        pd.Series[Any],
-        rank_sets.map(
-            lambda s: isinstance(s, frozenset) and bool(s) and s != tilde
-        ),
+        pd.Series,
+        rank_sets.map(lambda s: isinstance(s, frozenset) and bool(s) and s != tilde),
     )
 
     rank_sets = rank_sets[mask]
@@ -431,24 +426,17 @@ def _mentions_from_df(profile: RankProfile) -> dict[str, float]:
     if exploded.empty:
         return {c: 0.0 for c in profile.candidates}
 
-    weights = (
-        profile.df["Weight"]
-        .reindex(exploded.index.get_level_values(0))
-        .to_numpy()
-    )
+    weights = profile.df["Weight"].reindex(exploded.index.get_level_values(0)).to_numpy()
 
     totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
 
-    return {
-        c: totals.get(c, 0.0)
-        for c in profile.candidates
-    }
+    return {c: totals.get(c, 0.0) for c in profile.candidates}
 
 
 def fast_mentions(profile: RankProfile) -> dict[str, float]:
     """
-    Decides which way to compute mentions based on whether ballots are materialized in the profile. 
-    If they are, uses the traditional mentions calculation. 
+    Decides which way to compute mentions based on whether ballots are materialized in the profile.
+    If they are, uses the traditional mentions calculation.
     If not, uses a faster pandas-based approach.
 
     Args:
