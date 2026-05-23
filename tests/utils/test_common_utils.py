@@ -1,4 +1,5 @@
 from itertools import permutations
+from pathlib import Path
 from typing import Literal, cast
 
 import pytest
@@ -13,6 +14,7 @@ from votekit.utils import (
     borda_scores,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
+    fast_mentions,
     first_place_votes,
     index_to_lexicographic_ballot,
     mentions,
@@ -25,6 +27,8 @@ from votekit.utils import (
     tiebroken_ranking,
     validate_score_vector,
 )
+
+CSV_DIR = Path(__file__).resolve().parents[0] / "data" / "csv"
 
 profile_no_ties = RankProfile(
     ballots=(
@@ -39,6 +43,14 @@ profile_with_ties = RankProfile(
         RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}])), weight=1),
         RankBallot(ranking=tuple(map(frozenset, [{"A", "B", "C"}])), weight=1 / 2),
         RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
+    )
+)
+
+profile_with_duplicates = RankProfile(
+    ballots=(
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"B"}])), weight=1),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
+        RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"B"}, {"B"}])), weight=3),
     )
 )
 
@@ -253,9 +265,55 @@ def test_mentions():
     assert isinstance(test["A"], float)
 
 
+def test_mentions_with_ties():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = mentions(profile_with_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_mentions_with_duplicates():
+    correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
+    test = mentions(profile_with_duplicates)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_fast_mentions():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = fast_mentions(profile_no_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_fast_mentions_with_ties():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = fast_mentions(profile_with_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_fast_mentions_with_duplicates():
+    correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
+    test = fast_mentions(profile_with_duplicates)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+@pytest.mark.slow
+def test_fast_and_slow_mentions_are_same():
+    profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
+    assert mentions(profile) == fast_mentions(profile)
+
+
 def test_mentions_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
+
+
+def test_fast_mentions_errors():
+    with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
+        fast_mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
 def test_borda_no_ties():

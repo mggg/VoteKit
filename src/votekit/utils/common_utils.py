@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import random
 import warnings
+from fractions import Fraction
 from itertools import permutations
 from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
 
@@ -387,9 +388,71 @@ def first_place_votes(
         profile, [1] + [0] * (profile.max_ranking_length - 1), tie_convention
     )
 
-def mentions(profile: RankProfile) -> dict[str, float]:
+
+def _ballots_are_materialized(profile: RankProfile) -> bool:
     """
-    Calculates total mentions for all candidates in a ``RankProfile``.
+    Checks if the ballots are materialized in a ``RankProfile``.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        bool:
+            True if ballots are materialized, False otherwise.
+    """
+    return "ballots" in profile.__dict__
+
+
+def _mentions_from_df(profile: RankProfile) -> dict[str, Fraction]:
+    """
+    Faster pandas-based mentions calculator for RankProfiles where ballots are not materialized.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[str, float]:
+            Dictionary mapping candidates to mention totals (values).
+    """
+    assert profile.max_ranking_length is not None
+
+    ranking_cols = [
+        f"Ranking_{i}"
+        for i in range(1, profile.max_ranking_length + 1)
+    ]
+
+    tilde = frozenset({"~"})
+
+    rank_sets = profile.df[ranking_cols].stack()
+
+    rank_sets = rank_sets[
+        rank_sets.map(
+            lambda s: isinstance(s, frozenset) and bool(s) and s != tilde
+        )
+    ]
+
+    exploded = rank_sets.explode()
+
+    if exploded.empty:
+        return {c: Fraction(0) for c in profile.candidates}
+
+    weights = profile.df["Weight"].reindex(
+        exploded.index.get_level_values(0)
+    ).to_numpy()
+
+    totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
+
+    return {
+        c: totals.get(c, Fraction(0))
+        for c in profile.candidates
+    }
+
+
+def fast_mentions(profile: RankProfile) -> dict[str, Fraction]:
+    """
+    Decides which way to compute mentions based on whether ballots are materialized in the profile. 
+    If they are, uses the traditional mentions calculation. 
+    If not, uses a faster pandas-based approach.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
@@ -401,34 +464,13 @@ def mentions(profile: RankProfile) -> dict[str, float]:
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
 
-    assert profile.max_ranking_length is not None
+    if _ballots_are_materialized(profile):
+        return mentions(profile)
 
-    ranking_cols = [
-        f"Ranking_{i}"
-        for i in range(1, profile.max_ranking_length + 1)
-    ]
+    return _mentions_from_df(profile)
 
-    rank_sets = profile.df[ranking_cols].stack()
 
-    tilde = frozenset({"~"})
-    rank_sets = rank_sets[
-        rank_sets.map(lambda s: bool(s) and s != tilde)
-    ]
-
-    exploded = rank_sets.explode()
-
-    weights = profile.df["Weight"].reindex(
-        exploded.index.get_level_values(0)
-    )
-
-    totals = weights.groupby(exploded).sum()
-
-    return {
-        c: float(totals.get(c, 0.0))
-        for c in profile.candidates
-    }
-
-def old_mentions(
+def mentions(
     profile: RankProfile,
 ) -> dict[Candidate, float]:
     """
