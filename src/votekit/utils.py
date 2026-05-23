@@ -1,9 +1,8 @@
 import math
 import random
-from fractions import Fraction
 from itertools import permutations
 from typing import Literal, Optional, Sequence, Union
-
+from typing import Any, cast
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
@@ -384,17 +383,7 @@ def _ballots_are_materialized(profile: RankProfile) -> bool:
     return "ballots" in profile.__dict__
 
 
-def _mentions_from_df(profile: RankProfile) -> dict[str, Fraction]:
-    """
-    Faster pandas-based mentions calculator for RankProfiles where ballots are not materialized.
-
-    Args:
-        profile (RankProfile): RankProfile of ballots.
-
-    Returns:
-        dict[str, float]:
-            Dictionary mapping candidates to mention totals (values).
-    """
+def _mentions_from_df(profile: RankProfile) -> dict[str, float]:
     assert profile.max_ranking_length is not None
 
     ranking_cols = [
@@ -404,32 +393,40 @@ def _mentions_from_df(profile: RankProfile) -> dict[str, Fraction]:
 
     tilde = frozenset({"~"})
 
-    rank_sets = profile.df[ranking_cols].stack()
+    rank_sets = cast(
+        pd.Series[Any],
+        profile.df[ranking_cols].stack(),
+    )
 
-    rank_sets = rank_sets[
+    mask = cast(
+        pd.Series[Any],
         rank_sets.map(
             lambda s: isinstance(s, frozenset) and bool(s) and s != tilde
-        )
-    ]
+        ),
+    )
+
+    rank_sets = rank_sets[mask]
 
     exploded = rank_sets.explode()
 
     if exploded.empty:
-        return {c: Fraction(0) for c in profile.candidates}
+        return {c: 0.0 for c in profile.candidates}
 
-    weights = profile.df["Weight"].reindex(
-        exploded.index.get_level_values(0)
-    ).to_numpy()
+    weights = (
+        profile.df["Weight"]
+        .reindex(exploded.index.get_level_values(0))
+        .to_numpy()
+    )
 
     totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
 
     return {
-        c: totals.get(c, Fraction(0))
+        c: totals.get(c, 0.0)
         for c in profile.candidates
     }
 
 
-def fast_mentions(profile: RankProfile) -> dict[str, Fraction]:
+def fast_mentions(profile: RankProfile) -> dict[str, float]:
     """
     Decides which way to compute mentions based on whether ballots are materialized in the profile. 
     If they are, uses the traditional mentions calculation. 

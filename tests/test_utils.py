@@ -300,7 +300,7 @@ def test_fast_mentions_with_duplicates():
 
 @pytest.mark.slow
 def test_fast_and_slow_mentions_are_same():
-    profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
+    profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
     assert mentions(profile) == fast_mentions(profile)
 
 
