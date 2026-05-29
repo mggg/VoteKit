@@ -148,3 +148,8 @@ def test_rank_sub_ballot():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         RankBallot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_ballot_str_elements():
+    b = RankBallot(ranking=["A", "B", {"C"}], weight=1, voter_set={"A"})
+    assert b.ranking == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))

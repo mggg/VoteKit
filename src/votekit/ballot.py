@@ -4,7 +4,7 @@ from numbers import Real
 from typing import Iterable, Optional, Sequence, TypeAlias, Union, overload
 
 Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
-RankingLike: TypeAlias = Optional[Sequence[Iterable[str]]]
+RankingLike: TypeAlias = Optional[Sequence[str | Iterable[str]]]
 
 
 class Ballot:
@@ -49,7 +49,7 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Sequence[Iterable[str]],
+        ranking: Sequence[str | Iterable[str]],
         scores: None = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -69,7 +69,7 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[Iterable[str]]] = None,
+        ranking: Optional[Sequence[str | Iterable[str]]] = None,
         scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -78,7 +78,7 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[Iterable[str]]] = None,
+        ranking: Optional[Sequence[str | Iterable[str]]] = None,
         scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -95,7 +95,7 @@ class Ballot:
     def __init__(
         self,
         *,
-        ranking: Optional[Sequence[Iterable[str]]] = None,
+        ranking: Optional[Sequence[str | Iterable[str]]] = None,
         scores: Optional[dict[str, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -176,11 +176,23 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
+        ranking = self._normalize_and_strip_whitespace_ranking_candidates(ranking)
         self._validate_ranking_candidates(ranking)
-        self.ranking = self._strip_whitespace_ranking_candidates(ranking)
+        self.ranking = ranking
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _validate_ranking_candidates(self, ranking: RankingLike):
+    def _normalize_and_strip_whitespace_ranking_candidates(self, ranking: RankingLike) -> Ranking:
+        if ranking is None:
+            return None
+        normalized_ranking = []
+        for cand_set in ranking:
+            if isinstance(cand_set, str):
+                normalized_ranking.append(frozenset({cand_set.strip()}))
+            else:
+                normalized_ranking.append(frozenset(c.strip() for c in cand_set))
+        return tuple(normalized_ranking)
+
+    def _validate_ranking_candidates(self, ranking: Ranking):
         if ranking is None:
             return
         if any(c == "~" for cand_set in ranking for c in cand_set):
@@ -189,12 +201,6 @@ class RankBallot(Ballot):
                 " '~' is a reserved character and cannot be used for"
                 " candidate names."
             )
-
-    def _strip_whitespace_ranking_candidates(self, ranking: RankingLike) -> Ranking:
-        if ranking is None:
-            return None
-
-        return tuple([frozenset(c.strip() for c in cand_set) for cand_set in ranking])
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
