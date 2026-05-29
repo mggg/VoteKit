@@ -427,3 +427,35 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         df=new_df,
         candidates=rank_profile.candidates,
     )
+
+
+def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile | ScoreProfile:
+    """
+    Combines multiple PreferenceProfiles by combining their ball lists.
+
+    Args:
+        profiles (Sequence[PreferenceProfile]): The profiles to sum.
+
+    Returns:
+        PreferenceProfile: The combined preference profile.
+
+    Raises:
+        ValueError: Cannot sum an empty list of profiles.
+        TypeError: All profiles must be of the same type.
+    """
+
+    if len(profiles) == 0:
+        raise ValueError("Cannot sum an empty list of profiles.")
+
+    if len(profiles) == 1:
+        return profiles[0]
+
+    first_type = type(profiles[0])
+    if not all(isinstance(profile, first_type) for profile in profiles):
+        raise TypeError("All profiles must be of same type.")
+
+    combined_profiles = profiles[0]
+    for profile in profiles[1:]:
+        combined_profiles = combined_profiles + profile
+
+    return combined_profiles
