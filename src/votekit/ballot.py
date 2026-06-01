@@ -176,12 +176,12 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        ranking = self._normalize_and_strip_whitespace_ranking_candidates(ranking)
+        ranking = self._convert_ranking_candidates_to_str_strip_whitespace(ranking)
         self._validate_ranking_candidates(ranking)
         self.ranking = ranking
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _normalize_and_strip_whitespace_ranking_candidates(self, ranking: RankingLike) -> Ranking:
+    def _convert_ranking_candidates_to_str_strip_whitespace(self, ranking: RankingLike) -> Ranking:
         if ranking is None:
             return None
         normalized_ranking = []
