@@ -12,7 +12,7 @@ class Ballot:
     Ballot parent class, contains voter set and assigned weight.
 
     Args:
-        ranking (Optional[Sequence[Iterable[str]]]): Candidate ranking. Entry i of the
+        ranking (Optional[Sequence[str | Iterable[str]]]): Candidate ranking. Entry i of the
             sequence is an iterable of candidates ranked in position i. Defaults to None.
             Will be coerced to tuple[frozenset[str], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
