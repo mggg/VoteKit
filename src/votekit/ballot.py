@@ -12,9 +12,9 @@ class Ballot:
     Ballot parent class, contains voter set and assigned weight.
 
     Args:
-        ranking (Optional[Sequence[str | Iterable[str]]]): Candidate ranking. Entry i of the
-            sequence is an iterable of candidates ranked in position i. Defaults to None.
-            Will be coerced to tuple[frozenset[str], ...].
+        ranking (Optional[Sequence[str | Iterable[str]]]): Candidate ranking.
+            Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
+            Defaults to None. Will be coerced to tuple[frozenset[str], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
             Can be input as int or float, and will be coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
@@ -188,8 +188,8 @@ class RankBallot(Ballot):
             return None
         if isinstance(ranking, str):
             raise TypeError(
-                f"Received ranking `{ranking}` of type {type(ranking).__name__}."
-                " If you intended this to be a bullet vote, then wrap it in a list."
+                f"Received ranking `{ranking}` of type {type(ranking).__name__}. "
+                "If you intended this to be a bullet vote, then wrap it in a list."
             )
 
         normalized_ranking = []

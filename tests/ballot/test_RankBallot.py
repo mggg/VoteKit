@@ -150,13 +150,35 @@ def test_rank_and_score():
         RankBallot(ranking=[{"A"}], scores={"A": 1})
 
 
-def test_str_ranking_raises_type_error():
+def test_single_char_str_ranking_raises_type_error():
     with pytest.raises(
         TypeError, match="If you intended this to be a bullet vote, then wrap it in a list."
     ):
         RankBallot(ranking="A")
 
 
+def test_mult_char_str_ranking_raises_type_error():
+    """
+    Regression test: Ties should be indicated by wrapping tied candidates in an iterable.
+    Previously, a string ranking would be accepted and split str elements into a tie.
+    This is not the intended behavior, and we want to raise a TypeError instead.
+    """
+    with pytest.raises(
+        TypeError, match="If you intended this to be a bullet vote, then wrap it in a list."
+    ):
+        RankBallot(ranking="AB")
+
+
 def test_str_singleton_ranking_elements():
-    b = RankBallot(ranking=["AB", "B", {"C"}], weight=1, voter_set={"A"})
-    assert b.ranking == (frozenset({"AB"}), frozenset({"B"}), frozenset({"C"}))
+    b = RankBallot(ranking=["A", "B", "C"], weight=1, voter_set={"A"})
+    assert b.ranking == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
+
+
+def test_mixed_str_and_iterable_ranking_elements():
+    b = RankBallot(ranking=["A", {"B", "C"}, "D", {"E"}], weight=1, voter_set={"A"})
+    assert b.ranking == (
+        frozenset({"A"}),
+        frozenset({"B", "C"}),
+        frozenset({"D"}),
+        frozenset({"E"}),
+    )
