@@ -150,6 +150,13 @@ def test_rank_and_score():
         RankBallot(ranking=[{"A"}], scores={"A": 1})
 
 
-def test_ballot_str_elements():
-    b = RankBallot(ranking=["A", "B", {"C"}], weight=1, voter_set={"A"})
-    assert b.ranking == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
+def test_str_ranking_raises_type_error():
+    with pytest.raises(
+        TypeError, match="If you intended this to be a bullet vote, then wrap it in a list."
+    ):
+        RankBallot(ranking="A")
+
+
+def test_str_singleton_ranking_elements():
+    b = RankBallot(ranking=["AB", "B", {"C"}], weight=1, voter_set={"A"})
+    assert b.ranking == (frozenset({"AB"}), frozenset({"B"}), frozenset({"C"}))

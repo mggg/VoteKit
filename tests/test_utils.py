@@ -70,13 +70,13 @@ class TestShortBallot:
             ValueError,
             match="number of candidates exceeds the length of the longest ranking.",
         ):
-            _ = RankProfile(ballots=(RankBallot(ranking=("AB",), weight=5),))
+            _ = RankProfile(ballots=(RankBallot(ranking=({"A", "B"},), weight=5),))
 
     def test_legal_short_profile(self):
         profile = RankProfile(
             ballots=(
                 RankBallot(
-                    ranking=("AB",),
+                    ranking=({"A", "B"},),
                     weight=5,
                 ),
             ),

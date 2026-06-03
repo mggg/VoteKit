@@ -176,14 +176,22 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        ranking = self._convert_ranking_candidates_to_str_strip_whitespace(ranking)
+        ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
         self._validate_ranking_candidates(ranking)
         self.ranking = ranking
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _convert_ranking_candidates_to_str_strip_whitespace(self, ranking: RankingLike) -> Ranking:
+    def _convert_ranking_candidates_to_frozenset_strip_whitespace(
+        self, ranking: RankingLike
+    ) -> Ranking:
         if ranking is None:
             return None
+        if isinstance(ranking, str):
+            raise TypeError(
+                f"Received ranking `{ranking}` of type {type(ranking).__name__}."
+                " If you intended this to be a bullet vote, then wrap it in a list."
+            )
+
         normalized_ranking = []
         for cand_set in ranking:
             if isinstance(cand_set, str):
