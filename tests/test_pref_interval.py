@@ -90,3 +90,24 @@ def test_combine():
     )
 
     assert combined_pi == true_result
+
+
+def test_sort_strengths_descending_from_dirchlet():
+    candidates = ["A", "B", "C"]
+    pi = PreferenceInterval.from_dirichlet(
+        candidates=candidates, alpha=1, sort_strengths_descending=True
+    )
+    sorted_candidates = sorted(pi.interval, key=lambda c: pi.interval[c], reverse=True)
+    assert sorted_candidates == candidates
+
+    pi = PreferenceInterval.from_dirichlet(
+        candidates=candidates, alpha=1, sort_strengths_descending=True
+    )
+    sorted_candidates = sorted(pi.interval, key=lambda c: pi.interval[c], reverse=True)
+    assert sorted_candidates == candidates
+
+    pi = PreferenceInterval.from_dirichlet(
+        candidates=candidates, alpha=1, sort_strengths_descending=True
+    )
+    sorted_candidates = sorted(pi.interval, key=lambda c: pi.interval[c], reverse=True)
+    assert sorted_candidates == candidates

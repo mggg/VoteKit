@@ -84,7 +84,12 @@ class PreferenceInterval:
 
     @classmethod
     def from_dirichlet(
-        cls, candidates: list[str], alpha: float, *, allow_zero_support: bool = False
+        cls,
+        candidates: list[str],
+        alpha: float,
+        *,
+        allow_zero_support: bool = False,
+        sort_strengths_descending: bool = False,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -96,6 +101,9 @@ class PreferenceInterval:
             alpha (float): Alpha parameter for Dirichlet distribution.
             allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
                 all candidates must have strictly positive support.
+            sort_strengths_descending (bool):
+                If True, the candidates are assigned their support values in descending order.
+                If False, the candidates are assigned support values in random order.
 
         Returns:
             PreferenceInterval
@@ -105,8 +113,14 @@ class PreferenceInterval:
         if not allow_zero_support:
             probs = [p + 10e-12 if p == 0 else p for p in probs]
 
+        pref_interval = (
+            {c: s for c, s in zip(candidates, sorted(probs, reverse=True))}
+            if sort_strengths_descending
+            else {c: s for c, s in zip(candidates, probs)}
+        )
+
         return cls(
-            {c: s for c, s in zip(candidates, probs)},
+            pref_interval,
             allow_zero_support=allow_zero_support,
         )
 
