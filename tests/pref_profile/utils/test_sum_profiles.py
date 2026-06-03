@@ -5,7 +5,7 @@ from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.utils import sum_profiles
 
 
-def test_sum_profiles_with_mixed_types():
+def test_sum_profiles_with_mixed_types_raises_type_error():
     score_profile = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 2}, weight=2),
@@ -32,7 +32,7 @@ def test_sum_profiles_with_mixed_types():
         sum_profiles([score_profile, score_profile, score_profile, rank_profile])
 
 
-def test_sum_empty_profile():
+def test_sum_empty_profile_raises_value_error():
     with pytest.raises(
         ValueError,
         match="Cannot sum an empty list of profiles",
@@ -40,7 +40,7 @@ def test_sum_empty_profile():
         sum_profiles([])
 
 
-def test_sum_one_profile():
+def test_sum_one_profile_returns_same_profile():
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 2}, weight=2),
@@ -52,6 +52,46 @@ def test_sum_one_profile():
     )
     summed_profile = sum_profiles([profile])
     assert summed_profile == profile
+
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+            RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
+            RankBallot(),
+            RankBallot(weight=0),
+        ],
+        candidates=["A", "B", "C", "D"],
+        max_ranking_length=3,
+    )
+    summed_profile = sum_profiles([profile])
+    assert summed_profile == profile
+
+
+def test_sum_one_profile_no_list_raises_type_error():
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 2, "B": 2}, weight=2),
+            ScoreBallot(scores={"A": 2, "C": 2}, voter_set={"Chris"}),
+            ScoreBallot(),
+            ScoreBallot(weight=0),
+        ],
+        candidates=["A", "B", "C", "D"],
+    )
+    with pytest.raises(TypeError, match="has no len()"):
+        sum_profiles(profile)  # type: ignore[arg-type]
+
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+            RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
+            RankBallot(),
+            RankBallot(weight=0),
+        ],
+        candidates=["A", "B", "C", "D"],
+        max_ranking_length=3,
+    )
+    with pytest.raises(TypeError, match="has no len()"):
+        sum_profiles(profile)  # type: ignore[arg-type]
 
 
 def test_sum_score_profiles():

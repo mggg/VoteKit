@@ -429,6 +429,76 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     )
 
 
+def _sum_rank_profiles(rank_profiles: Sequence[RankProfile]) -> RankProfile:
+    """
+    Helper function for sum_profiles that sums RankProfiles.
+
+    Args:
+        rank_profiles (Sequence[RankProfile]): The RankProfiles to sum.
+    """
+
+    from votekit.pref_profile.pref_profile import RankProfile
+
+    candidates = list(set().union(*[set(profile.candidates) for profile in rank_profiles]))
+    max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
+
+    total_dfs = []
+    for p in rank_profiles:
+        curr_df = p.df.copy()
+        if p.max_ranking_length < max_ranking_length:
+            for i in range(p.max_ranking_length, max_ranking_length):
+                curr_df.insert(
+                    len(curr_df.columns),
+                    f"Ranking_{i + 1}",
+                    pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
+                )
+        total_dfs.append(curr_df)
+
+    new_df = pd.concat(total_dfs, ignore_index=True)
+    new_df.index.name = "Ballot Index"
+    ranking_cols = [c for c in new_df.columns if "Ranking_" in c]
+    new_df[ranking_cols] = new_df[ranking_cols].astype("object")
+    new_df = new_df[
+        [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
+    ]
+
+    return RankProfile(
+        candidates=candidates,
+        df=new_df,
+        max_ranking_length=max_ranking_length,
+    )
+
+
+def _sum_score_profiles(score_profiles: Sequence[ScoreProfile]) -> ScoreProfile:
+    """
+    Helper function for sum_profiles that sums ScoreProfiles.
+
+    Args:
+        score_profiles (Sequence[ScoreProfile]): The ScoreProfiles to sum.
+    """
+
+    from votekit.pref_profile.pref_profile import ScoreProfile
+
+    total_cand = set().union(*[set(profile.candidates) for profile in score_profiles])
+    total_dfs = []
+    for p in score_profiles:
+        curr_df = p.df.copy()
+        curr_cand = set(p.candidates)
+        for cand in total_cand - curr_cand:
+            curr_df[cand] = [np.nan] * len(curr_df)
+        total_dfs.append(curr_df)
+
+    new_df = pd.concat(total_dfs, ignore_index=True)
+    new_df.index.name = "Ballot Index"
+    new_candidates = sorted(total_cand)
+    new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
+
+    return ScoreProfile(
+        candidates=new_candidates,
+        df=new_df,
+    )
+
+
 def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile | ScoreProfile:
     """
     Combines multiple PreferenceProfiles by combining their ball lists.
@@ -444,6 +514,8 @@ def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile 
         TypeError: All profiles must be of the same type.
     """
 
+    from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
+
     if len(profiles) == 0:
         raise ValueError("Cannot sum an empty list of profiles.")
 
@@ -454,8 +526,8 @@ def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile 
     if not all(isinstance(profile, first_type) for profile in profiles):
         raise TypeError("All profiles must be of same type.")
 
-    combined_profiles = profiles[0]
-    for profile in profiles[1:]:
-        combined_profiles = combined_profiles + profile
+    if isinstance(profiles[0], RankProfile):
+        return _sum_rank_profiles(profiles)  # type: ignore[arg-type]
 
-    return combined_profiles
+    if isinstance(profiles[0], ScoreProfile):
+        return _sum_score_profiles(profiles)  # type: ignore[arg-type]
