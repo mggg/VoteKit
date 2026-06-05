@@ -429,15 +429,33 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     )
 
 
-def _sum_rank_profiles(rank_profiles: Sequence[RankProfile]) -> RankProfile:
+def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfile:
     """
     Helper function for sum_profiles that sums RankProfiles.
 
     Args:
-        rank_profiles (Sequence[RankProfile]): The RankProfiles to sum.
+        rank_profiles (Sequence[PreferenceProfile]): List of profiles to sum.
+
+    Raises:
+        TypeError: Each profile must be of RankProfile type
     """
 
     from votekit.pref_profile.pref_profile import RankProfile
+
+    if len(rank_profiles) == 1 and isinstance(rank_profiles[0], RankProfile):
+        return rank_profiles[0].copy()
+
+    if not (all(isinstance(p, RankProfile) for p in rank_profiles)):
+        invalid_profiles = [
+            (i, type(p).__name__)
+            for i, p in enumerate(rank_profiles)
+            if not isinstance(p, RankProfile)
+        ]
+        invalid_profiles_str = ", ".join(f"index {i} ({t})" for i, t in invalid_profiles)
+        raise TypeError(
+            "All profiles must be of the same type, RankProfile. "
+            f"non-RankProfiles found at: {invalid_profiles_str}"
+        )
 
     candidates = list(set().union(*[set(profile.candidates) for profile in rank_profiles]))
     max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
@@ -445,6 +463,7 @@ def _sum_rank_profiles(rank_profiles: Sequence[RankProfile]) -> RankProfile:
     total_dfs = []
     for p in rank_profiles:
         curr_df = p.df.copy()
+        assert p.max_ranking_length is not None
         if p.max_ranking_length < max_ranking_length:
             for i in range(p.max_ranking_length, max_ranking_length):
                 curr_df.insert(
@@ -469,15 +488,33 @@ def _sum_rank_profiles(rank_profiles: Sequence[RankProfile]) -> RankProfile:
     )
 
 
-def _sum_score_profiles(score_profiles: Sequence[ScoreProfile]) -> ScoreProfile:
+def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScoreProfile:
     """
     Helper function for sum_profiles that sums ScoreProfiles.
 
     Args:
-        score_profiles (Sequence[ScoreProfile]): The ScoreProfiles to sum.
+        score_profiles (Sequence[PreferenceProfile]): The profiles to sum.
+
+    Raises:
+        TypeError: Each profile must be of ScoreProfile type
     """
 
     from votekit.pref_profile.pref_profile import ScoreProfile
+
+    if len(score_profiles) == 1 and isinstance(score_profiles[0], ScoreProfile):
+        return score_profiles[0].copy()
+
+    if not (all(isinstance(p, ScoreProfile) for p in score_profiles)):
+        invalid_profiles = [
+            (i, type(p).__name__)
+            for i, p in enumerate(score_profiles)
+            if not isinstance(p, ScoreProfile)
+        ]
+        invalid_profiles_str = ", ".join(f"index {i} ({t})" for i, t in invalid_profiles)
+        raise TypeError(
+            "All profiles must be of the same type, ScoreProfile. "
+            f"non-ScoreProfiles found at: {invalid_profiles_str}"
+        )
 
     total_cand = set().union(*[set(profile.candidates) for profile in score_profiles])
     total_dfs = []
@@ -499,7 +536,7 @@ def _sum_score_profiles(score_profiles: Sequence[ScoreProfile]) -> ScoreProfile:
     )
 
 
-def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile | ScoreProfile:
+def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
     """
     Combines multiple PreferenceProfiles by combining their ball lists.
 
@@ -507,11 +544,11 @@ def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile 
         profiles (Sequence[PreferenceProfile]): The profiles to sum.
 
     Returns:
-        PreferenceProfile: The combined preference profile.
+        PreferenceProfile: A new PreferenceProfile object containing the combined profile.
 
     Raises:
         ValueError: Cannot sum an empty list of profiles.
-        TypeError: All profiles must be of the same type.
+        TypeError: Can only sum profiles of type RankProfile or ScoreProfile.
     """
 
     from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
@@ -519,15 +556,14 @@ def sum_profiles(profiles: Sequence[RankProfile | ScoreProfile]) -> RankProfile 
     if len(profiles) == 0:
         raise ValueError("Cannot sum an empty list of profiles.")
 
-    if len(profiles) == 1:
-        return profiles[0]
-
-    first_type = type(profiles[0])
-    if not all(isinstance(profile, first_type) for profile in profiles):
-        raise TypeError("All profiles must be of same type.")
-
     if isinstance(profiles[0], RankProfile):
-        return _sum_rank_profiles(profiles)  # type: ignore[arg-type]
+        return _sum_rank_profiles(profiles)
 
-    if isinstance(profiles[0], ScoreProfile):
-        return _sum_score_profiles(profiles)  # type: ignore[arg-type]
+    elif isinstance(profiles[0], ScoreProfile):
+        return _sum_score_profiles(profiles)
+
+    else:
+        raise TypeError(
+            f"Cannot sum profiles of type {type(profiles[0]).__name__}. "
+            "List can only contain RankProfiles or ScoreProfiles."
+        )

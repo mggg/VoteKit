@@ -25,9 +25,10 @@ from votekit.pref_profile.csv_utils import (
     _validate_score_csv_format,
 )
 from votekit.pref_profile.utils import (
+    _sum_rank_profiles,
+    _sum_score_profiles,
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
-    sum_profiles,
 )
 
 
@@ -275,6 +276,9 @@ class PreferenceProfile:
     __repr__ = __str__
 
     def group_ballots(self) -> Self:
+        raise NotImplementedError
+
+    def copy(self) -> Self:
         raise NotImplementedError
 
     @property
@@ -673,9 +677,7 @@ class RankProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        new_profile = sum_profiles([self, other])
-        assert isinstance(new_profile, RankProfile)
-        return new_profile
+        return _sum_rank_profiles([self, other])
 
     def group_ballots(self) -> RankProfile:
         """
@@ -708,6 +710,19 @@ class RankProfile(PreferenceProfile):
         return RankProfile(
             df=new_df,
             candidates=self.candidates,
+            max_ranking_length=self.max_ranking_length,
+        )
+
+    def copy(self) -> RankProfile:
+        """
+        Returns a copy of a RankProfile
+
+        Returns:
+            RankProfile: New RankProfile object
+        """
+        return RankProfile(
+            candidates=self.candidates,
+            df=self.df.copy(),
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -1220,9 +1235,7 @@ class ScoreProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        new_profile = sum_profiles([self, other])
-        assert isinstance(new_profile, ScoreProfile)
-        return new_profile
+        return _sum_score_profiles([self, other])
 
     def group_ballots(self) -> ScoreProfile:
         """
@@ -1255,6 +1268,18 @@ class ScoreProfile(PreferenceProfile):
 
         return ScoreProfile(
             df=new_df,
+            candidates=self.candidates,
+        )
+
+    def copy(self) -> ScoreProfile:
+        """
+        Returns a copy of a ScoreProfile
+
+        Returns:
+            ScoreProfile: New ScoreProfile object
+        """
+        return ScoreProfile(
+            df=self.df.copy(),
             candidates=self.candidates,
         )
 

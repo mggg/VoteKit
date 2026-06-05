@@ -27,9 +27,15 @@ def test_sum_profiles_with_mixed_types_raises_type_error():
     )
     with pytest.raises(
         TypeError,
-        match="All profiles must be of same type.",
+        match="All profiles must be of the same type.",
     ):
         sum_profiles([score_profile, score_profile, score_profile, rank_profile])
+
+    with pytest.raises(
+        TypeError,
+        match="All profiles must be of the same type.",
+    ):
+        sum_profiles([rank_profile, score_profile, score_profile, rank_profile])
 
 
 def test_sum_empty_profile_raises_value_error():
