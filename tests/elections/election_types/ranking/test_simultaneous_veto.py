@@ -12,7 +12,10 @@ from votekit.pref_profile import RankProfile
 # ---------------------------------------------------------------------------
 
 
-def make_profile(raw: dict[tuple[str, ...], float], max_ranking_length=None) -> RankProfile:
+def make_profile(
+    raw: dict[tuple[str | tuple[str, ...], ...], float],
+    max_ranking_length=None,
+) -> RankProfile:
     """Shorthand: {("A", "B", "C"): 3} -> RankBallot with that ranking and weight."""
     ballots = [RankBallot(ranking=ranking, weight=weight) for ranking, weight in raw.items()]
     if max_ranking_length is None:
@@ -138,7 +141,7 @@ class TestValidation:
             SimultaneousVeto(basic_profile, candidate_weights={"A": 1.0, "B": 1.0})
 
     def test_no_ranking(self):
-        ballots = [RankBallot(ranking="A", weight=1.0), RankBallot(weight=1.0)]
+        ballots = [RankBallot(ranking=("A",), weight=1.0), RankBallot(weight=1.0)]
         profile = RankProfile(ballots=ballots)
         with pytest.raises(ValueError, match="rankings"):
             SimultaneousVeto(profile)
@@ -251,7 +254,7 @@ class TestScoringTieConvention:
         """A and B are tied for first place."""
         return make_profile(
             {
-                ("AB",): 5,
+                (("A", "B"),): 5,
                 ("C",): 4.9,
                 ("D",): 1,
             },
@@ -264,7 +267,7 @@ class TestScoringTieConvention:
             {
                 (
                     "C",
-                    "AB",
+                    ("A", "B"),
                 ): 5,
             }
         )
