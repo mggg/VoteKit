@@ -544,7 +544,7 @@ def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
         profiles (Sequence[PreferenceProfile]): The profiles to sum.
 
     Returns:
-        PreferenceProfile: A new PreferenceProfile object containing the combined profile.
+        PreferenceProfile: A new PreferenceProfile object containing the combined profiles.
 
     Raises:
         ValueError: Cannot sum an empty list of profiles.
