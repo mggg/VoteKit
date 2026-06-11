@@ -93,7 +93,7 @@ def test_combine():
 
 
 def test_sort_strengths_descending_from_dirchlet():
-    for i in range(50):
+    for _ in range(50):
         candidates = ["A", "B", "C"]
         pref_interval = PreferenceInterval.from_dirichlet(
             candidates=candidates, alpha=1, sort_strengths_descending=True
