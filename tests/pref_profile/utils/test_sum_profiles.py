@@ -46,7 +46,7 @@ def test_sum_empty_profile_raises_value_error():
         sum_profiles([])
 
 
-def test_sum_one_profile_returns_same_profile():
+def test_sum_one_profile_returns_copy_of_same_profile():
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 2}, weight=2),
@@ -58,6 +58,7 @@ def test_sum_one_profile_returns_same_profile():
     )
     summed_profile = sum_profiles([profile])
     assert summed_profile == profile
+    assert id(summed_profile) != id(profile)
 
     profile = RankProfile(
         ballots=[
@@ -71,6 +72,7 @@ def test_sum_one_profile_returns_same_profile():
     )
     summed_profile = sum_profiles([profile])
     assert summed_profile == profile
+    assert id(summed_profile) != id(profile)
 
 
 def test_sum_one_profile_no_list_raises_type_error():

@@ -405,7 +405,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         raise ValueError("Ballots must not contain ties.")
 
     cand_to_score_list = {
-        c: [np.nan for _ in range(len(rank_profile.df))] for c in rank_profile.candidates
+        cand: [np.nan for _ in range(len(rank_profile.df))] for cand in rank_profile.candidates
     }
 
     for df_tuple in rank_profile.df[ranking_cols].itertuples():
@@ -461,21 +461,22 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
     max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
 
     total_dfs = []
-    for p in rank_profiles:
-        curr_df = p.df.copy()
-        assert p.max_ranking_length is not None
-        if p.max_ranking_length < max_ranking_length:
-            for i in range(p.max_ranking_length, max_ranking_length):
-                curr_df.insert(
-                    len(curr_df.columns),
-                    f"Ranking_{i + 1}",
-                    pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
-                )
+    for profile in rank_profiles:
+        assert profile.max_ranking_length is not None
+        curr_df = (
+            profile.df.copy() if profile.max_ranking_length < max_ranking_length else profile.df
+        )
+        for i in range(profile.max_ranking_length, max_ranking_length):
+            curr_df.insert(
+                len(curr_df.columns),
+                f"Ranking_{i + 1}",
+                pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
+            )
         total_dfs.append(curr_df)
 
     new_df = pd.concat(total_dfs, ignore_index=True)
     new_df.index.name = "Ballot Index"
-    ranking_cols = [c for c in new_df.columns if "Ranking_" in c]
+    ranking_cols = [col for col in new_df.columns if "Ranking_" in col]
     new_df[ranking_cols] = new_df[ranking_cols].astype("object")
     new_df = new_df[
         [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
@@ -518,9 +519,9 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
 
     total_cand = set().union(*[set(profile.candidates) for profile in score_profiles])
     total_dfs = []
-    for p in score_profiles:
-        curr_df = p.df.copy()
-        curr_cand = set(p.candidates)
+    for profile in score_profiles:
+        curr_cand = set(profile.candidates)
+        curr_df = profile.df.copy() if curr_cand < total_cand else profile.df
         for cand in total_cand - curr_cand:
             curr_df[cand] = [np.nan] * len(curr_df)
         total_dfs.append(curr_df)
