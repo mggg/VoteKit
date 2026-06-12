@@ -3,8 +3,10 @@ from __future__ import annotations
 from numbers import Real
 from typing import Iterable, Optional, Sequence, TypeAlias, Union, overload
 
-Ranking: TypeAlias = Optional[tuple[frozenset[str], ...]]
-RankingLike: TypeAlias = Optional[Sequence[str | Iterable[str]]]
+from votekit.types import Candidate
+
+Ranking: TypeAlias = Optional[tuple[frozenset[Candidate], ...]]
+RankingLike: TypeAlias = Optional[Sequence[Candidate | Iterable[Candidate]]]
 
 
 class Ballot:
@@ -12,24 +14,25 @@ class Ballot:
     Ballot parent class, contains voter set and assigned weight.
 
     Args:
-        ranking (Optional[Sequence[str | Iterable[str]]]): Candidate ranking.
+        ranking (Optional[Sequence[Candidate | Iterable[Candidate]]]): Candidate ranking.
             Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
-            Defaults to None. Will be coerced to tuple[frozenset[str], ...].
+            Candidate can be represented as a str or int. Allow mix of types in candidate set.
+            Defaults to None. Will be coerced to tuple[frozenset[Candidate], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
             Can be input as int or float, and will be coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
             Defaults to frozenset(). Will be coerced to frozenset.
-        scores (Optional[dict[str, Union[int, float]]): Scores for individual candidates.
+        scores (Optional[dict[Candidate, Union[int, float]]): Scores for individual candidates.
             Defaults to None. Values can be input as int or float but will be coerced to float.
             Only retains non-zero scores.
 
     Attributes:
-        ranking (Optional[tuple[frozenset[str], ...]]): Tuple of candidate ranking.
+        ranking (Optional[tuple[frozenset[Candidate], ...]]): Tuple of candidate ranking.
             Entry i of the tuple is a
             frozenset of candidates ranked in position i.
         weight (float): Weight assigned to a given ballot.
         voter_set (frozenset[str]): Set of voters who cast the ballot.
-        scores (Optional[dict[str, float]]): Scores for individual candidates.
+        scores (Optional[dict[Candidate, float]]): Scores for individual candidates.
 
     Raises:
         TypeError: Only one of ranking or scores can be provided.
@@ -49,7 +52,7 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Sequence[str | Iterable[str]],
+        ranking: Sequence[Candidate | Iterable[Candidate]],
         scores: None = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -60,7 +63,7 @@ class Ballot:
         cls,
         *,
         ranking: None = None,
-        scores: dict[str, Union[int, float]],
+        scores: dict[Candidate, Union[int, float]],
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ) -> ScoreBallot: ...
@@ -69,8 +72,8 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[str | Iterable[str]]] = None,
-        scores: Optional[dict[str, Union[int, float]]] = None,
+        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
+        scores: Optional[dict[Candidate, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ) -> Ballot: ...
@@ -78,8 +81,8 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[str | Iterable[str]]] = None,
-        scores: Optional[dict[str, Union[int, float]]] = None,
+        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
+        scores: Optional[dict[Candidate, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -95,8 +98,8 @@ class Ballot:
     def __init__(
         self,
         *,
-        ranking: Optional[Sequence[str | Iterable[str]]] = None,
-        scores: Optional[dict[str, Union[int, float]]] = None,
+        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
+        scores: Optional[dict[Candidate, Union[int, float]]] = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -170,7 +173,7 @@ class RankBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
-        scores: Optional[dict[str, Union[int, float]]] = None,
+        scores: Optional[dict[Candidate, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -194,10 +197,14 @@ class RankBallot(Ballot):
 
         normalized_ranking = []
         for cand_set in ranking:
-            if isinstance(cand_set, str):
-                normalized_ranking.append(frozenset({cand_set.strip()}))
+            if isinstance(cand_set, Candidate):
+                normalized_ranking.append(
+                    frozenset({cand_set.strip() if isinstance(cand_set, str) else cand_set})
+                )
             else:
-                normalized_ranking.append(frozenset(c.strip() for c in cand_set))
+                normalized_ranking.append(
+                    frozenset(c.strip() if isinstance(c, str) else c for c in cand_set)
+                )
         return tuple(normalized_ranking)
 
     def _validate_ranking_candidates(self, ranking: Ranking):
@@ -209,6 +216,7 @@ class RankBallot(Ballot):
                 " '~' is a reserved character and cannot be used for"
                 " candidate names."
             )
+        # add a warning if candidates are of mixed type and if str and int are equivalent?
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
@@ -266,18 +274,32 @@ class ScoreBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
-        scores: Optional[dict[str, Union[int, float]]] = None,
+        scores: Optional[dict[Candidate, Union[int, float]]] = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         if ranking is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
+        scores = self._convert_scores_to_float_strip_whitespace(scores)
         self._validate_scores_candidates(scores)
-        self.scores = self._convert_scores_to_float_strip_whitespace(scores)
+        self.scores = scores
 
         super().__init__(weight=weight, voter_set=voter_set)
 
-    def _validate_scores_candidates(self, scores: Optional[dict[str, Union[int, float]]]):
+    def _convert_scores_to_float_strip_whitespace(
+        self, scores: Optional[dict[Candidate, float]]
+    ) -> Optional[dict[Candidate, float]]:
+        if scores is None:
+            return None
+
+        if any(not isinstance(s, Real) for s in scores.values()):
+            raise TypeError("Score values must be numeric.")
+
+        return {
+            c.strip() if isinstance(c, str) else c: float(s) for c, s in scores.items() if s != 0
+        }
+
+    def _validate_scores_candidates(self, scores: Optional[dict[Candidate, Union[int, float]]]):
         if scores is not None:
             if "~" in scores:
                 raise ValueError(
@@ -285,17 +307,7 @@ class ScoreBallot(Ballot):
                     " '~' is a reserved character and cannot be used for"
                     " candidate names."
                 )
-
-    def _convert_scores_to_float_strip_whitespace(
-        self, scores: Optional[dict[str, float]]
-    ) -> Optional[dict[str, float]]:
-        if scores is None:
-            return None
-
-        if any(not isinstance(s, Real) for s in scores.values()):
-            raise TypeError("Score values must be numeric.")
-
-        return {c.strip(): float(s) for c, s in scores.items() if s != 0}
+        # add a warning if candidates are of mixed type
 
     def __eq__(self, other):
         if not isinstance(other, ScoreBallot):

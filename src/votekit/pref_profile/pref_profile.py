@@ -28,6 +28,7 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
+from votekit.types import Candidate
 
 
 class PreferenceProfile:
@@ -163,10 +164,10 @@ class PreferenceProfile:
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
-        self.candidates_cast = candidates_cast
-        self.candidates = candidates
+        self._candidates_cast = candidates_cast
+        self._candidates = candidates
         self.max_ranking_length = max_ranking_length
-        self.df = df
+        self._df = df
 
         self.total_ballot_wt = self._find_total_ballot_wt()
         self.num_ballots = self._find_num_ballots()
@@ -181,7 +182,7 @@ class PreferenceProfile:
         Returns:
             int: num ballots
         """
-        return len(self.df)
+        return len(self._df)
 
     def _find_total_ballot_wt(self) -> float:
         """
@@ -192,8 +193,8 @@ class PreferenceProfile:
         """
         total_weight = 0
 
-        if not self.df.equals(pd.DataFrame()):
-            total_weight = self.df["Weight"].sum()
+        if not self._df.equals(pd.DataFrame()):
+            total_weight = self._df["Weight"].sum()
 
         return total_weight
 
@@ -206,8 +207,8 @@ class PreferenceProfile:
             ProfileError: Candidate names must not be the same as "Ranking_i".
             ProfileError: Candidate names must be unique.
         """
-        for cand in self.candidates:
-            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
+        for cand in self._candidates:
+            if any(f"Ranking_{i}" == cand for i in range(len(self._candidates))):
                 raise ProfileError(
                     (
                         f"{cand} is a name reserved for ranking columns, it cannot be used as a "
@@ -215,18 +216,17 @@ class PreferenceProfile:
                     )
                 )
 
-        if not len(set(self.candidates)) == len(self.candidates):
+        if not len(set(self._candidates)) == len(self._candidates):
             raise ProfileError("All candidates must be unique.")
-
-        if not set(self.candidates_cast).issubset(self.candidates):
+        if not set(self._candidates_cast).issubset(self._candidates):
             raise ProfileError(
                 "Candidates cast are not a subset of candidates list. The following "
                 " candidates are in candidates_cast but not candidates: "
-                f"{set(self.candidates_cast) - set(self.candidates)}."
+                f"{set(self._candidates_cast) - set(self._candidates)}."
             )
 
-        self.candidates = tuple([c.strip() for c in self.candidates])
-        self.candidates_cast = tuple([c.strip() for c in self.candidates_cast])
+        self._candidates = tuple([c.strip() for c in self._candidates])
+        self._candidates_cast = tuple([c.strip() for c in self._candidates_cast])
 
     def __setattr__(self, name, value):
         if getattr(self, "_is_frozen", False):
@@ -321,23 +321,30 @@ class RankProfile(PreferenceProfile):
         self,
         *,
         ballots: Sequence[Ballot] = tuple(),
-        candidates: Sequence[str] = tuple(),
+        candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
-        self.candidates = tuple(candidates)
+        candidates = tuple(candidates)
+        self._candidates = tuple([str(cand_id) for cand_id in range(len(candidates))])
+        candidate_id_map = {
+            cand: cand_id for cand, cand_id in zip(candidates, self._candidates, strict=True)
+        }
+
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
         if df.equals(pd.DataFrame()):
-            (
-                self.df,
-                self.candidates_cast,
-            ) = self._init_from_rank_ballots(cast(Sequence[RankBallot], ballots))
-            if self.candidates == tuple():
-                self.candidates = self.candidates_cast
+            (self._df, self._candidates_cast, candidate_id_map) = self._init_from_rank_ballots(
+                cast(Sequence[RankBallot], ballots), candidate_id_map
+            )
 
         else:
-            self.df, self.candidates_cast = self._init_from_rank_df(df)
+            self._df, self._candidates_cast, candidate_id_map = self._init_from_rank_df(
+                df, candidate_id_map
+            )
+
+        if self._candidates == tuple():
+            self._candidates = self._candidates_cast
 
         self.max_ranking_length = self._find_max_ranking_length()
 
@@ -353,12 +360,26 @@ class RankProfile(PreferenceProfile):
                 )
                 raise ValueError(msg)
 
+        self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
+
         super().__init__(
-            candidates=self.candidates,
-            candidates_cast=self.candidates_cast,
-            df=self.df,
+            candidates=self._candidates,
+            candidates_cast=self._candidates_cast,
+            df=self._df,
             max_ranking_length=self.max_ranking_length,
         )
+
+    @cached_property
+    def df(self) -> pd.DataFrame:
+        return self._translate_df_to_candidate_ids(self._df, self.id_candidate_map)
+
+    @cached_property
+    def candidates(self) -> tuple[Candidate, ...]:
+        return tuple(self.id_candidate_map[cand_id] for cand_id in self._candidates)
+
+    @cached_property
+    def candidates_cast(self) -> tuple[Candidate, ...]:
+        return tuple(self.id_candidate_map[cand_id] for cand_id in self._candidates_cast)
 
     def __update_ballot_ranking_data(
         self,
@@ -367,6 +388,7 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[str],
         num_ballots: int,
+        candidate_id_map: dict[Candidate, str],
     ):
         """
         Update the ranking data from a ballot.
@@ -377,6 +399,7 @@ class RankProfile(PreferenceProfile):
             rank_ballot (RankBallot): Ballot.
             candidates_cast (list[str]): List of candidates who have received votes.
             num_ballots (int): Total number of ballots.
+            candidate_id_map (dict[Candidate,str]): mapping of candidate to their id (int)
         """
 
         if rank_ballot.ranking is None:
@@ -384,14 +407,19 @@ class RankProfile(PreferenceProfile):
 
         for j, cand_set in enumerate(rank_ballot.ranking):
             for c in cand_set:
-                if self.candidates != tuple():
-                    if c not in self.candidates:
+                if self._candidates != tuple():
+                    if c not in candidate_id_map:
                         raise ProfileError(
                             f"Candidate {c} found in ballot {rank_ballot} but not in "
-                            f"candidate list {self.candidates}."
+                            f"candidate list {candidate_id_map.keys()}."
                         )
-                if rank_ballot.weight > 0 and c not in candidates_cast:
-                    candidates_cast.append(c)
+                if rank_ballot.weight > 0:
+                    if c not in candidate_id_map:
+                        candidate_id_map[c] = str(len(candidate_id_map))
+                    cand_id = candidate_id_map[c]
+                    if cand_id not in candidates_cast:
+                        candidates_cast.append(candidate_id_map[c])
+
             if f"Ranking_{j + 1}" not in rank_ballot_data:
                 assert self.max_ranking_length is not None
 
@@ -401,8 +429,8 @@ class RankProfile(PreferenceProfile):
                         f"ballot {rank_ballot} has length at least {j + 1}."
                     )
                 rank_ballot_data[f"Ranking_{j + 1}"] = [frozenset("~")] * num_ballots
-
-            rank_ballot_data[f"Ranking_{j + 1}"][idx] = cand_set
+            cand_id_set = frozenset([candidate_id_map[cand] for cand in cand_set])
+            rank_ballot_data[f"Ranking_{j + 1}"][idx] = cand_id_set
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -411,6 +439,7 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[str],
         num_ballots: int,
+        candidate_id_map: dict[Candidate, str],
     ):
         """
         Update ballot data from a rank ballot.
@@ -421,6 +450,7 @@ class RankProfile(PreferenceProfile):
             rank_ballot (RankBallot): Ballot.
             candidates_cast (list[str]): List of candidates who have received votes.
             num_ballots (int): Total number of ballots.
+            candidate_id_map (dict[Candidate, str]): Mapping of candidate name to id (integer)
         """
         rank_ballot_data["Weight"][idx] = rank_ballot.weight
 
@@ -434,6 +464,7 @@ class RankProfile(PreferenceProfile):
                 rank_ballot=rank_ballot,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
+                candidate_id_map=candidate_id_map,
             )
 
     def __init_rank_ballot_data(
@@ -490,8 +521,8 @@ class RankProfile(PreferenceProfile):
         return df
 
     def _init_from_rank_ballots(
-        self, ballots: Sequence[RankBallot]
-    ) -> tuple[pd.DataFrame, tuple[str, ...]]:
+        self, ballots: Sequence[RankBallot], candidate_id_map: dict[Candidate, str]
+    ) -> tuple[pd.DataFrame, tuple[str, ...], dict[Candidate, str]]:
         """
         Create the pandas dataframe representation of the profile.
 
@@ -499,7 +530,7 @@ class RankProfile(PreferenceProfile):
             ballots (Sequence[RankBallot,...]): Sequence of ballots.
 
         Returns:
-            tuple[pd.DataFrame, tuple[str, ...]]: df, candidates_cast
+            tuple[pd.DataFrame, tuple[str, ...], dict[Candidate, str]]: df, candidates_cast, candidate_id_map
 
         """
         # `rank_ballot_data` sends {Weight, Voter Set} keys to a list to be
@@ -517,6 +548,7 @@ class RankProfile(PreferenceProfile):
                 rank_ballot=b,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
+                candidate_id_map=candidate_id_map,
             )
 
         df = self.__init_formatted_rank_df(
@@ -526,6 +558,7 @@ class RankProfile(PreferenceProfile):
         return (
             df,
             tuple(candidates_cast),
+            candidate_id_map,
         )
 
     def __validate_init_rank_df_params(self, df: pd.DataFrame) -> None:
@@ -600,7 +633,34 @@ class RankProfile(PreferenceProfile):
         candidates_cast.discard("~")
         return tuple(candidates_cast)
 
-    def _init_from_rank_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[str, ...]]:
+    def _translate_df_to_candidate_ids(
+        self, df: pd.DataFrame, candidate_id_map: dict[Candidate, str]
+    ) -> pd.DataFrame:
+        ranking_cols = [col for col in df.columns if col.startswith("Ranking_")]
+
+        all_cand_values = set().union(*df[ranking_cols].to_numpy().ravel()) - {"~"}
+        missing_cands = all_cand_values - set(candidate_id_map.keys())
+        if missing_cands:
+            raise ValueError(
+                f"Candidates {missing_cands} are missing from the candidate_id_map. "
+                "Add them to the dictionary to successfully translate to candidate ids."
+            )
+
+        translated_df = df.copy()
+        translated_df[ranking_cols] = translated_df[ranking_cols].map(
+            lambda ranking: frozenset(candidate_id_map[cand] for cand in ranking)
+            if ranking != frozenset("~")
+            else ranking
+        )
+        return translated_df
+
+    def _init_from_rank_df(
+        self, df: pd.DataFrame, candidate_id_map: dict[Candidate, str]
+    ) -> tuple[
+        pd.DataFrame,
+        tuple[str, ...],
+        dict[Candidate, str],
+    ]:
         """
         Validate the dataframe and determine the candidates cast.
 
@@ -613,11 +673,15 @@ class RankProfile(PreferenceProfile):
         self.__validate_init_rank_df_params(df)
         self.__validate_init_rank_df(df)
         candidates_cast = self.__find_candidates_cast_from_init_rank_df(df)
+        for cand in candidates_cast:
+            if cand not in candidate_id_map:
+                candidate_id_map[cand] = str(len(candidate_id_map))
+        new_df = self._translate_df_to_candidate_ids(df, candidate_id_map)
 
-        if len(df) == 0:
+        if len(new_df) == 0:
             self.max_ranking_length = 0
 
-        return df, candidates_cast
+        return new_df, candidates_cast, candidate_id_map
 
     def _find_max_ranking_length(self) -> int:
         """
@@ -628,7 +692,7 @@ class RankProfile(PreferenceProfile):
 
         """
         if self.max_ranking_length == 0 or self.max_ranking_length is None:
-            return len([c for c in self.df.columns if "Ranking_" in c])
+            return len([c for c in self._df.columns if "Ranking_" in c])
 
         return self.max_ranking_length
 
@@ -641,13 +705,13 @@ class RankProfile(PreferenceProfile):
         E.g., a ballot that ranks two candidates tied for first and ranks no other candidates
         has length 1, but ranks 2 candidates in total.
         """
-        if self.df.empty:
+        if self._df.empty:
             return 0
         tilde = frozenset("~")
         assert self.max_ranking_length is not None
         ranking_cols = [f"Ranking_{i}" for i in range(1, self.max_ranking_length + 1)]
         return (
-            self.df[ranking_cols]
+            self._df[ranking_cols]
             .apply(lambda row: len(frozenset.union(*row) - tilde), axis=1)
             .max()
         )
@@ -770,7 +834,7 @@ class RankProfile(PreferenceProfile):
     __repr__ = __str__
 
     def __to_rank_csv_header(
-        self, candidate_mapping: dict[str, str], include_voter_set: bool
+        self, candidate_mapping: dict[Candidate, str], include_voter_set: bool
     ) -> list[list]:
         """
         Construct the header rows for the PrefProfile a custom CSV format.
@@ -782,7 +846,7 @@ class RankProfile(PreferenceProfile):
         header = [
             ["VoteKit RankProfile"],
             ["Candidates"],
-            [f"({c}:{cand_label})" for c, cand_label in candidate_mapping.items()],
+            [f"({str(c)}:{cand_label})" for c, cand_label in candidate_mapping.items()],
         ]
         header += [["Max Ranking Length"], [str(self.max_ranking_length)]]
         header += [["Includes Voter Set"], [str(include_voter_set)]]
@@ -791,7 +855,7 @@ class RankProfile(PreferenceProfile):
         return header
 
     def __to_rank_csv_ranking_list(
-        self, rank_ballot: RankBallot, candidate_mapping: dict[str, str]
+        self, rank_ballot: RankBallot, candidate_mapping: dict[Candidate, str]
     ) -> list:
         """
         Create the list of ranking data for a ballot in the profile.
@@ -819,7 +883,7 @@ class RankProfile(PreferenceProfile):
         self,
         ballot: RankBallot,
         include_voter_set: bool,
-        candidate_mapping: dict[str, str],
+        candidate_mapping: dict[Candidate, str],
         weight_precision: int,
     ) -> list[list]:
         """
@@ -844,7 +908,7 @@ class RankProfile(PreferenceProfile):
         return row
 
     def __to_rank_csv_data_column_names(
-        self, include_voter_set: bool, candidate_mapping: dict[str, str]
+        self, include_voter_set: bool, candidate_mapping: dict[Candidate, str]
     ) -> list:
         """
         Create the data column header.
@@ -892,7 +956,7 @@ class RankProfile(PreferenceProfile):
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
+        candidate_mapping: dict[Candidate, str] = {c: str(i) for i, c in enumerate(self.candidates)}
 
         header = self.__to_rank_csv_header(candidate_mapping, include_voter_set)
         data_col_names = self.__to_rank_csv_data_column_names(include_voter_set, candidate_mapping)
