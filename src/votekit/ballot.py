@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from numbers import Real
-from typing import Iterable, Optional, Sequence, TypeAlias, Union, overload
+from typing import Iterable, Mapping, Optional, Sequence, TypeAlias, Union, overload
 
 from votekit.types import Candidate
 
 Ranking: TypeAlias = Optional[tuple[frozenset[Candidate], ...]]
 RankingLike: TypeAlias = Optional[Sequence[Candidate | Iterable[Candidate]]]
+ScoresLike: TypeAlias = Optional[
+    Mapping[Candidate, float | int] | Mapping[str, float | int] | Mapping[int, float | int]
+]
 
 
 class Ballot:
@@ -14,25 +17,28 @@ class Ballot:
     Ballot parent class, contains voter set and assigned weight.
 
     Args:
-        ranking (Optional[Sequence[Candidate | Iterable[Candidate]]]): Candidate ranking.
+        ranking (Optional[Sequence[str | int | Iterable[str | int]]]): Candidate ranking.
             Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
             Candidate can be represented as a str or int. Allow mix of types in candidate set.
-            Defaults to None. Will be coerced to tuple[frozenset[Candidate], ...].
+            Defaults to None. Will be coerced to tuple[frozenset[str | int], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
             Can be input as int or float, and will be coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
             Defaults to frozenset(). Will be coerced to frozenset.
-        scores (Optional[dict[Candidate, Union[int, float]]): Scores for individual candidates.
-            Defaults to None. Values can be input as int or float but will be coerced to float.
+        scores (Optional[Mapping[str | int, float | int] | Mapping[str, float | int]
+            | Mapping[int, float | int]]): Scores for individual candidates. Defaults to None.
+            Values can be input as int or float but will be coerced to float.
+            Candidates can be strings, integers, or a mix of both.
+            Stored internally as a dict[str | int, float].
             Only retains non-zero scores.
 
     Attributes:
-        ranking (Optional[tuple[frozenset[Candidate], ...]]): Tuple of candidate ranking.
+        ranking (Optional[tuple[frozenset[str | int], ...]]): Tuple of candidate ranking.
             Entry i of the tuple is a
             frozenset of candidates ranked in position i.
         weight (float): Weight assigned to a given ballot.
         voter_set (frozenset[str]): Set of voters who cast the ballot.
-        scores (Optional[dict[Candidate, float]]): Scores for individual candidates.
+        scores (Optional[Mapping[str | int, float | int]): Scores for individual candidates.
 
     Raises:
         TypeError: Only one of ranking or scores can be provided.
@@ -63,7 +69,7 @@ class Ballot:
         cls,
         *,
         ranking: None = None,
-        scores: dict[Candidate, Union[int, float]],
+        scores: ScoresLike,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ) -> ScoreBallot: ...
@@ -72,8 +78,8 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
-        scores: Optional[dict[Candidate, Union[int, float]]] = None,
+        ranking: RankingLike = None,
+        scores: ScoresLike = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ) -> Ballot: ...
@@ -81,8 +87,8 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
-        scores: Optional[dict[Candidate, Union[int, float]]] = None,
+        ranking: RankingLike = None,
+        scores: ScoresLike = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -98,8 +104,8 @@ class Ballot:
     def __init__(
         self,
         *,
-        ranking: Optional[Sequence[Candidate | Iterable[Candidate]]] = None,
-        scores: Optional[dict[Candidate, Union[int, float]]] = None,
+        ranking: RankingLike = None,
+        scores: ScoresLike = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -155,12 +161,14 @@ class RankBallot(Ballot):
 
     Args:
         ranking (RankingLike): Ranking of candidates, defaults to None.
+            RankingLike = Sequence[str | int | Iterable[str | int]] | None
         weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
-        ranking (RankingLike): Ranking of candidates.
+        ranking (Ranking): Ranking of candidates.
+            Ranking = tuple[frozenset[str | int], ...] | None
         weight (float): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
@@ -173,7 +181,7 @@ class RankBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
-        scores: Optional[dict[Candidate, Union[int, float]]] = None,
+        scores: ScoresLike = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -254,13 +262,15 @@ class ScoreBallot(Ballot):
     Class to handle ballots with scores. Strips whitespace from candidate names.
 
     Args:
-        scores (Optional[dict[str, Union[int, float]]]): Scores of candidates, defaults to None.
+        scores (ScoresLike): Scores of candidates, defaults to None.
+            ScoresLike = Mapping[str | int, int | float] | Mapping[str, int | float]
+            | Mapping[int, int | float] | None
         weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
-        scores (Optional[dict[str, float]]): Scores of candidates.
+        scores (Optional[dict[str | int, float]]): Scores of candidates.
         weight (float): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
@@ -274,7 +284,7 @@ class ScoreBallot(Ballot):
         self,
         *,
         ranking: RankingLike = None,
-        scores: Optional[dict[Candidate, Union[int, float]]] = None,
+        scores: ScoresLike = None,
         weight: Union[int, float] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
@@ -287,7 +297,7 @@ class ScoreBallot(Ballot):
         super().__init__(weight=weight, voter_set=voter_set)
 
     def _convert_scores_to_float_strip_whitespace(
-        self, scores: Optional[dict[Candidate, float]]
+        self, scores: ScoresLike
     ) -> Optional[dict[Candidate, float]]:
         if scores is None:
             return None
@@ -299,7 +309,7 @@ class ScoreBallot(Ballot):
             c.strip() if isinstance(c, str) else c: float(s) for c, s in scores.items() if s != 0
         }
 
-    def _validate_scores_candidates(self, scores: Optional[dict[Candidate, Union[int, float]]]):
+    def _validate_scores_candidates(self, scores: ScoresLike):
         if scores is not None:
             if "~" in scores:
                 raise ValueError(

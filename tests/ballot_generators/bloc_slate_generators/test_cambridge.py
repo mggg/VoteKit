@@ -14,11 +14,12 @@ from votekit.ballot_generator.bloc_slate_generator.cambridge import (
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 PROB_THRESHOLD = 0.01
 
 
-def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[str], ...]:
+def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[Candidate], ...]:
     assert ballot.ranking is not None
     return ballot.ranking
 
@@ -297,7 +298,7 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
                         cand
                         for cand_set in ballot_ranking(ballot)
                         for cand in cand_set
-                        if cand[0] == slate
+                        if isinstance(cand, str) and cand[0] == slate
                     )
                     for ballot in profile.ballots
                     for _ in range(int(ballot.weight))
@@ -343,4 +344,10 @@ def test_cambridge_zero_support_slates():
     profile_dict = cambridge_profiles_by_bloc_generator(config)
     profile = profile_dict["A"]
 
-    assert all("A" in list(ballot_ranking(ballot)[0])[0] for ballot in profile.ballots)
+    assert all(
+        [
+            isinstance(first_place_slate := list(ballot_ranking(ballot)[0])[0], str)
+            and "A" in first_place_slate
+            for ballot in profile.ballots
+        ]
+    )

@@ -9,7 +9,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import List, Literal, Mapping, Optional, Sequence
+from typing import List, Literal, Mapping, Optional, Sequence, cast
 
 import manim
 from manim import (
@@ -36,6 +36,7 @@ from votekit.cleaning.rank_ballots_cleaning import (
     remove_cand_rank_ballot,
 )
 from votekit.elections.election_types.ranking.stv import STV
+from votekit.types import Candidate
 from votekit.utils import ballots_by_first_cand, mentions
 
 
@@ -144,17 +145,17 @@ class _EliminationEvent(_AnimationEvent):
     An animation event representing a round in which a candidate was eliminated.
 
     Attributes:
-        candidate (str): The name of the eliminated candidate.
+        candidate (Candidate): The name of the eliminated candidate.
         display_name (str): The candidate name to use for display purposes, such as a
             nickname.
-        support_transferred (Mapping[str, float]): A dictionary mapping names of candidates
+        support_transferred (Mapping[Candidate, float]): A dictionary mapping names of candidates
             to the amount of support they received from the elimination.
         round_number (int): The round of the election process associated to this event.
     """
 
-    candidate: str
+    candidate: Candidate
     display_name: str
-    support_transferred: Mapping[str, float]
+    support_transferred: Mapping[Candidate, float]
     round_number: int
 
     def get_message(self) -> str:
@@ -168,12 +169,12 @@ class _EliminationOffscreenEvent(_AnimationEvent):
         were eliminated.
 
     Attributes:
-        support_transferred (Mapping[str, float]): A dictionary mapping names of candidates
+        support_transferred (Mapping[Candidate, float]): A dictionary mapping names of candidates
             to the total amount of support they received from the eliminations.
         round_numbers (List[int]): The rounds of the election process associated to this event.
     """
 
-    support_transferred: Mapping[str, float]
+    support_transferred: Mapping[Candidate, float]
     round_numbers: List[int]
 
     def get_message(self) -> str:
@@ -193,10 +194,10 @@ class _WinEvent(_AnimationEvent):
     An animation event representing a round in which some number of candidates were elected.
 
     Attributes:
-        candidates (Sequence[str]): The names of the elected candidates.
+        candidates (Sequence[Candidate]): The names of the elected candidates.
         display_names (Sequence[str]): The candidate names to use for display purposes,
             such as nicknames.
-        support_transferred (Mapping[str, Mapping[str, float]]): A dictionary mapping
+        support_transferred (Mapping[Candidate, Mapping[str, float]]): A dictionary mapping
             pairs of candidate names to the amount of support transferred between them
             this round. For instance, if ``c1`` was elected this round, then
             ``support_transferred[c1][c2]`` will represent the amount of support
@@ -204,9 +205,9 @@ class _WinEvent(_AnimationEvent):
         round_number (int): The round of the election process associated to this event.
     """
 
-    candidates: Sequence[str]
+    candidates: Sequence[Candidate]
     display_names: Sequence[str]
-    support_transferred: Mapping[str, Mapping[str, float]]
+    support_transferred: Mapping[Candidate, Mapping[Candidate, float]]
     round_number: int
 
     def get_message(self) -> str:
@@ -229,12 +230,15 @@ class STVAnimation:
             appearing on-screen. If ``"winners"``, focus only the elected candidates.
             If ``"viable"``, focus only the candidates with more mentions than the election
             threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
-        nicknames (Optional[dict[str,str]], optional): A dictionary mapping candidate names to
-            candidate "nicknames" to be used in the animation instead. The keys of ``nicknames``
-            need not contain every candidate, only the ones for which the user would like to
-            provide a nickname.
-        candidate_colors (Optional[Mapping[str, ParsableManimColor]], optional): A dictionary
-            mapping candidate names to colors that should represent them in the animation.
+        nicknames (Optional[dict[Candidate,str] | dict[str, str] | dict[int, str]], optional):
+            A dictionary mapping candidate names to candidate "nicknames"
+            to be used in the animation instead.
+            The keys of ``nicknames`` need not contain every candidate,
+            only the ones for which the user would like to provide a nickname.
+        candidate_colors (Optional[Mapping[Candidate, ParsableManimColor]
+            | Mapping[str, ParsableManimColor]] | Mapping[int, ParsableManimColor], optional):
+            A dictionary mapping candidate names to colors
+            that should represent them in the animation.
             The colors in ``candidate_colors`` will override the bar fill colors provided by
             ``color_palette``. The keys of ``candidate_colors`` need not contain
             every candidate, only the ones for which the user would like to provide
@@ -255,8 +259,9 @@ class STVAnimation:
         nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate
             "nicknames" to be used in the animation instead.
         color_palette (ColorPalette, optional): A color palette to use for the animation.
-        candidate_dict (dict[str, dict[str, object]]): A dictionary mapping each candidate's
-            name to a dictionary recording that candidate's support, display name, and color.
+        candidate_dict (dict[Candidate, dict[Candidate, object]]): A dictionary mapping
+            each candidate name to a dictionary
+            recording that candidate's support, display name, and color.
         events (List[_AnimationEvent]): A list of animation events in order of occurrence.
         font (str): The name of a font that the user prefers to use if available.
         delay_mult (float): A multiplier for the delay times between animations.
@@ -273,9 +278,19 @@ class STVAnimation:
         self,
         election: STV,
         title: Optional[str] = None,
-        focus: set[str] | List[str] | Literal["winners", "viable", "all"] = "viable",
-        nicknames: Optional[dict[str, str]] = None,
-        candidate_colors: Optional[Mapping[str, ParsableManimColor]] = None,
+        focus: set[Candidate]
+        | set[str]
+        | set[int]
+        | List[Candidate]
+        | List[str]
+        | List[int]
+        | Literal["winners", "viable", "all"] = "viable",
+        nicknames: Optional[dict[Candidate, str] | dict[str, str] | dict[int, str]] = None,
+        candidate_colors: Optional[
+            Mapping[Candidate, ParsableManimColor]
+            | Mapping[str, ParsableManimColor]
+            | Mapping[int, ParsableManimColor]
+        ] = None,
         color_palette: ColorPalette = DARK_PALETTE,
         font: str = "",
         delay_mult: float = 1.0,
@@ -340,7 +355,7 @@ class STVAnimation:
         focus = focus | missing_winners
         self.focus = focus
 
-        self.nicknames = nicknames
+        self.nicknames: Mapping[Candidate, str] = cast(Mapping[Candidate, str], nicknames)
         self.color_palette = color_palette
         self.candidate_dict = self._make_candidate_dict(election, candidate_colors)
         self.events = self._make_event_list(election)
@@ -355,8 +370,12 @@ class STVAnimation:
         self.animation_duration = animation_duration
 
     def _make_candidate_dict(
-        self, election: STV, candidate_colors: Mapping[str, ParsableManimColor]
-    ) -> dict[str, dict[str, object]]:
+        self,
+        election: STV,
+        candidate_colors: Mapping[Candidate, ParsableManimColor]
+        | Mapping[str, ParsableManimColor]
+        | Mapping[int, ParsableManimColor],
+    ) -> dict[Candidate, dict[str, object]]:
         """
         Create a dictionary sending candidate names to dictionaries recording that candidate's
         support, display name, and color.
@@ -367,11 +386,11 @@ class STVAnimation:
                 names to their associated color codes in the candidate dictionary.
 
         Returns:
-            dict[str, dict[str,object]]: A dictionary whose keys are candidate names and whose
+            dict[Candidate, dict[str,object]]: A dictionary whose keys are candidate names and whose
                 values are themselves dictionaries with details about each candidate.
         """
         # Initialize dictionary and add "support" key for each candidate.
-        candidate_dict: dict[str, dict[str, object]] = {
+        candidate_dict: dict[Candidate, dict[str, object]] = {
             name: {"support": support}
             for name, support in election.election_states[0].scores.items()
             if name in self.focus
@@ -387,9 +406,10 @@ class STVAnimation:
         # Determine candidate color
         num_default_colors = len(self.color_palette.bar_fills)
         color_index = 0
+        _candidate_colors = cast(Mapping[Candidate, ParsableManimColor], candidate_colors)
         for name in candidate_dict.keys():
-            if name in candidate_colors.keys():
-                candidate_dict[name]["color"] = candidate_colors[name]
+            if name in _candidate_colors.keys():
+                candidate_dict[name]["color"] = _candidate_colors[name]
             else:
                 candidate_dict[name]["color"] = self.color_palette.bar_fills[
                     color_index % num_default_colors
@@ -418,7 +438,7 @@ class STVAnimation:
             eliminated_candidates = [c for s in election_round.eliminated for c in s]
 
             if len(elected_candidates) > 0:  # Win round
-                support_transferred: dict[str, dict[str, float]] = {}
+                support_transferred: dict[Candidate, dict[Candidate, float]] = {}
                 if round_number == len(election):
                     # If it's the last round, don't worry about the transferred votes
                     support_transferred = {cand: {} for cand in elected_candidates}
@@ -477,9 +497,9 @@ class STVAnimation:
         self,
         election: STV,
         round_number: int,
-        cands_transferred_from: List[str],
+        cands_transferred_from: List[Candidate],
         event_type: Literal["win", "elimination"],
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[Candidate, dict[Candidate, float]]:
         """
         Compute the number of votes transferred from elected or eliminated candidates to
         remaining candidates.
@@ -487,14 +507,15 @@ class STVAnimation:
         Args:
             election (STV): The election.
             round_number (int): The number of the round in question.
-            cands_transferred_from (List[str]): A list of the names of the elected or
+            cands_transferred_from (List[Candidate]): A list of the names of the elected or
                 eliminated candidates.
             event_type (Literal["win", "elimination"]): ``"win"`` if candidates
                 were elected this round, ``"elimination"`` otherwise.
 
         Returns:
-            dict[str, dict[str, float]]: A nested dictionary. If ``d`` is the return value,
-                ``c1`` was a candidate eliminated this round, and ``c2`` is a remaining candidate,
+            dict[Candidaate, dict[Candidate, float]]: A nested dictionary.
+                If ``d`` is the return value, ``c1`` was a candidate eliminated this round,
+                and ``c2`` is a remaining candidate,
                 then ``d[c1][c2]`` will be the total support transferred this round from
                 candidate ``c1`` to candidate ``c2``.
 
@@ -506,7 +527,7 @@ class STVAnimation:
         prev_profile, prev_state = election.get_step(round_number - 1)
         current_state = election.election_states[round_number]
 
-        transfers: dict[str, dict[str, float]] = {}
+        transfers: dict[Candidate, dict[Candidate, float]] = {}
         if event_type == "elimination":
             assert len(cands_transferred_from) == 1, (
                 "Tried to compute transferred votes in a round "
@@ -532,7 +553,7 @@ class STVAnimation:
                     condense_rank_ballot(remove_cand_rank_ballot(cands_transferred_from, b))
                     for b in new_ballots
                 ]
-                transfer_weights_from_candidate: dict[str, float] = defaultdict(float)
+                transfer_weights_from_candidate: dict[Candidate, float] = defaultdict(float)
                 for ballot in clean_ballots:
                     if ballot.ranking is not None:
                         (to_candidate,) = ballot.ranking[0]
@@ -587,7 +608,7 @@ class STVAnimation:
             _EliminationOffscreenEvent: One offscreen elimination event summarizing ``event1`` and
             ``event2``.
         """
-        support_transferred: dict[str, float] = defaultdict(float)
+        support_transferred: dict[Candidate, float] = defaultdict(float)
         for key, value in event1.support_transferred.items():
             support_transferred[key] += value
         for key, value in event2.support_transferred.items():
@@ -685,8 +706,8 @@ class ElectionScene(manim.Scene):
             instantiated directly.
 
     Args:
-        candidate_dict (dict[str,dict]): A dictionary mapping each candidate to a dictionary of
-            attributes of the candidate.
+        candidate_dict (dict[Candidate,dict]): A dictionary mapping each candidate
+            to a dictionary of attributes of the candidate.
         events (List[_AnimationEvent]): A list of animation events to be constructed and rendered.
         title (Optional[str], optional): A string to be displayed at the beginning of the
             animation as a title screen. If ``None``, the animation will skip the title
@@ -703,7 +724,7 @@ class ElectionScene(manim.Scene):
 
     def __init__(
         self,
-        candidate_dict: dict[str, dict],
+        candidate_dict: dict[Candidate, dict],
         events: List[_AnimationEvent],
         title: Optional[str] = None,
         color_palette: ColorPalette = DARK_PALETTE,
@@ -1050,12 +1071,12 @@ class ElectionScene(manim.Scene):
                 run_time=self.animation_duration,
             )
 
-    def _animate_win(self, cands_transferred_from: dict[str, dict], event: _WinEvent) -> None:
+    def _animate_win(self, cands_transferred_from: dict[Candidate, dict], event: _WinEvent) -> None:
         """
         Animate a round in which one or more candidates are elected.
 
         Args:
-            cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
+            cands_transferred_from (dict[Candidate,dict]): A dictionary in which the keys are the
                 candidates elected this round and the values are dictionaries recording
                 the candidate's attributes.
             event (_WinEvent): The event to be animated.

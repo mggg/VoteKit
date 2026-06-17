@@ -10,6 +10,7 @@ from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import (
     first_place_votes,
     score_dict_to_ranking,
@@ -283,14 +284,16 @@ class _IterativeVetoBase(RankingElection, ABC):
         resets veto caches, and empties _eliminated.
         """
         self._internal_round_number = 0
-        self._eliminated = set("~")
+        self._eliminated: set[Candidate] = set("~")
         self._voter_order_current_index = 0
         self._veto_position_cache = [None for _ in range(self._n_ballots)]
         if self.tiebreak != "random":
             self._veto_cache = ["" for _ in range(self._n_ballots)]
 
     @abstractmethod
-    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(
+        self, scores: dict[Candidate, float]
+    ) -> tuple[frozenset[Candidate], frozenset[Candidate]]:
         """
         Abstract method for veto loop to be defined by subclasses.
 
@@ -302,10 +305,10 @@ class _IterativeVetoBase(RankingElection, ABC):
         Ties will be broken in _run_step.
 
         Args:
-            scores (dict[str, float]): Mutable score dict, modified in place.
+            scores (dict[str | int, float]): Mutable score dict, modified in place.
 
         Returns:
-            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
+            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
                 where eliminated contains candidates worthy of elimination
                 and elected contains candidates worthy of election.
         """
@@ -346,7 +349,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         remaining_set = self.candidates - self._eliminated
         if len(remaining_set) == self.n_seats:
             electable_candidates = remaining_set
-            eliminated_set: frozenset[str] = frozenset()
+            eliminated_set: frozenset[Candidate] = frozenset()
         else:
             eliminated_set, electable_candidates = self._veto_loop(new_scores)
 
@@ -430,22 +433,24 @@ class PluralityVeto(_IterativeVetoBase):
             - a ballot has non-integer weight.
     """
 
-    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(
+        self, scores: dict[Candidate, float]
+    ) -> tuple[frozenset[Candidate], frozenset[Candidate]]:
         """
         Processes vetoes until some candidate's score reaches zero.
 
         Each voter decrements the score of their least favorite remaining candidate.
 
         Args:
-            scores (dict[str, float]): Mutable score dict, modified in place.
+            scores (dict[str | int, float]): Mutable score dict, modified in place.
 
         Returns:
-            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
+            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
                 where each is a set of candidates worthy of elimination or election, respectively.
         """
 
-        eliminated: set[str] = set()
-        elected: frozenset[str] = frozenset()
+        eliminated: set[Candidate] = set()
+        elected: frozenset[Candidate] = frozenset()
         if self._internal_round_number == 0:
             eliminated.update(c for c, score in scores.items() if score <= 0)
 
@@ -508,7 +513,9 @@ class SerialVeto(_IterativeVetoBase):
             - a ballot has non-integer weight.
     """
 
-    def _veto_loop(self, scores: dict[str, float]) -> tuple[frozenset[str], frozenset[str]]:
+    def _veto_loop(
+        self, scores: dict[Candidate, float]
+    ) -> tuple[frozenset[Candidate], frozenset[Candidate]]:
         """
         Processes vetoes until some candidate is eliminated or all vetoes have been processed.
 
@@ -517,14 +524,14 @@ class SerialVeto(_IterativeVetoBase):
         If all vetoes are processed, elects all remaining candidates.
 
         Args:
-            scores (dict[str, float]): Mutable score dict, modified in place.
+            scores (dict[str | int, float]): Mutable score dict, modified in place.
 
         Returns:
-            tuple[frozenset[str], frozenset[str]]: A tuple of (eliminated, elected),
+            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
                 where each is a set of candidates worthy of elimination or election, respectively.
         """
-        eliminated: set[str] = set()
-        elected: frozenset[str] = frozenset()
+        eliminated: set[Candidate] = set()
+        elected: frozenset[Candidate] = frozenset()
         while self._voter_order_current_index < len(self._voter_order):
             voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)

@@ -4,10 +4,11 @@ from typing import Union
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
 def fractional_transfer(
-    winner: str,
+    winner: Candidate,
     fpv: float,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
@@ -16,7 +17,7 @@ def fractional_transfer(
     Calculates fractional transfer from winner, then removes winner from the list of ballots.
 
     Args:
-        winner (str): Candidate to transfer votes from.
+        winner (str | int): Candidate to transfer votes from.
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.

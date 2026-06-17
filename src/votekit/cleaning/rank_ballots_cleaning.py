@@ -1,6 +1,5 @@
-from typing import Union
-
 from votekit.ballot import RankBallot
+from votekit.types import Candidate
 
 
 def condense_rank_ballot(
@@ -80,20 +79,20 @@ def remove_repeat_cands_rank_ballot(
 
 
 def remove_cand_rank_ballot(
-    removed: Union[str, list],
+    removed: Candidate | list[Candidate],
     ballot: RankBallot,
 ) -> RankBallot:
     """
     Removes specified candidate(s) from ballot. Does not condense the resulting ballot.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (str | int | list[str | int]): Candidate or list of candidates to be removed.
         ballot (RankBallot): Ballot to remove candidates from.
 
     Returns:
         RankBallot: Ballot with candidate(s) removed.
     """
-    if isinstance(removed, str):
+    if isinstance(removed, Candidate):
         removed = [removed]
 
     new_ranking = []

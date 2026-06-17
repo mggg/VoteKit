@@ -1,29 +1,29 @@
-from typing import Union
-
 import numpy as np
 
 from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
-def comention(cands: Union[str, list[str]], ballot: RankBallot):
+def comention(cands: Candidate | list[Candidate] | list[str] | list[int], ballot: RankBallot):
     """
     Takes cands and returns true if they all appear on the ballot in the ranking.
 
     Args:
-      cands (Union[str, list[str]]): Candidate name or list of candidate names.
+      cands (str | int, list[str | int] | list[str] | list[int]):
+        Candidate name or list of candidate names.
       ballot (RankBallot): RankBallot.
 
     Returns:
       bool: True if all candidates appear in ballot.
     """
-    all_cands: set[str] = set()
+    all_cands: set[Candidate] = set()
 
     if ballot.ranking:
         all_cands = all_cands.union(c for s in ballot.ranking for c in s)
 
-    if isinstance(cands, str):
+    if isinstance(cands, Candidate):
         cands = [cands]
 
     return set(cands).issubset(all_cands)

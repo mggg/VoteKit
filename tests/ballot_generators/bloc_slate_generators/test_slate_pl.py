@@ -11,11 +11,12 @@ from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
 )
 from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 PROB_THRESHOLD = 0.01
 
 
-def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[str], ...]:
+def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[Candidate], ...]:
     assert ballot.ranking is not None
     return ballot.ranking
 
@@ -156,7 +157,10 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
 
         a_comparisons_profile = [
             tuple(
-                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "A"
+                cand
+                for cand_set in ballot_ranking(ballot)
+                for cand in cand_set
+                if isinstance(cand, str) and cand[0] == "A"
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
@@ -164,7 +168,10 @@ def test_two_bloc_two_slate_spl_distribution_matches_name_ballot_dist(
 
         b_comparisons_profile = [
             tuple(
-                cand for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] == "B"
+                cand
+                for cand_set in ballot_ranking(ballot)
+                for cand in cand_set
+                if isinstance(cand, str) and cand[0] == "B"
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
@@ -236,7 +243,7 @@ def test_one_bloc_three_slate_spl_distribution_matches_name_ballot_dist(
                 cand
                 for cand_set in ballot_ranking(ballot)
                 for cand in cand_set
-                if cand[0] == slate and cand[-1] in ["1", "2"]
+                if isinstance(cand, str) and cand[0] == slate and cand[-1] in ["1", "2"]
             )
             for ballot in profile.ballots
             for _ in range(int(ballot.weight))
@@ -273,7 +280,12 @@ def test_spl_zero_support_slates():
 
     profile = slate_pl_profile_generator(config)
     zero_support_slate_perms = [
-        tuple(cand[0] for cand_set in ballot_ranking(ballot) for cand in cand_set if cand[0] != "A")
+        tuple(
+            cand[0]
+            for cand_set in ballot_ranking(ballot)
+            for cand in cand_set
+            if isinstance(cand, str) and cand[0] != "A"
+        )
         for ballot in profile.ballots
         for _ in range(int(ballot.weight))
     ]

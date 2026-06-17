@@ -12,6 +12,7 @@ from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate, CandidateFloatDictLike
 from votekit.utils import (
     borda_scores,
     first_place_votes,
@@ -29,7 +30,7 @@ class _SVState:
     veto_matrix: np.ndarray
     veto_position_cache: np.ndarray
     scores: np.ndarray
-    eliminated: frozenset[str]
+    eliminated: frozenset[Candidate]
 
 
 class SimultaneousVeto(RankingElection):
@@ -49,10 +50,12 @@ class SimultaneousVeto(RankingElection):
     Args:
         profile (RankProfile): Profile to run election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
-        candidate_weights (Literal['first_place', 'uniform', 'borda', 'harmonic'] | dict[str, float]
-            | int, optional): Initial candidate scores. 'first_place' means candidates begin with
-            their first-place vote count. 'uniform' means all candidates begin with the same
-            score. 'borda' means candidates begin with their Borda scores. If a dictionary,
+        candidate_weights (Literal['first_place', 'uniform', 'borda', 'harmonic']
+            | dict[str | int, float] | dict[str, float] | dict[int, float] | int, optional):
+            Initial candidate scores.
+            'first_place' means candidates begin with their first-place vote count.
+            'uniform' means all candidates begin with the same score.
+            'borda' means candidates begin with their Borda scores. If a dictionary,
             keys are candidates and values are initial scores; a score must be provided
             for every candidate. If an integer k, candidates begin with their top-k vote count.
             Defaults to "first_place".
@@ -95,7 +98,7 @@ class SimultaneousVeto(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         candidate_weights: (
-            Literal["first_place", "uniform", "borda", "harmonic"] | dict[str, float] | int
+            Literal["first_place", "uniform", "borda", "harmonic"] | CandidateFloatDictLike | int
         ) = "first_place",
         tiebreak: Literal[
             "first_place", "random", "borda", "remaining_score", "veto_pressure", "lex"
@@ -121,7 +124,7 @@ class SimultaneousVeto(RankingElection):
         grouped_profile = profile.group_ballots()
         self._df = grouped_profile.df.copy()
         self.candidates = frozenset(grouped_profile.candidates_cast)
-        self._eliminated: set[str] = set("~")
+        self._eliminated: set[Candidate] = set("~")
 
         self._sorted_candidates = tuple(sorted(self.candidates))
         self._candidate_to_idx = {c: i for i, c in enumerate(self._sorted_candidates)}
@@ -155,12 +158,12 @@ class SimultaneousVeto(RankingElection):
 
         super().__init__(grouped_profile, n_seats=n_seats, score_function=score_func)
 
-    def _compute_scores_dict(self) -> dict[str, float]:
+    def _compute_scores_dict(self) -> dict[Candidate, float]:
         """
         Converts self._scores (np.array) to dict[str, float].
 
         Returns:
-            dict[str, float]: Dictionary mapping candidates to scores.
+            dict[str | int, float]: Dictionary mapping candidates to scores.
         """
         return {
             cand: self._scores[idx]
@@ -213,18 +216,20 @@ class SimultaneousVeto(RankingElection):
             )
 
     def _make_score_function(
-        self, candidate_weights: str | dict[str, float] | int
-    ) -> Callable[[RankProfile], dict[str, float]]:
+        self,
+        candidate_weights: str | CandidateFloatDictLike | int,
+    ) -> Callable[[RankProfile], dict[Candidate, float]]:
         """
         Converts ``candidate_weights`` into a callable function.
 
         This function is used to generate initial scores and is also passed to super().__init__.
 
         Args:
-            candidate_weights (str | dict[str, float] | int):
-                How to initialize candidate scores. 'first_place' means candidates begin with their
-                first-place vote count. 'uniform' means all candidates begin with the same
-                score. 'borda' means candidates begin with their Borda scores. If a dictionary,
+            candidate_weights (str | dict[str | int, float] | dict[str, float]
+                | dict[int, float | int): How to initialize candidate scores.
+                'first_place' means candidates begin with their first-place vote count.
+                'uniform' means all candidates begin with the same score.
+                'borda' means candidates begin with their Borda scores. If a dictionary,
                 keys are candidates and values are initial scores; a score must be provided
                 for every candidate. If an integer k, candidates begin with their top-k vote count.
 
@@ -262,13 +267,13 @@ class SimultaneousVeto(RankingElection):
                 return partial(borda_scores, tie_convention=self.scoring_tie_convention)
             case "uniform":
 
-                def uniform_weights(profile: RankProfile) -> dict[str, float]:
+                def uniform_weights(profile: RankProfile) -> dict[Candidate, float]:
                     return {c: 1.0 for c in profile.candidates}
 
                 return uniform_weights
             case "harmonic" | "dowdall":
 
-                def harmonic_weights(profile: RankProfile) -> dict[str, float]:
+                def harmonic_weights(profile: RankProfile) -> dict[Candidate, float]:
                     assert profile.max_ranking_length is not None
                     harmonic_score_vector = [1 / (i + 1) for i in range(profile.max_ranking_length)]
                     return score_dict_from_score_vector(
@@ -295,7 +300,7 @@ class SimultaneousVeto(RankingElection):
                         f"The following candidates were missing: {missing_cands}"
                     )
                     raise ValueError(msg)
-                custom_weight_map: dict[str, float] = {}
+                custom_weight_map: dict[Candidate, float] = {}
                 for candidate in self.candidates:
                     raw_weight = candidate_weights[candidate]
                     if not isinstance(raw_weight, Real) or isinstance(raw_weight, bool):
@@ -305,7 +310,7 @@ class SimultaneousVeto(RankingElection):
                         )
                     custom_weight_map[candidate] = float(raw_weight)
 
-                def custom_weights(profile: RankProfile) -> dict[str, float]:
+                def custom_weights(profile: RankProfile) -> dict[Candidate, float]:
                     return {c: custom_weight_map[c] for c in profile.candidates}
 
                 return custom_weights
@@ -331,12 +336,12 @@ class SimultaneousVeto(RankingElection):
             veto_matrix[veto_indices, ballot_idx] = veto_weight
         return veto_matrix
 
-    def _update_veto_matrix(self, candidate: str):
+    def _update_veto_matrix(self, candidate: Candidate):
         """
         Updates veto matrix in place by redistributing veto pressure from an eliminated candidate.
 
         Args:
-            candidate (str): Candidate being eliminated.
+            candidate (str | int): Candidate being eliminated.
         """
         candidate_idx = self._candidate_to_idx[candidate]
         ballots_to_update = np.flatnonzero(self._veto_matrix[candidate_idx])
@@ -352,7 +357,7 @@ class SimultaneousVeto(RankingElection):
             veto_weight /= len(veto_indices)
             self._veto_matrix[veto_indices, ballot_idx] += veto_weight
 
-    def _get_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
+    def _get_vetoes(self, ballot_idx: np.intp) -> frozenset[Candidate]:
         """
         Given a ballot index, returns the candidate(s) to veto.
 
@@ -368,7 +373,7 @@ class SimultaneousVeto(RankingElection):
                 self._df containing that ballot.
 
         Returns:
-            frozenset[str]: The candidate(s) to be vetoed.
+            frozenset[Candidate]: The candidate(s) to be vetoed.
 
         Raises:
             ValueError: If the ballot has no remaining candidates to veto.
@@ -404,22 +409,23 @@ class SimultaneousVeto(RankingElection):
 
     def _break_tie(
         self,
-        candidates: frozenset[str],
+        candidates: frozenset[Candidate],
         candidate_idx: Iterable[int],
         profile: RankProfile,
-    ) -> tuple[frozenset[str], ...]:
+    ) -> tuple[frozenset[Candidate], ...]:
         """
         Takes candidate names and indices and returns a tiebroken order of names.
 
         Args:
-            candidates (frozenset[str]): Names of tied candidates.
+            candidates (frozenset[str | int]): Names of tied candidates.
             candidate_idx (Iterable[int]): Indices of tied candidates.
             profile (RankProfile): RankProfile of the current round.
                 Passed to tiebreak_set() if ``tiebreak`` is not 'veto_pressure'
                 or 'remaining_score'.
 
         Returns:
-            tuple[frozenset[str], ...]: Tiebroken ordering of candidates (each in their own set).
+            tuple[frozenset[str | int], ...]: Tiebroken ordering of candidates
+                (each in their own set).
         """
 
         def make_singleton_ranking(indices: list[int]) -> tuple[frozenset[str], ...]:
@@ -450,7 +456,7 @@ class SimultaneousVeto(RankingElection):
 
     def _eliminate_one_candidate(
         self, profile: RankProfile
-    ) -> tuple[str | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+    ) -> tuple[Candidate | None, dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
         """
         Eliminate exactly one candidate whose score has hit zero, breaking a tie if necessary.
 
@@ -458,16 +464,16 @@ class SimultaneousVeto(RankingElection):
             profile (RankProfile): RankProfile of the current round.
 
         Returns:
-            tuple[str | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+            tuple[str | int | None, dict[frozenset[str | int], tuple[frozenset[str | int], ...]]]:
                 Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
-                is either a str giving the name of the eliminated candidate, or ``None``,
+                is either a str or int giving the name of the eliminated candidate, or ``None``,
                 signaling that no candidate was eliminated; and tiebreaks is a dict
                 mapping a set of simultaneously-eliminated candidates to a tiebroken order;
                 if only one candidate is eliminated, tiebreaks is empty.
         """
         idx_to_elim = np.where((self._scores <= 0) & (self._veto_pressure > 0))[0]
 
-        tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
+        tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = {}
         match idx_to_elim.size:
             case 0:
                 return None, tiebreaks
@@ -489,7 +495,7 @@ class SimultaneousVeto(RankingElection):
 
     def _handle_all_zeroed(
         self, profile: RankProfile
-    ) -> tuple[Sentinel, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+    ) -> tuple[Sentinel, dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
         """
         Handles the case in which all remaining candidates' scores hit zero simultaneously.
 
@@ -500,7 +506,7 @@ class SimultaneousVeto(RankingElection):
             profile (RankProfile): RankProfile of the current round.
 
         Returns:
-            tuple[Sentinel, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+            tuple[Sentinel, dict[frozenset[str | int], tuple[frozenset[str | int], ...]]]:
                 Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
                 is a Sentinel indicating that the election is over, and tiebreaks is a dict
                 mapping the set of remaining candidates to a tiebroken order of the same.
@@ -517,7 +523,9 @@ class SimultaneousVeto(RankingElection):
 
     def _veto_step(
         self, profile: RankProfile
-    ) -> tuple[str | Sentinel | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
+    ) -> tuple[
+        Candidate | Sentinel | None, dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]
+    ]:
         """
         Core of the SimultaneousVeto algorithm.
 
@@ -536,9 +544,10 @@ class SimultaneousVeto(RankingElection):
                 Used for tiebreaking, if necessary.
 
         Returns:
-            tuple[str | Sentinel | None, dict[frozenset[str], tuple[frozenset[str], ...]]]:
-                A 2-tuple of (eliminated_candidate, tiebreaks). eliminated_candidate is one of:
-                    - a str indicating the candidate to be eliminated
+            tuple[str | int | Sentinel | None, dict[frozenset[str | int],
+                tuple[frozenset[Candidate], ...]]]: A 2-tuple of (eliminated_candidate, tiebreaks).
+                eliminated_candidate is one of:
+                    - a str or int indicating the candidate to be eliminated
                     - NO_CANDIDATES_REMAINING, a Sentinel indicating the end of the election
                     - None, an error code signaling the failure to eliminate a candidate this round
                 and tiebreaks is a dict mapping an unordered frozenset of candidates to their
@@ -552,7 +561,7 @@ class SimultaneousVeto(RankingElection):
         # handle floating point imprecision:
         self._scores[np.abs(self._scores) < 1e-10] = 0
 
-        eliminated_candidate: str | Sentinel | None = None
+        eliminated_candidate: Candidate | Sentinel | None = None
         if np.any(self._scores):
             eliminated_candidate, tiebreaks = self._eliminate_one_candidate(profile)
         else:
@@ -616,9 +625,9 @@ class SimultaneousVeto(RankingElection):
         else:
             self._write_state(current_round)
 
-        eliminated: tuple[frozenset[str], ...] = (frozenset(),)
-        elected: tuple[frozenset[str], ...] = (frozenset(),)
-        tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
+        eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
+        elected: tuple[frozenset[Candidate], ...] = (frozenset(),)
+        tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = {}
 
         remaining_set = self.candidates - self._eliminated
         if len(remaining_set) <= self.n_seats:

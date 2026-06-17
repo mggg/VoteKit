@@ -5,6 +5,7 @@ from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import bar_plot
 from votekit.pref_profile import PreferenceProfile, RankProfile
+from votekit.types import Candidate, CandidateFloatDictLike
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -19,18 +20,20 @@ ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
 
 def profile_bar_plot(
     profile: ProfileT,
-    stat_function: Callable[[ProfileT], dict[str, float]],
+    stat_function: Callable[[ProfileT], CandidateFloatDictLike],
     *,
     profile_label: str = "Profile",
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    category_ordering: Optional[list[str]] = None,
+    category_ordering: Optional[list[Candidate] | list[str] | list[int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    categories_legend: Optional[Mapping[str, PlotLabel]] = None,
+    categories_legend: Optional[
+        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
+    ] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,
@@ -41,26 +44,27 @@ def profile_bar_plot(
 
     Args:
         profile (RankProfile): Profile to plot statistics for.
-        stat_function (Callable[[RankProfile], dict[str, float]]): Which stat
-            to use for the bar plot. Must be a callable that takes a profile and returns
-            a dict with str keys and float values.
+        stat_function (Callable[[RankProfile], dict[str | int, float] | dict[str, float]
+            | dict[int, float]]): Which stat to use for the bar plot.
+            Must be a callable that takes a profile and returns a dict
+            with str and/or int keys and float values.
         profile_label (str, optional): Label for profile. Defaults to "Profile".
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
         profile_color (str, optional): Color to plot. Defaults to the first color from
             ``COLOR_LIST`` from ``utils`` module.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        category_ordering (list[str], optional): Ordering of x-labels. Defaults to order retrieved
-            from data dictionary.
+        category_ordering (list[str | int] | list[str] | list[int] | None): Ordering of x-labels.
+            Defaults to order retrieved from data dictionary.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
         show_profile_legend (bool, optional): Whether or not to plot the profile legend.
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
-        categories_legend (dict[str, str], optional): Dictionary mapping data categories
-            to description. Defaults to None. If provided, generates a second legend for data
-            categories.
+        categories_legend (dict[str | int, str] | dict[str, str] | dict[int, str] |  None):
+            Dictionary mapping data categories to description. Defaults to None.
+            If provided, generates a second legend for data categories.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
         threshold_kwds (Union[list[dict], dict], optional): List of plotting
@@ -108,12 +112,14 @@ def profile_borda_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[list[str]] = None,
+    candidate_ordering: Optional[list[Candidate] | list[str] | list[int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
+    candidate_legend: Optional[
+        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
+    ] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -134,16 +140,17 @@ def profile_borda_plot(
             ``COLOR_LIST`` from ``utils`` module.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of Borda scores.
+        candidate_ordering (list[str | int] | list[str] | list[int] | None): Ordering of x-labels.
+            Defaults to decreasing order of Borda scores.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
         show_profile_legend (bool, optional): Whether or not to plot the profile legend.
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
-        candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+        candidate_legend (dict[str | int, str] | dict[str, str] | dict[int, str] | None):
+            Dictionary mapping candidates to alternate label. Defaults to None.
+            If provided, generates a second legend.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
@@ -200,12 +207,14 @@ def profile_mentions_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[list[str]] = None,
+    candidate_ordering: Optional[list[Candidate] | list[str] | list[int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
+    candidate_legend: Optional[
+        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
+    ] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -226,16 +235,17 @@ def profile_mentions_plot(
             ``COLOR_LIST`` from ``utils`` module.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of mentions.
+        candidate_ordering (list[str | int] | list[str] | list[int], optional):
+            Ordering of x-labels. Defaults to decreasing order of mentions.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
         show_profile_legend (bool, optional): Whether or not to plot the profile legend.
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
-        candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+        candidate_legend (dict[str | int, str] | dict[str, str] |dict[int, str] | None):
+            Dictionary mapping candidates to alternate label. Defaults to None.
+            If provided, generates a second legend.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal
@@ -292,12 +302,14 @@ def profile_fpv_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[list[str]] = None,
+    candidate_ordering: Optional[list[Candidate] | list[str] | list[int]] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[Mapping[str, PlotLabel]] = None,
+    candidate_legend: Optional[
+        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
+    ] = None,
     relabel_candidates_with_int: bool = False,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
@@ -318,16 +330,17 @@ def profile_fpv_plot(
             ``COLOR_LIST`` from ``utils`` module.
         bar_width (float, optional): Width of bars. Defaults to None which computes the bar width
             as 0.7 divided by the number of data sets. Must be in the interval :math:`(0,1]`.
-        candidate_ordering (list[str], optional): Ordering of x-labels. Defaults to decreasing
-            order of first place votes.
+        candidate_ordering (list[str | int] | list[str] | list[int] | None): Ordering of x-labels.
+            Defaults to decreasing order of first place votes.
         x_axis_name (str, optional): Name of x-axis. Defaults to None, which does not plot a name.
         y_axis_name (str, optional): Name of y-axis. Defaults to None, which does not plot a name.
         title (str, optional): Title for the figure. Defaults to None, which does not plot a title.
         show_profile_legend (bool, optional): Whether or not to plot the profile legend.
             Defaults to False. Is automatically shown if any threshold lines have the keyword
             "label" passed through ``threshold_kwds``.
-        candidate_legend (dict[str, str], optional): Dictionary mapping candidates
-            to alternate label. Defaults to None. If provided, generates a second legend.
+        candidate_legend (dict[str | int, str] | dict[str, str] | dict[int, str] | None):
+            Dictionary mapping candidates to alternate label.
+            Defaults to None. If provided, generates a second legend.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
         threshold_values (Union[list[float], float], optional): List of values to plot horizontal

@@ -4,6 +4,7 @@ from typing import Callable, Optional
 from votekit.elections.election_state import ElectionState
 from votekit.models import Election
 from votekit.pref_profile import ProfileError, RankProfile
+from votekit.types import Candidate
 
 
 class RankingElection(Election[RankProfile]):
@@ -12,7 +13,7 @@ class RankingElection(Election[RankProfile]):
 
     Args:
         profile (RankProfile): The initial profile of ballots.
-        score_function (Callable[[RankProfile], dict[str, float]], optional):
+        score_function (Callable[[RankProfile], dict[str | float, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
@@ -24,7 +25,7 @@ class RankingElection(Election[RankProfile]):
         election_states (list[ElectionState]): a list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[RankProfile], dict[str, float]], optional):
+        score_function (Callable[[RankProfile], dict[str | int, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
         length (int): the number of rounds of the election.
@@ -34,7 +35,7 @@ class RankingElection(Election[RankProfile]):
         self,
         profile: RankProfile,
         n_seats: int = 1,
-        score_function: Optional[Callable[[RankProfile], dict[str, float]]] = None,
+        score_function: Optional[Callable[[RankProfile], dict[Candidate, float]]] = None,
         sort_high_low: bool = True,
     ):
         if n_seats <= 0:

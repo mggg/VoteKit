@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, Union
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -9,6 +9,7 @@ from votekit.pref_profile import (
     ProfileError,
     RankProfile,
 )
+from votekit.types import Candidate
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -195,20 +196,21 @@ def remove_repeat_cands_rank_profile(
 
 
 def remove_cand_from_ranking_row(
-    removed: Union[str, list],
+    removed: Candidate | list[Candidate] | list[str] | list[int],
     ranking_tup: tuple[frozenset, ...],
 ) -> tuple[frozenset, ...]:
     """
     Removes specified candidate(s) from ranking. Does not condense the resulting ranking.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (str | int | list[str | int] | list[str] | list[int]):
+            Candidate or list of candidates to be removed.
         ranking_tup (tuple): Ranking to remove candidates from.
 
     Returns:
         tuple: Ranking with candidate(s) removed.
     """
-    if isinstance(removed, str):
+    if isinstance(removed, Candidate):
         removed = [removed]
 
     removed_set = set(removed)
@@ -223,7 +225,7 @@ def remove_cand_from_ranking_row(
 
 
 def remove_cand_rank_profile(
-    removed: Union[str, list],
+    removed: Candidate | list[Candidate],
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -237,7 +239,7 @@ def remove_cand_rank_profile(
     is handled correctly.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (str | int | list[str | int]): Candidate or list of candidates to be removed.
         profile (RankProfile): Profile to remove candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
@@ -254,7 +256,7 @@ def remove_cand_rank_profile(
     Raises:
         ProfileError: Profile must only contain ranked ballots.
     """
-    if isinstance(removed, str):
+    if isinstance(removed, Candidate):
         removed = [removed]
 
     cleaned_profile = clean_rank_profile(
@@ -397,7 +399,9 @@ def condense_rank_profile(
     )
 
 
-def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) -> bool:
+def _is_equiv_for_remove_and_condense(
+    removed: list[Candidate] | list[str] | list[int], ranking: pd.Series
+) -> bool:
     """
     Returns True if the given ranking is equivalent to its removed and condensed form.
     It is equivalent if the ranking has no candidate in the removed list and either no empty
@@ -405,7 +409,7 @@ def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) ->
     in the removed list, it is not equivalent.
 
     Args:
-        removed (list[str]): Candidates to be removed.
+        removed (list[str | int] | list[str] | list[int]): Candidates to be removed.
         ranking (pd.Series): Ranking to check.
 
     Returns:
@@ -437,7 +441,7 @@ def _is_equiv_for_remove_and_condense(removed: list[str], ranking: pd.Series) ->
 
 
 def remove_and_condense_rank_profile(
-    removed: Union[str, list],
+    removed: Candidate | list[Candidate] | list[str] | list[int],
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -457,7 +461,8 @@ def remove_and_condense_rank_profile(
     is handled correctly, and that ballot equivalence is checked.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (str | int | list[str | int] | list[str] | list[int]):
+            Candidate or list of candidates to be removed.
         profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
@@ -472,7 +477,7 @@ def remove_and_condense_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
     """
 
-    if isinstance(removed, str):
+    if isinstance(removed, Candidate):
         removed = [removed]
 
     cleaned_profile = clean_rank_profile(

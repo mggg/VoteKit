@@ -8,6 +8,7 @@ from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
 )
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import tiebreak_set
 
 
@@ -45,7 +46,7 @@ class RankedPairs(RankingElection):
             n_seats = 1
         self.tiebreak = tiebreak
 
-        def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
+        def quick_tiebreak_candidates(profile: RankProfile) -> dict[Candidate, float]:
             candidate_set = frozenset(profile.candidates)
             tiebroken_candidates = tiebreak_set(candidate_set, tiebreak=self.tiebreak)
 

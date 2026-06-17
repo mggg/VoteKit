@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from votekit.types import Candidate
+
 from ...ballot import ScoreBallot
 from .csv_utils import (
     _validate_csv_ballot_row_break_idxs,
@@ -61,7 +63,7 @@ def _parse_ballot_from_score_csv(
         includes_voter_set (bool): Whether or not the csv contains voter sets.
         break_indices (list[int]): Where the columns of the csv change from one data type to
             another.
-        inv_candidate_mapping (dict[str, str]): The iverted candidate mapping of prefix
+        inv_candidate_mapping (dict[str, str]): The inverted candidate mapping of prefix
             to the cand.
 
     Returns:
@@ -78,7 +80,9 @@ def _parse_ballot_from_score_csv(
             "must be float."
         )
 
-    scores = {c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]}
+    scores: dict[Candidate, int | float] = {
+        c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]
+    }
 
     if includes_voter_set:
         voter_set = set(v.strip() for v in ballot_row[break_indices[-1] + 1 :])

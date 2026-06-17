@@ -22,7 +22,8 @@ class TestElection(Election):
                 assert ballot.ranking is not None
                 for s in ballot.ranking:
                     for c in s:
-                        score_dict[c] += "ABCDEF".index(c)
+                        if isinstance(c, str):
+                            score_dict[c] += "ABCDEF".index(c)
             return score_dict
 
         super().__init__(profile, score_function=score, sort_high_low=sort_high_low)
