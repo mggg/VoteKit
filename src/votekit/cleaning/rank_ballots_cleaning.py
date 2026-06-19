@@ -86,7 +86,8 @@ def remove_cand_rank_ballot(
     Removes specified candidate(s) from ballot. Does not condense the resulting ballot.
 
     Args:
-        removed (str | int | list[str | int]): Candidate or list of candidates to be removed.
+        removed (Candidate | list[Candidate]): Candidate or list of candidates
+            to be removed. Candidates can be strings, integers, or mix of both.
         ballot (RankBallot): Ballot to remove candidates from.
 
     Returns:

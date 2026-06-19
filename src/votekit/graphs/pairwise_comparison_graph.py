@@ -24,7 +24,7 @@ def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, in
     Args:
         profile (RankProfile): The preference profile containing rankings.
         cand_name_to_idx (dict[Candidate, int]): A mapping from candidate names to their
-            integer index representations. Candidate can be str or int.
+            integer index representations. Candidates can be strings, integers, or mix of both.
 
     Returns:
         NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
@@ -96,7 +96,7 @@ def pairwise_dict(
 
     Returns:
         dict[tuple[Candidate, Candidate], tuple[float, float]]: Pairwise comparison dictionary.
-            Candidate can be str or int.
+            Candidates can be strings, integers, or mix of both.
     """
     if not isinstance(profile, RankProfile):
         raise ValueError("Profile must be of type RankProfile.")

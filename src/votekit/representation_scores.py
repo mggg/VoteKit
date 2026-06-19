@@ -21,7 +21,7 @@ def r_representation_score(
         r (int): Consider a voter represented if a member of the candidate_list is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
-        candidate_list (Sequence[str | int]): List of candidates to consider.
+        candidate_list (Sequence[Candidate]): List of candidates to consider.
             Candidates can be strings, integers, or mix of both.
 
     Returns:
@@ -79,9 +79,9 @@ def winner_sets_r_representation_scores(
         r (int): Consider a voter represented if a member of the candidate_set is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
-        candidate_list (Sequence[str | int], optional):
+        candidate_list (Sequence[Candidate], optional):
             List of candidates to consider as possible winners.
-            Candidates can be either strings, integers, or a mix of both.
+            Candidates can be either strings, integers, or mix of both.
             Defaults to None, in which case all candidates who received at least one vote are used.
 
     Returns:

@@ -51,13 +51,14 @@ class SimultaneousVeto(RankingElection):
         profile (RankProfile): Profile to run election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         candidate_weights (Literal['first_place', 'uniform', 'borda', 'harmonic']
-            | dict[str | int, float] | dict[str, float] | dict[int, float] | int, optional):
+            | dict[Candidate, float] | dict[str, float] | dict[int, float] | int, optional):
             Initial candidate scores.
             'first_place' means candidates begin with their first-place vote count.
             'uniform' means all candidates begin with the same score.
             'borda' means candidates begin with their Borda scores. If a dictionary,
             keys are candidates and values are initial scores; a score must be provided
-            for every candidate. If an integer k, candidates begin with their top-k vote count.
+            for every candidate. Candidates can be strings, integers, or mix of both.
+            If an integer k, candidates begin with their top-k vote count.
             Defaults to "first_place".
         tiebreak (Literal['first_place', 'random', 'borda', 'remaining_score', 'veto_pressure',
             'lex'], optional): Method for breaking ties when multiple candidates
@@ -70,8 +71,10 @@ class SimultaneousVeto(RankingElection):
             even if it is larger than ``n_seats``. Defaults to False.
 
     Attributes:
-        candidates (frozenset[str]): Candidates in the initial profile.
-        initial_scores (dict[str, float]): Initial scores of each candidate before veto process.
+        candidates (frozenset[Candidate]): Candidates in the initial profile.
+            Candidates can be strings, integers, or mix of both.
+        initial_scores (dict[Candidate, float]): Initial scores of each candidate before veto
+            process. Candidates can be strings, integers, or mix of both.
 
     Raises:
         ValueError: If any of the following:
@@ -227,7 +230,7 @@ class SimultaneousVeto(RankingElection):
 
         Args:
             candidate_weights (str | dict[Candidate, float] | int): How to initialize
-                candidate scores. Candidates can be strings or integers.
+                candidate scores. Candidates can be strings, integers, or mix of both.
                 'first_place' means candidates begin with their first-place vote count.
                 'uniform' means all candidates begin with the same score.
                 'borda' means candidates begin with their Borda scores. If a dictionary,
@@ -375,6 +378,7 @@ class SimultaneousVeto(RankingElection):
 
         Returns:
             frozenset[Candidate]: The candidate(s) to be vetoed.
+                Candidates can be strings, integers, or mix of both.
 
         Raises:
             ValueError: If the ballot has no remaining candidates to veto.
@@ -418,15 +422,17 @@ class SimultaneousVeto(RankingElection):
         Takes candidate names and indices and returns a tiebroken order of names.
 
         Args:
-            candidates (frozenset[str | int]): Names of tied candidates.
+            candidates (frozenset[Candidate]): Names of tied candidates.
+                Candidates can be strings, integers, or mix of both.
             candidate_idx (Iterable[int]): Indices of tied candidates.
             profile (RankProfile): RankProfile of the current round.
                 Passed to tiebreak_set() if ``tiebreak`` is not 'veto_pressure'
                 or 'remaining_score'.
 
         Returns:
-            tuple[frozenset[str | int], ...]: Tiebroken ordering of candidates
+            tuple[frozenset[Candidate], ...]: Tiebroken ordering of candidates
                 (each in their own set).
+                Candidates can be strings, integers, or mix of both.
         """
 
         def make_singleton_ranking(indices: list[int]) -> tuple[frozenset[Candidate], ...]:
@@ -465,12 +471,13 @@ class SimultaneousVeto(RankingElection):
             profile (RankProfile): RankProfile of the current round.
 
         Returns:
-            tuple[str | int | None, dict[frozenset[str | int], tuple[frozenset[str | int], ...]]]:
+            tuple[Candidate | None, dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
                 Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
                 is either a str or int giving the name of the eliminated candidate, or ``None``,
                 signaling that no candidate was eliminated; and tiebreaks is a dict
                 mapping a set of simultaneously-eliminated candidates to a tiebroken order;
                 if only one candidate is eliminated, tiebreaks is empty.
+                Candidates can be strings, integers, or mix of both.
         """
         idx_to_elim = np.where((self._scores <= 0) & (self._veto_pressure > 0))[0]
 
@@ -507,10 +514,11 @@ class SimultaneousVeto(RankingElection):
             profile (RankProfile): RankProfile of the current round.
 
         Returns:
-            tuple[Sentinel, dict[frozenset[str | int], tuple[frozenset[str | int], ...]]]:
+            tuple[Sentinel, dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
                 Returns a tuple (eliminated_candidate, tiebreaks), where eliminated_candidate
                 is a Sentinel indicating that the election is over, and tiebreaks is a dict
                 mapping the set of remaining candidates to a tiebroken order of the same.
+                Candidates can be strings, integers, or mix of both.
         """
         tiebreaks = {}
         if not self.return_all_tied_winners:
@@ -545,7 +553,7 @@ class SimultaneousVeto(RankingElection):
                 Used for tiebreaking, if necessary.
 
         Returns:
-            tuple[str | int | Sentinel | None, dict[frozenset[str | int],
+            tuple[str | int | Sentinel | None, dict[frozenset[Candidate],
                 tuple[frozenset[Candidate], ...]]]: A 2-tuple of (eliminated_candidate, tiebreaks).
                 eliminated_candidate is one of:
                     - a str or int indicating the candidate to be eliminated
@@ -553,6 +561,7 @@ class SimultaneousVeto(RankingElection):
                     - None, an error code signaling the failure to eliminate a candidate this round
                 and tiebreaks is a dict mapping an unordered frozenset of candidates to their
                 tiebroken order (a tuple of singleton frozensets).
+                Candidates can be strings, integers, or mix of both.
         """
 
         self._veto_pressure = self._veto_matrix.sum(axis=1)

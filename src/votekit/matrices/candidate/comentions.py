@@ -11,8 +11,9 @@ def comention(cands: Candidate | list[Candidate] | list[str] | list[int], ballot
     Takes cands and returns true if they all appear on the ballot in the ranking.
 
     Args:
-      cands (str | int, list[str | int] | list[str] | list[int]):
+      cands (Candidate, list[Candidate] | list[str] | list[int]):
         Candidate name or list of candidate names.
+        Candidates can be strings, integers, or mix of both.
       ballot (RankBallot): RankBallot.
 
     Returns:
@@ -29,15 +30,17 @@ def comention(cands: Candidate | list[Candidate] | list[str] | list[int], ballot
     return set(cands).issubset(all_cands)
 
 
-def comention_above(i: str, j: str, ballot: RankBallot) -> bool:
+def comention_above(i: Candidate, j: Candidate, ballot: RankBallot) -> bool:
     """
     Takes candidates i,j and returns True if i >= j in the ranking.
     Requires that the ballot has a ranking.
 
 
     Args:
-      i (str): Candidate name.
-      j (str): Candidate name.
+      i (Candidate): Candidate name.
+        Candidates can be strings, integers, or mix of both.
+      j (Candidate): Candidate name.
+        Candidates can be strings, integers, or mix of both.
       ballot (RankBallot): RankBallot.
 
     Returns:
@@ -59,7 +62,7 @@ def comention_above(i: str, j: str, ballot: RankBallot) -> bool:
 
 
 def comentions_matrix(
-    pref_profile: RankProfile, candidates: list[str], symmetric: bool = False
+    pref_profile: RankProfile, candidates: list[Candidate], symmetric: bool = False
 ) -> np.ndarray:
     """
     Takes a preference profile and converts to a matrix
@@ -69,8 +72,8 @@ def comentions_matrix(
 
     Args:
       pref_profile (RankProfile): Profile.
-      candidates (list[str]): List of candidates to use. Indexing of this list matches indexing of
-        output array.
+      candidates (list[Candidate]): List of candidates to use. Indexing of this list matches
+        indexing of output array. Candidates can be strings, integers, or mix of both.
       symmetric (bool, optional): Whether or not to make the matrix symmetric. Defaults to False
         in which case the i,j entry is comentions where i >= j. True means the i,j entry is
         comentions of i,j.

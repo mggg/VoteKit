@@ -83,7 +83,8 @@ def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...
 
     Args:
         row (pd.Series): Row of a profile.df.
-        candidates (tuple[str | int,...]): The name of the candidates.
+        candidates (tuple[Candidate,...]): The name of the candidates.
+            Candidates can be strings, integers, or mix of both.
 
     Returns:
         ScoreBallot: Ballot corresponding to the row of the df.
@@ -107,7 +108,8 @@ def _df_to_rank_ballot_tuple(
 
     Args:
         df (pd.DataFrame): A profile.df.
-        candidates (tuple[str | int,...]): The candidates.
+        candidates (tuple[Candidate,...]): The candidates.
+            Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
             is used for ballots with no ranking.
 
@@ -209,8 +211,9 @@ def rank_profile_to_ranking_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[frozenset[str | int],...], float]:
+        dict[tuple[frozenset[Candidate],...], float]:
             A dictionary with candidate rankings (keys) and corresponding total weights (values).
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         TypeError: Profile must be a RankProfile.
@@ -244,8 +247,9 @@ def score_profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[tuple[str | int, float], ...] | None, float]:
+        dict[tuple[tuple[Candidate, float], ...] | None, float]:
             A dictionary with candidate scores (keys) and corresponding total weights (values).
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         TypeError: Profile must be a ScoreProfile.

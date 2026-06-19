@@ -29,12 +29,12 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str | int, float], Union[tuple[Ballot], list[Ballot]], int],
+        transfer (Callable[[Candidate, float], Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
-            after transfer.
+            after transfer. Candidates can be strings, integers, or mix of both.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are

@@ -63,9 +63,10 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
         profile (RankProfile): Profile to partititon.
 
     Returns:
-        dict[str | int, list[RankBallot]]:
+        dict[Candidate, list[RankBallot]]:
             A dictionary whose keys are candidates and values are lists of ballots that
             have that candidate first.
+            Candidates can be strings, integers, or mix of both.
     """
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
@@ -189,8 +190,9 @@ def _score_dict_from_rankings_df_no_ties(
             the profile. If it is shorter, we add 0s.
 
     Returns:
-        dict[str | int, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
 
     validate_score_vector(score_vector)
@@ -266,8 +268,9 @@ def score_dict_from_score_vector(
             receive the points for 4th place.
 
     Returns:
-        dict[str | int, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
     validate_score_vector(score_vector)
 
@@ -337,8 +340,9 @@ def _first_place_votes_from_df_no_ties(
         profile (RankProfile): The profile to compute first place votes for.
 
     Returns:
-        dict[str | int, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to number of first place votes.
+            Candidates can be strings, integers, or mix of both.
     """
     # equiv to score vector of (1,0,0,...)
     assert profile.max_ranking_length is not None
@@ -419,8 +423,9 @@ def borda_scores(
             receive the points for 4th place.
 
     Returns:
-        dict[str | int, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to Borda scores.
+            Candidates can be strings, integers, or mix of both.
     """
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
@@ -447,7 +452,8 @@ def tiebreak_set(
     profile. Rule 4: lex/lexicographic/alph/alphabetical; break the tie alphabetically.
 
     Args:
-        r_set (frozenset[str | int]): Set of candidates on which to break tie.
+        r_set (frozenset[Candidate]): Set of candidates on which to break tie.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str): Tiebreak method to use. Options are "random", "first_place", and
@@ -466,6 +472,7 @@ def tiebreak_set(
 
     Returns:
         tuple[frozenset[Candidate],...]: tiebroken ranking
+            Candidates can be strings, integers, or mix of both.
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
         if any(isinstance(cand, int) for cand in r_set):
@@ -532,18 +539,19 @@ def tiebroken_ranking(
     Breaks ties in a list-of-sets ranking according to a given scheme.
 
     Args:
-        ranking (tuple[frozenset[str | int]]): A list-of-set ranking of candidates.
+        ranking (tuple[frozenset[Candidate]]): A list-of-set ranking of candidates.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
 
     Returns:
-        tuple[tuple[frozenset[str | int], ...], dict[frozenset[str | int]
-            tuple[frozenset[str | int],...]]]:
+        tuple[tuple[frozenset[Candidate], ...], dict[frozenset[Candidate]
+            tuple[frozenset[Candidate],...]]]:
             The first entry of the tuple is a list-of-set ranking of candidates (broken down to one
             candidate sets). The second entry is a dictionary that maps tied sets to their
-            resolution.
+            resolution. Candidates can be strings, integers, or mix of both.
     """
     new_ranking: list[frozenset[Candidate]] = [frozenset()] * len([c for s in ranking for c in s])
 
@@ -569,14 +577,16 @@ def score_dict_to_ranking(
     Sorts candidates into a tuple of frozensets ranking based on a scoring dictionary.
 
     Args:
-        score_dict (dict[str | int, float] | dict[str, float] | dict[int, float]):
+        score_dict (dict[Candidate, float] | dict[str, float] | dict[int, float]):
             Dictionary between candidates and their score.
+            Candidates can be strings, integers, or mix of both.
         sort_high_low (bool, optional): How to sort candidates based on scores. True sorts
             from high to low. Defaults to True.
 
 
     Returns:
-        tuple[frozenset[str | int],...]: Candidate rankings in a list-of-sets form.
+        tuple[frozenset[Candidate],...]: Candidate rankings in a list-of-sets form.
+            Candidates can be strings, integers, or mix of both.
     """
 
     score_to_cand: dict[float, list[Candidate]] = {s: [] for s in score_dict.values()}
@@ -614,8 +624,9 @@ def elect_cands_from_set_ranking(
     is a tie set and whose second entry is the resolution of the tie.
 
     Args:
-        ranking (Sequence[frozenset[str | int] | set[str | int] | set[str] | set[int]]):
+        ranking (Sequence[frozenset[Candidate] | set[Candidate] | set[str] | set[int]]):
             A list-of-set ranking of candidates.
+            Candidates can be strings, integers, or mix of both.
         n_seats (int): Number of seats to elect.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
@@ -623,11 +634,12 @@ def elect_cands_from_set_ranking(
             'first_place'. Defaults to None, which does not break ties.
 
     Returns:
-        tuple[tuple[frozenset[str | int]]], list[tuple[frozenset[str | int]],
-            Optional[tuple[frozenset[str | int], tuple[frozenset[str | int], ...]]]:
+        tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],
+            Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
             A list-of-sets of elected candidates, a list-of-sets of remaining candidates,
             and a tuple whose first entry is a tie set and whose second entry is the resolution of
             the tie. If no ties were broken, the tuple returns None.
+            Candidates can be strings, integers, or mix of both.
     """
     if n_seats < 1:
         raise ValueError("n_seats must be strictly positive")
@@ -921,6 +933,7 @@ def build_df_from_ballot_samples(
             sampled frequency. The keys should be in candidate id
             form
         candidates : list of candidates in the profile
+            Candidates can be strings, integers, or mix of both.
     returns:
         pandas df
     """

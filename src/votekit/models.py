@@ -31,10 +31,10 @@ class Election(Generic[P]):
         election_states (list[ElectionState]): A list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], dict[str | int, float]], optional):
+        score_function (Callable[[PreferenceProfile], dict[Candidate, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
-            Candidates can be strings, integers, or a mix of both.
+            Candidates can be strings, integers, or mix of both.
         length (int): The number of rounds of the election.
     """
 
@@ -164,9 +164,10 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str | int],...]:
+            tuple[frozenset[Candidate],...]:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
+                Candidate can be strings, integers, or mix of both.
         """
         return tuple(self.election_states[round_number].remaining)
 
@@ -179,7 +180,8 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str | int],...]: Ranking of candidates.
+            tuple[frozenset[Candidate],...]: Ranking of candidates.
+                Candidates can be strings, integers, or mix of both.
         """
         # len condition handles empty remaining candidates
         return tuple(

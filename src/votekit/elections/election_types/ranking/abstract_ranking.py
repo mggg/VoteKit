@@ -25,9 +25,10 @@ class RankingElection(Election[RankProfile]):
         election_states (list[ElectionState]): a list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[RankProfile], dict[str | int, float]], optional):
+        score_function (Callable[[RankProfile], dict[Candidate, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
+            Candidates can be strings, integers, or mix of both.
         length (int): the number of rounds of the election.
     """
 

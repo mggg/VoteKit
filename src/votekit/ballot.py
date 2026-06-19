@@ -18,28 +18,28 @@ class Ballot:
     Ballot parent class, contains voter set and assigned weight.
 
     Args:
-        ranking (Optional[Sequence[str | int | Iterable[str | int]]]): Candidate ranking.
+        ranking (Optional[Sequence[Candidate | Iterable[Candidate]]]): Candidate ranking.
             Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
-            Candidate can be represented as a str or int. Allow mix of types in candidate set.
+            Candidates can be strings, integers, or mix of both.
             Defaults to None. Will be coerced to tuple[frozenset[str | int], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
             Can be input as int or float, and will be coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
             Defaults to frozenset(). Will be coerced to frozenset.
-        scores (Optional[Mapping[str | int, float | int] | Mapping[str, float | int]
+        scores (Optional[Mapping[Candidate, float | int] | Mapping[str, float | int]
             | Mapping[int, float | int]]): Scores for individual candidates. Defaults to None.
             Values can be input as int or float but will be coerced to float.
-            Candidates can be strings, integers, or a mix of both.
+            Candidates can be strings, integers, or mix of both.
             Stored internally as a dict[str | int, float].
             Only retains non-zero scores.
 
     Attributes:
-        ranking (Optional[tuple[frozenset[str | int], ...]]): Tuple of candidate ranking.
+        ranking (Optional[tuple[frozenset[Candidate], ...]]): Tuple of candidate ranking.
             Entry i of the tuple is a
             frozenset of candidates ranked in position i.
         weight (float): Weight assigned to a given ballot.
         voter_set (frozenset[str]): Set of voters who cast the ballot.
-        scores (Optional[Mapping[str | int, float | int]): Scores for individual candidates.
+        scores (Optional[Mapping[Candidate, float | int]): Scores for individual candidates.
 
     Raises:
         TypeError: Only one of ranking or scores can be provided.
@@ -162,20 +162,22 @@ class RankBallot(Ballot):
 
     Args:
         ranking (RankingLike): Ranking of candidates, defaults to None.
-            RankingLike = Sequence[str | int | Iterable[str | int]] | None
+            RankingLike = Sequence[Candidate | Iterable[Candidate]] | None
+            Canidates can be strings, integers, or mix of both.
         weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
         ranking (Ranking): Ranking of candidates.
-            Ranking = tuple[frozenset[str | int], ...] | None
+            Ranking = tuple[frozenset[Candidate], ...] | None
         weight (float): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
     Raises:
         ValueError: Candidate '~' found in ballot ranking.
         ValueError: Ballot weight cannot be negative.
+        UserWarning: '1' and 1 candidates are treated as separate candidates.
     """
 
     def __init__(
@@ -277,14 +279,15 @@ class ScoreBallot(Ballot):
 
     Args:
         scores (ScoresLike): Scores of candidates, defaults to None.
-            ScoresLike = Mapping[str | int, int | float] | Mapping[str, int | float]
+            ScoresLike = Mapping[Candidate, int | float] | Mapping[str, int | float]
             | Mapping[int, int | float] | None
+            Candidates can be strings, integers, or mix of both.
         weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
-        scores (Optional[dict[str | int, float]]): Scores of candidates.
+        scores (Optional[dict[Candidate, float]]): Scores of candidates.
         weight (float): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
@@ -292,6 +295,7 @@ class ScoreBallot(Ballot):
         ValueError: Candidate '~' found in ballot scores.
         ValueError: Ballot weight cannot be negative.
         TypeError: Score values must be numeric.
+        UserWarning: '1' and 1 candidates are treated as separate candidates.
     """
 
     def __init__(

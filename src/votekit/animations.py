@@ -513,11 +513,12 @@ class STVAnimation:
                 were elected this round, ``"elimination"`` otherwise.
 
         Returns:
-            dict[Candidaate, dict[Candidate, float]]: A nested dictionary.
+            dict[Candidate, dict[Candidate, float]]: A nested dictionary.
                 If ``d`` is the return value, ``c1`` was a candidate eliminated this round,
                 and ``c2`` is a remaining candidate,
                 then ``d[c1][c2]`` will be the total support transferred this round from
                 candidate ``c1`` to candidate ``c2``.
+                Candidates can be strings, integers, or mix of both.
 
         Notes:
             This function supports the election, but not the elimination, of multiple candidates

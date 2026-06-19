@@ -52,7 +52,8 @@ class _IterativeVetoBase(RankingElection, ABC):
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
-        candidates (frozenset[str]): The set of candidates in the election.
+        candidates (frozenset[Candidate]): The set of candidates in the election.
+            Candidates can be strings, integers, or mix of both.
         tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
@@ -307,12 +308,14 @@ class _IterativeVetoBase(RankingElection, ABC):
         Ties will be broken in _run_step.
 
         Args:
-            scores (dict[str | int, float]): Mutable score dict, modified in place.
+            scores (dict[Candidate, float]): Mutable score dict, modified in place.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
-            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
+            tuple[frozenset[Candidate], frozenset[Candidate]]: A tuple of (eliminated, elected),
                 where eliminated contains candidates worthy of elimination
                 and elected contains candidates worthy of election.
+                Candidates can be strings, integers, or mix of both.
         """
         raise NotImplementedError
 
@@ -423,9 +426,11 @@ class PluralityVeto(_IterativeVetoBase):
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
-        candidates (frozenset[str]): The set of candidates in the election.
-        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+        candidates (frozenset[Candidate]): The set of candidates in the election.
+            Candidates can be strings, integers, or mix of both.
+        tiebreak_order (Optional[tuple[frozenset[Candidate]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         ValueError: If any of the following:
@@ -503,9 +508,11 @@ class SerialVeto(_IterativeVetoBase):
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
-        candidates (frozenset[str]): The set of candidates in the election.
-        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+        candidates (frozenset[Candidate]): The set of candidates in the election.
+            Candidates can be strings, integers, or mix of both.
+        tiebreak_order (Optional[tuple[frozenset[Candidate]]]): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         ValueError: If any of the following:
@@ -526,11 +533,13 @@ class SerialVeto(_IterativeVetoBase):
         If all vetoes are processed, elects all remaining candidates.
 
         Args:
-            scores (dict[str | int, float]): Mutable score dict, modified in place.
+            scores (dict[Candidate, float]): Mutable score dict, modified in place.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
-            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
+            tuple[frozenset[Candidate], frozenset[Candidate]]: A tuple of (eliminated, elected),
                 where each is a set of candidates worthy of elimination or election, respectively.
+                Candidates can be strings, integers, or mix of both.
         """
         eliminated: set[Candidate] = set()
         elected: frozenset[Candidate] = frozenset()

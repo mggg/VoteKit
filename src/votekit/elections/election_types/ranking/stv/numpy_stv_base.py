@@ -76,8 +76,9 @@ class NumpySTVBase(ABC):
     Abstract base class for numpy-based STV-style elections.
 
     Attributes:
-        candidates (list[str | int]): List of candidate names, indexed
+        candidates (list[Candidate]): List of candidate names, indexed
             to correspond to ballot matrix entries.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile): The original RankProfile for reference.
         n_seats (int): Number of seats to be elected.
         election_states (list[ElectionState]): List of ElectionState objects representing
@@ -271,8 +272,9 @@ class NumpySTVBase(ABC):
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
             play_by_play (list[ElectionPlay]): List of dictionaries representing the
                 actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str | int], tuple[frozenset[str | int], ...]]]):
+            tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
+                Candidates can be strings, integers, or mix of both.
         """
         pass
 
@@ -299,9 +301,10 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
+                Candidates can be strings, integers, or mix of both.
         """
         tallies = self._data.fpv_by_round[round_number].copy()
         elected_cands_as_list_of_str = [
@@ -336,10 +339,10 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str | int], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings, integers, or mix of both.
         """
         if (
             round_number < -len(self._data.fpv_by_round)
@@ -363,10 +366,10 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str | int], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings, integers, or mix of both.
         """
         if (
             round_number < -len(self._data.fpv_by_round)
@@ -392,7 +395,8 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[Candidate],...]: Ranking of candidates. Candidate can be str or int.
+            tuple[frozenset[Candidate],...]: Ranking of candidates.
+                Candidates can be strings, integers, or mix of both.
         """
         return tuple(
             [
@@ -676,8 +680,9 @@ class NumpySTVBase(ABC):
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
             round_number (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str | int],
-                tuple[frozenset[str | int], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]): Tiebreak record for each round.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (index of new loser, updated tiebreak record)

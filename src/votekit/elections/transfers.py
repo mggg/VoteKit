@@ -17,7 +17,8 @@ def fractional_transfer(
     Calculates fractional transfer from winner, then removes winner from the list of ballots.
 
     Args:
-        winner (str | int): Candidate to transfer votes from.
+        winner (Candidate): Candidate to transfer votes from.
+            Candidate can be a string or integer.
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
