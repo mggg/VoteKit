@@ -13,6 +13,7 @@ from typing import Optional, Sequence
 import numpy as np
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import (
     build_df_from_ballot_samples,
     fixed_zero_index_lex_block_size,
@@ -30,7 +31,7 @@ from votekit.utils import (
 
 
 def _generate_profile_optimized_non_short(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
@@ -40,7 +41,8 @@ def _generate_profile_optimized_non_short(
     short ballots are disallowed
 
     Args:
-        candidates (Sequence[str]): the list of candidates in the election
+        candidates (Sequence[Candidate]): the list of candidates in the election.
+            Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
@@ -66,7 +68,7 @@ def _generate_profile_optimized_non_short(
 
 
 def _generate_profile_optimized_with_short(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
@@ -77,7 +79,8 @@ def _generate_profile_optimized_with_short(
     the indices to ballots using a help function
 
     Args:
-        candidates (Sequence[str]): the list of candidates in the election
+        candidates (Sequence[Candidate]): the list of candidates in the election
+            Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate for
             the profile
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
@@ -117,7 +120,7 @@ def _generate_profile_optimized_with_short(
 
 
 def ic_profile_generator(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     allow_short_ballots: bool = False,
@@ -127,7 +130,8 @@ def ic_profile_generator(
     Equivalent to the ballot simplex with an alpha value of infinity.
 
     Args:
-        candidates (Sequence[str]): The list of candidates in the election.
+        candidates (Sequence[Candidate]): The list of candidates in the election.
+            Candidates can be strings or integers.
         number_of_ballots (int): The number of ballots to generate for the profile.
         max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.

@@ -911,7 +911,7 @@ def index_to_lexicographic_ballot(
 
 
 def build_df_from_ballot_samples(
-    ballots_freq_dict: dict[tuple[int, ...], int], candidates: Sequence[str]
+    ballots_freq_dict: dict[tuple[int, ...], int], candidates: Sequence[Candidate]
 ):
     """
     Helper function which creates a pandas df to instantiate a
