@@ -13,16 +13,16 @@ class ElectionState:
 
     Attributes:
         round_number (int, optional): Round number, defaults to 0.
-        remaining (tuple[frozenset[Candidate],...], optional): Remaining candidates, ordered to
+        remaining (tuple[frozenset[str | int],...], optional): Remaining candidates, ordered to
             indicate ranking, frozensets to indicate ties. Defaults to tuple with one empty set.
-        elected (tuple[frozenset[Candidate],...], optional): Elected candidates, ordered to
+        elected (tuple[frozenset[str | int],...], optional): Elected candidates, ordered to
             indicate ranking, frozensets to indicate ties. Defaults to tuple with one empty set.
-        eliminated (tuple[frozenset[Candidate],...], optional): Eliminated candidates, ordered to
+        eliminated (tuple[frozenset[str | int],...], optional): Eliminated candidates, ordered to
             indicate ranking, frozensets to indicate ties. Defaults to tuple with one empty set.
-        tiebreaks (dict[frozenset[Candidate], tuple[frozenset[Candidate],...]], optional): Stores
+        tiebreaks (dict[frozenset[str | int], tuple[frozenset[str | int],...]], optional): Stores
             tiebreak resolutions. Keys are frozensets of tied candidates and values are resolutions
             of tiebreak. Defaults to empty dictionary.
-        scores(dict[Candidate, float], optional): Stores score information.
+        scores(dict[str | int, float], optional): Stores score information.
             Keys are candidates, values are scores. Only remaining candidates should be stored.
 
     """

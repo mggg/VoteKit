@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from numbers import Real
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -143,7 +143,8 @@ class SimultaneousVeto(RankingElection):
 
         # scores are stored as a vector where position indicates the candidate
         self._scores = np.zeros(n_candidates)
-        score_func = self._make_score_function(candidate_weights)
+        _candidate_weights: dict[Candidate, float] = cast(dict[Candidate, float], candidate_weights)
+        score_func = self._make_score_function(_candidate_weights)
         for candidate, score in score_func(grouped_profile).items():
             candidate_idx = self._candidate_to_idx[candidate]
             self._scores[candidate_idx] = score
@@ -217,7 +218,7 @@ class SimultaneousVeto(RankingElection):
 
     def _make_score_function(
         self,
-        candidate_weights: str | CandidateFloatDictLike | int,
+        candidate_weights: str | dict[Candidate, float] | int,
     ) -> Callable[[RankProfile], dict[Candidate, float]]:
         """
         Converts ``candidate_weights`` into a callable function.
@@ -225,8 +226,8 @@ class SimultaneousVeto(RankingElection):
         This function is used to generate initial scores and is also passed to super().__init__.
 
         Args:
-            candidate_weights (str | dict[str | int, float] | dict[str, float]
-                | dict[int, float | int): How to initialize candidate scores.
+            candidate_weights (str | dict[Candidate, float] | int): How to initialize
+                candidate scores. Candidates can be strings or integers.
                 'first_place' means candidates begin with their first-place vote count.
                 'uniform' means all candidates begin with the same score.
                 'borda' means candidates begin with their Borda scores. If a dictionary,
@@ -234,8 +235,8 @@ class SimultaneousVeto(RankingElection):
                 for every candidate. If an integer k, candidates begin with their top-k vote count.
 
         Returns:
-            Callable[[RankProfile], dict[str, float]]: Score function that takes a RankProfile and
-                returns a dict mapping candidates to scores.
+            Callable[[RankProfile], dict[Candidate, float]]: Score function that takes a RankProfile
+                and returns a dict mapping candidates to scores. Candidates can be strs or ints.
 
         Raises:
             ValueError: If any of the following:
@@ -428,7 +429,7 @@ class SimultaneousVeto(RankingElection):
                 (each in their own set).
         """
 
-        def make_singleton_ranking(indices: list[int]) -> tuple[frozenset[str], ...]:
+        def make_singleton_ranking(indices: list[int]) -> tuple[frozenset[Candidate], ...]:
             """Convert sorted candidate indices to a tuple of singleton frozensets."""
             return tuple(frozenset((self._sorted_candidates[i],)) for i in indices)
 

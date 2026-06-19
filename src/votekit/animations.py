@@ -1188,15 +1188,18 @@ class ElectionScene(manim.Scene):
                 self.play(*transformations, run_time=self.animation_duration)
 
     def _animate_elimination(
-        self, cands_transferred_from: dict[str, dict], event: _EliminationEvent
+        self,
+        cands_transferred_from: dict[Candidate, dict] | dict[str, dict] | dict[int, dict],
+        event: _EliminationEvent,
     ) -> None:
         """
         Animate a round in which a candidate was eliminated.
 
         Args:
-            cands_transferred_from (dict[str,dict]): A dictionary in which the keys are the
-                candidates eliminated this round and the values are dictionaries recording
-                the candidate's attributes.
+            cands_transferred_from (dict[Candidate, dict] | dict[str,dict] | dict[int, dict]):
+                A dictionary in which the keys are the candidates eliminated this round
+                and the values are dictionaries recording the candidate's attributes.
+                Candidates can be strings, integers, or a mix of both.
             event (_EliminationEvent): The event to be animated.
 
         Notes:

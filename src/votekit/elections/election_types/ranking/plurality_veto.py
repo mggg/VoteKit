@@ -114,7 +114,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self.tiebreak_order = None
         if self.tiebreak != "random":
             # stores the most recent veto each ballot gave
-            self._veto_cache = ["" for _ in range(self._n_ballots)]
+            self._veto_cache: list[Candidate] = ["" for _ in range(self._n_ballots)]
 
             self.tiebreak_order = tiebreak_set(
                 self.candidates,
@@ -177,7 +177,7 @@ class _IterativeVetoBase(RankingElection, ABC):
             )
         return ballot_idx
 
-    def _break_tie(self, candidate_set: frozenset[str]) -> str:
+    def _break_tie(self, candidate_set: frozenset[Candidate]) -> Candidate:
         """
         Chooses a veto from a set of last-place candidates.
 
@@ -185,25 +185,26 @@ class _IterativeVetoBase(RankingElection, ABC):
         ``tiebreak_order``, which is defined at instantiation.
 
         Args:
-            candidate_set (frozenset[str]): The set of tied candidates.
+            candidate_set (frozenset[Candidate]): The set of tied candidates.
+                Candidates are strings or integers.
 
         Returns:
-            str: The candidate to be vetoed.
+            Candidate: The candidate to be vetoed. Candidate is a str or int.
         """
         if self.tiebreak == "random":
 
-            def rank(c: str) -> float:
+            def rank(c: Candidate) -> float:
                 return random.random()
 
         else:
 
-            def rank(c: str) -> float:
+            def rank(c: Candidate) -> float:
                 return self._tiebreak_ranks[c]
 
         # in _tiebreak_order, higher position is worse; veto the worst remaining
         return max(candidate_set, key=rank)
 
-    def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[str]:
+    def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[Candidate]:
         """
         Given a ballot index, returns the set of last-place candidates (before tiebreaking).
 
@@ -214,7 +215,8 @@ class _IterativeVetoBase(RankingElection, ABC):
             ballot_idx (np.intp): A ballot index in [0, n_ballots).
 
         Returns:
-            frozenset[str]: The candidate(s) tied for last place on this ballot.
+            frozenset[Candidate]: The candidate(s) tied for last place on this ballot.
+                Candidates can be integers, strings, or a mix of both.
         """
         cached_pos = self._veto_position_cache[ballot_idx]
 
@@ -236,7 +238,7 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         return potential_vetoes
 
-    def _get_veto(self, ballot_idx: np.intp) -> str:
+    def _get_veto(self, ballot_idx: np.intp) -> Candidate:
         """
         Given a ballot index, returns the candidate to veto.
 
@@ -248,7 +250,7 @@ class _IterativeVetoBase(RankingElection, ABC):
             ballot_idx (np.intp): A ballot index in [0, n_ballots).
 
         Returns:
-            str: The candidate to be vetoed.
+            Candidate: The candidate to be vetoed. Candidate is a str or int.
 
         Raises:
             RuntimeError: If the ballot contains no remaining candidates.
@@ -288,7 +290,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._voter_order_current_index = 0
         self._veto_position_cache = [None for _ in range(self._n_ballots)]
         if self.tiebreak != "random":
-            self._veto_cache = ["" for _ in range(self._n_ballots)]
+            self._veto_cache: list[Candidate] = ["" for _ in range(self._n_ballots)]
 
     @abstractmethod
     def _veto_loop(

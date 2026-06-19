@@ -79,3 +79,33 @@ def test_get_candidates_received_votes():
         "B",
         "C",
     }
+
+
+def test_int_only_candidates():
+    profile_w_int_cands = RankProfile(
+        ballots=(
+            RankBallot(ranking=[{2}, {1}]),
+            RankBallot(ranking=[{3}, {4}]),
+            RankBallot(ranking=[{1, 2}]),
+        ),
+    )
+    vote_cands = profile_w_int_cands.candidates_cast
+    all_cands = profile_w_int_cands.candidates
+
+    assert set(vote_cands) == {1, 2, 3, 4}
+    assert set(all_cands) == {1, 2, 3, 4}
+
+
+def test_str_int_mix_candidates():
+    profile_w_mix_cands = RankProfile(
+        ballots=(
+            RankBallot(ranking=[{"A"}, {1}]),
+            RankBallot(ranking=[{"C"}, {"B"}]),
+            RankBallot(ranking=[{1, 2}]),
+        ),
+    )
+    vote_cands = profile_w_mix_cands.candidates_cast
+    all_cands = profile_w_mix_cands.candidates
+
+    assert set(vote_cands) == {"A", "B", "C", 1, 2}
+    assert set(all_cands) == {"A", "B", "C", 1, 2}

@@ -8,9 +8,10 @@ import pytest
 from votekit.ballot_generator import iac_profile_generator
 from votekit.ballot_generator.std_generator import impartial_anon_culture as iac_module
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
-def _ballot_counter(profile: RankProfile) -> Counter[tuple[str, ...]]:
+def _ballot_counter(profile: RankProfile) -> Counter[tuple[Candidate, ...]]:
     return Counter(
         {
             tuple(next(iter(rank)) for rank in ballot.ranking): ballot.weight

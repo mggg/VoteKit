@@ -71,8 +71,8 @@ class TestElection(Election):
             new_state = ElectionState(
                 round_number=(prev_state.round_number + 1),
                 remaining=score_dict_to_ranking(scores, self.sort_high_low),
-                elected=tuple([frozenset(elected)]),
-                eliminated=tuple([frozenset(eliminated)]),
+                elected=tuple([frozenset({elected})]),
+                eliminated=tuple([frozenset({eliminated})]),
                 scores=scores,
             )
 

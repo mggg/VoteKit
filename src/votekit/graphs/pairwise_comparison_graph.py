@@ -1,6 +1,6 @@
 from functools import cache
 from itertools import combinations
-from typing import Optional
+from typing import Optional, cast
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -11,9 +11,10 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
-def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[str, int]) -> NDArray:
+def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
     """
     Converts the ranking columns of a RankProfile to integer indices.
     Each singleton candidate set is converted to an index based on the provided candidates list.
@@ -22,8 +23,8 @@ def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[str, int]) ->
 
     Args:
         profile (RankProfile): The preference profile containing rankings.
-        cand_name_to_idx (dict[str, int]): A mapping from candidate names to their integer index
-            representations.
+        cand_name_to_idx (dict[Candidate, int]): A mapping from candidate names to their
+            integer index representations. Candidate can be str or int.
 
     Returns:
         NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
@@ -83,7 +84,7 @@ def __tally_and_mutate_head_to_head(
 
 def pairwise_dict(
     profile: RankProfile, *, sort_candidate_pairs: bool = True
-) -> dict[tuple[str, str], tuple[float, float]]:
+) -> dict[tuple[Candidate, Candidate], tuple[float, float]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
@@ -94,7 +95,8 @@ def pairwise_dict(
             will be sorted lexicographically. Defaults to True.
 
     Returns:
-        dict[tuple[str, str], tuple[float, float]]: Pairwise comparison dictionary.
+        dict[tuple[Candidate, Candidate], tuple[float, float]]: Pairwise comparison dictionary.
+            Candidate can be str or int.
     """
     if not isinstance(profile, RankProfile):
         raise ValueError("Profile must be of type RankProfile.")
@@ -191,22 +193,34 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
 
 
 def restrict_pairwise_dict_to_subset(
-    cand_subset: list[str] | tuple[str] | set[str],
-    pairwise_dict: dict[tuple[str, str], tuple[float, float]],
-) -> dict[tuple[str, str], tuple[float, float]]:
+    cand_subset: list[Candidate]
+    | tuple[Candidate]
+    | set[Candidate]
+    | list[str]
+    | set[str]
+    | list[int]
+    | set[int],
+    pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]]
+    | dict[tuple[str, str], tuple[float, float]]
+    | dict[tuple[int, int], tuple[float, float]],
+) -> dict[tuple[Candidate, Candidate], tuple[float, float]]:
     """
     Restricts the full pairwise dictionary to a subset of candidates. The pairwise dictionary is a
     dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
-        cands (list[str] | tuple[str] | set[str]): Candidate subset to restrict to.
-        pairwise_dict (dict[tuple[str, str], tuple[float, float]): Full pairwise comparison
-            dictionary.
+        cands (list[Candidate] | tuple[Candidate] | set[Candidate]
+            | list[str] | set[str] | list[int] | set[int]): Candidate subset to restrict to.
+            Candidates can be strings, integers, or mix of both.
+        pairwise_dict (dict[tuple[Candidate, Candidate], tuple[float, float]]
+            | dict[tuple[str, str], tuple[float, float]]
+            | dict[tuple[int, int], tuple[float, float]]): Full pairwise
+            comparison dictionary. Candidates can be strings, integers, or mix of both
 
     Returns:
-        dict[tuple[str, str], tuple[float, float]]: Pairwise dict restricted to the provided
-            candidates.
+        dict[dict[tuple[Candidate, Candidate], tuple[float, float]] : Pairwise dict restricted
+            to the provided candidates. Candidates can be strings or integers.
 
     Raises:
         ValueError: cand_subset must be at least length 2.
@@ -215,7 +229,11 @@ def restrict_pairwise_dict_to_subset(
     if len(cand_subset) < 2:
         raise ValueError(f"Must be at least two candidates in cand_subset: {cand_subset}")
 
-    candidates = [c for s in pairwise_dict.keys() for c in s]
+    _pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]] = cast(
+        dict[tuple[Candidate, Candidate], tuple[float, float]], pairwise_dict
+    )
+
+    candidates = [c for s in _pairwise_dict.keys() for c in s]
 
     extra_cands = set(cand_subset).difference(candidates)
     if extra_cands != set():
@@ -226,13 +244,13 @@ def restrict_pairwise_dict_to_subset(
             )
         )
 
-    new_pairwise_dict = {}
+    new_pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]] = {}
     for tup in combinations(cand_subset, 2):
-        if tup in pairwise_dict:
-            new_pairwise_dict[tup] = pairwise_dict[tup]
+        if tup in _pairwise_dict:
+            new_pairwise_dict[tup] = _pairwise_dict[tup]
         rev_tup = (tup[1], tup[0])
-        if rev_tup in pairwise_dict:
-            new_pairwise_dict[rev_tup] = pairwise_dict[rev_tup]
+        if rev_tup in _pairwise_dict:
+            new_pairwise_dict[rev_tup] = _pairwise_dict[rev_tup]
 
     return new_pairwise_dict
 

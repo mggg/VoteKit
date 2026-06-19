@@ -27,6 +27,7 @@ from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 # ====================================================
 # ================= Helper Functions =================
@@ -227,7 +228,7 @@ def _inner_name_bradley_terry(config: BlocSlateConfig) -> dict[str, RankProfile]
 # - Other speed improvements
 def _bradley_terry_mcmc(
     n_ballots: int,
-    pref_interval: Mapping[str, float],
+    pref_interval: Mapping[Candidate, float],
     seed_ballot: RankBallot,
     verbose: bool = False,
     burn_in_time: int = 0,
@@ -239,7 +240,8 @@ def _bradley_terry_mcmc(
 
     Args:
         n_ballots (int): the number of ballots to sample
-        pref_interval (Mapping[str, float]): the preference interval to determine BT distribution
+        pref_interval (Mapping[Candidate, float]): the preference interval
+            to determine BT distribution. Candidate can be a str or int.
         seed_ballot (RankBallot):  the seed ballot for the Markov chain
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain

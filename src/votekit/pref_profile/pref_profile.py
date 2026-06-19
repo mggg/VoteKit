@@ -287,6 +287,9 @@ class PreferenceProfile:
     def ballots(self) -> tuple[Ballot, ...]:
         raise NotImplementedError
 
+    _candidates: tuple[int, ...]
+    _candidates_cast: tuple[int, ...]
+
     def to_pickle(self, fpath: Union[str, PathLike, Path]):
         """
         Saves profile to pickle file.
@@ -1493,12 +1496,15 @@ class ScoreProfile(PreferenceProfile):
     __repr__ = __str__
 
     def __to_score_csv_header(
-        self, candidate_mapping: dict[str, str], include_voter_set: bool
+        self, candidate_mapping: dict[Candidate, str], include_voter_set: bool
     ) -> list[list]:
         """
         Construct the header rows for the PrefProfile a custom CSV format.
 
         Args:
+            candidate_mapping (dict[Candidate, str]): Candidate name mapped to integer IDs.
+                integer IDs are cast to strings for csv.
+                Candidate can be str or int.
             include_voter_set (bool): Whether or not to include the voter set of each
                 ballot.
         """
@@ -1553,7 +1559,7 @@ class ScoreProfile(PreferenceProfile):
         return row
 
     def __to_score_csv_data_column_names(
-        self, include_voter_set: bool, candidate_mapping: dict[str, str]
+        self, include_voter_set: bool, candidate_mapping: dict[Candidate, str]
     ) -> list:
         """
         Create the data column header.
@@ -1561,7 +1567,8 @@ class ScoreProfile(PreferenceProfile):
         Args:
             include_voter_set (bool): Whether or not to include the voter set of each
                 ballot.
-            candidate_mapping (dict[str, str]): Maps candidate names to prefixes.
+            candidate_mapping (dict[Candidate, str]): Maps candidate names to IDs.
+                Candidate can be str or int.
         """
         data_col_names = [f"{cand_label}" for cand_label in candidate_mapping.values()]
         data_col_names += ["&", "Weight", "&"]

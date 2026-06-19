@@ -62,3 +62,39 @@ def test_pp_df_rankings_args():
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
+
+
+def test_df_with_cand_ids_as_ranking_values():
+    rank_profile = RankProfile(
+        ballots=ballots_rankings,
+        candidates=["A", "B", "C", "D", "E"],
+        max_ranking_length=4,
+    )
+    candidate_ids = set([i for i in range(len(rank_profile.candidates))])
+    candidate_id_map = dict(zip(rank_profile.candidates, candidate_ids))
+
+    id_A = candidate_id_map["A"]
+    id_B = candidate_id_map["B"]
+    id_C = candidate_id_map["C"]
+    id_D = candidate_id_map["D"]
+    cand_id_data = {
+        "Ranking_1": [
+            frozenset({id_A}),
+            frozenset({id_A, id_B}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [frozenset({id_B}), frozenset(), frozenset("~"), frozenset("~")],
+        "Ranking_3": [
+            frozenset({id_C}),
+            frozenset({id_D}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_4": [frozenset("~"), frozenset("~"), frozenset("~"), frozenset("~")],
+        "Voter Set": [set(), {"Chris"}, set(), set()],
+        "Weight": [2.0, 1.0, 1.0, 0.0],
+    }
+    true_id_df = pd.DataFrame(cand_id_data)
+    true_id_df.index.name = "Ballot Index"
+    assert rank_profile._df.equals(true_id_df)

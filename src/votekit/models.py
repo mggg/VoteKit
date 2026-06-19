@@ -123,7 +123,7 @@ class Election(Generic[P]):
             ]
         )
 
-    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the eliminated candidates up to the given round number.
 
@@ -132,10 +132,10 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[Candidate],...]:
                 Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings or integers.
         """
         if (
             round_number < -len(self.election_states)

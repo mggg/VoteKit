@@ -197,7 +197,7 @@ class NumpySTVBase(ABC):
                 round_number=0,
                 remaining=self.get_remaining(0),
                 scores={
-                    self.candidates[c]: self._data.fpv_by_round[0][c]
+                    self.candidates[int(c)]: float(self._data.fpv_by_round[0][c])
                     for c in self._data.fpv_by_round[0].nonzero()[0]
                 },
             )
@@ -215,7 +215,7 @@ class NumpySTVBase(ABC):
                 else (frozenset(),)
             )
             packaged_scores = {
-                self.candidates[c]: self._data.fpv_by_round[i + 1][c]
+                self.candidates[int(c)]: float(self._data.fpv_by_round[i + 1][c])
                 for c in self._data.fpv_by_round[i + 1].nonzero()[0]
             }
             e_states.append(
@@ -383,7 +383,7 @@ class NumpySTVBase(ABC):
         ]
         return tuple(frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers)
 
-    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the ranking of candidates after a given round.
 
@@ -392,7 +392,7 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]: Ranking of candidates.
+            tuple[frozenset[Candidate],...]: Ranking of candidates. Candidate can be str or int.
         """
         return tuple(
             [
