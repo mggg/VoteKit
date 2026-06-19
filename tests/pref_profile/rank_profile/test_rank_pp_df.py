@@ -9,6 +9,13 @@ ballots_rankings = [
     RankBallot(),
     RankBallot(weight=0),
 ]
+mixed_ballot_rankings = [
+    RankBallot(ranking=({"A"}, {1}, {2}), weight=2),
+    RankBallot(ranking=({"A", "B"}, frozenset(), {"C"}), voter_set={"Chris"}),
+    RankBallot(ranking=(2, 1)),
+    RankBallot(),
+    RankBallot(weight=0),
+]
 
 
 def test_pp_df_rankings():
@@ -62,6 +69,44 @@ def test_pp_df_rankings_args():
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
+
+
+def test_df_with_mixed_cand_types_as_ranking_values():
+    rank_profile = RankProfile(
+        ballots=mixed_ballot_rankings,
+        candidates=["A", "B", "C", 1, 2, 3],
+        max_ranking_length=4,
+    )
+
+    data = {
+        "Ranking_1": [
+            frozenset({"A"}),
+            frozenset({"A", "B"}),
+            frozenset({2}),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_2": [frozenset({1}), frozenset(), frozenset({1}), frozenset("~"), frozenset("~")],
+        "Ranking_3": [
+            frozenset({2}),
+            frozenset({"C"}),
+            frozenset("~"),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Ranking_4": [
+            frozenset("~"),
+            frozenset("~"),
+            frozenset("~"),
+            frozenset("~"),
+            frozenset("~"),
+        ],
+        "Voter Set": [set(), {"Chris"}, set(), set(), set()],
+        "Weight": [2.0, 1.0, 1.0, 1.0, 0.0],
+    }
+    true_df = pd.DataFrame(data)
+    true_df.index.name = "Ballot Index"
+    assert rank_profile.df.equals(true_df)
 
 
 def test_internal_df_with_cand_ids_as_ranking_values():

@@ -17,6 +17,20 @@ ballots_scores = [
     ScoreBallot(weight=0),
 ]
 
+mixed_ballots_scores = [
+    ScoreBallot(
+        weight=2,
+        scores={
+            "A": 1,
+            1: 2,
+        },
+    ),
+    ScoreBallot(scores={"A": 2, "B": 1}, voter_set={"Chris"}),
+    ScoreBallot(scores={1: 2, 2: 1}),
+    ScoreBallot(),
+    ScoreBallot(weight=0),
+]
+
 
 def test_pp_df_scores():
     pp = ScoreProfile(ballots=ballots_scores)
@@ -75,6 +89,42 @@ def test_pp_df_scores_args():
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
     assert pp.df.equals(true_df)
+
+
+def test_df_with_mixed_cand_types_as_score_cols():
+    score_profile = ScoreProfile(ballots=mixed_ballots_scores, candidates=["A", "B", "C", 1, 2, 3])
+
+    data = {
+        "A": [
+            1,
+            2,
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "B": [
+            np.nan,
+            1,
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        "C": [
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+            np.nan,
+        ],
+        1: [2, np.nan, 2, np.nan, np.nan],
+        2: [np.nan, np.nan, 1, np.nan, np.nan],
+        3: [np.nan, np.nan, np.nan, np.nan, np.nan],
+        "Voter Set": [set(), {"Chris"}, set(), set(), set()],
+        "Weight": [2.0, 1.0, 1.0, 1.0, 0.0],
+    }
+    true_df = pd.DataFrame(data)
+    true_df.index.name = "Ballot Index"
+    assert score_profile.df.equals(true_df)
 
 
 def test_internal_df_with_cand_ids_as_score_cols():
