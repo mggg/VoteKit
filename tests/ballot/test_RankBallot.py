@@ -182,3 +182,20 @@ def test_mixed_str_and_iterable_ranking_elements():
         frozenset({"D"}),
         frozenset({"E"}),
     )
+
+
+def test_mixed_str_int_candidates_ballot():
+    b = RankBallot(ranking=["A", {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})
+    assert b.ranking == (
+        frozenset({"A"}),
+        frozenset({"B", 1}),
+        frozenset({"D"}),
+        frozenset({2}),
+        frozenset({3}),
+    )
+
+
+def test_equivalent_str_int_candidates_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        b = RankBallot(ranking=[1, "1"])
+    assert b.ranking == (frozenset({1}), frozenset({"1"}))

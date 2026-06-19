@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, TypeAlias, Union, overload
 
@@ -218,13 +219,26 @@ class RankBallot(Ballot):
     def _validate_ranking_candidates(self, ranking: Ranking):
         if ranking is None:
             return
-        if any(c == "~" for cand_set in ranking for c in cand_set):
+        if any(cand == "~" for cand_set in ranking for cand in cand_set):
             raise ValueError(
                 f"Candidate '~' found in ballot ranking {ranking}."
                 " '~' is a reserved character and cannot be used for"
                 " candidate names."
             )
-        # add a warning if candidates are of mixed type and if str and int are equivalent?
+
+        str_cands = {cand for cand_set in ranking for cand in cand_set if isinstance(cand, str)}
+        int_cands = {cand for cand_set in ranking for cand in cand_set if isinstance(cand, int)}
+        collisions = {
+            str_cand
+            for str_cand in str_cands
+            if str_cand.lstrip("-").isdigit() and int(str_cand) in int_cands
+        }
+        if collisions:
+            warnings.warn(
+                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1)."
+                " These will be treated as separate candidates.",
+                UserWarning,
+            )
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
@@ -317,7 +331,19 @@ class ScoreBallot(Ballot):
                     " '~' is a reserved character and cannot be used for"
                     " candidate names."
                 )
-        # add a warning if candidates are of mixed type
+            str_cands = {cand for cand in scores.keys() if isinstance(cand, str)}
+            int_cands = {cand for cand in scores.keys() if isinstance(cand, int)}
+            collisions = {
+                str_cand
+                for str_cand in str_cands
+                if str_cand.lstrip("-").isdigit() and int(str_cand) in int_cands
+            }
+            if collisions:
+                warnings.warn(
+                    f"Candidates {collisions} appear as both str and int (e.g. '1' and 1)."
+                    " These will be treated as separate candidates.",
+                    UserWarning,
+                )
 
     def __eq__(self, other):
         if not isinstance(other, ScoreBallot):

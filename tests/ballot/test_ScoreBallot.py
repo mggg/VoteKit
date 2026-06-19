@@ -142,3 +142,19 @@ def test_rank_sub_ballot():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         ScoreBallot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_mixed_str_int_candidates_ballot():
+    b = ScoreBallot(
+        scores={"A": 2, 1: 1},
+        weight=3,
+        voter_set={"Chris"},
+    )
+
+    assert b.scores == {"A": 2, 1: 1}
+
+
+def test_equivalent_str_int_candidates_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        b = ScoreBallot(scores={"1": 2, 1: 1})
+    assert b.scores == {"1": 2, 1: 1}

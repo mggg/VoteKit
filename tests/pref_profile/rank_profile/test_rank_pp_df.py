@@ -64,7 +64,7 @@ def test_pp_df_rankings_args():
     assert pp.df.equals(true_df)
 
 
-def test_df_with_cand_ids_as_ranking_values():
+def test_internal_df_with_cand_ids_as_ranking_values():
     rank_profile = RankProfile(
         ballots=ballots_rankings,
         candidates=["A", "B", "C", "D", "E"],
@@ -72,6 +72,7 @@ def test_df_with_cand_ids_as_ranking_values():
     )
     candidate_ids = set([i for i in range(len(rank_profile.candidates))])
     candidate_id_map = dict(zip(rank_profile.candidates, candidate_ids))
+    candidates_cast_ids = set([candidate_id_map[cand] for cand in rank_profile.candidates_cast])
 
     id_A = candidate_id_map["A"]
     id_B = candidate_id_map["B"]
@@ -98,3 +99,6 @@ def test_df_with_cand_ids_as_ranking_values():
     true_id_df = pd.DataFrame(cand_id_data)
     true_id_df.index.name = "Ballot Index"
     assert rank_profile._df.equals(true_id_df)
+    assert rank_profile._candidates == tuple(candidate_ids)
+    assert rank_profile._candidates_cast == tuple(candidates_cast_ids)
+    assert rank_profile.candidate_id_map == candidate_id_map
