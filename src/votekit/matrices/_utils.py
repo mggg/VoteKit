@@ -16,8 +16,10 @@ def _convert_dict_to_matrix(
     Will respect the order of the dictionaries.
 
     Args:
-      data_dict (dict[str, dict[str, Any]]): Top level keys are rows, bottom level keys are columns.
+      data_dict (dict[Candidate, dict[Candidate, Any]] | dict[str, dict[str, Any]]
+        | dict[int, dict[int, Any]]): Top level keys are rows, bottom level keys are columns.
         Values must be convertable to float.
+        Candidates can be strings, integers, or mix of both.
 
     Returns
       np.ndarray: Matrix representing data in dictionary.
