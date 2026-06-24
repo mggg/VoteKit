@@ -1,3 +1,4 @@
+from .meek import MeekSTV
 from .stv import IRV, STV, FastSTV, SequentialRCV
 
 __all__ = [
@@ -5,6 +6,7 @@ __all__ = [
     "FastSTV",
     "IRV",
     "SequentialRCV",
+    "MeekSTV",
 ]
 
 # Patch __module__ on every exported symbol so that Sphinx autodoc displays
