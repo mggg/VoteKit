@@ -35,8 +35,8 @@ class Ballot:
 
     Attributes:
         ranking (Optional[tuple[frozenset[Candidate], ...]]): Tuple of candidate ranking.
-            Entry i of the tuple is a
-            frozenset of candidates ranked in position i.
+            Entry i of the tuple is a frozenset of candidates ranked in position i.
+            Candidates can be strings, integers, or mix of both.
         weight (float): Weight assigned to a given ballot.
         voter_set (frozenset[str]): Set of voters who cast the ballot.
         scores (Optional[Mapping[Candidate, float | int]): Scores for individual candidates.
@@ -59,7 +59,7 @@ class Ballot:
     def __new__(
         cls,
         *,
-        ranking: Sequence[Candidate | Iterable[Candidate]],
+        ranking: RankingLike,
         scores: None = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
@@ -358,11 +358,7 @@ class ScoreBallot(Ballot):
 
     def __hash__(self):
         return (
-            hash(
-                tuple(sorted((c, s) for c, s in self.scores.items()))
-                if self.scores is not None
-                else self.scores
-            )
+            hash(frozenset(self.scores.items()) if self.scores is not None else self.scores)
             + super().__hash__()
         )
 

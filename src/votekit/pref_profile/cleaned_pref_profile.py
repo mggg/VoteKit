@@ -177,8 +177,9 @@ class CleanedScoreProfile(ScoreProfile):
 
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
-        candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
-            If empty, computes this from any candidate listed on a ballot with positive weight.
+        candidates (tuple[Candidate], optional): Tuple of candidates. Defaults to empty tuple.
+            Candidates can be strings, integers, or mix of both. If empty, computes this from any
+            candidate listed on a ballot with positive weight.
         parent_profile (ScoreProfile | CleanedScoreProfile): The profile that was altered.
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.

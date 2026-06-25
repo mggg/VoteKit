@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 
 from votekit.ballot import Ballot, RankBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate, CandidateFloatDictLike
 
 COLOR_LIST = [
@@ -64,9 +65,8 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
 
     Returns:
         dict[Candidate, list[RankBallot]]:
-            A dictionary whose keys are candidates and values are lists of ballots that
-            have that candidate first.
-            Candidates can be strings, integers, or mix of both.
+            A dictionary whose keys are candidates and values are lists of ballots that have that
+            candidate first. Candidates can be strings, integers, or mix of both.
     """
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
@@ -472,16 +472,10 @@ def tiebreak_set(
 
     Returns:
         tuple[frozenset[Candidate],...]: tiebroken ranking
-            Candidates can be strings, integers, or mix of both.
+        Candidates can be strings, integers, or mix of both.
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        if any(isinstance(cand, int) for cand in r_set):
-            int_cands = [cand for cand in r_set if isinstance(cand, int)]
-            raise TypeError(
-                "Alphabetical/Lexicographic tie breaks are not possible with integer candidates. "
-                f"{int_cands} are integer candidates."
-            )
-        sorted_cands = sorted([c for c in r_set])
+        sorted_cands = sort_candidates_lexicographically([c for c in r_set])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
@@ -749,8 +743,9 @@ def score_profile_from_ballot_scores(
         profile (ScoreProfile): Profile to score.
 
     Returns:
-        dict[str | int, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
     scores = {c: 0.0 for c in profile.candidates}
     if not isinstance(profile, ScoreProfile):
@@ -932,7 +927,7 @@ def build_df_from_ballot_samples(
         ballots_freq_dict: dictionary mapping ballots to
             sampled frequency. The keys should be in candidate id
             form
-        candidates : list of candidates in the profile
+        candidates (Candidate): list of candidates in the profile.
             Candidates can be strings, integers, or mix of both.
     returns:
         pandas df

@@ -730,11 +730,11 @@ class STV(RankingElection):
         Args:
             profile (RankProfile): RankProfile to run election on.
             n_seats (int): Number of seats to be elected. Defaults to 1.
-            transfer (Callable[[str | int, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            transfer (Callable[[Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
                 tuple[RankBallot, ...]]): Transfer method. Defaults to fractional transfer.
                 Function signature is elected candidate, their number of first-place votes, the list
                 of ballots with them ranked first, and the threshold value. Returns the list of
-                ballots after transfer.
+                ballots after transfer. Candidates can be strings, integers, or mix of both.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are

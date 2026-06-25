@@ -223,22 +223,24 @@ class STVAnimation:
         election (STV): An STV election to animate.
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen. If ``None``, the title screen will be skipped. Defaults to ``None``.
-        focus (set[str], list[str], "winners", "viable", or "all", optional): A set or list of
-            names of candidates that should appear on-screen. This is useful for elections
-            with many candidates. Note that any candidates that won the election are on-screen
-            automatically, so passing an empty set will result in only elected candidates
-            appearing on-screen. If ``"winners"``, focus only the elected candidates.
-            If ``"viable"``, focus only the candidates with more mentions than the election
-            threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
+        focus (list[Candidate] | list[str] | list[int] | set[Candidate] | set[str] | set[int],
+            "winners", "viable", or "all", optional): An iterable of names of candidates that should
+            appear on-screen. Candidates can be strings, integers, or mix of both.
+            This is useful for elections with many candidates. Note that any candidates that won the
+            election are on-screen automatically, so passing an empty set will result in only
+            elected candidates appearing on-screen. If ``"winners"``, focus only the elected
+            candidates. If ``"viable"``, focus only the candidates with more mentions than the
+            election threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
         nicknames (Optional[dict[Candidate,str] | dict[str, str] | dict[int, str]], optional):
-            A dictionary mapping candidate names to candidate "nicknames"
-            to be used in the animation instead.
+            A dictionary mapping candidate names to candidate "nicknames" to be used in the
+            animation instead. Candidates can be strings, integers, or mix of both.
             The keys of ``nicknames`` need not contain every candidate,
             only the ones for which the user would like to provide a nickname.
+            Candidates can be strings, integers, or mix of both.
         candidate_colors (Optional[Mapping[Candidate, ParsableManimColor]
             | Mapping[str, ParsableManimColor]] | Mapping[int, ParsableManimColor], optional):
-            A dictionary mapping candidate names to colors
-            that should represent them in the animation.
+            A dictionary mapping candidate names to colors that should represent them in the
+            animation. Candidates can be strings, integers, or mix of both.
             The colors in ``candidate_colors`` will override the bar fill colors provided by
             ``color_palette``. The keys of ``candidate_colors`` need not contain
             every candidate, only the ones for which the user would like to provide
@@ -255,13 +257,13 @@ class STVAnimation:
     Attributes:
         title (str, optional): Text to be displayed at the beginning of the animation as
             a title screen.
-        focus (set[str]): A set of names of candidates that should appear on-screen.
+        focus (set[Candidate]): A set of names of candidates that should appear on-screen.
         nicknames (dict[str,str], optional): A dictionary mapping candidate names to candidate
             "nicknames" to be used in the animation instead.
         color_palette (ColorPalette, optional): A color palette to use for the animation.
         candidate_dict (dict[Candidate, dict[Candidate, object]]): A dictionary mapping
-            each candidate name to a dictionary
-            recording that candidate's support, display name, and color.
+            each candidate name to a dictionary recording that candidate's support, display name,
+            and color. Candidates can be strings, integers, or mix of both.
         events (List[_AnimationEvent]): A list of animation events in order of occurrence.
         font (str): The name of a font that the user prefers to use if available.
         delay_mult (float): A multiplier for the delay times between animations.
@@ -278,12 +280,12 @@ class STVAnimation:
         self,
         election: STV,
         title: Optional[str] = None,
-        focus: set[Candidate]
+        focus: list[Candidate]
+        | list[str]
+        | list[int]
+        | set[Candidate]
         | set[str]
         | set[int]
-        | List[Candidate]
-        | List[str]
-        | List[int]
         | Literal["winners", "viable", "all"] = "viable",
         nicknames: Optional[dict[Candidate, str] | dict[str, str] | dict[int, str]] = None,
         candidate_colors: Optional[
@@ -382,12 +384,14 @@ class STVAnimation:
 
         Args:
             election (STV): An STV election from which to extract the candidates.
-            candidate_colors (Mapping[str, ParsableManimColor]): A dictionary mapping candidate
-                names to their associated color codes in the candidate dictionary.
-
+            candidate_colors (Mapping[Candidate, ParsableManimColor] |
+                Mapping[str, ParsableManimColor] | Mapping[int, ParsableManimColor]): A dictionary
+                mapping candidate names to their associated color codes in the candidate dictionary.
+                Candidates can be strings, integers, or mix of both.
         Returns:
             dict[Candidate, dict[str,object]]: A dictionary whose keys are candidate names and whose
                 values are themselves dictionaries with details about each candidate.
+                Candidates can be strings, integers, or mix of both.
         """
         # Initialize dictionary and add "support" key for each candidate.
         candidate_dict: dict[Candidate, dict[str, object]] = {
@@ -508,7 +512,7 @@ class STVAnimation:
             election (STV): The election.
             round_number (int): The number of the round in question.
             cands_transferred_from (List[Candidate]): A list of the names of the elected or
-                eliminated candidates.
+                eliminated candidates. Candidates can be strings, integers, or mix of both.
             event_type (Literal["win", "elimination"]): ``"win"`` if candidates
                 were elected this round, ``"elimination"`` otherwise.
 
@@ -709,6 +713,7 @@ class ElectionScene(manim.Scene):
     Args:
         candidate_dict (dict[Candidate,dict]): A dictionary mapping each candidate
             to a dictionary of attributes of the candidate.
+            Candidates can be strings, integers, or mix of both.
         events (List[_AnimationEvent]): A list of animation events to be constructed and rendered.
         title (Optional[str], optional): A string to be displayed at the beginning of the
             animation as a title screen. If ``None``, the animation will skip the title
@@ -1079,7 +1084,7 @@ class ElectionScene(manim.Scene):
         Args:
             cands_transferred_from (dict[Candidate,dict]): A dictionary in which the keys are the
                 candidates elected this round and the values are dictionaries recording
-                the candidate's attributes.
+                the candidate's attributes. Candidates can be strings, integers, or mix of both.
             event (_WinEvent): The event to be animated.
         """
         # Box the winners' names

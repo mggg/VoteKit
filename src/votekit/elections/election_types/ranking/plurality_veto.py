@@ -313,9 +313,8 @@ class _IterativeVetoBase(RankingElection, ABC):
 
         Returns:
             tuple[frozenset[Candidate], frozenset[Candidate]]: A tuple of (eliminated, elected),
-                where eliminated contains candidates worthy of elimination
-                and elected contains candidates worthy of election.
-                Candidates can be strings, integers, or mix of both.
+                where eliminated contains candidates worthy of elimination and elected contains
+                candidates worthy of election. Candidates can be strings, integers, or mix of both.
         """
         raise NotImplementedError
 
@@ -449,11 +448,13 @@ class PluralityVeto(_IterativeVetoBase):
         Each voter decrements the score of their least favorite remaining candidate.
 
         Args:
-            scores (dict[str | int, float]): Mutable score dict, modified in place.
+            scores (dict[Candidate, float]): Mutable score dict, modified in place.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
-            tuple[frozenset[str | int], frozenset[str | int]]: A tuple of (eliminated, elected),
+            tuple[frozenset[Candidate], frozenset[Candidate]]: A tuple of (eliminated, elected),
                 where each is a set of candidates worthy of elimination or election, respectively.
+                Candidates can be strings, integers, or mix of both.
         """
 
         eliminated: set[Candidate] = set()

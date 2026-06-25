@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateListLike
 
 # =================================================
 # ================= API Functions =================
@@ -195,7 +195,7 @@ def spacial_profile_and_positions_generator(
 
 def clustered_spacial_profile_and_positions_generator(
     number_of_ballots: dict[Candidate, int] | dict[str, int] | dict[int, int],
-    candidates: list[Candidate] | list[str] | list[int],
+    candidates: CandidateListLike,
     voter_dist: Callable[..., np.ndarray] = np.random.normal,
     voter_dist_kwargs: Optional[Dict[str, Any]] = None,
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
@@ -220,10 +220,10 @@ def clustered_spacial_profile_and_positions_generator(
 
     Args:
         number_of_ballots (dict[Candidate, int] | dict[str, int] | dict[int, int]):
-            The number of voters attributed to each candidate
-            {candidate string or integer: # voters}.
+            The number of voters attributed to each candidate {candidate: # voters}.
+            Candidates can be strings, integers, or mix of both.
         candidates (list[Candidate] | list[str] | list[int]): Candidate names
-            used when building rankings.
+            used when building rankings. Candidates can be strings, integers, or mix of both.
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw voter positions centered at each candidate location. Defaults
             to ``np.random.normal``.
@@ -248,7 +248,7 @@ def clustered_spacial_profile_and_positions_generator(
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
-            in the metric space.
+            in the metric space. Candidates can be strings, integers, or mix of both.
     """
 
     _number_of_ballots: dict[Candidate, int] = cast(dict[Candidate, int], number_of_ballots)

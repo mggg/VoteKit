@@ -1,6 +1,6 @@
 from functools import cache
 from itertools import combinations
-from typing import Optional, cast
+from typing import Optional, Sequence, cast
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -11,6 +11,7 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile
+from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
 
 
@@ -106,7 +107,7 @@ def pairwise_dict(
     candidates_lst = list(profile.candidates_cast)
 
     if sort_candidate_pairs:
-        candidates_lst.sort()
+        candidates_lst = sort_candidates_lexicographically(candidates_lst)
 
     n_cands = len(candidates_lst)
 
@@ -125,12 +126,12 @@ def pairwise_dict(
             head_to_head_matrix[cand_to_idx[a], cand_to_idx[b]],
             head_to_head_matrix[cand_to_idx[b], cand_to_idx[a]],
         )
-        for a, b in combinations(sorted(candidates_lst), 2)
+        for a, b in combinations(sort_candidates_lexicographically(candidates_lst), 2)
     }
     return pairwise
 
 
-def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
+def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[Candidate]]:
     """
     Compute the dominating tiers of the pairwise comparison graph.
     Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
@@ -141,7 +142,8 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
         graph (nx.DiGraph): A directed graph representing pairwise comparisons.
 
     Returns:
-        list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
+        list[set[Candidate]]: Dominating tiers, where the first entry of the list is the highest
+            tier. Candidates can be strings, integers, or mix of both.
     """
     # Condense the head-to-head cycles so we have a directed acyclic graph (DAG)
     condensed_acyclic_graph = nx.condensation(graph)
@@ -193,13 +195,7 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
 
 
 def restrict_pairwise_dict_to_subset(
-    cand_subset: list[Candidate]
-    | tuple[Candidate]
-    | set[Candidate]
-    | list[str]
-    | set[str]
-    | list[int]
-    | set[int],
+    cand_subset: Sequence[Candidate],
     pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]]
     | dict[tuple[str, str], tuple[float, float]]
     | dict[tuple[int, int], tuple[float, float]],
@@ -210,17 +206,16 @@ def restrict_pairwise_dict_to_subset(
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
-        cands (list[Candidate] | tuple[Candidate] | set[Candidate]
-            | list[str] | set[str] | list[int] | set[int]): Candidate subset to restrict to.
+        cands (Sequence[Candidate]): Candidate subset to restrict to.
             Candidates can be strings, integers, or mix of both.
         pairwise_dict (dict[tuple[Candidate, Candidate], tuple[float, float]]
             | dict[tuple[str, str], tuple[float, float]]
             | dict[tuple[int, int], tuple[float, float]]): Full pairwise
-            comparison dictionary. Candidates can be strings, integers, or mix of both
+            comparison dictionary. Candidates can be strings, integers, or mix of both.
 
     Returns:
         dict[dict[tuple[Candidate, Candidate], tuple[float, float]] : Pairwise dict restricted
-            to the provided candidates. Candidates can be strings or integers.
+            to the provided candidates. Candidates can be strings, integers, or mix of both.
 
     Raises:
         ValueError: cand_subset must be at least length 2.
@@ -320,13 +315,14 @@ class PairwiseComparisonGraph(nx.DiGraph):
         return set(self.pairwise_graph.predecessors(candidate))
 
     @cache
-    def get_dominating_tiers(self) -> list[set[str]]:
+    def get_dominating_tiers(self) -> list[set[Candidate]]:
         """
         Compute the dominating tiers of the pairwise comparison graph.
         Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
 
         Returns:
-            list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
+            list[set[Candidate]]: Dominating tiers, where the first entry of the list is the highest
+                tier. Candidates can be strings, integers, or mix of both.
 
         """
         return get_dominating_tiers_digraph(self.pairwise_graph)
@@ -341,12 +337,12 @@ class PairwiseComparisonGraph(nx.DiGraph):
         dominating_tiers = self.get_dominating_tiers()
         return len(dominating_tiers[0]) == 1
 
-    def get_condorcet_winner(self) -> str:
+    def get_condorcet_winner(self) -> Candidate:
         """
         Returns the condorcet winner. Raises a ValueError if no condorcet winner.
 
         Returns:
-            str: The condorcet winner.
+            Candidate: The condorcet winner. Candidate can be a string or integer.
 
         Raises:
             ValueError: There is no condorcet winner.

@@ -9,7 +9,7 @@ from votekit.pref_profile import (
     ProfileError,
     RankProfile,
 )
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateListLike
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -196,15 +196,16 @@ def remove_repeat_cands_rank_profile(
 
 
 def remove_cand_from_ranking_row(
-    removed: Candidate | list[Candidate] | list[str] | list[int],
+    removed: Candidate | CandidateListLike,
     ranking_tup: tuple[frozenset, ...],
 ) -> tuple[frozenset, ...]:
     """
     Removes specified candidate(s) from ranking. Does not condense the resulting ranking.
 
     Args:
-        removed (str | int | list[str | int] | list[str] | list[int]):
+        removed (Candidate | list[Candidate] | list[str] | list[int]):
             Candidate or list of candidates to be removed.
+            Candidates can be strings, integers, or mix of both.
         ranking_tup (tuple): Ranking to remove candidates from.
 
     Returns:
@@ -399,9 +400,7 @@ def condense_rank_profile(
     )
 
 
-def _is_equiv_for_remove_and_condense(
-    removed: list[Candidate] | list[str] | list[int], ranking: pd.Series
-) -> bool:
+def _is_equiv_for_remove_and_condense(removed: CandidateListLike, ranking: pd.Series) -> bool:
     """
     Returns True if the given ranking is equivalent to its removed and condensed form.
     It is equivalent if the ranking has no candidate in the removed list and either no empty
@@ -409,7 +408,8 @@ def _is_equiv_for_remove_and_condense(
     in the removed list, it is not equivalent.
 
     Args:
-        removed (list[str | int] | list[str] | list[int]): Candidates to be removed.
+        removed (list[Candidate] | list[str] | list[int]): Candidates to be removed.
+            Candidates can be strings, integers, or mix of both.
         ranking (pd.Series): Ranking to check.
 
     Returns:
@@ -441,7 +441,7 @@ def _is_equiv_for_remove_and_condense(
 
 
 def remove_and_condense_rank_profile(
-    removed: Candidate | list[Candidate] | list[str] | list[int],
+    removed: Candidate | CandidateListLike,
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -461,8 +461,9 @@ def remove_and_condense_rank_profile(
     is handled correctly, and that ballot equivalence is checked.
 
     Args:
-        removed (str | int | list[str | int] | list[str] | list[int]):
+        removed (Candidate | list[Candidate] | list[str] | list[int]):
             Candidate or list of candidates to be removed.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile): Profile to remove repeated candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.

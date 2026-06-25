@@ -3,15 +3,15 @@ import numpy as np
 from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateListLike
 
 
-def comention(cands: Candidate | list[Candidate] | list[str] | list[int], ballot: RankBallot):
+def comention(cands: Candidate | CandidateListLike, ballot: RankBallot):
     """
     Takes cands and returns true if they all appear on the ballot in the ranking.
 
     Args:
-      cands (Candidate, list[Candidate] | list[str] | list[int]):
+      cands (Candidate | list[Candidate] | list[str] | list[int]):
         Candidate name or list of candidate names.
         Candidates can be strings, integers, or mix of both.
       ballot (RankBallot): RankBallot.
@@ -30,35 +30,35 @@ def comention(cands: Candidate | list[Candidate] | list[str] | list[int], ballot
     return set(cands).issubset(all_cands)
 
 
-def comention_above(i: Candidate, j: Candidate, ballot: RankBallot) -> bool:
+def comention_above(cand_a: Candidate, cand_b: Candidate, ballot: RankBallot) -> bool:
     """
-    Takes candidates i,j and returns True if i >= j in the ranking.
+    Takes two candidates and returns True if cand_a >= cand_b in the ranking.
     Requires that the ballot has a ranking.
 
 
     Args:
-      i (Candidate): Candidate name.
+      above_cand (Candidate): Candidate to check as ranked at or above cand_b.
         Candidates can be strings, integers, or mix of both.
-      j (Candidate): Candidate name.
+      below_cand (Candidate): Candidate to check as ranked at or below cand_a.
         Candidates can be strings, integers, or mix of both.
       ballot (RankBallot): RankBallot.
 
     Returns:
-      bool: True if both i and j appear in ballot and i >= j.
+      bool: True if both cand_a and cand_b appear in ballot and cand_a >= cand_b.
     """
     if not isinstance(ballot, RankBallot):
         raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
         raise TypeError(f"RankBallot must have a ranking: {ballot}")
-    i_index, j_index = (-1, -1)
+    cand_a_index, cand_b_index = (-1, -1)
 
     for rank, s in enumerate(ballot.ranking):
-        if i in s:
-            i_index = rank
-        if j in s:
-            j_index = rank
+        if cand_a in s:
+            cand_a_index = rank
+        if cand_b in s:
+            cand_b_index = rank
 
-    return (i_index >= 0 and j_index >= 0) and (i_index <= j_index)
+    return (cand_a_index >= 0 and cand_b_index >= 0) and (cand_a_index <= cand_b_index)
 
 
 def comentions_matrix(

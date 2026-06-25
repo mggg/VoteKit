@@ -8,6 +8,7 @@ from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
 )
 from votekit.pref_profile import RankProfile
+from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
 from votekit.utils import tiebreak_set
 
@@ -121,7 +122,9 @@ class RankedPairs(RankingElection):
                 )
 
         ordered_candidates = [
-            candidate for candidate_set in dominating_tiers for candidate in sorted(candidate_set)
+            candidate
+            for candidate_set in dominating_tiers
+            for candidate in sort_candidates_lexicographically(candidate_set)
         ]
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])

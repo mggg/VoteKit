@@ -19,11 +19,11 @@ class Election(Generic[P]):
 
     Args:
         profile (PreferenceProfile): The initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
+        score_function (Callable[[PreferenceProfile], dict[Candidate, float]], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
-            Defaults to None.
+            Defaults to None. Candidates can be strings, integers, or mix of both.
         sort_high_low (bool, optional): How to sort candidates based on `score_function`. True sorts
             from high to low. Defaults to True.
 

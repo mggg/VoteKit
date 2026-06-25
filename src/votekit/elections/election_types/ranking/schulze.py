@@ -9,6 +9,7 @@ from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
 )
 from votekit.pref_profile import RankProfile
+from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
 from votekit.utils import tiebreak_set
 
@@ -155,8 +156,8 @@ class Schulze(RankingElection):
                 ordered_candidates.extend(candidate_set)
             else:
                 tier_key = frozenset(candidate_set)
-                for s in tiebreak_resolutions[tier_key]:
-                    ordered_candidates.extend(sorted(s))
+                for cand_set in tiebreak_resolutions[tier_key]:
+                    ordered_candidates.extend(sort_candidates_lexicographically(cand_set))
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
         remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])

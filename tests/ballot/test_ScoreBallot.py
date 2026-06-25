@@ -52,7 +52,7 @@ def test_ballot_is_frozen_del():
 
 def test_ballot_hash():
     b1 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
-    b2 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
+    b2 = ScoreBallot(scores={"B": 2, "A": 1}, weight=2, voter_set={"A"})
     b3 = ScoreBallot(scores={"A": 2, "B": 2}, weight=2, voter_set={"B"})
 
     assert b1 == b2 and hash(b1) == hash(b2)

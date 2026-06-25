@@ -4,10 +4,12 @@ import pytest
 
 from votekit import utils
 from votekit.ballot_generator import ic_profile_generator
-from votekit.elections import STV, Borda, Plurality
+from votekit.elections import STV, Borda, Plurality, RankedPairs, SimultaneousVeto
 
 MIXED_CANDS = ["A", "B", "1", 1, 2, 3]
 N_SEATS = 2
+
+pytestmark = [pytest.mark.filterwarnings("ignore:.*appear as both str and int.*:UserWarning")]
 
 
 @pytest.fixture(params=[10, 1000, 10000])
@@ -28,6 +30,14 @@ def ic_mixed_profile(request):
             lambda profile: Plurality(profile, n_seats=N_SEATS, tiebreak="random"), id="plurality"
         ),
         pytest.param(lambda profile: STV(profile, n_seats=N_SEATS, tiebreak="random"), id="stv"),
+        pytest.param(
+            lambda profile: RankedPairs(profile, n_seats=N_SEATS, tiebreak="lexicographic"),
+            id="ranked_pairs",
+        ),
+        pytest.param(
+            lambda profile: SimultaneousVeto(profile, n_seats=N_SEATS, tiebreak="random"),
+            id="simultaneous_veto",
+        ),
     ],
 )
 def test_election_runs_with_mixed_candidates(ic_mixed_profile, make_election):

@@ -28,6 +28,7 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
+from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
 
 
@@ -39,9 +40,10 @@ class PreferenceProfile:
 
     Args:
         ballots (Sequence[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
-        candidates (tuple[str | int], optional): Tuple of candidates.
+        candidates (tuple[Candidate], optional): Tuple of candidates.
             Candidate can be a str or int. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
+            Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.
@@ -387,10 +389,10 @@ class RankProfile(PreferenceProfile):
     @cached_property
     def df(self) -> pd.DataFrame:
         """
-        Compute the dataframe as a cached property.
-        The dataframe is internally stored with candidate ids.
-        The dataframe will be translated to original candidate names.
+        The dataframe of all ballots cast within a profile.
         """
+        # NOTE: The dataframe is internally stored with candidate integer IDs. The dataframe will be
+        # translated to original candidate names as a cached property.
         return self._translate_df_ranking_values(self._df, self.id_candidate_map)
 
     def __update_ballot_ranking_data(
@@ -544,6 +546,8 @@ class RankProfile(PreferenceProfile):
 
         Args:
             ballots (Sequence[RankBallot,...]): Sequence of ballots.
+            candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
@@ -870,6 +874,8 @@ class RankProfile(PreferenceProfile):
         Construct the header rows for the PrefProfile a custom CSV format.
 
         Args:
+            candidate_mapping (dict[Candidate, str]): Mapping of candidate to ID.
+                Candidates can be strings, integers, or mix of both.
             include_voter_set (bool): Whether or not to include the voter set of each
                 ballot.
         """
@@ -892,7 +898,8 @@ class RankProfile(PreferenceProfile):
 
         Args:
             rank_ballot (RankBallot): Ballot.
-            candidate_mapping (dict[str, int]): Mapping candidate names to integers.
+            candidate_mapping (dict[Candidate, str]): Mapping candidate names to IDs.
+                Candidates can be strings, integers, or mix of both.
 
         """
         assert self.max_ranking_length is not None
@@ -1108,10 +1115,10 @@ class ScoreProfile(PreferenceProfile):
     @cached_property
     def df(self) -> pd.DataFrame:
         """
-        Compute the dataframe as a cached property.
-        The dataframe is internally stored with candidate ids.
-        The dataframe will be translated to original candidate names.
+        The dataframe of all ballots cast within a profile.
         """
+        # NOTE: The dataframe is internally stored with candidate integer IDs. The dataframe will be
+        # translated to original candidate names as a cached property.
         return self._translate_df_score_values(self._df, self.id_candidate_map)
 
     def __update_ballot_scores_data(
@@ -1261,7 +1268,7 @@ class ScoreProfile(PreferenceProfile):
             df[list(remaining_cands)] = empty_df_cols
             col_order = [
                 candidate_id_map[cand]
-                for cand in sorted(candidate_id_map.keys(), key=lambda cand: str(cand))
+                for cand in sort_candidates_lexicographically(candidate_id_map.keys())
             ] + temp_col_order
 
         df = df[col_order]
@@ -1460,7 +1467,9 @@ class ScoreProfile(PreferenceProfile):
         new_df = pd.concat([df_1, df_2], ignore_index=True)
         new_df.index.name = "Ballot Index"
 
-        new_candidates = sorted(set(self.candidates).union(other.candidates))
+        new_candidates = sort_candidates_lexicographically(
+            set(self.candidates).union(other.candidates)
+        )
         new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
 
         return ScoreProfile(
