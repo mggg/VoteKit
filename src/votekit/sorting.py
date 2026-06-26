@@ -33,6 +33,13 @@ def sort_candidates_lexicographically(candidates: Iterable[Candidate]) -> list[C
     try:
         return sorted(candidates)
     except TypeError:
+        if any(not isinstance(cand, Candidate) for cand in candidates):
+            raise TypeError(
+                "Candidates can only be strings or integers. Candidates"
+                f" {[cand for cand in candidates if not isinstance(cand, Candidate)]}"
+                " are invalid."
+            )
+
         int_candidates = [cand for cand in candidates if isinstance(cand, int)]
 
         def sort_mixed_cands(cand):

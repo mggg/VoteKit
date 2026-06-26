@@ -106,3 +106,17 @@ def test_str_int_mix_candidates():
 
     assert set(profile_int_cands.candidates) == set(["A", 2, 3])
     assert set(profile_int_cands.candidates_cast) == set(["A", 2, 3])
+
+
+def test_str_int_mix_candidates_in_profile_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        profile_int_cands = ScoreProfile(
+            ballots=[
+                ScoreBallot(scores={"2": 4}),
+                ScoreBallot(scores={2: 4}),
+                ScoreBallot(scores={3: 4}),
+            ]
+        )
+
+    assert set(profile_int_cands.candidates) == set(["2", 2, 3])
+    assert set(profile_int_cands.candidates_cast) == set(["2", 2, 3])

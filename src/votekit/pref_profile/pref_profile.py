@@ -233,7 +233,17 @@ class PreferenceProfile:
                 " candidates are in candidates_cast but not candidates: "
                 f"{set(self.candidates_cast) - set(self.candidates)}."
             )
-
+        str_cands = {cand for cand in self.candidates if isinstance(cand, str)}
+        int_cands = {cand for cand in self.candidates if isinstance(cand, int)}
+        collisions = {
+            str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
+        }
+        if collisions:
+            warnings.warn(
+                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within a"
+                " profile. These will be treated as separate candidates.",
+                UserWarning,
+            )
         self.candidates = tuple([c.strip() if isinstance(c, str) else c for c in self.candidates])
         self.candidates_cast = tuple(
             [c.strip() if isinstance(c, str) else c for c in self.candidates_cast]

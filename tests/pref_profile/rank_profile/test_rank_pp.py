@@ -109,3 +109,19 @@ def test_str_int_mix_candidates():
 
     assert set(vote_cands) == {"A", "B", "C", 1, 2}
     assert set(all_cands) == {"A", "B", "C", 1, 2}
+
+
+def test_equivalent_str_int_cands_in_profile_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        profile_w_mix_cands = RankProfile(
+            ballots=(
+                RankBallot(ranking=[{"A"}, {1}]),
+                RankBallot(ranking=[{"1"}, {"B"}]),
+                RankBallot(ranking=[{1, 2}]),
+            ),
+        )
+    vote_cands = profile_w_mix_cands.candidates_cast
+    all_cands = profile_w_mix_cands.candidates
+
+    assert set(vote_cands) == {"A", "B", "1", 1, 2}
+    assert set(all_cands) == {"A", "B", "1", 1, 2}

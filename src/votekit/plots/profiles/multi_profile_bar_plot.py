@@ -1,12 +1,12 @@
 from collections.abc import Callable, Mapping
 from functools import partial
-from typing import Any, Optional, TypeAlias, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union
 
 from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
 from votekit.pref_profile import PreferenceProfile, RankProfile
-from votekit.types import Candidate, CandidateListLike
+from votekit.types import Candidate, CandidateListLike, CandidatePlotLabelMapping, PlotLabel
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -16,10 +16,6 @@ from votekit.utils import (
 )
 
 ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
-PlotLabel = str | int
-CandidatePlotLabelMapping: TypeAlias = (
-    Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
-)
 
 
 def _create_data_dict(

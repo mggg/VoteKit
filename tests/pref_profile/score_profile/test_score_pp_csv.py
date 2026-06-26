@@ -31,23 +31,25 @@ def test_csv_bijection_scores(tmp_path):
 
 
 def test_csv_mixed_cand_scores(tmp_path):
-    profile = ScoreProfile(
-        ballots=(
-            ScoreBallot(scores={"1": 2, "A": 4, "B": 1}, voter_set={"Chris"}),
-            ScoreBallot(scores={1: 2, 2: 4, 3: 1}, voter_set={"Peter", "Moon"}),
-            ScoreBallot(
-                scores={"A": 2, "B": 4, 1: 1},
-            ),
-            ScoreBallot(
-                scores={3: 2, 2: 4, "1": 1},
-            ),
-            ScoreBallot(
-                scores={"B": 5, 1: 4, "A": 1},
-            ),
+    # NOTE: Expect a warning to be thrown for 1 and "1" candidates
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        profile = ScoreProfile(
+            ballots=(
+                ScoreBallot(scores={"1": 2, "A": 4, "B": 1}, voter_set={"Chris"}),
+                ScoreBallot(scores={1: 2, 2: 4, 3: 1}, voter_set={"Peter", "Moon"}),
+                ScoreBallot(
+                    scores={"A": 2, "B": 4, 1: 1},
+                ),
+                ScoreBallot(
+                    scores={3: 2, 2: 4, "1": 1},
+                ),
+                ScoreBallot(
+                    scores={"B": 5, 1: 4, "A": 1},
+                ),
+            )
+            * 5,
+            candidates=["A", "B", "1", 1, 2, 3],
         )
-        * 5,
-        candidates=["A", "B", "1", 1, 2, 3],
-    )
     out = str(tmp_path / "test_csv_pp_mixed_cand_scores.csv")
     profile.to_csv(out, include_voter_set=True)
     read_profile = ScoreProfile.from_csv(out)

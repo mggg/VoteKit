@@ -199,3 +199,13 @@ def test_equivalent_str_int_candidates_gives_warning():
     with pytest.warns(UserWarning, match="will be treated as separate candidates"):
         b = RankBallot(ranking=[1, "1"])
     assert b.ranking == (frozenset({1}), frozenset({"1"}))
+
+
+def test_invalid_candidate_type_ballot():
+    with pytest.raises(TypeError, match="Candidates can only be strings or integers"):
+        RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_negative_integer_candidate_ballot():
+    with pytest.raises(ValueError, match="Integer candidates must be non-negative values"):
+        RankBallot(ranking=["A", {"B", -1}, "D", {2}, 3], weight=1, voter_set={"A"})

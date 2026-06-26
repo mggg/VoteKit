@@ -5,7 +5,13 @@ from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import bar_plot
 from votekit.pref_profile import PreferenceProfile, RankProfile
-from votekit.types import Candidate, CandidateFloatDictLike, CandidateListLike
+from votekit.types import (
+    Candidate,
+    CandidateFloatDictLike,
+    CandidateListLike,
+    CandidatePlotLabelMapping,
+    PlotLabel,
+)
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -14,7 +20,6 @@ from votekit.utils import (
     mentions,
 )
 
-PlotLabel = str | int
 ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
 
 
@@ -31,9 +36,7 @@ def profile_bar_plot(
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
     show_profile_legend: bool = False,
-    categories_legend: Optional[
-        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
-    ] = None,
+    categories_legend: Optional[CandidatePlotLabelMapping] = None,
     threshold_values: Optional[Union[list[float], float]] = None,
     threshold_kwds: Optional[Union[list[dict], dict]] = None,
     legend_font_size: Optional[float] = None,

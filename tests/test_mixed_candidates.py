@@ -9,7 +9,14 @@ from votekit.elections import STV, Borda, Plurality, RankedPairs, SimultaneousVe
 MIXED_CANDS = ["A", "B", "1", 1, 2, 3]
 N_SEATS = 2
 
-pytestmark = [pytest.mark.filterwarnings("ignore:.*appear as both str and int.*:UserWarning")]
+pytestmark = [
+    pytest.mark.filterwarnings(
+        "ignore:.*appear as both str and int.*within a ballot.*:UserWarning"
+    ),
+    pytest.mark.filterwarnings(
+        "ignore:.*appear as both str and int.*within a profile.*:UserWarning"
+    ),
+]
 
 
 @pytest.fixture(params=[10, 1000, 10000])

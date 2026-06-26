@@ -50,41 +50,43 @@ def test_csv_bijection_rankings(tmp_path):
 
 
 def test_csv_mixed_cand_rankings(tmp_path):
-    profile_rankings = RankProfile(
-        ballots=(
-            RankBallot(
-                ranking=({"A", "B"}, frozenset(), {"1"}),
-                voter_set={"Chris", "Peter"},
-                weight=1.5,
-            ),
-            RankBallot(
-                ranking=({1, 2}, frozenset(), {3}),
-                voter_set={"Moon"},
-                weight=0.5,
-            ),
-            RankBallot(
-                ranking=(
-                    {"A"},
-                    {1},
+    # NOTE: Expect a warning to be thrown for 1 and "1" candidates
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        profile_rankings = RankProfile(
+            ballots=(
+                RankBallot(
+                    ranking=({"A", "B"}, frozenset(), {"1"}),
+                    voter_set={"Chris", "Peter"},
+                    weight=1.5,
                 ),
-            ),
-            RankBallot(
-                ranking=(
-                    {2},
-                    {"1"},
+                RankBallot(
+                    ranking=({1, 2}, frozenset(), {3}),
+                    voter_set={"Moon"},
+                    weight=0.5,
                 ),
-            ),
-            RankBallot(
-                ranking=(
-                    {"B"},
-                    {"A"},
+                RankBallot(
+                    ranking=(
+                        {"A"},
+                        {1},
+                    ),
                 ),
-            ),
+                RankBallot(
+                    ranking=(
+                        {2},
+                        {"1"},
+                    ),
+                ),
+                RankBallot(
+                    ranking=(
+                        {"B"},
+                        {"A"},
+                    ),
+                ),
+            )
+            * 5,
+            max_ranking_length=3,
+            candidates=["A", "B", "1", 1, 2, 3],
         )
-        * 5,
-        max_ranking_length=3,
-        candidates=["A", "B", "1", 1, 2, 3],
-    )
 
     out = str(tmp_path / "test_csv_pp_mixed_cand_rankings.csv")
     profile_rankings.to_csv(out, include_voter_set=True)

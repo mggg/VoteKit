@@ -158,3 +158,13 @@ def test_equivalent_str_int_candidates_gives_warning():
     with pytest.warns(UserWarning, match="will be treated as separate candidates"):
         b = ScoreBallot(scores={"1": 2, 1: 1})
     assert b.scores == {"1": 2, 1: 1}
+
+
+def test_invalid_candidate_type_ballot():
+    with pytest.raises(TypeError, match="Candidates can only be strings or integers"):
+        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type]
+
+
+def test_negative_integer_candidate_ballot():
+    with pytest.raises(ValueError, match="Integer candidates must be non-negative values"):
+        ScoreBallot(scores={"A": 2, 1: 1, -1: 2})

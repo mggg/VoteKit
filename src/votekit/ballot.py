@@ -2,15 +2,9 @@ from __future__ import annotations
 
 import warnings
 from numbers import Real
-from typing import Iterable, Mapping, Optional, Sequence, TypeAlias, Union, overload
+from typing import Iterable, Optional, Union, overload
 
-from votekit.types import Candidate
-
-Ranking: TypeAlias = Optional[tuple[frozenset[Candidate], ...]]
-RankingLike: TypeAlias = Optional[Sequence[Candidate | Iterable[Candidate]]]
-ScoresLike: TypeAlias = Optional[
-    Mapping[Candidate, float | int] | Mapping[str, float | int] | Mapping[int, float | int]
-]
+from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
 
 
 class Ballot:
@@ -190,8 +184,8 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
         self._validate_ranking_candidates(ranking)
+        ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
         self.ranking = ranking
         super().__init__(weight=weight, voter_set=voter_set)
 
@@ -218,27 +212,42 @@ class RankBallot(Ballot):
                 )
         return tuple(normalized_ranking)
 
-    def _validate_ranking_candidates(self, ranking: Ranking):
+    def _validate_ranking_candidates(self, ranking: RankingLike):
         if ranking is None:
             return
-        if any(cand == "~" for cand_set in ranking for cand in cand_set):
+        candidates = []
+        for cand_set in ranking:
+            if isinstance(cand_set, Iterable):
+                candidates.extend([cand for cand in cand_set])
+            else:
+                candidates.append(cand_set)
+        if any(cand == "~" for cand in candidates):
             raise ValueError(
                 f"Candidate '~' found in ballot ranking {ranking}."
                 " '~' is a reserved character and cannot be used for"
                 " candidate names."
             )
-
-        str_cands = {cand for cand_set in ranking for cand in cand_set if isinstance(cand, str)}
-        int_cands = {cand for cand_set in ranking for cand in cand_set if isinstance(cand, int)}
+        str_cands = {cand for cand in candidates if isinstance(cand, str)}
+        int_cands = {cand for cand in candidates if isinstance(cand, int)}
+        negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
+        if negative_int_cands:
+            raise ValueError(
+                "Integer candidates must be non-negative values."
+                f" {negative_int_cands} are negative integer candidates."
+            )
+        invalid_candidates = set(str_cands | int_cands) ^ set(candidates)
+        if invalid_candidates:
+            raise TypeError(
+                f"Candidates can only be strings or integers. {invalid_candidates}"
+                " are invalid candidates."
+            )
         collisions = {
-            str_cand
-            for str_cand in str_cands
-            if str_cand.lstrip("-").isdigit() and int(str_cand) in int_cands
+            str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
         }
         if collisions:
             warnings.warn(
-                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1)."
-                " These will be treated as separate candidates.",
+                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1 within a"
+                " ballot. These will be treated as separate candidates.",
                 UserWarning,
             )
 
@@ -337,15 +346,27 @@ class ScoreBallot(Ballot):
                 )
             str_cands = {cand for cand in scores.keys() if isinstance(cand, str)}
             int_cands = {cand for cand in scores.keys() if isinstance(cand, int)}
+            negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
+            if negative_int_cands:
+                raise ValueError(
+                    "Integer candidates must be non-negative values."
+                    f" {negative_int_cands} are negative integer candidates."
+                )
+            invalid_candidates = set(str_cands | int_cands) ^ set(scores.keys())
+            if invalid_candidates:
+                raise TypeError(
+                    f"Candidates can only be strings or integers. {invalid_candidates}"
+                    " are invalid candidates."
+                )
             collisions = {
                 str_cand
                 for str_cand in str_cands
-                if str_cand.lstrip("-").isdigit() and int(str_cand) in int_cands
+                if str_cand.isdigit() and int(str_cand) in int_cands
             }
             if collisions:
                 warnings.warn(
-                    f"Candidates {collisions} appear as both str and int (e.g. '1' and 1)."
-                    " These will be treated as separate candidates.",
+                    f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within a"
+                    " ballot. These will be treated as separate candidates.",
                     UserWarning,
                 )
 

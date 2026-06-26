@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Mapping
-from typing import Any, Literal, Optional, Tuple, TypeAlias, Union, cast
+from typing import Any, Literal, Optional, Tuple, Union, cast
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
@@ -8,21 +8,10 @@ from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 
+from votekit.types import CategoryLabel, CategoryLabelList, CategoryLabelMapping, DataMapping
 from votekit.utils import COLOR_LIST
 
 DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "grey", "alpha": 0.5}
-CategoryLabel: TypeAlias = str | int
-DataMapping: TypeAlias = (
-    Mapping[str, Mapping[CategoryLabel, float]]
-    | Mapping[str, Mapping[str, float]]
-    | Mapping[str, Mapping[int, float]]
-)
-CategoryLabelList: TypeAlias = list[CategoryLabel] | list[str] | list[int]
-CategoryLabelMapping: TypeAlias = (
-    Mapping[CategoryLabel, CategoryLabel]
-    | Mapping[str, CategoryLabel]
-    | Mapping[int, CategoryLabel]
-)
 
 
 def add_null_keys(data: DataMapping) -> dict[str, dict[CategoryLabel, float]]:
