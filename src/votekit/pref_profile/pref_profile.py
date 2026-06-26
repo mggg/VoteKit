@@ -882,7 +882,10 @@ class RankProfile(PreferenceProfile):
         header = [
             ["VoteKit RankProfile"],
             ["Candidates"],
-            [f"({str(c)}:{cand_label})" for c, cand_label in candidate_mapping.items()],
+            [
+                f"({str(c)}:{type(c).__name__}:{cand_label})"
+                for c, cand_label in candidate_mapping.items()
+            ],
         ]
         header += [["Max Ranking Length"], [str(self.max_ranking_length)]]
         header += [["Includes Voter Set"], [str(include_voter_set)]]
@@ -1547,7 +1550,10 @@ class ScoreProfile(PreferenceProfile):
         header = [
             ["VoteKit ScoreProfile"],
             ["Candidates"],
-            [f"({c}:{cand_label})" for c, cand_label in candidate_mapping.items()],
+            [
+                f"({c}:{type(c).__name__}:{cand_label})"
+                for c, cand_label in candidate_mapping.items()
+            ],
         ]
         header += [["Includes Voter Set"], [str(include_voter_set)]]
         header += [["="] * 10]

@@ -49,6 +49,49 @@ def test_csv_bijection_rankings(tmp_path):
     assert profile_rankings == read_profile
 
 
+def test_csv_mixed_cand_rankings(tmp_path):
+    profile_rankings = RankProfile(
+        ballots=(
+            RankBallot(
+                ranking=({"A", "B"}, frozenset(), {"1"}),
+                voter_set={"Chris", "Peter"},
+                weight=1.5,
+            ),
+            RankBallot(
+                ranking=({1, 2}, frozenset(), {3}),
+                voter_set={"Moon"},
+                weight=0.5,
+            ),
+            RankBallot(
+                ranking=(
+                    {"A"},
+                    {1},
+                ),
+            ),
+            RankBallot(
+                ranking=(
+                    {2},
+                    {"1"},
+                ),
+            ),
+            RankBallot(
+                ranking=(
+                    {"B"},
+                    {"A"},
+                ),
+            ),
+        )
+        * 5,
+        max_ranking_length=3,
+        candidates=["A", "B", "1", 1, 2, 3],
+    )
+
+    out = str(tmp_path / "test_csv_pp_mixed_cand_rankings.csv")
+    profile_rankings.to_csv(out, include_voter_set=True)
+    read_profile = RankProfile.from_csv(out)
+    assert profile_rankings == read_profile
+
+
 def test_csv_filepath_error():
     with pytest.raises(ValueError, match="File path must be provided."):
         RankProfile().to_csv("")
@@ -88,7 +131,10 @@ def test_csv_misformatted_header_rows_error():
 
 def test_csv_misformatted_header_values_error():
     with pytest.raises(ValueError, match="Row 2 should contain tuples mapping candidates"):
-        RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2.csv")
+        RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_non_tuples.csv")
+
+    with pytest.raises(ValueError, match="Row 2 should contain candidate types of str or int"):
+        RankProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_non_valid_type.csv")
 
     with pytest.raises(
         ValueError,
