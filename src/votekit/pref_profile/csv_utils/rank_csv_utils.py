@@ -30,7 +30,8 @@ def _parse_profile_data_from_rank_csv(
             Candidates can be strings, integers, or mix of both.
     """
     candidate_row = [c_tuple.strip("()").split(":") for c_tuple in csv_data[2]]
-    if len(candidate_row[0]) == 3:
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
         inv_candidate_mapping = {
             prefix: VALID_TYPE_MAP[cand_type](cand) for cand, cand_type, prefix in candidate_row
         }
@@ -159,12 +160,31 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
         )
 
     candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in header_data[2]]
-    if len(candidate_tuples[0]) == 3:
+    csv_version = header_data[0][1] if len(header_data[0]) > 1 else None
+    if not csv_version and len(candidate_tuples[0]) != 2:
+        raise ValueError(
+            (
+                f"csv file is improperly formatted. If not using v2 format, Row 2 should contain"
+                " tuples mapping candidates to their unique prefixes. For example, (Chris:0),"
+                f" (Colleen: 1). Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2" and len(candidate_tuples[0]) != 3:
+        raise ValueError(
+            (
+                f"csv file v2 is improperly formatted. Row 2 should contain tuples mapping"
+                " candidates to their types and unique prefixes. For example, (1:int:0), (A:str:1)."
+                f" Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2" and len(candidate_tuples[0]) == 3:
         _, candidate_types, _ = zip(*candidate_tuples)
         if any(cand_type not in VALID_TYPE_MAP.keys() for cand_type in candidate_types):
             raise ValueError(
-                "csv file is improperly formatted. Row 2 should contain candidate types of str or"
-                f" int, not {set(VALID_TYPE_MAP.keys()) ^ set(candidate_types)} within"
+                "csv file v2 is improperly formatted. Row 2 should contain candidate types of str"
+                f" or int, not {set(VALID_TYPE_MAP.keys()) ^ set(candidate_types)} within"
                 f" {header_data[2]}. " + boiler_plate
             )
 
@@ -201,11 +221,14 @@ def _validate_rank_csv_header_rows(header_data: list[list[str]]):
         "PreferenceProfile.to_csv()."
     )
 
-    if header_data[0] != ["VoteKit RankProfile"]:
+    if header_data[0] != ["VoteKit RankProfile"] and header_data[0] != [
+        "VoteKit RankProfile",
+        "v2",
+    ]:
         raise ValueError(
             (
-                "csv file is improperly formatted. Row 0 should be 'VoteKit RankProfile',"
-                f"not {header_data[0]}. " + boiler_plate
+                "csv file is improperly formatted. Row 0 should be 'VoteKit RankProfile' or "
+                f"'VoteKit RankProfile,v2', not {header_data[0]}. " + boiler_plate
             )
         )
 
@@ -392,7 +415,8 @@ def _validate_rank_csv_ballot_rows(csv_data: list[list[str]]):
     include_voter_set_row = csv_data[6]
 
     candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in candidate_row]
-    if len(candidate_tuples[0]) == 3:
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
         candidates, candidate_types, candidate_prefixes = zip(*candidate_tuples)
     else:
         candidates, candidate_prefixes = zip(*candidate_tuples)

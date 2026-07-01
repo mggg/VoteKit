@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate, CandidateListLike
+from votekit.types import Candidate, CandidateList
 
 # =================================================
 # ================= API Functions =================
@@ -195,7 +195,7 @@ def spacial_profile_and_positions_generator(
 
 def clustered_spacial_profile_and_positions_generator(
     number_of_ballots: dict[Candidate, int] | dict[str, int] | dict[int, int],
-    candidates: CandidateListLike,
+    candidates: CandidateList,
     voter_dist: Callable[..., np.ndarray] = np.random.normal,
     voter_dist_kwargs: Optional[Dict[str, Any]] = None,
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,

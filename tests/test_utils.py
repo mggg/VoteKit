@@ -19,6 +19,7 @@ from votekit.utils import (
     score_dict_from_score_vector,
     score_dict_to_ranking,
     score_profile_from_ballot_scores,
+    sort_candidates_pseudo_lexicographically,
     tiebreak_set,
     tiebroken_ranking,
     validate_score_vector,
@@ -690,3 +691,15 @@ def test_ballot_lengths_ranking_error():
     profile = ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))
     with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
         ballot_lengths(cast(RankProfile, profile))
+
+
+def test_sort_mixed_cands_lexicographically():
+    cands = ["1", "01", 1, 2, "2.0", "3", "A"]
+    expected_sorted_cands = [1, "01", "1", 2, "2.0", "3", "A"]
+    assert expected_sorted_cands == sort_candidates_pseudo_lexicographically(cands)
+
+
+def test_sort_non_valid_type_cand_raises_error():
+    cands = ["1", 1, 1.0]
+    with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
+        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]

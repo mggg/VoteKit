@@ -18,8 +18,9 @@ class CleanedRankProfile(RankProfile):
 
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
-        candidates (tuple[str], optional): Tuple of candidate strings. Defaults to empty tuple.
-            If empty, computes this from any candidate listed on a ballot with positive weight.
+        candidates (tuple[Candidate], optional): Tuple of candidates. Defaults to empty tuple.
+            Candidates can be strings, integers, or mix of both. If empty, computes this from any
+            candidate listed on a ballot with positive weight.
         max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.

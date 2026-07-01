@@ -6,7 +6,7 @@ from scipy.sparse import csr_matrix, identity, kron, vstack
 from scipy.stats import kendalltau
 
 from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
-from votekit.sorting import sort_candidates_lexicographically
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 def emd_via_scipy_linear_program(
@@ -288,7 +288,8 @@ def __build_simultaneous_profile_distribution(
     profile2 = pp2.group_ballots()
 
     cand_to_index_mapping = {
-        cand: i for i, cand in enumerate(sort_candidates_lexicographically(profile1.candidates))
+        cand: i
+        for i, cand in enumerate(sort_candidates_pseudo_lexicographically(profile1.candidates))
     }
 
     profile_distribution_dict = dict()

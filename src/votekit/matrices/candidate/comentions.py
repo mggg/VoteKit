@@ -3,10 +3,10 @@ import numpy as np
 from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate, CandidateListLike
+from votekit.types import Candidate, CandidateList
 
 
-def comention(cands: Candidate | CandidateListLike, ballot: RankBallot):
+def comention(cands: Candidate | CandidateList, ballot: RankBallot):
     """
     Takes cands and returns true if they all appear on the ballot in the ranking.
 

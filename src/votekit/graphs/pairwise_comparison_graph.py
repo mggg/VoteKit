@@ -11,8 +11,8 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile
-from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
@@ -107,7 +107,7 @@ def pairwise_dict(
     candidates_lst = list(profile.candidates_cast)
 
     if sort_candidate_pairs:
-        candidates_lst = sort_candidates_lexicographically(candidates_lst)
+        candidates_lst = sort_candidates_pseudo_lexicographically(candidates_lst)
 
     n_cands = len(candidates_lst)
 
@@ -126,7 +126,7 @@ def pairwise_dict(
             head_to_head_matrix[cand_to_idx[a], cand_to_idx[b]],
             head_to_head_matrix[cand_to_idx[b], cand_to_idx[a]],
         )
-        for a, b in combinations(sort_candidates_lexicographically(candidates_lst), 2)
+        for a, b in combinations(sort_candidates_pseudo_lexicographically(candidates_lst), 2)
     }
     return pairwise
 

@@ -9,7 +9,7 @@ from votekit.pref_profile import (
     ProfileError,
     RankProfile,
 )
-from votekit.types import Candidate, CandidateListLike
+from votekit.types import Candidate, CandidateList
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -196,7 +196,7 @@ def remove_repeat_cands_rank_profile(
 
 
 def remove_cand_from_ranking_row(
-    removed: Candidate | CandidateListLike,
+    removed: Candidate | CandidateList,
     ranking_tup: tuple[frozenset, ...],
 ) -> tuple[frozenset, ...]:
     """
@@ -400,7 +400,7 @@ def condense_rank_profile(
     )
 
 
-def _is_equiv_for_remove_and_condense(removed: CandidateListLike, ranking: pd.Series) -> bool:
+def _is_equiv_for_remove_and_condense(removed: CandidateList, ranking: pd.Series) -> bool:
     """
     Returns True if the given ranking is equivalent to its removed and condensed form.
     It is equivalent if the ranking has no candidate in the removed list and either no empty
@@ -441,7 +441,7 @@ def _is_equiv_for_remove_and_condense(removed: CandidateListLike, ranking: pd.Se
 
 
 def remove_and_condense_rank_profile(
-    removed: Candidate | CandidateListLike,
+    removed: Candidate | CandidateList,
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,

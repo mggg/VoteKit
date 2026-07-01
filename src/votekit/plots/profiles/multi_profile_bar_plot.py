@@ -6,7 +6,7 @@ from matplotlib.axes import Axes
 
 from votekit.plots.bar_plot import add_null_keys, multi_bar_plot
 from votekit.pref_profile import PreferenceProfile, RankProfile
-from votekit.types import Candidate, CandidateListLike, CandidatePlotLabelMapping, PlotLabel
+from votekit.types import Candidate, CandidateList, CandidatePlotLabelMapping, PlotLabel
 from votekit.utils import (
     COLOR_LIST,
     ballot_lengths,
@@ -149,7 +149,7 @@ def multi_profile_borda_plot(
     normalize: bool = False,
     profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
@@ -265,7 +265,7 @@ def multi_profile_mentions_plot(
     normalize: bool = False,
     profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
@@ -380,7 +380,7 @@ def multi_profile_fpv_plot(
     normalize: bool = False,
     profile_colors: Optional[Mapping[str, str]] = None,
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,

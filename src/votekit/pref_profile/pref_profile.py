@@ -28,8 +28,8 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
-from votekit.sorting import sort_candidates_lexicographically
 from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 class PreferenceProfile:
@@ -890,7 +890,7 @@ class RankProfile(PreferenceProfile):
                 ballot.
         """
         header = [
-            ["VoteKit RankProfile"],
+            ["VoteKit RankProfile", "v2"],
             ["Candidates"],
             [
                 f"({str(c)}:{type(c).__name__}:{cand_label})"
@@ -1281,7 +1281,7 @@ class ScoreProfile(PreferenceProfile):
             df[list(remaining_cands)] = empty_df_cols
             col_order = [
                 candidate_id_map[cand]
-                for cand in sort_candidates_lexicographically(candidate_id_map.keys())
+                for cand in sort_candidates_pseudo_lexicographically(candidate_id_map.keys())
             ] + temp_col_order
 
         df = df[col_order]
@@ -1480,7 +1480,7 @@ class ScoreProfile(PreferenceProfile):
         new_df = pd.concat([df_1, df_2], ignore_index=True)
         new_df.index.name = "Ballot Index"
 
-        new_candidates = sort_candidates_lexicographically(
+        new_candidates = sort_candidates_pseudo_lexicographically(
             set(self.candidates).union(other.candidates)
         )
         new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
@@ -1558,7 +1558,7 @@ class ScoreProfile(PreferenceProfile):
                 ballot.
         """
         header = [
-            ["VoteKit ScoreProfile"],
+            ["VoteKit ScoreProfile", "v2"],
             ["Candidates"],
             [
                 f"({c}:{type(c).__name__}:{cand_label})"

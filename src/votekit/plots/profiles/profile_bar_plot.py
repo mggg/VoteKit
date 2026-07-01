@@ -7,8 +7,8 @@ from votekit.plots.bar_plot import bar_plot
 from votekit.pref_profile import PreferenceProfile, RankProfile
 from votekit.types import (
     Candidate,
-    CandidateFloatDictLike,
-    CandidateListLike,
+    CandidateFloatDict,
+    CandidateList,
     CandidatePlotLabelMapping,
     PlotLabel,
 )
@@ -25,13 +25,13 @@ ProfileT = TypeVar("ProfileT", bound=PreferenceProfile)
 
 def profile_bar_plot(
     profile: ProfileT,
-    stat_function: Callable[[ProfileT], CandidateFloatDictLike],
+    stat_function: Callable[[ProfileT], CandidateFloatDict],
     *,
     profile_label: str = "Profile",
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    category_ordering: Optional[CandidateListLike] = None,
+    category_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
@@ -118,7 +118,7 @@ def profile_borda_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
@@ -215,7 +215,7 @@ def profile_mentions_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,
@@ -312,7 +312,7 @@ def profile_fpv_plot(
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
     bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateListLike] = None,
+    candidate_ordering: Optional[CandidateList] = None,
     x_axis_name: Optional[str] = None,
     y_axis_name: Optional[str] = None,
     title: Optional[str] = None,

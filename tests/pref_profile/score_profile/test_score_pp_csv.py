@@ -91,8 +91,23 @@ def test_csv_misformatted_header_values_error():
     with pytest.raises(ValueError, match="Row 2 should contain tuples mapping candidates"):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_non_tuples.csv")
 
-    with pytest.raises(ValueError, match="Row 2 should contain candidate types of str or int"):
-        ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_non_valid_type.csv")
+    with pytest.raises(ValueError, match="If not using v2 format, Row 2 should contain tuples"):
+        ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_invalid_tuples.csv")
+
+    with pytest.raises(
+        ValueError, match="csv file v2 is improperly formatted. Row 2 should contain tuples"
+    ):
+        ScoreProfile.from_csv(
+            f"{filepath}/test_csv_pp_misformat_header_value_2_v2_invalid_tuples.csv"
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="csv file v2 is improperly formatted. Row 2 should contain candidate types of str or",
+    ):
+        ScoreProfile.from_csv(
+            f"{filepath}/test_csv_pp_misformat_header_value_2_v2_non_valid_type.csv"
+        )
 
     with pytest.raises(
         ValueError,

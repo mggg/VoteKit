@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from votekit.pref_profile import CleanedScoreProfile, ProfileError, ScoreProfile
-from votekit.types import Candidate, CandidateListLike
+from votekit.types import Candidate, CandidateList
 
 
 def _iterate_and_clean_score_tuples(
@@ -140,7 +140,7 @@ def remove_cand_from_score_tuple(
 
 
 def remove_cand_score_profile(
-    removed: Candidate | CandidateListLike,
+    removed: Candidate | CandidateList,
     profile: ScoreProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,

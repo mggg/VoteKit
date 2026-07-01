@@ -4,8 +4,8 @@ from typing import Iterable, Mapping, Optional, Sequence, TypeAlias
 # Candidate Types
 # ---------------------------------------------------------------------------
 Candidate: TypeAlias = str | int
-CandidateFloatDictLike: TypeAlias = dict[Candidate, float] | dict[str, float] | dict[int, float]
-CandidateListLike: TypeAlias = list[Candidate] | list[str] | list[int]
+CandidateFloatDict: TypeAlias = dict[Candidate, float] | dict[str, float] | dict[int, float]
+CandidateList: TypeAlias = list[Candidate] | list[str] | list[int]
 
 # ---------------------------------------------------------------------------
 # Ballot Types: Ranking and Scores

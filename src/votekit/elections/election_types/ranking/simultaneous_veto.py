@@ -12,13 +12,13 @@ from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
 from votekit.pref_profile import RankProfile
-from votekit.sorting import sort_candidates_lexicographically
-from votekit.types import Candidate, CandidateFloatDictLike
+from votekit.types import Candidate, CandidateFloatDict
 from votekit.utils import (
     borda_scores,
     first_place_votes,
     score_dict_from_score_vector,
     score_dict_to_ranking,
+    sort_candidates_pseudo_lexicographically,
     tiebreak_set,
 )
 
@@ -102,7 +102,7 @@ class SimultaneousVeto(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         candidate_weights: (
-            Literal["first_place", "uniform", "borda", "harmonic"] | CandidateFloatDictLike | int
+            Literal["first_place", "uniform", "borda", "harmonic"] | CandidateFloatDict | int
         ) = "first_place",
         tiebreak: Literal[
             "first_place", "random", "borda", "remaining_score", "veto_pressure", "lex"
@@ -130,7 +130,7 @@ class SimultaneousVeto(RankingElection):
         self.candidates = frozenset(grouped_profile.candidates_cast)
         self._eliminated: set[Candidate] = set("~")
 
-        self._sorted_candidates = tuple(sort_candidates_lexicographically(self.candidates))
+        self._sorted_candidates = tuple(sort_candidates_pseudo_lexicographically(self.candidates))
         self._candidate_to_idx = {c: i for i, c in enumerate(self._sorted_candidates)}
 
         # unmentioned candidates are considered tied for last place

@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import math
 import random
 from itertools import permutations
-from typing import Literal, Optional, Sequence
+from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from votekit.ballot import Ballot, RankBallot
-from votekit.pref_profile import RankProfile, ScoreProfile
-from votekit.sorting import sort_candidates_lexicographically
-from votekit.types import Candidate, CandidateFloatDictLike
+if TYPE_CHECKING:
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile, ScoreProfile
+
+from votekit.types import Candidate, CandidateFloatDict
 
 COLOR_LIST = [
     "#0099cd",
@@ -68,6 +71,9 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
             A dictionary whose keys are candidates and values are lists of ballots that have that
             candidate first. Candidates can be strings, integers, or mix of both.
     """
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
 
@@ -119,6 +125,9 @@ def add_missing_cands(profile: RankProfile) -> RankProfile:
     Returns:
         RankProfile
     """
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     new_ballots = [RankBallot()] * len(profile.ballots)
@@ -194,6 +203,7 @@ def _score_dict_from_rankings_df_no_ties(
             Dictionary mapping candidates to scores.
             Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
 
     validate_score_vector(score_vector)
 
@@ -272,6 +282,9 @@ def score_dict_from_score_vector(
             Dictionary mapping candidates to scores.
             Candidates can be strings, integers, or mix of both.
     """
+    from votekit.ballot import Ballot
+    from votekit.pref_profile import RankProfile
+
     validate_score_vector(score_vector)
 
     if not isinstance(profile, RankProfile):
@@ -365,8 +378,11 @@ def first_place_votes(
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
 
     Returns:
-        dict[int, float]: Dictionary mapping candidate ids to number of first place votes.
+        dict[Candidate, float]: Dictionary mapping candidates to number of first place votes.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
+
     # equiv to score vector of (1,0,0,...)
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
@@ -389,6 +405,8 @@ def mentions(
         dict[Candidate, float]:
             Dictionary mapping candidates to mention totals (values).
     """
+    from votekit.pref_profile import RankProfile
+
     mentions = {c: 0.0 for c in profile.candidates}
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
@@ -427,6 +445,8 @@ def borda_scores(
             Dictionary mapping candidates to Borda scores.
             Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     if borda_max is None:
@@ -475,7 +495,7 @@ def tiebreak_set(
         Candidates can be strings, integers, or mix of both.
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        sorted_cands = sort_candidates_lexicographically([c for c in r_set])
+        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in r_set])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
@@ -564,7 +584,7 @@ def tiebroken_ranking(
 
 
 def score_dict_to_ranking(
-    score_dict: CandidateFloatDictLike,
+    score_dict: CandidateFloatDict,
     sort_high_low: bool = True,
 ) -> tuple[frozenset[Candidate], ...]:
     """
@@ -688,6 +708,8 @@ def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
         list[v]: All possible permutations of the tie(s).
 
     """
+    from votekit.ballot import RankBallot
+
     if not isinstance(ballot, RankBallot):
         raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
@@ -726,6 +748,7 @@ def resolve_profile_ties(profile: RankProfile) -> RankProfile:
     Returns:
         RankProfile: A RankProfile with resolved ties.
     """
+    from votekit.pref_profile import RankProfile
 
     new_ballots = tuple([b for ballot in profile.ballots for b in expand_tied_ballot(ballot)])
     return RankProfile(ballots=new_ballots)
@@ -747,6 +770,8 @@ def score_profile_from_ballot_scores(
             Dictionary mapping candidates to scores.
             Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import ScoreProfile
+
     scores = {c: 0.0 for c in profile.candidates}
     if not isinstance(profile, ScoreProfile):
         raise TypeError("Profile must be of type ScoreProfile.")
@@ -775,6 +800,8 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
     Raises:
         TypeError: All ballots must have rankings.
     """
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     assert profile.max_ranking_length is not None
@@ -948,3 +975,62 @@ def build_df_from_ballot_samples(
         df_data,
         columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)] + ["Weight", "Voter Set"],
     )
+
+
+def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) -> list[Candidate]:
+    """
+    Sort candidates in pseudo lexicographical order if candidates are mixed types.
+
+    Candidates will be sorted lexicographically if all are strings and numerically if all integers.
+    If candidates are of mixed type (i.e. strings and integers), integer candidates will be ordered
+    before string candidates with the exception of string candidates that can be cast to an integer
+    or float. String candidates that can be cast to an integer or float will be ordered amongst the
+    integer candidates in numerical order. If there is a corresponding integer candidate to a casted
+    string candidate, then those string candidates will follow the integer candidate.
+
+    Example:
+        candidates = ["A", 1, "1", "1.1", "01", "2", 3]
+        returns [1, "01", "1", "1.1", "2", 3, "A"]
+
+    Args:
+        candidates (Sequence[Candidate]): list of candidates to sort
+
+    Returns:
+        tuple[Candidate,...]: sorted candidates
+
+    """
+    candidates = list(candidates)
+    try:
+        return sorted(candidates)
+    except TypeError:
+        if any(not isinstance(cand, Candidate) for cand in candidates):
+            raise TypeError(
+                "Candidates can only be strings or integers. Candidates"
+                f" {[cand for cand in candidates if not isinstance(cand, Candidate)]}"
+                " are invalid."
+            )
+
+        def is_float(cand):
+            try:
+                float(cand)
+                return True
+            except ValueError:
+                return False
+
+        def sort_mixed_cands(cand):
+            if isinstance(cand, int):
+                return (0, cand, "")
+            elif isinstance(cand, str):
+                if cand.isdigit():
+                    str_as_int_cand = int(cand)
+                    return (0, str_as_int_cand, cand)
+                elif is_float(cand):
+                    str_as_fl_cand = float(cand)
+                    return (0, str_as_fl_cand, cand)
+                else:
+                    return (1, 0, cand)  # pure strings
+
+        return sorted(candidates, key=sort_mixed_cands)
+
+
+sort_candidates_pseudo_lex = sort_candidates_pseudo_lexicographically

@@ -4,10 +4,27 @@ import pytest
 
 from votekit import utils
 from votekit.ballot_generator import ic_profile_generator
-from votekit.elections import STV, Borda, Plurality, RankedPairs, SimultaneousVeto
+from votekit.elections import (
+    IRV,
+    SNTV,
+    STV,
+    Alaska,
+    BoostedRandomDictator,
+    Borda,
+    CondoBorda,
+    FastSTV,
+    Plurality,
+    PluralityVeto,
+    RandomDictator,
+    RankedPairs,
+    Schulze,
+    SequentialRCV,
+    SerialVeto,
+    SimultaneousVeto,
+)
 
 MIXED_CANDS = ["A", "B", "1", 1, 2, 3]
-N_SEATS = 2
+N_SEATS = 1
 
 pytestmark = [
     pytest.mark.filterwarnings(
@@ -22,7 +39,7 @@ pytestmark = [
 @pytest.fixture(params=[10, 1000, 10000])
 def ic_mixed_profile(request):
     """
-    IC profile over mixed str/int candidates.
+    IC RankProfile over mixed str/int candidates.
     """
     return ic_profile_generator(candidates=MIXED_CANDS, number_of_ballots=request.param)
 
@@ -33,10 +50,21 @@ def ic_mixed_profile(request):
         pytest.param(
             lambda profile: Borda(profile, n_seats=N_SEATS, tiebreak="random"), id="borda"
         ),
+        pytest.param(lambda profile: CondoBorda(profile, n_seats=N_SEATS), id="condo_borda"),
+        pytest.param(
+            lambda profile: SequentialRCV(profile, n_seats=N_SEATS),
+            id="sequential_rcv",
+        ),
+        pytest.param(lambda profile: Alaska(profile, m_1=N_SEATS + 2, m_2=N_SEATS), id="alaska"),
         pytest.param(
             lambda profile: Plurality(profile, n_seats=N_SEATS, tiebreak="random"), id="plurality"
         ),
+        pytest.param(lambda profile: IRV(profile, tiebreak="random"), id="irv"),
         pytest.param(lambda profile: STV(profile, n_seats=N_SEATS, tiebreak="random"), id="stv"),
+        pytest.param(lambda profile: SNTV(profile, n_seats=N_SEATS, tiebreak="random"), id="sntv"),
+        pytest.param(
+            lambda profile: FastSTV(profile, n_seats=N_SEATS, tiebreak="random"), id="fast_stv"
+        ),
         pytest.param(
             lambda profile: RankedPairs(profile, n_seats=N_SEATS, tiebreak="lexicographic"),
             id="ranked_pairs",
@@ -44,6 +72,26 @@ def ic_mixed_profile(request):
         pytest.param(
             lambda profile: SimultaneousVeto(profile, n_seats=N_SEATS, tiebreak="random"),
             id="simultaneous_veto",
+        ),
+        pytest.param(
+            lambda profile: PluralityVeto(profile, n_seats=N_SEATS, tiebreak="lex"),
+            id="plurality_veto",
+        ),
+        pytest.param(
+            lambda profile: SerialVeto(profile, n_seats=N_SEATS, tiebreak="lex"),
+            id="serial_veto",
+        ),
+        pytest.param(
+            lambda profile: RandomDictator(profile, n_seats=N_SEATS),
+            id="random_dictator",
+        ),
+        pytest.param(
+            lambda profile: BoostedRandomDictator(profile, n_seats=N_SEATS),
+            id="boosted_random_dictator",
+        ),
+        pytest.param(
+            lambda profile: Schulze(profile, n_seats=N_SEATS, tiebreak="lexicographic"),
+            id="schulze",
         ),
     ],
 )
