@@ -3,24 +3,31 @@ from functools import partial
 import pytest
 
 from votekit import utils
+from votekit.ballot import ScoreBallot
 from votekit.ballot_generator import ic_profile_generator
 from votekit.elections import (
     IRV,
     SNTV,
     STV,
+    BlockPlurality,
     BoostedRandomDictator,
     Borda,
     CondoBorda,
+    Cumulative,
     FastSTV,
+    GeneralRating,
+    Limited,
     Plurality,
     PluralityVeto,
     RandomDictator,
     RankedPairs,
+    Rating,
     Schulze,
     SequentialRCV,
     SerialVeto,
     SimultaneousVeto,
 )
+from votekit.pref_profile import ScoreProfile
 
 MIXED_CANDS = ["A", "B", "1", 1, 2, 3]
 N_SEATS = 1
@@ -131,3 +138,51 @@ def test_utils_fxns_accept_mixed_candidates(ic_mixed_profile, utils_fxns):
     """
     result = utils_fxns(ic_mixed_profile)
     assert result is not None
+
+
+MIXED_SCORE_CANDS = ["A", "B", 1, 2]
+N_SCORE_SEATS = 1
+
+
+@pytest.fixture
+def mixed_score_profile():
+    return ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0, 1: 0, 2: 0}, weight=3),
+            ScoreBallot(scores={"A": 0, "B": 1, 1: 0, 2: 0}, weight=2),
+            ScoreBallot(scores={"A": 0, "B": 0, 1: 1, 2: 0}, weight=2),
+            ScoreBallot(scores={"A": 0, "B": 0, 1: 0, 2: 1}, weight=1),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "make_election",
+    [
+        pytest.param(
+            lambda p: GeneralRating(
+                p, n_seats=N_SCORE_SEATS, per_candidate_limit=1, tiebreak="random"
+            ),
+            id="general_rating",
+        ),
+        pytest.param(
+            lambda p: Rating(p, n_seats=N_SCORE_SEATS, per_candidate_limit=1, tiebreak="random"),
+            id="rating",
+        ),
+        pytest.param(
+            lambda p: Limited(p, n_seats=N_SCORE_SEATS, budget=1, tiebreak="random"), id="limited"
+        ),
+        pytest.param(
+            lambda p: Cumulative(p, n_seats=N_SCORE_SEATS, tiebreak="random"), id="cumulative"
+        ),
+        pytest.param(
+            lambda p: BlockPlurality(p, n_seats=N_SCORE_SEATS, tiebreak="random"),
+            id="block_plurality",
+        ),
+    ],
+)
+def test_score_election_runs_with_mixed_candidates(mixed_score_profile, make_election):
+    election = make_election(mixed_score_profile)
+    elected = election.get_elected()
+    n_elected = sum(len(seat) for seat in elected)
+    assert n_elected == N_SCORE_SEATS
