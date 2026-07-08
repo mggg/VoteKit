@@ -25,6 +25,8 @@ from votekit.pref_profile.csv_utils import (
     _validate_score_csv_format,
 )
 from votekit.pref_profile.utils import (
+    _sum_rank_profiles,
+    _sum_score_profiles,
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
@@ -295,6 +297,9 @@ class PreferenceProfile:
     __repr__ = __str__
 
     def group_ballots(self) -> Self:
+        raise NotImplementedError
+
+    def copy(self) -> Self:
         raise NotImplementedError
 
     @property
@@ -789,44 +794,7 @@ class RankProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        if not isinstance(other, RankProfile):
-            raise TypeError("Unsupported operand type. Must be an instance of RankProfile.")
-
-        assert self.max_ranking_length is not None and other.max_ranking_length is not None
-        max_ranking_length = max([self.max_ranking_length, other.max_ranking_length])
-        candidates = list(set(self.candidates).union(other.candidates))
-
-        df_1 = self.df.copy()
-        df_2 = other.df.copy()
-
-        if self.max_ranking_length < max_ranking_length:
-            for i in range(self.max_ranking_length, max_ranking_length):
-                df_1.insert(
-                    len(df_1.columns),
-                    f"Ranking_{i + 1}",
-                    pd.Series([frozenset("~")] * len(df_1), dtype=object, index=df_1.index),
-                )
-        if other.max_ranking_length < max_ranking_length:
-            for i in range(other.max_ranking_length, max_ranking_length):
-                df_2.insert(
-                    len(df_2.columns),
-                    f"Ranking_{i + 1}",
-                    pd.Series([frozenset("~")] * len(df_2), dtype=object, index=df_2.index),
-                )
-
-        new_df = pd.concat([df_1, df_2], ignore_index=True)
-        new_df.index.name = "Ballot Index"
-        ranking_cols = [c for c in new_df.columns if "Ranking_" in c]
-        new_df[ranking_cols] = new_df[ranking_cols].astype("object")
-        new_df = new_df[
-            [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
-        ]
-
-        return RankProfile(
-            candidates=candidates,
-            df=new_df,
-            max_ranking_length=max_ranking_length,
-        )
+        return _sum_rank_profiles([self, other])
 
     def group_ballots(self) -> RankProfile:
         """
@@ -859,6 +827,19 @@ class RankProfile(PreferenceProfile):
         return RankProfile(
             df=new_df,
             candidates=self.candidates,
+            max_ranking_length=self.max_ranking_length,
+        )
+
+    def copy(self) -> RankProfile:
+        """
+        Returns a copy of a RankProfile
+
+        Returns:
+            RankProfile: New RankProfile object
+        """
+        return RankProfile(
+            candidates=self.candidates,
+            df=self.df.copy(),
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -1472,31 +1453,7 @@ class ScoreProfile(PreferenceProfile):
         """
         Add two PreferenceProfiles by combining their ballot lists.
         """
-        if not isinstance(other, ScoreProfile):
-            raise TypeError("Unsupported operand type. Must be an instance of ScoreProfile.")
-
-        df_1 = self.df.copy()
-        df_2 = other.df.copy()
-
-        cand1 = set(self.candidates)
-        cand2 = set(other.candidates)
-        for cand in cand2 - cand1:
-            df_1[cand] = [np.nan] * len(df_1)
-        for cand in cand1 - cand2:
-            df_2[cand] = [np.nan] * len(df_2)
-
-        new_df = pd.concat([df_1, df_2], ignore_index=True)
-        new_df.index.name = "Ballot Index"
-
-        new_candidates = sort_candidates_pseudo_lexicographically(
-            set(self.candidates).union(other.candidates)
-        )
-        new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
-
-        return ScoreProfile(
-            candidates=new_candidates,
-            df=new_df,
-        )
+        return _sum_score_profiles([self, other])
 
     def group_ballots(self) -> ScoreProfile:
         """
@@ -1529,6 +1486,18 @@ class ScoreProfile(PreferenceProfile):
 
         return ScoreProfile(
             df=new_df,
+            candidates=self.candidates,
+        )
+
+    def copy(self) -> ScoreProfile:
+        """
+        Returns a copy of a ScoreProfile
+
+        Returns:
+            ScoreProfile: New ScoreProfile object
+        """
+        return ScoreProfile(
+            df=self.df.copy(),
             candidates=self.candidates,
         )
 
