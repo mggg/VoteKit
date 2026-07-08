@@ -269,21 +269,19 @@ class BlocSlateConfig:
                             f"must be Mapping[Candidate, float|int] or PreferenceInterval, "
                             f"got '{type(preference_like).__name__}'"
                         )
-                    print(f"preference like: {preference_like}")
                     if isinstance(preference_like, PreferenceInterval):
                         new_cands = set(preference_like.interval.keys())
                     else:
                         new_cands = set(preference_like.keys())
 
                     if new_cands.intersection(slate_cand_set) != set():
+                        overlap = sort_candidates_pseudo_lexicographically(
+                            list(new_cands.intersection(slate_cand_set))
+                        )
                         raise ValueError(
-                            f"Preference interval for bloc '{bloc}' and slate '{slate}' has "
-                            f"candidates {
-                                sort_candidates_pseudo_lexicographically(
-                                    list(new_cands.intersection(slate_cand_set))
-                                )
-                            } "
-                            f"which appear in other slates in the same bloc."
+                            f"Preference interval for bloc '{bloc}' and slate '{slate}' has"
+                            f" candidates {overlap}"
+                            f" which appear in other slates in the same bloc."
                         )
 
                     slate_cand_set.update(new_cands)
