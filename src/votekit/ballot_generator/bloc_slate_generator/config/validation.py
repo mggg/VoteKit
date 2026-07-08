@@ -382,7 +382,6 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
     """
     if isinstance(pref_mapping, pd.DataFrame):
         df = pref_mapping
-        print(f"df index and cols: {df.columns} {df.index}")
         if not all(isinstance(c, Candidate) for c in df.columns):
             raise TypeError("preference_df columns (candidates) must be a 'str' or 'int'.")
         if not all(isinstance(i, str) for i in df.index):

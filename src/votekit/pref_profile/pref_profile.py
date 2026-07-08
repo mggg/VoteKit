@@ -645,7 +645,7 @@ class RankProfile(PreferenceProfile):
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_id_map (dict[frozenset[Candidate], int]): Candidate rank values to integer
+            candidate_id_map (dict[frozenset[Candidate], int]): Candidate sets to integer
                 IDs.
 
         Returns:
@@ -656,7 +656,7 @@ class RankProfile(PreferenceProfile):
 
         mask = df["Weight"] > 0
 
-        candidates_cast: set[str] = set()
+        candidates_cast: set[Candidate] = set()
 
         ranking_cols = [c for c in df.columns if c.startswith("Ranking_")]
         sets = df.loc[mask, ranking_cols].to_numpy().ravel()

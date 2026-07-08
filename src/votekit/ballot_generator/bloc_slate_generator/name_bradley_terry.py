@@ -81,7 +81,7 @@ def _make_bradley_terry_numerator(vals):
     return ret
 
 
-def _bradley_terry_pdf(dct: Mapping[str, float]) -> dict[tuple[str, ...], float]:
+def _bradley_terry_pdf(dct: Mapping[Candidate, float]) -> dict[tuple[Candidate, ...], float]:
     """
     Given a dictionary of candidates and their support, returns the probability density function
     over all possible rankings.

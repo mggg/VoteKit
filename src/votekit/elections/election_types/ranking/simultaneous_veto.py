@@ -165,10 +165,11 @@ class SimultaneousVeto(RankingElection):
 
     def _compute_scores_dict(self) -> dict[Candidate, float]:
         """
-        Converts self._scores (np.array) to dict[str, float].
+        Converts self._scores (np.array) to dict[Candidate, float].
 
         Returns:
-            dict[str | int, float]: Dictionary mapping candidates to scores.
+            dict[Candidate, float]: Dictionary mapping candidates to scores.
+                Candidates can be strings, integers, or mix of both.
         """
         return {
             cand: self._scores[idx]

@@ -307,10 +307,8 @@ class NumpySTVBase(ABC):
                 Candidates can be strings, integers, or mix of both.
         """
         tallies = self._data.fpv_by_round[round_number].copy()
-        elected_cands_as_list_of_str = [
-            c for fset in self.get_elected(round_number) for c in list(fset)
-        ]
-        elected_cands_numerical = [self.candidates.index(c) for c in elected_cands_as_list_of_str]
+        elected_cands_as_list = [c for fset in self.get_elected(round_number) for c in list(fset)]
+        elected_cands_numerical = [self.candidates.index(c) for c in elected_cands_as_list]
         tallies[elected_cands_numerical] = 0
         tallies_to_cands = {
             tally: [self.candidates[c] for c, t in enumerate(tallies) if t == tally]

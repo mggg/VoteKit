@@ -38,7 +38,8 @@ def onedim_spacial_profile_generator(
     Each ballot ranks candidates by absolute distance from the voter.
 
     Args:
-        candidates (Sequence[str]): Candidate names used in each generated ballot.
+        candidates (Sequence[Candidate]): Candidate names used in each generated ballot.
+            Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): The number of ballots to generate.
 
     Returns:
