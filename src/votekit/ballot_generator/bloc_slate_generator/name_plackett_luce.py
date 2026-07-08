@@ -71,15 +71,15 @@ def _inner_name_plackett_luce(
         pref_interval_values = [pref_interval_by_bloc_dict[bloc].interval[c] for c in cands]
 
         for i in range(n_ballots):
-            non_zero_ranking = list(
+            chosen_indices = list(
                 np.random.choice(
-                    cands,
+                    len(cands),
                     ballot_length,
                     p=pref_interval_values,
                     replace=False,
                 )
             )
-
+            non_zero_ranking = [cands[cand_idx] for cand_idx in chosen_indices]
             ranking = [frozenset({cand}) for cand in non_zero_ranking]
             ballot_pool[i] = np.array(ranking)
 

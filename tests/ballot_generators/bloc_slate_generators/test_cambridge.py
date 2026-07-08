@@ -80,6 +80,18 @@ def test_Cambridge_completion(two_bloc_two_slate_config_cambridge):
     assert type(profile_dict["Y"]) is RankProfile
 
 
+def test_Cambridge_completion_with_mixed_candidates(two_bloc_two_slate_mixed_config_cambridge):
+    config = two_bloc_two_slate_mixed_config_cambridge
+    profile = cambridge_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == config.n_voters
+
+    profile_dict = cambridge_profiles_by_bloc_generator(config)
+    assert isinstance(profile_dict, dict)
+    assert type(profile_dict["X"]) is RankProfile
+    assert type(profile_dict["Y"]) is RankProfile
+
+
 def test_Cambridge_invalid_config():
     config = BlocSlateConfig(
         n_voters=100,

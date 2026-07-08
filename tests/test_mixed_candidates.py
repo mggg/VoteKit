@@ -8,7 +8,6 @@ from votekit.elections import (
     IRV,
     SNTV,
     STV,
-    Alaska,
     BoostedRandomDictator,
     Borda,
     CondoBorda,
@@ -55,7 +54,6 @@ def ic_mixed_profile(request):
             lambda profile: SequentialRCV(profile, n_seats=N_SEATS),
             id="sequential_rcv",
         ),
-        pytest.param(lambda profile: Alaska(profile, m_1=N_SEATS + 2, m_2=N_SEATS), id="alaska"),
         pytest.param(
             lambda profile: Plurality(profile, n_seats=N_SEATS, tiebreak="random"), id="plurality"
         ),

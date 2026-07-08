@@ -35,6 +35,32 @@ def test_NPL_completion():
     assert (type(profile_dict["W"])) is RankProfile
 
 
+def test_NPL_completion_with_mixed_candidates():
+    config = BlocSlateConfig(
+        n_voters=100,
+        slate_to_candidates={"W": ["W1", "W2"], "C": [1, 2]},
+        bloc_proportions={"W": 0.7, "C": 0.3},
+        preference_mapping={
+            "W": {
+                "W": PreferenceInterval({"W1": 0.4, "W2": 0.3}),
+                "C": PreferenceInterval({1: 0.2, 2: 0.1}),
+            },
+            "C": {
+                "W": PreferenceInterval({"W1": 0.2, "W2": 0.2}),
+                "C": PreferenceInterval({1: 0.3, 2: 0.3}),
+            },
+        },
+        cohesion_mapping={"W": {"W": 0.7, "C": 0.3}, "C": {"C": 0.9, "W": 0.1}},
+    )
+    profile = name_pl_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+    profile_dict = name_pl_profiles_by_bloc_generator(config)
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["W"])) is RankProfile
+
+
 def test_NPL_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
     # Set-up
     number_of_ballots = 100

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-import types
+from types import MappingProxyType
+from typing import Sequence
 
 import numpy as np
+
+from votekit.types import Candidate
 
 
 def combine_preference_intervals(
@@ -75,7 +78,7 @@ class PreferenceInterval:
             allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
                 all candidates must have strictly positive support.
         """
-        self.interval = types.MappingProxyType(interval)
+        self.interval = MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
         self._allow_zero_support = allow_zero_support
 
@@ -84,7 +87,7 @@ class PreferenceInterval:
 
     @classmethod
     def from_dirichlet(
-        cls, candidates: list[str], alpha: float, *, allow_zero_support: bool = False
+        cls, candidates: Sequence[Candidate], alpha: float, *, allow_zero_support: bool = False
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -92,7 +95,8 @@ class PreferenceInterval:
         is all bets are off.
 
         Args:
-            candidates (list): List of candidate strings.
+            candidates (Sequence[Candidate]): List of candidates.
+                Candidates can be strings, integers, or mix of both.
             alpha (float): Alpha parameter for Dirichlet distribution.
             allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
                 all candidates must have strictly positive support.
@@ -135,7 +139,7 @@ class PreferenceInterval:
         """
         summ = sum(self.interval.values())
 
-        self.interval = types.MappingProxyType({c: s / summ for c, s in self.interval.items()})
+        self.interval = MappingProxyType({c: s / summ for c, s in self.interval.items()})
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):

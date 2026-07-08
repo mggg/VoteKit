@@ -33,6 +33,32 @@ def valid_config():
 
 
 @pytest.fixture
+def valid_mixed_config():
+    slate_to_candidates = {"slate_1": ["A", 1], "slate_2": ["X", 2]}
+    preference_mapping = {
+        "bloc_1": {
+            "slate_1": PreferenceInterval({"A": 0.4, 1: 0.1}),
+            "slate_2": PreferenceInterval({"X": 0.1, 2: 0.9}),
+        },
+        "bloc_2": {
+            "slate_1": PreferenceInterval({"A": 0.05, 1: 0.05}),
+            "slate_2": PreferenceInterval({"X": 0.45, 2: 0.45}),
+        },
+    }
+    bloc_proportions = {"bloc_1": 0.8, "bloc_2": 0.2}
+    cohesion_mapping = {
+        "bloc_1": {"slate_1": 0.9, "slate_2": 0.1},
+        "bloc_2": {"slate_2": 0.8, "slate_1": 0.2},
+    }
+    return dict(
+        slate_to_candidates=slate_to_candidates,
+        preference_mapping=preference_mapping,
+        bloc_proportions=bloc_proportions,
+        cohesion_mapping=cohesion_mapping,
+    )
+
+
+@pytest.fixture
 def alt_valid_config():
     slate_to_candidates = {"slate_1": ["A", "B"], "slate_2": ["X", "Y"]}
     preference_mapping = pd.DataFrame(

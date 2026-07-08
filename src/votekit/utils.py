@@ -215,10 +215,10 @@ def _score_dict_from_rankings_df_no_ties(
     if len(score_vector) < max_len:
         score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
 
-    df = profile._df
+    df = profile.df
 
-    cand_id_frznst = [frozenset({cand_id}) for cand_id in profile._candidates_cast]
-    all_frznst = cand_id_frznst + [frozenset({"~"}), frozenset()]
+    cand_frznst = [frozenset({cand}) for cand in profile.candidates_cast]
+    all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
     n_buckets = len(all_frznst)
     idx_of_empty = all_frznst.index(frozenset())
 
@@ -244,10 +244,7 @@ def _score_dict_from_rankings_df_no_ties(
     weights_flat = weight_matrix.ravel()
     bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
 
-    return {
-        profile.id_candidate_map[cand_id]: round(bucket_sums[idx], 10)
-        for idx, cand_id in enumerate(profile._candidates_cast)
-    }
+    return {next(iter(k)): round(bucket_sums[idx], 10) for idx, k in enumerate(cand_frznst)}
 
 
 def score_dict_from_score_vector(
@@ -294,15 +291,15 @@ def score_dict_from_score_vector(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: 0.0 for c in profile._candidates_cast}
+    scores = {c: 0.0 for c in profile.candidates_cast}
 
     try:
         ranking_cols = [f"Ranking_{i}" for i in range(1, max_length + 1)]
-        ranking_mat = profile._df[ranking_cols].to_numpy()
+        ranking_mat = profile.df[ranking_cols].to_numpy()
     except KeyError as e:
         raise TypeError("Ballots must have rankings.") from e
 
-    weights = profile._df["Weight"].to_numpy(dtype=float)
+    weights = profile.df["Weight"].to_numpy(dtype=float)
 
     if tie_convention not in ["high", "average", "low"]:
         raise ValueError(
@@ -339,7 +336,7 @@ def score_dict_from_score_vector(
                 scores[c] += round(allocation * wt, 10)
             current_ind += position_size
 
-    return {profile.id_candidate_map[cand_id]: score for cand_id, score in scores.items()}
+    return scores
 
 
 def _first_place_votes_from_df_no_ties(

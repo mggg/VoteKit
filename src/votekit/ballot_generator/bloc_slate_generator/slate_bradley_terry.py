@@ -184,7 +184,7 @@ def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
 
     mem = system_memory()
     pmf_size = total_arrangements
-    candidate_with_longest_name = max(config.candidates, key=len)
+    candidate_with_longest_name = max(config.candidates, key=sys.getsizeof)
     est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
     est_bytes_profile = (
         config.n_voters * n_cands * sys.getsizeof(frozenset({candidate_with_longest_name}))

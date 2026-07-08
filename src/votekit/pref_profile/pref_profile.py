@@ -350,10 +350,7 @@ class RankProfile(PreferenceProfile):
         df: pd.DataFrame = pd.DataFrame(),
     ):
         self.candidates = tuple(candidates)
-        self._candidates = tuple([cand_id for cand_id in range(len(self.candidates))])
-        candidate_id_map = {
-            cand: cand_id for cand, cand_id in zip(self.candidates, self._candidates, strict=True)
-        }
+        candidate_id_map: dict[frozenset[Candidate], int] = {frozenset({"~"}): -1}
 
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
@@ -361,13 +358,17 @@ class RankProfile(PreferenceProfile):
             (self._df, self.candidates_cast, candidate_id_map) = self._init_from_rank_ballots(
                 cast(Sequence[RankBallot], ballots), candidate_id_map
             )
-            if self.candidates == tuple():
-                self.candidates = self.candidates_cast
 
         else:
             self._df, self.candidates_cast, candidate_id_map = self._init_from_rank_df(
                 df, candidate_id_map
             )
+
+        if self.candidates == tuple():
+            self.candidates = self.candidates_cast
+
+        self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
+        self.candidate_id_map = candidate_id_map
 
         self.max_ranking_length = self._find_max_ranking_length()
 
@@ -382,12 +383,6 @@ class RankProfile(PreferenceProfile):
                     "to RankProfile()."
                 )
                 raise ValueError(msg)
-
-        self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
-        self.candidate_id_map = candidate_id_map
-        if self._candidates == tuple():
-            self._candidates = tuple(candidate_id_map[cand] for cand in self.candidates)
-        self._candidates_cast = tuple(candidate_id_map[cand] for cand in self.candidates_cast)
 
         super().__init__(
             candidates=self.candidates,
@@ -412,7 +407,7 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[Candidate, int],
+        candidate_id_map: dict[frozenset[Candidate], int],
     ):
         """
         Update the ranking data from a ballot.
@@ -424,8 +419,8 @@ class RankProfile(PreferenceProfile):
             candidates_cast (list[Candidate]): List of candidates who have received votes.
                 Candidates can be strings, integers, or mix of both.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[Candidate,int]): mapping of candidate names to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            candidate_id_map (dict[frozenset[Candidate],int]): mapping of candidate sets to integer
+                IDs. Candidates can be strings, integers, or mix of both.
 
         """
 
@@ -433,18 +428,18 @@ class RankProfile(PreferenceProfile):
             return
 
         for j, cand_set in enumerate(rank_ballot.ranking):
+            if cand_set not in candidate_id_map:
+                candidate_id_map[cand_set] = len(candidate_id_map)
+
             for c in cand_set:
-                if self._candidates != tuple():
-                    if c not in candidate_id_map:
+                if self.candidates != tuple():
+                    if c not in self.candidates:
                         raise ProfileError(
                             f"Candidate {c} found in ballot {rank_ballot} but not in "
-                            f"candidate list {candidate_id_map.keys()}."
+                            f"candidate list {self.candidates}."
                         )
-                if rank_ballot.weight > 0:
-                    if c not in candidate_id_map:
-                        candidate_id_map[c] = len(candidate_id_map)
-                    if c not in candidates_cast:
-                        candidates_cast.append(c)
+                if rank_ballot.weight > 0 and c not in candidates_cast:
+                    candidates_cast.append(c)
 
             if f"Ranking_{j + 1}" not in rank_ballot_data:
                 assert self.max_ranking_length is not None
@@ -454,9 +449,10 @@ class RankProfile(PreferenceProfile):
                         f"Max ranking length {self.max_ranking_length} given but "
                         f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"Ranking_{j + 1}"] = [frozenset("~")] * num_ballots
-            cand_id_set = frozenset([candidate_id_map[cand] for cand in cand_set])
-            rank_ballot_data[f"Ranking_{j + 1}"][idx] = cand_id_set
+                rank_ballot_data[f"Ranking_{j + 1}"] = [
+                    candidate_id_map[frozenset("~")]
+                ] * num_ballots
+            rank_ballot_data[f"Ranking_{j + 1}"][idx] = candidate_id_map[cand_set]
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -465,7 +461,7 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[Candidate, int],
+        candidate_id_map: dict[frozenset[Candidate], int],
     ):
         """
         Update ballot data from a rank ballot.
@@ -477,8 +473,8 @@ class RankProfile(PreferenceProfile):
             candidates_cast (list[Candidate]): List of candidates who have received votes.
                 Candidates can be strings, integers, or mix of both.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidate names to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
+                IDs. Candidates can be strings, integers, or mix of both.
         """
         rank_ballot_data["Weight"][idx] = rank_ballot.weight
 
@@ -496,7 +492,8 @@ class RankProfile(PreferenceProfile):
             )
 
     def __init_rank_ballot_data(
-        self, rank_ballots: Sequence[RankBallot]
+        self,
+        rank_ballots: Sequence[RankBallot],
     ) -> Tuple[int, dict[str, list]]:
         """
         Create the ballot data objects.
@@ -518,10 +515,7 @@ class RankProfile(PreferenceProfile):
 
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
-                {
-                    f"Ranking_{i + 1}": [frozenset("~")] * num_ballots
-                    for i in range(self.max_ranking_length)
-                }
+                {f"Ranking_{i + 1}": [-1] * num_ballots for i in range(self.max_ranking_length)}
             )
         return num_ballots, rank_ballot_data
 
@@ -549,18 +543,18 @@ class RankProfile(PreferenceProfile):
         return df
 
     def _init_from_rank_ballots(
-        self, ballots: Sequence[RankBallot], candidate_id_map: dict[Candidate, int]
-    ) -> tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
+        self, ballots: Sequence[RankBallot], candidate_id_map: dict[frozenset[Candidate], int]
+    ) -> tuple[pd.DataFrame, tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
         """
         Create the pandas dataframe representation of the profile.
 
         Args:
             ballots (Sequence[RankBallot,...]): Sequence of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
+                IDs. Candidates can be strings, integers, or mix of both.
 
         Returns:
-            tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
+            tuple[pd.DataFrame, tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
                 df, candidates_cast, candidate_id_map
                 Candidates can be strings, integers, or mix of both.
 
@@ -642,17 +636,22 @@ class RankProfile(PreferenceProfile):
                         f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
                     )
 
-    def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[Candidate, ...]:
+    def __find_candidates_cast_from_init_rank_df(
+        self, df: pd.DataFrame, candidate_id_map: dict[frozenset[Candidate], int]
+    ) -> tuple[tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
         """
         Compute which candidates received votes from the df and set the candidates_cast and
         candidates attr.
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
+            candidate_id_map (dict[frozenset[Candidate], int]): Candidate rank values to integer
+                IDs.
 
         Returns:
             tuple[Candidate]: Candidates cast.
                 Candidates can be strings, integers, or mix of both.
+            dict[frozenset[Candidate], int]: Candidate to ID mapping
         """
 
         mask = df["Weight"] > 0
@@ -663,11 +662,18 @@ class RankProfile(PreferenceProfile):
         sets = df.loc[mask, ranking_cols].to_numpy().ravel()
         candidates_cast |= set().union(*sets)
 
+        all_sets = df[ranking_cols].to_numpy().ravel()
+        for cand_set in all_sets:
+            if cand_set not in candidate_id_map:
+                candidate_id_map[cand_set] = len(candidate_id_map)
+
         candidates_cast.discard("~")
-        return tuple(candidates_cast)
+        return tuple(candidates_cast), candidate_id_map
 
     def _translate_df_ranking_values(
-        self, df: pd.DataFrame, candidate_mapping: dict[Candidate, int] | dict[int, Candidate]
+        self,
+        df: pd.DataFrame,
+        candidate_mapping: dict[frozenset[Candidate], int] | dict[int, frozenset[Candidate]],
     ) -> pd.DataFrame:
         """
         Translate candidate values in ranking columns using a candidate mapping.
@@ -676,7 +682,7 @@ class RankProfile(PreferenceProfile):
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_mapping (dict[Candidate, int] | dict[int, str | int]):
+            candidate_mapping (dict[frozenset[Candidate], int] | dict[int, frozenset[Candidate]]):
                 Mapping from candidates names to integer IDs, or vice versa.
                 Candidates can be strings, integers, or mix of both.
 
@@ -689,37 +695,35 @@ class RankProfile(PreferenceProfile):
         ranking_cols = [col for col in df.columns if col.startswith("Ranking_")]
         translated_df = df.copy()
         translated_df[ranking_cols] = translated_df[ranking_cols].map(
-            lambda ranking: frozenset(candidate_mapping[cand] for cand in ranking)
-            if ranking != frozenset("~")
-            else ranking
+            lambda ranking: (candidate_mapping[ranking])
         )
         return translated_df
 
     def _init_from_rank_df(
-        self, df: pd.DataFrame, candidate_id_map: dict[Candidate, int]
+        self, df: pd.DataFrame, candidate_id_map: dict[frozenset[Candidate], int]
     ) -> tuple[
         pd.DataFrame,
         tuple[Candidate, ...],
-        dict[Candidate, int],
+        dict[frozenset[Candidate], int],
     ]:
         """
         Validate the dataframe and determine the candidates cast.
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidate names to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
+                IDs. Candidates can be strings, integers, or mix of both.
 
         Returns
-            tuple[pd.DataFrame, tuple[Candidate]]: df, candidates_cast
+            tuple[pd.DataFrame, tuple[Candidate], dict[frozenset[Candidate], int]]:
+                df, candidates_cast, candidate_id_map
                 Candidates can be strings, integers, or mix of both.
         """
         self.__validate_init_rank_df_params(df)
         self.__validate_init_rank_df(df)
-        candidates_cast = self.__find_candidates_cast_from_init_rank_df(df)
-        for cand in candidates_cast:
-            if cand not in candidate_id_map:
-                candidate_id_map[cand] = len(candidate_id_map)
+        candidates_cast, candidate_id_map = self.__find_candidates_cast_from_init_rank_df(
+            df, candidate_id_map
+        )
         new_df = self._translate_df_ranking_values(df, candidate_id_map)
 
         if len(new_df) == 0:
@@ -756,7 +760,12 @@ class RankProfile(PreferenceProfile):
         ranking_cols = [f"Ranking_{i}" for i in range(1, self.max_ranking_length + 1)]
         return (
             self._df[ranking_cols]
-            .apply(lambda row: len(frozenset.union(*row) - tilde), axis=1)
+            .apply(
+                lambda row: len(
+                    frozenset.union(*(self.id_candidate_map[cand_id] for cand_id in row)) - tilde
+                ),
+                axis=1,
+            )
             .max()
         )
 
@@ -1087,9 +1096,9 @@ class ScoreProfile(PreferenceProfile):
         df: pd.DataFrame = pd.DataFrame(),
     ):
         self.candidates = tuple(candidates)
-        self._candidates = tuple([cand_id for cand_id in range(len(self.candidates))])
-        candidate_id_map = {
-            cand: cand_id for cand, cand_id in zip(self.candidates, self._candidates, strict=True)
+        cand_ids = tuple([cand_id for cand_id in range(len(self.candidates))])
+        candidate_id_map: dict[Candidate, int] = {
+            cand: cand_id for cand, cand_id in zip(self.candidates, cand_ids, strict=True)
         }
 
         if df.equals(pd.DataFrame()):
@@ -1105,19 +1114,16 @@ class ScoreProfile(PreferenceProfile):
                 candidate_id_map,
             )
 
-            if self.candidates == tuple():
-                self.candidates = self.candidates_cast
-
         else:
             self._df, self.candidates_cast, candidate_id_map = self._init_from_score_df(
                 df, candidate_id_map
             )
 
+        if self.candidates == tuple():
+            self.candidates = self.candidates_cast
+
         self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
         self.candidate_id_map = candidate_id_map
-        if self._candidates == tuple():
-            self._candidates = tuple(candidate_id_map[cand] for cand in self.candidates)
-        self._candidates_cast = tuple(candidate_id_map[cand] for cand in self.candidates_cast)
 
         super().__init__(
             candidates=self.candidates,
@@ -1218,13 +1224,15 @@ class ScoreProfile(PreferenceProfile):
             )
 
     def __init_score_ballot_data(
-        self, ballots: Sequence[ScoreBallot]
+        self, ballots: Sequence[ScoreBallot], candidate_id_map: dict[Candidate, int]
     ) -> Tuple[int, dict[str | int, list]]:
         """
         Create the ballot data objects.
 
         Args:
             ballots (Sequence[ScoreBallot,...]): Tuple of ballots.
+            candidate_id_map (dict[Candidate, int]): Mapping of candidate to integer ID.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             Tuple[int, dict[str | int, list]]: num_ballots, score_ballot_data
@@ -1238,9 +1246,9 @@ class ScoreProfile(PreferenceProfile):
             "Voter Set": [set()] * num_ballots,
         }
 
-        if self._candidates != tuple():
+        if self.candidates != tuple():
             score_ballot_data.update(
-                {cand_id: [np.nan] * num_ballots for cand_id in self._candidates}
+                {candidate_id_map[cand]: [np.nan] * num_ballots for cand in self.candidates}
             )
 
         return num_ballots, score_ballot_data
@@ -1272,9 +1280,9 @@ class ScoreProfile(PreferenceProfile):
             "Weight",
         ]
 
-        col_order = list(self._candidates) + temp_col_order
+        col_order = list(candidate_id_map.values()) + temp_col_order
 
-        if self._candidates == tuple():
+        if self.candidates == tuple():
             cand_ids = [candidate_id_map[cand] for cand in candidates_cast]
             remaining_cands = set(cand_ids) - set(df.columns)
             empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
@@ -1309,7 +1317,7 @@ class ScoreProfile(PreferenceProfile):
         # indexed in the same order as the output df containing information
         # for each ballot. So ballot_data[<weight>][<index>] is the weight value for
         # the ballot at index <index> in the df.
-        num_ballots, score_ballot_data = self.__init_score_ballot_data(ballots)
+        num_ballots, score_ballot_data = self.__init_score_ballot_data(ballots, candidate_id_map)
 
         candidates_cast: list[Candidate] = []
 
@@ -1438,7 +1446,7 @@ class ScoreProfile(PreferenceProfile):
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_mapping (dict[str | int, int] | dict[int, str | int]):
+            candidate_mapping (dict[Candidate, int] | dict[int, Candidate]):
                 Mapping from candidates names to integer IDs, or vice versa.
 
         Returns:
@@ -1620,7 +1628,7 @@ class ScoreProfile(PreferenceProfile):
             include_voter_set (bool): Whether or not to include the voter set of each
                 ballot.
             candidate_mapping (dict[Candidate, str]): Maps candidate names to IDs.
-                Candidate can be str or int.
+                Candidates can be strings, integers, or mix of both.
         """
         data_col_names = [f"{cand_label}" for cand_label in candidate_mapping.values()]
         data_col_names += ["&", "Weight", "&"]

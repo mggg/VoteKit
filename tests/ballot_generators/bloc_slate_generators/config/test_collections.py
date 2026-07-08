@@ -67,8 +67,8 @@ def test_insert_type_checks_and_dedup_within_slate(slate_map):
     p = slate_map["s1"]
     with pytest.raises(TypeError, match="Index must be an 'int'"):
         p.insert("1", "Z")
-    with pytest.raises(TypeError, match="candidates must be a 'str'"):
-        p.insert(1, 5)
+    with pytest.raises(TypeError, match="candidates must be a 'str' or 'int'"):
+        p.insert(1.0, 5.0)
 
     before = slate_map["s1"]
     p.insert(0, "A")
@@ -165,10 +165,10 @@ def sm(parent_and_map):
     return parent_and_map[1]
 
 
-def test_init_accepts_mapping_and_coerces_to_str(parent_and_map):
+def test_init_accepts_mapping_with_mixed_candidates(parent_and_map):
     parent = parent_and_map[0]
-    smap = SlateCandMap(parent, {"x": [1, "2"]})  # type: ignore[arg-type]
-    assert smap.to_dict() == {"x": ["1", "2"]}
+    smap = SlateCandMap(parent, {"x": [1, "2"]})
+    assert smap.to_dict() == {"x": [1, "2"]}
 
 
 def test_init_rejects_empty_candidate_list(parent_and_map):
@@ -268,9 +268,9 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
     assert "s3" not in sm.to_dict()
 
 
-def test_setitem_replaces_slate_and_coerces_to_str(sm):
+def test_setitem_accepts_mixed_candidates(sm):
     sm["s1"] = ["X", 2]
-    assert sm.to_dict()["s1"] == ["X", "2"]
+    assert sm.to_dict()["s1"] == ["X", 2]
 
 
 def test_setitem_rejects_non_str_key(sm):

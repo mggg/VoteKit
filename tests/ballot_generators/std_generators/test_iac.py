@@ -66,6 +66,13 @@ def test_IAC_completion():
     assert profile.total_ballot_wt == 100
 
 
+def test_IAC_completion_with_mixed_candidates():
+    profile = iac_profile_generator(candidates=["W1", "W2", 1, 2], number_of_ballots=100)
+
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+
 def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
     def fake_sample(population, k):
         assert list(population) == list(range(5))

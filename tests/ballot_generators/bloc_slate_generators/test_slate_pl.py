@@ -77,6 +77,19 @@ def test_SPL_completion(two_bloc_two_slate_config):
     assert (type(profile_dict["Y"])) is RankProfile
 
 
+def test_SPL_completion_with_mixed_candidates(two_bloc_two_slate_mixed_config):
+    config = two_bloc_two_slate_mixed_config
+    profile = slate_pl_profile_generator(config)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100_000
+
+    profile_dict = slate_pl_profiles_by_bloc_generator(config)
+
+    assert isinstance(profile_dict, dict)
+    assert (type(profile_dict["X"])) is RankProfile
+    assert (type(profile_dict["Y"])) is RankProfile
+
+
 def test_SPL_invalid_config():
     config = BlocSlateConfig(
         n_voters=100,

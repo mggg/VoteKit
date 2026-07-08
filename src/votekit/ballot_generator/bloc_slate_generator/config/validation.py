@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from votekit.pref_interval import PreferenceInterval
+from votekit.types import Candidate
 
 UNSET_VALUE = -1.0
 FLOAT_TOL = 1e-8
@@ -41,7 +42,12 @@ BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
 # Backward compatibility alias; keep the original misspelling available.
 BlocPropotionMapping = BlocProportionMapping
 CohesionMapping = Union[Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame]
-PreferenceIntervalLike = Union[Mapping[str, Union[float, int]], PreferenceInterval]
+PreferenceIntervalLike = Union[
+    Mapping[Candidate, Union[float, int]],
+    Mapping[str, Union[float, int]],
+    Mapping[int, Union[float, int]],
+    PreferenceInterval,
+]
 PreferenceMapping = Union[
     Mapping[str, Mapping[str, PreferenceIntervalLike]],
     pd.DataFrame,
@@ -369,14 +375,16 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
 
     Raises:
         TypeError: If pref_mapping is not a Mapping[str, Mapping[str, PreferenceIntervalLike]]
-            or pd.DataFrame with string index and numeric dtypes. Note that PreferenceIntervalLike
-            is either a Mapping[str, float|int] or PreferenceInterval.
+            or pd.DataFrame with str index and numeric dtypes. Note that
+            PreferenceIntervalLike is either a Mapping[str, float|int] or PreferenceInterval.
+            Candidates can be strings, integers, or mix of both.
         ValueError: If pref_mapping contains non-finite values.
     """
     if isinstance(pref_mapping, pd.DataFrame):
         df = pref_mapping
-        if not all(isinstance(c, str) for c in df.columns):
-            raise TypeError("preference_df columns (candidates) must be a 'str'.")
+        print(f"df index and cols: {df.columns} {df.index}")
+        if not all(isinstance(c, Candidate) for c in df.columns):
+            raise TypeError("preference_df columns (candidates) must be a 'str' or 'int'.")
         if not all(isinstance(i, str) for i in df.index):
             raise TypeError("preference_df index (blocs) must be a 'str'.")
         if not all(pd.api.types.is_numeric_dtype(dt) for dt in df.dtypes):
@@ -404,10 +412,10 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
 
             if isinstance(item, Mapping):
                 for name, score in item.items():
-                    if not isinstance(name, str):
+                    if not isinstance(name, Candidate):
                         raise TypeError(
                             f"In bloc '{bloc!r}', slate '{slate!r}': "
-                            f"candidate names must be a 'str', got '{type(name).__name__}'"
+                            f"candidate names must be a 'str' or 'int', got '{type(name).__name__}'"
                         )
                     if not _is_finite_real(score):
                         raise TypeError(
@@ -418,10 +426,10 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
             elif isinstance(item, PreferenceInterval):
                 interval = item.interval
                 for name, score in interval.items():
-                    if not isinstance(name, str):
+                    if not isinstance(name, Candidate):
                         raise TypeError(
                             f"In bloc '{bloc!r}', slate '{slate!r}': candidate names must be "
-                            f"a 'str', got '{type(name).__name__}'"
+                            f"a 'str' or 'int', got '{type(name).__name__}'"
                         )
                     if not _is_finite_real(score):
                         raise TypeError(
@@ -430,8 +438,8 @@ def typecheck_preference(pref_mapping: PreferenceMapping) -> None:
                         )
             else:
                 raise TypeError(
-                    f"In bloc '{bloc!r}', slate '{slate!r}': expected Mapping[str, float|int] "
-                    f"or PreferenceInterval, got '{type(item).__name__}'"
+                    f"In bloc '{bloc!r}', slate '{slate!r}': expected Mapping[Candidate, float|int]"
+                    f" or PreferenceInterval, got '{type(item).__name__}'"
                 )
 
 
@@ -465,7 +473,7 @@ def convert_preference_map_to_preference_df(
             raise ValueError("preference_df columns (candidates) contains duplicates.")
         return preference_mapping
 
-    blocs_to_cand: MutableMapping[str, MutableMapping[str, float]] = {
+    blocs_to_cand: MutableMapping[str, MutableMapping[Candidate, float]] = {
         bloc: {} for bloc in preference_mapping
     }
     for bloc, slate_dict in preference_mapping.items():
@@ -473,9 +481,9 @@ def convert_preference_map_to_preference_df(
             cand_map = (
                 cand_item.interval if isinstance(cand_item, PreferenceInterval) else cand_item
             )
-            cand_series = pd.Series(cand_map)
-            blocs_to_cand[bloc].update(
-                {str(candidate): float(value) for candidate, value in cand_series.items()}
-            )
+            cand_map_typed: dict[Candidate, float] = {
+                candidate: float(value) for candidate, value in cand_map.items()
+            }
+            blocs_to_cand[bloc].update(cand_map_typed)
 
     return pd.DataFrame(blocs_to_cand).fillna(UNSET_VALUE).T
