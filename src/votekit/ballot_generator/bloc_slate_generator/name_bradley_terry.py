@@ -87,7 +87,8 @@ def _bradley_terry_pdf(dct: Mapping[Candidate, float]) -> dict[tuple[Candidate, 
     over all possible rankings.
 
     Args:
-        dct (Mapping[str, float]): a mapping from candidate to their support
+        dct (Mapping[Candidate, float]): a mapping from candidate to their support
+            Candidates can be strings, integers, or mix of both.
 
     Returns:
         dict: a mapping of the rankings to their probability
