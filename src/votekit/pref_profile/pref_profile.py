@@ -1134,10 +1134,9 @@ class ScoreProfile(PreferenceProfile):
         Update the score data from a ballot.
 
         Args:
-            ballot_data (dict[Candidate, list]): Dictionary storing ballot data.
+            ballot_data (dict[str | int, list]): Dictionary storing ballot data.
                 Dictionary keys represent the column names.
                 The candidate columns will be their integer ids.
-                Candidates can be strings, integers, or mix of both.
             idx (int): Index of ballot.
             ballot (ScoreBallot): Ballot.
             candidates_cast (list[Candidate]): List of candidates who have received votes.

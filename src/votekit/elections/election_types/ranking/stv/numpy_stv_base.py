@@ -643,8 +643,9 @@ class NumpySTVBase(ABC):
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
             round_number (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str | int],
-                tuple[frozenset[str | int], ...]]]): Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]): Tiebreak record for each round.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (index of new winner, updated tiebreak record)

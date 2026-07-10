@@ -240,7 +240,8 @@ def remove_cand_rank_profile(
     is handled correctly.
 
     Args:
-        removed (str | int | list[str | int]): Candidate or list of candidates to be removed.
+        removed (Candidate | list[Candidate]): Candidate or list of candidates to be removed.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile): Profile to remove candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.

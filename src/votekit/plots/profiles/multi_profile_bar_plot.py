@@ -34,7 +34,8 @@ def _create_data_dict(
             a dict with str and int keys and float values.
 
     Returns:
-        dict[str, dict[str | int, float]]: Data dictionary for ``multi_bar_plot``.
+        dict[str, dict[Candidate, float]]: Data dictionary for ``multi_bar_plot``.
+            Candidates can be strings, integers, or mix of both.
 
     """
 
@@ -67,9 +68,10 @@ def multi_profile_bar_plot(
     Args:
         profile_dict (dict[str, RankProfile | ScoreProfile]): Keys are profile labels and values are
             profiles to plot statistics for.
-        stat_function (Callable[[RankProfile | ScoreProfile], dict[str | int, float]]): Which stat
+        stat_function (Callable[[RankProfile | ScoreProfile], dict[Candidate, float]]): Which stat
             to use for the bar plot. Must be a callable that takes a profile and returns
-            a dict with str and int keys and float values.
+            a dict with Candidate keys and float values.
+            Candidates can be strings, integers, or mix of both.
         normalize (bool, optional): Whether or not to normalize data. Defaults to False.
         profile_colors (dict[str, str], optional): Dictionary mapping profile labels
             to colors. Defaults to None, in which case we use a subset of ``COLOR_LIST``

@@ -15,7 +15,7 @@ class Ballot:
         ranking (Optional[Sequence[Candidate | Iterable[Candidate]]]): Candidate ranking.
             Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
             Candidates can be strings, integers, or mix of both.
-            Defaults to None. Will be coerced to tuple[frozenset[str | int], ...].
+            Defaults to None. Will be coerced to tuple[frozenset[Candidate], ...].
         weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
             Can be input as int or float, and will be coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
@@ -24,7 +24,7 @@ class Ballot:
             | Mapping[int, float | int]]): Scores for individual candidates. Defaults to None.
             Values can be input as int or float but will be coerced to float.
             Candidates can be strings, integers, or mix of both.
-            Stored internally as a dict[str | int, float].
+            Stored internally as a dict[Candidate, float].
             Only retains non-zero scores.
 
     Attributes:

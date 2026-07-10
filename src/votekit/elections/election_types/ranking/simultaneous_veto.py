@@ -347,7 +347,8 @@ class SimultaneousVeto(RankingElection):
         Updates veto matrix in place by redistributing veto pressure from an eliminated candidate.
 
         Args:
-            candidate (str | int): Candidate being eliminated.
+            candidate (Candidate): Candidate being eliminated.
+                Candidates can be strings, integers, or mix of both.
         """
         candidate_idx = self._candidate_to_idx[candidate]
         ballots_to_update = np.flatnonzero(self._veto_matrix[candidate_idx])
@@ -555,7 +556,7 @@ class SimultaneousVeto(RankingElection):
                 Used for tiebreaking, if necessary.
 
         Returns:
-            tuple[str | int | Sentinel | None, dict[frozenset[Candidate],
+            tuple[Candidate | Sentinel | None, dict[frozenset[Candidate],
                 tuple[frozenset[Candidate], ...]]]: A 2-tuple of (eliminated_candidate, tiebreaks).
                 eliminated_candidate is one of:
                     - a str or int indicating the candidate to be eliminated
