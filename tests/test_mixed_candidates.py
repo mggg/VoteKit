@@ -9,6 +9,8 @@ from votekit.elections import (
     IRV,
     SNTV,
     STV,
+    Alaska,
+    Approval,
     BlockPlurality,
     BoostedRandomDictator,
     Borda,
@@ -26,6 +28,7 @@ from votekit.elections import (
     SequentialRCV,
     SerialVeto,
     SimultaneousVeto,
+    TopTwo,
 )
 from votekit.pref_profile import ScoreProfile
 
@@ -97,6 +100,18 @@ def ic_mixed_profile(request):
         pytest.param(
             lambda profile: Schulze(profile, n_seats=N_SEATS, tiebreak="lexicographic"),
             id="schulze",
+        ),
+        pytest.param(
+            lambda profile: BlockPlurality(profile, n_seats=N_SEATS, tiebreak="random"),
+            id="block_plurality",
+        ),
+        pytest.param(
+            lambda profile: Alaska(profile, m_1=3, m_2=N_SEATS, tiebreak="random"),
+            id="alaska",
+        ),
+        pytest.param(
+            lambda profile: TopTwo(profile, tiebreak="random"),
+            id="top_two",
         ),
     ],
 )
@@ -178,6 +193,10 @@ def mixed_score_profile():
         pytest.param(
             lambda p: BlockPlurality(p, n_seats=N_SCORE_SEATS, tiebreak="random"),
             id="block_plurality",
+        ),
+        pytest.param(
+            lambda p: Approval(p, n_seats=N_SCORE_SEATS, tiebreak="random"),
+            id="approval",
         ),
     ],
 )

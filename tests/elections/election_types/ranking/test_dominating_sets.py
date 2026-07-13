@@ -19,6 +19,15 @@ profile_no_tied_dominating_sets = RankProfile(
     max_ranking_length=3,
 )
 
+profile_no_tied_dominating_sets_with_mixed_candidates = RankProfile(
+    ballots=[
+        RankBallot(ranking=({1}, {"B"}, {"C"})),
+        RankBallot(ranking=({1}, {"C"}, {"B"})),
+        RankBallot(ranking=({"B"}, {1}, {"C"})),
+    ],
+    max_ranking_length=3,
+)
+
 
 profile_no_tied_dominating_sets_round_1 = RankProfile(
     ballots=[
@@ -67,6 +76,11 @@ states = [
 def test_init():
     e = DominatingSets(profile_no_tied_dominating_sets)
     assert e.get_elected() == (frozenset({"A"}),)
+
+
+def test_init_with_mixed_candidate_types():
+    e = DominatingSets(profile_no_tied_dominating_sets_with_mixed_candidates)
+    assert e.get_elected() == (frozenset({1}),)
 
 
 def test_multiwinner():
