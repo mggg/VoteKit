@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 
@@ -93,6 +93,7 @@ class PreferenceInterval:
         *,
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
+        random_seed: Optional[int] = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -109,11 +110,14 @@ class PreferenceInterval:
                 If True, the candidates are assigned their support values in descending order
                 according to the list passed to candidates.
                 If False, the candidates are assigned support values in random order.
+            random_seed (int): seed for RNG, allows for reproducible results given the same inputs.
+                Seed set to None by default, different results will be generated each time.
 
         Returns:
             PreferenceInterval
         """
-        probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
+        rng = np.random.default_rng(seed=random_seed)
+        probs = list(rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:
             probs = [p + 10e-12 if p == 0 else p for p in probs]

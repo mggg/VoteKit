@@ -1,8 +1,17 @@
+from typing import Optional
+
 import numpy as np
 from numpy.typing import NDArray
 
 
-def numpy_random_transfer(fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int) -> NDArray:
+def numpy_random_transfer(
+    fpv_vec: NDArray,
+    wt_vec: NDArray,
+    winner: int,
+    surplus: int,
+    *,
+    random_seed: Optional[int] = None,
+) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.
 
@@ -27,11 +36,13 @@ def numpy_random_transfer(fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplu
         wt_vec (NDArray): Integer weights vector.
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         counts (NDArray): Vector of counts
     """
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=random_seed)
     eligible_for_transfer = fpv_vec == winner
     winner_row_indices = np.flatnonzero(eligible_for_transfer)
     wts = wt_vec[winner_row_indices].astype(np.int64)

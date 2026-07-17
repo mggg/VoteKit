@@ -23,7 +23,9 @@ from votekit.pref_profile import ScoreProfile
 # ===========================================================
 
 
-def _inner_name_cumulative(config: BlocSlateConfig, total_points: int) -> dict[str, ScoreProfile]:
+def _inner_name_cumulative(
+    config: BlocSlateConfig, total_points: int, *, random_seed: Optional[int] = None
+) -> dict[str, ScoreProfile]:
     """
     Inner function to generate cumulative profiles by bloc using the name-Cumulative model.
 
@@ -31,6 +33,8 @@ def _inner_name_cumulative(config: BlocSlateConfig, total_points: int) -> dict[s
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         total_points (int): The total number of points to distribute among candidates.
+        random_seed (int | None): Seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
@@ -47,7 +51,7 @@ def _inner_name_cumulative(config: BlocSlateConfig, total_points: int) -> dict[s
     pp_by_bloc: dict[str, ScoreProfile] = {}
 
     pref_by_bloc = config.get_combined_preference_intervals_by_bloc()
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=random_seed)
 
     for bloc in bloc_lst:
         num_ballots = int(ballots_per_bloc.get(bloc, 0))
@@ -87,6 +91,7 @@ def name_cumulative_profile_generator(
     *,
     total_points: Optional[int] = None,
     group_ballots: bool = True,
+    random_seed: Optional[int] = None,
 ) -> ScoreProfile:
     """
     Generates a ScoreProfile using the name-Cumulative.
@@ -103,6 +108,8 @@ def name_cumulative_profile_generator(
             If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
+        random_seed (int | None): Seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         ScoreProfile: A `ScoreProfile` object representing the generated ballots.
@@ -114,7 +121,7 @@ def name_cumulative_profile_generator(
     if total_points <= 0:
         raise ValueError("total_points must be a positive integer")
 
-    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points)
+    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points, random_seed=random_seed)
 
     pp = ScoreProfile()
     for profile in pp_by_bloc.values():
@@ -131,6 +138,7 @@ def name_cumulative_ballot_generator_by_bloc(
     *,
     total_points: Optional[int] = None,
     group_ballots: bool = True,
+    random_seed: Optional[int] = None,
 ) -> dict[str, ScoreProfile]:
     """
     Generates a dictionary mapping bloc names to ScoreProfiles using the name-Cumulative model.
@@ -147,6 +155,8 @@ def name_cumulative_ballot_generator_by_bloc(
             If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
+        random_seed (int | None): Seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         dict[str, ScoreProfile]: A dictionary whose keys are bloc strings and values are
@@ -159,7 +169,7 @@ def name_cumulative_ballot_generator_by_bloc(
     if total_points <= 0:
         raise ValueError("'total_points' must be a positive integer")
 
-    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points)
+    pp_by_bloc = _inner_name_cumulative(config, total_points=total_points, random_seed=random_seed)
 
     if group_ballots:
         for bloc in pp_by_bloc:

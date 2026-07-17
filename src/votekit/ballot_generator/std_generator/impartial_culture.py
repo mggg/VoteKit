@@ -34,6 +34,8 @@ def _generate_profile_optimized_non_short(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
+    random_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -46,6 +48,8 @@ def _generate_profile_optimized_non_short(
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         RankProfile
@@ -53,8 +57,9 @@ def _generate_profile_optimized_non_short(
     num_cands = len(candidates)
     if max_ballot_length is None:
         max_ballot_length = num_cands
+    rng = np.random.default_rng(seed=random_seed)
     ballots_as_ind = [
-        tuple(np.random.choice(num_cands, size=max_ballot_length, replace=False))
+        tuple(rng.choice(num_cands, size=max_ballot_length, replace=False))
         for _ in range(number_of_ballots)
     ]
     ballots_as_counter = Counter(ballots_as_ind)
@@ -124,6 +129,8 @@ def ic_profile_generator(
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     allow_short_ballots: bool = False,
+    *,
+    random_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Impartial Culture model where each ballot is equally likely.
@@ -137,6 +144,8 @@ def ic_profile_generator(
             the number of candidates.
         allow_short_ballots (bool, optional): Whether to allow short ballots.
             Defaults to False.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         RankProfile: The generated preference profile
@@ -151,4 +160,6 @@ def ic_profile_generator(
             candidates, number_of_ballots, max_ballot_length
         )
 
-    return _generate_profile_optimized_non_short(candidates, number_of_ballots, max_ballot_length)
+    return _generate_profile_optimized_non_short(
+        candidates, number_of_ballots, max_ballot_length, random_seed=random_seed
+    )

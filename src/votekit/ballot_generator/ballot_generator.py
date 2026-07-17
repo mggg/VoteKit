@@ -1,6 +1,6 @@
 import math
 from abc import abstractmethod
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -156,17 +156,20 @@ class BallotGenerator:
         pass
 
     @staticmethod
-    def _round_num(num: float) -> int:
+    def _round_num(num: float, *, random_seed: Optional[int] = None) -> int:
         """
+
         Rounds up or down a float randomly.
 
         Args:
             num (float): Number to round.
+            random_seed (int): Seed for RNG, allows for reproducible results given the same inputs.
+                Seed set to None by default, different results will be generated each time.
 
         Returns:
             int: A whole number.
         """
-        rand = np.random.random()
+        rand = np.random.default_rng(seed=random_seed).random()
         return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod
