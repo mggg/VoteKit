@@ -130,7 +130,7 @@ class _CandListProxy(MutableSequence[Candidate]):
             raise TypeError("Index must be an 'int'")
         new = list(self.__owner._data[self.__key])
         if value not in new:
-            new.insert(int_index, str(value))
+            new.insert(int_index, value)
         self.__owner[self.__key] = new
 
     def extend(self, values: Iterable[Candidate]) -> None:

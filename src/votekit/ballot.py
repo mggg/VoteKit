@@ -217,10 +217,15 @@ class RankBallot(Ballot):
             return
         candidates = []
         for cand_set in ranking:
-            if isinstance(cand_set, Iterable):
+            if isinstance(cand_set, (str, int)):
+                candidates.append(cand_set)
+            elif isinstance(cand_set, Iterable):
                 candidates.extend([cand for cand in cand_set])
             else:
-                candidates.append(cand_set)
+                raise TypeError(
+                    "Ranking is a sequence of Iterables or bare str/int candidates."
+                    f" {cand_set} invalidates the ranking."
+                )
         if any(cand == "~" for cand in candidates):
             raise ValueError(
                 f"Candidate '~' found in ballot ranking {ranking}."

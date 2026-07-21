@@ -201,9 +201,16 @@ def test_equivalent_str_int_candidates_gives_warning():
     assert b.ranking == (frozenset({1}), frozenset({"1"}))
 
 
-def test_invalid_candidate_type_ballot():
-    with pytest.raises(TypeError, match="Candidates can only be strings or integers"):
+def test_invalid_bare_candidate_type_ballot():
+    with pytest.raises(
+        TypeError, match="Ranking is a sequence of Iterables or bare str/int candidates."
+    ):
         RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_invalid_wrapped_candidate_type_ballot():
+    with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
+        RankBallot(ranking=[{1.5}, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
 
 
 def test_negative_integer_candidate_ballot():
