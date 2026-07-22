@@ -161,7 +161,7 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
 
     candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in header_data[2]]
     csv_version = header_data[0][1] if len(header_data[0]) > 1 else None
-    if not csv_version and len(candidate_tuples[0]) != 2:
+    if not csv_version and any(len(candidate_tuple) != 2 for candidate_tuple in candidate_tuples):
         raise ValueError(
             (
                 f"csv file is improperly formatted. If not using v2 format, Row 2 should contain"
@@ -170,7 +170,9 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
             )
         )
 
-    if csv_version == "v2" and len(candidate_tuples[0]) != 3:
+    if csv_version == "v2" and any(
+        len(candidate_tuple) != 3 for candidate_tuple in candidate_tuples
+    ):
         raise ValueError(
             (
                 f"csv file v2 is improperly formatted. Row 2 should contain tuples mapping"
@@ -179,7 +181,7 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
             )
         )
 
-    if csv_version == "v2" and len(candidate_tuples[0]) == 3:
+    if csv_version == "v2":
         _, candidate_types, _ = zip(*candidate_tuples)
         if any(cand_type not in VALID_TYPE_MAP.keys() for cand_type in candidate_types):
             raise ValueError(

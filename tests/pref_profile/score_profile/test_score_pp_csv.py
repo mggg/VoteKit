@@ -56,6 +56,26 @@ def test_csv_mixed_cand_scores(tmp_path):
     assert profile == read_profile
 
 
+def test_csv_cand_names_with_parentheses_scores(tmp_path):
+    profile = ScoreProfile(
+        ballots=(
+            ScoreBallot(
+                scores={"Aleine (Alei)": 2, "(A)": 4, "(Alex) Alexander": 1}, voter_set={"Chris"}
+            ),
+            ScoreBallot(
+                scores={"(A)": 2, "Aleine (Alei)": 4, "(Alex) Alexander": 1},
+                voter_set={"Peter", "Moon"},
+            ),
+        )
+        * 5,
+        candidates=["Aleine (Alei)", "(Alex) Alexander", "(A)"],
+    )
+    out = str(tmp_path / "test_csv_pp_cand_name_with_parentheses_scores.csv")
+    profile.to_csv(out, include_voter_set=True)
+    read_profile = ScoreProfile.from_csv(out)
+    assert profile == read_profile
+
+
 def test_csv_filepath_error():
     with pytest.raises(ValueError, match="File path must be provided."):
         ScoreProfile().to_csv("")

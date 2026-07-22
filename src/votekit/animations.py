@@ -37,7 +37,7 @@ from votekit.cleaning.rank_ballots_cleaning import (
 )
 from votekit.elections.election_types.ranking.stv import STV
 from votekit.types import Candidate
-from votekit.utils import ballots_by_first_cand, mentions
+from votekit.utils import ballots_by_first_cand, check_for_equivalent_str_int_labels, mentions
 
 
 class _ZIndex(IntEnum):
@@ -399,6 +399,9 @@ class STVAnimation:
             for name, support in election.election_states[0].scores.items()
             if name in self.focus
         }
+
+        check_for_equivalent_str_int_labels(candidate_dict.keys())
+
         # Add display names
         for name in candidate_dict.keys():
             if name in self.nicknames.keys():

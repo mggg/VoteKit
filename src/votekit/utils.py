@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import random
+import warnings
 from itertools import permutations
 from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
 
@@ -1035,3 +1036,34 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
 
 
 sort_candidates_pseudo_lex = sort_candidates_pseudo_lexicographically
+
+
+def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
+    """
+    With candidates allowed to be integer or strings, there can be collisions where there is an
+    equivalent string version of an integer candidate within the same list of candidates.
+
+    A warning will be thrown to alert that collided candidates will be treated as separate
+    candidates and will be indistinguishable as plot labels. Only thrown when the string cast of an
+    integer candidate exactly equals an existing string candidate. A string candidate that evaluates
+    to the same integer candidate when parsed (e.g. '01' vs. 1) is left alone, since it renders as
+    distinguishable text on a plot. Warning fires once per colliding candidate.
+
+    Args:
+        candidates (Sequence[Candidate]): list of candidates.
+
+    Raises:
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+                when casted to to other candidate's type, they are equivalent. Those candidates
+                will be treated as separate candidates.
+    """
+    int_candidates = [cand for cand in candidates if isinstance(cand, int)]
+    str_candidates = [cand for cand in candidates if isinstance(cand, str)]
+    for int_cand in int_candidates:
+        if str(int_cand) in str_candidates:
+            warnings.warn(
+                f"Candidates {int_cand} appear as both str and int within"
+                f" candidates {candidates}. These will be treated as separate"
+                " candidates, and will be indistinguishable when plotted on an axis.",
+                UserWarning,
+            )

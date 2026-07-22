@@ -9,7 +9,7 @@ from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 
 from votekit.types import CategoryLabel, CategoryLabelList, CategoryLabelMapping, DataMapping
-from votekit.utils import COLOR_LIST
+from votekit.utils import COLOR_LIST, check_for_equivalent_str_int_labels
 
 DEFAULT_LINE_KWDS = {"linestyle": "-", "linewidth": 2, "color": "grey", "alpha": 0.5}
 
@@ -186,6 +186,7 @@ def _validate_bar_plot_args(
         raise ValueError(f"Cannot plot more than {len(COLOR_LIST)} data sets.")
 
     true_categories = next(iter(data.values())).keys()
+    check_for_equivalent_str_int_labels(true_categories)
 
     if len(category_ordering) != len(true_categories):
         raise ValueError("category_ordering must be the same length as sub-dictionaries.")

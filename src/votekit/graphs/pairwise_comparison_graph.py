@@ -12,7 +12,10 @@ from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
-from votekit.utils import sort_candidates_pseudo_lexicographically
+from votekit.utils import (
+    check_for_equivalent_str_int_labels,
+    sort_candidates_pseudo_lexicographically,
+)
 
 
 def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
@@ -416,6 +419,8 @@ class PairwiseComparisonGraph(nx.DiGraph):
         known_candidate_list = list(G.nodes)
         if candidate_list is None:
             candidate_list = known_candidate_list
+
+        check_for_equivalent_str_int_labels(candidate_list)
 
         assert set(candidate_list).issubset(set(G.nodes)), (
             f"Invalid candidates found: {set(candidate_list) - set(G.nodes)} does not appear as "

@@ -96,7 +96,7 @@ def test_scot_csv_url():
         "Catriona Mackenzie": "Scottish National Party (SNP)",
         "Gregor Mcabery": "Liberal Democrat (LD)",
         "William Allan Mcintosh": "UK Independence Party (UKIP)",
-        "Ren": "Green (Gr)",
+        "Renée Slater": "Green (Gr)",
         "Piotr Teodorowski": "Labour (Lab)",
         "Billy Watson": "National Front (NF)",
     }

@@ -94,6 +94,31 @@ def test_csv_mixed_cand_rankings(tmp_path):
     assert profile_rankings == read_profile
 
 
+def test_csv_cand_names_with_parentheses_rankings(tmp_path):
+    profile_rankings = RankProfile(
+        ballots=(
+            RankBallot(
+                ranking=({"Aleine (Alei)", "(Alex) Alexander"}, frozenset(), {"(A)"}),
+                voter_set={"Chris", "Peter"},
+                weight=1.5,
+            ),
+            RankBallot(
+                ranking=({"(Alex) Alexander", "(A)"}, frozenset(), {"Aleine (Alei)"}),
+                voter_set={"Moon"},
+                weight=0.5,
+            ),
+        )
+        * 5,
+        max_ranking_length=3,
+        candidates=["Aleine (Alei)", "(Alex) Alexander", "(A)"],
+    )
+
+    out = str(tmp_path / "test_csv_pp_cand_name_with_parentheses_rankings.csv")
+    profile_rankings.to_csv(out, include_voter_set=True)
+    read_profile = RankProfile.from_csv(out)
+    assert profile_rankings == read_profile
+
+
 def test_csv_filepath_error():
     with pytest.raises(ValueError, match="File path must be provided."):
         RankProfile().to_csv("")
