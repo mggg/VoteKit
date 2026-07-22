@@ -35,6 +35,7 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     typecheck_bloc_proportion_mapping,
 )
 from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 if TYPE_CHECKING:
     from votekit.ballot_generator.bloc_slate_generator.config.core import (
@@ -91,7 +92,7 @@ class _CandListProxy(MutableSequence[Candidate]):
         if isinstance(index, slice):  # pragma: no cover
             if isinstance(value, (Candidate, bytes)) or not isinstance(value, Iterable):
                 raise TypeError("Slice assignment requires an iterable of str and/or int")
-            new[index] = [str(x) for x in value]
+            new[index] = [x for x in value]
         else:
             new[operator.index(index)] = value
         self.__owner[self.__key] = new
@@ -166,8 +167,7 @@ class _CandListProxy(MutableSequence[Candidate]):
 
     def sort(self) -> None:
         """Sort the candidate list in place."""
-        new = self._current()
-        new.sort()
+        new = sort_candidates_pseudo_lexicographically(self._current())
         self.__owner[self.__key] = new
 
     def __eq__(self, other: Union[Sequence[str], Any]):

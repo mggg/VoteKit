@@ -343,9 +343,8 @@ class ScoreBallot(Ballot):
     ):
         if ranking is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        scores = self._convert_scores_to_float_strip_whitespace(scores)
         self._validate_scores_candidates(scores)
-        self.scores = scores
+        self.scores = self._convert_scores_to_float_strip_whitespace(scores)
 
         super().__init__(weight=weight, voter_set=voter_set)
 
@@ -354,19 +353,19 @@ class ScoreBallot(Ballot):
     ) -> Optional[dict[Candidate, float]]:
         if scores is None:
             return None
-        if not isinstance(scores, Mapping):
-            raise TypeError(
-                "Scores must be a mapping of candidates to score values. Received"
-                f" {type(scores).__name__}."
-            )
-        if any(not isinstance(s, Real) for s in scores.values()):
-            raise TypeError("Score values must be numeric.")
         return {
             c.strip() if isinstance(c, str) else c: float(s) for c, s in scores.items() if s != 0
         }
 
     def _validate_scores_candidates(self, scores: ScoresLike):
         if scores is not None:
+            if not isinstance(scores, Mapping):
+                raise TypeError(
+                    "Scores must be a mapping of candidates to score values. Received"
+                    f" {type(scores).__name__}."
+                )
+            if any(not isinstance(s, Real) for s in scores.values()):
+                raise TypeError("Score values must be numeric.")
             if "~" in scores:
                 raise ValueError(
                     f"Candidate '~' found in ballot scores {list(scores.keys())}."
@@ -386,7 +385,7 @@ class ScoreBallot(Ballot):
                     str_cands.append(cand)
                 elif isinstance(cand, bool):
                     raise TypeError(
-                        "{cand} is a boolean candidate. Could collide with other"
+                        f"{cand} is a boolean candidate. Could collide with other"
                         " integer candidates. Change to 0 or 1."
                     )
                 elif isinstance(cand, int):
