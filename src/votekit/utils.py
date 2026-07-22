@@ -984,6 +984,8 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
     or float. String candidates that can be cast to an integer or float will be ordered amongst the
     integer candidates in numerical order. If there is a corresponding integer candidate to a casted
     string candidate, then those string candidates will follow the integer candidate.
+    String candidates that are equivalent to nan will be sorted at the end of the list in
+    lexographical order.
 
     Example:
         candidates = ["A", 1, "1", "1.1", "01", "2", 3]
@@ -1015,7 +1017,9 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
                 return False
 
         def sort_mixed_cands(cand):
-            if isinstance(cand, int):
+            if isinstance(cand, str) and cand.strip().lower() == "nan":
+                return (2, 0, cand)
+            elif isinstance(cand, int):
                 return (0, cand, "")
             elif isinstance(cand, str):
                 if cand.isdigit():

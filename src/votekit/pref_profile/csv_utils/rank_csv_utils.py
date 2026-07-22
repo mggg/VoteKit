@@ -29,7 +29,7 @@ def _parse_profile_data_from_rank_csv(
             includes_voter_set, break_indices
             Candidates can be strings, integers, or mix of both.
     """
-    candidate_row = [c_tuple.strip("()").split(":") for c_tuple in csv_data[2]]
+    candidate_row = [c_tuple[1:-1].split(":") for c_tuple in csv_data[2]]
     csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
     if csv_version == "v2":
         inv_candidate_mapping = {
@@ -159,7 +159,7 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
             )
         )
 
-    candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in header_data[2]]
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in header_data[2]]
     csv_version = header_data[0][1] if len(header_data[0]) > 1 else None
     if not csv_version and len(candidate_tuples[0]) != 2:
         raise ValueError(
@@ -414,7 +414,7 @@ def _validate_rank_csv_ballot_rows(csv_data: list[list[str]]):
     max_ranking_row = csv_data[4]
     include_voter_set_row = csv_data[6]
 
-    candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in candidate_row]
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in candidate_row]
     csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
     if csv_version == "v2":
         candidates, candidate_types, candidate_prefixes = zip(*candidate_tuples)

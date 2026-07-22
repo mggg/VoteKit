@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from numbers import Real
-from typing import Iterable, Optional, Union, overload
+from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
 
@@ -57,6 +57,7 @@ class Ballot:
         scores: None = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
+        include_zero_score: None = None,
     ) -> RankBallot: ...
 
     @overload
@@ -67,6 +68,7 @@ class Ballot:
         scores: ScoresLike,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
+        include_zero_score: bool = False,
     ) -> ScoreBallot: ...
 
     @overload
@@ -77,6 +79,7 @@ class Ballot:
         scores: ScoresLike = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
+        include_zero_score: bool = False,
     ) -> Ballot: ...
 
     def __new__(
@@ -86,6 +89,7 @@ class Ballot:
         scores: ScoresLike = None,
         weight: Union[float, int] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
+        include_zero_score: bool = False,
     ):
         if ranking is not None and scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
@@ -169,6 +173,7 @@ class RankBallot(Ballot):
         voter_set (frozenset[str]): Voter set of the ballot.
 
     Raises:
+        TypeError: Ranking is a sequence of bare or iterable str/int candidates.
         ValueError: Candidate '~' found in ballot ranking.
         ValueError: Ballot weight cannot be negative.
         UserWarning: '1' and 1 candidates are treated as separate candidates.
@@ -199,6 +204,12 @@ class RankBallot(Ballot):
                 f"Received ranking `{ranking}` of type {type(ranking).__name__}. "
                 "If you intended this to be a bullet vote, then wrap it in a list."
             )
+        if not isinstance(ranking, Sequence):
+            raise TypeError(
+                "ranking must be a Sequence with a guaranteed order. Received"
+                f" {type(ranking).__name__}, which is unordered. Wrap ranking in a list"
+                " instead."
+            )
 
         normalized_ranking = []
         for cand_set in ranking:
@@ -220,32 +231,41 @@ class RankBallot(Ballot):
             if isinstance(cand_set, (str, int)):
                 candidates.append(cand_set)
             elif isinstance(cand_set, Iterable):
+                if any(not isinstance(cand, (str, int)) for cand in cand_set):
+                    raise TypeError(
+                        f"Candidates can only be strings or integers. {cand_set}"
+                        " contains invalid candidates."
+                    )
                 candidates.extend([cand for cand in cand_set])
             else:
                 raise TypeError(
                     "Ranking is a sequence of Iterables or bare str/int candidates."
-                    f" {cand_set} invalidates the ranking."
+                    f" {cand_set} is invalid."
                 )
+        if any(isinstance(cand, bool) for cand in candidates):
+            raise TypeError(
+                f"Boolean candidate(s) found in ballot ranking {ranking}. Could collide"
+                " with other integer candidates. Change to 0 or 1."
+            )
         if any(cand == "~" for cand in candidates):
             raise ValueError(
-                f"Candidate '~' found in ballot ranking {ranking}."
-                " '~' is a reserved character and cannot be used for"
-                " candidate names."
+                f"Candidate '~' found in ballot ranking {ranking}. '~' is a reserved character and"
+                " cannot be used for candidate names."
             )
-        str_cands = {cand for cand in candidates if isinstance(cand, str)}
-        int_cands = {cand for cand in candidates if isinstance(cand, int)}
+        if any(isinstance(cand, str) and ":" in cand for cand in candidates):
+            raise ValueError(
+                f"':' found in ballot ranking {ranking}. ':' is a reserved"
+                " character and cannot be used in candidate names."
+            )
+        str_cands = [cand for cand in candidates if isinstance(cand, str)]
+        int_cands = [cand for cand in candidates if isinstance(cand, int)]
         negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
         if negative_int_cands:
             raise ValueError(
                 "Integer candidates must be non-negative values."
                 f" {negative_int_cands} are negative integer candidates."
             )
-        invalid_candidates = set(str_cands | int_cands) ^ set(candidates)
-        if invalid_candidates:
-            raise TypeError(
-                f"Candidates can only be strings or integers. {invalid_candidates}"
-                " are invalid candidates."
-            )
+
         collisions = {
             str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
         }
@@ -308,6 +328,7 @@ class ScoreBallot(Ballot):
     Raises:
         ValueError: Candidate '~' found in ballot scores.
         ValueError: Ballot weight cannot be negative.
+        TypeError: Scores must be a mapping of candidates to score values.
         TypeError: Score values must be numeric.
         UserWarning: '1' and 1 candidates are treated as separate candidates.
     """
@@ -333,10 +354,13 @@ class ScoreBallot(Ballot):
     ) -> Optional[dict[Candidate, float]]:
         if scores is None:
             return None
-
+        if not isinstance(scores, Mapping):
+            raise TypeError(
+                "Scores must be a mapping of candidates to score values. Received"
+                f" {type(scores).__name__}."
+            )
         if any(not isinstance(s, Real) for s in scores.values()):
             raise TypeError("Score values must be numeric.")
-
         return {
             c.strip() if isinstance(c, str) else c: float(s) for c, s in scores.items() if s != 0
         }
@@ -349,20 +373,37 @@ class ScoreBallot(Ballot):
                     " '~' is a reserved character and cannot be used for"
                     " candidate names."
                 )
-            str_cands = {cand for cand in scores.keys() if isinstance(cand, str)}
-            int_cands = {cand for cand in scores.keys() if isinstance(cand, int)}
+            if any(isinstance(cand, str) and ":" in cand for cand in scores.keys()):
+                raise ValueError(
+                    f"':' found in ballot scores {list(scores.keys())}. ':' is a reserved character"
+                    " and cannot be used in candidate names."
+                )
+
+            str_cands = []
+            int_cands = []
+            for cand in scores.keys():
+                if isinstance(cand, str):
+                    str_cands.append(cand)
+                elif isinstance(cand, bool):
+                    raise TypeError(
+                        "{cand} is a boolean candidate. Could collide with other"
+                        " integer candidates. Change to 0 or 1."
+                    )
+                elif isinstance(cand, int):
+                    int_cands.append(cand)
+                else:
+                    raise TypeError(
+                        f"Candidates can only be strings or integers. {cand} is an"
+                        " invalid candidate."
+                    )
+
             negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
             if negative_int_cands:
                 raise ValueError(
                     "Integer candidates must be non-negative values."
                     f" {negative_int_cands} are negative integer candidates."
                 )
-            invalid_candidates = set(str_cands | int_cands) ^ set(scores.keys())
-            if invalid_candidates:
-                raise TypeError(
-                    f"Candidates can only be strings or integers. {invalid_candidates}"
-                    " are invalid candidates."
-                )
+
             collisions = {
                 str_cand
                 for str_cand in str_cands

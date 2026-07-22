@@ -50,9 +50,9 @@ def test_csv_mixed_cand_scores(tmp_path):
             * 5,
             candidates=["A", "B", "1", 1, 2, 3],
         )
-    out = str(tmp_path / "test_csv_pp_mixed_cand_scores.csv")
-    profile.to_csv(out, include_voter_set=True)
-    read_profile = ScoreProfile.from_csv(out)
+        out = str(tmp_path / "test_csv_pp_mixed_cand_scores.csv")
+        profile.to_csv(out, include_voter_set=True)
+        read_profile = ScoreProfile.from_csv(out)
     assert profile == read_profile
 
 

@@ -170,6 +170,7 @@ class PreferenceProfile:
         candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
+        include_zero_score: Optional[bool] = None,
     ):
         self.candidates_cast = candidates_cast
         self.candidates = candidates
@@ -227,6 +228,33 @@ class PreferenceProfile:
                     )
                 )
 
+        if "~" in self.candidates:
+            raise ValueError(
+                f"Candidate '~' found in profile's candidates {self.candidates}."
+                " '~' is a reserved character and cannot be used for"
+                " candidate names."
+            )
+        if any(isinstance(cand, str) and ":" in cand for cand in self.candidates):
+            raise ValueError(
+                f"':' found in profile's candidates {self.candidates}. ':' is a reserved character"
+                " and cannot be used in candidate names."
+            )
+        if any(not isinstance(cand, (str, int)) for cand in self.candidates):
+            raise TypeError(
+                f"Non-string/integer candidates found in profile's candidates {self.candidates}."
+                " Candidates can only be strings or integers."
+            )
+        if any(cand < 0 for cand in self.candidates if isinstance(cand, int)):
+            raise ValueError(
+                f"Negative integer candidate(s) found in profile's candidates {self.candidates}."
+                " Must be non-negative."
+            )
+        if any(isinstance(cand, bool) for cand in self.candidates):
+            raise TypeError(
+                f"Boolean candidate(s) found in profile's candidates {self.candidates}. Could"
+                " collide with other integer candidates. Change to 0 or 1."
+            )
+
         if not len(set(self.candidates)) == len(self.candidates):
             raise ProfileError("All candidates must be unique.")
         if not set(self.candidates_cast).issubset(self.candidates):
@@ -235,6 +263,7 @@ class PreferenceProfile:
                 " candidates are in candidates_cast but not candidates: "
                 f"{set(self.candidates_cast) - set(self.candidates)}."
             )
+
         str_cands = {cand for cand in self.candidates if isinstance(cand, str)}
         int_cands = {cand for cand in self.candidates if isinstance(cand, int)}
         collisions = {
@@ -243,7 +272,8 @@ class PreferenceProfile:
         if collisions:
             warnings.warn(
                 f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within a"
-                " profile. These will be treated as separate candidates.",
+                f" profile with candidates {self.candidates}. These will be treated as separate"
+                " candidates.",
                 UserWarning,
             )
         self.candidates = tuple([c.strip() if isinstance(c, str) else c for c in self.candidates])
@@ -353,6 +383,7 @@ class RankProfile(PreferenceProfile):
         candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
+        include_zero_score: None = None,
     ):
         self.candidates = tuple(candidates)
         candidate_id_map: dict[frozenset[Candidate], int] = {frozenset({"~"}): -1}

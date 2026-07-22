@@ -216,3 +216,18 @@ def test_invalid_wrapped_candidate_type_ballot():
 def test_negative_integer_candidate_ballot():
     with pytest.raises(ValueError, match="Integer candidates must be non-negative values"):
         RankBallot(ranking=["A", {"B", -1}, "D", {2}, 3], weight=1, voter_set={"A"})
+
+
+def test_non_sequence_ranking_ballot_raises_error():
+    with pytest.raises(TypeError, match="ranking must be a Sequence with a guaranteed order."):
+        RankBallot(ranking={4, 3, 2, 1}, weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_bool_candidate_ballot_raises_error():
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in ballot ranking"):
+        RankBallot(ranking=[1, {True}], weight=1, voter_set={"A"})
+
+
+def test_colon_char_in_candidate_ballot_raises_error():
+    with pytest.raises(ValueError, match="':' found in ballot ranking"):
+        RankBallot(ranking=[{"A:B"}], weight=1, voter_set={"A"})

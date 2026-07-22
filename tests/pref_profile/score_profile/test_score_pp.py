@@ -120,3 +120,57 @@ def test_str_int_mix_candidates_in_profile_gives_warning():
 
     assert set(profile_int_cands.candidates) == set(["2", 2, 3])
     assert set(profile_int_cands.candidates_cast) == set(["2", 2, 3])
+
+
+def test_tilda_candidates_in_profile_raises_error():
+    with pytest.raises(ValueError, match="Candidate '~' found in profile's candidates"):
+        ScoreProfile(
+            ballots=[
+                ScoreBallot(scores={1: 1}),
+            ],
+            candidates=[1, "~"],
+        )
+
+
+def test_candidate_name_with_colon_in_profile_raises_error():
+    with pytest.raises(ValueError, match="':' found in profile's candidates"):
+        ScoreProfile(
+            ballots=[
+                ScoreBallot(scores={1: 1}),
+            ],
+            candidates=[1, "A:B"],
+        )
+
+
+def test_non_int_str_candidate_in_profile_raises_error():
+    with pytest.raises(
+        TypeError, match="Non-string/integer candidate(s) found in profile's candidates"
+    ):
+        ScoreProfile(  # type: ignore[arg-type]
+            ballots=[
+                ScoreBallot(scores={1: 1}),
+            ],
+            candidates=[1, 1.0],  # type: ignore[arg-type]
+        )
+
+
+def test_negative_int_candidate_in_profile_raises_error():
+    with pytest.raises(
+        ValueError, match=r"Negative integer candidate\(s\) found in profile's candidates"
+    ):
+        ScoreProfile(
+            ballots=[
+                ScoreBallot(scores={1: 1}),
+            ],
+            candidates=[1, -1],
+        )
+
+
+def test_bool_candidate_in_profile_raises_error():
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in profile's candidates"):
+        ScoreProfile(
+            ballots=[
+                ScoreBallot(scores={1: 1}),
+            ],
+            candidates=[1, True],
+        )

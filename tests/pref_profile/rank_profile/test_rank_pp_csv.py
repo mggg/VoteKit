@@ -88,9 +88,9 @@ def test_csv_mixed_cand_rankings(tmp_path):
             candidates=["A", "B", "1", 1, 2, 3],
         )
 
-    out = str(tmp_path / "test_csv_pp_mixed_cand_rankings.csv")
-    profile_rankings.to_csv(out, include_voter_set=True)
-    read_profile = RankProfile.from_csv(out)
+        out = str(tmp_path / "test_csv_pp_mixed_cand_rankings.csv")
+        profile_rankings.to_csv(out, include_voter_set=True)
+        read_profile = RankProfile.from_csv(out)
     assert profile_rankings == read_profile
 
 

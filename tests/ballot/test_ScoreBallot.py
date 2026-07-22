@@ -80,6 +80,8 @@ def test_ballot_tilde_errors():
         match="'~' is a reserved character and cannot be used for candidate names.",
     ):
         ScoreBallot(scores={"~": 1})
+    b = ScoreBallot(scores={"A~": 1})
+    assert b.scores == {"A~": 1}
 
 
 def test_ballot_negative_weight():
@@ -168,3 +170,18 @@ def test_invalid_candidate_type_ballot():
 def test_negative_integer_candidate_ballot():
     with pytest.raises(ValueError, match="Integer candidates must be non-negative values"):
         ScoreBallot(scores={"A": 2, 1: 1, -1: 2})
+
+
+def test_non_mapping_scores_ballot_raises_error():
+    with pytest.raises(TypeError, match="Scores must be a mapping of candidates to score values."):
+        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type]
+
+
+def test_colon_in_cand_name_ballot_raises_error():
+    with pytest.raises(ValueError, match="':' found in ballot scores"):
+        ScoreBallot(scores={"A:B": 1})
+
+
+def test_bool_candidate_in_ballot_raises_error():
+    with pytest.raises(TypeError, match="is a boolean candidate. Could collide with other integer"):
+        ScoreBallot(scores={True: 1, "1": 1, 0: 1})

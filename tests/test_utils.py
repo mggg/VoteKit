@@ -703,3 +703,8 @@ def test_sort_non_valid_type_cand_raises_error():
     cands = ["1", 1, 1.0]
     with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
         sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+
+
+def test_sort_nan_cand_at_end_of_list():
+    cands = ["1", 1, "nan", "NaN", "nan "]
+    assert sort_candidates_pseudo_lexicographically(cands) == [1, "1", "NaN", "nan", "nan "]
