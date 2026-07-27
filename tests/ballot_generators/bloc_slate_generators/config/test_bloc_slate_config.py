@@ -525,6 +525,57 @@ def test_error_when_cohesion_df_empty(valid_config):
     assert any("Cohesion mapping must be non-empty." in m for m in msgs)
 
 
+# --- Slate candidates-specific errors --------------------------------------
+
+
+def test_error_for_tilda_candidate(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.slate_to_candidates["slate_1"][0] = "~"
+    msgs = _messages(_det_errs(config))
+    assert any("Candidate '~' found in config.candidates" in m for m in msgs)
+
+
+def test_error_for_colon_in_candidate(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.slate_to_candidates["slate_1"][0] = "A:B"
+    msgs = _messages(_det_errs(config))
+    assert any("':' found in config.candidates" in m for m in msgs)
+
+
+def test_error_for_non_str_int_candidate_raised_by_preference_df_resync(valid_config):
+    # A float candidate never reaches find_candidate_name_errors. By assigning it to
+    # slate_to_candidates, a preference_df resync is triggered that raises an error via
+    # typecheck_preference() within __update_preference_df_on_candidate_change().
+    with pytest.raises(
+        TypeError, match=r"preference_df columns \(candidates\) must be a 'str' or 'int'."
+    ):
+        config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+        config.slate_to_candidates["slate_1"][0] = 1.0  # type: ignore[arg-type]
+
+
+def test_error_for_negative_int_candidate(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.slate_to_candidates["slate_1"][0] = -1
+    msgs = _messages(_det_errs(config))
+    assert any("Negative integer candidate(s) found in config.candidates" in m for m in msgs)
+
+
+def test_error_for_boolean_candidate_raised_by_preference_df_resync(valid_config):
+    # the preference_df resync's typecheck_preference() raises an error for the bool candidate
+    # before find_candidate_name_errors()'s boolean check runs on self.candidates.
+    with pytest.raises(TypeError, match=r"preference_df columns \(candidates\) cannot be a 'bool'"):
+        config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+        config.slate_to_candidates["slate_1"][0] = True
+
+
+def test_warning_for_collided_candidate(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.slate_to_candidates["slate_1"][0] = 1
+    config.slate_to_candidates["slate_2"][0] = "1"
+    msgs = _messages(_det_errs(config))
+    assert any("These will be treated as separate candidates." in m for m in msgs)
+
+
 # --- Bloc proportion-specific errors --------------------------------------
 
 

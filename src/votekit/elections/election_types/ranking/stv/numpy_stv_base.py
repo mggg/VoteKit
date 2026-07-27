@@ -657,7 +657,7 @@ class NumpySTVBase(ABC):
             )
         elif self._winner_tiebreak is not None:
             packaged_ranking = tiebreak_set(
-                r_set=packaged_tie,
+                set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._winner_tiebreak,
             )
@@ -693,7 +693,7 @@ class NumpySTVBase(ABC):
             )
         else:
             packaged_ranking = tiebreak_set(
-                r_set=packaged_tie,
+                set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._loser_tiebreak,
             )

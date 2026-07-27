@@ -33,7 +33,7 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
 )
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit.types import Candidate
-from votekit.utils import sort_candidates_pseudo_lexicographically
+from votekit.utils import find_candidate_name_errors, sort_candidates_pseudo_lexicographically
 
 
 class BlocSlateConfig:
@@ -670,6 +670,7 @@ class BlocSlateConfig:
         errors.extend(self.__determine_basic_errors())
         errors.extend(self.__determine_preference_df_errors())
         errors.extend(self.__determine_cohesion_df_errors())
+        errors.extend(find_candidate_name_errors(self.candidates, "config.candidates"))
         return errors
 
     def is_valid(self, *, raise_errors: bool = False, raise_warnings: bool = True) -> bool:

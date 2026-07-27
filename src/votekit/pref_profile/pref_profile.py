@@ -31,7 +31,7 @@ from votekit.pref_profile.utils import (
     convert_row_to_score_ballot,
 )
 from votekit.types import Candidate
-from votekit.utils import sort_candidates_pseudo_lexicographically
+from votekit.utils import sort_candidates_pseudo_lexicographically, validate_candidate_names
 
 
 class PreferenceProfile:
@@ -210,66 +210,6 @@ class PreferenceProfile:
 
         return total_weight
 
-    def _validate_candidate_names(self, candidates: Sequence[Candidate]):
-        """
-        Ensure the candidates are strings or non-negative integers without reserved characters.
-
-        Args:
-            candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
-            df or ballots. Or, the candidates defined at the profile level.
-
-        Raises:
-            TypeError: Candidate must be a string or integer.
-            TypeError: Candidate must be a non-negative integer.
-            TypeError: Candidate cannot be a boolean. Could conflict with other integer
-                candidates.
-            ValueError: Candidate cannot be '~'. Its a reserved character.
-            ValueError: Candidate cannot contain ':'. Its a reserved character.
-            UserWarning: Candidate collision has occurred between a str and int candidate where
-                when casted to to other candidate's type, they are equivalent. Those candidates
-                will be treated as separate candidates.
-
-        """
-        if "~" in candidates:
-            raise ValueError(
-                f"Candidate '~' found in profile's candidates {candidates}."
-                " '~' is a reserved character and cannot be used for"
-                " candidate names."
-            )
-        if any(isinstance(cand, str) and ":" in cand for cand in candidates):
-            raise ValueError(
-                f"':' found in profile's candidates {self.candidates}. ':' is a reserved character"
-                " and cannot be used in candidate names."
-            )
-        if any(not isinstance(cand, (str, int)) for cand in self.candidates):
-            raise TypeError(
-                f"Non-string/integer candidates found in profile's candidates {candidates}."
-                " Candidates can only be strings or integers."
-            )
-        if any(cand < 0 for cand in candidates if isinstance(cand, int)):
-            raise ValueError(
-                f"Negative integer candidate(s) found in profile's candidates {candidates}."
-                " Must be non-negative."
-            )
-        if any(isinstance(cand, bool) for cand in candidates):
-            raise TypeError(
-                f"Boolean candidate(s) found in profile's candidates {candidates}. Could"
-                " collide with other integer candidates. Change to 0 or 1."
-            )
-
-        str_cands = {cand for cand in self.candidates if isinstance(cand, str)}
-        int_cands = {cand for cand in self.candidates if isinstance(cand, int)}
-        collisions = {
-            str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
-        }
-        if collisions:
-            warnings.warn(
-                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within a"
-                f" profile with candidates {self.candidates}. These will be treated as separate"
-                " candidates.",
-                UserWarning,
-            )
-
     def _validate_and_set_candidates(self) -> None:
         """
         Ensure that the candidate names are not equal to the ranking column names, that they are
@@ -288,8 +228,8 @@ class PreferenceProfile:
                     )
                 )
 
-        self._validate_candidate_names(self.candidates)
-        self._validate_candidate_names(self.candidates_cast)
+        validate_candidate_names(self.candidates, "profile.candidates")
+        validate_candidate_names(self.candidates_cast, "profile.candidates_cast")
 
         if not len(set(self.candidates)) == len(self.candidates):
             raise ProfileError("All candidates must be unique.")
@@ -1160,7 +1100,6 @@ class ScoreProfile(PreferenceProfile):
 
         self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
         self.candidate_id_map = candidate_id_map
-
         super().__init__(
             candidates=self.candidates,
             candidates_cast=self.candidates_cast,
@@ -1438,12 +1377,11 @@ class ScoreProfile(PreferenceProfile):
         mask = df["Weight"] > 0
 
         candidates_cast: set[Candidate] = set()
-
-        positive = df.loc[mask, list(self.candidates)].gt(0).any()
+        cand_cols = df.columns.difference(["Voter Set", "Weight"])
+        positive = df.loc[mask, list(cand_cols)].gt(0).any()
         # .any() applies along the columns, so we get a boolean series where the
         # value is True the candidate has any positive score the column
         candidates_cast |= set(positive[positive].index)
-
         return tuple(candidates_cast)
 
     def _init_from_score_df(

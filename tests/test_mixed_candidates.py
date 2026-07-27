@@ -36,12 +36,8 @@ MIXED_CANDS = ["A", "B", "1", 1, 2, 3]
 N_SEATS = 1
 
 pytestmark = [
-    pytest.mark.filterwarnings(
-        "ignore:.*appear as both str and int.*within a ballot.*:UserWarning"
-    ),
-    pytest.mark.filterwarnings(
-        "ignore:.*appear as both str and int.*within a profile.*:UserWarning"
-    ),
+    pytest.mark.filterwarnings("ignore:.*appear as both str and int.*within ballot*:UserWarning"),
+    pytest.mark.filterwarnings("ignore:.*appear as both str and int.*within profile*:UserWarning"),
 ]
 
 

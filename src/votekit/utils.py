@@ -457,7 +457,7 @@ def borda_scores(
 
 
 def tiebreak_set(
-    r_set: frozenset[Candidate],
+    set_to_tiebreak: frozenset[Candidate],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
@@ -470,7 +470,7 @@ def tiebreak_set(
     profile. Rule 4: lex/lexicographic/alph/alphabetical; break the tie alphabetically.
 
     Args:
-        r_set (frozenset[Candidate]): Set of candidates on which to break tie.
+        set_to_tiebreak (frozenset[Candidate]): Set of candidates on which to break tie.
             Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
@@ -493,17 +493,19 @@ def tiebreak_set(
         Candidates can be strings, integers, or mix of both.
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in r_set])
+        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in set_to_tiebreak])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(frozenset({c}) for c in random.sample(list(r_set), k=len(r_set)))
+        new_ranking = tuple(
+            frozenset({c}) for c in random.sample(list(set_to_tiebreak), k=len(set_to_tiebreak))
+        )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
             tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)
         else:
             tiebreak_scores = first_place_votes(profile, tie_convention=scoring_tie_convention)
-        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in r_set}
+        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in set_to_tiebreak}
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
     elif profile is None:
@@ -1067,3 +1069,110 @@ def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
                 " candidates, and will be indistinguishable when plotted on an axis.",
                 UserWarning,
             )
+
+
+def find_candidate_name_errors(candidates: Sequence[Candidate], source: str) -> list[Exception]:
+    """
+    Ensure the candidates are strings or non-negative integers without reserved characters.
+    Will collect all candidate errors into a list.
+
+    Args:
+        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
+        df or ballots. Or, the candidates defined at the profile level.
+        source (str]): source of candidates to improve error description.
+    Returns:
+        list[Exception]: list of candidate errors.
+    Raises:
+        TypeError: Candidate must be a string or integer.
+        TypeError: Candidate must be a non-negative integer.
+        TypeError: Candidate cannot be a boolean. Could conflict with other integer
+            candidates.
+        ValueError: Candidate cannot be '~'. Its a reserved character.
+        ValueError: Candidate cannot contain ':'. Its a reserved character.
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+            when casted to to other candidate's type, they are equivalent. Those candidates
+            will be treated as separate candidates.
+
+    """
+    errors: list[Exception] = []
+    if "~" in candidates:
+        errors.append(
+            ValueError(
+                f"Candidate '~' found in {source} {candidates}."
+                " '~' is a reserved character and cannot be used for"
+                " candidate names."
+            )
+        )
+    if any(isinstance(cand, str) and ":" in cand for cand in candidates):
+        errors.append(
+            ValueError(
+                f"':' found in {source} {candidates}. ':' is a reserved character"
+                " and cannot be used in candidate names."
+            )
+        )
+    if any(not isinstance(cand, (str, int)) for cand in candidates):
+        errors.append(
+            TypeError(
+                f"Non-string/integer candidate(s) found in {source} {candidates}."
+                " Candidates can only be strings or integers."
+            )
+        )
+    if any(cand < 0 for cand in candidates if isinstance(cand, int)):
+        errors.append(
+            ValueError(
+                f"Negative integer candidate(s) found in {source} {candidates}. Must be"
+                " non-negative."
+            )
+        )
+    if any(isinstance(cand, bool) for cand in candidates):
+        errors.append(
+            TypeError(
+                f"Boolean candidate(s) found in {source} {candidates}. Could"
+                " collide with other integer candidates. Change to 0 or 1."
+            )
+        )
+
+    str_cands = {cand for cand in candidates if isinstance(cand, str)}
+    int_cands = {cand for cand in candidates if isinstance(cand, int)}
+    collisions = {
+        str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
+    }
+    if collisions:
+        errors.append(
+            UserWarning(
+                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within"
+                f" {source} {candidates}. These will be treated as separate candidates.",
+            )
+        )
+    return errors
+
+
+def validate_candidate_names(candidates: Sequence[Candidate], source: str):
+    """
+    Ensure the candidates are strings or non-negative integers without reserved characters.
+
+    Args:
+        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
+        df or ballots. Or, the candidates defined at the profile level.
+        source (str]): source of candidates to improve error description.
+
+    Raises:
+        TypeError: Candidate must be a string or integer.
+        TypeError: Candidate must be a non-negative integer.
+        TypeError: Candidate cannot be a boolean. Could conflict with other integer
+            candidates.
+        ValueError: Candidate cannot be '~'. Its a reserved character.
+        ValueError: Candidate cannot contain ':'. Its a reserved character.
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+            when casted to to other candidate's type, they are equivalent. Those candidates
+            will be treated as separate candidates.
+
+    """
+    errors = find_candidate_name_errors(candidates, source)
+    hard_errors = [error for error in errors if not isinstance(error, Warning)]
+
+    if hard_errors:
+        raise errors[0]
+    for warn in errors:
+        if isinstance(warn, Warning):
+            warnings.warn(str(warn), type(warn))

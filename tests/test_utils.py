@@ -12,6 +12,7 @@ from votekit.utils import (
     borda_scores,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
+    find_candidate_name_errors,
     first_place_votes,
     index_to_lexicographic_ballot,
     mentions,
@@ -22,6 +23,7 @@ from votekit.utils import (
     sort_candidates_pseudo_lexicographically,
     tiebreak_set,
     tiebroken_ranking,
+    validate_candidate_names,
     validate_score_vector,
 )
 
@@ -708,3 +710,68 @@ def test_sort_non_valid_type_cand_raises_error():
 def test_sort_nan_cand_at_end_of_list():
     cands = ["1", 1, "nan", "NaN", "nan "]
     assert sort_candidates_pseudo_lexicographically(cands) == [1, "1", "NaN", "nan", "nan "]
+
+
+def test_find_candidate_name_errors_valid_candidates_returns_empty():
+    assert find_candidate_name_errors(["A", "B", 1, 2], "test.candidates") == []
+
+
+def test_find_candidate_name_errors_tilda_candidate():
+    errors = find_candidate_name_errors(["~", "A"], "test.candidates")
+    assert len(errors) == 1
+    assert isinstance(errors[0], ValueError)
+    assert "Candidate '~' found in test.candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_colon_in_candidate():
+    errors = find_candidate_name_errors(["A:B", "C"], "test.candidates")
+    assert len(errors) == 1
+    assert isinstance(errors[0], ValueError)
+    assert "':' found in test.candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_non_str_int_candidate():
+    errors = find_candidate_name_errors([1.0, "A"], "test.candidates")  # type: ignore[arg-type]
+    assert len(errors) == 1
+    assert isinstance(errors[0], TypeError)
+    assert "Non-string/integer candidate(s) found in test.candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_negative_int_candidate():
+    errors = find_candidate_name_errors([-1, "A"], "test.candidates")
+    assert len(errors) == 1
+    assert isinstance(errors[0], ValueError)
+    assert "Negative integer candidate(s) found in test.candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_boolean_candidate():
+    errors = find_candidate_name_errors([True, "A"], "test.candidates")
+    assert len(errors) == 1
+    assert isinstance(errors[0], TypeError)
+    assert "Boolean candidate(s) found in test.candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_str_int_collision_warning():
+    errors = find_candidate_name_errors([1, "1"], "test.candidates")
+    assert len(errors) == 1
+    assert isinstance(errors[0], UserWarning)
+    assert "will be treated as separate candidates" in errors[0].args[0]
+
+
+def test_find_candidate_name_errors_collects_multiple_errors():
+    errors = find_candidate_name_errors(["~", -1], "test.candidates")
+    assert len(errors) == 2
+    assert isinstance(errors[0], ValueError)
+    assert "Candidate '~'" in errors[0].args[0]
+    assert isinstance(errors[1], ValueError)
+    assert "Negative integer candidate(s)" in errors[1].args[0]
+
+
+def test_validate_candidate_names_raises_first_hard_error():
+    with pytest.raises(ValueError, match="Candidate '~'"):
+        validate_candidate_names(["~", -1], "test.candidates")
+
+
+def test_validate_candidate_names_warns_on_collision_only():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        validate_candidate_names([1, "1"], "test.candidates")

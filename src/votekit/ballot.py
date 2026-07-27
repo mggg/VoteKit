@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import warnings
 from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
+from votekit.utils import validate_candidate_names
 
 
 class Ballot:
@@ -231,50 +231,13 @@ class RankBallot(Ballot):
             if isinstance(cand_set, (str, int)):
                 candidates.append(cand_set)
             elif isinstance(cand_set, Iterable):
-                if any(not isinstance(cand, (str, int)) for cand in cand_set):
-                    raise TypeError(
-                        f"Candidates can only be strings or integers. {cand_set}"
-                        " contains invalid candidates."
-                    )
                 candidates.extend([cand for cand in cand_set])
             else:
                 raise TypeError(
                     "Ranking is a sequence of Iterables or bare str/int candidates."
                     f" {cand_set} is invalid."
                 )
-        if any(isinstance(cand, bool) for cand in candidates):
-            raise TypeError(
-                f"Boolean candidate(s) found in ballot ranking {ranking}. Could collide"
-                " with other integer candidates. Change to 0 or 1."
-            )
-        if any(cand == "~" for cand in candidates):
-            raise ValueError(
-                f"Candidate '~' found in ballot ranking {ranking}. '~' is a reserved character and"
-                " cannot be used for candidate names."
-            )
-        if any(isinstance(cand, str) and ":" in cand for cand in candidates):
-            raise ValueError(
-                f"':' found in ballot ranking {ranking}. ':' is a reserved"
-                " character and cannot be used in candidate names."
-            )
-        str_cands = [cand for cand in candidates if isinstance(cand, str)]
-        int_cands = [cand for cand in candidates if isinstance(cand, int)]
-        negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
-        if negative_int_cands:
-            raise ValueError(
-                "Integer candidates must be non-negative values."
-                f" {negative_int_cands} are negative integer candidates."
-            )
-
-        collisions = {
-            str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
-        }
-        if collisions:
-            warnings.warn(
-                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1 within a"
-                " ballot. These will be treated as separate candidates.",
-                UserWarning,
-            )
+        validate_candidate_names(candidates, "ballot.ranking")
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
@@ -366,54 +329,8 @@ class ScoreBallot(Ballot):
                 )
             if any(not isinstance(s, Real) for s in scores.values()):
                 raise TypeError("Score values must be numeric.")
-            if "~" in scores:
-                raise ValueError(
-                    f"Candidate '~' found in ballot scores {list(scores.keys())}."
-                    " '~' is a reserved character and cannot be used for"
-                    " candidate names."
-                )
-            if any(isinstance(cand, str) and ":" in cand for cand in scores.keys()):
-                raise ValueError(
-                    f"':' found in ballot scores {list(scores.keys())}. ':' is a reserved character"
-                    " and cannot be used in candidate names."
-                )
 
-            str_cands = []
-            int_cands = []
-            for cand in scores.keys():
-                if isinstance(cand, str):
-                    str_cands.append(cand)
-                elif isinstance(cand, bool):
-                    raise TypeError(
-                        f"{cand} is a boolean candidate. Could collide with other"
-                        " integer candidates. Change to 0 or 1."
-                    )
-                elif isinstance(cand, int):
-                    int_cands.append(cand)
-                else:
-                    raise TypeError(
-                        f"Candidates can only be strings or integers. {cand} is an"
-                        " invalid candidate."
-                    )
-
-            negative_int_cands = [int_cand for int_cand in int_cands if int_cand < 0]
-            if negative_int_cands:
-                raise ValueError(
-                    "Integer candidates must be non-negative values."
-                    f" {negative_int_cands} are negative integer candidates."
-                )
-
-            collisions = {
-                str_cand
-                for str_cand in str_cands
-                if str_cand.isdigit() and int(str_cand) in int_cands
-            }
-            if collisions:
-                warnings.warn(
-                    f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within a"
-                    " ballot. These will be treated as separate candidates.",
-                    UserWarning,
-                )
+            validate_candidate_names(list(scores.keys()), "ballot.scores")
 
     def __eq__(self, other):
         if not isinstance(other, ScoreBallot):
