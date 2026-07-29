@@ -26,7 +26,7 @@ def search_profile_for_rank_pattern(
     Must provide at least a ``ranking_query`` or a ``max_cand_pair_dist``. Can give one or both.
     The ``ranking_query`` is applied first, and the ``max_cand_pair_dist`` query searches within
     the ballots that satisfy the ``ranking_query``. When multiple candidate pairs are given in
-    ``max_cand_pair_dist``, a ballot satisifies the query if it matches at least one pair.
+    ``max_cand_pair_dist``, a ballot satisfies the query if it matches at least one pair.
     Each element of the ``ranking_query`` specifies one ordered slot in the pattern:
         - Candidate (str or int): a single candidate that must appear before the candidate(s)
         in the next slot.
