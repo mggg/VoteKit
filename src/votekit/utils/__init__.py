@@ -22,7 +22,7 @@ from votekit.utils.common_utils import (
     tiebroken_ranking,
     validate_score_vector,
 )
-from votekit.utils.search import search_profile_for_rank_pattern
+from votekit.utils.search_utils import search_profile_for_rank_pattern
 
 __all__ = [
     "ballots_by_first_cand",
