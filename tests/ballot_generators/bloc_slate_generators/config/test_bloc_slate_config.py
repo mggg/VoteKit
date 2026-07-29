@@ -528,7 +528,7 @@ def test_error_when_cohesion_df_empty(valid_config):
 # --- Slate candidates-specific errors --------------------------------------
 
 
-def test_error_for_tilda_candidate_in_slate_to_candidates(valid_config):
+def test_error_for_tilde_candidate_in_slate_to_candidates(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     with pytest.raises(
         ValueError, match="Candidate '~' found in BlocSlateConfig.slate_to_candidates"

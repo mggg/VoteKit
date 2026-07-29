@@ -124,7 +124,7 @@ def test_str_int_mix_candidates_in_profile_gives_warning():
     assert set(profile_int_cands.candidates_cast) == set(["2", 2, 3])
 
 
-def test_tilda_candidates_in_profile_raises_error():
+def test_tilde_candidates_in_profile_raises_error():
     with pytest.raises(ValueError, match="Candidate '~' found in ScoreProfile.candidates"):
         ScoreProfile(
             ballots=[
@@ -178,7 +178,7 @@ def test_bool_candidate_in_profile_raises_error():
         )
 
 
-def test_tilda_candidate_cast_in_profile_raises_error():
+def test_tilde_candidate_cast_in_profile_raises_error():
     data = {
         1: [
             1,

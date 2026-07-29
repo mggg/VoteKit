@@ -128,7 +128,7 @@ def test_equivalent_str_int_cands_in_profile_gives_warning():
     assert set(all_cands) == {"A", "B", "1", 1, 2}
 
 
-def test_tilda_candidates_in_profile_raises_error():
+def test_tilde_candidates_in_profile_raises_error():
     with pytest.raises(ValueError, match="Candidate '~' found in RankProfile.candidates"):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],

@@ -122,23 +122,23 @@ def test_internal_df_with_cand_ids_as_ranking_values():
     id_C = candidate_id_map[frozenset({"C"})]
     id_D = candidate_id_map[frozenset({"D"})]
     id_AB_tie = candidate_id_map[frozenset({"A", "B"})]
-    id_tilda = candidate_id_map[frozenset({"~"})]
+    id_tilde = candidate_id_map[frozenset({"~"})]
     id_empty = candidate_id_map[frozenset()]
     cand_id_data = {
         "Ranking_1": [
             id_A,
             id_AB_tie,
-            id_tilda,
-            id_tilda,
+            id_tilde,
+            id_tilde,
         ],
-        "Ranking_2": [id_B, id_empty, id_tilda, id_tilda],
+        "Ranking_2": [id_B, id_empty, id_tilde, id_tilde],
         "Ranking_3": [
             id_C,
             id_D,
-            id_tilda,
-            id_tilda,
+            id_tilde,
+            id_tilde,
         ],
-        "Ranking_4": [id_tilda, id_tilda, id_tilda, id_tilda],
+        "Ranking_4": [id_tilde, id_tilde, id_tilde, id_tilde],
         "Voter Set": [set(), {"Chris"}, set(), set()],
         "Weight": [2.0, 1.0, 1.0, 0.0],
     }

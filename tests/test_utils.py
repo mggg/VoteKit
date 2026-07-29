@@ -711,7 +711,7 @@ def test_sort_nan_cand_at_end_of_list():
     assert sort_candidates_pseudo_lexicographically(cands) == [1, "1", "NaN", "nan", "nan "]
 
 
-def test_validate_candidate_names_errors_on_tilda_candidate():
+def test_validate_candidate_names_errors_on_tilde_candidate():
     invalid_candidates_list = ["~", "A"]
     with pytest.raises(ValueError, match="Candidate '~' found in"):
         _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")

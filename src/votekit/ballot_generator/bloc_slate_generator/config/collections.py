@@ -1,5 +1,7 @@
 """Mutable collection wrappers used by BlocSlateConfig."""
 
+from __future__ import annotations
+
 import operator
 import weakref
 from collections.abc import (
@@ -217,7 +219,7 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
 
     def __init__(
         self,
-        parent: "BlocSlateConfig",
+        parent: BlocSlateConfig,
         init: Optional[Mapping[str, Sequence[Candidate]]] = None,
     ) -> None:
         try:
@@ -242,7 +244,7 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
                 ) from e
 
     @property
-    def _parent(self) -> "BlocSlateConfig":
+    def _parent(self) -> BlocSlateConfig:
         return self.__parent
 
     def to_dict(self) -> dict[str, list[Candidate]]:
@@ -410,7 +412,7 @@ class BlocProportions(MutableMapping[str, float]):
 
     def __init__(
         self,
-        parent: "BlocSlateConfig",
+        parent: BlocSlateConfig,
         init: Optional[BlocProportionMapping] = None,
     ) -> None:
         self.__parent = weakref.proxy(parent)
