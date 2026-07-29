@@ -129,7 +129,7 @@ def test_equivalent_str_int_cands_in_profile_gives_warning():
 
 
 def test_tilda_candidates_in_profile_raises_error():
-    with pytest.raises(ValueError, match="Candidate '~' found in profile.candidates"):
+    with pytest.raises(ValueError, match="Candidate '~' found in RankProfile.candidates"):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
             candidates=["A", "~"],
@@ -137,7 +137,7 @@ def test_tilda_candidates_in_profile_raises_error():
 
 
 def test_candidate_name_with_colon_in_profile_raises_error():
-    with pytest.raises(ValueError, match="':' found in profile.candidates"):
+    with pytest.raises(ValueError, match="':' found in RankProfile.candidates"):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
             candidates=["A", "A:B"],
@@ -146,7 +146,7 @@ def test_candidate_name_with_colon_in_profile_raises_error():
 
 def test_non_int_str_candidate_in_profile_raises_error():
     with pytest.raises(
-        TypeError, match=r"Non-string/integer candidate\(s\) found in profile.candidates"
+        TypeError, match=r"Non-string/integer candidate\(s\) found in RankProfile.candidates"
     ):
         RankProfile(  # type: ignore[arg-type]
             ballots=[RankBallot(ranking=["A"])],
@@ -156,7 +156,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
 
 def test_negative_int_candidate_in_profile_raises_error():
     with pytest.raises(
-        ValueError, match=r"Negative integer candidate\(s\) found in profile.candidates"
+        ValueError, match=r"Negative integer candidate\(s\) found in RankProfile.candidates"
     ):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
@@ -165,7 +165,7 @@ def test_negative_int_candidate_in_profile_raises_error():
 
 
 def test_bool_candidate_in_profile_raises_error():
-    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in profile.candidates"):
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in RankProfile.candidates"):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
             candidates=["A", False],
@@ -185,7 +185,7 @@ def test_candidate_cast_with_colon_in_profile_raises_error():
     }
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
-    with pytest.raises(ValueError, match="':' found in profile.candidates_cast"):
+    with pytest.raises(ValueError, match="':' found in RankProfile.candidates_cast"):
         RankProfile(
             df=invalid_cand_df,
             candidates=[
@@ -209,7 +209,7 @@ def test_non_int_str_candidate_cast_in_profile_raises_error():
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
     with pytest.raises(
-        TypeError, match=r"Non-string/integer candidate\(s\) found in profile.candidates_cast"
+        TypeError, match=r"Non-string/integer candidate\(s\) found in RankProfile.candidates_cast"
     ):
         RankProfile(
             df=invalid_cand_df,
@@ -234,7 +234,7 @@ def test_negative_int_candidate_cast_in_profile_raises_error():
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
     with pytest.raises(
-        ValueError, match=r"Negative integer candidate\(s\) found in profile.candidates_cast"
+        ValueError, match=r"Negative integer candidate\(s\) found in RankProfile.candidates_cast"
     ):
         RankProfile(
             df=invalid_cand_df,
@@ -258,7 +258,9 @@ def test_bool_candidate_cast_in_profile_raises_error():
     }
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
-    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in profile.candidates_cast"):
+    with pytest.raises(
+        TypeError, match=r"Boolean candidate\(s\) found in RankProfile.candidates_cast"
+    ):
         RankProfile(
             df=invalid_cand_df,
             candidates=[
