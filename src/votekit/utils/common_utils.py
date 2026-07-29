@@ -1042,8 +1042,7 @@ sort_candidates_pseudo_lex = sort_candidates_pseudo_lexicographically
 
 def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
     """
-    With candidates allowed to be integer or strings, there can be collisions where there is an
-    equivalent string version of an integer candidate within the same list of candidates.
+    Check for equivalent string and integer candidates where the candidates are the same if strings.
 
     A warning will be thrown to alert that collided candidates will be treated as separate
     candidates and will be indistinguishable as plot labels. Only thrown when the string cast of an
@@ -1076,8 +1075,8 @@ def _validate_candidate_names(candidates: Iterable[Candidate], source: object, a
     Ensure the candidates are strings or non-negative integers without reserved characters.
 
     Args:
-        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
-        df or ballots. Or, the candidates defined at the profile level.
+        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in df or
+            ballots. Or, the candidates defined at the profile level.
         source (object): object with a candidates attribute to validate.
         attribute (str): Name of the attribute.
             Both source and attribute are used to improve error description.
@@ -1094,6 +1093,8 @@ def _validate_candidate_names(candidates: Iterable[Candidate], source: object, a
             will be treated as separate candidates.
 
     """
+    if isinstance(candidates, str):
+        raise TypeError("Candidates cannot be a string. Wrap string in list.")
     candidates = list(candidates)
     source_type = source.__class__.__name__
     if "~" in candidates:
