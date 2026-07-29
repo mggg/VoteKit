@@ -214,13 +214,18 @@ def test_typecheck_preference_df_accepts_numeric_and_str_labels():
     typecheck_preference(df)  # no raise
 
 
-def test_typecheck_preference_df_rejects_non_str_labels_or_non_numeric():
+def test_typecheck_preference_df_accepts_int_candidate_str_bloc_labels():
+    good = pd.DataFrame({1: {"A": 0.5, "B": 0.5}, 2: {"B": 0.5, "A": 0.5}})
+    typecheck_preference(good)  # no raise
+
+
+def test_typecheck_preference_df_rejects_non_str_int_labels_or_non_numeric():
     # non-str index
     df1 = pd.DataFrame({"A": {1: 0.5}, "B": {2: 0.5}})
     with pytest.raises(TypeError):
         typecheck_preference(df1)
-    # non-str columns
-    df2 = pd.DataFrame({1: {"bloc1": 0.5}})
+    # non-str non-int columns
+    df2 = pd.DataFrame({1.0: {"bloc1": 0.5}})
     with pytest.raises(TypeError):
         typecheck_preference(df2)
     # non-numeric dtype
@@ -235,8 +240,8 @@ def test_typecheck_preference_df_rejects_non_str_labels_or_non_numeric():
 
 def test_typecheck_preference_mapping_happy_and_errors():
     good = {
-        "bloc1": {"slate1": {"A": 1.0}, "slate2": {"B": 1.0}},
-        "bloc2": {"slate1": {"A": 0.2, "B": 0.8}, "slate2": {"B": 1.0}},
+        "bloc1": {"slate1": {"A": 1.0}, "slate2": {1: 1.0}},
+        "bloc2": {"slate1": {"A": 0.2, 1: 0.8}, "slate2": {1: 1.0}},
     }
     typecheck_preference(good)  # no raise
 
@@ -252,8 +257,8 @@ def test_typecheck_preference_mapping_happy_and_errors():
         typecheck_preference({"bloc": {1: {"A": 1.0}}})  # type: ignore[dict-item]  # slate not str
     with pytest.raises(TypeError):
         typecheck_preference(
-            {"bloc": {"slate": {1: 1.0}}}  # type: ignore[dict-item]
-        )  # candidate name not str
+            {"bloc": {"slate": {1.0: 1.0}}}  # type: ignore[dict-item]
+        )  # candidate name not str nor int
     with pytest.raises(TypeError):
         typecheck_preference({"bloc": {"slate": {"A": float("inf")}}})  # non-finite
 
@@ -270,10 +275,10 @@ def test_typecheck_preference_accepts_real_preferenceinterval():
     typecheck_preference(prefs)  # should not raise
 
 
-def test_typecheck_preference_PI_non_str_candidate_name_raises():
-    pi = PreferenceInterval({1: 0.5, 2: 0.5})  # keys are ints, not str
+def test_typecheck_preference_PI_non_str_int_candidate_name_raises():
+    pi = PreferenceInterval({1.0: 0.5, 2.0: 0.5})  # keys are ints, not str
     prefs = {"bloc1": {"slate1": pi}}
-    with pytest.raises(TypeError, match=r"candidate names must be a 'str'"):
+    with pytest.raises(TypeError, match=r"candidate names must be a 'str' or 'int'"):
         typecheck_preference(prefs)
 
 
@@ -287,7 +292,7 @@ def test_typecheck_preference_PI_non_finite_score_raises_via_inf_division():
 def test_typecheck_preference_else_branch_unexpected_item_type():
     prefs = {"bloc1": {"slate1": ["A", 1.0]}}  # list is invalid here
     with pytest.raises(
-        TypeError, match=r"expected Mapping\[str, float\|int\] or PreferenceInterval"
+        TypeError, match=r"expected Mapping\[Candidate, float\|int\] or PreferenceInterval"
     ):
         typecheck_preference(prefs)  # type: ignore[dict-item]
 

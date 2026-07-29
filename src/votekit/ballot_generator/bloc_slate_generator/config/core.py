@@ -1,5 +1,7 @@
 """BlocSlateConfig core class implementation."""
 
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from numbers import Real
 from pprint import pformat
@@ -32,6 +34,8 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     convert_preference_map_to_preference_df,
 )
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
+from votekit.types import Candidate
+from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
 
 class BlocSlateConfig:
@@ -42,19 +46,20 @@ class BlocSlateConfig:
 
     Args:
         n_voters (int): The total number of voters to simulate. Must be > 0.
-        slate_to_candidates (Optional[Mapping[str, Sequence[str]]]): A mapping of slate names
+        slate_to_candidates (Optional[Mapping[str, Sequence[Candidate]]]): A mapping of slate names
             to sequences of candidate names. Each slate must have a non-empty list of candidates,
             and no candidate may appear in more than one slate. If None, defaults to an empty
-            mapping.
+            mapping. Candidates can be strings, integers, or mix of both.
         bloc_proportions (Optional[BlocProportionMapping]): A mapping of voter bloc names to
             their proportions in the electorate. The proportions must be non-negative and sum to 1.
             If None, defaults to an empty mapping.
         preference_mapping (Optional[PreferenceMapping]): A nested mapping of voter bloc names
-            to slate names to either PreferenceInterval or Mapping[str, float|int] representing
-            the preference scores for each candidate in the slate. Each bloc must have a mapping
-            for every slate defined in slate_to_candidates, and no candidate may appear in more
-            than one slate. The scores for each bloc and slate must be non-negative and sum to 1.
-            If None, defaults to an empty mapping.
+            to slate names to either PreferenceInterval or Mapping[Candidate, float|int]
+            representing the preference scores for each candidate in the slate. Each bloc must have
+            a mapping for every slate defined in slate_to_candidates, and no candidate may appear
+            in more than one slate. The scores for each bloc and slate must be non-negative and sum
+            to 1. If None, defaults to an empty mapping.
+            Candidates can be strings, integers, or mix of both.
         cohesion_mapping (Optional[CohesionMapping]): A mapping of voter bloc names to
             mappings of slate names to their cohesion parameters. The cohesion parameters must be
             non-negative and sum to 1 for each bloc. If None, defaults to an empty mapping.
@@ -66,7 +71,8 @@ class BlocSlateConfig:
     Attributes:
         n_voters (int): The total number of voters to simulate.
         slate_to_candidates (SlateCandMap): A mapping of slate names to sequences of
-            names. Behaves like a MutableMapping[str, Sequence[str]] (think dictionary).
+            names. Behaves like a MutableMapping[str, Sequence[Candidate]] (think dictionary).
+            Candidates can be strings, integers, or mix of both.
         bloc_proportions (BlocProportions): A mapping of voter bloc names to their proportions
             in the electorate. Behaves like a MutableMapping[str, float] (think dictionary).
         preference_df (pd.DataFrame): A DataFrame with blocs as the index and candidates as columns,
@@ -83,7 +89,7 @@ class BlocSlateConfig:
 
     Raises:
         TypeError: On invalid types for any of the arguments or assignments
-            (e.g., non-string keys, non-mapping shapes).
+            (e.g., non-string or non-Candidate keys, non-mapping shapes).
         ValueError: On invalid values (e.g., empty candidate lists, duplicate
             keys, non-finite numbers, negative proportions/scores).
     """
@@ -115,13 +121,13 @@ class BlocSlateConfig:
 
     # Something to help make sure that the preference_df is updated correctly when the candidates
     # or slates change
-    _current_preference_df_slate_cand_mapping: Optional[dict[str, list[str]]]
+    _current_preference_df_slate_cand_mapping: Optional[dict[str, list[Candidate]]]
 
     def __init__(
         self,
         *,
         n_voters: int,
-        slate_to_candidates: Optional[Mapping[str, Sequence[str]]] = None,
+        slate_to_candidates: Optional[Mapping[str, Sequence[Candidate]]] = None,
         bloc_proportions: Optional[BlocProportionMapping] = None,
         preference_mapping: Optional[PreferenceMapping] = None,
         cohesion_mapping: Optional[CohesionMapping] = None,
@@ -152,6 +158,9 @@ class BlocSlateConfig:
             slate_map = SlateCandMap(self, dict())
         else:
             slate_map = SlateCandMap(self, slate_to_candidates)
+            _validate_candidate_names(
+                self._get_candidates_from_slate(slate_to_candidates), self, "slate_to_candidates"
+            )
         object.__setattr__(self, "slate_to_candidates", slate_map)
 
         if cohesion_mapping is None:
@@ -169,20 +178,27 @@ class BlocSlateConfig:
             self.__validate_pref_df_mapping_keys_ok_in_config(preference_mapping)
             preference_df = convert_preference_map_to_preference_df(preference_mapping)
             preference_df = preference_df.reindex(
-                columns=self.candidates, fill_value=UNSET_VALUE
+                columns=pd.Index(self.candidates, dtype=object), fill_value=UNSET_VALUE
             )  # ensure column order and preserve unset candidates
         object.__setattr__(self, "preference_df", preference_df)
 
         object.__setattr__(self, "_BlocSlateConfig__alphas", None)
 
+    def _get_candidates_from_slate(
+        self, slate_to_candidates: SlateCandMap | Mapping[str, Sequence[str | int]]
+    ) -> list[Candidate]:
+        return [c for clist in slate_to_candidates.values() for c in clist]
+
     @property
-    def candidates(self) -> list[str]:
+    def candidates(self) -> list[Candidate]:
         """
         Computed property: A flat list of all candidates in all slate.
 
         Derived from the values of slate_to_candidates.
+
+        Candidates can be strings, integers, or mix of both.
         """
-        return [c for clist in self.slate_to_candidates.values() for c in clist]
+        return self._get_candidates_from_slate(self.slate_to_candidates)
 
     @property
     def slates(self) -> list[str]:
@@ -225,10 +241,17 @@ class BlocSlateConfig:
             bool: True if the keys are compatible, False otherwise.
 
         Raises:
-            TypeError: If pref_mapping is not a Mapping[str, Mapping[str, PreferenceIntervalLike]]
-                or pd.DataFrame with string index and numeric dtypes. Note that
-                PreferenceIntervalLike is either a Mapping[str, float|int] or PreferenceInterval.
+            TypeError: If pref_mapping is not a
+                Mapping[str, Mapping[Candidate, PreferenceIntervalLike]] or pd.DataFrame with
+                Candidate index and numeric dtypes. Note that PreferenceIntervalLike is either a
+                Mapping[Candidate, float|int] or PreferenceInterval.
+                Candidates can be strings, integers, or mix of both.
             ValueError: If pref_mapping contains non-finite values.
+            TypeError: If the pref_mapping contains invalid candidate types.
+                Non-negative, non-boolean integer and string candidates are valid.
+            ValueError: If the pref_mapping contains reserved characters. "~" cannot be a candidate,
+                ":" cannot be in a candidate's name.
+
 
         Warns:
             ConfigurationWarning: If there are any issues with the configuration that would
@@ -237,16 +260,16 @@ class BlocSlateConfig:
         messages: list[str] = []
 
         blocs: set[str]
-        candidates: set[str]
+        candidates: set[Candidate]
 
         if isinstance(pref_mapping, pd.DataFrame):
             blocs = {str(x) for x in pref_mapping.index.tolist()}
-            candidates = {str(x) for x in pref_mapping.columns.tolist()}
+            candidates = {x for x in pref_mapping.columns.tolist()}
         else:
             blocs = set(pref_mapping.keys())
             candidates = set()
             for bloc, slate_dict in pref_mapping.items():
-                slate_cand_set: set[str] = set()
+                slate_cand_set: set[Candidate] = set()
                 slate_set: set[str] = set(slate_dict.keys())
                 if slate_set != set(self.slates):
                     messages.append(
@@ -258,20 +281,21 @@ class BlocSlateConfig:
                     if not isinstance(preference_like, (Mapping, PreferenceInterval)):
                         raise TypeError(
                             f"Preference mapping for bloc '{bloc}', slate '{slate}' "
-                            f"must be Mapping[str, float|int] or PreferenceInterval, "
+                            f"must be Mapping[Candidate, float|int] or PreferenceInterval, "
                             f"got '{type(preference_like).__name__}'"
                         )
-
                     if isinstance(preference_like, PreferenceInterval):
                         new_cands = set(preference_like.interval.keys())
                     else:
                         new_cands = set(preference_like.keys())
-
                     if new_cands.intersection(slate_cand_set) != set():
+                        overlap = sort_candidates_pseudo_lexicographically(
+                            list(new_cands.intersection(slate_cand_set))
+                        )
                         raise ValueError(
-                            f"Preference interval for bloc '{bloc}' and slate '{slate}' has "
-                            f"candidates {sorted(list(new_cands.intersection(slate_cand_set)))} "
-                            f"which appear in other slates in the same bloc."
+                            f"Preference interval for bloc '{bloc}' and slate '{slate}' has"
+                            f" candidates {overlap}"
+                            f" which appear in other slates in the same bloc."
                         )
 
                     slate_cand_set.update(new_cands)
@@ -288,6 +312,9 @@ class BlocSlateConfig:
                     f"Preference mapping expected exactly the blocs "
                     f"{sorted(self.blocs)}, got {sorted(list(blocs))}"
                 )
+
+        _validate_candidate_names(candidates, self, "preference_mapping")
+
         if set(candidates) != set(self.candidates):
             if self.candidates == []:
                 messages.append(
@@ -303,7 +330,8 @@ class BlocSlateConfig:
                 else:
                     messages.append(
                         f"Preference mapping expected exactly the candidates "
-                        f"'{sorted(self.candidates)}', got {sorted(list(candidates))}"
+                        f"'{sort_candidates_pseudo_lexicographically(self.candidates)}', got"
+                        f" {sort_candidates_pseudo_lexicographically(list(candidates))}"
                     )
 
         valid = len(messages) == 0
@@ -433,7 +461,7 @@ class BlocSlateConfig:
         self,
         *,
         bloc_name: str,
-        cand_list: list[str],
+        cand_list: list[Candidate],
         row_vals: pd.Series,
     ) -> Optional[Exception]:
         """
@@ -447,7 +475,8 @@ class BlocSlateConfig:
 
         Args:
             bloc_name (str): Bloc name for contextual error messages.
-            cand_list (list[str]): Candidate list for the slate being validated.
+            cand_list (list[Candidate]): Candidate list for the slate being validated.
+                Candidates can be strings, integers, or mix of both.
             row_vals (pd.Series): Preference row values for a single bloc and slate.
 
         Returns:
@@ -475,7 +504,7 @@ class BlocSlateConfig:
         self,
         *,
         bloc_name: str,
-        cand_list: list[str],
+        cand_list: list[Candidate],
         row_vals: pd.Series,
     ) -> Optional[Exception]:
         """
@@ -483,7 +512,8 @@ class BlocSlateConfig:
 
         Args:
             bloc_name (str): Bloc name for contextual error messages.
-            cand_list (list[str]): Candidate list for the slate being validated.
+            cand_list (list[Candidate]): Candidate list for the slate being validated.
+                Candidates can be strings, integers, or mix of both.
             row_vals (pd.Series): Preference row values for a single bloc and slate.
 
         Returns:
@@ -530,6 +560,23 @@ class BlocSlateConfig:
                     f"preference_df columns (candidates) must be exactly "
                     f"{list(self.candidates)}, as defined in the 'slate_to_candidates' "
                     f"parameter. Got {list(self.preference_df.columns)}"
+                )
+            )
+        elif set(self.preference_df.columns) == set(self.candidates) and any(
+            isinstance(col, (bool, float)) for col in self.preference_df.columns
+        ):
+            # NOTE: No validation of preference_df columns if edited directly.
+            # This means invalid candidate columns can be added.
+            # Profile cannot be generated till the invalid candidate is added to slate_to_candidates
+            # which will throw an error.
+            # This conditional catches when a df's invalid candidate is equal to a slate's integer
+            # candidate in value (e.g 1 == True == 1.0)
+            errors.append(
+                KeyError(
+                    f"preference_df columns (candidates) must be exactly"
+                    f" {list(self.candidates)}, as defined in the 'slate_to_candidates'"
+                    f" parameter. Got {list(self.preference_df.columns)} with invalid"
+                    " 'bool'/'float' candidate(s)."
                 )
             )
         else:
@@ -684,7 +731,9 @@ class BlocSlateConfig:
 
         return False
 
-    def __make_unset_df(self, *, index: Sequence[str], columns: Sequence[str]) -> pd.DataFrame:
+    def __make_unset_df(
+        self, *, index: Sequence[str], columns: Sequence[Candidate]
+    ) -> pd.DataFrame:
         """Build a float DataFrame filled with UNSET_VALUE for the requested shape."""
         return pd.DataFrame(
             UNSET_VALUE,
@@ -693,7 +742,7 @@ class BlocSlateConfig:
             dtype=float,
         )
 
-    def __sync_df_columns(self, df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
+    def __sync_df_columns(self, df: pd.DataFrame, columns: Sequence[Candidate]) -> pd.DataFrame:
         """Drop unknown columns, add missing columns as UNSET_VALUE, and reorder."""
         expected_columns = list(columns)
         expected_set = set(expected_columns)
@@ -809,8 +858,10 @@ class BlocSlateConfig:
 
     def __set_slate_to_candidates_attr(self, value: Any) -> None:
         slate_map = value if isinstance(value, SlateCandMap) else SlateCandMap(self, value)
+        _validate_candidate_names(
+            self._get_candidates_from_slate(slate_map), self, "slate_to_candidates"
+        )
         object.__setattr__(self, "slate_to_candidates", slate_map)
-
         if self.bloc_proportions != {}:
             self._update_preference_and_cohesion_slates()
 
@@ -1092,16 +1143,16 @@ class BlocSlateConfig:
             )
         self.cohesion_df = normalized_df.div(totals, axis=0)
 
-    def unset_candidate_preferences(self, candidates: Union[str, Sequence[str]]) -> None:
+    def unset_candidate_preferences(self, candidates: Candidate | Sequence[Candidate]) -> None:
         """
         Unset the preferences for the given candidates by setting their values to -1.0.
 
         Args:
-            candidates (Union[str, Sequence[str]]): Candidate name or list of candidate names
-                to unset.
+            candidates (Candidate | Sequence[Candidate]): Candidate name or list of candidate names
+                to unset. Candidates can be strings, integers, or mix of both.
         """
-        if isinstance(cast(object, candidates), str):  # pragma: no cover
-            candidate = str(candidates)
+        if isinstance(candidates, Candidate):  # pragma: no cover
+            candidate = candidates
             candidates = [candidate]
 
         cand_set = set(candidates)
@@ -1111,7 +1162,7 @@ class BlocSlateConfig:
 
         self.preference_df[list(cand_set)] = UNSET_VALUE
 
-    def add_slate(self, slate: str, slate_candidate_list: Sequence[str]) -> None:
+    def add_slate(self, slate: str, slate_candidate_list: Sequence[Candidate]) -> None:
         """
         Add a new slate with the given candidates to the configuration.
 
@@ -1120,7 +1171,8 @@ class BlocSlateConfig:
 
         Args:
             slate (str): Name of the new slate to add.
-            slate_candidate_list (Sequence[str]): List of candidate names for the new slate.
+            slate_candidate_list (Sequence[Candidate]): List of candidate names for the new slate.
+                Candidates can be strings, integers, or mix of both.
 
         Raises:
             ValueError: If the slate already exists
@@ -1128,13 +1180,13 @@ class BlocSlateConfig:
                 configuration.
             ValueError: If the slate_candidate_list is empty.
             TypeError: If slate is not a str or any candidate in the slate_candidate_list is
-                       not a str.
+                       not a str or int.
         """
         if slate in self.slates:
             raise ValueError(f"Slate '{slate}' already present in configuration.")
 
         if not isinstance(cast(object, slate_candidate_list), Sequence):
-            raise TypeError("slate_candidate_list must be a sequence of str.")
+            raise TypeError("slate_candidate_list must be a sequence of str, int, or mix of both.")
 
         if set(slate_candidate_list).intersection(set(self.candidates)) != set():
             raise ValueError("Some candidates in the slate are already present in configuration.")
@@ -1147,8 +1199,8 @@ class BlocSlateConfig:
 
         new_candidate_list = []
         for cand in slate_candidate_list:
-            if not isinstance(cast(object, cand), str):
-                raise TypeError("Slate candidates must be a 'str'")
+            if not isinstance(cast(object, cand), Candidate):
+                raise TypeError("Slate candidates must be a 'str' or 'int' ")
             new_candidate_list.append(cand)
 
         self.slate_to_candidates[slate] = new_candidate_list
@@ -1174,7 +1226,7 @@ class BlocSlateConfig:
         self.__update_preference_df_on_candidate_change()
         self.__update_cohesion_df_on_slate_change()
 
-    def remove_candidates(self, candidates: Union[str, Sequence[str]]) -> None:
+    def remove_candidates(self, candidates: Candidate | Sequence[Candidate]) -> None:
         """
         Remove candidates from the configuration.
 
@@ -1182,11 +1234,11 @@ class BlocSlateConfig:
         that contained the removed candidates if the slate becomes empty.
 
         Args:
-            candidates (Union[str, Sequence[str]]): Candidate name or list of candidate names
-                to remove.
+            candidates (Candidate | Sequence[Candidate]): Candidate name or list of candidate names
+                to remove. Candidates can be strings, integers, or mix of both.
         """
-        if isinstance(cast(object, candidates), str):
-            candidate = str(candidates)
+        if isinstance(candidates, Candidate):
+            candidate = candidates
             candidates = [candidate]
 
         cand_set = set(candidates)
@@ -1211,30 +1263,39 @@ class BlocSlateConfig:
         self.__update_preference_df_on_candidate_change()
         self.__update_cohesion_df_on_slate_change()
 
-    def rename_candidates(self, candidate_mapping: Mapping[str, str]) -> None:
+    def rename_candidates(
+        self,
+        candidate_mapping: Mapping[Candidate, Candidate]
+        | Mapping[str, Candidate]
+        | Mapping[int, Candidate],
+    ) -> None:
         """
         Rename candidates in the configuration in place.
 
         Args:
-            candidate_mapping (Mapping[str, str]): A mapping of old candidate names to new
-                candidate names.
+            candidate_mapping (Mapping[Candidate, Candidate] | Mapping[str, Candidate] |
+                Mapping[int, Candidate]): A mapping of old candidate names to new candidate names.
+                Candidates can be strings, integers, or mix of both.
 
         Raises:
             ValueError: If any old candidate name does not exist in the configuration.
-            TypeError: If any key or value in candidate_mapping is not a str.
+            TypeError: If any key or value in candidate_mapping is not a str or int.
         """
         if not isinstance(cast(object, candidate_mapping), Mapping):
-            raise TypeError("candidate_mapping must be a mapping of str to str.")
+            raise TypeError(
+                "candidate_mapping must be a mapping of Candidate to Candidate."
+                " Candidates can be strings, integers, or mix of both."
+            )
 
         for key, value in candidate_mapping.items():
-            if not isinstance(cast(object, key), str):
+            if not isinstance(cast(object, key), Candidate):
                 raise TypeError(
-                    f"Candidate mapping keys must be a 'str', got '{key!r}' of type "
+                    f"Candidate mapping keys must be a 'str' or 'int', got '{key!r}' of type "
                     f"'{type(key).__name__}'"
                 )
-            if not isinstance(cast(object, value), str):
+            if not isinstance(cast(object, value), Candidate):
                 raise TypeError(
-                    f"Candidate mapping values must be a 'str', got '{value!r}' of type "
+                    f"Candidate mapping values must be a 'str' or 'int', got '{value!r}' of type "
                     f"'{type(value).__name__}' for key '{key}'"
                 )
 
@@ -1245,17 +1306,18 @@ class BlocSlateConfig:
                     f"Candidate mapping key '{old_cand}' not present in configuration."
                 )
 
-        new_slate_to_candidates: dict[str, list[str]] = {}
-        full_new_candidate_list: list[str] = []
+        new_slate_to_candidates: dict[str, list[Candidate]] = {}
+        full_new_candidate_list: list[Candidate] = []
+        _candidate_mapping = cast(Mapping[Candidate, Candidate], candidate_mapping)
         for slate, clist in self.slate_to_candidates.items():
-            new_clist = [candidate_mapping[c] if c in candidate_mapping else c for c in clist]
+            new_clist = [_candidate_mapping[c] if c in _candidate_mapping else c for c in clist]
             new_slate_to_candidates[slate] = new_clist
             full_new_candidate_list.extend(new_clist)
 
         if len(full_new_candidate_list) != len(set(full_new_candidate_list)):
             raise ValueError("Candidate mapping results in duplicate candidate names.")
 
-        self.preference_df.rename(columns=candidate_mapping, inplace=True)
+        self.preference_df.rename(columns=_candidate_mapping, inplace=True)
         self.slate_to_candidates = SlateCandMap(self, new_slate_to_candidates)
 
     # ===================
@@ -1419,7 +1481,7 @@ class BlocSlateConfig:
         self.preference_df = preference_df
         self.__clear_alpha_bool = True
 
-    def copy(self) -> "BlocSlateConfig":
+    def copy(self) -> BlocSlateConfig | Any:
         """
         Create a deep copy of the current configuration.
 

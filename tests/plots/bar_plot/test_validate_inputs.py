@@ -233,3 +233,29 @@ def test_validate_thresholds():
             threshold_values=[4],
             threshold_kwds=[{"lw": 4}],
         )
+
+
+def test_validate_collided_profile_candidates_warns():
+    data = {
+        "Profile 1": {
+            "1": 5,
+            1: 6,
+        },
+        "Profile 2": {
+            "1": 4,
+            1: 3,
+        },
+    }
+
+    with pytest.warns(
+        UserWarning,
+        match="These will be treated as separate candidates, and will be indistinguishable",
+    ):
+        _validate_bar_plot_args(
+            data=data,
+            category_ordering=[1, "1"],
+            categories_legend=None,
+            bar_width=1 / 4,
+            threshold_values=None,
+            threshold_kwds=None,
+        )

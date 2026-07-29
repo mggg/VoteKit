@@ -12,7 +12,7 @@ The main API functions in this module are:
     clustered multi-dimensional spacial model where voters are clustered around candidates.
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,7 @@ from numpy.typing import NDArray
 
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate, CandidateList
 
 # =================================================
 # ================= API Functions =================
@@ -27,7 +28,7 @@ from votekit.pref_profile import RankProfile
 
 
 def onedim_spacial_profile_generator(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
 ) -> RankProfile:
     """
@@ -37,7 +38,8 @@ def onedim_spacial_profile_generator(
     Each ballot ranks candidates by absolute distance from the voter.
 
     Args:
-        candidates (Sequence[str]): Candidate names used in each generated ballot.
+        candidates (Sequence[Candidate]): Candidate names used in each generated ballot.
+            Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): The number of ballots to generate.
 
     Returns:
@@ -75,13 +77,13 @@ def onedim_spacial_profile_generator(
 
 def spacial_profile_and_positions_generator(
     number_of_ballots: int,
-    candidates: list[str],
+    candidates: Sequence[Candidate],
     voter_dist: Callable[..., np.ndarray] = np.random.uniform,
     voter_dist_kwargs: Optional[Dict[str, Any]] = None,
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
+) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a spatial rank profile and sampled positions.
 
@@ -100,7 +102,8 @@ def spacial_profile_and_positions_generator(
 
     Args:
         number_of_ballots (int): The number of ballots to generate.
-        candidates (list[str]): Candidate names used when building rankings.
+        candidates (list[Candidate]): Candidate names used when building rankings.
+            Candidates can be strings, integers, or mix of both.
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw each voter position. Defaults to ``np.random.uniform``.
         voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
@@ -119,15 +122,16 @@ def spacial_profile_and_positions_generator(
             ``euclidean_dist``.
 
     Returns:
-        Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+        Tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
             in the metric space.
+            Candidates can be strings, integers, or mix of both.
     """
     if voter_dist_kwargs is None:
         if voter_dist is np.random.uniform:
-            voter_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+            voter_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2}
         else:
             voter_dist_kwargs = {}
 
@@ -138,7 +142,7 @@ def spacial_profile_and_positions_generator(
 
     if candidate_dist_kwargs is None:
         if candidate_dist is np.random.uniform:
-            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2}
         else:
             candidate_dist_kwargs = {}
 
@@ -193,14 +197,14 @@ def spacial_profile_and_positions_generator(
 
 
 def clustered_spacial_profile_and_positions_generator(
-    number_of_ballots: dict[str, int],
-    candidates: list[str],
+    number_of_ballots: dict[Candidate, int] | dict[str, int] | dict[int, int],
+    candidates: CandidateList,
     voter_dist: Callable[..., np.ndarray] = np.random.normal,
     voter_dist_kwargs: Optional[Dict[str, Any]] = None,
     candidate_dist: Callable[..., np.ndarray] = np.random.uniform,
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
-) -> Tuple[RankProfile, dict[str, np.ndarray], np.ndarray]:
+) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a clustered spatial rank profile and sampled positions.
 
@@ -218,9 +222,11 @@ def clustered_spacial_profile_and_positions_generator(
         )
 
     Args:
-        number_of_ballots (dict[str, int]): The number of voters attributed
-                    to each candidate {candidate string: # voters}.
-        candidates (list[str]): Candidate names used when building rankings.
+        number_of_ballots (dict[Candidate, int] | dict[str, int] | dict[int, int]):
+            The number of voters attributed to each candidate {candidate: # voters}.
+            Candidates can be strings, integers, or mix of both.
+        candidates (list[Candidate] | list[str] | list[int]): Candidate names
+            used when building rankings. Candidates can be strings, integers, or mix of both.
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw voter positions centered at each candidate location. Defaults
             to ``np.random.normal``.
@@ -241,18 +247,22 @@ def clustered_spacial_profile_and_positions_generator(
             ``euclidean_dist``.
 
     Returns:
-        Tuple[RankProfile, dict[str, numpy.ndarray], numpy.ndarray]:
+        Tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
-            in the metric space.
+            in the metric space. Candidates can be strings, integers, or mix of both.
     """
+
+    _number_of_ballots: dict[Candidate, int] = cast(dict[Candidate, int], number_of_ballots)
+    _candidates: list[Candidate] = cast(list[Candidate], candidates)
+
     if voter_dist_kwargs is None:
         if voter_dist is np.random.normal:
             voter_dist_kwargs = {
                 "loc": 0,
-                "std": np.array(1.0),
-                "size": np.array(2.0),
+                "scale": 1.0,
+                "size": 2,
             }
         else:
             voter_dist_kwargs = {}
@@ -269,7 +279,7 @@ def clustered_spacial_profile_and_positions_generator(
 
     if candidate_dist_kwargs is None:
         if candidate_dist is np.random.uniform:
-            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2.0}
+            candidate_dist_kwargs = {"low": 0.0, "high": 1.0, "size": 2}
         else:
             candidate_dist_kwargs = {}
 
@@ -287,20 +297,20 @@ def clustered_spacial_profile_and_positions_generator(
             "Distance function is invalid or incompatible with voter/candidate distributions."
         )
 
-    candidate_position_dict: dict[str, NDArray] = {
-        c: candidate_dist(**candidate_dist_kwargs) for c in candidates
+    candidate_position_dict: dict[Candidate, NDArray] = {
+        c: candidate_dist(**candidate_dist_kwargs) for c in _candidates
     }
 
-    n_voters = sum(number_of_ballots.values())
+    n_voters = sum(_number_of_ballots.values())
     voter_positions = [np.zeros(2) for _ in range(n_voters)]
     vidx = 0
     for c, c_position in candidate_position_dict.items():
-        for _ in range(number_of_ballots[c]):
+        for _ in range(_number_of_ballots[c]):
             voter_dist_kwargs["loc"] = c_position
             voter_positions[vidx] = voter_dist(**voter_dist_kwargs)
             vidx += 1
 
-    n_candidates = len(candidates)
+    n_candidates = len(_candidates)
     ballot_pool = np.full((n_voters, n_candidates), frozenset("~"), dtype=object)
     for i in range(len(voter_positions)):
         v_position = voter_positions[i]
@@ -326,7 +336,7 @@ def clustered_spacial_profile_and_positions_generator(
     )
     return (
         RankProfile(
-            candidates=candidates,
+            candidates=_candidates,
             df=df,
             max_ranking_length=n_candidates,
         ),

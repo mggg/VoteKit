@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
 def _lexicographic_symbol_tuple_iterator(
@@ -115,7 +116,7 @@ def _construct_slate_to_candidate_ordering_arrays(
             dtype=object,
         )
 
-        cands_list = np.array(list(candidates))
+        cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
         distribution = np.array([preference_interval[c] for c in candidates])
         indices = _fast_sample_without_replacement(distribution, n_samples)
         cand_ordering[:, : len(candidates)] = cands_list[indices]
@@ -127,9 +128,9 @@ def _construct_slate_to_candidate_ordering_arrays(
 
 def _convert_slate_ballot_type_to_ranking(
     ballot_type: Sequence[str],
-    cand_ordering_by_slate: dict[str, list[str]],
+    cand_ordering_by_slate: dict[str, Sequence[Candidate]],
     final_max_ranking_length,
-) -> list[frozenset[str]]:
+) -> list[frozenset[Candidate]]:
     """
     Given a ballot type and a candidate ordering by slate, convert the ballot type to a ranking.
 
@@ -143,20 +144,21 @@ def _convert_slate_ballot_type_to_ranking(
 
     Args:
         ballot_type (Sequence[str]): A sequence of slate names representing the ballot type.
-        cand_ordering_by_slate (dict[str, list[str]]): A dictionary mapping slate names to a list
-            of candidate names ordered according to the sampled preference intervals.
+        cand_ordering_by_slate (dict[str, list[Candidate]]): A dictionary mapping slate names to a
+            list of candidate names ordered according to the sampled preference intervals.
+            Candidates can be strings, integers, or mix of both.
         final_max_ranking_length (int): The maximum length of the ranking.
 
     Returns:
-        list[frozenset[str]]: A list of frozensets, where each frozenset contains a single
+        list[frozenset[Candidate]]: A list of frozensets, where each frozenset contains a single
             candidate name, representing the ranking derived from the ballot type and candidate
-            ordering
+            ordering. Candidates can be strings, integers, or mix of both.
     """
 
     positions = {s: 0 for s in cand_ordering_by_slate}
-    ranking: list[frozenset[str]] = [frozenset("~")] * final_max_ranking_length
+    ranking: list[frozenset[Candidate]] = [frozenset("~")] * final_max_ranking_length
 
-    fset_cache: dict[str, frozenset[str]] = {}
+    fset_cache: dict[Candidate, frozenset[Candidate]] = {}
     rank_position = 0
     for slate in ballot_type[:final_max_ranking_length]:
         pos = positions[slate]
@@ -191,7 +193,7 @@ def _convert_slate_ballots_to_profile(
     candidate orderings for each slate.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
+        config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         slate_ballots (list[tuple[str, ...]]): List of slate ballot types.

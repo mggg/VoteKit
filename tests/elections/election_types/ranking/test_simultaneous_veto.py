@@ -6,6 +6,7 @@ import pytest
 from votekit.ballot import RankBallot
 from votekit.elections import SimultaneousVeto
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -24,7 +25,7 @@ def make_profile(
         return RankProfile(ballots=ballots, max_ranking_length=max_ranking_length)
 
 
-def elected_set(election: SimultaneousVeto) -> frozenset[str]:
+def elected_set(election: SimultaneousVeto) -> frozenset[Candidate]:
     """Flatten all elected candidates into a single frozenset."""
     return frozenset(c for s in election.get_elected() for c in s)
 

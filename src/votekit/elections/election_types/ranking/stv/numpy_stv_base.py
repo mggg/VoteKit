@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import tiebreak_set
 
 QuotaType: TypeAlias = Literal["droop", "hare"]
@@ -63,7 +64,7 @@ class NumpyElectionDataTracker:
     initial_fpv_scores: NDArray
     fpv_by_round: list[NDArray] = field(default_factory=list)
     play_by_play: list[ElectionPlay] = field(default_factory=list)
-    tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = field(
+    tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = field(
         default_factory=list
     )
     candidate_sets_by_fpv: list[set[int]] | None = None
@@ -75,8 +76,9 @@ class NumpySTVBase(ABC):
     Abstract base class for numpy-based STV-style elections.
 
     Attributes:
-        candidates (list[str]): List of candidate names, indexed
+        candidates (list[Candidate]): List of candidate names, indexed
             to correspond to ballot matrix entries.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile): The original RankProfile for reference.
         n_seats (int): Number of seats to be elected.
         election_states (list[ElectionState]): List of ElectionState objects representing
@@ -89,7 +91,7 @@ class NumpySTVBase(ABC):
         _loser_tiebreak (TiebreakType): Tiebreak method for losers, set to "first_place" by default.
     """
 
-    candidates: list[str]
+    candidates: list[Candidate]
     profile: RankProfile
     n_seats: int
     election_states: list[ElectionState]
@@ -196,7 +198,7 @@ class NumpySTVBase(ABC):
                 round_number=0,
                 remaining=self.get_remaining(0),
                 scores={
-                    self.candidates[c]: self._data.fpv_by_round[0][c]
+                    self.candidates[int(c)]: float(self._data.fpv_by_round[0][c])
                     for c in self._data.fpv_by_round[0].nonzero()[0]
                 },
             )
@@ -214,7 +216,7 @@ class NumpySTVBase(ABC):
                 else (frozenset(),)
             )
             packaged_scores = {
-                self.candidates[c]: self._data.fpv_by_round[i + 1][c]
+                self.candidates[int(c)]: float(self._data.fpv_by_round[i + 1][c])
                 for c in self._data.fpv_by_round[i + 1].nonzero()[0]
             }
             e_states.append(
@@ -253,7 +255,7 @@ class NumpySTVBase(ABC):
     ) -> tuple[
         list[NDArray],
         list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
         Core election logic to be implemented by child classes.
@@ -270,8 +272,9 @@ class NumpySTVBase(ABC):
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
             play_by_play (list[ElectionPlay]): List of dictionaries representing the
                 actions taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+            tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
+                Candidates can be strings, integers, or mix of both.
         """
         pass
 
@@ -298,15 +301,14 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
+                Candidates can be strings, integers, or mix of both.
         """
         tallies = self._data.fpv_by_round[round_number].copy()
-        elected_cands_as_list_of_str = [
-            c for fset in self.get_elected(round_number) for c in list(fset)
-        ]
-        elected_cands_numerical = [self.candidates.index(c) for c in elected_cands_as_list_of_str]
+        elected_cands_as_list = [c for fset in self.get_elected(round_number) for c in list(fset)]
+        elected_cands_numerical = [self.candidates.index(c) for c in elected_cands_as_list]
         tallies[elected_cands_numerical] = 0
         tallies_to_cands = {
             tally: [self.candidates[c] for c, t in enumerate(tallies) if t == tally]
@@ -326,7 +328,7 @@ class NumpySTVBase(ABC):
             else (frozenset(),)
         )
 
-    def get_elected(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_elected(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the elected candidates up to the given round number.
 
@@ -335,10 +337,10 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings, integers, or mix of both.
         """
         if (
             round_number < -len(self._data.fpv_by_round)
@@ -353,7 +355,7 @@ class NumpySTVBase(ABC):
         ]
         return tuple(frozenset([self.candidates[c] for c in w_list]) for w_list in list_of_winners)
 
-    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the eliminated candidates up to the given round number.
 
@@ -362,10 +364,10 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str], ...]:
+            tuple[frozenset[Candidate], ...]:
                 Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings, integers, or mix of both.
         """
         if (
             round_number < -len(self._data.fpv_by_round)
@@ -382,7 +384,7 @@ class NumpySTVBase(ABC):
         ]
         return tuple(frozenset([self.candidates[c] for c in l_list]) for l_list in list_of_losers)
 
-    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the ranking of candidates after a given round.
 
@@ -391,7 +393,8 @@ class NumpySTVBase(ABC):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]: Ranking of candidates.
+            tuple[frozenset[Candidate],...]: Ranking of candidates.
+                Candidates can be strings, integers, or mix of both.
         """
         return tuple(
             [
@@ -547,7 +550,7 @@ class NumpySTVBase(ABC):
 
     def _fpv_tiebreak(
         self, tied_cands: list[int], winner_tiebreak_bool: bool
-    ) -> tuple[int, tuple[frozenset[str], ...]]:
+    ) -> tuple[int, tuple[frozenset[Candidate], ...]]:
         """
         Break ties among tied_cands using initial_fpv tallies.
 
@@ -579,7 +582,7 @@ class NumpySTVBase(ABC):
             if cluster & tied_cands_set
         ]
 
-        packaged_ranking: tuple[frozenset[str], ...] = tuple(
+        packaged_ranking: tuple[frozenset[Candidate], ...] = tuple(
             frozenset(self.candidates[i] for i in cluster)
             for cluster in clusters_containing_tied_cands
         )
@@ -632,16 +635,17 @@ class NumpySTVBase(ABC):
         self,
         tied_winners: list[int],
         round_number: int,
-        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+        mutant_tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
+    ) -> tuple[int, list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]]:
         """
         Handle winner tiebreaking logic.
 
         Args:
             tied_winners (list[int]): List of candidate indices that are tied.
             round_number (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]): Tiebreak record for each round.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (index of new winner, updated tiebreak record)
@@ -653,7 +657,7 @@ class NumpySTVBase(ABC):
             )
         elif self._winner_tiebreak is not None:
             packaged_ranking = tiebreak_set(
-                r_set=packaged_tie,
+                set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._winner_tiebreak,
             )
@@ -667,16 +671,17 @@ class NumpySTVBase(ABC):
         self,
         tied_losers: list[int],
         round_number: int,
-        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
-    ) -> tuple[int, list[dict[frozenset[str], tuple[frozenset[str], ...]]]]:
+        mutant_tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
+    ) -> tuple[int, list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]]:
         """
         Handle loser tiebreaking logic.
 
         Args:
             tied_losers (list[int]): List of candidate indices that are tied.
             round_number (int): The current round number.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]): Tiebreak record for each round.
+                Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (index of new loser, updated tiebreak record)
@@ -688,7 +693,7 @@ class NumpySTVBase(ABC):
             )
         else:
             packaged_ranking = tiebreak_set(
-                r_set=packaged_tie,
+                set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._loser_tiebreak,
             )

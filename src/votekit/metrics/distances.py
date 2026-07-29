@@ -6,6 +6,7 @@ from scipy.sparse import csr_matrix, identity, kron, vstack
 from scipy.stats import kendalltau
 
 from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 def emd_via_scipy_linear_program(
@@ -286,7 +287,10 @@ def __build_simultaneous_profile_distribution(
     profile1 = pp1.group_ballots()
     profile2 = pp2.group_ballots()
 
-    cand_to_index_mapping = {cand: i for i, cand in enumerate(sorted(profile1.candidates))}
+    cand_to_index_mapping = {
+        cand: i
+        for i, cand in enumerate(sort_candidates_pseudo_lexicographically(profile1.candidates))
+    }
 
     profile_distribution_dict = dict()
 
@@ -463,7 +467,7 @@ def profiles_to_ndarrys(profiles: list[RankProfile]):
 
     for i in range(len(profile_dicts)):
         election = combined_dict | profile_dicts[i]
-        elect_distr = [float(election[key]) for key in sorted(election.keys())]
+        elect_distr = [float(election[key]) for key in election.keys()]
         electn_ndarry[:, i] = elect_distr
     return electn_ndarry
 

@@ -25,6 +25,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer
 from votekit.pref_profile import ProfileError, RankProfile
+from votekit.types import Candidate
 from votekit.utils import (
     _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
@@ -258,14 +259,14 @@ class NumpyInnerSTV(NumpySTVBase):
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        mutant_tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ) -> tuple[
         int,
         tuple[
             NDArray,
             list[int],
             list[int],
-            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+            list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
         ],
     ]:
         """
@@ -277,8 +278,9 @@ class NumpyInnerSTV(NumpySTVBase):
             mutant_bool_ballot_matrix (NDArray): Boolean mask for eliminated candidates.
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated candidate indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]):
+                Tiebreak record for each round. Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (index of eliminated candidate, updated state tuple containing the boolean
@@ -316,14 +318,14 @@ class NumpyInnerSTV(NumpySTVBase):
         mutant_bool_ballot_matrix: NDArray,
         mutant_winner_list: list[int],
         mutant_eliminated_or_exhausted: list[int],
-        mutant_tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        mutant_tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ) -> tuple[
         list[int],
         tuple[
             NDArray,
             list[int],
             list[int],
-            list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+            list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
         ],
     ]:
         """
@@ -337,8 +339,9 @@ class NumpyInnerSTV(NumpySTVBase):
             mutant_winner_list (list[int]): List of winner candidate indices so far.
             mutant_eliminated_or_exhausted (list[int]): List of eliminated/elected candidate
                 indices so far.
-            mutant_tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
-                Tiebreak record for each round.
+            mutant_tiebreak_record (list[dict[frozenset[Candidate],
+                tuple[frozenset[Candidate], ...]]]):
+                Tiebreak record for each round. Candidates can be strings, integers, or mix of both.
 
         Returns:
             tuple: (list of elected candidate indices, updated state tuple containing the boolean
@@ -393,7 +396,7 @@ class NumpyInnerSTV(NumpySTVBase):
     ) -> tuple[
         list[NDArray],
         list[ElectionPlay],
-        list[dict[frozenset[str], tuple[frozenset[str], ...]]],
+        list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
         Core election logic for STV.
@@ -406,8 +409,9 @@ class NumpyInnerSTV(NumpySTVBase):
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
             play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
                  taken in each round.
-            tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
+            tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
+                Candidates can be strings, integers, or mix of both.
         """
         ballot_matrix = data.ballot_matrix
         wt_vec = np.copy(data.wt_vec)
@@ -422,7 +426,7 @@ class NumpyInnerSTV(NumpySTVBase):
         ballot_weight_sitting_with_winners = 0.0
         winner_list: list[int] = []
         eliminated_or_exhausted: list[int] = []
-        tiebreak_record: list[dict[frozenset[str], tuple[frozenset[str], ...]]] = []
+        tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = []
         pos_vec: NDArray = np.zeros(ballot_matrix.shape[0], dtype=np.int8)
         mutant_bool_ballot_matrix: NDArray = np.ones_like(ballot_matrix, dtype=bool)
 
@@ -706,7 +710,7 @@ class STV(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         transfer: Callable[
-            [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            [Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: QuotaType | None = "droop",
@@ -727,11 +731,11 @@ class STV(RankingElection):
         Args:
             profile (RankProfile): RankProfile to run election on.
             n_seats (int): Number of seats to be elected. Defaults to 1.
-            transfer (Callable[[str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            transfer (Callable[[Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
                 tuple[RankBallot, ...]]): Transfer method. Defaults to fractional transfer.
                 Function signature is elected candidate, their number of first-place votes, the list
                 of ballots with them ranked first, and the threshold value. Returns the list of
-                ballots after transfer.
+                ballots after transfer. Candidates can be strings, integers, or mix of both.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
@@ -820,7 +824,7 @@ class STV(RankingElection):
 
     def _simultaneous_elect_step(
         self, profile: RankProfile, prev_state: ElectionState
-    ) -> tuple[tuple[frozenset[str], ...], RankProfile]:
+    ) -> tuple[tuple[frozenset[Candidate], ...], RankProfile]:
         """
         Run one step of an election from the given profile and previous state.
 
@@ -831,9 +835,10 @@ class STV(RankingElection):
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
-            tuple[tuple[frozenset[str],...], RankProfile]:
+            tuple[tuple[frozenset[Candidate],...], RankProfile]:
                 A tuple whose first entry is the elected candidates, ranked by first-place votes,
                 and whose second entry is the profile of ballots after transfers.
+                Candidates can be strings, integers, or mix of both.
         """
         ranking_by_fpv = prev_state.remaining
         current_round = prev_state.round_number + 1
@@ -893,8 +898,8 @@ class STV(RankingElection):
     def _single_elect_step(
         self, profile: RankProfile, prev_state: ElectionState
     ) -> tuple[
-        tuple[frozenset[str], ...],
-        dict[frozenset[str], tuple[frozenset[str], ...]],
+        tuple[frozenset[Candidate], ...],
+        dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]],
         RankProfile,
     ]:
         """
@@ -907,10 +912,12 @@ class STV(RankingElection):
             prev_state (ElectionState): The previous ElectionState.
 
         Returns:
-            tuple[tuple[frozenset[str],...], dict[frozenset[str], tuple[frozenset[str],...]],
+            tuple[tuple[frozenset[Candidate], ...],
+            dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]],
             RankProfile]:
                 A tuple whose first entry is the elected candidate, second is the tiebreak dict,
                 and whose third entry is the profile of ballots after transfers.
+                Candidates can be strings, integers, or mix of both.
         """
         ranking_by_fpv = prev_state.remaining
         current_round = prev_state.round_number + 1
@@ -989,7 +996,7 @@ class STV(RankingElection):
             RankProfile: The profile of ballots after the round is completed.
         """
 
-        tiebreaks: dict[frozenset[str], tuple[frozenset[str], ...]] = {}
+        tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = {}
 
         current_round = prev_state.round_number + 1
         above_thresh_cands = [
@@ -1003,7 +1010,7 @@ class STV(RankingElection):
             else:
                 elected, tiebreaks, new_profile = self._single_elect_step(profile, prev_state)
             # no one eliminated in elect round
-            eliminated: tuple[frozenset[str], ...] = (frozenset(),)
+            eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
 
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
@@ -1143,7 +1150,7 @@ class SequentialRCV(STV):
             n_seats = 1
 
         def _transfer(
-            winner: str,
+            winner: Candidate,
             _fpv: float,
             ballots: Union[tuple[RankBallot], list[RankBallot]],
             _threshold: int,
@@ -1152,7 +1159,8 @@ class SequentialRCV(STV):
             Transfer ballots by removing the winner and condensing rankings.
 
             Args:
-                winner (str): The candidate to remove from ballots.
+                winner (Candidate): The candidate to remove from ballots.
+                    Candidate can be a string or integer.
                 _fpv (float): The number of first-place votes the winner had.
                 ballots (Union[tuple[RankBallot], list[RankBallot]]): The ballots to transfer.
                 _threshold (int): The threshold for election in this round.

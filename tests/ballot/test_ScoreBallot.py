@@ -52,7 +52,7 @@ def test_ballot_is_frozen_del():
 
 def test_ballot_hash():
     b1 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
-    b2 = ScoreBallot(scores={"A": 1, "B": 2}, weight=2, voter_set={"A"})
+    b2 = ScoreBallot(scores={"B": 2, "A": 1}, weight=2, voter_set={"A"})
     b3 = ScoreBallot(scores={"A": 2, "B": 2}, weight=2, voter_set={"B"})
 
     assert b1 == b2 and hash(b1) == hash(b2)
@@ -80,6 +80,8 @@ def test_ballot_tilde_errors():
         match="'~' is a reserved character and cannot be used for candidate names.",
     ):
         ScoreBallot(scores={"~": 1})
+    b = ScoreBallot(scores={"A~": 1})
+    assert b.scores == {"A~": 1}
 
 
 def test_ballot_negative_weight():
@@ -142,3 +144,48 @@ def test_rank_sub_ballot():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         ScoreBallot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_mixed_str_int_candidates_ballot():
+    b = ScoreBallot(
+        scores={"A": 2, 1: 1},
+        weight=3,
+        voter_set={"Chris"},
+    )
+
+    assert b.scores == {"A": 2, 1: 1}
+
+
+def test_equivalent_str_int_candidates_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        b = ScoreBallot(scores={"1": 2, 1: 1})
+    assert b.scores == {"1": 2, 1: 1}
+
+
+def test_invalid_candidate_type_ballot():
+    with pytest.raises(
+        TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreBallot.scores"
+    ):
+        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type]
+
+
+def test_negative_integer_candidate_ballot():
+    with pytest.raises(
+        ValueError, match=r"Negative integer candidate\(s\) found in ScoreBallot.scores"
+    ):
+        ScoreBallot(scores={"A": 2, 1: 1, -1: 2})
+
+
+def test_non_mapping_scores_ballot_raises_error():
+    with pytest.raises(TypeError, match="Scores must be a mapping of candidates to score values."):
+        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type]
+
+
+def test_colon_in_cand_name_ballot_raises_error():
+    with pytest.raises(ValueError, match="':' found in ScoreBallot.scores"):
+        ScoreBallot(scores={"A:B": 1})
+
+
+def test_bool_candidate_in_ballot_raises_error():
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in ScoreBallot.scores"):
+        ScoreBallot(scores={True: 1, "1": 1, 0: 1})

@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 def _convert_ranking_cols_to_ranking(
@@ -76,13 +78,14 @@ def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> R
     )
 
 
-def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[str, ...]) -> ScoreBallot:
+def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...]) -> ScoreBallot:
     """
     Convert a row of a properly formatted profile.df to a Ballot.
 
     Args:
         row (pd.Series): Row of a profile.df.
-        candidates (tuple[str,...]): The name of the candidates.
+        candidates (tuple[Candidate,...]): The name of the candidates.
+            Candidates can be strings, integers, or mix of both.
 
     Returns:
         ScoreBallot: Ballot corresponding to the row of the df.
@@ -99,14 +102,15 @@ def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[str, ...]) -> 
 
 
 def _df_to_rank_ballot_tuple(
-    df: pd.DataFrame, candidates: tuple[str, ...], max_ranking_length: int = 0
+    df: pd.DataFrame, candidates: tuple[Candidate, ...], max_ranking_length: int = 0
 ) -> tuple[RankBallot, ...]:
     """
     Convert a properly formatted profile.df into a list of ballots.
 
     Args:
         df (pd.DataFrame): A profile.df.
-        candidates (tuple[str,...]): The candidates.
+        candidates (tuple[Candidate,...]): The candidates.
+            Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
             is used for ballots with no ranking.
 
@@ -197,7 +201,7 @@ def score_profile_to_ballot_dict(
 
 def rank_profile_to_ranking_dict(
     rank_profile: RankProfile, standardize: bool = False
-) -> dict[tuple[frozenset[str], ...], float]:
+) -> dict[tuple[frozenset[Candidate], ...], float]:
     """
     Converts profile to dictionary with keys = rankings and
     values = corresponding total weights.
@@ -208,8 +212,9 @@ def rank_profile_to_ranking_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[frozenset[str],...], float]:
-            A dictionary with rankings (keys) and corresponding total weights (values).
+        dict[tuple[frozenset[Candidate],...], float]:
+            A dictionary with candidate rankings (keys) and corresponding total weights (values).
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         TypeError: Profile must be a RankProfile.
@@ -232,7 +237,7 @@ def rank_profile_to_ranking_dict(
 
 def score_profile_to_scores_dict(
     score_profile: ScoreProfile, standardize: bool = False
-) -> dict[tuple[tuple[str, float], ...] | None, float]:
+) -> dict[tuple[tuple[Candidate, float], ...] | None, float]:
     """
     Converts profile to dictionary with keys = scores and
     values = corresponding total weights.
@@ -243,8 +248,9 @@ def score_profile_to_scores_dict(
             weight. Defaults to False.
 
     Returns:
-        dict[tuple[tuple[str, float], ...] | None, float]:
-            A dictionary with scores (keys) and corresponding total weights (values).
+        dict[tuple[tuple[Candidate, float], ...] | None, float]:
+            A dictionary with candidate scores (keys) and corresponding total weights (values).
+            Candidates can be strings, integers, or mix of both.
 
     Raises:
         TypeError: Profile must be a ScoreProfile.
@@ -255,7 +261,7 @@ def score_profile_to_scores_dict(
         raise TypeError(("Profile must be a ScoreProfile."))
 
     tot_weight = score_profile.total_ballot_wt
-    di: dict[tuple[tuple[str, float], ...] | None, float] = {}
+    di: dict[tuple[tuple[Candidate, float], ...] | None, float] = {}
     for ballot in score_profile.ballots:
         scores = tuple(ballot.scores.items()) if ballot.scores else None
         weight = ballot.weight
@@ -528,7 +534,7 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
 
     new_df = pd.concat(total_dfs, ignore_index=True)
     new_df.index.name = "Ballot Index"
-    new_candidates = sorted(total_cand)
+    new_candidates = sort_candidates_pseudo_lexicographically(total_cand)
     new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
 
     return ScoreProfile(

@@ -12,6 +12,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.stv import STV
 from votekit.elections.transfers import fractional_transfer
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import first_place_votes
 
 from .abstract_ranking import RankingElection
@@ -28,12 +29,12 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int],
+        transfer (Callable[[Candidate, float], Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
-            after transfer.
+            after transfer. Candidates can be strings, integers, or mix of both.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
@@ -55,7 +56,7 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            [Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: QuotaType | None = "droop",

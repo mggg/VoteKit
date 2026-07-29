@@ -1,6 +1,6 @@
 from functools import cache
 from itertools import combinations
-from typing import Optional
+from typing import Optional, Sequence, cast
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -11,9 +11,14 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
+from votekit.utils import (
+    check_for_equivalent_str_int_labels,
+    sort_candidates_pseudo_lexicographically,
+)
 
 
-def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[str, int]) -> NDArray:
+def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
     """
     Converts the ranking columns of a RankProfile to integer indices.
     Each singleton candidate set is converted to an index based on the provided candidates list.
@@ -22,8 +27,8 @@ def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[str, int]) ->
 
     Args:
         profile (RankProfile): The preference profile containing rankings.
-        cand_name_to_idx (dict[str, int]): A mapping from candidate names to their integer index
-            representations.
+        cand_name_to_idx (dict[Candidate, int]): A mapping from candidate names to their
+            integer index representations. Candidates can be strings, integers, or mix of both.
 
     Returns:
         NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
@@ -83,7 +88,7 @@ def __tally_and_mutate_head_to_head(
 
 def pairwise_dict(
     profile: RankProfile, *, sort_candidate_pairs: bool = True
-) -> dict[tuple[str, str], tuple[float, float]]:
+) -> dict[tuple[Candidate, Candidate], tuple[float, float]]:
     """
     Computes a dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
@@ -94,7 +99,8 @@ def pairwise_dict(
             will be sorted lexicographically. Defaults to True.
 
     Returns:
-        dict[tuple[str, str], tuple[float, float]]: Pairwise comparison dictionary.
+        dict[tuple[Candidate, Candidate], tuple[float, float]]: Pairwise comparison dictionary.
+            Candidates can be strings, integers, or mix of both.
     """
     if not isinstance(profile, RankProfile):
         raise ValueError("Profile must be of type RankProfile.")
@@ -104,7 +110,7 @@ def pairwise_dict(
     candidates_lst = list(profile.candidates_cast)
 
     if sort_candidate_pairs:
-        candidates_lst.sort()
+        candidates_lst = sort_candidates_pseudo_lexicographically(candidates_lst)
 
     n_cands = len(candidates_lst)
 
@@ -123,12 +129,12 @@ def pairwise_dict(
             head_to_head_matrix[cand_to_idx[a], cand_to_idx[b]],
             head_to_head_matrix[cand_to_idx[b], cand_to_idx[a]],
         )
-        for a, b in combinations(sorted(candidates_lst), 2)
+        for a, b in combinations(sort_candidates_pseudo_lexicographically(candidates_lst), 2)
     }
     return pairwise
 
 
-def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
+def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[Candidate]]:
     """
     Compute the dominating tiers of the pairwise comparison graph.
     Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
@@ -139,7 +145,8 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
         graph (nx.DiGraph): A directed graph representing pairwise comparisons.
 
     Returns:
-        list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
+        list[set[Candidate]]: Dominating tiers, where the first entry of the list is the highest
+            tier. Candidates can be strings, integers, or mix of both.
     """
     # Condense the head-to-head cycles so we have a directed acyclic graph (DAG)
     condensed_acyclic_graph = nx.condensation(graph)
@@ -191,22 +198,27 @@ def get_dominating_tiers_digraph(graph: nx.DiGraph) -> list[set[str]]:
 
 
 def restrict_pairwise_dict_to_subset(
-    cand_subset: list[str] | tuple[str] | set[str],
-    pairwise_dict: dict[tuple[str, str], tuple[float, float]],
-) -> dict[tuple[str, str], tuple[float, float]]:
+    cand_subset: Sequence[Candidate],
+    pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]]
+    | dict[tuple[str, str], tuple[float, float]]
+    | dict[tuple[int, int], tuple[float, float]],
+) -> dict[tuple[Candidate, Candidate], tuple[float, float]]:
     """
     Restricts the full pairwise dictionary to a subset of candidates. The pairwise dictionary is a
     dictionary whose keys are candidate pairs (A,B) and whose values are lists [a,b]
     where 'a' denotes the number of times A beats B head to head, and 'b' is the reverse.
 
     Args:
-        cands (list[str] | tuple[str] | set[str]): Candidate subset to restrict to.
-        pairwise_dict (dict[tuple[str, str], tuple[float, float]): Full pairwise comparison
-            dictionary.
+        cands (Sequence[Candidate]): Candidate subset to restrict to.
+            Candidates can be strings, integers, or mix of both.
+        pairwise_dict (dict[tuple[Candidate, Candidate], tuple[float, float]]
+            | dict[tuple[str, str], tuple[float, float]]
+            | dict[tuple[int, int], tuple[float, float]]): Full pairwise
+            comparison dictionary. Candidates can be strings, integers, or mix of both.
 
     Returns:
-        dict[tuple[str, str], tuple[float, float]]: Pairwise dict restricted to the provided
-            candidates.
+        dict[dict[tuple[Candidate, Candidate], tuple[float, float]] : Pairwise dict restricted
+            to the provided candidates. Candidates can be strings, integers, or mix of both.
 
     Raises:
         ValueError: cand_subset must be at least length 2.
@@ -215,7 +227,11 @@ def restrict_pairwise_dict_to_subset(
     if len(cand_subset) < 2:
         raise ValueError(f"Must be at least two candidates in cand_subset: {cand_subset}")
 
-    candidates = [c for s in pairwise_dict.keys() for c in s]
+    _pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]] = cast(
+        dict[tuple[Candidate, Candidate], tuple[float, float]], pairwise_dict
+    )
+
+    candidates = [c for s in _pairwise_dict.keys() for c in s]
 
     extra_cands = set(cand_subset).difference(candidates)
     if extra_cands != set():
@@ -226,13 +242,13 @@ def restrict_pairwise_dict_to_subset(
             )
         )
 
-    new_pairwise_dict = {}
+    new_pairwise_dict: dict[tuple[Candidate, Candidate], tuple[float, float]] = {}
     for tup in combinations(cand_subset, 2):
-        if tup in pairwise_dict:
-            new_pairwise_dict[tup] = pairwise_dict[tup]
+        if tup in _pairwise_dict:
+            new_pairwise_dict[tup] = _pairwise_dict[tup]
         rev_tup = (tup[1], tup[0])
-        if rev_tup in pairwise_dict:
-            new_pairwise_dict[rev_tup] = pairwise_dict[rev_tup]
+        if rev_tup in _pairwise_dict:
+            new_pairwise_dict[rev_tup] = _pairwise_dict[rev_tup]
 
     return new_pairwise_dict
 
@@ -302,13 +318,14 @@ class PairwiseComparisonGraph(nx.DiGraph):
         return set(self.pairwise_graph.predecessors(candidate))
 
     @cache
-    def get_dominating_tiers(self) -> list[set[str]]:
+    def get_dominating_tiers(self) -> list[set[Candidate]]:
         """
         Compute the dominating tiers of the pairwise comparison graph.
         Candidates in a tier beat all other candidates in lower tiers in head to head comparisons.
 
         Returns:
-            list[set[str]]: Dominating tiers, where the first entry of the list is the highest tier.
+            list[set[Candidate]]: Dominating tiers, where the first entry of the list is the highest
+                tier. Candidates can be strings, integers, or mix of both.
 
         """
         return get_dominating_tiers_digraph(self.pairwise_graph)
@@ -323,12 +340,12 @@ class PairwiseComparisonGraph(nx.DiGraph):
         dominating_tiers = self.get_dominating_tiers()
         return len(dominating_tiers[0]) == 1
 
-    def get_condorcet_winner(self) -> str:
+    def get_condorcet_winner(self) -> Candidate:
         """
         Returns the condorcet winner. Raises a ValueError if no condorcet winner.
 
         Returns:
-            str: The condorcet winner.
+            Candidate: The condorcet winner. Candidate can be a string or integer.
 
         Raises:
             ValueError: There is no condorcet winner.
@@ -402,6 +419,8 @@ class PairwiseComparisonGraph(nx.DiGraph):
         known_candidate_list = list(G.nodes)
         if candidate_list is None:
             candidate_list = known_candidate_list
+
+        check_for_equivalent_str_int_labels(candidate_list)
 
         assert set(candidate_list).issubset(set(G.nodes)), (
             f"Invalid candidates found: {set(candidate_list) - set(G.nodes)} does not appear as "

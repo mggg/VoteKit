@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from votekit.types import Candidate
+
 from ...ballot import RankBallot
 from .csv_utils import (
     _validate_csv_ballot_row_break_idxs,
@@ -9,10 +11,12 @@ from .csv_utils import (
     _validate_csv_ballot_weight,
 )
 
+VALID_TYPE_MAP = {"str": str, "int": int}
+
 
 def _parse_profile_data_from_rank_csv(
     csv_data: list[list[str]],
-) -> Tuple[dict[str, str], int, bool, list[int]]:
+) -> Tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
     """
     Parse the profile data from a PreferenceProfile csv.
 
@@ -20,12 +24,19 @@ def _parse_profile_data_from_rank_csv(
         csv_data (list[list[str]]): Data from csv.
 
     Returns:
-        Tuple[dict[str, str], int,  bool, list[int]]:
+        Tuple[dict[str, str] | dict[str, Candidate], int,  bool, list[int]]:
             inv_candidate_mapping, max_ranking_length,
             includes_voter_set, break_indices
+            Candidates can be strings, integers, or mix of both.
     """
-    candidate_row = [c_tuple.strip("()").split(":") for c_tuple in csv_data[2]]
-    inv_candidate_mapping = {prefix: cand for cand, prefix in candidate_row}
+    candidate_row = [c_tuple[1:-1].split(":") for c_tuple in csv_data[2]]
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
+        inv_candidate_mapping = {
+            prefix: VALID_TYPE_MAP[cand_type](cand) for cand, cand_type, prefix in candidate_row
+        }
+    else:
+        inv_candidate_mapping = {prefix: cand for cand, prefix in candidate_row}
 
     max_ranking_length = int(csv_data[4][0])
 
@@ -46,7 +57,7 @@ def _parse_ballot_from_rank_csv(
     ballot_row: list[str],
     includes_voter_set: bool,
     break_indices: list[int],
-    inv_candidate_mapping: dict[str, str],
+    inv_candidate_mapping: dict[str, str] | dict[str, Candidate],
 ) -> RankBallot:
     """
     Parse a ballot from a PreferenceProfile csv row.
@@ -56,8 +67,8 @@ def _parse_ballot_from_rank_csv(
         includes_voter_set (bool): Whether or not the csv contains voter sets.
         break_indices (list[int]): Where the columns of the csv change from one data type to
             another.
-        inv_candidate_mapping (dict[str, str]): The inverted candidate mapping of prefix
-            to the cand.
+        inv_candidate_mapping (dict[str, str] | dict[str, Candidate]): The inverted candidate
+            mapping of prefix to the cand. Candidates can be strings, integers, or mix of both.
 
     Returns:
         RankBallot: Ballot formatted from row of csv.
@@ -143,10 +154,41 @@ def _validate_rank_csv_header_values(header_data: list[list[str]]):
         raise ValueError(
             (
                 "csv file is improperly formatted. Row 2 should contain tuples mapping candidates "
-                "to their unique prefixes. For example, (Chris:Ch), (Colleen: Co). "
-                f"Not {header_data[2]}. " + boiler_plate
+                "to their unique prefixes. For example, (Chris:0), (Colleen: 1) or (1:int:0),"
+                f" (A:str:1). Not {header_data[2]}. " + boiler_plate
             )
         )
+
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in header_data[2]]
+    csv_version = header_data[0][1] if len(header_data[0]) > 1 else None
+    if not csv_version and any(len(candidate_tuple) != 2 for candidate_tuple in candidate_tuples):
+        raise ValueError(
+            (
+                f"csv file is improperly formatted. If not using v2 format, Row 2 should contain"
+                " tuples mapping candidates to their unique prefixes. For example, (Chris:0),"
+                f" (Colleen: 1). Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2" and any(
+        len(candidate_tuple) != 3 for candidate_tuple in candidate_tuples
+    ):
+        raise ValueError(
+            (
+                f"csv file v2 is improperly formatted. Row 2 should contain tuples mapping"
+                " candidates to their types and unique prefixes. For example, (1:int:0), (A:str:1)."
+                f" Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2":
+        _, candidate_types, _ = zip(*candidate_tuples)
+        if any(cand_type not in VALID_TYPE_MAP.keys() for cand_type in candidate_types):
+            raise ValueError(
+                "csv file v2 is improperly formatted. Row 2 should contain candidate types of str"
+                f" or int, not {set(VALID_TYPE_MAP.keys()) ^ set(candidate_types)} within"
+                f" {header_data[2]}. " + boiler_plate
+            )
 
     if len(header_data[4]) != 1:
         raise ValueError(
@@ -181,11 +223,14 @@ def _validate_rank_csv_header_rows(header_data: list[list[str]]):
         "PreferenceProfile.to_csv()."
     )
 
-    if header_data[0] != ["VoteKit RankProfile"]:
+    if header_data[0] != ["VoteKit RankProfile"] and header_data[0] != [
+        "VoteKit RankProfile",
+        "v2",
+    ]:
         raise ValueError(
             (
-                "csv file is improperly formatted. Row 0 should be 'VoteKit RankProfile',"
-                f"not {header_data[0]}. " + boiler_plate
+                "csv file is improperly formatted. Row 0 should be 'VoteKit RankProfile' or "
+                f"'VoteKit RankProfile,v2', not {header_data[0]}. " + boiler_plate
             )
         )
 
@@ -365,13 +410,18 @@ def _validate_rank_csv_ballot_rows(csv_data: list[list[str]]):
 
     Raises:
         ValueError: If a row of the csv is improperly formatted for VoteKit.
+
     """
     candidate_row = csv_data[2]
     max_ranking_row = csv_data[4]
     include_voter_set_row = csv_data[6]
 
-    candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in candidate_row]
-    candidates, candidate_prefixes = zip(*candidate_tuples)
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in candidate_row]
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
+        candidates, candidate_types, candidate_prefixes = zip(*candidate_tuples)
+    else:
+        candidates, candidate_prefixes = zip(*candidate_tuples)
 
     max_ranking_length = int(max_ranking_row[0])
     include_voter_set = include_voter_set_row[0] == "True"

@@ -13,6 +13,7 @@ from functools import lru_cache
 from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
 
 # ====================================================
@@ -154,7 +155,7 @@ def _sample_anonymous_profile_ballot_counts(
 
 
 def iac_profile_generator(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
 ) -> RankProfile:
@@ -163,7 +164,8 @@ def iac_profile_generator(
     is equally likely.
 
     Args:
-        candidates (Sequence[str]): List of candidate strings.
+        candidates (Sequence[Candidate]): List of candidate strings.
+            Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): Number of ballots to generate.
         max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.
