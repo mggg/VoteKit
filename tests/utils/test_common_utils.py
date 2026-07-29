@@ -6,6 +6,7 @@ import pytest
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.utils import (
+    _validate_candidate_names,
     add_missing_cands,
     ballot_lengths,
     ballots_by_first_cand,
@@ -703,3 +704,46 @@ def test_sort_non_valid_type_cand_raises_error():
     cands = ["1", 1, 1.0]
     with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
         sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+
+
+def test_sort_nan_cand_at_end_of_list():
+    cands = ["1", 1, "nan", "NaN", "nan "]
+    assert sort_candidates_pseudo_lexicographically(cands) == [1, "1", "NaN", "nan", "nan "]
+
+
+def test_validate_candidate_names_errors_on_tilda_candidate():
+    invalid_candidates_list = ["~", "A"]
+    with pytest.raises(ValueError, match="Candidate '~' found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_errors_on_colon_in_candidate():
+    invalid_candidates_list = ["A:B", "C"]
+    with pytest.raises(ValueError, match="':' found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_errors_non_str_int_candidate():
+    invalid_candidates_list = ["A", 1.0]
+    with pytest.raises(TypeError, match=r"Non-string/integer candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")  # type: ignore[arg-type]
+
+
+def test_validate_candidate_names_errors_on_negative_int_candidate():
+    invalid_candidates_list = ["A", -1]
+    with pytest.raises(ValueError, match=r"Negative integer candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_name_raises_error_on_boolean_candidate():
+    invalid_candidates_list = ["A", True]
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_warns_on_collision_only():
+    collided_candidates_list = [1, "1"]
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        _validate_candidate_names(
+            collided_candidates_list, collided_candidates_list, "test.candidates"
+        )

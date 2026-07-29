@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import random
+import warnings
 from itertools import permutations
 from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
 
@@ -456,7 +457,7 @@ def borda_scores(
 
 
 def tiebreak_set(
-    r_set: frozenset[Candidate],
+    set_to_tiebreak: frozenset[Candidate],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
@@ -469,7 +470,7 @@ def tiebreak_set(
     profile. Rule 4: lex/lexicographic/alph/alphabetical; break the tie alphabetically.
 
     Args:
-        r_set (frozenset[Candidate]): Set of candidates on which to break tie.
+        set_to_tiebreak (frozenset[Candidate]): Set of candidates on which to break tie.
             Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
@@ -492,17 +493,19 @@ def tiebreak_set(
         Candidates can be strings, integers, or mix of both.
     """
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in r_set])
+        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in set_to_tiebreak])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(frozenset({c}) for c in random.sample(list(r_set), k=len(r_set)))
+        new_ranking = tuple(
+            frozenset({c}) for c in random.sample(list(set_to_tiebreak), k=len(set_to_tiebreak))
+        )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
             tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)
         else:
             tiebreak_scores = first_place_votes(profile, tie_convention=scoring_tie_convention)
-        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in r_set}
+        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in set_to_tiebreak}
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
     elif profile is None:
@@ -984,6 +987,8 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
     or float. String candidates that can be cast to an integer or float will be ordered amongst the
     integer candidates in numerical order. If there is a corresponding integer candidate to a casted
     string candidate, then those string candidates will follow the integer candidate.
+    String candidates that are equivalent to nan will be sorted at the end of the list in
+    lexographical order.
 
     Example:
         candidates = ["A", 1, "1", "1.1", "01", "2", 3]
@@ -1015,7 +1020,9 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
                 return False
 
         def sort_mixed_cands(cand):
-            if isinstance(cand, int):
+            if isinstance(cand, str) and cand.strip().lower() == "nan":
+                return (2, 0, cand)
+            elif isinstance(cand, int):
                 return (0, cand, "")
             elif isinstance(cand, str):
                 if cand.isdigit():
@@ -1031,3 +1038,101 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
 
 
 sort_candidates_pseudo_lex = sort_candidates_pseudo_lexicographically
+
+
+def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
+    """
+    With candidates allowed to be integer or strings, there can be collisions where there is an
+    equivalent string version of an integer candidate within the same list of candidates.
+
+    A warning will be thrown to alert that collided candidates will be treated as separate
+    candidates and will be indistinguishable as plot labels. Only thrown when the string cast of an
+    integer candidate exactly equals an existing string candidate. A string candidate that evaluates
+    to the same integer candidate when parsed (e.g. '01' vs. 1) is left alone, since it renders as
+    distinguishable text on a plot. Warning fires once per colliding candidate.
+
+    Args:
+        candidates (Sequence[Candidate]): list of candidates.
+
+    Raises:
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+                when casted to to other candidate's type, they are equivalent. Those candidates
+                will be treated as separate candidates.
+    """
+    int_candidates = [cand for cand in candidates if isinstance(cand, int)]
+    str_candidates = [cand for cand in candidates if isinstance(cand, str)]
+    for int_cand in int_candidates:
+        if str(int_cand) in str_candidates:
+            warnings.warn(
+                f"Candidates {int_cand} appear as both str and int within"
+                f" candidates {candidates}. These will be treated as separate"
+                " candidates, and will be indistinguishable when plotted on an axis.",
+                UserWarning,
+            )
+
+
+def _validate_candidate_names(candidates: Iterable[Candidate], source: object, attribute: str):
+    """
+    Ensure the candidates are strings or non-negative integers without reserved characters.
+
+    Args:
+        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
+        df or ballots. Or, the candidates defined at the profile level.
+        source (object): object with a candidates attribute to validate.
+        attribute (str): Name of the attribute.
+            Both source and attribute are used to improve error description.
+
+    Raises:
+        TypeError: Candidate must be a string or integer.
+        TypeError: Candidate must be a non-negative integer.
+        TypeError: Candidate cannot be a boolean. Could conflict with other integer
+            candidates.
+        ValueError: Candidate cannot be '~'. Its a reserved character.
+        ValueError: Candidate cannot contain ':'. Its a reserved character.
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+            when casted to to other candidate's type, they are equivalent. Those candidates
+            will be treated as separate candidates.
+
+    """
+    candidates = list(candidates)
+    source_type = source.__class__.__name__
+    if "~" in candidates:
+        raise ValueError(
+            f"Candidate '~' found in {source_type}.{attribute} {candidates}."
+            " '~' is a reserved character and cannot be used for"
+            " candidate names."
+        )
+    if any(isinstance(cand, str) and ":" in cand for cand in candidates):
+        raise ValueError(
+            f"':' found in {source_type}.{attribute} {candidates}. ':' is a reserved character"
+            " and cannot be used in candidate names."
+        )
+    if any(not isinstance(cand, (str, int)) for cand in candidates):
+        raise TypeError(
+            f"Non-string/integer candidate(s) found in {source_type}.{attribute} {candidates}."
+            " Candidates can only be strings or integers."
+        )
+    if any(cand < 0 for cand in candidates if isinstance(cand, int)):
+        raise ValueError(
+            f"Negative integer candidate(s) found in {source_type}.{attribute} {candidates}. Must"
+            " be non-negative."
+        )
+    if any(isinstance(cand, bool) for cand in candidates):
+        raise TypeError(
+            f"Boolean candidate(s) found in {source_type}.{attribute} {candidates}. Could"
+            " collide with other integer candidates. Change to 0 or 1."
+        )
+
+    str_cands = {cand for cand in candidates if isinstance(cand, str)}
+    int_cands = {cand for cand in candidates if isinstance(cand, int)}
+    collisions = {
+        str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
+    }
+    if collisions:
+        warnings.warn(
+            UserWarning(
+                f"Candidates {collisions} appear as both str and int within"
+                f" {source_type}.{attribute} {candidates}. These will be treated as separate"
+                " candidates.",
+            )
+        )

@@ -1,11 +1,13 @@
 from votekit.utils.common_utils import (
     COLOR_LIST,
     _first_place_votes_from_df_no_ties,
+    _validate_candidate_names,
     add_missing_cands,
     ballot_lengths,
     ballots_by_first_cand,
     borda_scores,
     build_df_from_ballot_samples,
+    check_for_equivalent_str_int_labels,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
     first_place_votes,
@@ -47,6 +49,8 @@ __all__ = [
     "sort_candidates_pseudo_lexicographically",
     "sort_candidates_pseudo_lex",
     "COLOR_LIST",
+    "check_for_equivalent_str_int_labels",
+    "_validate_candidate_names",
     "search_profile_for_rank_pattern",
 ]
 
