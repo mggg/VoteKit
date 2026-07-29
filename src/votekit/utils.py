@@ -1071,17 +1071,17 @@ def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
             )
 
 
-def find_candidate_name_errors(candidates: Sequence[Candidate], source: str) -> list[Exception]:
+def _validate_candidate_names(candidates: Iterable[Candidate], source: object, attribute: str):
     """
     Ensure the candidates are strings or non-negative integers without reserved characters.
-    Will collect all candidate errors into a list.
 
     Args:
         candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
         df or ballots. Or, the candidates defined at the profile level.
-        source (str]): source of candidates to improve error description.
-    Returns:
-        list[Exception]: list of candidate errors.
+        source (object): object with a candidates attribute to validate.
+        attribute (str): Name of the attribute.
+            Both source and attribute are used to improve error description.
+
     Raises:
         TypeError: Candidate must be a string or integer.
         TypeError: Candidate must be a non-negative integer.
@@ -1094,42 +1094,33 @@ def find_candidate_name_errors(candidates: Sequence[Candidate], source: str) -> 
             will be treated as separate candidates.
 
     """
-    errors: list[Exception] = []
+    candidates = list(candidates)
+    source_type = source.__class__.__name__
     if "~" in candidates:
-        errors.append(
-            ValueError(
-                f"Candidate '~' found in {source} {candidates}."
-                " '~' is a reserved character and cannot be used for"
-                " candidate names."
-            )
+        raise ValueError(
+            f"Candidate '~' found in {source_type}.{attribute} {candidates}."
+            " '~' is a reserved character and cannot be used for"
+            " candidate names."
         )
     if any(isinstance(cand, str) and ":" in cand for cand in candidates):
-        errors.append(
-            ValueError(
-                f"':' found in {source} {candidates}. ':' is a reserved character"
-                " and cannot be used in candidate names."
-            )
+        raise ValueError(
+            f"':' found in {source_type}.{attribute} {candidates}. ':' is a reserved character"
+            " and cannot be used in candidate names."
         )
     if any(not isinstance(cand, (str, int)) for cand in candidates):
-        errors.append(
-            TypeError(
-                f"Non-string/integer candidate(s) found in {source} {candidates}."
-                " Candidates can only be strings or integers."
-            )
+        raise TypeError(
+            f"Non-string/integer candidate(s) found in {source_type}.{attribute} {candidates}."
+            " Candidates can only be strings or integers."
         )
     if any(cand < 0 for cand in candidates if isinstance(cand, int)):
-        errors.append(
-            ValueError(
-                f"Negative integer candidate(s) found in {source} {candidates}. Must be"
-                " non-negative."
-            )
+        raise ValueError(
+            f"Negative integer candidate(s) found in {source_type}.{attribute} {candidates}. Must"
+            " be non-negative."
         )
     if any(isinstance(cand, bool) for cand in candidates):
-        errors.append(
-            TypeError(
-                f"Boolean candidate(s) found in {source} {candidates}. Could"
-                " collide with other integer candidates. Change to 0 or 1."
-            )
+        raise TypeError(
+            f"Boolean candidate(s) found in {source_type}.{attribute} {candidates}. Could"
+            " collide with other integer candidates. Change to 0 or 1."
         )
 
     str_cands = {cand for cand in candidates if isinstance(cand, str)}
@@ -1138,41 +1129,10 @@ def find_candidate_name_errors(candidates: Sequence[Candidate], source: str) -> 
         str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
     }
     if collisions:
-        errors.append(
+        warnings.warn(
             UserWarning(
-                f"Candidates {collisions} appear as both str and int (e.g. '1' and 1) within"
-                f" {source} {candidates}. These will be treated as separate candidates.",
+                f"Candidates {collisions} appear as both str and int within"
+                f" {source_type}.{attribute} {candidates}. These will be treated as separate"
+                " candidates.",
             )
         )
-    return errors
-
-
-def validate_candidate_names(candidates: Sequence[Candidate], source: str):
-    """
-    Ensure the candidates are strings or non-negative integers without reserved characters.
-
-    Args:
-        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in
-        df or ballots. Or, the candidates defined at the profile level.
-        source (str]): source of candidates to improve error description.
-
-    Raises:
-        TypeError: Candidate must be a string or integer.
-        TypeError: Candidate must be a non-negative integer.
-        TypeError: Candidate cannot be a boolean. Could conflict with other integer
-            candidates.
-        ValueError: Candidate cannot be '~'. Its a reserved character.
-        ValueError: Candidate cannot contain ':'. Its a reserved character.
-        UserWarning: Candidate collision has occurred between a str and int candidate where
-            when casted to to other candidate's type, they are equivalent. Those candidates
-            will be treated as separate candidates.
-
-    """
-    errors = find_candidate_name_errors(candidates, source)
-    hard_errors = [error for error in errors if not isinstance(error, Warning)]
-
-    if hard_errors:
-        raise errors[0]
-    for warn in errors:
-        if isinstance(warn, Warning):
-            warnings.warn(str(warn), type(warn))

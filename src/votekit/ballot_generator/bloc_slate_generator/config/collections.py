@@ -35,7 +35,7 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     typecheck_bloc_proportion_mapping,
 )
 from votekit.types import Candidate
-from votekit.utils import sort_candidates_pseudo_lexicographically
+from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
 if TYPE_CHECKING:
     from votekit.ballot_generator.bloc_slate_generator.config.core import (
@@ -92,8 +92,20 @@ class _CandListProxy(MutableSequence[Candidate]):
         if isinstance(index, slice):  # pragma: no cover
             if isinstance(value, (Candidate, bytes)) or not isinstance(value, Iterable):
                 raise TypeError("Slice assignment requires an iterable of str and/or int")
+            _validate_candidate_names(
+                list(value),
+                self.__owner._parent,
+                f'slate_to_candidates["{self.__key}"]',
+            )
             new[index] = [x for x in value]
         else:
+            _validate_candidate_names(
+                [value]
+                if isinstance(value, Candidate) or not isinstance(value, Iterable)
+                else value,
+                self.__owner._parent,
+                f'slate_to_candidates["{self.__key}"]',
+            )
             new[operator.index(index)] = value
         self.__owner[self.__key] = new
 
@@ -229,6 +241,10 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
                     "does not implement the '.items()' method."
                 ) from e
 
+    @property
+    def _parent(self) -> "BlocSlateConfig":
+        return self.__parent
+
     def to_dict(self) -> dict[str, list[Candidate]]:
         """
         Return a deep copy of the internal slate to candidates mapping as a standard dict.
@@ -246,11 +262,12 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
         if not isinstance(cast(object, key), str):
             raise TypeError("Slate name must be a 'str'")
         if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-            raise TypeError("Slate candidates must be a sequence of str")
+            raise TypeError("Slate candidates must be a sequence of str and/or int candidates.")
         if len(value) == 0:
             raise ValueError(
                 f"Slate '{key}' has empty candidate list. Candidate lists must be non-empty."
             )
+        _validate_candidate_names(value, self.__parent, f'slate_to_candidates["{key}"]')
         val_list = [c for c in value]
 
         # Prevent adding candidates that already exist in *other* slates

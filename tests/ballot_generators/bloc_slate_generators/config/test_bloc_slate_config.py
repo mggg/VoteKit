@@ -528,52 +528,157 @@ def test_error_when_cohesion_df_empty(valid_config):
 # --- Slate candidates-specific errors --------------------------------------
 
 
-def test_error_for_tilda_candidate(valid_config):
+def test_error_for_tilda_candidate_in_slate_to_candidates(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    config.slate_to_candidates["slate_1"][0] = "~"
-    msgs = _messages(_det_errs(config))
-    assert any("Candidate '~' found in config.candidates" in m for m in msgs)
-
-
-def test_error_for_colon_in_candidate(valid_config):
-    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    config.slate_to_candidates["slate_1"][0] = "A:B"
-    msgs = _messages(_det_errs(config))
-    assert any("':' found in config.candidates" in m for m in msgs)
-
-
-def test_error_for_non_str_int_candidate_raised_by_preference_df_resync(valid_config):
-    # A float candidate never reaches find_candidate_name_errors. By assigning it to
-    # slate_to_candidates, a preference_df resync is triggered that raises an error via
-    # typecheck_preference() within __update_preference_df_on_candidate_change().
     with pytest.raises(
-        TypeError, match=r"preference_df columns \(candidates\) must be a 'str' or 'int'."
+        ValueError, match="Candidate '~' found in BlocSlateConfig.slate_to_candidates"
     ):
-        config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+        config.slate_to_candidates["slate_1"][0] = "~"
+    with pytest.raises(
+        ValueError, match="Candidate '~' found in BlocSlateConfig.slate_to_candidates"
+    ):
+        config.slate_to_candidates["slate_1"] = ["A", "~"]
+    with pytest.raises(
+        ValueError, match="Candidate '~' found in BlocSlateConfig.slate_to_candidates"
+    ):
+        config.slate_to_candidates = {"slate_1": ["A", "~"], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": ["A", "~"], "slate_2": ["X", "Y"]},
+    }
+    with pytest.raises(
+        ValueError, match="Candidate '~' found in BlocSlateConfig.slate_to_candidates"
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
+
+
+def test_error_for_colon_in_candidate_of_slate_to_candidates(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    with pytest.raises(ValueError, match="':' found in BlocSlateConfig.slate_to_candidates"):
+        config.slate_to_candidates["slate_1"][0] = "A:B"
+    with pytest.raises(ValueError, match="':' found in BlocSlateConfig.slate_to_candidates"):
+        config.slate_to_candidates["slate_1"] = ["A:B", "A"]
+    with pytest.raises(ValueError, match="':' found in BlocSlateConfig.slate_to_candidates"):
+        config.slate_to_candidates = {"slate_1": ["A", "A:B"], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": ["A", "A:B"], "slate_2": ["X", "Y"]},
+    }
+    with pytest.raises(ValueError, match="':' found in BlocSlateConfig.slate_to_candidates"):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
+
+
+def test_error_for_non_str_int_candidate_in_slate_for_candidates(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    with pytest.raises(
+        TypeError,
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
         config.slate_to_candidates["slate_1"][0] = 1.0  # type: ignore[arg-type]
+    with pytest.raises(
+        TypeError,
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates["slate_1"] = ["A", 1.0]  # type: ignore[arg-type]
+    with pytest.raises(
+        TypeError,
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates = {"slate_1": ["A", 1.0], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": ["A", 1.0], "slate_2": ["X", "Y"]},
+    }
+    with pytest.raises(
+        TypeError,
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
 
 
 def test_error_for_negative_int_candidate(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    config.slate_to_candidates["slate_1"][0] = -1
-    msgs = _messages(_det_errs(config))
-    assert any("Negative integer candidate(s) found in config.candidates" in m for m in msgs)
+    with pytest.raises(
+        ValueError,
+        match=r"Negative integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates["slate_1"][0] = -1
+    with pytest.raises(
+        ValueError,
+        match=r"Negative integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates["slate_1"] = ["A", -1]
+    with pytest.raises(
+        ValueError,
+        match=r"Negative integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates = {"slate_1": ["A", -1], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": ["A", -1], "slate_2": ["X", "Y"]},
+    }
+    with pytest.raises(
+        ValueError,
+        match=r"Negative integer candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
 
 
 def test_error_for_boolean_candidate_raised_by_preference_df_resync(valid_config):
-    # the preference_df resync's typecheck_preference() raises an error for the bool candidate
-    # before find_candidate_name_errors()'s boolean check runs on self.candidates.
-    with pytest.raises(TypeError, match=r"preference_df columns \(candidates\) cannot be a 'bool'"):
-        config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    with pytest.raises(
+        TypeError,
+        match=r"Boolean candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
         config.slate_to_candidates["slate_1"][0] = True
+    with pytest.raises(
+        TypeError,
+        match=r"Boolean candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates["slate_1"] = ["A", True]
+    with pytest.raises(
+        TypeError,
+        match=r"Boolean candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        config.slate_to_candidates = {"slate_1": ["A", True], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": ["A", True], "slate_2": ["X", "Y"]},
+    }
+    with pytest.raises(
+        TypeError,
+        match=r"Boolean candidate\(s\) found in BlocSlateConfig.slate_to_candidates",
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
 
 
 def test_warning_for_collided_candidate(valid_config):
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
-    config.slate_to_candidates["slate_1"][0] = 1
-    config.slate_to_candidates["slate_2"][0] = "1"
-    msgs = _messages(_det_errs(config))
-    assert any("These will be treated as separate candidates." in m for m in msgs)
+    with pytest.warns(
+        UserWarning,
+        match=r"These will be treated as separate candidates.",
+    ):
+        config.slate_to_candidates["slate_1"] = [1, "01"]
+    with pytest.warns(
+        UserWarning,
+        match=r"These will be treated as separate candidates.",
+    ):
+        config.slate_to_candidates = {"slate_1": [1, "01"], "slate_2": ["X", "Y"]}  # type: ignore[arg-type]
+
+    invalid_config = {
+        **valid_config,
+        "slate_to_candidates": {"slate_1": [1, "01"], "slate_2": ["X", "Y"]},
+    }
+    with pytest.warns(
+        UserWarning,
+        match=r"These will be treated as separate candidates.",
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
 
 
 # --- Bloc proportion-specific errors --------------------------------------
@@ -600,6 +705,46 @@ def test_error_for_validate_after_low_sum_bloc_poportion(valid_config):
 
 
 # --- preference_df structural errors --------------------------------------
+
+
+def test_error_when_pref_mapping_contains_invalid_candidates(valid_config):
+    invalid_config = {
+        **valid_config,
+        "preference_mapping": {
+            "bloc_1": {
+                "slate_1": PreferenceInterval({1.0: 0.4, "B": 0.1}),
+                "slate_2": PreferenceInterval({"X": 0.1, "Y": 0.9}),
+            },
+            "bloc_2": {
+                "slate_1": PreferenceInterval({"A": 0.05, "B": 0.05}),
+                "slate_2": PreferenceInterval({"X": 0.45, "Y": 0.45}),
+            },
+        },
+    }
+    with pytest.raises(
+        TypeError,
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.preference_mapping",
+    ):
+        BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
+
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    with pytest.raises(
+        ValueError,
+        match="Candidate '~' found in BlocSlateConfig.preference_mapping",
+    ):
+        invalid_df = config.preference_df.copy()
+        invalid_df.rename(columns={"A": "~"}, inplace=True)
+        config.preference_df = invalid_df
+
+
+def test_error_when_preference_columns_mismatch_candidates_with_invalid_candidates(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
+    config.slate_to_candidates["slate_1"][0] = 1
+    config.preference_df.rename(columns={1: True}, inplace=True)
+    msgs = _messages(_det_errs(config))
+    # set of preference_df columns is equivalent to set of candidates but preference columns
+    # contains invalid candidates (bool or float) that are equal in value to a int candidate.
+    assert any("with invalid 'bool'/'float' candidate(s)." in m for m in msgs)
 
 
 def test_error_when_preference_columns_mismatch_candidates(valid_config):

@@ -125,7 +125,7 @@ def test_str_int_mix_candidates_in_profile_gives_warning():
 
 
 def test_tilda_candidates_in_profile_raises_error():
-    with pytest.raises(ValueError, match="Candidate '~' found in profile.candidates"):
+    with pytest.raises(ValueError, match="Candidate '~' found in ScoreProfile.candidates"):
         ScoreProfile(
             ballots=[
                 ScoreBallot(scores={1: 1}),
@@ -135,7 +135,7 @@ def test_tilda_candidates_in_profile_raises_error():
 
 
 def test_candidate_name_with_colon_in_profile_raises_error():
-    with pytest.raises(ValueError, match="':' found in profile.candidates"):
+    with pytest.raises(ValueError, match="':' found in ScoreProfile.candidates"):
         ScoreProfile(
             ballots=[
                 ScoreBallot(scores={1: 1}),
@@ -146,7 +146,7 @@ def test_candidate_name_with_colon_in_profile_raises_error():
 
 def test_non_int_str_candidate_in_profile_raises_error():
     with pytest.raises(
-        TypeError, match=r"Non-string/integer candidate\(s\) found in profile.candidates"
+        TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreProfile.candidates"
     ):
         ScoreProfile(  # type: ignore[arg-type]
             ballots=[
@@ -158,7 +158,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
 
 def test_negative_int_candidate_in_profile_raises_error():
     with pytest.raises(
-        ValueError, match=r"Negative integer candidate\(s\) found in profile.candidates"
+        ValueError, match=r"Negative integer candidate\(s\) found in ScoreProfile.candidates"
     ):
         ScoreProfile(
             ballots=[
@@ -169,7 +169,7 @@ def test_negative_int_candidate_in_profile_raises_error():
 
 
 def test_bool_candidate_in_profile_raises_error():
-    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in profile.candidates"):
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in ScoreProfile.candidates"):
         ScoreProfile(
             ballots=[
                 ScoreBallot(scores={1: 1}),
@@ -203,7 +203,7 @@ def test_tilda_candidate_cast_in_profile_raises_error():
     }
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
-    with pytest.raises(ValueError, match="Candidate '~' found in profile.candidates_cast"):
+    with pytest.raises(ValueError, match="Candidate '~' found in ScoreProfile.candidates_cast"):
         ScoreProfile(
             df=invalid_cand_df,
             candidates=[
@@ -237,7 +237,7 @@ def test_candidate_cast_with_colon_in_profile_raises_error():
     }
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
-    with pytest.raises(ValueError, match="':' found in profile.candidates_cast"):
+    with pytest.raises(ValueError, match="':' found in ScoreProfile.candidates_cast"):
         ScoreProfile(
             df=invalid_cand_df,
             candidates=[
@@ -273,7 +273,7 @@ def test_non_int_str_candidate_cast_in_profile_raises_error():
     invalid_cand_df.index.name = "Ballot Index"
     print(invalid_cand_df)
     with pytest.raises(
-        TypeError, match=r"Non-string/integer candidate\(s\) found in profile.candidates_cast"
+        TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreProfile.candidates_cast"
     ):
         ScoreProfile(
             df=invalid_cand_df,
@@ -309,7 +309,7 @@ def test_negative_int_candidate_cast_in_profile_raises_error():
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
     with pytest.raises(
-        ValueError, match=r"Negative integer candidate\(s\) found in profile.candidates_cast"
+        ValueError, match=r"Negative integer candidate\(s\) found in ScoreProfile.candidates_cast"
     ):
         ScoreProfile(
             df=invalid_cand_df,
@@ -344,7 +344,9 @@ def test_bool_candidate_cast_in_profile_raises_error():
     }
     invalid_cand_df = pd.DataFrame(data)
     invalid_cand_df.index.name = "Ballot Index"
-    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in profile.candidates_cast"):
+    with pytest.raises(
+        TypeError, match=r"Boolean candidate\(s\) found in ScoreProfile.candidates_cast"
+    ):
         ScoreProfile(
             df=invalid_cand_df,
             candidates=[

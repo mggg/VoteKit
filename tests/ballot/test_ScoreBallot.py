@@ -164,13 +164,15 @@ def test_equivalent_str_int_candidates_gives_warning():
 
 def test_invalid_candidate_type_ballot():
     with pytest.raises(
-        TypeError, match=r"Non-string/integer candidate\(s\) found in ballot.scores"
+        TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreBallot.scores"
     ):
         ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type]
 
 
 def test_negative_integer_candidate_ballot():
-    with pytest.raises(ValueError, match=r"Negative integer candidate\(s\) found in ballot.scores"):
+    with pytest.raises(
+        ValueError, match=r"Negative integer candidate\(s\) found in ScoreBallot.scores"
+    ):
         ScoreBallot(scores={"A": 2, 1: 1, -1: 2})
 
 
@@ -180,10 +182,10 @@ def test_non_mapping_scores_ballot_raises_error():
 
 
 def test_colon_in_cand_name_ballot_raises_error():
-    with pytest.raises(ValueError, match="':' found in ballot.scores"):
+    with pytest.raises(ValueError, match="':' found in ScoreBallot.scores"):
         ScoreBallot(scores={"A:B": 1})
 
 
 def test_bool_candidate_in_ballot_raises_error():
-    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in ballot.scores"):
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in ScoreBallot.scores"):
         ScoreBallot(scores={True: 1, "1": 1, 0: 1})
