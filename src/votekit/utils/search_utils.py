@@ -26,7 +26,7 @@ def search_profile_for_rank_pattern(
     Must provide at least a ``ranking_query`` or a ``max_cand_pair_dist``. Can give one or both.
     The ``ranking_query`` is applied first, and the ``max_cand_pair_dist`` query searches within
     the ballots that satisfy the ``ranking_query``. When multiple candidate pairs are given in
-    ``max_cand_pair_dist``, a ballot satisfies the query if it matches at least one pair.
+    ``max_cand_pair_dist``, a ballot is returned if it satisfies all candidate pair constraints.
     Each element of the ``ranking_query`` specifies one ordered slot in the pattern:
         - Candidate (str or int): a single candidate that must appear before the candidate(s)
         in the next slot.
@@ -80,7 +80,8 @@ def search_profile_for_rank_pattern(
         _boolean_matrix(profile, candidate, include_unranked) for candidate in candidate_pairs_list
     ]
     # candidate pair max distance specify the allowed number of slots between candidates
-    # 1 is added to the max distance because the candidate pair locations get subtracted
+    # 1 is added to the max distance because we subtract the candidate positions instead of counting
+    # the number of slots between them
     cand_pair_max_dists = [
         max_cand_pair_dist[(candidate_pairs_list[i], candidate_pairs_list[i + 1])] + 1
         for i in range(0, len(candidate_pairs_list), 2)
@@ -243,6 +244,26 @@ def _boolean_matrix(
     """
     Create a boolean matrix of the query slot's locations within the profile's rankings.
 
+    If unranked candidates are included, they are considered tied at the end of the ballot.
+    For completed ballots, the unranked candidates will be tied at 1 + max ranking length.
+    For short ballots, the unranked candidates will be tied at the first instance of "~".
+    Query slot sets will not include unranked locations because set notation enforces a strict
+    match. The boolean matrix will still be extended one column to be compared with other boolean
+    matrixes of non-set query slots with their unranked positions included.
+
+    Example:
+        profile = RankProfile(
+                    ballots=(RankBallot(ranking=["A", "B"]),
+                             RankBallot(ranking=["A", "B", "A", "B"])),
+                    candidates=["A", "B", "C"],
+                    max_ranking_length=4
+                    )
+
+        _boolean_matrix(profile, "C", include_unranked=True) returns:
+            [[False, False, True, False, False],
+            [False, False, False, False, True]]
+
+
     Args:
         profile (RankProfile): profile with internal _df that represents candidate sets as
             integer IDs.
@@ -254,7 +275,7 @@ def _boolean_matrix(
             enforces a strict match. Unranked candidates will be excluded by default.
 
     Returns:
-        (np.array): Boolean matrix where candidate's locations in the _df rankings are marked as
+        (np.ndarray): Boolean matrix where candidate's locations in the _df rankings are marked as
             True
 
     """
@@ -300,14 +321,144 @@ def _boolean_matrix(
     return cand_set_locations
 
 
+def _get_next_true_ballot_with_cand(
+    ballots_where_true: np.ndarray, cand_where_idx: int, cand_where_ballots: np.ndarray
+) -> int | None:
+    """
+    Get the next ballot that the candidate exists within a masked True ballot.
+
+    Only true ballots where the candidate is present should be searched. Computation is wasted
+    on ballots that are already False within a mask. A query never adds back ballots, only
+    excludes ones that do not satisfy it.
+
+    Args:
+        ballots_where_true (np.ndarray): array of ballot indices that satisfy all previous query
+         constraints.
+        cand_where_idx (int): Current where index for candidate within list of ballots each
+            with a ranking.
+        cand_where_ballots (np.ndarray): List of ballot indices where candidate is present.
+
+    Returns:
+        (int | None): index into the array of ballot indices where candidate is present and ballot
+            is True from mask. If no ballots with the candidate are true ballots or there are no
+            true ballots, then none is returned.
+
+
+    """
+    cand_curr_ballot = cand_where_ballots[cand_where_idx]
+    num_cand_where_ballots = len(cand_where_ballots)
+    true_ballot_set = set(ballots_where_true)
+    if cand_curr_ballot not in true_ballot_set:
+        while (
+            cand_where_idx < num_cand_where_ballots
+            and cand_where_ballots[cand_where_idx] not in true_ballot_set
+        ):
+            cand_where_idx += 1
+        if cand_where_idx >= num_cand_where_ballots:  # no true ballots with cand present
+            return None
+    return cand_where_idx
+
+
+def _shift_idx_to_next_ballot(where_idx: int, where_ballots: np.ndarray) -> int:
+    """
+    Moves the current ``where_idx`` to the next unique ballot index within ``where_ballots``.
+
+    Args:
+        where_idx (int): current index for the np.where ballots array.
+        where_ballots (np.ndarray): array of ballot indices.
+
+    Returns:
+        (int): Index for the next unique ballot index within ``where_ballots``.
+    """
+    num_where_ballots = len(where_ballots)
+    curr_ballot_idx = where_ballots[where_idx]
+    ballot_idx = where_idx
+    while ballot_idx < num_where_ballots and where_ballots[ballot_idx] == curr_ballot_idx:
+        ballot_idx += 1
+    return ballot_idx
+
+
+def _compare_adjacent_query_slots_ranks(
+    query_slot_a_position_mask: np.ndarray,
+    query_slot_b_position_mask: np.ndarray,
+    ballots_mask: np.ndarray,
+) -> np.ndarray:
+    """
+    Compares adjacent query slots rank positions within ``ranking_query``.
+
+    A ballot satisfies the query when query_a appears above query_b within its ranking.
+    ``ballots_mask`` is used to constrain the search space for ballots that possibly satisfy the
+    adjacent query slots ordering. Ballots can only be excluded
+    based on whether the adjacent query slots appear in their specified order from the ballots_mask,
+    never added.
+
+    Args:
+        query_slot_a_position_mask (np.ndarray):  boolean matrix for query slot a's positions within
+            the profile's ballots.
+        query_slot_b_position_mask (np.ndarray):  boolean matrix for query slot b's positions within
+            the profile's ballots.
+        ballots_mask (np.ndarray): boolean mask with indices of ballots that fulfill the query
+            constraints for all previous adjacent query slot comparisons.
+
+    Returns:
+        (np.ndarray): mask with all ballots that satisfy the query marked as True.
+
+    """
+    ballots_where_true = np.where(ballots_mask)[0]
+    if len(ballots_where_true) == 0:
+        return ballots_mask
+
+    query_a_ballots, query_a_ranks = np.where(query_slot_a_position_mask)
+    query_b_ballots, query_b_ranks = np.where(query_slot_b_position_mask)
+    num_query_a_ballots, num_query_b_ballots = len(query_a_ballots), len(query_b_ballots)
+    query_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
+    query_a_where_idx, query_b_where_idx = 0, 0
+
+    while query_a_where_idx < num_query_a_ballots and query_b_where_idx < num_query_b_ballots:
+        query_a_where_idx = _get_next_true_ballot_with_cand(
+            ballots_where_true, query_a_where_idx, query_a_ballots
+        )
+        if query_a_where_idx is None:  # no true ballot with query a found
+            break
+        a_ballot_idx = query_a_ballots[query_a_where_idx]
+        query_b_where_idx = _get_next_true_ballot_with_cand(
+            ballots_where_true, query_b_where_idx, query_b_ballots
+        )
+        if query_b_where_idx is None:  # no true ballot with query b found
+            break
+        b_ballot_idx = query_b_ballots[query_b_where_idx]
+
+        if a_ballot_idx < b_ballot_idx:
+            query_a_where_idx = _shift_idx_to_next_ballot(query_a_where_idx, query_a_ballots)
+        elif a_ballot_idx > b_ballot_idx:
+            query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
+        else:  # a_ballot == b_ballot
+            a_rank_idx = query_a_ranks[query_a_where_idx]
+            b_rank_idx = query_b_ranks[query_b_where_idx]
+            if a_rank_idx >= b_rank_idx:
+                query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
+                query_b_where_idx -= 1  # shift to last instance of query b within a ballot
+                b_rank_idx = query_b_ranks[query_b_where_idx]
+            if a_rank_idx < b_rank_idx:
+                query_pair_ballots_mask[a_ballot_idx] = True
+            query_a_where_idx = _shift_idx_to_next_ballot(query_a_where_idx, query_a_ballots)
+            query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
+
+    return query_pair_ballots_mask & ballots_mask
+
+
 def _compare_query_ranks(
     query_position_masks: list[np.ndarray],
     ballots_mask: np.ndarray,
 ) -> np.ndarray:
     """
-    Recursive function to compare each query slot pairs rank positions.
+    Compares each pair of adjacent query slots within ``ranking_query``.
 
     A ballot satisfies the query when query_a appears above query_b within its ranking.
+    ``ballots_mask`` is used to constrain the search space for ballots that possibly satisfy the
+    adjacent query slot pairs ordering. A ballot satisfies the query if all
+    adjacent query slot pairs exist within the ballot in their specified order.
+
 
     Args:
         query_position_masks (list[np.ndarray]): list of the boolean matrices for each query slot's
@@ -319,53 +470,74 @@ def _compare_query_ranks(
         (np.ndarray): mask with all ballots that satisfy the query marked as True.
 
     """
-    true_ballots = np.where(ballots_mask)[0]
-    if len(true_ballots) == 0:
+    if not ballots_mask.any():
         return ballots_mask
     if len(query_position_masks) < 2:
         return ballots_mask
 
-    query_a_ballots, query_a_ranks = np.where(query_position_masks[0])
-    query_b_ballots, query_b_ranks = np.where(query_position_masks[1])
+    for query_slot_idx in range(len(query_position_masks) - 1):
+        ballots_mask = _compare_adjacent_query_slots_ranks(
+            query_position_masks[query_slot_idx],
+            query_position_masks[query_slot_idx + 1],
+            ballots_mask,
+        )
+        if not ballots_mask.any():
+            return ballots_mask
 
-    query_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
-    i, j = 0, 0
-    num_query_a_ballots, num_query_b_ballots = len(query_a_ballots), len(query_b_ballots)
+    return ballots_mask
 
-    while i < num_query_a_ballots and j < num_query_b_ballots:
-        # Get the ballot and rank position of each query slot
-        # Search only ballots where previous rank comparisons were True
-        a_ballot, a_rank = query_a_ballots[i], query_a_ranks[i]
-        if a_ballot not in true_ballots:
-            while i < num_query_a_ballots and query_a_ballots[i] == a_ballot:
-                i += 1
-        if i >= num_query_a_ballots:  # no true ballots with query a
-            break
-        a_ballot, a_rank = query_a_ballots[i], query_a_ranks[i]
 
-        b_ballot, b_rank = query_b_ballots[j], query_b_ranks[j]
-        if b_ballot not in true_ballots:
-            while j < num_query_b_ballots and query_b_ballots[j] == b_ballot:
-                j += 1
-        if j >= num_query_b_ballots:  # no true ballots with query b
-            break
-        b_ballot, b_rank = query_b_ballots[j], query_b_ranks[j]
+def _get_candidate_pair_min_distance(
+    cand_a_where_idx: int,
+    cand_b_where_idx: int,
+    cand_a_ballots: np.ndarray,
+    cand_b_ballots: np.ndarray,
+    cand_a_ranks: np.ndarray,
+    cand_b_ranks: np.ndarray,
+) -> int:
+    """
+    Determine the minimum distance between a candidate pair within the same ballot.
 
-        if a_ballot < b_ballot:
-            i += 1
-        elif a_ballot > b_ballot:
-            j += 1
-        else:  # a_ballot == b_ballot
-            if a_rank >= b_rank:
-                j += 1  # shift b_rank to the right, keep a_rank still
-            else:  # a ranks before b
-                query_pair_ballots_mask[a_ballot] = True
-                while i < num_query_a_ballots and query_a_ballots[i] == a_ballot:
-                    i += 1  # move pointer to the next unique a_ballot
-                while j < num_query_b_ballots and query_b_ballots[j] == a_ballot:
-                    j += 1  # move pointer to the next unique b_ballot
+    There can be duplicates of candidates within a ballot. Therefore, candidate pairs can have
+    various distances within a ballot. Only 1 distance needs to be lower than the max distance given
+    for the candidate pair to satisfy the query.
 
-    return _compare_query_ranks(query_position_masks[1:], (ballots_mask & query_pair_ballots_mask))
+    Args:
+        cand_a_where_idx (int): Candidate "a" index into np.where array of the first instance of "a"
+            within a ballot that contains both candidates.
+        cand_b_where_idx (int): Candidate "b" index into np.where array of the first instance of "b"
+            within a ballot that contains both candidates.
+        cand_a_ballots (np.ndarray): Array of ballot indices where candidate "a" is present.
+        cand_b_ballots (np.ndarray): Array of ballot indices where candidate "b" is present.
+        cand_a_ranks (np.ndarray): Array of rank indices where candidate "a" is ranked within each
+            ballot.
+        cand_b_ranks (np.ndarray): Array of rank indices where candidate "b" is ranked within each
+            ballot.
+
+    Returns:
+        (int): the minimum distance between a candidate pair within the ballot.
+    """
+
+    cand_a_ballot_idx = cand_a_ballots[cand_a_where_idx]
+    cand_b_ballot_idx = cand_b_ballots[cand_b_where_idx]
+
+    if cand_a_ballot_idx != cand_b_ballot_idx:
+        raise ValueError("Can only compare candidate pairs within the same ballot.")
+
+    cand_a_where_ballot_indices = np.where(cand_a_ballots == cand_a_ballot_idx)[0]
+    cand_b_where_ballot_indices = np.where(cand_b_ballots == cand_b_ballot_idx)[0]
+
+    cand_a_ranks_in_ballot = cand_a_ranks[cand_a_where_ballot_indices]
+    cand_b_ranks_in_ballot = cand_b_ranks[cand_b_where_ballot_indices]
+    min_distance = abs(cand_a_ranks_in_ballot[0] - cand_b_ranks_in_ballot[0])
+    if len(cand_a_ranks_in_ballot) == 1 and len(cand_b_ranks_in_ballot) == 1:
+        return min_distance
+    for cand_a_rank in cand_a_ranks_in_ballot:
+        for cand_b_rank in cand_b_ranks_in_ballot:
+            dist = abs(cand_a_rank - cand_b_rank)
+            if dist < min_distance:
+                min_distance = dist
+    return min_distance
 
 
 def _compare_one_candidate_pair_ranks(
@@ -380,71 +552,64 @@ def _compare_one_candidate_pair_ranks(
     A candidate pair can appear in either order in the profile rankings. A ballot satisfies the
     query if the candidate pair exist in a ballot ranking within their max separation distance. This
     means a tied candidate pair satisfy the query. ballots_mask is used to constrain the search
-    space for ballots that possibly satisfy the candidate pair query.
+    space for ballots that possibly satisfy the candidate pair query. Ballots can only be excluded
+    from ballots_mask based on the candidate pair query result, never added.
 
     Args:
-        cand_a_position_mask (list[np.ndarray]): boolean matrix for candidate a's positions within
+        cand_a_position_mask (np.ndarray): boolean matrix for candidate a's positions within
             the profile's ballots.
-        cand_b_position_mask (list[np.ndarray]): boolean matrix for candidate b's positions within
+        cand_b_position_mask (np.ndarray): boolean matrix for candidate b's positions within
             the profile's ballots.
         cand_a_b_max_dist (int): Max distance allowed between candidate a and b.
         ballots_mask (np.ndarray): boolean mask with indices of ballots that fulfill the query
-            constraints for all ranking_query comparisons.
+            constraints for all ranking_query and previous candidate pair comparisons.
 
     Returns:
         (np.ndarray): mask with all ballots that satisfy the query within ballots_mask marked as
             True.
     """
+    ballots_where_true = np.where(ballots_mask)[0]
+    if len(ballots_where_true) == 0:
+        return ballots_mask
+
     cand_a_ballots, cand_a_ranks = np.where(cand_a_position_mask)
     cand_b_ballots, cand_b_ranks = np.where(cand_b_position_mask)
-
     num_cand_a_ballots, num_cand_b_ballots = len(cand_a_ballots), len(cand_b_ballots)
-
-    true_ballots = np.where(ballots_mask)[0]
     cand_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
-    i, j = 0, 0
-    while i < num_cand_a_ballots and j < num_cand_b_ballots:
-        # Get the ballot and rank position of each candidate
-        # Search only ballots where ranking_query is True
-        a_ballot, a_rank = cand_a_ballots[i], cand_a_ranks[i]
-        if a_ballot not in true_ballots:
-            while i < num_cand_a_ballots and cand_a_ballots[i] == a_ballot:
-                i += 1
-        if i >= num_cand_a_ballots:  # no true ballots with cand a
+    cand_a_where_idx, cand_b_where_idx = 0, 0
+
+    while cand_a_where_idx < num_cand_a_ballots and cand_b_where_idx < num_cand_b_ballots:
+        cand_a_where_idx = _get_next_true_ballot_with_cand(
+            ballots_where_true, cand_a_where_idx, cand_a_ballots
+        )
+        if cand_a_where_idx is None:  # no true ballot with candidate a found
             break
-        a_ballot, a_rank = cand_a_ballots[i], cand_a_ranks[i]
-
-        b_ballot, b_rank = cand_b_ballots[j], cand_b_ranks[j]
-        if b_ballot not in true_ballots:
-            while j < num_cand_b_ballots and cand_b_ballots[j] == b_ballot:
-                j += 1
-        if j >= num_cand_b_ballots:  # no true ballots with cand b
+        a_ballot_idx = cand_a_ballots[cand_a_where_idx]
+        cand_b_where_idx = _get_next_true_ballot_with_cand(
+            ballots_where_true, cand_b_where_idx, cand_b_ballots
+        )
+        if cand_b_where_idx is None:  # no true ballot with candidate b found
             break
-        b_ballot, b_rank = cand_b_ballots[j], cand_b_ranks[j]
+        b_ballot_idx = cand_b_ballots[cand_b_where_idx]
+        if a_ballot_idx < b_ballot_idx:
+            cand_a_where_idx = _shift_idx_to_next_ballot(cand_a_where_idx, cand_a_ballots)
+        elif a_ballot_idx > b_ballot_idx:
+            cand_b_where_idx = _shift_idx_to_next_ballot(cand_b_where_idx, cand_b_ballots)
+        else:  # a_ballot_idx == b_ballot_idx
+            cand_a_b_min_distance = _get_candidate_pair_min_distance(
+                cand_a_where_idx,
+                cand_b_where_idx,
+                cand_a_ballots,
+                cand_b_ballots,
+                cand_a_ranks,
+                cand_b_ranks,
+            )
+            if cand_a_b_min_distance <= cand_a_b_max_dist:
+                cand_pair_ballots_mask[a_ballot_idx] = True
+            cand_a_where_idx = _shift_idx_to_next_ballot(cand_a_where_idx, cand_a_ballots)
+            cand_b_where_idx = _shift_idx_to_next_ballot(cand_b_where_idx, cand_b_ballots)
 
-        if a_ballot < b_ballot:
-            i += 1
-        elif a_ballot > b_ballot:
-            j += 1
-        else:  # a_ballot == b_ballot
-            # move to the last rank position of the candidate ranked above the other within a ballot
-            # to minimize distance between cand_a and cand_b
-            if a_rank >= b_rank:
-                while (j + 1) < num_cand_b_ballots and cand_b_ballots[j + 1] == a_ballot:
-                    j += 1
-                b_rank = cand_b_ranks[j]
-            else:
-                while (i + 1) < num_cand_a_ballots and cand_a_ballots[i + 1] == a_ballot:
-                    i += 1
-                a_rank = cand_a_ranks[i]
-            if abs(b_rank - a_rank) <= cand_a_b_max_dist:
-                cand_pair_ballots_mask[a_ballot] = True
-            while i < num_cand_a_ballots and cand_a_ballots[i] == a_ballot:
-                i += 1  # move pointer to the next unique a_ballot
-            while j < num_cand_b_ballots and cand_b_ballots[j] == a_ballot:
-                j += 1  # move pointer to the next unique b_ballot
-
-    return cand_pair_ballots_mask
+    return cand_pair_ballots_mask & ballots_mask
 
 
 def _compare_candidate_pair_ranks(
@@ -458,7 +623,8 @@ def _compare_candidate_pair_ranks(
     Candidate pairs can appear in either order in the profile rankings. A ballot satisfies the query
     if the candidate pair exist in a ballot ranking within their max separation distance. This means
     tied candidate pairs satisfy the query. ballots_mask is used to constrain the search space for
-    ballots that possibly satisfy the candidate pair query.
+    ballots that possibly satisfy the candidate pair query. A ballot satisfies the query if all
+    candidate pairs exist within the ballot within their max separation distance.
 
     Args:
         cand_position_masks (list[np.ndarray]): list of the boolean matrices for each candidate's
@@ -474,19 +640,20 @@ def _compare_candidate_pair_ranks(
             True.
 
     """
-    true_ballots = np.where(ballots_mask)[0]
-    if len(true_ballots) == 0:
+    if not ballots_mask.any():
         return ballots_mask
     if len(cand_position_masks) < 2:
         return ballots_mask
 
-    cand_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
     for cand_pair_idx, cand_idx in enumerate(range(0, len(cand_position_masks), 2)):
         cand_a_b_max_dist = cand_pair_max_dists[cand_pair_idx]
-        cand_pair_ballots_mask |= _compare_one_candidate_pair_ranks(
+        ballots_mask = _compare_one_candidate_pair_ranks(
             cand_position_masks[cand_idx],
             cand_position_masks[cand_idx + 1],
             cand_a_b_max_dist,
             ballots_mask,
         )
-    return ballots_mask & cand_pair_ballots_mask
+        if not ballots_mask.any():
+            return ballots_mask
+
+    return ballots_mask

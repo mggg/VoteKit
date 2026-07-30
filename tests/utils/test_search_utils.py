@@ -11,6 +11,9 @@ from votekit.utils.search_utils import (
     _boolean_matrix,
     _compare_candidate_pair_ranks,
     _compare_query_ranks,
+    _get_candidate_pair_min_distance,
+    _get_next_true_ballot_with_cand,
+    _shift_idx_to_next_ballot,
     _validate_max_cand_pair_dist,
     _validate_ranking_query,
 )
@@ -26,7 +29,7 @@ def test_search_profile_for_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
@@ -35,7 +38,7 @@ def test_search_profile_for_rank_pattern():
             RankBallot(ranking=[{"B", "D"}, {"A"}, {"C"}], weight=1.0),
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -53,12 +56,12 @@ def test_search_for_set_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
         ballots=(RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -76,7 +79,7 @@ def test_search_for_tuple_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
@@ -86,7 +89,7 @@ def test_search_for_tuple_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -104,7 +107,7 @@ def test_search_for_singleton_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
@@ -112,7 +115,7 @@ def test_search_for_singleton_rank_pattern():
             RankBallot(ranking=[{"A", "B"}, {"C"}, 1], weight=1.0),
             RankBallot(ranking=[{"B", "D"}, {"A"}, {"C"}], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -130,12 +133,12 @@ def test_search_for_multiple_elements_rank_pattern():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
         ballots=(RankBallot(ranking=[{"A", "B"}, {"C"}, 1], weight=1.0),),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -153,18 +156,46 @@ def test_search_returns_empty_df():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     empty_profile = RankProfile(
         ballots=(),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
     pd.testing.assert_frame_equal(
         search_profile_for_rank_pattern(profile, ranking_query=["B", "D"]).reset_index(drop=True),
         empty_profile.df.reset_index(drop=True),
+        check_dtype=False,
+    )
+
+
+def test_search_with_ranking_query_with_duplicate_candidate_rankings():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["A", 1, "B", "A", "C", "A"], weight=1.0),
+            RankBallot(ranking=[1, 2, {"A", "B"}, "D", "C", "A"], weight=1.0),
+            RankBallot(ranking=[1, 2, "A", "D", "C", "B"], weight=1.0),
+            RankBallot(ranking=[1, 2, "B", "D", "C"], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D", 1, 2),
+        max_ranking_length=6,
+    )
+
+    true_profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["A", 1, "B", "A", "C", "A"], weight=1.0),
+            RankBallot(ranking=[1, 2, {"A", "B"}, "D", "C", "A"], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D", 1, 2),
+        max_ranking_length=6,
+    )
+
+    pd.testing.assert_frame_equal(
+        search_profile_for_rank_pattern(profile, ranking_query=["B", "A"]).reset_index(drop=True),
+        true_profile.df.reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -180,7 +211,7 @@ def test_search_with_max_cand_pair_dist():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match_dist_0 = RankProfile(
@@ -189,7 +220,7 @@ def test_search_with_max_cand_pair_dist():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match_dist_1 = RankProfile(
@@ -199,7 +230,7 @@ def test_search_with_max_cand_pair_dist():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -226,25 +257,51 @@ def test_search_with_max_cand_pair_dist_with_multiple_cand_pairs():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match_dist_0 = RankProfile(
-        ballots=(
-            RankBallot(ranking=[{"A", "B"}, {"C"}, 1], weight=1.0),
-            RankBallot(ranking=[{"B", "D"}, {"A"}, {"C"}], weight=1.0),
-            RankBallot(ranking=[2, "C", "B"], weight=1.0),
-        ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        ballots=(RankBallot(ranking=[{"A", "B"}, {"C"}, 1], weight=1.0),),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
-    max_sep_dist_0 = {("A", "B"): 0, ("C", 2): 0}
+    max_sep_dist_0 = {("A", "B"): 0, ("B", "C"): 0}
     print(search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0))
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0)
         .reset_index(drop=True)
         .equals(profile_match_dist_0.df.reset_index(drop=True))
+    )
+
+
+def test_search_with_max_cand_pair_dist_with_duplicate_candidate_rankings():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["A", 1, "B", "A", "C", "A"], weight=1.0),
+            RankBallot(ranking=[1, 2, "A", "D", "C", {"A", "B"}], weight=1.0),
+            RankBallot(ranking=[1, 2, "A", "D", "C", "B"], weight=1.0),
+            RankBallot(ranking=[1, 2, "B", "D", "C"], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D", 1, 2),
+        max_ranking_length=6,
+    )
+
+    true_profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["A", 1, "B", "A", "C", "A"], weight=1.0),
+            RankBallot(ranking=[1, 2, "A", "D", "C", {"A", "B"}], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D", 1, 2),
+        max_ranking_length=6,
+    )
+    cand_pair_dict = {("A", "B"): 0}
+    pd.testing.assert_frame_equal(
+        search_profile_for_rank_pattern(profile, max_cand_pair_dist=cand_pair_dict).reset_index(
+            drop=True
+        ),
+        true_profile.df.reset_index(drop=True),
+        check_dtype=False,
     )
 
 
@@ -259,12 +316,12 @@ def test_search_with_matching_ranking_query_and_max_cand_pair_dist():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
         ballots=(RankBallot(ranking=[2, "C", "B"], weight=1.0),),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     max_sep_dist = {(2, "C"): 0}
@@ -288,7 +345,7 @@ def test_search_for_ranking_query_with_include_unranked():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     profile_match = RankProfile(
@@ -296,7 +353,7 @@ def test_search_for_ranking_query_with_include_unranked():
             RankBallot(ranking=[{"A", "B"}, {"C"}, 1], weight=1.0),
             RankBallot(ranking=[{"B", "D"}, {"A"}, {"C"}], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
     assert (
@@ -359,7 +416,7 @@ def test_validate_max_cand_pair_dist_raises_errors():
             RankBallot(ranking=[{"A"}, {"B"}, {"D"}, {"C"}], weight=1.0),
             RankBallot(ranking=[1, 2, "C", "A"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -424,7 +481,7 @@ def test_boolean_matrix_with_duplicates():
             RankBallot(ranking=["A", "A", "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -447,7 +504,7 @@ def test_boolean_matrix_with_strict_cand_set():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -478,7 +535,7 @@ def test_boolean_matrix_include_unranked():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -503,7 +560,7 @@ def test_boolean_matrix_include_unranked_with_strict_set():
             RankBallot(ranking=[1, 2, "B", "C"], weight=1.0),
             RankBallot(ranking=[2, "C", "B"], weight=1.0),
         ),
-        candidates=("A", "B", "C", "D", "E", 1, 2),
+        candidates=("A", "B", "C", "D", 1, 2),
         max_ranking_length=4,
     )
 
@@ -646,3 +703,59 @@ def test_compare_candidate_pair_ranks_for_duplicates():
         _compare_candidate_pair_ranks(cand_a_b_location_matrices, max_dist_cand_a_b, mask),
         true_mask,
     )
+
+
+# --- _shift_idx_to_next_ballot -----------------------------------
+
+
+def test_shift_idx_to_next_ballot():
+    curr_where_idx = 3
+    ballot_indices = np.array([0, 0, 0, 1, 1, 1, 4, 5])
+    true_next_ballot_idx = 6
+    assert true_next_ballot_idx == _shift_idx_to_next_ballot(curr_where_idx, ballot_indices)
+    assert ballot_indices[true_next_ballot_idx] != ballot_indices[curr_where_idx]
+    assert ballot_indices[true_next_ballot_idx - 1] == ballot_indices[curr_where_idx]
+
+
+# --- _get_next_true_ballot_with_cand -----------------------------------
+
+
+def test_get_next_true_ballot_with_cand():
+    ballots_mask = np.array([False, False, True, False, True])
+    ballots_where_true = np.where(ballots_mask)[0]
+    ballot_indices_where_cand = np.array([0, 2, 4])
+    # next true ballot with candidate is at ballot index 2, which is at index 1 in where array
+    true_next_ballot_where_idx = 1
+    assert true_next_ballot_where_idx == _get_next_true_ballot_with_cand(
+        ballots_where_true, 0, ballot_indices_where_cand
+    )
+
+    ballot_indices_where_cand = np.array([0, 1, 3])
+    true_next_ballot_where_idx = None  # no true ballots with candidate present
+    assert true_next_ballot_where_idx == _get_next_true_ballot_with_cand(
+        ballots_where_true, 0, ballot_indices_where_cand
+    )
+
+
+# --- _get_candidate_pair_min_distance -----------------------------------
+
+
+def test_get_candidate_pair_min_distance_with_duplicates():
+    cand_a_ballots = np.array([0, 1, 1, 1, 4, 6])
+    cand_a_ranks = np.array([1, 1, 3, 6, 0, 3])
+    cand_b_ballots = np.array([1, 1, 2, 3])
+    cand_b_ranks = np.array([3, 5, 1, 2])
+
+    # get the minimum distance of cand a and b pair for ballot index 1
+    cand_a_where_idx = 1
+    cand_b_where_idx = 0
+    true_min_distance = 0  # cand a and b are tied at index 3
+    min_distance = _get_candidate_pair_min_distance(
+        cand_a_where_idx,
+        cand_b_where_idx,
+        cand_a_ballots,
+        cand_b_ballots,
+        cand_a_ranks,
+        cand_b_ranks,
+    )
+    assert min_distance == true_min_distance
