@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+from numpy.random import Generator
 from numpy.typing import NDArray
 
 
@@ -11,6 +12,7 @@ def numpy_random_transfer(
     surplus: int,
     *,
     random_seed: Optional[int] = None,
+    rng: Optional[Generator] = None,
 ) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.
@@ -42,7 +44,13 @@ def numpy_random_transfer(
     Returns:
         counts (NDArray): Vector of counts
     """
-    rng = np.random.default_rng(seed=random_seed)
+    if rng is not None and random_seed is not None:
+        raise ValueError("Cannot provide both a RNG and seed for RNG. Choose one.")
+    rng = (
+        np.random.default_rng(seed=random_seed)
+        if random_seed is not None
+        else np.random.default_rng(rng)
+    )
     eligible_for_transfer = fpv_vec == winner
     winner_row_indices = np.flatnonzero(eligible_for_transfer)
     wts = wt_vec[winner_row_indices].astype(np.int64)

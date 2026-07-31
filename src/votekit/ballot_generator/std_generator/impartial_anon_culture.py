@@ -7,10 +7,12 @@ The main API functions in this module are:
 """
 
 import math
-import random
 from collections import Counter
 from functools import lru_cache
 from typing import Optional, Sequence
+
+import numpy as np
+from numpy.random import Generator
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -44,6 +46,8 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
 def _sample_uniform_profile_counts(
     num_ballot_types: int,
     number_of_ballots: int,
+    *,
+    rng: Optional[Generator] = None,
 ) -> list[int]:
     """
     Sample a weak composition of ``number_of_ballots`` into ``num_ballot_types`` parts uniformly.
@@ -60,6 +64,8 @@ def _sample_uniform_profile_counts(
         list[int]: A list of length ``num_ballot_types`` where each entry is the frequency of a
             ballot type, and the sum of all entries is ``number_of_ballots``.
     """
+    rng = np.random.default_rng(rng)
+
     if num_ballot_types < 1:
         raise ValueError("num_ballot_types must be positive")
 
@@ -67,9 +73,8 @@ def _sample_uniform_profile_counts(
         return [number_of_ballots]
 
     bar_locations = sorted(
-        random.sample(
-            range(number_of_ballots + num_ballot_types - 1),
-            num_ballot_types - 1,
+        rng.choice(
+            range(number_of_ballots + num_ballot_types - 1), num_ballot_types - 1, replace=False
         )
     )
     return _bar_locations_to_profile_counts(bar_locations, num_ballot_types, number_of_ballots)
@@ -137,6 +142,8 @@ def _sample_anonymous_profile_ballot_counts(
     n_candidates: int,
     number_of_ballots: int,
     max_ballot_length: int,
+    *,
+    rng: Optional[Generator] = None,
 ) -> list[int]:
     """
     Sample anonymous-profile frequencies over lexicographically indexed ballot types.
@@ -146,7 +153,7 @@ def _sample_anonymous_profile_ballot_counts(
             ``index_to_lexicographic_ballot(i, n_candidates, max_ballot_length)``.
     """
     num_valid_ballots = _total_num_ballots(n_candidates, max_ballot_length)
-    return _sample_uniform_profile_counts(num_valid_ballots, number_of_ballots)
+    return _sample_uniform_profile_counts(num_valid_ballots, number_of_ballots, rng=rng)
 
 
 # =================================================
@@ -158,6 +165,8 @@ def iac_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
+    random_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
@@ -185,6 +194,7 @@ def iac_profile_generator(
         num_cands,
         number_of_ballots,
         max_ballot_length,
+        rng=np.random.default_rng(seed=random_seed),
     )
     ballots_as_counter = Counter(
         {

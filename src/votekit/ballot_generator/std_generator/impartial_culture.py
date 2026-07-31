@@ -6,11 +6,11 @@ The main API functions in this module are:
 - `ic_profile_generator`: Generates a single preference profile using the IC distribution.
 """
 
-import random
 from collections import Counter
 from typing import Optional, Sequence
 
 import numpy as np
+from numpy.random import Generator
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -35,7 +35,7 @@ def _generate_profile_optimized_non_short(
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     *,
-    random_seed: Optional[int] = None,
+    rng: Optional[Generator] = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -57,7 +57,7 @@ def _generate_profile_optimized_non_short(
     num_cands = len(candidates)
     if max_ballot_length is None:
         max_ballot_length = num_cands
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng(rng)
     ballots_as_ind = [
         tuple(rng.choice(num_cands, size=max_ballot_length, replace=False))
         for _ in range(number_of_ballots)
@@ -76,6 +76,7 @@ def _generate_profile_optimized_with_short(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    rng: Optional[Generator] = None,
 ) -> RankProfile:
     """
     Generate an IC profile in the case where short ballots are
@@ -102,7 +103,8 @@ def _generate_profile_optimized_with_short(
 
     # sample indices (representing allowed ballots) uniformally at
     # random
-    ballot_inds = [random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
+    rng = np.random.default_rng(rng)
+    ballot_inds = [rng.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
         tuple(index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
         for ballot_ind in ballot_inds
@@ -154,12 +156,18 @@ def ic_profile_generator(
         max_ballot_length = len(candidates)
     elif max_ballot_length > len(candidates):
         raise ValueError("Max ballot length larger than number of candidates given.")
-
+    rng = np.random.default_rng(seed=random_seed)
     if allow_short_ballots:
         return _generate_profile_optimized_with_short(
-            candidates, number_of_ballots, max_ballot_length
+            candidates,
+            number_of_ballots,
+            max_ballot_length,
+            rng=rng,
         )
 
     return _generate_profile_optimized_non_short(
-        candidates, number_of_ballots, max_ballot_length, random_seed=random_seed
+        candidates,
+        number_of_ballots,
+        max_ballot_length,
+        rng=rng,
     )

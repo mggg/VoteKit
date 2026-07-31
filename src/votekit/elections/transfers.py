@@ -1,6 +1,7 @@
 import math
-import random
-from typing import Union
+from typing import Optional, Union
+
+import numpy as np
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
@@ -59,6 +60,8 @@ def random_transfer(
     fpv: float,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
+    *,
+    random_seed: Optional[int] = None,
 ) -> tuple[RankBallot, ...]:
     """
     Cambridge-style transfer where transfer ballots are selected randomly.
@@ -69,6 +72,7 @@ def random_transfer(
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
+        random_seed (Optional[int]):
 
     Returns:
         tuple[RankBallot,...]:
@@ -110,7 +114,10 @@ def random_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    surplus_ballots = random.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
+    rng = np.random.default_rng(seed=random_seed)
+    surplus_ballots = rng.choice(
+        [b for b in winner_ballots if b.ranking], int(fpv) - threshold, replace=False
+    )
     updated_ballots += surplus_ballots
 
     return RankProfile(

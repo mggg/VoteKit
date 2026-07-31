@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
 
 import numpy as np
 import pandas as pd
+from numpy.random import Generator
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
@@ -462,6 +463,9 @@ def tiebreak_set(
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
     backup_tiebreak_convention: Optional[str] = None,
+    *,
+    random_seed: Optional[int] = None,
+    rng: Optional[Generator] = None,
 ) -> tuple[frozenset[Candidate], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
@@ -492,13 +496,20 @@ def tiebreak_set(
         tuple[frozenset[Candidate],...]: tiebroken ranking
         Candidates can be strings, integers, or mix of both.
     """
+    if random_seed is not None and rng is not None:
+        raise ValueError("Cannot set a random_seed and rng. Choose one.")
+    rng = (
+        np.random.default_rng(seed=random_seed)
+        if random_seed is not None
+        else np.random.default_rng(rng)
+    )
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
         sorted_cands = sort_candidates_pseudo_lexicographically([c for c in set_to_tiebreak])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
         new_ranking = tuple(
-            frozenset({c}) for c in random.sample(list(set_to_tiebreak), k=len(set_to_tiebreak))
+            frozenset({c}) for c in rng.choice(list(set_to_tiebreak), size=len(set_to_tiebreak), replace=False)
         )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
@@ -532,10 +543,14 @@ def tiebreak_set(
             "lex",
         ]:
             print("Initial tiebreak was unsuccessful, performing alphabetic tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="lex")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="lex", rng=rng
+            )
         elif backup_tiebreak_convention == "random":
             print("Initial tiebreak was unsuccessful, performing random tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="random")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="random", rng=rng
+            )
         else:
             raise ValueError("Invalid backup tiebreak code was provided")
 
@@ -546,6 +561,8 @@ def tiebroken_ranking(
     ranking: tuple[frozenset[Candidate], ...],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
+    *,
+    rng: Optional[Generator] = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...], dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]
 ]:
@@ -573,7 +590,7 @@ def tiebroken_ranking(
     tied_dict = {}
     for s in ranking:
         if len(s) > 1:
-            tiebroken = tiebreak_set(s, profile, tiebreak)
+            tiebroken = tiebreak_set(s, profile, tiebreak, rng=rng)
             tied_dict[s] = tiebroken
         else:
             tiebroken = (s,)
@@ -625,6 +642,8 @@ def elect_cands_from_set_ranking(
     n_seats: int,
     profile: Optional[RankProfile] = None,
     tiebreak: Optional[str] = None,
+    *,
+    rng: Optional[Generator] = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...],
     tuple[frozenset[Candidate], ...],
@@ -679,7 +698,7 @@ def elect_cands_from_set_ranking(
             elected.pop()
             num_elected -= len(ranking_fs[i])
 
-            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
+            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak, rng=rng)
             elected += tiebroken[: (n_seats - num_elected)]
 
             remaining: list[frozenset[Candidate]] = list(tiebroken[(n_seats - num_elected) :])

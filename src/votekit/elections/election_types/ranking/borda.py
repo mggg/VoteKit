@@ -1,6 +1,8 @@
 from functools import partial
 from typing import Literal, Optional, Sequence
 
+import numpy as np
+
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
@@ -45,6 +47,7 @@ class Borda(RankingElection):
         score_vector: Optional[Sequence[float]] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -68,6 +71,7 @@ class Borda(RankingElection):
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
+        self._rng = np.random.default_rng(seed=random_seed)
         super().__init__(
             profile, n_seats=n_seats, score_function=score_function, sort_high_low=True
         )
@@ -98,7 +102,11 @@ class Borda(RankingElection):
         # are ranked by borda scores
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining, self.n_seats, profile=profile, tiebreak=self.tiebreak
+            prev_state.remaining,
+            self.n_seats,
+            profile=profile,
+            tiebreak=self.tiebreak,
+            rng=self._rng,
         )
 
         new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)

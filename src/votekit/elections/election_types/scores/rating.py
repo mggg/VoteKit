@@ -1,5 +1,7 @@
 from typing import Optional
 
+import numpy as np
+
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -38,6 +40,7 @@ class GeneralRating(Election[ScoreProfile]):
         per_candidate_limit: float | None = None,
         budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -67,6 +70,7 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
+        self._rng = np.random.default_rng(seed=random_seed)
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
         )
@@ -145,9 +149,7 @@ class GeneralRating(Election[ScoreProfile]):
         # round 0 are ranked by score
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining,
-            self.n_seats,
-            tiebreak=self.tiebreak,
+            prev_state.remaining, self.n_seats, tiebreak=self.tiebreak, rng=self._rng
         )
 
         new_profile = remove_cand_score_profile([c for s in elected for c in s], profile)

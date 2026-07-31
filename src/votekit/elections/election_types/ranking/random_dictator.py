@@ -1,6 +1,7 @@
-import random
 from functools import partial
-from typing import Literal
+from typing import Literal, Optional
+
+import numpy as np
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -32,6 +33,7 @@ class RandomDictator(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -41,6 +43,7 @@ class RandomDictator(RankingElection):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             raise TypeError("Missing required argument: 'n_seats'.")
+        self._rng = np.random.default_rng(seed=random_seed)
         super().__init__(
             profile,
             n_seats=n_seats,
@@ -52,7 +55,10 @@ class RandomDictator(RankingElection):
         return sum(cands_elected) >= self.n_seats
 
     def _run_step(
-        self, profile: RankProfile, prev_state: ElectionState, store_states=False
+        self,
+        profile: RankProfile,
+        prev_state: ElectionState,
+        store_states=False,
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
@@ -74,7 +80,8 @@ class RandomDictator(RankingElection):
         fpv = prev_state.scores
         candidates = list(fpv.keys())
         weights: list[float] = list(fpv.values())
-        winning_cand = random.choices(candidates, weights=weights, k=1)[0]
+        total = sum(weights)
+        winning_cand = self._rng.choice(candidates, p=[w / total for w in weights], size=1)[0]
         elected = (frozenset({winning_cand}),)
 
         new_profile = remove_and_condense_rank_profile(winning_cand, profile)

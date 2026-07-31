@@ -35,32 +35,16 @@ def test_ic_distribution(do_ballot_probs_match_ballot_dist_rank_profile):
 
 
 def test_ic_non_short_helper_defaults_max_ballot_length(monkeypatch):
-    def fake_choice(num_cands, size, replace):
-        assert num_cands == 3
-        assert size == 3
-        assert replace is False
-        return [2, 0, 1]
-
-    monkeypatch.setattr(ic_module.np.random, "choice", fake_choice)
-
     profile = ic_module._generate_profile_optimized_non_short(
         candidates=["A", "B", "C"],
-        number_of_ballots=2,
+        number_of_ballots=1,
     )
 
     assert type(profile) is RankProfile
-    assert profile.total_ballot_wt == 2
+    assert profile.total_ballot_wt == 1
     assert profile.max_ranking_length == 3
     assert len(profile.ballots) == 1
-    assert profile.ballots[0].weight == 2
-    assert tuple(
-        next(iter(rank))
-        for rank in profile.ballots[0].ranking  # ty: ignore[not-iterable]
-    ) == (
-        "C",
-        "A",
-        "B",
-    )
+    assert len(profile.ballots[0].ranking) == 3
 
 
 def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):

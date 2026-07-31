@@ -3,6 +3,7 @@ from abc import abstractmethod
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from numpy.random import Generator
 
 from votekit.ballot import Ballot
 from votekit.pref_interval import PreferenceInterval
@@ -84,6 +85,7 @@ class BallotGenerator:
         bloc_voter_prop: dict,
         cohesion_parameters: dict,
         alphas: dict,
+        random_seed: Optional[int] = None,
         **data,
     ):
         """
@@ -115,11 +117,14 @@ class BallotGenerator:
             raise ValueError("Blocs are not the same")
 
         pref_intervals_by_bloc = {}
+        rng = np.random.default_rng(seed=random_seed)
         for current_bloc in bloc_voter_prop:
             intervals = {}
             for b in bloc_voter_prop:
                 interval = PreferenceInterval.from_dirichlet(
-                    candidates=slate_to_candidates[b], alpha=alphas[current_bloc][b]
+                    candidates=slate_to_candidates[b],
+                    alpha=alphas[current_bloc][b],
+                    rng=rng,
                 )
                 intervals[b] = interval
 
@@ -156,7 +161,7 @@ class BallotGenerator:
         pass
 
     @staticmethod
-    def _round_num(num: float, *, random_seed: Optional[int] = None) -> int:
+    def _round_num(num: float, *, rng: Optional[Generator] = None) -> int:
         """
 
         Rounds up or down a float randomly.
@@ -169,7 +174,7 @@ class BallotGenerator:
         Returns:
             int: A whole number.
         """
-        rand = np.random.default_rng(seed=random_seed).random()
+        rand = np.random.default_rng(rng).random()
         return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod

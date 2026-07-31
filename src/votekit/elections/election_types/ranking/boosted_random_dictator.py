@@ -1,6 +1,7 @@
-import random
 from functools import partial
-from typing import Literal
+from typing import Literal, Optional
+
+import numpy as np
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -38,6 +39,7 @@ class BoostedRandomDictator(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -47,6 +49,7 @@ class BoostedRandomDictator(RankingElection):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             raise TypeError("Missing required argument: 'n_seats'.")
+        self._rng = np.random.default_rng(seed=random_seed)
         super().__init__(
             profile,
             n_seats=n_seats,
@@ -79,7 +82,7 @@ class BoostedRandomDictator(RankingElection):
             RankProfile: The profile of ballots after the round is completed.
         """
         remaining_cands = profile.candidates
-        u = random.uniform(0, 1)
+        u = self._rng.uniform(0, 1)
 
         if len(remaining_cands) == 1:
             winning_candidate = remaining_cands[0]
@@ -91,13 +94,16 @@ class BoostedRandomDictator(RankingElection):
             sq_weights = [float(x) ** 2 for x in weights]
             sq_wt_total = sum(sq_weights)
             sq_weights = [x / sq_wt_total for x in sq_weights]
-            winning_candidate = random.choices(candidates, weights=sq_weights, k=1)[0]
+            winning_candidate = self._rng.choice(candidates, p=sq_weights, size=1)[0]
 
         else:
             fpv = prev_state.scores
             candidates = list(fpv.keys())
             weights = list(fpv.values())
-            winning_candidate = random.choices(candidates, weights=weights, k=1)[0]
+            total = sum(weights)
+            winning_candidate = self._rng.choice(
+                candidates, p=[w / total for w in weights], size=1
+            )[0]
 
         new_profile = remove_and_condense_rank_profile(
             winning_candidate,

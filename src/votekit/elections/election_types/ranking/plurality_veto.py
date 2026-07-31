@@ -1,7 +1,6 @@
-import random
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 
@@ -71,6 +70,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         n_seats: int | None = None,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -86,6 +86,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
         self._pv_validate_input(grouped_profile)
+        self._rng = np.random.default_rng(seed=random_seed)
 
         self._df = grouped_profile.df.copy()
         assert grouped_profile.max_ranking_length is not None
@@ -98,7 +99,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._cumsum = self._df["Weight"].cumsum().to_numpy()
 
         num_voters = int(grouped_profile.total_ballot_wt)
-        self._voter_order = np.random.permutation(num_voters)
+        self._voter_order = self._rng.permutation(num_voters)
         self._voter_order_current_index = 0
 
         self.candidates = frozenset(grouped_profile.candidates)
@@ -123,6 +124,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self.tiebreak,
                 scoring_tie_convention,
                 backup_tiebreak_convention="lex",
+                rng=self._rng,
             )
             self._tiebreak_ranks = {next(iter(s)): i for i, s in enumerate(self.tiebreak_order)}
 
@@ -195,7 +197,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         if self.tiebreak == "random":
 
             def rank(c: Candidate) -> float:
-                return random.random()
+                return self._rng.random()
 
         else:
 
@@ -369,6 +371,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self.tiebreak,
                 self.scoring_tie_convention,
                 backup_tiebreak_convention="lex",
+                rng=self._rng,
             )
             elected = tiebroken_order[: self.n_seats]
             new_profile = RankProfile()

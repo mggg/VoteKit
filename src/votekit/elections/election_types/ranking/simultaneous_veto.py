@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from numbers import Real
-from typing import Literal, cast
+from typing import Literal, Optional, cast
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -109,6 +109,7 @@ class SimultaneousVeto(RankingElection):
         ] = "first_place",
         scoring_tie_convention: Literal["high", "average", "low"] = "average",
         return_all_tied_winners: bool = False,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -122,6 +123,7 @@ class SimultaneousVeto(RankingElection):
         self.n_seats = n_seats
         self.candidate_weights = candidate_weights
         self.tiebreak = tiebreak
+        self._rng = np.random.default_rng(seed=random_seed)
         self.scoring_tie_convention = scoring_tie_convention
         self.return_all_tied_winners = return_all_tied_winners
 
@@ -460,6 +462,7 @@ class SimultaneousVeto(RankingElection):
                     profile,
                     tiebreak=self.tiebreak,
                     scoring_tie_convention=self.scoring_tie_convention,
+                    rng=self._rng,
                 )
 
         return tiebroken_order

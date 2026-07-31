@@ -390,7 +390,7 @@ def cambridge_profiles_by_bloc_generator(
         str
     ] = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
     group_ballots: bool = True,
-    random_seed: Optional[None] = None,
+    random_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections

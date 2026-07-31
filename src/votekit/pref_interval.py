@@ -4,6 +4,7 @@ from types import MappingProxyType
 from typing import Optional, Sequence
 
 import numpy as np
+from numpy.random import Generator
 
 from votekit.types import Candidate
 
@@ -94,6 +95,7 @@ class PreferenceInterval:
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
         random_seed: Optional[int] = None,
+        rng: Optional[Generator] = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -116,7 +118,13 @@ class PreferenceInterval:
         Returns:
             PreferenceInterval
         """
-        rng = np.random.default_rng(seed=random_seed)
+        if random_seed is not None and rng is not None:
+            raise ValueError("Cannot give a random_seed and rng. Choose one.")
+        rng = (
+            np.random.default_rng(seed=random_seed)
+            if random_seed is not None
+            else np.random.default_rng(rng)
+        )
         probs = list(rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:

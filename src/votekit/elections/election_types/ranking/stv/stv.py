@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -53,6 +53,7 @@ class NumpyInnerSTV(NumpySTVBase):
         tiebreak: TiebreakType | None = None,
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
+        random_seed: Optional[int] = None,
     ):
         """
         Initialize an STV election with advanced options.
@@ -80,6 +81,7 @@ class NumpyInnerSTV(NumpySTVBase):
             profile=profile,
             n_seats=n_seats,
             tiebreak=tiebreak,
+            random_seed=random_seed,
         )
         self.transfer = transfer if transfer != "random" else "cambridge_random"
         self.quota = quota
@@ -199,6 +201,7 @@ class NumpyInnerSTV(NumpySTVBase):
                     wt_vec=mutated_wt_vec,
                     winner=winner_idx,
                     surplus=surplus,
+                    rng=self._rng,
                 )
                 new_weights += counts.astype(new_weights.dtype)
 
@@ -522,6 +525,7 @@ class FastSTV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -557,6 +561,7 @@ class FastSTV(NumpyInnerSTV):
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
+            random_seed=random_seed,
         )
 
 
@@ -576,6 +581,7 @@ class AlbanySTV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -611,6 +617,7 @@ class AlbanySTV(NumpyInnerSTV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
             dynamic_threshold=True,
+            random_seed=random_seed,
         )
 
 
@@ -626,6 +633,7 @@ class FastIRV(NumpyInnerSTV):
         profile: RankProfile,
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
+        random_seed: Optional[int] = None,
     ):
         """
         Initialize a fast IRV election.
@@ -645,6 +653,7 @@ class FastIRV(NumpyInnerSTV):
             transfer="fractional",
             quota=quota,
             tiebreak=tiebreak,
+            random_seed=random_seed,
         )
 
 
@@ -666,6 +675,7 @@ class FastSequentialRCV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -697,6 +707,7 @@ class FastSequentialRCV(NumpyInnerSTV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
             block_rcv=True,
+            random_seed=random_seed,
         )
 
 
@@ -716,6 +727,7 @@ class STV(RankingElection):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -757,6 +769,7 @@ class STV(RankingElection):
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
+        self._rng = np.random.default_rng(seed=random_seed)
 
         super().__init__(
             profile,
@@ -928,7 +941,11 @@ class STV(RankingElection):
             tiebreaks = self.election_states[current_round].tiebreaks
         else:
             elected, remaining, tiebreak = elect_cands_from_set_ranking(
-                ranking_by_fpv, n_seats=1, profile=profile, tiebreak=self.tiebreak
+                ranking_by_fpv,
+                n_seats=1,
+                profile=profile,
+                tiebreak=self.tiebreak,
+                rng=self._rng,
             )
             if tiebreak:
                 tiebreaks = {tiebreak[0]: tiebreak[1]}
