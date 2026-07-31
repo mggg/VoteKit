@@ -382,15 +382,17 @@ def _compare_adjacent_query_slots_ranks(
     query_slot_a_position_mask: np.ndarray,
     query_slot_b_position_mask: np.ndarray,
     ballots_mask: np.ndarray,
-) -> np.ndarray:
+    query_slot_a_start_where_indices: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    Compares adjacent query slots rank positions within ``ranking_query``.
+    Returns ballots where query slot a appears strictly above query slot b.
 
     A ballot satisfies the query when query_a appears above query_b within its ranking.
     ``ballots_mask`` is used to constrain the search space for ballots that possibly satisfy the
     adjacent query slots ordering. Ballots can only be excluded
     based on whether the adjacent query slots appear in their specified order from the ballots_mask,
-    never added.
+    never added. query_a's search is started from query_slot_a_start_where_indices to preserve the
+    full query order across adjacent pairs.
 
     Args:
         query_slot_a_position_mask (np.ndarray):  boolean matrix for query slot a's positions within
@@ -399,27 +401,36 @@ def _compare_adjacent_query_slots_ranks(
             the profile's ballots.
         ballots_mask (np.ndarray): boolean mask with indices of ballots that fulfill the query
             constraints for all previous adjacent query slot comparisons.
+        query_slot_a_start_where_indices (np.ndarray): per ballot where indices into
+            query_slot_a_position_mask marking the earliest valid position to search for a.
+            Initialized to zeros (no constraints). Set from the previous comparison's b match
+            indices to enforce the full query order across adjacent slot pairs.
 
     Returns:
-        (np.ndarray): mask with all ballots that satisfy the query marked as True.
+        (tuple[np.ndarray, np.ndarray]): mask with all ballots that satisfy the query marked as True
+            and per ballot where indices into query_slot_b_position_mask for the first b match
+            (used as a_start_where_indices in the next comparison).
 
     """
     ballots_where_true = np.where(ballots_mask)[0]
     if len(ballots_where_true) == 0:
-        return ballots_mask
+        return ballots_mask, query_slot_a_start_where_indices
 
     query_a_ballots, query_a_ranks = np.where(query_slot_a_position_mask)
     query_b_ballots, query_b_ranks = np.where(query_slot_b_position_mask)
     num_query_a_ballots, num_query_b_ballots = len(query_a_ballots), len(query_b_ballots)
     query_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
     query_a_where_idx, query_b_where_idx = 0, 0
-
+    b_match_where_indices = np.zeros(len(ballots_mask), dtype=int)
     while query_a_where_idx < num_query_a_ballots and query_b_where_idx < num_query_b_ballots:
         query_a_where_idx = _get_next_true_ballot_with_cand(
             ballots_where_true, query_a_where_idx, query_a_ballots
         )
         if query_a_where_idx is None:  # no true ballot with query a found
             break
+        query_a_where_idx = max(
+            query_a_where_idx, query_slot_a_start_where_indices[query_a_ballots[query_a_where_idx]]
+        )
         a_ballot_idx = query_a_ballots[query_a_where_idx]
         query_b_where_idx = _get_next_true_ballot_with_cand(
             ballots_where_true, query_b_where_idx, query_b_ballots
@@ -436,15 +447,14 @@ def _compare_adjacent_query_slots_ranks(
             a_rank_idx = query_a_ranks[query_a_where_idx]
             b_rank_idx = query_b_ranks[query_b_where_idx]
             if a_rank_idx >= b_rank_idx:
-                query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
-                query_b_where_idx -= 1  # shift to last instance of query b within a ballot
-                b_rank_idx = query_b_ranks[query_b_where_idx]
-            if a_rank_idx < b_rank_idx:
+                query_b_where_idx += 1
+            else:
                 query_pair_ballots_mask[a_ballot_idx] = True
-            query_a_where_idx = _shift_idx_to_next_ballot(query_a_where_idx, query_a_ballots)
-            query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
+                b_match_where_indices[a_ballot_idx] = query_b_where_idx
+                query_a_where_idx = _shift_idx_to_next_ballot(query_a_where_idx, query_a_ballots)
+                query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
 
-    return query_pair_ballots_mask & ballots_mask
+    return query_pair_ballots_mask & ballots_mask, b_match_where_indices
 
 
 def _compare_query_ranks(
@@ -454,11 +464,9 @@ def _compare_query_ranks(
     """
     Compares each pair of adjacent query slots within ``ranking_query``.
 
-    A ballot satisfies the query when query_a appears above query_b within its ranking.
-    ``ballots_mask`` is used to constrain the search space for ballots that possibly satisfy the
-    adjacent query slot pairs ordering. A ballot satisfies the query if all
-    adjacent query slot pairs exist within the ballot in their specified order.
-
+    A ballot satisfies the query if all adjacent query slot pairs exist within the ballot in their
+    specified order. ``ballots_mask`` is used to constrain the search space for ballots that
+    possibly satisfy the adjacent query slot pairs ordering.
 
     Args:
         query_position_masks (list[np.ndarray]): list of the boolean matrices for each query slot's
@@ -475,11 +483,14 @@ def _compare_query_ranks(
     if len(query_position_masks) < 2:
         return ballots_mask
 
+    query_slot_a_start_where_indices = np.zeros(len(ballots_mask), dtype=int)
+
     for query_slot_idx in range(len(query_position_masks) - 1):
-        ballots_mask = _compare_adjacent_query_slots_ranks(
+        ballots_mask, query_slot_a_start_where_indices = _compare_adjacent_query_slots_ranks(
             query_position_masks[query_slot_idx],
             query_position_masks[query_slot_idx + 1],
             ballots_mask,
+            query_slot_a_start_where_indices,
         )
         if not ballots_mask.any():
             return ballots_mask

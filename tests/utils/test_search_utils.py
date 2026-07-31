@@ -200,6 +200,31 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings():
     )
 
 
+def test_search_with_ranking_query_with_duplicate_candidate_rankings_for_multiple_rank_elements():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["B", "A", "C", "B"], weight=1.0),
+            RankBallot(ranking=["B", "A", "B", "C"], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    true_profile = RankProfile(
+        ballots=(RankBallot(ranking=["B", "A", "B", "C"], weight=1.0),),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    pd.testing.assert_frame_equal(
+        search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
+            drop=True
+        ),
+        true_profile.df.reset_index(drop=True),
+        check_dtype=False,
+    )
+
+
 # --- max_cand_pair_dist searchs -----------------------------------
 
 
