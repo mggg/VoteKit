@@ -43,6 +43,8 @@ def onedim_spacial_profile_generator(
         candidates (Sequence[Candidate]): Candidate names used in each generated ballot.
             Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): The number of ballots to generate.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         RankProfile: A ranked preference profile object.
@@ -125,6 +127,8 @@ def spacial_profile_and_positions_generator(
         distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
             function used to compare voter and candidate positions. Defaults to
             ``euclidean_dist``.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         Tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
@@ -256,6 +260,8 @@ def clustered_spacial_profile_and_positions_generator(
         distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
             function used to compare voter and candidate positions. Defaults to
             ``euclidean_dist``.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         Tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:

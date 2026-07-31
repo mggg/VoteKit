@@ -117,6 +117,8 @@ class NumpySTVBase(ABC):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
                 Defaults to None. Accepts "borda", "random", and "first_place".
                 If None, a ValueError is raised if a winner tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         self._rng = np.random.default_rng(seed=random_seed)
         self.profile = profile

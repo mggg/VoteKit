@@ -31,6 +31,8 @@ class BoostedRandomDictator(RankingElection):
       fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+      random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -94,16 +96,16 @@ class BoostedRandomDictator(RankingElection):
             sq_weights = [float(x) ** 2 for x in weights]
             sq_wt_total = sum(sq_weights)
             sq_weights = [x / sq_wt_total for x in sq_weights]
-            winning_candidate = self._rng.choice(candidates, p=sq_weights, size=1)[0]
+            idx = self._rng.choice(len(candidates), p=sq_weights, size=1)[0]
+            winning_candidate = candidates[idx]
 
         else:
             fpv = prev_state.scores
             candidates = list(fpv.keys())
             weights = list(fpv.values())
             total = sum(weights)
-            winning_candidate = self._rng.choice(
-                candidates, p=[w / total for w in weights], size=1
-            )[0]
+            idx = self._rng.choice(len(candidates), p=[w / total for w in weights], size=1)[0]
+            winning_candidate = candidates[idx]
 
         new_profile = remove_and_condense_rank_profile(
             winning_candidate,

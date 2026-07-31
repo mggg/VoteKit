@@ -75,6 +75,8 @@ class NumpyInnerSTV(NumpySTVBase):
             dynamic_threshold (bool, optional): If True, threshold is recalculated each
                 round based on the number of remaining active votes. Defaults to False.
             block_rcv (bool, optional): If True, blocks ranked-choice voting. Defaults to False.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         self.__check_profile_and_seats_and_candidates_and_transfer(profile, n_seats, transfer)
         super().__init__(
@@ -546,6 +548,8 @@ class FastSTV(NumpyInnerSTV):
                 tiebreak is needed. Accepts "borda", "random", and
                 "cambridge_random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -601,6 +605,8 @@ class AlbanySTV(NumpyInnerSTV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -646,6 +652,8 @@ class FastIRV(NumpyInnerSTV):
                 tiebreak is needed. Accepts "borda", "random", and
                 "cambridge_random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         super().__init__(
             profile=profile,
@@ -692,6 +700,8 @@ class FastSequentialRCV(NumpyInnerSTV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -756,6 +766,8 @@ class STV(RankingElection):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         self._stv_validate_profile(profile)
 
@@ -1052,7 +1064,10 @@ class STV(RankingElection):
                         tiebroken_ranking = possible_tiebreaks[0]
                 if tiebroken_ranking is None or len(tiebroken_ranking) == 0:
                     tiebroken_ranking = tiebreak_set(
-                        lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
+                        lowest_fpv_cands,
+                        self.get_profile(0),
+                        tiebreak="first_place",
+                        rng=self._rng,
                     )
 
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}

@@ -11,7 +11,6 @@ def numpy_random_transfer(
     winner: int,
     surplus: int,
     *,
-    random_seed: Optional[int] = None,
     rng: Optional[Generator] = None,
 ) -> NDArray:
     """
@@ -38,19 +37,13 @@ def numpy_random_transfer(
         wt_vec (NDArray): Integer weights vector.
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         counts (NDArray): Vector of counts
     """
-    if rng is not None and random_seed is not None:
-        raise ValueError("Cannot provide both a RNG and seed for RNG. Choose one.")
-    rng = (
-        np.random.default_rng(seed=random_seed)
-        if random_seed is not None
-        else np.random.default_rng(rng)
-    )
+    rng = np.random.default_rng(rng)
     eligible_for_transfer = fpv_vec == winner
     winner_row_indices = np.flatnonzero(eligible_for_transfer)
     wts = wt_vec[winner_row_indices].astype(np.int64)

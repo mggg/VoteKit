@@ -48,6 +48,8 @@ class _IterativeVetoBase(RankingElection, ABC):
             'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.

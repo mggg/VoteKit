@@ -101,6 +101,8 @@ class BallotGenerator:
                 keys are bloc strings and values are cohesion parameters.
             alphas (dict): Dictionary mapping of bloc string to dictionary whose
                 keys are bloc strings and values are alphas for Dirichlet distributions.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
             **data: kwargs to be passed to the init method.
 
         Raises:
@@ -168,8 +170,8 @@ class BallotGenerator:
 
         Args:
             num (float): Number to round.
-            random_seed (int): Seed for RNG, allows for reproducible results given the same inputs.
-                Seed set to None by default, different results will be generated each time.
+            rng (Generator | None): Random Number Generator seeded with a known value for
+                reproducible results. Defaults to None which produces different results each time.
 
         Returns:
             int: A whole number.

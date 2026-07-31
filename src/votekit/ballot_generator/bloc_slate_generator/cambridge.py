@@ -216,6 +216,8 @@ def _inner_cambridge_sampler(
             majority group.
         minority_bloc (str): Name of the group in the config corresponding to the historical
             minority group.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are

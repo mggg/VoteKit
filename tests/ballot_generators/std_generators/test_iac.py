@@ -74,12 +74,7 @@ def test_IAC_completion_with_mixed_candidates():
 
 
 def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
-    def fake_sample(population, k):
-        assert list(population) == list(range(5))
-        assert k == 3
-        return [0, 2, 4]
-
-    monkeypatch.setattr(iac_module.random, "sample", fake_sample)
+    monkeypatch.setattr(iac_module, "_sample_uniform_profile_counts", lambda *_, **__: [0, 1, 1, 0])
 
     profile = iac_profile_generator(candidates=["A", "B"], number_of_ballots=2)
 
@@ -88,12 +83,7 @@ def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
 
 
 def test_iac_respects_max_ballot_length(monkeypatch):
-    def fake_sample(population, k):
-        assert list(population) == list(range(4))
-        assert k == 2
-        return [1, 2]
-
-    monkeypatch.setattr(iac_module.random, "sample", fake_sample)
+    monkeypatch.setattr(iac_module, "_sample_uniform_profile_counts", lambda *_, **__: [1, 0, 1])
 
     profile = iac_profile_generator(
         candidates=["A", "B", "C"],

@@ -48,8 +48,8 @@ def _generate_profile_optimized_non_short(
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         RankProfile
@@ -76,6 +76,7 @@ def _generate_profile_optimized_with_short(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
     rng: Optional[Generator] = None,
 ) -> RankProfile:
     """
@@ -91,6 +92,8 @@ def _generate_profile_optimized_with_short(
             the profile
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         RankProfile
@@ -104,10 +107,10 @@ def _generate_profile_optimized_with_short(
     # sample indices (representing allowed ballots) uniformally at
     # random
     rng = np.random.default_rng(rng)
-    ballot_inds = [rng.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
+    ballot_inds = [rng.integers(0, total_ballots) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
-        tuple(index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
-        for ballot_ind in ballot_inds
+        tuple(index_to_lexicographic_ballot(int(ballot_ind), num_cands, max_ballot_length))
+        for (ballot_ind) in ballot_inds
     ]
 
     # Instantiate the preference profile using a dataframe

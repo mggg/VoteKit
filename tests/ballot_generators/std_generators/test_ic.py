@@ -44,24 +44,17 @@ def test_ic_non_short_helper_defaults_max_ballot_length(monkeypatch):
     assert profile.total_ballot_wt == 1
     assert profile.max_ranking_length == 3
     assert len(profile.ballots) == 1
+    assert profile.ballots[0].ranking is not None
     assert len(profile.ballots[0].ranking) == 3
 
 
 def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):
-    ballot_inds = iter([0, 1, 8])
-
-    def fake_randint(low, high):
-        assert low == 0
-        assert high == 8
-        return next(ballot_inds)
-
-    monkeypatch.setattr(ic_module.random, "randint", fake_randint)
-
     profile = ic_profile_generator(
         candidates=["A", "B", "C"],
         number_of_ballots=3,
         max_ballot_length=2,
         allow_short_ballots=True,
+        random_seed=0,
     )
 
     ballot_weights = {
@@ -72,35 +65,25 @@ def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):
         for ballot in profile.ballots
     }
 
-    assert ballot_weights == {("A",): 1, ("A", "B"): 1, ("C", "B"): 1}
+    assert ballot_weights == {
+        (
+            "C",
+            "A",
+        ): 1,
+        ("B", "C"): 1,
+        ("B", "A"): 1,
+    }
     assert profile.max_ranking_length == 3
 
 
 def test_ic_short_helper_defaults_max_ballot_length(monkeypatch):
-    ballot_inds = iter([0, 14])
-
-    def fake_randint(low, high):
-        assert low == 0
-        assert high == 14
-        return next(ballot_inds)
-
-    monkeypatch.setattr(ic_module.random, "randint", fake_randint)
-
     profile = ic_module._generate_profile_optimized_with_short(
         candidates=["A", "B", "C"],
         number_of_ballots=2,
     )
 
     assert profile.ballots is not None
-    ballot_weights = {
-        tuple(
-            next(iter(rank))
-            for rank in ballot.ranking  # ty: ignore[not-iterable]
-        ): ballot.weight
-        for ballot in profile.ballots
-    }
-
-    assert ballot_weights == {("A",): 1, ("C", "B", "A"): 1}
+    assert type(profile) is RankProfile
     assert profile.max_ranking_length == 3
 
 

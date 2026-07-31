@@ -491,6 +491,10 @@ def tiebreak_set(
             this convention is used to break any remaining ties. Options are "random" and
             "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
             "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         tuple[frozenset[Candidate],...]: tiebroken ranking
@@ -508,9 +512,9 @@ def tiebreak_set(
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(
-            frozenset({c}) for c in rng.choice(list(set_to_tiebreak), size=len(set_to_tiebreak), replace=False)
-        )
+        candidates_list = list(set_to_tiebreak)
+        shuffled = rng.choice(len(candidates_list), size=len(candidates_list), replace=False)
+        new_ranking = tuple(frozenset({candidates_list[i]}) for i in shuffled)
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
             tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)
@@ -576,6 +580,8 @@ def tiebroken_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         tuple[tuple[frozenset[Candidate], ...], dict[frozenset[Candidate]
@@ -665,6 +671,8 @@ def elect_cands_from_set_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to None, which does not break ties.
+        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
+            results. Defaults to None which produces different results each time.
 
     Returns:
         tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],

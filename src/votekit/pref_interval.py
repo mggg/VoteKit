@@ -114,6 +114,8 @@ class PreferenceInterval:
                 If False, the candidates are assigned support values in random order.
             random_seed (int): seed for RNG, allows for reproducible results given the same inputs.
                 Seed set to None by default, different results will be generated each time.
+            rng (Generator | None): Random Number Generator seeded with a known value for
+                reproducible results. Defaults to None which produces different results each time.
 
         Returns:
             PreferenceInterval

@@ -72,7 +72,8 @@ def random_transfer(
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
-        random_seed (Optional[int]):
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         tuple[RankBallot,...]:
@@ -115,10 +116,9 @@ def random_transfer(
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
     rng = np.random.default_rng(seed=random_seed)
-    surplus_ballots = rng.choice(
-        [b for b in winner_ballots if b.ranking], int(fpv) - threshold, replace=False
-    )
-    updated_ballots += surplus_ballots
+    winner_ballot_list = [b for b in winner_ballots if b.ranking]
+    surplus_indices = rng.choice(len(winner_ballot_list), int(fpv) - threshold, replace=False)
+    updated_ballots += [winner_ballot_list[i] for i in surplus_indices]
 
     return RankProfile(
         ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])
