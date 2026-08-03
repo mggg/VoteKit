@@ -95,7 +95,7 @@ class PreferenceInterval:
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
         random_seed: Optional[int] = None,
-        rng: Optional[Generator] = None,
+        numpy_rng: Optional[Generator] = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -112,21 +112,24 @@ class PreferenceInterval:
                 If True, the candidates are assigned their support values in descending order
                 according to the list passed to candidates.
                 If False, the candidates are assigned support values in random order.
-            random_seed (int): seed for RNG, allows for reproducible results given the same inputs.
-                Seed set to None by default, different results will be generated each time.
-            rng (Generator | None): Random Number Generator seeded with a known value for
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
+            numpy_rng (Generator | None): Random Number Generator seeded with a known value for
                 reproducible results. Defaults to None which produces different results each time.
 
         Returns:
             PreferenceInterval
         """
-        if random_seed is not None and rng is not None:
+        if random_seed is not None and numpy_rng is not None:
             raise ValueError("Cannot give a random_seed and rng. Choose one.")
-        rng = (
-            np.random.default_rng(seed=random_seed)
-            if random_seed is not None
-            else np.random.default_rng(rng)
-        )
+        rng = None
+        if random_seed is not None:
+            rng = np.random.default_rng(seed=random_seed)
+        elif numpy_rng is not None:
+            rng = numpy_rng
+        else:
+            rng = np.random.default_rng()
+
         probs = list(rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:

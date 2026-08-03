@@ -66,7 +66,7 @@ def _fast_sample_without_replacement(
     weights: NDArray,
     n_samples: int,
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> np.ndarray:
     """
     Sample without replacement from a distribution given by the weights.
@@ -78,14 +78,15 @@ def _fast_sample_without_replacement(
     Args:
         weights (np.NDArray): The weights of the distribution.
         n_samples (int): Number of samples to generate.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         np.ndarray: The sampled indices, n_samples x n_cands.
     """
     n_cands = len(weights)
-    rng = np.random.default_rng(rng)
+    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
     uniform = rng.uniform(0, 1, size=(n_samples, n_cands))
     uniform = uniform ** (1 / weights)
     # want the largest values to be first
@@ -98,7 +99,7 @@ def _construct_slate_to_candidate_ordering_arrays(
     bloc: str,
     n_samples: int,
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> dict[str, np.ndarray]:
     """
     Create candidate orderings within each slate based on preference intervals.
@@ -111,8 +112,9 @@ def _construct_slate_to_candidate_ordering_arrays(
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         n_samples (int): Number of candidate orderings to generate.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         dict[str, np.ndarray]: A dictionary mapping slate names to an n_samples x n_cands matrix
@@ -131,7 +133,7 @@ def _construct_slate_to_candidate_ordering_arrays(
 
         cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
         distribution = np.array([preference_interval[c] for c in candidates])
-        indices = _fast_sample_without_replacement(distribution, n_samples, rng=rng)
+        indices = _fast_sample_without_replacement(distribution, n_samples, numpy_rng=numpy_rng)
         cand_ordering[:, : len(candidates)] = cands_list[indices]
 
         results[slate] = cand_ordering
@@ -203,7 +205,7 @@ def _convert_slate_ballots_to_profile(
     bloc: str,
     slate_ballots: list[tuple[str, ...]],
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> RankProfile:
     """
     Convert slate ballot types to a preference profile, filling out
@@ -228,7 +230,7 @@ def _convert_slate_ballots_to_profile(
         config,
         bloc,
         n_ballots,
-        rng=rng,
+        numpy_rng=numpy_rng,
     )
 
     ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
@@ -266,7 +268,7 @@ def _append_zero_slate_symbols(
     n_ballots: int,
     config: BlocSlateConfig,
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> list[tuple[str, ...]]:
     """
     Append zero cohesion slate symbols to the end of slate ballot types.
@@ -278,8 +280,9 @@ def _append_zero_slate_symbols(
         n_ballots (int): The number of ballots to generate.
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols appended.
@@ -287,7 +290,7 @@ def _append_zero_slate_symbols(
     zero_slate_symbols = [
         slate for slate in sorted(zero_slate_set) for c in config.slate_to_candidates[slate]
     ]
-    rng = np.random.default_rng(rng)
+    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
     noise = rng.random(size=(n_ballots, len(zero_slate_symbols)))
     permutation_indices = np.argsort(noise, axis=1)
     zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[permutation_indices]

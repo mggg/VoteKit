@@ -1,7 +1,6 @@
 import math
+import random
 from typing import Optional, Union
-
-import numpy as np
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
@@ -115,10 +114,9 @@ def random_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    rng = np.random.default_rng(seed=random_seed)
-    winner_ballot_list = [b for b in winner_ballots if b.ranking]
-    surplus_indices = rng.choice(len(winner_ballot_list), int(fpv) - threshold, replace=False)
-    updated_ballots += [winner_ballot_list[i] for i in surplus_indices]
+    rng = random.Random(random_seed)
+    surplus_ballots = rng.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
+    updated_ballots += surplus_ballots
 
     return RankProfile(
         ballots=tuple([b for b in updated_ballots if b.ranking and b.weight > 0])

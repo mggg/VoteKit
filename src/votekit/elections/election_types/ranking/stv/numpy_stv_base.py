@@ -1,3 +1,4 @@
+import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -120,7 +121,7 @@ class NumpySTVBase(ABC):
             random_seed (int | None): seed for RNG, allows for reproducible results given the same
                 inputs. Seed set to None by default, different results will be generated each time.
         """
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
         self.profile = profile
         self.n_seats = n_seats
         self.candidates = list(profile.candidates)

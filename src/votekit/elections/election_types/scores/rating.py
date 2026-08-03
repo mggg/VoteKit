@@ -1,6 +1,5 @@
+import random
 from typing import Optional
-
-import numpy as np
 
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
@@ -70,7 +69,7 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
         super().__init__(
             profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
         )

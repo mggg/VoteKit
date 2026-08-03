@@ -1,9 +1,9 @@
 import math
+import random
 from abc import abstractmethod
 from typing import Optional, Tuple, Union
 
 import numpy as np
-from numpy.random import Generator
 
 from votekit.ballot import Ballot
 from votekit.pref_interval import PreferenceInterval
@@ -85,6 +85,7 @@ class BallotGenerator:
         bloc_voter_prop: dict,
         cohesion_parameters: dict,
         alphas: dict,
+        *,
         random_seed: Optional[int] = None,
         **data,
     ):
@@ -126,7 +127,7 @@ class BallotGenerator:
                 interval = PreferenceInterval.from_dirichlet(
                     candidates=slate_to_candidates[b],
                     alpha=alphas[current_bloc][b],
-                    rng=rng,
+                    numpy_rng=rng,
                 )
                 intervals[b] = interval
 
@@ -163,7 +164,7 @@ class BallotGenerator:
         pass
 
     @staticmethod
-    def _round_num(num: float, *, rng: Optional[Generator] = None) -> int:
+    def _round_num(num: float, *, rng: Optional[random.Random] = None) -> int:
         """
 
         Rounds up or down a float randomly.
@@ -176,7 +177,8 @@ class BallotGenerator:
         Returns:
             int: A whole number.
         """
-        rand = np.random.default_rng(rng).random()
+        rng = random.Random() if rng is None else rng
+        rand = rng.random()
         return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod

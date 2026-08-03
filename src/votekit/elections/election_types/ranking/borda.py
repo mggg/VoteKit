@@ -1,7 +1,6 @@
+import random
 from functools import partial
 from typing import Literal, Optional, Sequence
-
-import numpy as np
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -71,7 +70,7 @@ class Borda(RankingElection):
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
         super().__init__(
             profile, n_seats=n_seats, score_function=score_function, sort_high_low=True
         )

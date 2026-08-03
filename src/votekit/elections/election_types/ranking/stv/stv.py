@@ -1,3 +1,4 @@
+import random
 from typing import Callable, Optional, Union
 from warnings import warn
 
@@ -781,7 +782,7 @@ class STV(RankingElection):
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
 
         super().__init__(
             profile,

@@ -22,7 +22,6 @@ from typing import Mapping, Optional
 import apportionment.methods as apportion
 import numpy as np
 import pandas as pd
-from numpy.random import Generator
 
 from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
@@ -147,7 +146,7 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
 
 
 def _inner_name_bradley_terry(
-    config: BlocSlateConfig, random_seed: Optional[int] = None
+    config: BlocSlateConfig, *, rng: Optional[random.Random] = None
 ) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using direct sampling.
@@ -159,8 +158,9 @@ def _inner_name_bradley_terry(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        random_seed (int | None): Seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng (random.Random | None): Random Number Generator, allows for reproducible results given
+            the same inputs. RNG set to None by default, different results will be generated each
+            time.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
@@ -183,7 +183,7 @@ def _inner_name_bradley_terry(
     pp_by_bloc = {b: RankProfile() for b in bloc_lst}
 
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = np.random.default_rng(seed=random_seed)
+    rng = random.Random() if rng is None else rng
 
     for bloc in config.bloc_proportions.keys():
         n_ballots = ballots_per_bloc[bloc]
@@ -197,10 +197,10 @@ def _inner_name_bradley_terry(
 
         # The return of this will be a numpy array, so we don't need to make it into a list
         sampled_indices = np.array(
-            rng.choice(
-                a=len(rankings),
-                size=n_ballots,
-                p=probs,
+            rng.choices(
+                range(len(rankings)),
+                k=n_ballots,
+                weights=probs,
             ),
             ndmin=1,
         )
@@ -241,7 +241,7 @@ def _bradley_terry_mcmc(
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ):
     """
     Sample from BT distribution for a given preference interval using MCMC. Defaults
@@ -258,8 +258,9 @@ def _bradley_terry_mcmc(
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        rng (random.Random | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
     """
 
     if chain_length is None:
@@ -280,9 +281,9 @@ def _bradley_terry_mcmc(
     burn_in_time = burn_in_time  # int(10e5)
     if verbose:
         print(f"Burn in time: {burn_in_time}")
-    rng = np.random.default_rng(rng)
+    rng = random.Random() if rng is None else rng
     swap_indices = [
-        (j1, j1 + 1) for j1 in rng.choice(n_candidates - 1, size=n_ballots + burn_in_time)
+        (j1, j1 + 1) for j1 in rng.choices(range(n_candidates - 1), k=n_ballots + burn_in_time)
     ]
 
     for i in range(burn_in_time):
@@ -356,7 +357,7 @@ def _inner_name_bradley_terry_mcmc(
     verbose: bool = False,
     burn_in_time: int = 0,
     chain_length: Optional[int] = None,
-    random_seed: Optional[int] = None,
+    rng: Optional[random.Random] = None,
 ) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using Markov Chain Monte Carlo.
@@ -372,8 +373,9 @@ def _inner_name_bradley_terry_mcmc(
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
-        random_seed (int | None): Seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng (Generator | None): Seed for Random Number Generator, allows for reproducible results
+            given the same inputs. RNG set to None by default, different results will be generated
+            each time.
 
     Returns:
         Union[RankProfile, Tuple]
@@ -393,7 +395,7 @@ def _inner_name_bradley_terry_mcmc(
 
     pp_by_bloc = {b: RankProfile() for b in bloc_lst}
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = np.random.default_rng(seed=random_seed)
+    rng = random.Random() if rng is None else rng
 
     for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
@@ -448,7 +450,8 @@ def name_bt_profiles_by_bloc_generator(
     """
     _check_name_bt_memory(config)
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_name_bradley_terry(config, random_seed=random_seed)
+    rng = random.Random(random_seed)
+    pp_by_bloc = _inner_name_bradley_terry(config, rng=rng)
     if group_ballots:
         for bloc in pp_by_bloc:
             pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
@@ -480,7 +483,8 @@ def name_bt_profile_generator(
     """
     _check_name_bt_memory(config)
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_name_bradley_terry(config, random_seed=random_seed)
+    rng = random.Random(random_seed)
+    pp_by_bloc = _inner_name_bradley_terry(config, rng=rng)
 
     # combine the profiles
     pp = RankProfile()
@@ -525,12 +529,13 @@ def name_bt_profile_generator_using_mcmc(
         RankProfile: Generated preference profile.
     """
     config.is_valid(raise_errors=True)
+    rng = random.Random(random_seed)
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config,
         verbose=verbose,
         burn_in_time=burn_in_time,
         chain_length=chain_length,
-        random_seed=random_seed,
+        rng=rng,
     )
     # combine the profiles
     pp = RankProfile()
@@ -576,12 +581,13 @@ def name_bt_profiles_by_bloc_generator_using_mcmc(
         dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     config.is_valid(raise_errors=True)
+    rng = random.Random(random_seed)
     pp_by_bloc = _inner_name_bradley_terry_mcmc(
         config,
         verbose=verbose,
         burn_in_time=burn_in_time,
         chain_length=chain_length,
-        random_seed=random_seed,
+        rng=rng,
     )
 
     if group_ballots:

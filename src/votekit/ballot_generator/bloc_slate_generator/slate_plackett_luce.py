@@ -176,10 +176,10 @@ def _inner_slate_plackett_luce(
                 zero_slate_set,
                 n_ballots,
                 config,
-                rng=rng,
+                numpy_rng=rng,
             )
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, rng=rng
+            config, bloc, slate_ballots, numpy_rng=rng
         )
 
     return pref_profile_by_bloc

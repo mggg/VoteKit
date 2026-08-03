@@ -1,7 +1,6 @@
+import random
 from functools import partial
 from typing import Literal, Optional
-
-import numpy as np
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -44,7 +43,7 @@ class Plurality(RankingElection):
         if n_seats is None:
             n_seats = 1
         self.tiebreak = tiebreak
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
         super().__init__(
             profile,
             n_seats=n_seats,

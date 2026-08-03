@@ -6,11 +6,9 @@ The main API functions in this module are:
 - `ic_profile_generator`: Generates a single preference profile using the IC distribution.
 """
 
+import random
 from collections import Counter
 from typing import Optional, Sequence
-
-import numpy as np
-from numpy.random import Generator
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -35,7 +33,7 @@ def _generate_profile_optimized_non_short(
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -48,8 +46,8 @@ def _generate_profile_optimized_non_short(
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. Defaults to None which produces different results each time.
+        rng (random.Random | None): Random Number Generator seeded with a known value for
+            reproducible results. Defaults to None which produces different results each time.
 
     Returns:
         RankProfile
@@ -57,9 +55,14 @@ def _generate_profile_optimized_non_short(
     num_cands = len(candidates)
     if max_ballot_length is None:
         max_ballot_length = num_cands
-    rng = np.random.default_rng(rng)
+    rng = random.Random() if rng is None else rng
     ballots_as_ind = [
-        tuple(rng.choice(num_cands, size=max_ballot_length, replace=False))
+        tuple(
+            rng.sample(
+                range(num_cands),
+                k=max_ballot_length,
+            )
+        )
         for _ in range(number_of_ballots)
     ]
     ballots_as_counter = Counter(ballots_as_ind)
@@ -77,7 +80,7 @@ def _generate_profile_optimized_with_short(
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> RankProfile:
     """
     Generate an IC profile in the case where short ballots are
@@ -92,8 +95,8 @@ def _generate_profile_optimized_with_short(
             the profile
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. Defaults to None which produces different results each time.
+        rng (random.Random | None): Random Number Generator seeded with a known value for
+            reproducible results. Defaults to None which produces different results each time.
 
     Returns:
         RankProfile
@@ -106,8 +109,8 @@ def _generate_profile_optimized_with_short(
 
     # sample indices (representing allowed ballots) uniformally at
     # random
-    rng = np.random.default_rng(rng)
-    ballot_inds = [rng.integers(0, total_ballots) for _ in range(number_of_ballots)]
+    rng = rng if rng is not None else random.Random()
+    ballot_inds = [rng.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
         tuple(index_to_lexicographic_ballot(int(ballot_ind), num_cands, max_ballot_length))
         for (ballot_ind) in ballot_inds
@@ -159,7 +162,7 @@ def ic_profile_generator(
         max_ballot_length = len(candidates)
     elif max_ballot_length > len(candidates):
         raise ValueError("Max ballot length larger than number of candidates given.")
-    rng = np.random.default_rng(seed=random_seed)
+    rng = random.Random(random_seed)
     if allow_short_ballots:
         return _generate_profile_optimized_with_short(
             candidates,

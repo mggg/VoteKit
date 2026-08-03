@@ -1,3 +1,4 @@
+import random
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Literal, Optional
@@ -88,7 +89,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
         self._pv_validate_input(grouped_profile)
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
 
         self._df = grouped_profile.df.copy()
         assert grouped_profile.max_ranking_length is not None
@@ -101,7 +102,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._cumsum = self._df["Weight"].cumsum().to_numpy()
 
         num_voters = int(grouped_profile.total_ballot_wt)
-        self._voter_order = self._rng.permutation(num_voters)
+        self._voter_order = self._rng.sample(range(num_voters), num_voters)
         self._voter_order_current_index = 0
 
         self.candidates = frozenset(grouped_profile.candidates)

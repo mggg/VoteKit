@@ -11,6 +11,7 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
+from numpy.random import Generator
 
 from votekit.ballot_generator.bloc_slate_generator.config.collections import (
     BlocProportions,
@@ -1407,7 +1408,10 @@ class BlocSlateConfig:
                     )
 
     def set_dirichlet_alphas(
-        self, alphas: Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame]
+        self,
+        alphas: Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame],
+        *,
+        random_seed: Optional[int] = None,
     ) -> None:
         """
         Set the Dirichlet alphas for the configuration and resample the preference intervals.
@@ -1417,6 +1421,8 @@ class BlocSlateConfig:
                 of bloc names to mappings of slate names to their Dirichlet alpha values. Each bloc
                 must have a mapping for every slate defined in slate_to_candidates. All alpha
                 values must be positive finite reals.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
 
         Raises:
             ConfigurationWarning: If preference intervals have already been set without
@@ -1438,7 +1444,9 @@ class BlocSlateConfig:
         else:
             self.__alphas = alphas.copy().astype(float)
         self.__clear_alpha_bool = False
-        self.resample_preference_intervals_from_dirichlet_alphas()
+        self.resample_preference_intervals_from_dirichlet_alphas(
+            numpy_rng=np.random.default_rng(seed=random_seed)
+        )
 
     def clear_dirichlet_alphas(self) -> None:
         """Remove the Dirichlet alphas from the configuration."""
@@ -1457,6 +1465,8 @@ class BlocSlateConfig:
 
     def resample_preference_intervals_from_dirichlet_alphas(
         self,
+        *,
+        numpy_rng: Optional[Generator] = None,
     ) -> None:
         """
         Resample the preference intervals for each bloc from the current Dirichlet alphas.
@@ -1475,6 +1485,7 @@ class BlocSlateConfig:
                     candidates=list(self.slate_to_candidates[slate]),
                     alpha=float(self.__alphas[slate].loc[bloc]),
                     allow_zero_support=self.allow_zero_support_candidates,
+                    numpy_rng=numpy_rng,
                 )
             preference_dict[bloc] = slate_intervals
         preference_df = convert_preference_map_to_preference_df(preference_dict)

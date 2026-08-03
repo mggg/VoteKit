@@ -276,7 +276,7 @@ def _inner_cambridge_sampler(
         )
 
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, rng=rng
+            config, bloc, slate_ballots, numpy_rng=rng
         )
 
     return pref_profile_by_bloc

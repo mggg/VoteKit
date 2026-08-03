@@ -14,6 +14,7 @@ from typing import Optional
 import apportionment.methods as apportion
 import numpy as np
 import pandas as pd
+from numpy.random import Generator
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
@@ -27,7 +28,7 @@ def _inner_name_plackett_luce(
     config: BlocSlateConfig,
     *,
     ballot_length: Optional[int] = None,
-    random_seed: Optional[int] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles by bloc using the name-Plackett-Luce model.
@@ -40,8 +41,9 @@ def _inner_name_plackett_luce(
             working with a bloc-slate ballot generator.
         ballot_length (Optional[int]): Number of ranking positions allowed per ballot. If None,
             this is set to the total number of candidates in the configuration. Defaults to None.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        numpy_rng (Generator) | None): Random Number Generator, allows for reproducible results
+            given the same inputs. RNG set to None by default, different results will be generated
+            each time.
 
     Returns:
         dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
@@ -66,7 +68,7 @@ def _inner_name_plackett_luce(
 
     pp_by_bloc = {b: RankProfile() for b in bloc_lst}
     pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
 
     for bloc in config.blocs:
         n_ballots = ballots_per_bloc[bloc]
@@ -141,7 +143,8 @@ def name_pl_profile_generator(
     config.is_valid(raise_errors=True)
 
     # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
-    pp_by_bloc = _inner_name_plackett_luce(config, random_seed=random_seed)
+    rng = np.random.default_rng(seed=random_seed)
+    pp_by_bloc = _inner_name_plackett_luce(config, numpy_rng=rng)
 
     pp = RankProfile(ballots=tuple())
     for profile in pp_by_bloc.values():
@@ -182,7 +185,8 @@ def name_pl_profiles_by_bloc_generator(
     config.is_valid(raise_errors=True)
 
     # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
-    pp_by_bloc = _inner_name_plackett_luce(config, random_seed=random_seed)
+    rng = np.random.default_rng(seed=random_seed)
+    pp_by_bloc = _inner_name_plackett_luce(config, numpy_rng=rng)
 
     if group_ballots:
         for bloc, profile in pp_by_bloc.items():

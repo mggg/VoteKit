@@ -15,12 +15,12 @@ The main API functions in this module are:
 
 import itertools as it
 import math
+import random
 import sys
 from typing import Optional, Sequence, cast
 
 import apportionment.methods as apportion
 import numpy as np
-from numpy.random import Generator
 from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
@@ -131,7 +131,7 @@ def _sample_bt_slate_ballots_deterministic(
     n_ballots: int,
     non_zero_slate_set: set[str],
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
@@ -143,8 +143,9 @@ def _sample_bt_slate_ballots_deterministic(
         bloc_name (str): The name of the voter bloc for which to generate ballot types.
         n_ballots (int): The number of ballots to generate.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        rng (random.Random | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         list[tuple[str]]: A list of ballot types, where each ballot type is represented
@@ -154,8 +155,8 @@ def _sample_bt_slate_ballots_deterministic(
     b_types: list[tuple[str, ...]] = list(pdf.keys())
     probs = list(pdf.values())
 
-    rng = np.random.default_rng(rng)
-    sampled_indices = rng.choice(len(b_types), size=n_ballots, p=probs)
+    rng = random.Random() if rng is None else rng
+    sampled_indices = rng.choices(range(len(b_types)), k=n_ballots, weights=probs)
 
     ballots = [b_types[i] for i in sampled_indices]
 
@@ -212,7 +213,7 @@ def _sample_bt_slate_ballots_mcmc(
     n_ballots: int,
     non_zero_slate_set: set[str],
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
@@ -225,8 +226,9 @@ def _sample_bt_slate_ballots_mcmc(
         bloc_name (str): The name of the voter bloc for which to generate ballot types.
         n_ballots (int): The number of ballots to generate.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        rng (random.Random | None): Random Number Generator seeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         list[tuple[str]]: A list of ballot types, where each ballot type is represented
@@ -238,13 +240,15 @@ def _sample_bt_slate_ballots_mcmc(
         slate for slate in sorted(non_zero_slate_set) for c in config.slate_to_candidates[slate]
     ]
     # randomly permute the seed ballot type
-    rng = np.random.default_rng(rng)
-    seed_ballot_type = rng.permutation(seed_ballot_type)
+    rng = random.Random() if rng is None else rng
+    seed_ballot_type = rng.sample(seed_ballot_type, len(seed_ballot_type))
 
     ballots: list[tuple[str, ...]] = [("~",) for _ in range(n_ballots)]
     current_ranking = seed_ballot_type
     # presample swap indices
-    swap_indices = [(j1, j1 + 1) for j1 in rng.choice(len(seed_ballot_type) - 1, size=n_ballots)]
+    swap_indices = [
+        (j1, j1 + 1) for j1 in rng.choices(range(len(seed_ballot_type) - 1), k=n_ballots)
+    ]
 
     for i in range(n_ballots):
         j1, j2 = swap_indices[i]
@@ -310,7 +314,8 @@ def _inner_slate_bradley_terry(
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    rng = np.random.default_rng(seed=random_seed)
+    numpy_rng = np.random.default_rng(seed=random_seed)
+    rng = random.Random(random_seed)
 
     for bloc in bloc_lst:
         # number of voters in this bloc
@@ -344,14 +349,14 @@ def _inner_slate_bradley_terry(
                 zero_slate_set,
                 n_ballots,
                 config,
-                rng=rng,
+                numpy_rng=numpy_rng,
             )
 
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
             config,
             bloc,
             slate_ballots,
-            rng=rng,
+            numpy_rng=numpy_rng,
         )
 
     return pref_profile_by_bloc

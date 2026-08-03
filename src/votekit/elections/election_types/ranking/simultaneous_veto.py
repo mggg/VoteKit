@@ -1,3 +1,4 @@
+import random
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
@@ -123,7 +124,7 @@ class SimultaneousVeto(RankingElection):
         self.n_seats = n_seats
         self.candidate_weights = candidate_weights
         self.tiebreak = tiebreak
-        self._rng = np.random.default_rng(seed=random_seed)
+        self._rng = random.Random(random_seed)
         self.scoring_tie_convention = scoring_tie_convention
         self.return_all_tied_winners = return_all_tied_winners
 

@@ -7,12 +7,10 @@ The main API functions in this module are:
 """
 
 import math
+import random
 from collections import Counter
 from functools import lru_cache
 from typing import Optional, Sequence
-
-import numpy as np
-from numpy.random import Generator
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -47,7 +45,7 @@ def _sample_uniform_profile_counts(
     num_ballot_types: int,
     number_of_ballots: int,
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> list[int]:
     """
     Sample a weak composition of ``number_of_ballots`` into ``num_ballot_types`` parts uniformly.
@@ -58,14 +56,14 @@ def _sample_uniform_profile_counts(
     Args:
         num_ballot_types (int): The number of distinct ballot types.
         number_of_ballots (int): The total number of ballots.
-        rng (Generator | None): Random Number Generator seeded with a known value for
+        rng (random.Random | None): Random Number Generator seeded with a known value for
             reproducible results. Defaults to None which produces different results each time.
 
     Returns:
         list[int]: A list of length ``num_ballot_types`` where each entry is the frequency of a
             ballot type, and the sum of all entries is ``number_of_ballots``.
     """
-    rng = np.random.default_rng(rng)
+    rng = random.Random() if rng is None else rng
 
     if num_ballot_types < 1:
         raise ValueError("num_ballot_types must be positive")
@@ -74,8 +72,9 @@ def _sample_uniform_profile_counts(
         return [number_of_ballots]
 
     bar_locations = sorted(
-        rng.choice(
-            range(number_of_ballots + num_ballot_types - 1), num_ballot_types - 1, replace=False
+        rng.sample(
+            range(number_of_ballots + num_ballot_types - 1),
+            num_ballot_types - 1,
         )
     )
     return _bar_locations_to_profile_counts(bar_locations, num_ballot_types, number_of_ballots)
@@ -144,7 +143,7 @@ def _sample_anonymous_profile_ballot_counts(
     number_of_ballots: int,
     max_ballot_length: int,
     *,
-    rng: Optional[Generator] = None,
+    rng: Optional[random.Random] = None,
 ) -> list[int]:
     """
     Sample anonymous-profile frequencies over lexicographically indexed ballot types.
@@ -153,7 +152,7 @@ def _sample_anonymous_profile_ballot_counts(
         n_candidates (int): The number of candidates.
         number_of_ballots (int): The total number of ballots.
         max_ballot_length (int): Maximum length of each ballot.
-        rng (Generator | None): Random Number Generator seeded with a known value for
+        rng (random.Random | None): Random Number Generator seeded with a known value for
             reproducible results. Defaults to None which produces different results each time.
 
     Returns:
@@ -204,7 +203,7 @@ def iac_profile_generator(
         num_cands,
         number_of_ballots,
         max_ballot_length,
-        rng=np.random.default_rng(seed=random_seed),
+        rng=random.Random(random_seed),
     )
     ballots_as_counter = Counter(
         {
