@@ -1,4 +1,5 @@
 import random
+from functools import partial
 from typing import Callable, Optional, Union
 from warnings import warn
 
@@ -24,7 +25,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     TransferType,
 )
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
-from votekit.elections.transfers import fractional_transfer
+from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import ProfileError, RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -54,6 +55,7 @@ class NumpyInnerSTV(NumpySTVBase):
         tiebreak: TiebreakType | None = None,
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
+        *,
         random_seed: Optional[int] = None,
     ):
         """
@@ -586,6 +588,7 @@ class AlbanySTV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
         random_seed: Optional[int] = None,
         **kwargs,
     ):
@@ -640,6 +643,7 @@ class FastIRV(NumpyInnerSTV):
         profile: RankProfile,
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
+        *,
         random_seed: Optional[int] = None,
     ):
         """
@@ -684,6 +688,7 @@ class FastSequentialRCV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
+        *,
         random_seed: Optional[int] = None,
         **kwargs,
     ):
@@ -738,6 +743,7 @@ class STV(RankingElection):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
         random_seed: Optional[int] = None,
         **kwargs,
     ):
@@ -757,7 +763,8 @@ class STV(RankingElection):
             transfer (Callable[[Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
                 tuple[RankBallot, ...]]): Transfer method. Defaults to fractional transfer.
                 Function signature is elected candidate, their number of first-place votes, the list
-                of ballots with them ranked first, and the threshold value. Returns the list of
+                of ballots with them ranked first, the threshold value, and a Random Number
+                Generator object which can be seeded for reproducible results. Returns the list of
                 ballots after transfer. Candidates can be strings, integers, or mix of both.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
@@ -767,15 +774,15 @@ class STV(RankingElection):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
-            random_seed (int | None): seed for RNG, allows for reproducible results given the same
-                inputs. Seed set to None by default, different results will be generated each time.
+            random_seed (int | None): seed for RNG within transfer, allows for reproducible results
+                given the same inputs. Seed set to None by default, different results will be
+                generated each time.
         """
         self._stv_validate_profile(profile)
 
         if n_seats <= 0:
             raise ValueError("n_seats must be positive.")
         self.n_seats = n_seats
-        self.transfer = transfer
         self.quota = quota
 
         self.threshold = 0
@@ -783,6 +790,10 @@ class STV(RankingElection):
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
         self._rng = random.Random(random_seed)
+        if transfer is random_transfer:
+            self.transfer = partial(random_transfer, rng=self._rng)
+        else:
+            self.transfer = transfer
 
         super().__init__(
             profile,
@@ -1122,6 +1133,8 @@ class IRV(STV):
         profile: RankProfile,
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
+        *,
+        random_seed: Optional[int] = None,
     ):
         """
         Initialize an IRV election.
@@ -1134,8 +1147,12 @@ class IRV(STV):
                 tiebreak is needed. Accepts "borda" and "random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is
                 needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
-        super().__init__(profile, n_seats=1, quota=quota, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=1, quota=quota, tiebreak=tiebreak, random_seed=random_seed
+        )
 
 
 class SequentialRCV(STV):
@@ -1157,6 +1174,8 @@ class SequentialRCV(STV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -1173,6 +1192,8 @@ class SequentialRCV(STV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -1212,4 +1233,5 @@ class SequentialRCV(STV):
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
+            random_seed=random_seed,
         )

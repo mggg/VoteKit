@@ -107,6 +107,7 @@ class NumpySTVBase(ABC):
         profile: RankProfile,
         n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
+        *,
         random_seed: Optional[int] = None,
     ):
         """

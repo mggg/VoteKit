@@ -502,7 +502,12 @@ def tiebreak_set(
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(frozenset({c}) for c in rng.sample(list(set_to_tiebreak), k=len(set_to_tiebreak)))
+        new_ranking = tuple(
+            frozenset({c})
+            for c in rng.sample(
+                sort_candidates_pseudo_lex(list(set_to_tiebreak)), k=len(set_to_tiebreak)
+            )
+        )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
             tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)

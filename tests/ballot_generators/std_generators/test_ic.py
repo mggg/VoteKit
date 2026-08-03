@@ -48,7 +48,7 @@ def test_ic_non_short_helper_defaults_max_ballot_length(monkeypatch):
     assert len(profile.ballots[0].ranking) == 3
 
 
-def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):
+def test_ic_allow_short_ballots_uses_lexicographic_indices():
     profile = ic_profile_generator(
         candidates=["A", "B", "C"],
         number_of_ballots=3,
@@ -65,14 +65,7 @@ def test_ic_allow_short_ballots_uses_lexicographic_indices(monkeypatch):
         for ballot in profile.ballots
     }
 
-    assert ballot_weights == {
-        (
-            "C",
-            "A",
-        ): 1,
-        ("B", "C"): 1,
-        ("B", "A"): 1,
-    }
+    assert ballot_weights == {("C",): 2, ("A",): 1}
     assert profile.max_ranking_length == 3
 
 

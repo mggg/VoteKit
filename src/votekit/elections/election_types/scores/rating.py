@@ -29,6 +29,8 @@ class GeneralRating(Election[ScoreProfile]):
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -39,6 +41,7 @@ class GeneralRating(Election[ScoreProfile]):
         per_candidate_limit: float | None = None,
         budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
+        *,
         random_seed: Optional[int] = None,
         **kwargs,
     ):
@@ -71,7 +74,9 @@ class GeneralRating(Election[ScoreProfile]):
         self.tiebreak = tiebreak
         self._rng = random.Random(random_seed)
         super().__init__(
-            profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
+            profile,
+            score_function=score_profile_from_ballot_scores,
+            sort_high_low=True,
         )
 
     def _validate_params(self, profile: ScoreProfile):
@@ -189,6 +194,8 @@ class Rating(GeneralRating):
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -198,6 +205,8 @@ class Rating(GeneralRating):
         n_seats: int | None = None,
         per_candidate_limit: float | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -214,5 +223,9 @@ class Rating(GeneralRating):
         if per_candidate_limit is None:
             per_candidate_limit = 1
         super().__init__(
-            profile, n_seats=n_seats, per_candidate_limit=per_candidate_limit, tiebreak=tiebreak
+            profile,
+            n_seats=n_seats,
+            per_candidate_limit=per_candidate_limit,
+            tiebreak=tiebreak,
+            random_seed=random_seed,
         )

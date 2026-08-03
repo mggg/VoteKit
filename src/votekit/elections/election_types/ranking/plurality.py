@@ -32,6 +32,7 @@ class Plurality(RankingElection):
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        *,
         random_seed: Optional[int] = None,
         **kwargs,
     ):
@@ -124,6 +125,8 @@ class SNTV(Plurality):
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
+        random_seed (int, optional): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -132,6 +135,8 @@ class SNTV(Plurality):
         profile: RankProfile,
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        random_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -141,4 +146,4 @@ class SNTV(Plurality):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             n_seats = 1
-        super().__init__(profile, n_seats, tiebreak)
+        super().__init__(profile, n_seats, tiebreak, random_seed=random_seed)

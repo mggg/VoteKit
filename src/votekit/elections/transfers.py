@@ -55,24 +55,26 @@ def fractional_transfer(
 
 
 def random_transfer(
-    winner: str,
+    winner: Candidate,
     fpv: float,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
     *,
-    random_seed: Optional[int] = None,
+    rng: Optional[random.Random] = None,
 ) -> tuple[RankBallot, ...]:
     """
     Cambridge-style transfer where transfer ballots are selected randomly.
     All ballots must have integer weights.
 
     Args:
-        winner (str): Candidate to transfer votes from.
+        winner (Candidate): Candidate to transfer votes from.
+            Candidates can be strings, integers, or mix of both.
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng (random.Random | None): Random Number Generator, allows for reproducible results given
+            the same inputs. RNG set to None by default, different results will be generated each
+            time.
 
     Returns:
         tuple[RankBallot,...]:
@@ -114,7 +116,7 @@ def random_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    rng = random.Random(random_seed)
+    rng = random.Random() if rng is None else rng
     surplus_ballots = rng.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
     updated_ballots += surplus_ballots
 
