@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -238,7 +238,7 @@ def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]
     return cand_set_ids
 
 
-def _get_candidate_id_locations(profile: RankProfile, cand_ids: set[int]) -> np.ndarray:
+def _get_candidate_id_locations(profile: RankProfile, cand_ids: Iterable[int]) -> np.ndarray:
     """
     Get the boolean matrix of all candidate ID positions within a profile.
 
@@ -246,7 +246,7 @@ def _get_candidate_id_locations(profile: RankProfile, cand_ids: set[int]) -> np.
 
     Args:
         profile (RankProfile): profile with ranking ballots.
-        cand_ids (set[int]): set of candidate set IDs that represent candidate sets within
+        cand_ids (Iterable[int]): set of candidate set IDs that represent candidate sets within
             profile's df.
 
     Returns:
@@ -292,19 +292,11 @@ def _include_unranked_in_cand_locations(profile: RankProfile, cand_set_locations
         unranked locations at the end of the ballot.
     """
     ranking_cols = [col for col in profile._df.columns if "Ranking_" in col]
-    df_extend = profile._df[ranking_cols].copy()
-    # add a column for the end of the ballot with ~ unless it's a short ballot
-    last_col = f"Ranking_{profile.max_ranking_length}"
-    new_col = f"Ranking_{profile.max_ranking_length + 1}"
-    df_extend[new_col] = np.where(df_extend[last_col] != -1, -1, 0)
+    rank_array = profile._df[ranking_cols].to_numpy()
+    rank_array = np.column_stack((rank_array, [-1] * len(rank_array)))
 
     # can only be one end of a ballot, remove duplicates of -1 within a ballot
-    seen_unranked = np.zeros(len(df_extend), dtype=bool)
-    for col in df_extend.columns:
-        already_seen_unranked = seen_unranked & (df_extend[col] == -1)
-        df_extend[col] = np.where(already_seen_unranked, 0, df_extend[col])
-        seen_unranked |= df_extend[col] == -1
-    unranked_locations = df_extend.isin({-1}).to_numpy()
+    unranked_locations = (np.cumsum(rank_array == -1, axis=1) == 1) & (rank_array == -1)
     # use cand set positions for ranked candidates, fall back to unranked position otherwise
     use_cand_set_location_mask = cand_set_locations.any(axis=1, keepdims=True)
     cand_set_locations_add_col = np.column_stack(
@@ -410,44 +402,6 @@ def _boolean_matrix(
     return cand_set_locations
 
 
-def _get_next_true_ballot_with_cand(
-    ballots_where_true: np.ndarray, cand_where_idx: int, cand_where_ballots: np.ndarray
-) -> int | None:
-    """
-    Get the next ballot that the candidate exists within a masked True ballot.
-
-    Only true ballots where the candidate is present should be searched. Computation is wasted
-    on ballots that are already False within a mask. A query never adds back ballots, only
-    excludes ones that do not satisfy it.
-
-    Args:
-        ballots_where_true (np.ndarray): array of ballot indices that satisfy all previous query
-         constraints.
-        cand_where_idx (int): Current where index for candidate within list of ballots each
-            with a ranking.
-        cand_where_ballots (np.ndarray): List of ballot indices where candidate is present.
-
-    Returns:
-        (int | None): index into the array of ballot indices where candidate is present and ballot
-            is True from mask. If no ballots with the candidate are true ballots or there are no
-            true ballots, then none is returned.
-
-
-    """
-    cand_curr_ballot = cand_where_ballots[cand_where_idx]
-    num_cand_where_ballots = len(cand_where_ballots)
-    true_ballot_set = set(ballots_where_true)
-    if cand_curr_ballot not in true_ballot_set:
-        while (
-            cand_where_idx < num_cand_where_ballots
-            and cand_where_ballots[cand_where_idx] not in true_ballot_set
-        ):
-            cand_where_idx += 1
-        if cand_where_idx >= num_cand_where_ballots:  # no true ballots with cand present
-            return None
-    return cand_where_idx
-
-
 def _shift_idx_to_next_ballot(where_idx: int, where_ballots: np.ndarray) -> int:
     """
     Moves the current ``where_idx`` to the next unique ballot index within ``where_ballots``.
@@ -501,31 +455,23 @@ def _compare_adjacent_query_slots_ranks(
             (used as a_start_where_indices in the next comparison).
 
     """
-    ballots_where_true = np.where(ballots_mask)[0]
-    if len(ballots_where_true) == 0:
+    query_a_ballots = query_slot_a_position_mask.any(axis=1)
+    query_b_ballots = query_slot_b_position_mask.any(axis=1)
+    ballots_mask = query_a_ballots & query_b_ballots & ballots_mask
+    if not ballots_mask.any():
         return ballots_mask, query_slot_a_start_where_indices
 
-    query_a_ballots, query_a_ranks = np.where(query_slot_a_position_mask)
-    query_b_ballots, query_b_ranks = np.where(query_slot_b_position_mask)
+    query_a_ballots, query_a_ranks = np.where(query_slot_a_position_mask & ballots_mask[:, None])
+    query_b_ballots, query_b_ranks = np.where(query_slot_b_position_mask & ballots_mask[:, None])
     num_query_a_ballots, num_query_b_ballots = len(query_a_ballots), len(query_b_ballots)
     query_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
     query_a_where_idx, query_b_where_idx = 0, 0
     b_match_where_indices = np.zeros(len(ballots_mask), dtype=int)
     while query_a_where_idx < num_query_a_ballots and query_b_where_idx < num_query_b_ballots:
-        query_a_where_idx = _get_next_true_ballot_with_cand(
-            ballots_where_true, query_a_where_idx, query_a_ballots
-        )
-        if query_a_where_idx is None:  # no true ballot with query a found
-            break
         query_a_where_idx = max(
             query_a_where_idx, query_slot_a_start_where_indices[query_a_ballots[query_a_where_idx]]
         )
         a_ballot_idx = query_a_ballots[query_a_where_idx]
-        query_b_where_idx = _get_next_true_ballot_with_cand(
-            ballots_where_true, query_b_where_idx, query_b_ballots
-        )
-        if query_b_where_idx is None:  # no true ballot with query b found
-            break
         b_ballot_idx = query_b_ballots[query_b_where_idx]
 
         if a_ballot_idx < b_ballot_idx:
@@ -668,28 +614,20 @@ def _compare_one_candidate_pair_ranks(
         (np.ndarray): mask with all ballots that satisfy the query within ballots_mask marked as
             True.
     """
-    ballots_where_true = np.where(ballots_mask)[0]
-    if len(ballots_where_true) == 0:
+    cand_a_ballots = cand_a_position_mask.any(axis=1)
+    cand_b_ballots = cand_b_position_mask.any(axis=1)
+    ballots_mask = cand_a_ballots & cand_b_ballots & ballots_mask
+    if not ballots_mask.any():
         return ballots_mask
 
-    cand_a_ballots, cand_a_ranks = np.where(cand_a_position_mask)
-    cand_b_ballots, cand_b_ranks = np.where(cand_b_position_mask)
+    cand_a_ballots, cand_a_ranks = np.where(cand_a_position_mask & ballots_mask[:, None])
+    cand_b_ballots, cand_b_ranks = np.where(cand_b_position_mask & ballots_mask[:, None])
     num_cand_a_ballots, num_cand_b_ballots = len(cand_a_ballots), len(cand_b_ballots)
     cand_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
     cand_a_where_idx, cand_b_where_idx = 0, 0
 
     while cand_a_where_idx < num_cand_a_ballots and cand_b_where_idx < num_cand_b_ballots:
-        cand_a_where_idx = _get_next_true_ballot_with_cand(
-            ballots_where_true, cand_a_where_idx, cand_a_ballots
-        )
-        if cand_a_where_idx is None:  # no true ballot with candidate a found
-            break
         a_ballot_idx = cand_a_ballots[cand_a_where_idx]
-        cand_b_where_idx = _get_next_true_ballot_with_cand(
-            ballots_where_true, cand_b_where_idx, cand_b_ballots
-        )
-        if cand_b_where_idx is None:  # no true ballot with candidate b found
-            break
         b_ballot_idx = cand_b_ballots[cand_b_where_idx]
         if a_ballot_idx < b_ballot_idx:
             cand_a_where_idx = _shift_idx_to_next_ballot(cand_a_where_idx, cand_a_ballots)

@@ -12,7 +12,6 @@ from votekit.utils.search_utils import (
     _compare_candidate_pair_ranks,
     _compare_query_ranks,
     _get_candidate_pair_min_distance,
-    _get_next_true_ballot_with_cand,
     _shift_idx_to_next_ballot,
     _validate_max_cand_pair_dist,
     _validate_ranking_query,
@@ -771,26 +770,6 @@ def test_shift_idx_to_next_ballot():
     assert true_next_ballot_idx == _shift_idx_to_next_ballot(curr_where_idx, ballot_indices)
     assert ballot_indices[true_next_ballot_idx] != ballot_indices[curr_where_idx]
     assert ballot_indices[true_next_ballot_idx - 1] == ballot_indices[curr_where_idx]
-
-
-# --- _get_next_true_ballot_with_cand -----------------------------------
-
-
-def test_get_next_true_ballot_with_cand():
-    ballots_mask = np.array([False, False, True, False, True])
-    ballots_where_true = np.where(ballots_mask)[0]
-    ballot_indices_where_cand = np.array([0, 2, 4])
-    # next true ballot with candidate is at ballot index 2, which is at index 1 in where array
-    true_next_ballot_where_idx = 1
-    assert true_next_ballot_where_idx == _get_next_true_ballot_with_cand(
-        ballots_where_true, 0, ballot_indices_where_cand
-    )
-
-    ballot_indices_where_cand = np.array([0, 1, 3])
-    true_next_ballot_where_idx = None  # no true ballots with candidate present
-    assert true_next_ballot_where_idx == _get_next_true_ballot_with_cand(
-        ballots_where_true, 0, ballot_indices_where_cand
-    )
 
 
 # --- _get_candidate_pair_min_distance -----------------------------------
