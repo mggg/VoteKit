@@ -27,6 +27,8 @@ def search_profile_for_rank_pattern(
     The ``ranking_query`` is applied first, and the ``max_cand_pair_dist`` query searches within
     the ballots that satisfy the ``ranking_query``. When multiple candidate pairs are given in
     ``max_cand_pair_dist``, a ballot is returned if it satisfies all candidate pair constraints.
+    If include_unranked=True, a ballot that leaves both candidates in a pair unranked matches any
+    distance query, since both candidates are treated as tied at the end of the ballot.
     Each element of the ``ranking_query`` specifies one ordered slot in the pattern:
         - Candidate (str or int): a single candidate that must appear before the candidate(s)
         in the next slot.

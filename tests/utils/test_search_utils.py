@@ -225,6 +225,62 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings_for_multipl
     )
 
 
+def test_search_with_ranking_query_for_multiple_ranking_elements_returns_one_ballot():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=["B", "A", "C"], weight=1.0),
+            RankBallot(ranking=["A", "B", "C"], weight=1.0),
+        ),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    true_profile = RankProfile(
+        ballots=(RankBallot(ranking=["A", "B", "C"], weight=1.0),),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    pd.testing.assert_frame_equal(
+        search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
+            drop=True
+        ),
+        true_profile.df.reset_index(drop=True),
+        check_dtype=False,
+    )
+
+
+def test_search_with_ranking_query_for_multiple_ranking_elements_returns_mult_ballots():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=[{"B"}, {"A"}, {"C"}, {"D"}]),
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}]),
+            RankBallot(ranking=[{"A"}, {"B"}, {"D"}, {"C"}]),
+            RankBallot(ranking=[{"A"}, {"B"}, {"B"}, {"C"}]),
+        ),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    true_profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}, {"D"}]),
+            RankBallot(ranking=[{"A"}, {"B"}, {"D"}, {"C"}]),
+            RankBallot(ranking=[{"A"}, {"B"}, {"B"}, {"C"}]),
+        ),
+        candidates=("A", "B", "C", "D"),
+        max_ranking_length=4,
+    )
+
+    pd.testing.assert_frame_equal(
+        search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
+            drop=True
+        ),
+        true_profile.df.reset_index(drop=True),
+        check_dtype=False,
+    )
+
+
 def test_search_with_ranking_query_unranked_tuple():
     profile = RankProfile(
         ballots=(
