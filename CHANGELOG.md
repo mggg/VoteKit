@@ -13,6 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 
+## [3.4.1] - 2026-08-05
+
+## Added
+- `sum_profiles` utility to sum a list of profile of `RankProfile` or `ScoreProfile`
+  objects. (PR #369)
+- `search_rank_profile_for_pattern` queries rank profiles for strict ranking orders and
+  candidate pair clones within a certain distance. `include_unranked` flag treats
+  unranked candidates as tied last. (PR #373)
+- `sort_candidates_pseudo_lexicographically` sorts integer and string candidates
+  canonically by numeric value or ASCII order. (PR #370)
+- `sort_strengths_descending` parameter added to `PreferenceInterval.from_dirichlet`
+  assigns preference strengths in descending order to the `candidates` list when True.
+- `rng_seed` parameter added to all public APIs with randomness. Pass an integer for
+  reproducible results or `None` for non-deterministic. (PR #375)
+
+## Changes
+- `RankBallot` accepts bare singleton values in `ranking` (no need to wrap single
+  candidates in an iterable). (PR #368)
+- `Ballot`, `PreferenceProfile`, and `BlocSlateConfig` classes accept integer and/or
+  string candidates. Ballot generators, election methods, plots, and utilities are
+  updated accordingly. A `UserWarning` is raised when a string/integer candidate pair
+  would collide if cast (e.g. `"1"` and `1`), and a separate `UserWarning` is raised
+  in plots when two candidates are indistinguishable as strings. (PR #370)
+- `PreferenceProfile.to_csv` updated to v2 format to support integer candidates.
+  Candidates encoded as `name:type:id`. Old format CSVs remain readable via
+  `PreferenceProfile.from_csv`, which casts candidates to their labeled types in v2
+  files. (PR #370)
+- `":"` is not allowed within candidate names due to breaking
+  `PreferenceProfile.from_csv`. (PR #370)
+- Internal `RankProfile` and `ScoreProfile` DataFrames (`_df`) store candidate sets
+  and candidates as their integer IDs. `candidate_id_map` and `id_candidate_map`
+  attributes are added. Public `df` property translates back to original candidate
+  names. (PR #370)
+- Randomly sampled sets are now canonically ordered, ensuring results are stable
+  across processes regardless of `PYTHONHASHSEED`. (PR #375)
+
+## Fixed
+- Issues #326, #331, #347, #353, #357, #359,
 
 ## [3.4.0] - 2026-04-08
 
