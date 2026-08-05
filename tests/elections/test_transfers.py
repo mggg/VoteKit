@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import pytest
 
 from votekit.ballot import RankBallot
@@ -30,6 +32,18 @@ def test_fractional_transfer():
             RankBallot(ranking=({"C"}, {"B"}), weight=1),
         )
     )
+
+
+def test_fractional_transfer_preserves_large_rational_weight():
+    denominator = 2**80 + 7
+    ballot = RankBallot(ranking=({"A"}, {"B"}), weight=Fraction(2**90 + 3, denominator))
+    fpv = ballot.weight
+
+    transferred = fractional_transfer("A", fpv, [ballot], 1)
+
+    expected = ballot.weight * (fpv - 1) / fpv
+    assert transferred[0].weight == expected
+    assert isinstance(transferred[0].weight, Fraction)
 
 
 def test_fractional_transfer_error():
