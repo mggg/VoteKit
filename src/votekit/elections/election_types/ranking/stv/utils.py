@@ -37,8 +37,8 @@ def numpy_random_transfer(
         wt_vec (NDArray): Integer weights vector.
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         counts (NDArray): Vector of counts

@@ -29,7 +29,7 @@ class GeneralRating(Election[ScoreProfile]):
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
             inputs. Seed set to None by default, different results will be generated each time.
 
     """
@@ -42,7 +42,7 @@ class GeneralRating(Election[ScoreProfile]):
         budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
         *,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -72,7 +72,7 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
-        self._rng = random.Random(random_seed)
+        self._rng = random.Random(rng_seed)
         super().__init__(
             profile,
             score_function=score_profile_from_ballot_scores,
@@ -194,7 +194,7 @@ class Rating(GeneralRating):
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
             inputs. Seed set to None by default, different results will be generated each time.
 
     """
@@ -206,7 +206,7 @@ class Rating(GeneralRating):
         per_candidate_limit: float | None = None,
         tiebreak: Optional[str] = None,
         *,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -227,5 +227,5 @@ class Rating(GeneralRating):
             n_seats=n_seats,
             per_candidate_limit=per_candidate_limit,
             tiebreak=tiebreak,
-            random_seed=random_seed,
+            rng_seed=rng_seed,
         )

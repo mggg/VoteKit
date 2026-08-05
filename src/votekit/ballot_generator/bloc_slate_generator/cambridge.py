@@ -204,7 +204,7 @@ def _inner_cambridge_sampler(
     majority_bloc: str,
     minority_bloc: str,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate profiles by bloc using Cambridge model.
@@ -216,7 +216,7 @@ def _inner_cambridge_sampler(
             majority group.
         minority_bloc (str): Name of the group in the config corresponding to the historical
             minority group.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
             inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
@@ -262,7 +262,7 @@ def _inner_cambridge_sampler(
     bloc_lst = config.blocs
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng(seed=rng_seed)
     for bloc in bloc_lst:
         slate_ballots = _sample_historical_slate_ballots(
             ballots_per_bloc,
@@ -392,7 +392,7 @@ def cambridge_profiles_by_bloc_generator(
         str
     ] = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
     group_ballots: bool = True,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
@@ -419,8 +419,9 @@ def cambridge_profiles_by_bloc_generator(
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
-        random_seed (int): Seed for RNG, allows for reproducible results given the same inputs.
-            Seed set to None by default, different results will be generated each time.
+        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
@@ -436,7 +437,7 @@ def cambridge_profiles_by_bloc_generator(
         config,
         majority_bloc,
         minority_bloc,
-        random_seed=random_seed,
+        rng_seed=rng_seed,
     )
 
     if group_ballots:
@@ -451,7 +452,7 @@ def cambridge_profile_generator(
     majority_bloc: Optional[str] = None,
     minority_bloc: Optional[str] = None,
     group_ballots: bool = True,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generates a RankProfile using historical RCV elections
@@ -477,8 +478,9 @@ def cambridge_profile_generator(
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
-        random_seed (int): Seed for RNG, allows for reproducible results given the same inputs.
-            Seed set to None by default, different results will be generated each time.
+        rng_seed (int): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
 
     Returns:
@@ -494,7 +496,7 @@ def cambridge_profile_generator(
         config,
         majority_bloc,
         minority_bloc,
-        random_seed=random_seed,
+        rng_seed=rng_seed,
     )
 
     profile = RankProfile()

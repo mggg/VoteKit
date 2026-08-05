@@ -30,8 +30,9 @@ class BoostedRandomDictator(RankingElection):
       fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
-      random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+      rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -40,7 +41,7 @@ class BoostedRandomDictator(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -50,7 +51,7 @@ class BoostedRandomDictator(RankingElection):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             raise TypeError("Missing required argument: 'n_seats'.")
-        self._rng = random.Random(random_seed)
+        self._rng = random.Random(rng_seed)
         super().__init__(
             profile,
             n_seats=n_seats,

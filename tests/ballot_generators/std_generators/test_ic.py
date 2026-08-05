@@ -54,7 +54,7 @@ def test_ic_allow_short_ballots_uses_lexicographic_indices():
         number_of_ballots=3,
         max_ballot_length=2,
         allow_short_ballots=True,
-        random_seed=0,
+        rng_seed=0,
     )
 
     ballot_weights = {

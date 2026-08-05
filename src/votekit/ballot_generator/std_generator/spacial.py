@@ -31,7 +31,7 @@ def onedim_spacial_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a 1D spatial rank profile.
@@ -43,14 +43,15 @@ def onedim_spacial_profile_generator(
         candidates (Sequence[Candidate]): Candidate names used in each generated ballot.
             Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): The number of ballots to generate.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: A ranked preference profile object.
     """
     n_candidates = len(candidates)
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng(seed=rng_seed)
     candidate_position_dict = {c: rng.normal(0, 1) for c in candidates}
     voter_positions = rng.normal(0, 1, number_of_ballots)
 
@@ -88,7 +89,7 @@ def spacial_profile_and_positions_generator(
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a spatial rank profile and sampled positions.
@@ -112,14 +113,14 @@ def spacial_profile_and_positions_generator(
             Candidates can be strings, integers, or mix of both.
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw each voter position. If none provided, ``np.random.uniform`` with
-            random_seed will be used.
+            rng_seed will be used.
         voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
             passed to ``voter_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, ``np.random.uniform``
-            with random_seed will be used.
+            with rng_seed will be used.
         candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
@@ -127,8 +128,9 @@ def spacial_profile_and_positions_generator(
         distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
             function used to compare voter and candidate positions. Defaults to
             ``euclidean_dist``.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         Tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
@@ -138,7 +140,7 @@ def spacial_profile_and_positions_generator(
             in the metric space.
             Candidates can be strings, integers, or mix of both.
     """
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng(seed=rng_seed)
 
     if voter_dist is None:
         voter_dist = rng.uniform
@@ -218,7 +220,7 @@ def clustered_spacial_profile_and_positions_generator(
     candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a clustered spatial rank profile and sampled positions.
@@ -244,7 +246,7 @@ def clustered_spacial_profile_and_positions_generator(
             used when building rankings. Candidates can be strings, integers, or mix of both.
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw voter positions centered at each candidate location. If none provided,
-            will use ``np.random.normal`` with random_seed.
+            will use ``np.random.normal`` with rng_seed.
         voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
             passed to ``voter_dist`` while generating voter positions. If None,
             uses ``{"loc": 0, "std": np.array(1.0), "size": np.array(2.0)}``
@@ -252,7 +254,7 @@ def clustered_spacial_profile_and_positions_generator(
             distributions.
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, will use
-            ``np.random.uniform`` with random_seed.
+            ``np.random.uniform`` with rng_seed.
         candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
@@ -260,8 +262,9 @@ def clustered_spacial_profile_and_positions_generator(
         distance (Callable[[np.ndarray, np.ndarray], float], optional): Distance
             function used to compare voter and candidate positions. Defaults to
             ``euclidean_dist``.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         Tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
@@ -274,7 +277,7 @@ def clustered_spacial_profile_and_positions_generator(
     _number_of_ballots: dict[Candidate, int] = cast(dict[Candidate, int], number_of_ballots)
     _candidates: list[Candidate] = cast(list[Candidate], candidates)
 
-    rng = np.random.default_rng(seed=random_seed)
+    rng = np.random.default_rng(seed=rng_seed)
     if voter_dist is None:
         voter_dist = rng.normal
         if voter_dist_kwargs is None:

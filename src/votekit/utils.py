@@ -489,8 +489,8 @@ def tiebreak_set(
             this convention is used to break any remaining ties. Options are "random" and
             "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
             "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[frozenset[Candidate],...]: tiebroken ranking
@@ -573,8 +573,8 @@ def tiebroken_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[tuple[frozenset[Candidate], ...], dict[frozenset[Candidate]
@@ -664,8 +664,8 @@ def elect_cands_from_set_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to None, which does not break ties.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],

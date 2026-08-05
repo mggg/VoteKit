@@ -94,7 +94,7 @@ class PreferenceInterval:
         *,
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         numpy_rng: Optional[Generator] = None,
     ):
         """
@@ -112,19 +112,19 @@ class PreferenceInterval:
                 If True, the candidates are assigned their support values in descending order
                 according to the list passed to candidates.
                 If False, the candidates are assigned support values in random order.
-            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
                 inputs. Seed set to None by default, different results will be generated each time.
-            numpy_rng (Generator | None): Random Number Generator seeded with a known value for
-                reproducible results. Defaults to None which produces different results each time.
+            numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+                for reproducible results; defaults to None for non-deterministic results.
 
         Returns:
             PreferenceInterval
         """
-        if random_seed is not None and numpy_rng is not None:
-            raise ValueError("Cannot give a random_seed and rng. Choose one.")
+        if rng_seed is not None and numpy_rng is not None:
+            raise ValueError("Cannot give a rng_seed and rng. Choose one.")
         rng = None
-        if random_seed is not None:
-            rng = np.random.default_rng(seed=random_seed)
+        if rng_seed is not None:
+            rng = np.random.default_rng(seed=rng_seed)
         elif numpy_rng is not None:
             rng = numpy_rng
         else:

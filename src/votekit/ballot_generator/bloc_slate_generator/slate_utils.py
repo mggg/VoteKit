@@ -78,9 +78,8 @@ def _fast_sample_without_replacement(
     Args:
         weights (np.NDArray): The weights of the distribution.
         n_samples (int): Number of samples to generate.
-        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
-            reproducible results. By default, seeded with None to generate different results each
-            time.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         np.ndarray: The sampled indices, n_samples x n_cands.
@@ -112,9 +111,8 @@ def _construct_slate_to_candidate_ordering_arrays(
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         n_samples (int): Number of candidate orderings to generate.
-        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
-            reproducible results. By default, seeded with None to generate different results each
-            time.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         dict[str, np.ndarray]: A dictionary mapping slate names to an n_samples x n_cands matrix
@@ -216,8 +214,8 @@ def _convert_slate_ballots_to_profile(
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         RankProfile: A preference profile.
@@ -280,9 +278,8 @@ def _append_zero_slate_symbols(
         n_ballots (int): The number of ballots to generate.
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        numpy_rng (Generator | None): Random Number Generator seeded with a known value for
-            reproducible results. By default, seeded with None to generate different results each
-            time.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols appended.

@@ -46,7 +46,7 @@ class Borda(RankingElection):
         score_vector: Optional[Sequence[float]] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -70,7 +70,7 @@ class Borda(RankingElection):
             score_vector=score_vector,
             tie_convention=scoring_tie_convention,
         )
-        self._rng = random.Random(random_seed)
+        self._rng = random.Random(rng_seed)
         super().__init__(
             profile, n_seats=n_seats, score_function=score_function, sort_high_low=True
         )

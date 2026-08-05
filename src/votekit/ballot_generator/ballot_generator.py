@@ -86,7 +86,7 @@ class BallotGenerator:
         cohesion_parameters: dict,
         alphas: dict,
         *,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
         **data,
     ):
         """
@@ -102,7 +102,7 @@ class BallotGenerator:
                 keys are bloc strings and values are cohesion parameters.
             alphas (dict): Dictionary mapping of bloc string to dictionary whose
                 keys are bloc strings and values are alphas for Dirichlet distributions.
-            random_seed (int | None): seed for RNG, allows for reproducible results given the same
+            rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
                 inputs. Seed set to None by default, different results will be generated each time.
             **data: kwargs to be passed to the init method.
 
@@ -120,7 +120,7 @@ class BallotGenerator:
             raise ValueError("Blocs are not the same")
 
         pref_intervals_by_bloc = {}
-        rng = np.random.default_rng(seed=random_seed)
+        rng = np.random.default_rng(seed=rng_seed)
         for current_bloc in bloc_voter_prop:
             intervals = {}
             for b in bloc_voter_prop:
@@ -171,8 +171,8 @@ class BallotGenerator:
 
         Args:
             num (float): Number to round.
-            rng (Generator | None): Random Number Generator seeded with a known value for
-                reproducible results. Defaults to None which produces different results each time.
+            rng (random.Random, optional): Standard library random number generator. Pass a seeded
+                instance for reproducible results; defaults to None for non-deterministic results.
 
         Returns:
             int: A whole number.

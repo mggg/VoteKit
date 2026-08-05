@@ -46,8 +46,8 @@ def _generate_profile_optimized_non_short(
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         RankProfile
@@ -95,8 +95,8 @@ def _generate_profile_optimized_with_short(
             the profile
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         RankProfile
@@ -138,7 +138,7 @@ def ic_profile_generator(
     max_ballot_length: Optional[int] = None,
     allow_short_ballots: bool = False,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Impartial Culture model where each ballot is equally likely.
@@ -152,8 +152,9 @@ def ic_profile_generator(
             the number of candidates.
         allow_short_ballots (bool, optional): Whether to allow short ballots.
             Defaults to False.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: The generated preference profile
@@ -162,7 +163,7 @@ def ic_profile_generator(
         max_ballot_length = len(candidates)
     elif max_ballot_length > len(candidates):
         raise ValueError("Max ballot length larger than number of candidates given.")
-    rng = random.Random(random_seed)
+    rng = random.Random(rng_seed)
     if allow_short_ballots:
         return _generate_profile_optimized_with_short(
             candidates,

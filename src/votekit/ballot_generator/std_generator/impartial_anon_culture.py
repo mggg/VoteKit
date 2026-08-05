@@ -56,8 +56,8 @@ def _sample_uniform_profile_counts(
     Args:
         num_ballot_types (int): The number of distinct ballot types.
         number_of_ballots (int): The total number of ballots.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[int]: A list of length ``num_ballot_types`` where each entry is the frequency of a
@@ -152,8 +152,8 @@ def _sample_anonymous_profile_ballot_counts(
         n_candidates (int): The number of candidates.
         number_of_ballots (int): The total number of ballots.
         max_ballot_length (int): Maximum length of each ballot.
-        rng (random.Random | None): Random Number Generator seeded with a known value for
-            reproducible results. Defaults to None which produces different results each time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[int]: Frequency vector whose ``i``-th entry is the count of the ballot returned by
@@ -173,7 +173,7 @@ def iac_profile_generator(
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     *,
-    random_seed: Optional[int] = None,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
@@ -185,8 +185,9 @@ def iac_profile_generator(
         number_of_ballots (int): Number of ballots to generate.
         max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.
-        random_seed (int | None): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
+        rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: Generated rank profile
@@ -203,7 +204,7 @@ def iac_profile_generator(
         num_cands,
         number_of_ballots,
         max_ballot_length,
-        rng=random.Random(random_seed),
+        rng=random.Random(rng_seed),
     )
     ballots_as_counter = Counter(
         {

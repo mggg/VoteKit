@@ -108,7 +108,7 @@ class NumpySTVBase(ABC):
         n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
         *,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
     ):
         """
         Initialize the numpy STV base.
@@ -119,10 +119,11 @@ class NumpySTVBase(ABC):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
                 Defaults to None. Accepts "borda", "random", and "first_place".
                 If None, a ValueError is raised if a winner tiebreak is needed.
-            random_seed (int | None): seed for RNG, allows for reproducible results given the same
-                inputs. Seed set to None by default, different results will be generated each time.
+            rng_seed (int, optional)): Seed for random number generator. An integer seed produces
+            the same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
-        self._rng = random.Random(random_seed)
+        self._rng = random.Random(rng_seed)
         self.profile = profile
         self.n_seats = n_seats
         self.candidates = list(profile.candidates)

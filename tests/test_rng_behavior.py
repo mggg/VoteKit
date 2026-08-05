@@ -8,7 +8,7 @@ import random
 
 import pytest
 
-from votekit.ballot import RankBallot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
@@ -45,17 +45,27 @@ from votekit.ballot_generator.std_generator.spacial import (
     onedim_spacial_profile_generator,
     spacial_profile_and_positions_generator,
 )
+from votekit.elections.election_types.approval import Approval
+from votekit.elections.election_types.block_plurality import BlockPlurality
+from votekit.elections.election_types.ranking.alaska import Alaska
 from votekit.elections.election_types.ranking.boosted_random_dictator import BoostedRandomDictator
+from votekit.elections.election_types.ranking.borda import Borda
 from votekit.elections.election_types.ranking.plurality import SNTV, Plurality
+from votekit.elections.election_types.ranking.plurality_veto import PluralityVeto, SerialVeto
 from votekit.elections.election_types.ranking.random_dictator import RandomDictator
-from votekit.elections.election_types.ranking.stv.stv import IRV, STV
+from votekit.elections.election_types.ranking.schulze import Schulze
+from votekit.elections.election_types.ranking.simultaneous_veto import SimultaneousVeto
+from votekit.elections.election_types.ranking.stv.stv import IRV, STV, AlbanySTV, FastIRV, FastSTV
+from votekit.elections.election_types.ranking.top_two import TopTwo
+from votekit.elections.election_types.scores.cumulative import Cumulative
+from votekit.elections.election_types.scores.limited import Limited
 from votekit.elections.transfers import random_transfer
 from votekit.pref_interval import PreferenceInterval
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.utils import elect_cands_from_set_ranking, tiebreak_set
 
 NUM_LOOPS = 20
-RANDOM_SEED = 10
+RNG_SEED = 10
 
 # =============================================================================
 # Ballot Generators
@@ -104,14 +114,14 @@ def bloc_config():
 
 @pytest.mark.parametrize("fn", ALL_SLATE_GENERATORS, ids=lambda f: f.__name__)
 def test_bloc_generator_reproducible(fn, bloc_config):
-    result = fn(bloc_config, random_seed=RANDOM_SEED)
+    result = fn(bloc_config, rng_seed=RNG_SEED)
     for _ in range(NUM_LOOPS):
-        assert result == fn(bloc_config, random_seed=RANDOM_SEED)
+        assert result == fn(bloc_config, rng_seed=RNG_SEED)
 
 
 @pytest.mark.parametrize("fn", ALL_SLATE_GENERATORS, ids=lambda f: f.__name__)
 def test_bloc_generator_nondeterministic(fn, bloc_config):
-    results = [fn(bloc_config, random_seed=None) for _ in range(NUM_LOOPS)]
+    results = [fn(bloc_config, rng_seed=None) for _ in range(NUM_LOOPS)]
     assert not all(r == results[0] for r in results)
 
 
@@ -127,17 +137,15 @@ ALL_STD_GENERATORS = [
 
 @pytest.mark.parametrize("fn", ALL_STD_GENERATORS, ids=lambda f: f.__name__)
 def test_std_generator_reproducible(fn):
-    result = fn(candidates=CANDIDATES, number_of_ballots=N_BALLOTS, random_seed=RANDOM_SEED)
+    result = fn(candidates=CANDIDATES, number_of_ballots=N_BALLOTS, rng_seed=RNG_SEED)
     for _ in range(NUM_LOOPS):
-        assert result == fn(
-            candidates=CANDIDATES, number_of_ballots=N_BALLOTS, random_seed=RANDOM_SEED
-        )
+        assert result == fn(candidates=CANDIDATES, number_of_ballots=N_BALLOTS, rng_seed=RNG_SEED)
 
 
 @pytest.mark.parametrize("fn", ALL_STD_GENERATORS, ids=lambda f: f.__name__)
 def test_std_generator_nondeterministic(fn):
     results = [
-        fn(candidates=CANDIDATES, number_of_ballots=N_BALLOTS, random_seed=None)
+        fn(candidates=CANDIDATES, number_of_ballots=N_BALLOTS, rng_seed=None)
         for _ in range(NUM_LOOPS)
     ]
     assert not all(r == results[0] for r in results)
@@ -148,7 +156,7 @@ CLUSTERED_N_BALLOTS = {"A": 50, "B": 50, 1: 50, 2: 50}
 
 def test_std_generator_cluster_args_reproducible():
     result = clustered_spacial_profile_and_positions_generator(
-        number_of_ballots=CLUSTERED_N_BALLOTS, candidates=CANDIDATES, random_seed=RANDOM_SEED
+        number_of_ballots=CLUSTERED_N_BALLOTS, candidates=CANDIDATES, rng_seed=RNG_SEED
     )
     for _ in range(NUM_LOOPS):
         assert (
@@ -156,7 +164,7 @@ def test_std_generator_cluster_args_reproducible():
             == clustered_spacial_profile_and_positions_generator(
                 number_of_ballots=CLUSTERED_N_BALLOTS,
                 candidates=CANDIDATES,
-                random_seed=RANDOM_SEED,
+                rng_seed=RNG_SEED,
             )[0]
         )
 
@@ -164,7 +172,7 @@ def test_std_generator_cluster_args_reproducible():
 def test_std_generator_with_cluster_nondeterministic():
     results = [
         clustered_spacial_profile_and_positions_generator(
-            number_of_ballots=CLUSTERED_N_BALLOTS, candidates=CANDIDATES, random_seed=None
+            number_of_ballots=CLUSTERED_N_BALLOTS, candidates=CANDIDATES, rng_seed=None
         )
         for _ in range(NUM_LOOPS)
     ]
@@ -173,13 +181,13 @@ def test_std_generator_with_cluster_nondeterministic():
 
 def test_spacial_positions_generator_reproducible():
     result = spacial_profile_and_positions_generator(
-        number_of_ballots=N_BALLOTS, candidates=CANDIDATES, random_seed=RANDOM_SEED
+        number_of_ballots=N_BALLOTS, candidates=CANDIDATES, rng_seed=RNG_SEED
     )
     for _ in range(NUM_LOOPS):
         assert (
             result[0]
             == spacial_profile_and_positions_generator(
-                number_of_ballots=N_BALLOTS, candidates=CANDIDATES, random_seed=RANDOM_SEED
+                number_of_ballots=N_BALLOTS, candidates=CANDIDATES, rng_seed=RNG_SEED
             )[0]
         )
 
@@ -187,7 +195,7 @@ def test_spacial_positions_generator_reproducible():
 def test_spacial_positions_generator_nondeterministic():
     results = [
         spacial_profile_and_positions_generator(
-            number_of_ballots=N_BALLOTS, candidates=CANDIDATES, random_seed=None
+            number_of_ballots=N_BALLOTS, candidates=CANDIDATES, rng_seed=None
         )
         for _ in range(NUM_LOOPS)
     ]
@@ -200,20 +208,31 @@ def test_spacial_positions_generator_nondeterministic():
 
 
 @pytest.fixture
-def tied_profile():
+def tied_rank_profile():
     # All three candidates tied at 3 FPV — forces random tiebreak in every election type.
     return RankProfile(
         ballots=(
-            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
-            RankBallot(ranking=[{"B"}, {"A"}, {"C"}], weight=3),
-            RankBallot(ranking=[{"C"}, {"A"}, {"B"}], weight=3),
+            RankBallot(ranking=[{"A"}, {"B"}, {1}], weight=3),
+            RankBallot(ranking=[{"B"}, {1}, {"A"}], weight=3),
+            RankBallot(ranking=[{1}, {"A"}, {"B"}], weight=3),
+        )
+    )
+
+
+@pytest.fixture
+def tied_score_profile():
+    # All three candidates tied at 3 FPV — forces random tiebreak in every election type.
+    return ScoreProfile(
+        ballots=(
+            ScoreBallot(scores={"A": 1, "B": 0, 1: 0}, weight=3),
+            ScoreBallot(scores={"A": 0, "B": 1, 1: 0}, weight=3),
+            ScoreBallot(scores={"A": 0, "B": 0, 1: 1}, weight=3),
         )
     )
 
 
 @pytest.fixture
 def stv_profile():
-    # Integer weights required by random_transfer.
     # 30 total votes, droop quota for 2 seats = 11.
     # A gets 15 FPV → elected with surplus 4, randomly transferred.
     return RankProfile(
@@ -226,41 +245,109 @@ def stv_profile():
     )
 
 
-ELECTION_CASES = [
+@pytest.fixture
+def stv_transfer_profile():
+    # 30 total votes, droop quota for 2 seats = 5.
+    # A gets 6 FPV → elected with surplus 1, randomly transferred 50/50 to B or 1.
+    return RankProfile(
+        ballots=(
+            RankBallot(ranking=[{"A"}, {"B"}, {1}], weight=3),
+            RankBallot(ranking=[{"A"}, {1}, {"B"}], weight=3),
+            RankBallot(ranking=[{"B"}, {"A"}, {1}], weight=3),
+            RankBallot(ranking=[{1}, {"A"}, {"B"}], weight=3),
+        )
+    )
+
+
+RANK_ELECTION_CASES = [
     pytest.param(Plurality, {"n_seats": 1, "tiebreak": "random"}, id="Plurality"),
     pytest.param(SNTV, {"n_seats": 1, "tiebreak": "random"}, id="SNTV"),
+    pytest.param(FastSTV, {"n_seats": 1, "tiebreak": "random"}, id="FastSTV"),
+    pytest.param(AlbanySTV, {"n_seats": 1, "tiebreak": "random"}, id="AlbanySTV"),
     pytest.param(IRV, {"tiebreak": "random"}, id="IRV"),
+    pytest.param(FastIRV, {"tiebreak": "random"}, id="FastIRV"),
     pytest.param(RandomDictator, {"n_seats": 1}, id="RandomDictator"),
     pytest.param(BoostedRandomDictator, {"n_seats": 1}, id="BoostedRandomDictator"),
+    pytest.param(BlockPlurality, {"n_seats": 1, "tiebreak": "random"}, id="BlockPlurality"),
+    pytest.param(Alaska, {"m_2": 1, "tiebreak": "random"}, id="Alaska"),
+    pytest.param(TopTwo, {"tiebreak": "random"}, id="TopTwo"),
+    pytest.param(Schulze, {"n_seats": 1, "tiebreak": "random"}, id="Schulze"),
+    pytest.param(Borda, {"n_seats": 1, "tiebreak": "random"}, id="Borda"),
+    pytest.param(PluralityVeto, {"n_seats": 1, "tiebreak": "random"}, id="PluralityVeto"),
+    pytest.param(SerialVeto, {"n_seats": 1, "tiebreak": "random"}, id="SerialVeto"),
+    pytest.param(SimultaneousVeto, {"n_seats": 1, "tiebreak": "random"}, id="SimultaneousVeto"),
+]
+SCORE_ELECTION_CASES = [
+    pytest.param(BlockPlurality, {"n_seats": 1, "tiebreak": "random"}, id="BlockPlurality"),
+    pytest.param(Cumulative, {"n_seats": 1, "tiebreak": "random"}, id="Cumulative"),
+    pytest.param(Approval, {"n_seats": 1, "tiebreak": "random"}, id="Approval"),
+    pytest.param(Limited, {"n_seats": 1, "tiebreak": "random"}, id="Limited"),
+]
+RANDOM_TRANSFER_STV_CASES = [
+    pytest.param(FastSTV, {"transfer": "cambridge_random"}, id="FastSTV, cambridge_random"),
+    pytest.param(FastSTV, {"transfer": "fractional_random"}, id="FastSTV, fractional_random"),
+    pytest.param(AlbanySTV, {"transfer": "cambridge_random"}, id="AlbanySTV, cambridge_random"),
+    pytest.param(AlbanySTV, {"transfer": "fractional_random"}, id="AlbanySTV, fractional_random"),
 ]
 
 
-@pytest.mark.parametrize("cls,kwargs", ELECTION_CASES)
-def test_election_reproducible(cls, kwargs, tied_profile):
-    result = cls(tied_profile, **kwargs, random_seed=RANDOM_SEED).get_elected()
+@pytest.mark.parametrize("cls,kwargs", RANK_ELECTION_CASES)
+def test_rank_election_reproducible(cls, kwargs, tied_rank_profile):
+    result = cls(tied_rank_profile, **kwargs, rng_seed=RNG_SEED).get_elected()
     for _ in range(NUM_LOOPS):
-        assert result == cls(tied_profile, **kwargs, random_seed=RANDOM_SEED).get_elected()
+        assert result == cls(tied_rank_profile, **kwargs, rng_seed=RNG_SEED).get_elected()
 
 
-@pytest.mark.parametrize("cls,kwargs", ELECTION_CASES)
-def test_election_nondeterministic(cls, kwargs, tied_profile):
+@pytest.mark.parametrize("cls,kwargs", RANK_ELECTION_CASES)
+def test_rank_election_nondeterministic(cls, kwargs, tied_rank_profile):
     results = [
-        cls(tied_profile, **kwargs, random_seed=None).get_elected() for _ in range(NUM_LOOPS)
+        cls(tied_rank_profile, **kwargs, rng_seed=None).get_elected() for _ in range(NUM_LOOPS)
+    ]
+    assert not all(r == results[0] for r in results)
+
+
+@pytest.mark.parametrize("cls,kwargs", SCORE_ELECTION_CASES)
+def test_score_election_reproducible(cls, kwargs, tied_score_profile):
+    result = cls(tied_score_profile, **kwargs, rng_seed=RNG_SEED).get_elected()
+    for _ in range(NUM_LOOPS):
+        assert result == cls(tied_score_profile, **kwargs, rng_seed=RNG_SEED).get_elected()
+
+
+@pytest.mark.parametrize("cls,kwargs", SCORE_ELECTION_CASES)
+def test_score_election_nondeterministic(cls, kwargs, tied_score_profile):
+    results = [
+        cls(tied_score_profile, **kwargs, rng_seed=None).get_elected() for _ in range(NUM_LOOPS)
     ]
     assert not all(r == results[0] for r in results)
 
 
 def test_stv_random_transfer_reproducible(stv_profile):
-    result = STV(
-        stv_profile, n_seats=2, transfer=random_transfer, random_seed=RANDOM_SEED
-    ).get_elected()
+    result = STV(stv_profile, n_seats=2, transfer=random_transfer, rng_seed=RNG_SEED).get_elected()
     for _ in range(NUM_LOOPS):
         assert (
             result
             == STV(
-                stv_profile, n_seats=2, transfer=random_transfer, random_seed=RANDOM_SEED
+                stv_profile, n_seats=2, transfer=random_transfer, rng_seed=RNG_SEED
             ).get_elected()
         )
+
+
+@pytest.mark.parametrize("cls,kwargs", RANDOM_TRANSFER_STV_CASES)
+def test_numpy_random_transfer_in_elections_reproducible(cls, kwargs, stv_transfer_profile):
+    result = cls(stv_transfer_profile, n_seats=2, **kwargs, rng_seed=RNG_SEED).get_elected()
+    for _ in range(NUM_LOOPS):
+        assert (
+            result
+            == cls(stv_transfer_profile, n_seats=2, **kwargs, rng_seed=RNG_SEED).get_elected()
+        )
+
+
+@pytest.mark.parametrize("cls,kwargs", RANDOM_TRANSFER_STV_CASES)
+def test_numpy_random_transfer_in_elections_nondeterministic(cls, kwargs, stv_transfer_profile):
+    results = [
+        cls(stv_transfer_profile, n_seats=2, **kwargs).get_elected() for _ in range(NUM_LOOPS)
+    ]
+    assert not all(result == results[0] for result in results)
 
 
 # =============================================================================
@@ -270,9 +357,9 @@ CAND_SET = frozenset({"A", "B", 1, 2})
 
 
 def test_tiebreak_set_reproducible():
-    result = tiebreak_set(CAND_SET, tiebreak="random", rng=random.Random(RANDOM_SEED))
+    result = tiebreak_set(CAND_SET, tiebreak="random", rng=random.Random(RNG_SEED))
     for _ in range(NUM_LOOPS):
-        assert result == tiebreak_set(CAND_SET, tiebreak="random", rng=random.Random(RANDOM_SEED))
+        assert result == tiebreak_set(CAND_SET, tiebreak="random", rng=random.Random(RNG_SEED))
 
 
 def test_tiebreak_set_nondeterministic():
@@ -282,11 +369,11 @@ def test_tiebreak_set_nondeterministic():
 
 def test_elect_cands_from_set_ranking_reproducible():
     result = elect_cands_from_set_ranking(
-        [CAND_SET], n_seats=1, tiebreak="random", rng=random.Random(RANDOM_SEED)
+        [CAND_SET], n_seats=1, tiebreak="random", rng=random.Random(RNG_SEED)
     )
     for _ in range(NUM_LOOPS):
         assert result == elect_cands_from_set_ranking(
-            [CAND_SET], n_seats=1, tiebreak="random", rng=random.Random(RANDOM_SEED)
+            [CAND_SET], n_seats=1, tiebreak="random", rng=random.Random(RNG_SEED)
         )
 
 
@@ -305,12 +392,10 @@ def test_random_transfer_reproducible():
         RankBallot(ranking=[{"A"}, {1}, {"B"}], weight=5),
         RankBallot(ranking=[{"B"}, {"A"}, {1}], weight=3),
     ]
-    result = random_transfer(
-        "A", fpv=10, ballots=ballots, threshold=8, rng=random.Random(RANDOM_SEED)
-    )
+    result = random_transfer("A", fpv=10, ballots=ballots, threshold=8, rng=random.Random(RNG_SEED))
     for _ in range(NUM_LOOPS):
         assert result == random_transfer(
-            "A", fpv=10, ballots=ballots, threshold=8, rng=random.Random(RANDOM_SEED)
+            "A", fpv=10, ballots=ballots, threshold=8, rng=random.Random(RNG_SEED)
         )
 
 
@@ -328,16 +413,16 @@ def test_random_transfer_nondeterministic():
 
 
 def test_pref_interval_from_dirichlet_reproducible():
-    results = PreferenceInterval.from_dirichlet(CANDIDATES, alpha=1.0, random_seed=RANDOM_SEED)
+    results = PreferenceInterval.from_dirichlet(CANDIDATES, alpha=1.0, rng_seed=RNG_SEED)
     for _ in range(NUM_LOOPS):
         assert results == PreferenceInterval.from_dirichlet(
-            CANDIDATES, alpha=1.0, random_seed=RANDOM_SEED
+            CANDIDATES, alpha=1.0, rng_seed=RNG_SEED
         )
 
 
 def test_pref_interval_from_dirichlet_nondeterministic():
     results = [
-        PreferenceInterval.from_dirichlet(CANDIDATES, alpha=1.0, random_seed=None)
+        PreferenceInterval.from_dirichlet(CANDIDATES, alpha=1.0, rng_seed=None)
         for _ in range(NUM_LOOPS)
     ]
     assert not all(r == results[0] for r in results)
@@ -348,7 +433,7 @@ def test_pref_interval_from_dirichlet_nondeterministic():
 # =============================================================================
 # Python randomises the seed used by hash() per interpreter invocation via PYTHONHASHSEED.
 # These tests set PYTHONHASHSEED explicitly in os.environ before each spawn so each child
-# starts with a known seed and confirms that the result is the same if given the same random_seed.
+# starts with a known seed and confirms that the result is the same if given the same rng_seed.
 
 _HASH_SEEDS = ["0", "1", "10", "100"]
 
@@ -376,7 +461,7 @@ def _tiebreak_worker(queue):
     queue.put(
         (
             tiebreak_set(
-                frozenset({"A", "B", 1, 2}), tiebreak="random", rng=random.Random(RANDOM_SEED)
+                frozenset({"A", "B", 1, 2}), tiebreak="random", rng=random.Random(RNG_SEED)
             ),
             os.environ.get("PYTHONHASHSEED"),
         )
@@ -394,7 +479,7 @@ def _elect_cands_worker(queue):
                 [frozenset({"A", "B", 1, 2})],
                 n_seats=2,
                 tiebreak="random",
-                rng=random.Random(RANDOM_SEED),
+                rng=random.Random(RNG_SEED),
             ),
             os.environ.get("PYTHONHASHSEED"),
         )
@@ -412,7 +497,7 @@ def _election_worker(queue):
     )
     queue.put(
         (
-            Plurality(profile, n_seats=1, tiebreak="random", random_seed=RANDOM_SEED).get_elected(),
+            Plurality(profile, n_seats=1, tiebreak="random", rng_seed=RNG_SEED).get_elected(),
             os.environ.get("PYTHONHASHSEED"),
         )
     )

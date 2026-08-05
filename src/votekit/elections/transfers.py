@@ -72,9 +72,8 @@ def random_transfer(
         fpv (float): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
-        rng (random.Random | None): Random Number Generator, allows for reproducible results given
-            the same inputs. RNG set to None by default, different results will be generated each
-            time.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[RankBallot,...]:

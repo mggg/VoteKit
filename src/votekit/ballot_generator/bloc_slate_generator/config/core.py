@@ -1411,7 +1411,7 @@ class BlocSlateConfig:
         self,
         alphas: Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame],
         *,
-        random_seed: Optional[int] = None,
+        rng_seed: Optional[int] = None,
     ) -> None:
         """
         Set the Dirichlet alphas for the configuration and resample the preference intervals.
@@ -1421,8 +1421,9 @@ class BlocSlateConfig:
                 of bloc names to mappings of slate names to their Dirichlet alpha values. Each bloc
                 must have a mapping for every slate defined in slate_to_candidates. All alpha
                 values must be positive finite reals.
-            random_seed (int | None): seed for RNG, allows for reproducible results given the same
-                inputs. Seed set to None by default, different results will be generated each time.
+            rng_seed (int, optional)): Seed for random number generator. An integer seed produces
+            the same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
         Raises:
             ConfigurationWarning: If preference intervals have already been set without
@@ -1445,7 +1446,7 @@ class BlocSlateConfig:
             self.__alphas = alphas.copy().astype(float)
         self.__clear_alpha_bool = False
         self.resample_preference_intervals_from_dirichlet_alphas(
-            numpy_rng=np.random.default_rng(seed=random_seed)
+            numpy_rng=np.random.default_rng(seed=rng_seed)
         )
 
     def clear_dirichlet_alphas(self) -> None:
