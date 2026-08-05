@@ -18,7 +18,6 @@ from numpy.random import Generator
 from votekit.ballot import ScoreBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import ScoreProfile
-from votekit.utils import sort_candidates_pseudo_lex
 
 # ===========================================================
 # ================= Interior Work Functions =================
@@ -62,7 +61,7 @@ def _inner_name_cumulative(
             continue
 
         pref = pref_by_bloc[bloc]
-        cands = sort_candidates_pseudo_lex(list(pref.candidates))
+        cands = list(pref.interval.keys())
         if not cands:
             pp_by_bloc[bloc] = ScoreProfile()
             continue

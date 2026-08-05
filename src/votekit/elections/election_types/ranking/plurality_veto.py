@@ -1,6 +1,6 @@
 import random
 from abc import ABC, abstractmethod
-from functools import partial
+from functools import cached_property, partial
 from typing import Literal, Optional
 
 import numpy as np
@@ -14,6 +14,7 @@ from votekit.types import Candidate
 from votekit.utils import (
     first_place_votes,
     score_dict_to_ranking,
+    sort_candidates_pseudo_lexicographically,
     tiebreak_set,
 )
 
@@ -141,6 +142,26 @@ class _IterativeVetoBase(RankingElection, ABC):
             score_function=partial(first_place_votes, tie_convention=scoring_tie_convention),
         )
 
+    @cached_property
+    def _canonical_candidate_order(self):
+        """
+        Maps candidates to a canonical order.
+        """
+        sorted_candidates = sort_candidates_pseudo_lexicographically(self.candidates)
+        return {cand: i for i, cand in enumerate(sorted_candidates)}
+
+    def _get_canonical_sort_key(self, candidate: Candidate) -> float:
+        """
+        Gets the candidate's position in the canonical order.
+
+        Args:
+             candidate (Candidate): candidate.
+
+        Returns:
+            int: index of candidate within canonical candidate order.
+        """
+        return self._canonical_candidate_order[candidate]
+
     def _pv_validate_input(self, profile: RankProfile):
         """
         Validates input by checking that each ballot has a ranking and has integer weight.
@@ -209,7 +230,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 return self._tiebreak_ranks[c]
 
         # in _tiebreak_order, higher position is worse; veto the worst remaining
-        return max(candidate_set, key=rank)
+        return max(sorted(candidate_set, key=self._get_canonical_sort_key), key=rank)
 
     def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[Candidate]:
         """

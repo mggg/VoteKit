@@ -668,7 +668,14 @@ class RankProfile(PreferenceProfile):
                 candidate_id_map[cand_set] = len(candidate_id_map)
 
         candidates_cast.discard("~")
-        return tuple(candidates_cast), candidate_id_map
+
+        try:
+            candidates_cast_list = sort_candidates_pseudo_lexicographically(candidates_cast)
+        except TypeError:
+            # catch when an invalid candidate is casted, defer error handling to validation
+            candidates_cast_list = list(candidates_cast)
+
+        return tuple(candidates_cast_list), candidate_id_map
 
     def _translate_df_ranking_values(
         self,
@@ -1382,7 +1389,13 @@ class ScoreProfile(PreferenceProfile):
         # .any() applies along the columns, so we get a boolean series where the
         # value is True the candidate has any positive score the column
         candidates_cast |= set(positive[positive].index)
-        return tuple(candidates_cast)
+        try:
+            candidates_cast_list = sort_candidates_pseudo_lexicographically(candidates_cast)
+        except TypeError:
+            # catch when an invalid candidate is casted, defer error handling to validation
+            candidates_cast_list = list(candidates_cast)
+
+        return tuple(candidates_cast_list)
 
     def _init_from_score_df(
         self, df: pd.DataFrame, candidate_id_map: dict[Candidate, int]

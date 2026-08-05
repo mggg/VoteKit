@@ -2,10 +2,13 @@
 Reproducibility and non-determinism tests for ballot generators, elections, and core modules.
 """
 
-import multiprocessing
 import os
 import random
+import subprocess
+import sys
+from string import Template
 
+import numpy as np
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -65,7 +68,7 @@ from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.utils import elect_cands_from_set_ranking, tiebreak_set
 
 NUM_LOOPS = 20
-RNG_SEED = 10
+RNG_SEED = 47
 
 # =============================================================================
 # Ballot Generators
@@ -420,6 +423,17 @@ def test_pref_interval_from_dirichlet_reproducible():
         )
 
 
+def test_from_dirichlet_respects_passed_numpy_rng():
+    for _ in range(10):
+        a = PreferenceInterval.from_dirichlet(
+            ["A", "B", "C"], alpha=1.0, numpy_rng=np.random.default_rng(42)
+        )
+        b = PreferenceInterval.from_dirichlet(
+            ["A", "B", "C"], alpha=1.0, numpy_rng=np.random.default_rng(42)
+        )
+        assert a == b
+
+
 def test_pref_interval_from_dirichlet_nondeterministic():
     results = [
         PreferenceInterval.from_dirichlet(CANDIDATES, alpha=1.0, rng_seed=None)
@@ -438,87 +452,173 @@ def test_pref_interval_from_dirichlet_nondeterministic():
 _HASH_SEEDS = ["0", "1", "10", "100"]
 
 
-def _spawn_with_seed(fn, seed):
-    ctx = multiprocessing.get_context("spawn")
-    q = ctx.Queue()
-    prev = os.environ.get("PYTHONHASHSEED")
-    os.environ["PYTHONHASHSEED"] = seed
-    p = ctx.Process(target=fn, args=(q,))
-    p.start()
-    if prev is None:
-        os.environ.pop("PYTHONHASHSEED")
-    else:
-        os.environ["PYTHONHASHSEED"] = prev
-    p.join()
-    return q.get()
-
-
-def _tiebreak_worker(queue):
-    import random
-
-    from votekit.utils import tiebreak_set
-
-    queue.put(
-        (
-            tiebreak_set(
-                frozenset({"A", "B", 1, 2}), tiebreak="random", rng=random.Random(RNG_SEED)
-            ),
-            os.environ.get("PYTHONHASHSEED"),
+def _run_across_hash_seeds(child_code):
+    outputs = []
+    for hs in _HASH_SEEDS:
+        env = dict(os.environ, PYTHONHASHSEED=hs)
+        out = subprocess.run(
+            [sys.executable, "-c", child_code], env=env, capture_output=True, text=True
         )
-    )
+        assert out.returncode == 0, out.stderr
+        outputs.append(out.stdout.strip())
+    return outputs
 
 
-def _elect_cands_worker(queue):
-    import random
+_TIEBREAK_SET_CHILD = r"""
+import random
+from votekit.utils import tiebreak_set
 
-    from votekit.utils import elect_cands_from_set_ranking
-
-    queue.put(
-        (
-            elect_cands_from_set_ranking(
-                [frozenset({"A", "B", 1, 2})],
-                n_seats=2,
-                tiebreak="random",
-                rng=random.Random(RNG_SEED),
-            ),
-            os.environ.get("PYTHONHASHSEED"),
-        )
-    )
-
-
-def _election_worker(queue):
-    profile = RankProfile(
-        ballots=(
-            RankBallot(ranking=[{"A"}, {"B"}, {1}, {2}], weight=3),
-            RankBallot(ranking=[{"B"}, {"A"}, {1}, {2}], weight=3),
-            RankBallot(ranking=[{1}, {"A"}, {"B"}, {2}], weight=3),
-            RankBallot(ranking=[{2}, {"A"}, {"B"}, {1}], weight=3),
-        )
-    )
-    queue.put(
-        (
-            Plurality(profile, n_seats=1, tiebreak="random", rng_seed=RNG_SEED).get_elected(),
-            os.environ.get("PYTHONHASHSEED"),
-        )
-    )
+print(repr(tiebreak_set(frozenset({"A", "B", 1, 2}), tiebreak="random", rng=random.Random(10))))
+"""
 
 
 def test_tiebreak_set_hashseed_stable():
-    outputs = [_spawn_with_seed(_tiebreak_worker, seed) for seed in _HASH_SEEDS]
-    results, hashes = zip(*outputs)
-    assert list(hashes) == _HASH_SEEDS
-    assert all(r == results[0] for r in results[1:])
+    outputs = _run_across_hash_seeds(_TIEBREAK_SET_CHILD)
+    assert all(o == outputs[0] for o in outputs)
+
+
+_ELECT_CANDS_CHILD = r"""
+import random
+from votekit.utils import elect_cands_from_set_ranking
+
+print(repr(elect_cands_from_set_ranking(
+    [frozenset({"A", "B", 1, 2})], n_seats=2, tiebreak="random", rng=random.Random(10)
+)[0]))
+"""
 
 
 def test_elect_cands_hashseed_stable():
-    outputs = [_spawn_with_seed(_elect_cands_worker, seed) for seed in _HASH_SEEDS]
-    results, hashes = zip(*outputs)
-    assert list(hashes) == _HASH_SEEDS
-    assert all(r == results[0] for r in results[1:])
+    outputs = _run_across_hash_seeds(_ELECT_CANDS_CHILD)
+    assert all(o == outputs[0] for o in outputs)
+
+
+_ELECTION_TIEBREAK_CHILD = r"""
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_types.ranking.plurality import Plurality
+
+profile = RankProfile(
+    ballots=(
+        RankBallot(ranking=[{"A"}, {"B"}, {1}, {2}], weight=3),
+        RankBallot(ranking=[{"B"}, {"A"}, {1}, {2}], weight=3),
+        RankBallot(ranking=[{1}, {"A"}, {"B"}, {2}], weight=3),
+        RankBallot(ranking=[{2}, {"A"}, {"B"}, {1}], weight=3),
+    )
+)
+print(repr(Plurality(profile, n_seats=1, tiebreak="random", rng_seed=10).get_elected()))
+"""
 
 
 def test_election_tiebreak_hashseed_stable():
-    outputs = [_spawn_with_seed(_election_worker, seed) for seed in _HASH_SEEDS]
-    results, hashes = zip(*outputs)
-    assert list(hashes) == _HASH_SEEDS
-    assert all(r == results[0] for r in results[1:])
+    outputs = _run_across_hash_seeds(_ELECTION_TIEBREAK_CHILD)
+    assert all(o == outputs[0] for o in outputs)
+
+
+_CUMULATIVE_CHILD = r"""
+from votekit.ballot import ScoreBallot
+from votekit.pref_profile import ScoreProfile
+from votekit.elections.election_types.scores.cumulative import Cumulative
+
+profile = ScoreProfile(
+    ballots=(
+        ScoreBallot(scores={"A": 1, "B": 0, 1: 0, 2: 0}, weight=3),
+        ScoreBallot(scores={"A": 0, "B": 1, 1: 0, 2: 0}, weight=3),
+        ScoreBallot(scores={"A": 0, "B": 0, 1: 1, 2: 0}, weight=3),
+        ScoreBallot(scores={"A": 0, "B": 0, 1: 0, 2: 1}, weight=3),
+    )
+)
+print(repr(Cumulative(profile, n_seats=1, tiebreak="random", rng_seed=10).get_elected()))
+"""
+
+
+def test_cumulative_hashseed_stable():
+    outputs = _run_across_hash_seeds(_CUMULATIVE_CHILD)
+    assert all(o == outputs[0] for o in outputs), (
+        f"same rng_seed gave different results across hash seeds: {outputs}"
+    )
+
+
+_RANDOM_DICTATOR_CHILD = Template(
+    r"""
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_types.ranking.$mod import $cls
+
+cands = ["Alpha", "Beta", "Gamma", "Delta", "Eps", "Zeta", "Eta", "Theta"]
+rots = [cands[i:] + cands[:i] for i in range(len(cands))]
+profile = RankProfile(
+    ballots=tuple(RankBallot(ranking=[{c} for c in rot], weight=3) for rot in rots)
+)
+print(repr($cls(profile, n_seats=5, rng_seed=10).get_elected()))
+"""
+)
+
+
+def test_boosted_random_dictator_hashseed_stable():
+    outputs = _run_across_hash_seeds(
+        _RANDOM_DICTATOR_CHILD.substitute(
+            mod="boosted_random_dictator", cls="BoostedRandomDictator"
+        )
+    )
+    assert all(o == outputs[0] for o in outputs)
+
+
+def test_random_dictator_hashseed_stable():
+    outputs = _run_across_hash_seeds(
+        _RANDOM_DICTATOR_CHILD.substitute(mod="random_dictator", cls="RandomDictator")
+    )
+    assert all(o == outputs[0] for o in outputs)
+
+
+_PLURALITY_VETO_CHILD = r"""
+from votekit.ballot import RankBallot
+from votekit.pref_profile import RankProfile
+from votekit.elections.election_types.ranking.plurality_veto import PluralityVeto
+
+cands = ["Alpha", "Beta", "Gamma", "Delta", "Eps", "Zeta"]
+rots = [cands[i:] + cands[:i] for i in range(len(cands))]
+profile = RankProfile(
+    ballots=tuple(RankBallot(ranking=[{rot[0]}, {rot[1]}], weight=2) for rot in rots),
+    candidates=cands,
+    max_ranking_length=6,
+)
+print(repr(PluralityVeto(profile, n_seats=2, tiebreak="random", rng_seed=10).get_elected()))
+"""
+
+
+def test_plurality_veto_random_tiebreak_hashseed_stable():
+    outputs = _run_across_hash_seeds(_PLURALITY_VETO_CHILD)
+    assert all(o == outputs[0] for o in outputs)
+
+
+_CUMULATIVE_PROFILE_GENERATOR_CHILD = r"""
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.ballot_generator.bloc_slate_generator.cumulative import (
+    name_cumulative_profile_generator,
+)
+from votekit.pref_interval import PreferenceInterval
+
+config = BlocSlateConfig(
+    n_voters=100,
+    slate_to_candidates={"A": ["A1", "A2"], "B": ["B1", "B2"]},
+    bloc_proportions={"A": 0.6, "B": 0.4},
+    preference_mapping={
+        "A": {
+            "A": PreferenceInterval({"A1": 0.7, "A2": 0.3}),
+            "B": PreferenceInterval({"B1": 0.4, "B2": 0.6}),
+        },
+        "B": {
+            "A": PreferenceInterval({"A1": 0.3, "A2": 0.7}),
+            "B": PreferenceInterval({"B1": 0.6, "B2": 0.4}),
+        },
+    },
+    cohesion_mapping={"A": {"A": 0.7, "B": 0.3}, "B": {"A": 0.3, "B": 0.7}},
+)
+profile = name_cumulative_profile_generator(config, rng_seed=10)
+print(repr(sorted(str(b) for b in profile.ballots)))
+"""
+
+
+def test_cumulative_profile_generator_hashseed_stable():
+    outputs = _run_across_hash_seeds(_CUMULATIVE_PROFILE_GENERATOR_CHILD)
+    assert all(o == outputs[0] for o in outputs)

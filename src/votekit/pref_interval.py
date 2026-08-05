@@ -122,7 +122,6 @@ class PreferenceInterval:
         """
         if rng_seed is not None and numpy_rng is not None:
             raise ValueError("Cannot give a rng_seed and rng. Choose one.")
-        numpy_rng = None
         if rng_seed is not None:
             numpy_rng = np.random.default_rng(seed=rng_seed)
         elif numpy_rng is not None:
