@@ -85,8 +85,8 @@ def _fast_sample_without_replacement(
         np.ndarray: The sampled indices, n_samples x n_cands.
     """
     n_cands = len(weights)
-    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    uniform = rng.uniform(0, 1, size=(n_samples, n_cands))
+    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
+    uniform = numpy_rng.uniform(0, 1, size=(n_samples, n_cands))
     uniform = uniform ** (1 / weights)
     # want the largest values to be first
     indices = np.flip(np.argsort(uniform, axis=1), axis=1)
@@ -287,8 +287,8 @@ def _append_zero_slate_symbols(
     zero_slate_symbols = [
         slate for slate in sorted(zero_slate_set) for c in config.slate_to_candidates[slate]
     ]
-    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    noise = rng.random(size=(n_ballots, len(zero_slate_symbols)))
+    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
+    noise = numpy_rng.random(size=(n_ballots, len(zero_slate_symbols)))
     permutation_indices = np.argsort(noise, axis=1)
     zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[permutation_indices]
 

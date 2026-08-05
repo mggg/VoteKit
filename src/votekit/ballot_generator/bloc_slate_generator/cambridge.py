@@ -39,7 +39,7 @@ def _sample_historical_slate_ballots(
     ],  # TODO: in next major release, make sure this naming aligns with how the user sets the
     # majority/minority groups
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ):
     """
     Sample historical slate ballots fort a given bloc using the Cambridge model.
@@ -61,18 +61,18 @@ def _sample_historical_slate_ballots(
             majority slate.
         historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
             historical data to slate names in the config.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[tuple[str, ...]]: A list of slate ballots, where each ballot is a tuple of slate names
             in the order they appear on that ballot.
     """
-    rng = np.random.default_rng(rng)
+    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
 
     n_ballots = ballots_per_bloc[bloc]
 
-    num_ballots_start_with_maj_slate = rng.binomial(
+    num_ballots_start_with_maj_slate = numpy_rng.binomial(
         n_ballots, p=config.cohesion_df[majority_bloc].loc[bloc]
     )
 
@@ -80,13 +80,13 @@ def _sample_historical_slate_ballots(
 
     hist_maj_ballots = list(reduced_historical_majority_ballot_pmf.keys())
     hist_min_ballots = list(reduced_historical_minority_ballot_pmf.keys())
-    maj_slate_ballot_indices = rng.choice(
+    maj_slate_ballot_indices = numpy_rng.choice(
         len(hist_maj_ballots),
         size=num_ballots_start_with_maj_slate,
         p=list(reduced_historical_majority_ballot_pmf.values()),
     )
 
-    min_slate_ballot_indices = rng.choice(
+    min_slate_ballot_indices = numpy_rng.choice(
         len(hist_min_ballots),
         size=num_ballots_start_with_min_slate,
         p=list(reduced_historical_minority_ballot_pmf.values()),
@@ -262,7 +262,7 @@ def _inner_cambridge_sampler(
     bloc_lst = config.blocs
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    rng = np.random.default_rng(seed=rng_seed)
+    numpy_rng = np.random.default_rng(seed=rng_seed)
     for bloc in bloc_lst:
         slate_ballots = _sample_historical_slate_ballots(
             ballots_per_bloc,
@@ -272,11 +272,11 @@ def _inner_cambridge_sampler(
             reduced_historical_minority_ballot_pmf,
             majority_bloc,
             historical_slate_to_config_slate,
-            rng=rng,
+            numpy_rng=numpy_rng,
         )
 
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, numpy_rng=rng
+            config, bloc, slate_ballots, numpy_rng=numpy_rng
         )
 
     return pref_profile_by_bloc

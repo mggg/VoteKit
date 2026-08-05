@@ -34,7 +34,7 @@ def _sample_pl_slate_ballots(
     bloc: str,
     non_zero_slate_set: set[str],
     *,
-    rng: Optional[Generator] = None,
+    numpy_rng: Optional[Generator] = None,
 ) -> list[tuple[str, ...]]:
     """
     Returns a list of slate ballots; each ballot is a list of slate names (strings)
@@ -48,8 +48,9 @@ def _sample_pl_slate_ballots(
         num_ballots (int): The number of ballots to generate.
         bloc (str): The name of the bloc for which to generate slate ballots.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        rng (Generator | None): Random Number Generator seeded with a known value for reproducible
-            results. By default, seeded with None to generate different results each time.
+        numpy_rng (Generator, optional): NumPy random number generatorseeded with a known value for
+            reproducible results. By default, seeded with None to generate different results each
+            time.
 
     Returns:
         list[tuple[str, ...]]: A list of tuples, where each tuple contains the bloc names in the
@@ -61,8 +62,8 @@ def _sample_pl_slate_ballots(
 
     ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
 
-    rng = np.random.default_rng(rng)
-    rand_unif_seqs = rng.uniform(size=(num_ballots, num_candidates))
+    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
+    rand_unif_seqs = numpy_rng.uniform(size=(num_ballots, num_candidates))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -152,7 +153,7 @@ def _inner_slate_plackett_luce(
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    rng = np.random.default_rng(seed=rng_seed)
+    numpy_rng = np.random.default_rng(seed=rng_seed)
 
     for bloc in bloc_lst:
         n_ballots = ballots_per_bloc[bloc]
@@ -168,7 +169,7 @@ def _inner_slate_plackett_luce(
             num_ballots=n_ballots,
             bloc=bloc,
             non_zero_slate_set=non_zero_slate_set,
-            rng=rng,
+            numpy_rng=numpy_rng,
         )
 
         if len(zero_slate_set) != 0:
@@ -177,10 +178,10 @@ def _inner_slate_plackett_luce(
                 zero_slate_set,
                 n_ballots,
                 config,
-                numpy_rng=rng,
+                numpy_rng=numpy_rng,
             )
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, numpy_rng=rng
+            config, bloc, slate_ballots, numpy_rng=numpy_rng
         )
 
     return pref_profile_by_bloc

@@ -122,15 +122,15 @@ class PreferenceInterval:
         """
         if rng_seed is not None and numpy_rng is not None:
             raise ValueError("Cannot give a rng_seed and rng. Choose one.")
-        rng = None
+        numpy_rng = None
         if rng_seed is not None:
-            rng = np.random.default_rng(seed=rng_seed)
+            numpy_rng = np.random.default_rng(seed=rng_seed)
         elif numpy_rng is not None:
-            rng = numpy_rng
+            numpy_rng = numpy_rng
         else:
-            rng = np.random.default_rng()
+            numpy_rng = np.random.default_rng()
 
-        probs = list(rng.dirichlet(alpha=[alpha] * len(candidates)))
+        probs = list(numpy_rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:
             probs = [p + 10e-12 if p == 0 else p for p in probs]
