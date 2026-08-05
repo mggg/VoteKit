@@ -1,5 +1,6 @@
+import random
 from functools import partial
-from typing import Callable, Literal, Union
+from typing import Callable, Literal, Optional, Union
 
 from votekit.ballot import RankBallot
 from votekit.cleaning import remove_and_condense_rank_profile
@@ -47,6 +48,9 @@ class Alaska(RankingElection):
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
             Only used by ``score_function`` parameter.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -63,6 +67,8 @@ class Alaska(RankingElection):
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        *,
+        rng_seed: Optional[int] = None,
     ):
         if m_1 <= 0:
             raise ValueError("m_1 must be positive.")
@@ -76,6 +82,9 @@ class Alaska(RankingElection):
         self.quota = quota
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
+        self._plurality_seed = self._rng.getrandbits(32)
+        self._stv_seed = self._rng.getrandbits(32)
         super().__init__(
             profile,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
@@ -116,6 +125,7 @@ class Alaska(RankingElection):
                 self.quota,
                 self.simultaneous,
                 self.tiebreak,
+                rng_seed=self._stv_seed,
             )
 
             # e.g., round 2 of Alaska is equivalent to round 1 of stv
@@ -147,7 +157,7 @@ class Alaska(RankingElection):
             RankProfile: The profile of ballots after the round is completed.
         """
         if prev_state.round_number == 0:
-            plurality = Plurality(profile, self.m_1, self.tiebreak)
+            plurality = Plurality(profile, self.m_1, self.tiebreak, rng_seed=self._plurality_seed)
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
@@ -179,6 +189,7 @@ class Alaska(RankingElection):
                 self.quota,
                 self.simultaneous,
                 self.tiebreak,
+                rng_seed=self._stv_seed,
             )
             new_profile = stv.get_profile()
 

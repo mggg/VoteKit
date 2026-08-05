@@ -17,6 +17,9 @@ class Cumulative(Limited):
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
     """
 
     def __init__(
@@ -24,6 +27,8 @@ class Cumulative(Limited):
         profile: ScoreProfile,
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -33,4 +38,6 @@ class Cumulative(Limited):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             n_seats = 1
-        super().__init__(profile, n_seats=n_seats, budget=n_seats, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=n_seats, budget=n_seats, tiebreak=tiebreak, rng_seed=rng_seed
+        )

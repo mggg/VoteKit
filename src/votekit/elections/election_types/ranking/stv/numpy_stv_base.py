@@ -1,8 +1,9 @@
+import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
+from typing import Any, Literal, NotRequired, Optional, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -106,6 +107,8 @@ class NumpySTVBase(ABC):
         profile: RankProfile,
         n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         """
         Initialize the numpy STV base.
@@ -116,7 +119,11 @@ class NumpySTVBase(ABC):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
                 Defaults to None. Accepts "borda", "random", and "first_place".
                 If None, a ValueError is raised if a winner tiebreak is needed.
+            rng_seed (int, optional)): Seed for random number generator. An integer seed produces
+            the same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
+        self._rng = random.Random(rng_seed)
         self.profile = profile
         self.n_seats = n_seats
         self.candidates = list(profile.candidates)
@@ -593,7 +600,7 @@ class NumpySTVBase(ABC):
         if len(target_cluster) == 1:
             return target_cluster[0], packaged_ranking
 
-        tiebroken_candidate = int(np.random.choice(target_cluster))
+        tiebroken_candidate = int(self._rng.choice(target_cluster))
         return tiebroken_candidate, packaged_ranking
 
     def _get_threshold(
@@ -660,6 +667,7 @@ class NumpySTVBase(ABC):
                 set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._winner_tiebreak,
+                rng=self._rng,
             )
             winner_idx = self.candidates.index(list(packaged_ranking[0])[0])
         else:
@@ -696,6 +704,7 @@ class NumpySTVBase(ABC):
                 set_to_tiebreak=packaged_tie,
                 profile=self.profile,
                 tiebreak=self._loser_tiebreak,
+                rng=self._rng,
             )
             loser_idx = self.candidates.index(list(packaged_ranking[-1])[0])
         mutant_tiebreak_record.append({packaged_tie: packaged_ranking})

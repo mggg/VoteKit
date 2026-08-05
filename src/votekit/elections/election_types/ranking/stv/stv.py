@@ -1,4 +1,6 @@
-from typing import Callable, Union
+import random
+from functools import partial
+from typing import Callable, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -23,7 +25,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     TransferType,
 )
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
-from votekit.elections.transfers import fractional_transfer
+from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import ProfileError, RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -53,6 +55,8 @@ class NumpyInnerSTV(NumpySTVBase):
         tiebreak: TiebreakType | None = None,
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         """
         Initialize an STV election with advanced options.
@@ -74,12 +78,16 @@ class NumpyInnerSTV(NumpySTVBase):
             dynamic_threshold (bool, optional): If True, threshold is recalculated each
                 round based on the number of remaining active votes. Defaults to False.
             block_rcv (bool, optional): If True, blocks ranked-choice voting. Defaults to False.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
         self.__check_profile_and_seats_and_candidates_and_transfer(profile, n_seats, transfer)
         super().__init__(
             profile=profile,
             n_seats=n_seats,
             tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )
         self.transfer = transfer if transfer != "random" else "cambridge_random"
         self.quota = quota
@@ -199,6 +207,7 @@ class NumpyInnerSTV(NumpySTVBase):
                     wt_vec=mutated_wt_vec,
                     winner=winner_idx,
                     surplus=surplus,
+                    rng=self._rng,
                 )
                 new_weights += counts.astype(new_weights.dtype)
 
@@ -522,6 +531,8 @@ class FastSTV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -542,6 +553,9 @@ class FastSTV(NumpyInnerSTV):
                 tiebreak is needed. Accepts "borda", "random", and
                 "cambridge_random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+                same output given identical inputs; By default, seed is None which gives
+                non-deterministic results..
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -557,6 +571,7 @@ class FastSTV(NumpyInnerSTV):
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )
 
 
@@ -576,6 +591,8 @@ class AlbanySTV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -595,6 +612,9 @@ class AlbanySTV(NumpyInnerSTV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+                same output given identical inputs; By default, seed is None which gives
+                non-deterministic results.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -611,6 +631,7 @@ class AlbanySTV(NumpyInnerSTV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
             dynamic_threshold=True,
+            rng_seed=rng_seed,
         )
 
 
@@ -626,6 +647,8 @@ class FastIRV(NumpyInnerSTV):
         profile: RankProfile,
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         """
         Initialize a fast IRV election.
@@ -634,10 +657,13 @@ class FastIRV(NumpyInnerSTV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType | None, optional): Method to be used if a
+            tiebreak (TiebreakType | None): Method to be used if a
                 tiebreak is needed. Accepts "borda", "random", and
                 "cambridge_random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional)): Seed for random number generator. An integer seed
+            produces the same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
         super().__init__(
             profile=profile,
@@ -645,6 +671,7 @@ class FastIRV(NumpyInnerSTV):
             transfer="fractional",
             quota=quota,
             tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )
 
 
@@ -666,6 +693,8 @@ class FastSequentialRCV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -682,6 +711,9 @@ class FastSequentialRCV(NumpyInnerSTV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda", "random", and "cambridge_random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -697,6 +729,7 @@ class FastSequentialRCV(NumpyInnerSTV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
             block_rcv=True,
+            rng_seed=rng_seed,
         )
 
 
@@ -716,6 +749,8 @@ class STV(RankingElection):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -734,7 +769,8 @@ class STV(RankingElection):
             transfer (Callable[[Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
                 tuple[RankBallot, ...]]): Transfer method. Defaults to fractional transfer.
                 Function signature is elected candidate, their number of first-place votes, the list
-                of ballots with them ranked first, and the threshold value. Returns the list of
+                of ballots with them ranked first, the threshold value, and a Random Number
+                Generator object which can be seeded for reproducible results. Returns the list of
                 ballots after transfer. Candidates can be strings, integers, or mix of both.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
@@ -744,19 +780,26 @@ class STV(RankingElection):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
         self._stv_validate_profile(profile)
 
         if n_seats <= 0:
             raise ValueError("n_seats must be positive.")
         self.n_seats = n_seats
-        self.transfer = transfer
         self.quota = quota
 
         self.threshold = 0
         self.threshold = self.get_threshold(profile.total_ballot_wt)
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
+        if transfer is random_transfer:
+            self.transfer = partial(random_transfer, rng=self._rng)
+        else:
+            self.transfer = transfer
 
         super().__init__(
             profile,
@@ -928,7 +971,11 @@ class STV(RankingElection):
             tiebreaks = self.election_states[current_round].tiebreaks
         else:
             elected, remaining, tiebreak = elect_cands_from_set_ranking(
-                ranking_by_fpv, n_seats=1, profile=profile, tiebreak=self.tiebreak
+                ranking_by_fpv,
+                n_seats=1,
+                profile=profile,
+                tiebreak=self.tiebreak,
+                rng=self._rng,
             )
             if tiebreak:
                 tiebreaks = {tiebreak[0]: tiebreak[1]}
@@ -1035,7 +1082,10 @@ class STV(RankingElection):
                         tiebroken_ranking = possible_tiebreaks[0]
                 if tiebroken_ranking is None or len(tiebroken_ranking) == 0:
                     tiebroken_ranking = tiebreak_set(
-                        lowest_fpv_cands, self.get_profile(0), tiebreak="first_place"
+                        lowest_fpv_cands,
+                        self.get_profile(0),
+                        tiebreak="first_place",
+                        rng=self._rng,
                     )
 
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}
@@ -1089,6 +1139,8 @@ class IRV(STV):
         profile: RankProfile,
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         """
         Initialize an IRV election.
@@ -1097,12 +1149,15 @@ class IRV(STV):
             profile (RankProfile): RankProfile to run election on.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
-            tiebreak (TiebreakType | None, optional): Method to be used if a
+            tiebreak (TiebreakType | None): Method to be used if a
                 tiebreak is needed. Accepts "borda" and "random". Defaults to
                 None, in which case a ValueError is raised if a tiebreak is
                 needed.
+            rng_seed (int, optional)): Seed for random number generator. An integer seed produces
+            the same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
-        super().__init__(profile, n_seats=1, quota=quota, tiebreak=tiebreak)
+        super().__init__(profile, n_seats=1, quota=quota, tiebreak=tiebreak, rng_seed=rng_seed)
 
 
 class SequentialRCV(STV):
@@ -1124,6 +1179,8 @@ class SequentialRCV(STV):
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -1140,6 +1197,9 @@ class SequentialRCV(STV):
             tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
+            rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -1179,4 +1239,5 @@ class SequentialRCV(STV):
             quota=quota,
             simultaneous=simultaneous,
             tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )

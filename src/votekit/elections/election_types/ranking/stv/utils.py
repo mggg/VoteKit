@@ -1,8 +1,18 @@
+import random
+from typing import Optional
+
 import numpy as np
 from numpy.typing import NDArray
 
 
-def numpy_random_transfer(fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplus: int) -> NDArray:
+def numpy_random_transfer(
+    fpv_vec: NDArray,
+    wt_vec: NDArray,
+    winner: int,
+    surplus: int,
+    *,
+    rng: Optional[random.Random] = None,
+) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.
 
@@ -27,17 +37,19 @@ def numpy_random_transfer(fpv_vec: NDArray, wt_vec: NDArray, winner: int, surplu
         wt_vec (NDArray): Integer weights vector.
         winner (int): Candidate code whose ballots are to be transferred.
         surplus (int): Number of surplus votes to transfer.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         counts (NDArray): Vector of counts
     """
-    rng = np.random.default_rng()
+    rng = random.Random() if rng is None else rng
     eligible_for_transfer = fpv_vec == winner
     winner_row_indices = np.flatnonzero(eligible_for_transfer)
     wts = wt_vec[winner_row_indices].astype(np.int64)
     maximum_transferable = int(wts.sum())
     transferred_votes = min(surplus, maximum_transferable)
-    positions_to_transfer = rng.choice(maximum_transferable, size=transferred_votes, replace=False)
+    positions_to_transfer = rng.sample(range(maximum_transferable), k=transferred_votes)
     positions_to_transfer.sort()
     bins = np.cumsum(wts)
     owners = np.searchsorted(bins, positions_to_transfer, side="right")

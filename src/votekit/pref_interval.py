@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Sequence
+from typing import Optional, Sequence
 
 import numpy as np
+from numpy.random import Generator
 
 from votekit.types import Candidate
 
@@ -93,6 +94,8 @@ class PreferenceInterval:
         *,
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
+        rng_seed: Optional[int] = None,
+        numpy_rng: Optional[Generator] = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -109,11 +112,24 @@ class PreferenceInterval:
                 If True, the candidates are assigned their support values in descending order
                 according to the list passed to candidates.
                 If False, the candidates are assigned support values in random order.
+            rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
+            numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+                for reproducible results; defaults to None for non-deterministic results.
 
         Returns:
             PreferenceInterval
         """
-        probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
+        if rng_seed is not None and numpy_rng is not None:
+            raise ValueError("Cannot give a rng_seed and rng. Choose one.")
+        if rng_seed is not None:
+            numpy_rng = np.random.default_rng(seed=rng_seed)
+        elif numpy_rng is not None:
+            numpy_rng = numpy_rng
+        else:
+            numpy_rng = np.random.default_rng()
+
+        probs = list(numpy_rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:
             probs = [p + 10e-12 if p == 0 else p for p in probs]

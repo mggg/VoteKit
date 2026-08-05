@@ -1,6 +1,6 @@
 import random
 from functools import partial
-from typing import Literal
+from typing import Literal, Optional
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -25,6 +25,9 @@ class RandomDictator(RankingElection):
       fpv_tie_convention (Literal["high", "average", "low"], optional): How to award points
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
+      rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
     """
 
     def __init__(
@@ -32,6 +35,7 @@ class RandomDictator(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -41,6 +45,7 @@ class RandomDictator(RankingElection):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             raise TypeError("Missing required argument: 'n_seats'.")
+        self._rng = random.Random(rng_seed)
         super().__init__(
             profile,
             n_seats=n_seats,
@@ -52,7 +57,10 @@ class RandomDictator(RankingElection):
         return sum(cands_elected) >= self.n_seats
 
     def _run_step(
-        self, profile: RankProfile, prev_state: ElectionState, store_states=False
+        self,
+        profile: RankProfile,
+        prev_state: ElectionState,
+        store_states=False,
     ) -> RankProfile:
         """
         Run one step of an election from the given profile and previous state.
@@ -74,7 +82,8 @@ class RandomDictator(RankingElection):
         fpv = prev_state.scores
         candidates = list(fpv.keys())
         weights: list[float] = list(fpv.values())
-        winning_cand = random.choices(candidates, weights=weights, k=1)[0]
+        idx = self._rng.choices(range(len(candidates)), weights=weights, k=1)[0]
+        winning_cand = candidates[idx]
         elected = (frozenset({winning_cand}),)
 
         new_profile = remove_and_condense_rank_profile(winning_cand, profile)

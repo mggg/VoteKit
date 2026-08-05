@@ -462,6 +462,8 @@ def tiebreak_set(
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
     backup_tiebreak_convention: Optional[str] = None,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> tuple[frozenset[Candidate], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
@@ -487,18 +489,25 @@ def tiebreak_set(
             this convention is used to break any remaining ties. Options are "random" and
             "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
             "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[frozenset[Candidate],...]: tiebroken ranking
         Candidates can be strings, integers, or mix of both.
     """
+    rng = random.Random() if rng is None else rng
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
         sorted_cands = sort_candidates_pseudo_lexicographically([c for c in set_to_tiebreak])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
         new_ranking = tuple(
-            frozenset({c}) for c in random.sample(list(set_to_tiebreak), k=len(set_to_tiebreak))
+            frozenset({c})
+            for c in rng.sample(
+                sort_candidates_pseudo_lexicographically(list(set_to_tiebreak)),
+                k=len(set_to_tiebreak),
+            )
         )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
@@ -532,10 +541,14 @@ def tiebreak_set(
             "lex",
         ]:
             print("Initial tiebreak was unsuccessful, performing alphabetic tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="lex")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="lex", rng=rng
+            )
         elif backup_tiebreak_convention == "random":
             print("Initial tiebreak was unsuccessful, performing random tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="random")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="random", rng=rng
+            )
         else:
             raise ValueError("Invalid backup tiebreak code was provided")
 
@@ -546,6 +559,8 @@ def tiebroken_ranking(
     ranking: tuple[frozenset[Candidate], ...],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
+    *,
+    rng: Optional[random.Random] = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...], dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]
 ]:
@@ -559,6 +574,8 @@ def tiebroken_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[tuple[frozenset[Candidate], ...], dict[frozenset[Candidate]
@@ -573,7 +590,7 @@ def tiebroken_ranking(
     tied_dict = {}
     for s in ranking:
         if len(s) > 1:
-            tiebroken = tiebreak_set(s, profile, tiebreak)
+            tiebroken = tiebreak_set(s, profile, tiebreak, rng=rng)
             tied_dict[s] = tiebroken
         else:
             tiebroken = (s,)
@@ -625,6 +642,8 @@ def elect_cands_from_set_ranking(
     n_seats: int,
     profile: Optional[RankProfile] = None,
     tiebreak: Optional[str] = None,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...],
     tuple[frozenset[Candidate], ...],
@@ -646,6 +665,8 @@ def elect_cands_from_set_ranking(
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to None, which does not break ties.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],
@@ -679,7 +700,7 @@ def elect_cands_from_set_ranking(
             elected.pop()
             num_elected -= len(ranking_fs[i])
 
-            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
+            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak, rng=rng)
             elected += tiebroken[: (n_seats - num_elected)]
 
             remaining: list[frozenset[Candidate]] = list(tiebroken[(n_seats - num_elected) :])

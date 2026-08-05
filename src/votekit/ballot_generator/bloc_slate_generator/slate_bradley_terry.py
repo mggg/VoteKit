@@ -17,7 +17,7 @@ import itertools as it
 import math
 import random
 import sys
-from typing import Sequence, cast
+from typing import Optional, Sequence, cast
 
 import apportionment.methods as apportion
 import numpy as np
@@ -130,6 +130,8 @@ def _sample_bt_slate_ballots_deterministic(
     bloc_name: str,
     n_ballots: int,
     non_zero_slate_set: set[str],
+    *,
+    rng: Optional[random.Random] = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
@@ -141,6 +143,8 @@ def _sample_bt_slate_ballots_deterministic(
         bloc_name (str): The name of the voter bloc for which to generate ballot types.
         n_ballots (int): The number of ballots to generate.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[tuple[str]]: A list of ballot types, where each ballot type is represented
@@ -150,7 +154,8 @@ def _sample_bt_slate_ballots_deterministic(
     b_types: list[tuple[str, ...]] = list(pdf.keys())
     probs = list(pdf.values())
 
-    sampled_indices = np.random.choice(len(b_types), size=n_ballots, p=probs)
+    rng = random.Random() if rng is None else rng
+    sampled_indices = rng.choices(range(len(b_types)), k=n_ballots, weights=probs)
 
     ballots = [b_types[i] for i in sampled_indices]
 
@@ -206,6 +211,8 @@ def _sample_bt_slate_ballots_mcmc(
     bloc_name: str,
     n_ballots: int,
     non_zero_slate_set: set[str],
+    *,
+    rng: Optional[random.Random] = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
@@ -218,6 +225,8 @@ def _sample_bt_slate_ballots_mcmc(
         bloc_name (str): The name of the voter bloc for which to generate ballot types.
         n_ballots (int): The number of ballots to generate.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[tuple[str]]: A list of ballot types, where each ballot type is represented
@@ -226,17 +235,17 @@ def _sample_bt_slate_ballots_mcmc(
 
     # AABABB like
     seed_ballot_type = [
-        slate for slate in non_zero_slate_set for c in config.slate_to_candidates[slate]
+        slate for slate in sorted(non_zero_slate_set) for c in config.slate_to_candidates[slate]
     ]
     # randomly permute the seed ballot type
-    seed_ballot_type = random.sample(seed_ballot_type, k=len(seed_ballot_type))
+    rng = random.Random() if rng is None else rng
+    seed_ballot_type = rng.sample(seed_ballot_type, len(seed_ballot_type))
 
     ballots: list[tuple[str, ...]] = [("~",) for _ in range(n_ballots)]
     current_ranking = seed_ballot_type
-
     # presample swap indices
     swap_indices = [
-        (j1, j1 + 1) for j1 in np.random.choice(len(seed_ballot_type) - 1, size=n_ballots)
+        (j1, j1 + 1) for j1 in rng.choices(range(len(seed_ballot_type) - 1), k=n_ballots)
     ]
 
     for i in range(n_ballots):
@@ -249,7 +258,7 @@ def _sample_bt_slate_ballots_mcmc(
         cohesion_j2 = config.cohesion_df[new_slate].loc[bloc_name]
         acceptance_prob = cohesion_j2 / cohesion_j1  # Doesn't matter if above 1
 
-        if random.random() < acceptance_prob:
+        if rng.random() < acceptance_prob:
             current_ranking[j1], current_ranking[j2] = (
                 current_ranking[j2],
                 current_ranking[j1],
@@ -268,6 +277,8 @@ def _sample_bt_slate_ballots_mcmc(
 def _inner_slate_bradley_terry(
     config: BlocSlateConfig,
     use_mcmc: bool = False,
+    *,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles using the slate-BradleyTerry model.
@@ -279,6 +290,9 @@ def _inner_slate_bradley_terry(
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         use_mcmc (bool): If True, use MCMC to sample ballot types. Defaults to False.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         dict[str, RankProfile]: A dictionary mapping bloc names to their corresponding
@@ -299,6 +313,8 @@ def _inner_slate_bradley_terry(
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
+    numpy_rng = np.random.default_rng(seed=rng_seed)
+    rng = random.Random(rng_seed)
 
     for bloc in bloc_lst:
         # number of voters in this bloc
@@ -315,6 +331,7 @@ def _inner_slate_bradley_terry(
                 bloc_name=bloc,
                 n_ballots=n_ballots,
                 non_zero_slate_set=non_zero_slate_set,
+                rng=rng,
             )
         else:
             slate_ballots = _sample_bt_slate_ballots_deterministic(
@@ -322,14 +339,24 @@ def _inner_slate_bradley_terry(
                 bloc_name=bloc,
                 n_ballots=n_ballots,
                 non_zero_slate_set=non_zero_slate_set,
+                rng=rng,
             )
 
         if len(zero_slate_set) != 0:
             slate_ballots = _append_zero_slate_symbols(
-                slate_ballots, zero_slate_set, n_ballots, config
+                slate_ballots,
+                zero_slate_set,
+                n_ballots,
+                config,
+                numpy_rng=numpy_rng,
             )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+            config,
+            bloc,
+            slate_ballots,
+            numpy_rng=numpy_rng,
+        )
 
     return pref_profile_by_bloc
 
@@ -339,7 +366,9 @@ def _inner_slate_bradley_terry(
 # =================================================
 
 
-def slate_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -> RankProfile:
+def slate_bt_profile_generator(
+    config: BlocSlateConfig, *, group_ballots=True, rng_seed: Optional[int] = None
+) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
 
@@ -359,6 +388,9 @@ def slate_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -
             working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: Generated preference profile.
@@ -366,7 +398,7 @@ def slate_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -
     _check_slate_bt_memory(config)
 
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_slate_bradley_terry(config)
+    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
 
     profile = RankProfile()
     for prof in pp_by_bloc.values():
@@ -379,7 +411,10 @@ def slate_bt_profile_generator(config: BlocSlateConfig, *, group_ballots=True) -
 
 
 def slate_bt_profiles_by_bloc_generator(
-    config: BlocSlateConfig, *, group_ballots=True
+    config: BlocSlateConfig,
+    *,
+    group_ballots=True,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Generate a dictionary mapping bloc names to ranked preference profiles using the
@@ -401,6 +436,9 @@ def slate_bt_profiles_by_bloc_generator(
             working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
@@ -408,7 +446,7 @@ def slate_bt_profiles_by_bloc_generator(
     _check_slate_bt_memory(config)
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config)
+    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
     if group_ballots:
         for bloc in pp_by_bloc:
             pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
@@ -417,7 +455,10 @@ def slate_bt_profiles_by_bloc_generator(
 
 
 def slate_bt_profile_generator_using_mcmc(
-    config: BlocSlateConfig, *, group_ballots=True
+    config: BlocSlateConfig,
+    *,
+    group_ballots=True,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a ranked preference profile using the slate-BradleyTerry model.
@@ -444,13 +485,16 @@ def slate_bt_profile_generator_using_mcmc(
             working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: Generated preference profile.
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True)
+    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
 
     profile = RankProfile()
     for prof in pp_by_bloc.values():
@@ -463,7 +507,10 @@ def slate_bt_profile_generator_using_mcmc(
 
 
 def slate_bt_profiles_by_bloc_generator_using_mcmc(
-    config: BlocSlateConfig, *, group_ballots=True
+    config: BlocSlateConfig,
+    *,
+    group_ballots=True,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Generate a dictionary mapping bloc names to ranked preference profiles using the
@@ -491,13 +538,16 @@ def slate_bt_profiles_by_bloc_generator_using_mcmc(
             working with a bloc-slate ballot generator.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
+        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         dict[str, RankProfile]: Generated preference profiles by bloc.
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True)
+    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
     if group_ballots:
         for bloc in pp_by_bloc:
             pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()

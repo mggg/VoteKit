@@ -1,7 +1,7 @@
 import random
 from abc import ABC, abstractmethod
-from functools import partial
-from typing import Literal
+from functools import cached_property, partial
+from typing import Literal, Optional
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from votekit.types import Candidate
 from votekit.utils import (
     first_place_votes,
     score_dict_to_ranking,
+    sort_candidates_pseudo_lexicographically,
     tiebreak_set,
 )
 
@@ -49,6 +50,9 @@ class _IterativeVetoBase(RankingElection, ABC):
             'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
@@ -71,6 +75,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         n_seats: int | None = None,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -86,6 +91,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self.tiebreak = tiebreak
         self.scoring_tie_convention = scoring_tie_convention
         self._pv_validate_input(grouped_profile)
+        self._rng = random.Random(rng_seed)
 
         self._df = grouped_profile.df.copy()
         assert grouped_profile.max_ranking_length is not None
@@ -98,7 +104,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._cumsum = self._df["Weight"].cumsum().to_numpy()
 
         num_voters = int(grouped_profile.total_ballot_wt)
-        self._voter_order = np.random.permutation(num_voters)
+        self._voter_order = self._rng.sample(range(num_voters), num_voters)
         self._voter_order_current_index = 0
 
         self.candidates = frozenset(grouped_profile.candidates)
@@ -123,6 +129,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self.tiebreak,
                 scoring_tie_convention,
                 backup_tiebreak_convention="lex",
+                rng=self._rng,
             )
             self._tiebreak_ranks = {next(iter(s)): i for i, s in enumerate(self.tiebreak_order)}
 
@@ -134,6 +141,26 @@ class _IterativeVetoBase(RankingElection, ABC):
             n_seats=n_seats,
             score_function=partial(first_place_votes, tie_convention=scoring_tie_convention),
         )
+
+    @cached_property
+    def _canonical_candidate_order(self):
+        """
+        Maps candidates to a canonical order.
+        """
+        sorted_candidates = sort_candidates_pseudo_lexicographically(self.candidates)
+        return {cand: i for i, cand in enumerate(sorted_candidates)}
+
+    def _get_canonical_sort_key(self, candidate: Candidate) -> float:
+        """
+        Gets the candidate's position in the canonical order.
+
+        Args:
+             candidate (Candidate): candidate.
+
+        Returns:
+            int: index of candidate within canonical candidate order.
+        """
+        return self._canonical_candidate_order[candidate]
 
     def _pv_validate_input(self, profile: RankProfile):
         """
@@ -195,7 +222,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         if self.tiebreak == "random":
 
             def rank(c: Candidate) -> float:
-                return random.random()
+                return self._rng.random()
 
         else:
 
@@ -203,7 +230,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 return self._tiebreak_ranks[c]
 
         # in _tiebreak_order, higher position is worse; veto the worst remaining
-        return max(candidate_set, key=rank)
+        return max(sorted(candidate_set, key=self._get_canonical_sort_key), key=rank)
 
     def _find_potential_vetoes(self, ballot_idx: np.intp) -> frozenset[Candidate]:
         """
@@ -369,6 +396,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self.tiebreak,
                 self.scoring_tie_convention,
                 backup_tiebreak_convention="lex",
+                rng=self._rng,
             )
             elected = tiebroken_order[: self.n_seats]
             new_profile = RankProfile()
@@ -422,6 +450,10 @@ class PluralityVeto(_IterativeVetoBase):
             'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
+
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
@@ -506,6 +538,9 @@ class SerialVeto(_IterativeVetoBase):
             'high' would award them each one point, and 'low' 0.
             Used by ``score_function`` parameter.
             Also used to define ``tiebreak_order`` if tiebreak is 'first_place' or 'borda'.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Attributes:
         n_seats (int): The number of seats to be filled in the election.
