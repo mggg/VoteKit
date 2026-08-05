@@ -532,7 +532,14 @@ def test_stv_rounding_errors():
     stv_election = STV(profile=profile, n_seats=5)
     assert stv_election.get_elected() == ({"A1"}, {"A2"}, {"A3"}, {"A4"}, {"B1"})
 
-    assert [stv_election.election_states[i].scores[f"A{i + 1}"] for i in range(5)] == [
+    assert [
+        next(
+            score
+            for candidate, score in stv_election.election_states[i].scores.items()
+            if candidate == f"A{i + 1}"
+        )
+        for i in range(5)
+    ] == [
         52,
         41,
         30,

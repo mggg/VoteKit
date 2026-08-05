@@ -318,11 +318,11 @@ def test_two_bloc_two_slate_cambridge_distribution_matches_name_ballot_dist(
             )
 
             obs_prob = float(
-                (
+                float(
                     comparisons_profile[(f"{slate}1", f"{slate}2")]
                     + comparisons_profile[(f"{slate}1",)]
                 )
-                / (profile.total_ballot_wt - comparisons_profile[()])
+                / (float(profile.total_ballot_wt) - comparisons_profile[()])
             )
             exp_prob = float(
                 config.preference_df.loc[bloc][f"{slate}1"]

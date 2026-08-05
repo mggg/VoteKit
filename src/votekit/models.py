@@ -5,7 +5,7 @@ import pandas as pd
 
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile.pref_profile import PreferenceProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateNumericDict
 from votekit.utils import (
     score_dict_to_ranking,
 )
@@ -19,7 +19,7 @@ class Election(Generic[P]):
 
     Args:
         profile (PreferenceProfile): The initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], dict[Candidate, float]], optional):
+        score_function (Callable[[PreferenceProfile], CandidateNumericDict], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
@@ -31,7 +31,7 @@ class Election(Generic[P]):
         election_states (list[ElectionState]): A list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], dict[Candidate, float]], optional):
+        score_function (Callable[[PreferenceProfile], CandidateNumericDict], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
             Candidates can be strings, integers, or mix of both.
@@ -41,7 +41,7 @@ class Election(Generic[P]):
     def __init__(
         self,
         profile: P,
-        score_function: Optional[Callable[[P], dict[Candidate, float]]] = None,
+        score_function: Optional[Callable[[P], CandidateNumericDict]] = None,
         sort_high_low: bool = True,
     ):
         self._validate_params_and_profile(profile)

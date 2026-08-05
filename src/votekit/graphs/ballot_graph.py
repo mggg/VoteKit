@@ -57,7 +57,7 @@ class BallotGraph(Graph):
 
         if isinstance(source, RankProfile):
             self.profile = source
-            self.num_voters = source.total_ballot_wt
+            self.num_voters = float(source.total_ballot_wt)
             self.num_cands = len(source.candidates)
             self.allow_partial = True
             if len(self.graph.nodes) == 0:
@@ -163,7 +163,7 @@ class BallotGraph(Graph):
             self.profile = profile
 
         if self.num_voters is None:
-            self.num_voters = profile.total_ballot_wt
+            self.num_voters = float(profile.total_ballot_wt)
 
         self.candidates = tuple(profile.candidates)
         ballots = profile.ballots
@@ -185,9 +185,9 @@ class BallotGraph(Graph):
                 ballot_node = self.fix_short_ballot(ballot_node, list(self.cand_num.values()))
 
             if tuple(ballot_node) in self.graph.nodes:
-                self.graph.nodes[tuple(ballot_node)]["weight"] += ballot.weight
+                self.graph.nodes[tuple(ballot_node)]["weight"] += float(ballot.weight)
                 self.graph.nodes[tuple(ballot_node)]["cast"] = True
-                self.node_weights[tuple(ballot_node)] += ballot.weight
+                self.node_weights[tuple(ballot_node)] += float(ballot.weight)
 
         return self.graph
 

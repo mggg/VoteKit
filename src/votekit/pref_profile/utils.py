@@ -147,14 +147,14 @@ def rank_profile_to_ballot_dict(
         dict[Ballot, float]:
             A dictionary with ballots (keys) and corresponding total weights (values).
     """
-    tot_weight = rank_profile.total_ballot_wt
+    tot_weight = float(rank_profile.total_ballot_wt)
     di: dict = {}
     for ballot in rank_profile.ballots:
         weightless_ballot = Ballot(
             ranking=ballot.ranking,
             voter_set=ballot.voter_set,
         )
-        weight = ballot.weight
+        weight = float(ballot.weight)
         if standardize:
             weight /= tot_weight
 
@@ -181,7 +181,7 @@ def score_profile_to_ballot_dict(
         dict[Ballot, float]:
             A dictionary with ballots (keys) and corresponding total weights (values).
     """
-    tot_weight = score_profile.total_ballot_wt
+    tot_weight = float(score_profile.total_ballot_wt)
     di: dict = {}
     for ballot in score_profile.ballots:
         weightless_ballot = Ballot(
@@ -223,11 +223,11 @@ def rank_profile_to_ranking_dict(
 
     if not isinstance(rank_profile, RankProfile):
         raise TypeError(("Profile must be a RankProfile."))
-    tot_weight = rank_profile.total_ballot_wt
+    tot_weight = float(rank_profile.total_ballot_wt)
     di: dict = {}
     for ballot in rank_profile.ballots:
         ranking = ballot.ranking
-        weight = ballot.weight
+        weight = float(ballot.weight)
         if standardize:
             weight /= tot_weight
         di[ranking] = di.get(ranking, 0) + weight
@@ -260,11 +260,11 @@ def score_profile_to_scores_dict(
     if not isinstance(score_profile, ScoreProfile):
         raise TypeError(("Profile must be a ScoreProfile."))
 
-    tot_weight = score_profile.total_ballot_wt
+    tot_weight = float(score_profile.total_ballot_wt)
     di: dict[tuple[tuple[Candidate, float], ...] | None, float] = {}
     for ballot in score_profile.ballots:
         scores = tuple(ballot.scores.items()) if ballot.scores else None
-        weight = ballot.weight
+        weight = float(ballot.weight)
         if standardize:
             weight /= tot_weight
 
@@ -427,7 +427,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     new_df = pd.DataFrame(cand_to_score_list)
     new_df.index.name = "Ballot Index"
     new_df["Voter Set"] = rank_profile.df["Voter Set"]
-    new_df["Weight"] = rank_profile.df["Weight"]
+    new_df["Weight"] = rank_profile.df["Weight"].map(float)
 
     return ScoreProfile(
         df=new_df,

@@ -1,6 +1,7 @@
 import random
+from fractions import Fraction
 from functools import partial
-from typing import Callable, Optional, Union
+from typing import Callable, Literal, Optional, TypeAlias, Union
 from warnings import warn
 
 import numpy as np
@@ -15,6 +16,12 @@ from votekit.cleaning import (
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
+from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
+    convert_profile_weights,
+    exact_borda_scores,
+    exact_first_place_votes,
+    to_exact_fraction_weight,
+)
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
     ElectionPlay,
     NumpyElectionDataTracker,
@@ -27,7 +34,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import ProfileError, RankProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateNumericDict, Numeric
 from votekit.utils import (
     _first_place_votes_from_df_no_ties,
     ballots_by_first_cand,
@@ -35,6 +42,28 @@ from votekit.utils import (
     score_dict_to_ranking,
     tiebreak_set,
 )
+
+BasicSTVTiebreak: TypeAlias = TiebreakType | Literal["alphabetical", "lexicographic", "alph", "lex"]
+
+
+def _candidate_score(scores: CandidateNumericDict, candidate: Candidate) -> Numeric:
+    """
+    Look up a candidate in a numeric score mapping.
+
+    Args:
+        scores (CandidateNumericDict): Candidate scores.
+        candidate (Candidate): Candidate whose score is requested.
+
+    Returns:
+        Numeric: Candidate score.
+
+    Raises:
+        KeyError: If the candidate is absent from the score mapping.
+    """
+    for scored_candidate, score in scores.items():
+        if scored_candidate == candidate:
+            return score
+    raise KeyError(candidate)
 
 
 class NumpyInnerSTV(NumpySTVBase):
@@ -733,24 +762,41 @@ class FastSequentialRCV(NumpyInnerSTV):
         )
 
 
+TransferFn: TypeAlias = Callable[
+    [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
+    tuple[RankBallot, ...],
+]
+"""Signature for STV transfer functions.
+
+Called with the elected candidate, their first-place votes, the ballots that rank them first, and
+the election threshold; returns the transferred ballots.
+"""
+
+
 class STV(RankingElection):
     """
     STV elections. All ballots must have no ties.
     """
 
+    _LEXICOGRAPHIC_TIEBREAKS = frozenset({"alphabetical", "lexicographic", "alph", "lex"})
+    _ALLOWED_TIEBREAKS = _LEXICOGRAPHIC_TIEBREAKS | {
+        None,
+        "borda",
+        "first_place",
+        "random",
+    }
+
     def __init__(
         self,
         profile: RankProfile,
         n_seats: int | None = None,
-        transfer: Callable[
-            [Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
-            tuple[RankBallot, ...],
-        ] = fractional_transfer,
+        transfer: TransferFn = fractional_transfer,
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
-        tiebreak: TiebreakType | None = None,
+        tiebreak: BasicSTVTiebreak | None = None,
         *,
         rng_seed: Optional[int] = None,
+        exact: bool = False,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -766,23 +812,27 @@ class STV(RankingElection):
         Args:
             profile (RankProfile): RankProfile to run election on.
             n_seats (int): Number of seats to be elected. Defaults to 1.
-            transfer (Callable[[Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
-                tuple[RankBallot, ...]]): Transfer method. Defaults to fractional transfer.
+            transfer (TransferFn): Transfer method. Defaults to fractional transfer.
                 Function signature is elected candidate, their number of first-place votes, the list
                 of ballots with them ranked first, the threshold value, and a Random Number
                 Generator object which can be seeded for reproducible results. Returns the list of
                 ballots after transfer. Candidates can be strings, integers, or mix of both.
+                In exact mode, custom transfer methods are responsible for preserving ``Fraction``
+                ballot weights.
             quota (QuotaType, optional): Formula to calculate quota. Accepts "droop" or "hare".
                 Defaults to "droop".
             simultaneous (bool, optional): True if all candidates who cross threshold in a round are
                 elected simultaneously. False if only the candidate with highest first-place votes
                 who crosses the threshold is elected in a round. Defaults to True.
-            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is
-                needed. Accepts "borda" and "random". Defaults to None, in which case a
-                ValueError is raised if a tiebreak is needed.
+            tiebreak (TiebreakType | None, optional): Method to be used if a tiebreak is needed.
+                Accepts "borda", "first_place", "random", and the lexicographic aliases
+                "alphabetical", "lexicographic", "alph", and "lex". Defaults to None, in which
+                case a ValueError is raised if a winner tiebreak is needed.
+            exact (bool): If True, use exact rational arithmetic for weights, scores, and
+                fractional transfers. Defaults to False.
             rng_seed (int, optional): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+                same output given identical inputs; By default, seed is None which gives
+                non-deterministic results.
         """
         self._stv_validate_profile(profile)
 
@@ -790,6 +840,17 @@ class STV(RankingElection):
             raise ValueError("n_seats must be positive.")
         self.n_seats = n_seats
         self.quota = quota
+        self.exact = exact
+
+        if exact:
+            if tiebreak not in self._ALLOWED_TIEBREAKS:
+                raise ValueError(
+                    "Exact STV supports only tiebreak=None, 'borda', 'first_place', 'random', "
+                    "or a lexicographic alias."
+                )
+            profile = convert_profile_weights(profile, to_exact_fraction_weight)
+        elif any(isinstance(weight, Fraction) for weight in profile._df["Weight"]):
+            profile = convert_profile_weights(profile, float)
 
         self.threshold = 0
         self.threshold = self.get_threshold(profile.total_ballot_wt)
@@ -804,7 +865,9 @@ class STV(RankingElection):
         super().__init__(
             profile,
             n_seats=n_seats,
-            score_function=_first_place_votes_from_df_no_ties,
+            score_function=(
+                exact_first_place_votes if exact else _first_place_votes_from_df_no_ties
+            ),
             sort_high_low=True,
         )
 
@@ -835,21 +898,28 @@ class STV(RankingElection):
             if (row == tilde).all():
                 raise TypeError("Ballots must have rankings.")
 
-    def get_threshold(self, total_ballot_wt: float) -> int:
+    def get_threshold(self, total_ballot_wt: Numeric) -> int:
         """
         Calculates threshold required for election.
 
         Args:
-            total_ballot_wt (float): Total weight of ballots to compute threshold.
+            total_ballot_wt (Numeric): Total weight of ballots to compute threshold.
 
         Returns:
             int: Value of the threshold.
         """
         if self.threshold == 0:
             if self.quota == "droop":
-                return int(total_ballot_wt / (self.n_seats + 1) + 1)  # takes floor
+                if self.exact and isinstance(total_ballot_wt, Fraction):
+                    return total_ballot_wt // (self.n_seats + 1) + 1
+                return int(float(total_ballot_wt) / (self.n_seats + 1) + 1)  # takes floor
             elif self.quota == "hare":
-                return int(total_ballot_wt / self.n_seats)  # takes floor
+                if self.exact and isinstance(total_ballot_wt, Fraction):
+                    threshold = total_ballot_wt // self.n_seats
+                    if threshold == 0:
+                        raise ValueError("Exact STV requires a positive Hare quota.")
+                    return threshold
+                return int(float(total_ballot_wt) / self.n_seats)  # takes floor
             else:
                 raise ValueError("Misspelled or unknown quota type.")
         else:
@@ -864,6 +934,81 @@ class STV(RankingElection):
         if len(elected_cands) == self.n_seats:
             return True
         return False
+
+    def _tiebreak_exact_losers(
+        self, candidates: frozenset[Candidate]
+    ) -> tuple[frozenset[Candidate], ...]:
+        """
+        Rank tied elimination candidates by their initial exact (fractional) scores.
+
+        Args:
+            candidates (frozenset[Candidate]): Candidates tied for elimination.
+
+        Returns:
+            tuple[frozenset[Candidate], ...]: Candidates ordered from highest to lowest score.
+
+        Raises:
+            TypeError: If an initial score is not a ``Fraction``.
+        """
+        initial_scores: dict[Candidate, Fraction] = {}
+        for candidate in candidates:
+            score = _candidate_score(self.election_states[0].scores, candidate)
+            if not isinstance(score, Fraction):
+                raise TypeError("Exact STV recorded a non-rational initial score.")
+            initial_scores[candidate] = score
+
+        return self._rank_exact_tiebreak_scores(candidates, initial_scores)
+
+    def _rank_exact_tiebreak_scores(
+        self,
+        candidates: frozenset[Candidate],
+        scores: dict[Candidate, Fraction],
+    ) -> tuple[frozenset[Candidate], ...]:
+        """
+        Rank candidates by exact (fractional) scores, using seeded randomness for remaining ties.
+
+        Args:
+            candidates (frozenset[Candidate]): Candidates to rank.
+            scores (dict[Candidate, Fraction]): Exact scores for the candidates.
+
+        Returns:
+            tuple[frozenset[Candidate], ...]: Candidates ordered from highest to lowest score.
+        """
+        ranking = score_dict_to_ranking({candidate: scores[candidate] for candidate in candidates})
+        return tuple(
+            singleton
+            for tied_set in ranking
+            for singleton in (
+                tiebreak_set(tied_set, tiebreak="random", rng=self._rng)
+                if len(tied_set) > 1
+                else (tied_set,)
+            )
+        )
+
+    def _tiebreak_exact_candidates(
+        self,
+        candidates: frozenset[Candidate],
+        profile: RankProfile,
+    ) -> tuple[frozenset[Candidate], ...]:
+        """
+        Resolve an exact (fraction) mode winner tie using the configured tiebreak.
+
+        Args:
+            candidates (frozenset[Candidate]): Candidates tied for election.
+            profile (RankProfile): Current profile used for numeric tiebreak scores.
+
+        Returns:
+            tuple[frozenset[Candidate], ...]: Candidates in resolved tiebreak order.
+        """
+        assert self.tiebreak is not None
+        if self.tiebreak == "random" or self.tiebreak in self._LEXICOGRAPHIC_TIEBREAKS:
+            return tiebreak_set(candidates, tiebreak=self.tiebreak, rng=self._rng)
+        if self.tiebreak == "first_place":
+            scores = exact_first_place_votes(profile)
+        else:
+            assert self.tiebreak == "borda"
+            scores = exact_borda_scores(profile)
+        return self._rank_exact_tiebreak_scores(candidates, scores)
 
     def _simultaneous_elect_step(
         self, profile: RankProfile, prev_state: ElectionState
@@ -892,7 +1037,7 @@ class STV(RankingElection):
         else:
             for s in ranking_by_fpv:
                 c = list(s)[0]  # all cands in set have same score
-                if prev_state.scores[c] >= self.threshold:
+                if _candidate_score(prev_state.scores, c) >= self.threshold:
                     elected.append(s)
 
                 # since ranking is ordered by fpv, once below threshold we are done
@@ -907,7 +1052,7 @@ class STV(RankingElection):
             for candidate in s:
                 transfer_ballots = self.transfer(
                     candidate,
-                    prev_state.scores[candidate],
+                    _candidate_score(prev_state.scores, candidate),
                     ballots_by_fpv[candidate],
                     self.threshold,
                 )
@@ -969,6 +1114,14 @@ class STV(RankingElection):
             elected = self.election_states[current_round].elected
             remaining = self.election_states[current_round].remaining
             tiebreaks = self.election_states[current_round].tiebreaks
+        elif self.exact and len(ranking_by_fpv[0]) > 1:
+            if self.tiebreak is None:
+                raise ValueError("Cannot elect correct number of candidates without breaking ties.")
+            tied_candidates = ranking_by_fpv[0]
+            tiebroken = self._tiebreak_exact_candidates(tied_candidates, profile)
+            elected = tiebroken[:1]
+            remaining = tiebroken[1:] + tuple(ranking_by_fpv[1:])
+            tiebreaks = {tied_candidates: tiebroken}
         else:
             elected, remaining, tiebreak = elect_cands_from_set_ranking(
                 ranking_by_fpv,
@@ -990,7 +1143,7 @@ class STV(RankingElection):
 
         transfer_ballots = self.transfer(
             elected_c,
-            prev_state.scores[elected_c],
+            _candidate_score(prev_state.scores, elected_c),
             ballots_by_fpv[elected_c],
             self.threshold,
         )
@@ -1081,12 +1234,15 @@ class STV(RankingElection):
                     if len(possible_tiebreaks) > 0:
                         tiebroken_ranking = possible_tiebreaks[0]
                 if tiebroken_ranking is None or len(tiebroken_ranking) == 0:
-                    tiebroken_ranking = tiebreak_set(
-                        lowest_fpv_cands,
-                        self.get_profile(0),
-                        tiebreak="first_place",
-                        rng=self._rng,
-                    )
+                    if self.exact:
+                        tiebroken_ranking = self._tiebreak_exact_losers(lowest_fpv_cands)
+                    else:
+                        tiebroken_ranking = tiebreak_set(
+                            lowest_fpv_cands,
+                            self.get_profile(0),
+                            tiebreak="first_place",
+                            rng=self._rng,
+                        )
 
                 tiebreaks = {lowest_fpv_cands: tiebroken_ranking}
 
@@ -1138,9 +1294,10 @@ class IRV(STV):
         self,
         profile: RankProfile,
         quota: QuotaType | None = "droop",
-        tiebreak: TiebreakType | None = None,
+        tiebreak: BasicSTVTiebreak | None = None,
         *,
         rng_seed: Optional[int] = None,
+        exact: bool = False,
     ):
         """
         Initialize an IRV election.
@@ -1154,10 +1311,20 @@ class IRV(STV):
                 None, in which case a ValueError is raised if a tiebreak is
                 needed.
             rng_seed (int, optional)): Seed for random number generator. An integer seed produces
-            the same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+                the same output given identical inputs. By default, seed is None, which gives
+                non-deterministic results.
+            exact (bool): If True, preserve exact rational arithmetic for ballot weights, tallies,
+                thresholds, and tiebreak scores. IRV does not perform fractional surplus
+                reweighting. Defaults to False.
         """
-        super().__init__(profile, n_seats=1, quota=quota, tiebreak=tiebreak, rng_seed=rng_seed)
+        super().__init__(
+            profile,
+            n_seats=1,
+            quota=quota,
+            tiebreak=tiebreak,
+            rng_seed=rng_seed,
+            exact=exact,
+        )
 
 
 class SequentialRCV(STV):
@@ -1178,9 +1345,10 @@ class SequentialRCV(STV):
         n_seats: int | None = None,
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
-        tiebreak: TiebreakType | None = None,
+        tiebreak: BasicSTVTiebreak | None = None,
         *,
         rng_seed: Optional[int] = None,
+        exact: bool = False,
         **kwargs,
     ):
         """
@@ -1198,8 +1366,11 @@ class SequentialRCV(STV):
                 needed. Accepts "borda" and "random". Defaults to None, in which case a
                 ValueError is raised if a tiebreak is needed.
             rng_seed (int, optional): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+                same output given identical inputs. By default, seed is None, which gives
+                non-deterministic results.
+            exact (bool): If True, preserve exact rational arithmetic for ballot weights, tallies,
+                thresholds, and tiebreak scores. Sequential RCV removes winners without fractional
+                surplus reweighting. Defaults to False.
         """
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
         if "n_seats" in kwargs:
@@ -1211,7 +1382,7 @@ class SequentialRCV(STV):
 
         def _transfer(
             winner: Candidate,
-            _fpv: float,
+            _fpv: Numeric,
             ballots: Union[tuple[RankBallot], list[RankBallot]],
             _threshold: int,
         ) -> tuple[RankBallot, ...]:
@@ -1240,4 +1411,5 @@ class SequentialRCV(STV):
             simultaneous=simultaneous,
             tiebreak=tiebreak,
             rng_seed=rng_seed,
+            exact=exact,
         )

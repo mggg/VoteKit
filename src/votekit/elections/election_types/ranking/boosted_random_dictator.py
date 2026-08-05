@@ -92,7 +92,7 @@ class BoostedRandomDictator(RankingElection):
         elif u <= 1 / (len(remaining_cands) - 1):
             fpv = prev_state.scores
             candidates = list(fpv.keys())
-            weights: list[float] = list(fpv.values())
+            weights = [float(weight) for weight in fpv.values()]
             sq_weights = [float(x) ** 2 for x in weights]
             sq_wt_total = sum(sq_weights)
             sq_weights = [x / sq_wt_total for x in sq_weights]
@@ -102,7 +102,7 @@ class BoostedRandomDictator(RankingElection):
         else:
             fpv = prev_state.scores
             candidates = list(fpv.keys())
-            weights = list(fpv.values())
+            weights = [float(weight) for weight in fpv.values()]
             idx = self._rng.choices(range(len(candidates)), weights=weights, k=1)[0]
             winning_candidate = candidates[idx]
 

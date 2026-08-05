@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from votekit.types import Candidate
+from votekit.types import Candidate, CandidateNumericDict
 
 
 @dataclass
@@ -26,7 +26,7 @@ class ElectionState:
             tiebreak resolutions. Keys are frozensets of tied candidates and values are resolutions
             of tiebreak. Defaults to empty dictionary.
             Candidates can be strings, integers, or mix of both.
-        scores(dict[Candidate, float], optional): Stores score information.
+        scores (CandidateNumericDict, optional): Stores score information.
             Keys are candidates, values are scores. Only remaining candidates should be stored.
             Candidates can be strings, integers, or mix of both.
 
@@ -39,11 +39,13 @@ class ElectionState:
     tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = field(
         default_factory=dict
     )
-    scores: dict[Candidate, float] = field(default_factory=dict)
+    scores: CandidateNumericDict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """
-        Convert the ElectionState to a dictionary representation.
+        Convert the ElectionState to a Python dictionary representation.
+
+        Score values are returned unchanged and may not be JSON serializable.
         """
         return {
             "round_number": self.round_number,

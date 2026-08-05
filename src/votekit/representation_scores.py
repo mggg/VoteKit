@@ -53,7 +53,7 @@ def r_representation_score(
             cand_found = False
             for c in s:
                 if c in candidate_list:
-                    satisfied_voters += ballot.weight
+                    satisfied_voters += float(ballot.weight)
                     cand_found = True
                     break
             if cand_found:

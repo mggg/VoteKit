@@ -180,7 +180,7 @@ def do_ballot_probs_match_ballot_dist_rank_profile():
                 failed += 1
 
         # allow for small margin of error given confidence intereval
-        failure_thresold = round((1 - alpha) * n_ballots)
+        failure_thresold = round((1 - alpha) * float(n_ballots))
         return failed <= failure_thresold
 
     return _do_ballot_probs_match_ballot_dist_rank_profile
@@ -212,7 +212,7 @@ def do_ballot_probs_match_ballot_dist_score_profile():
                 failed += 1
 
         # allow for small margin of error given confidence intereval
-        failure_thresold = round((1 - alpha) * n_ballots)
+        failure_thresold = round((1 - alpha) * float(n_ballots))
         return failed <= failure_thresold
 
     return _do_ballot_probs_match_ballot_dist_score_profile

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from votekit.ballot import RankBallot
     from votekit.pref_profile import RankProfile, ScoreProfile
 
-from votekit.types import Candidate, CandidateFloatDict
+from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
     "#0099cd",
@@ -96,7 +96,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
             ballot_str = str(
                 RankBallot(
                     ranking=tuple(c_set for c_set in row if c_set != tilde),
-                    weight=float(w),
+                    weight=w,
                 )
             )
             raise ValueError(f"Ballot {ballot_str} has a tie for first.")
@@ -108,9 +108,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(
-            RankBallot(ranking=clean_ranking, weight=float(w), voter_set=voter_set)
-        )
+        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=w, voter_set=voter_set))
 
     return cand_dict
 
@@ -414,7 +412,7 @@ def mentions(
         else:
             for s in ballot.ranking:
                 for cand in s:
-                    mentions[cand] += ballot.weight
+                    mentions[cand] += float(ballot.weight)
     return mentions
 
 
@@ -601,14 +599,14 @@ def tiebroken_ranking(
 
 
 def score_dict_to_ranking(
-    score_dict: CandidateFloatDict,
+    score_dict: CandidateNumericDict,
     sort_high_low: bool = True,
 ) -> tuple[frozenset[Candidate], ...]:
     """
     Sorts candidates into a tuple of frozensets ranking based on a scoring dictionary.
 
     Args:
-        score_dict (dict[Candidate, float] | dict[str, float] | dict[int, float]):
+        score_dict (CandidateNumericDict):
             Dictionary between candidates and their score.
             Candidates can be strings, integers, or mix of both.
         sort_high_low (bool, optional): How to sort candidates based on scores. True sorts
@@ -620,7 +618,7 @@ def score_dict_to_ranking(
             Candidates can be strings, integers, or mix of both.
     """
 
-    score_to_cand: dict[float, list[Candidate]] = {s: [] for s in score_dict.values()}
+    score_to_cand: dict[Numeric, list[Candidate]] = {s: [] for s in score_dict.values()}
     for c, score in score_dict.items():
         score_to_cand[score].append(c)
 
@@ -743,7 +741,7 @@ def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
             if len(s) > 1:
                 new_ballots = [
                     RankBallot(
-                        weight=ballot.weight / math.factorial(len(s)),
+                        weight=float(ballot.weight) / math.factorial(len(s)),
                         voter_set=ballot.voter_set,
                         ranking=tuple(ballot.ranking[:i])
                         + tuple([frozenset({c}) for c in order])
@@ -834,7 +832,7 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
             raise TypeError("All ballots must have rankings.")
 
         length = len(ballot.ranking)
-        ballot_lengths[length] += ballot.weight
+        ballot_lengths[length] += float(ballot.weight)
 
     return ballot_lengths
 
