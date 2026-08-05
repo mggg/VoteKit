@@ -117,6 +117,10 @@ def _validate_ranking_query(ranking_query: Sequence[Candidate | tuple | set], pr
             Candidates can be strings, integers, or mix of both.
         ValueError: ranking_query must only contain candidates that exist in profile.
     """
+    if isinstance(ranking_query, str):
+        raise TypeError(
+            "ranking_query must be a sequence of candidates, not a string. Wrap in a list."
+        )
     if not isinstance(ranking_query, Sequence):
         raise TypeError("ranking_query must be a 'Sequence'. Wrap in a list.")
     for item in ranking_query:
@@ -204,6 +208,10 @@ def _validate_max_cand_pair_dist(max_cand_pair_dist: dict[tuple, int], profile: 
             raise ValueError(
                 f"max_cand_pair_dist key {cand_pair} contain candidate(s) not in the"
                 f" profile: {profile.candidates}."
+            )
+        if cand_pair[0] == cand_pair[1]:
+            raise ValueError(
+                f"max_cand_pair_dist key must be a tuple of unique candidates, not {cand_pair}."
             )
 
 
@@ -425,7 +433,7 @@ def _compare_adjacent_query_slots_ranks(
     query_slot_a_position_mask: np.ndarray,
     query_slot_b_position_mask: np.ndarray,
     ballots_mask: np.ndarray,
-    query_slot_a_start_where_indices: np.ndarray,
+    query_slot_a_start_rank_indices: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Returns ballots where query slot a appears strictly above query slot b.
@@ -444,10 +452,10 @@ def _compare_adjacent_query_slots_ranks(
             the profile's ballots.
         ballots_mask (np.ndarray): boolean mask with indices of ballots that fulfill the query
             constraints for all previous adjacent query slot comparisons.
-        query_slot_a_start_where_indices (np.ndarray): per ballot where indices into
-            query_slot_a_position_mask marking the earliest valid position to search for a.
-            Initialized to zeros (no constraints). Set from the previous comparison's b match
-            indices to enforce the full query order across adjacent slot pairs.
+        query_slot_a_start_rank_indices (np.ndarray): per ballot rank indices per ballot marking the
+            earliest valid position to search for a. Initialized to zeros (no constraints).
+            Set from the previous comparison's b match rank indices to enforce the full query order
+            across adjacent slot pairs.
 
     Returns:
         (tuple[np.ndarray, np.ndarray]): mask with all ballots that satisfy the query marked as True
@@ -459,19 +467,20 @@ def _compare_adjacent_query_slots_ranks(
     query_b_ballots = query_slot_b_position_mask.any(axis=1)
     ballots_mask = query_a_ballots & query_b_ballots & ballots_mask
     if not ballots_mask.any():
-        return ballots_mask, query_slot_a_start_where_indices
+        return ballots_mask, query_slot_a_start_rank_indices
 
     query_a_ballots, query_a_ranks = np.where(query_slot_a_position_mask & ballots_mask[:, None])
     query_b_ballots, query_b_ranks = np.where(query_slot_b_position_mask & ballots_mask[:, None])
     num_query_a_ballots, num_query_b_ballots = len(query_a_ballots), len(query_b_ballots)
     query_pair_ballots_mask = np.zeros(len(ballots_mask), dtype=bool)
     query_a_where_idx, query_b_where_idx = 0, 0
-    b_match_where_indices = np.zeros(len(ballots_mask), dtype=int)
+    b_match_rank_indices = np.zeros(len(ballots_mask), dtype=int)
     while query_a_where_idx < num_query_a_ballots and query_b_where_idx < num_query_b_ballots:
-        query_a_where_idx = max(
-            query_a_where_idx, query_slot_a_start_where_indices[query_a_ballots[query_a_where_idx]]
-        )
         a_ballot_idx = query_a_ballots[query_a_where_idx]
+        # shift the query_a_where_idx till at start rank index
+        if query_a_ranks[query_a_where_idx] < query_slot_a_start_rank_indices[a_ballot_idx]:
+            query_a_where_idx += 1
+            continue
         b_ballot_idx = query_b_ballots[query_b_where_idx]
 
         if a_ballot_idx < b_ballot_idx:
@@ -485,11 +494,11 @@ def _compare_adjacent_query_slots_ranks(
                 query_b_where_idx += 1
             else:
                 query_pair_ballots_mask[a_ballot_idx] = True
-                b_match_where_indices[a_ballot_idx] = query_b_where_idx
+                b_match_rank_indices[a_ballot_idx] = query_b_ranks[query_b_where_idx]
                 query_a_where_idx = _shift_idx_to_next_ballot(query_a_where_idx, query_a_ballots)
                 query_b_where_idx = _shift_idx_to_next_ballot(query_b_where_idx, query_b_ballots)
 
-    return query_pair_ballots_mask & ballots_mask, b_match_where_indices
+    return query_pair_ballots_mask & ballots_mask, b_match_rank_indices
 
 
 def _compare_query_ranks(
@@ -518,14 +527,14 @@ def _compare_query_ranks(
     if len(query_position_masks) < 2:
         return ballots_mask
 
-    query_slot_a_start_where_indices = np.zeros(len(ballots_mask), dtype=int)
+    query_slot_a_start_rank_indices = np.zeros(len(ballots_mask), dtype=int)
 
     for query_slot_idx in range(len(query_position_masks) - 1):
-        ballots_mask, query_slot_a_start_where_indices = _compare_adjacent_query_slots_ranks(
+        ballots_mask, query_slot_a_start_rank_indices = _compare_adjacent_query_slots_ranks(
             query_position_masks[query_slot_idx],
             query_position_masks[query_slot_idx + 1],
             ballots_mask,
-            query_slot_a_start_where_indices,
+            query_slot_a_start_rank_indices,
         )
         if not ballots_mask.any():
             return ballots_mask

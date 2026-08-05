@@ -203,6 +203,7 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings_for_multipl
     profile = RankProfile(
         ballots=(
             RankBallot(ranking=["B", "A", "C", "B"], weight=1.0),
+            RankBallot(ranking=["B", "A", "C"], weight=1.0),
             RankBallot(ranking=["B", "A", "B", "C"], weight=1.0),
         ),
         candidates=("A", "B", "C", "D"),
@@ -427,6 +428,12 @@ def test_search_with_non_rank_profile_raises_error():
 
 
 def test_validate_ranking_query_raises_errors():
+    str_ranking_query = "AB"
+    with pytest.raises(
+        TypeError, match="ranking_query must be a sequence of candidates, not a string."
+    ):
+        _validate_ranking_query(str_ranking_query, RankProfile())
+
     invalid_set = frozenset({"A"})
     with pytest.raises(
         TypeError,
@@ -505,6 +512,12 @@ def test_validate_max_cand_pair_dist_raises_errors():
 
     invalid_dict = {("X", "Y"): 0}
     with pytest.raises(ValueError, match=r"contain candidate\(s\) not in the profile"):
+        _validate_max_cand_pair_dist(invalid_dict, profile)
+
+    invalid_dict = {("A", "A"): 1}
+    with pytest.raises(
+        ValueError, match=r"max_cand_pair_dist key must be a tuple of unique candidates"
+    ):
         _validate_max_cand_pair_dist(invalid_dict, profile)
 
 
