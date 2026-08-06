@@ -1,10 +1,11 @@
 from functools import partial
-from typing import Callable, Union
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 
 from votekit.pref_profile import CleanedScoreProfile, ProfileError, ScoreProfile
+from votekit.types import Candidate, CandidateList
 
 
 def _iterate_and_clean_score_tuples(
@@ -139,7 +140,7 @@ def remove_cand_from_score_tuple(
 
 
 def remove_cand_score_profile(
-    removed: Union[str, list],
+    removed: Candidate | CandidateList,
     profile: ScoreProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
@@ -155,7 +156,8 @@ def remove_cand_score_profile(
     about which ballots were adjusted.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (Candidate | list[Candidate] | list[str] | list[int]): Candidate or list of
+            candidates to be removed. Candidates can be strings, integers, or mix of both.
         profile (ScoreProfile): Profile to remove candidates from.
         remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
             ranking or scores as a result of cleaning. Defaults to True.
@@ -172,7 +174,7 @@ def remove_cand_score_profile(
     Raises:
         ProfileError: Profile must only contain score ballots.
     """
-    if isinstance(removed, str):
+    if isinstance(removed, Candidate):
         removed = [removed]
     removed_idxs = [i for i, c in enumerate(profile.df.columns) if c in removed]
 

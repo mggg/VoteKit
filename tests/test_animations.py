@@ -1,5 +1,8 @@
 import shutil
 import subprocess
+import warnings
+from collections.abc import Mapping
+from fractions import Fraction
 from pathlib import Path
 from typing import Literal, Optional, cast
 
@@ -44,6 +47,32 @@ def election_happy():
 
 
 @pytest.fixture
+def election_mixed_collided_cands():
+    """
+    Profile contains candidates that have "collided" string and integer candidates
+    where the candidates are equivalent if cast to its pair type.
+
+    This will throw a warning to alert the user the profile has collided candidates.
+    STVAnimation will warn collided candidates may be indistinguishable on a plot.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        profile_mixed_collided_cands = RankProfile(
+            ballots=(
+                RankBallot(ranking=(1, 2), weight=3),
+                RankBallot(ranking=(1, 2, 3), weight=8),
+                RankBallot(ranking=(2, 3, 1), weight=1),
+                RankBallot(ranking=(2, "1"), weight=3),
+                RankBallot(ranking=("1", 3, 2), weight=1),
+                RankBallot(ranking=(2, 3), weight=4),
+                RankBallot(ranking=(3, 2, 1), weight=3),
+            ),
+            max_ranking_length=3,
+        )
+        return STV(profile_mixed_collided_cands, n_seats=3)
+
+
+@pytest.fixture
 def election_multi():
     """
     Election in which two candidates are simultaneously elected immediately.
@@ -74,6 +103,32 @@ def test_STVAnimation_init(election_happy):
     assert isinstance(animation.events, list)
     assert "Pear" in animation.candidate_dict.keys()
     assert animation.candidate_dict["Pear"]["support"] == 8
+
+
+def test_STVAnimation_exact_values_cross_float_boundary():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=({"A"}, {"B"}), weight=Fraction(4, 3)),
+            RankBallot(ranking=({"B"}, {"A"}), weight=Fraction(1, 3)),
+        )
+    )
+    animation = STVAnimation(STV(profile, exact=True), focus="all")
+
+    def leaf_values(mapping):
+        for value in mapping.values():
+            if isinstance(value, Mapping):
+                yield from leaf_values(value)
+            else:
+                yield value
+
+    assert all(
+        isinstance(candidate["support"], float) for candidate in animation.candidate_dict.values()
+    )
+    assert all(
+        isinstance(value, float)
+        for event in animation.events
+        for value in leaf_values(getattr(event, "support_transferred", {}))
+    )
 
 
 def test_STVAnimation_focus_bad_literal(election_happy):
@@ -110,6 +165,19 @@ def test_STVAnimation_focus_missing_winners_warns(election_happy):
     with pytest.warns(UserWarning, match="Missing winners"):
         # Focus only on a non-winner; winners should be added automatically.
         STVAnimation(election_happy, focus=["Orange"])
+
+
+def test_STVAnimation_mixed_collided_candidates_warns(election_mixed_collided_cands):
+    # election_mixed_collided_cands will throw a warning each time a new profile is made.
+    # This test checks that STVAnimation throws a more specific warning about plotting the collided
+    # candidates.
+    with pytest.warns(UserWarning) as warning_record:
+        STVAnimation(election_mixed_collided_cands, focus="all")
+    assert any(
+        "These will be treated as separate candidates, and will be indistinguishable"
+        in str(warn.message)
+        for warn in warning_record
+    )
 
 
 def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:

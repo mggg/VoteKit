@@ -22,7 +22,8 @@ class TestElection(Election):
                 assert ballot.ranking is not None
                 for s in ballot.ranking:
                     for c in s:
-                        score_dict[c] += "ABCDEF".index(c)
+                        if isinstance(c, str):
+                            score_dict[c] += "ABCDEF".index(c)
             return score_dict
 
         super().__init__(profile, score_function=score, sort_high_low=sort_high_low)
@@ -70,8 +71,8 @@ class TestElection(Election):
             new_state = ElectionState(
                 round_number=(prev_state.round_number + 1),
                 remaining=score_dict_to_ranking(scores, self.sort_high_low),
-                elected=tuple([frozenset(elected)]),
-                eliminated=tuple([frozenset(eliminated)]),
+                elected=tuple([frozenset({elected})]),
+                eliminated=tuple([frozenset({eliminated})]),
                 scores=scores,
             )
 

@@ -1,14 +1,15 @@
 import warnings
 from itertools import combinations
-from typing import Optional
+from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
 def r_representation_score(
     profile: RankProfile,
     r: int,
-    candidate_list: list[str],
+    candidate_list: Sequence[Candidate],
 ) -> float:
     """
     Compute the r-representation score for the given candidate set. This computes the share
@@ -20,7 +21,8 @@ def r_representation_score(
         r (int): Consider a voter represented if a member of the candidate_list is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
-        candidate_list (list[str]): List of candidates to consider.
+        candidate_list (Sequence[Candidate]): List of candidates to consider.
+            Candidates can be strings, integers, or mix of both.
 
     Returns:
         float: r-representation score for candidate_list in profile.
@@ -51,7 +53,7 @@ def r_representation_score(
             cand_found = False
             for c in s:
                 if c in candidate_list:
-                    satisfied_voters += ballot.weight
+                    satisfied_voters += float(ballot.weight)
                     cand_found = True
                     break
             if cand_found:
@@ -64,7 +66,7 @@ def winner_sets_r_representation_scores(
     profile: RankProfile,
     n_seats: int,
     r: int,
-    candidate_list: Optional[list[str]] = None,
+    candidate_list: Optional[Sequence[Candidate]] = None,
 ) -> dict[frozenset, float]:
     """
     Return r-representation score for all possible winner sets. This computes the share
@@ -77,7 +79,9 @@ def winner_sets_r_representation_scores(
         r (int): Consider a voter represented if a member of the candidate_set is in one of the top
             r positions of their ballot. Typical choices are 1, the number of seats, or the max
             ballot length.
-        candidate_list (list[str], optional): List of candidates to consider as possible winners.
+        candidate_list (Sequence[Candidate], optional):
+            List of candidates to consider as possible winners.
+            Candidates can be either strings, integers, or mix of both.
             Defaults to None, in which case all candidates who received at least one vote are used.
 
     Returns:

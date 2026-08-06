@@ -1,3 +1,4 @@
+import random
 from functools import partial
 from typing import Literal, Optional
 
@@ -22,6 +23,9 @@ class TopTwo(RankingElection):
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
             Only used by ``score_function`` parameter.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -30,8 +34,13 @@ class TopTwo(RankingElection):
         profile: RankProfile,
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        *,
+        rng_seed: Optional[int] = None,
     ):
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
+        self._plurality_r1_seed = self._rng.getrandbits(32)
+        self._plurality_r2_seed = self._rng.getrandbits(32)
         super().__init__(
             profile,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
@@ -63,7 +72,7 @@ class TopTwo(RankingElection):
             RankProfile: The profile of ballots after the round is completed.
         """
         if prev_state.round_number == 0:
-            plurality = Plurality(profile, 2, self.tiebreak)
+            plurality = Plurality(profile, 2, self.tiebreak, rng_seed=self._plurality_r1_seed)
 
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
@@ -91,7 +100,7 @@ class TopTwo(RankingElection):
                 self.election_states.append(new_state)
 
         else:
-            plurality = Plurality(profile, 1, self.tiebreak)
+            plurality = Plurality(profile, 1, self.tiebreak, rng_seed=self._plurality_r2_seed)
             new_profile = plurality.get_profile()
 
             if store_states:

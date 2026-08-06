@@ -27,6 +27,9 @@ class BlockPlurality(Election):
         scoring_tie_convention (Literal["high", "average", "low"], optional): How to award
             points for tied rankings. Only used when ``profile`` is a ``RankProfile``.
             Defaults to "low".
+        rng_seed (int, optional):  Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Raises:
         TypeError: If ``profile`` is not a ``RankProfile`` or ``ScoreProfile``.
@@ -39,6 +42,8 @@ class BlockPlurality(Election):
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ) -> None:
         # Never called; __new__ returns a different type.
@@ -52,6 +57,8 @@ class BlockPlurality(Election):
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ) -> _RankedBlockPlurality | _ScoreBlockPlurality:
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -68,6 +75,7 @@ class BlockPlurality(Election):
                 budget=budget,
                 tiebreak=tiebreak,
                 scoring_tie_convention=scoring_tie_convention,
+                rng_seed=rng_seed,
             )
         elif isinstance(profile, ScoreProfile):
             return _ScoreBlockPlurality(
@@ -75,6 +83,7 @@ class BlockPlurality(Election):
                 n_seats=n_seats,
                 budget=budget,
                 tiebreak=tiebreak,
+                rng_seed=rng_seed,
             )
         else:
             raise TypeError(

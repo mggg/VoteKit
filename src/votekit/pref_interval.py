@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-import types
+from types import MappingProxyType
+from typing import Optional, Sequence
 
 import numpy as np
+from numpy.random import Generator
+
+from votekit.types import Candidate
 
 
 def combine_preference_intervals(
@@ -75,7 +79,7 @@ class PreferenceInterval:
             allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
                 all candidates must have strictly positive support.
         """
-        self.interval = types.MappingProxyType(interval)
+        self.interval = MappingProxyType(interval)
         self.candidates = frozenset(self.interval.keys())
         self._allow_zero_support = allow_zero_support
 
@@ -84,7 +88,14 @@ class PreferenceInterval:
 
     @classmethod
     def from_dirichlet(
-        cls, candidates: list[str], alpha: float, *, allow_zero_support: bool = False
+        cls,
+        candidates: Sequence[Candidate],
+        alpha: float,
+        *,
+        allow_zero_support: bool = False,
+        sort_strengths_descending: bool = False,
+        rng_seed: Optional[int] = None,
+        numpy_rng: Optional[Generator] = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.
@@ -92,21 +103,48 @@ class PreferenceInterval:
         is all bets are off.
 
         Args:
-            candidates (list): List of candidate strings.
+            candidates (Sequence[Candidate]): List of candidates.
+                Candidates can be strings, integers, or mix of both.
             alpha (float): Alpha parameter for Dirichlet distribution.
             allow_zero_support (bool): If True, candidates with zero support are allowed. If False,
                 all candidates must have strictly positive support.
+            sort_strengths_descending (bool):
+                If True, the candidates are assigned their support values in descending order
+                according to the list passed to candidates.
+                If False, the candidates are assigned support values in random order.
+            rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
+            numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+                for reproducible results; defaults to None for non-deterministic results.
 
         Returns:
             PreferenceInterval
         """
-        probs = list(np.random.default_rng().dirichlet(alpha=[alpha] * len(candidates)))
+        if rng_seed is not None and numpy_rng is not None:
+            raise ValueError("Cannot give a rng_seed and rng. Choose one.")
+        if rng_seed is not None:
+            numpy_rng = np.random.default_rng(seed=rng_seed)
+        elif numpy_rng is not None:
+            numpy_rng = numpy_rng
+        else:
+            numpy_rng = np.random.default_rng()
+
+        probs = list(numpy_rng.dirichlet(alpha=[alpha] * len(candidates)))
 
         if not allow_zero_support:
             probs = [p + 10e-12 if p == 0 else p for p in probs]
 
+        pref_interval = (
+            {
+                cand: strength
+                for cand, strength in zip(candidates, sorted(probs, reverse=True), strict=True)
+            }
+            if sort_strengths_descending
+            else {cand: strength for cand, strength in zip(candidates, probs, strict=True)}
+        )
+
         return cls(
-            {c: s for c, s in zip(candidates, probs)},
+            pref_interval,
             allow_zero_support=allow_zero_support,
         )
 
@@ -135,7 +173,7 @@ class PreferenceInterval:
         """
         summ = sum(self.interval.values())
 
-        self.interval = types.MappingProxyType({c: s / summ for c, s in self.interval.items()})
+        self.interval = MappingProxyType({c: s / summ for c, s in self.interval.items()})
 
     def __eq__(self, other):
         if not isinstance(other, PreferenceInterval):

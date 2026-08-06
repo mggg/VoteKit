@@ -1,3 +1,4 @@
+import random
 from functools import partial
 from typing import Literal, Optional
 
@@ -31,6 +32,8 @@ class Plurality(RankingElection):
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -41,6 +44,7 @@ class Plurality(RankingElection):
         if n_seats is None:
             n_seats = 1
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
         super().__init__(
             profile,
             n_seats=n_seats,
@@ -78,7 +82,11 @@ class Plurality(RankingElection):
         # are ranked by fpv
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining, self.n_seats, profile=profile, tiebreak=self.tiebreak
+            prev_state.remaining,
+            self.n_seats,
+            profile=profile,
+            tiebreak=self.tiebreak,
+            rng=self._rng,
         )
 
         new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
@@ -117,6 +125,9 @@ class SNTV(Plurality):
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None, 'random', and 'borda'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -125,6 +136,8 @@ class SNTV(Plurality):
         profile: RankProfile,
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -134,4 +147,4 @@ class SNTV(Plurality):
             n_seats = kwargs.pop("n_seats")
         if n_seats is None:
             n_seats = 1
-        super().__init__(profile, n_seats, tiebreak)
+        super().__init__(profile, n_seats, tiebreak, rng_seed=rng_seed)

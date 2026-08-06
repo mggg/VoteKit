@@ -107,9 +107,31 @@ def test_clustered_spatial_generator():
         )
 
 
-def test_1D_completion():
+def test_1D_spatial_completion():
     profile = onedim_spacial_profile_generator(
         candidates=["W1", "W2", "C1", "C2"], number_of_ballots=100
+    )
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+
+def test_1D_spatial_completion_with_mixed_candidates():
+    profile = onedim_spacial_profile_generator(candidates=["W1", "W2", 1, 2], number_of_ballots=100)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+
+def test_clustered_spatial_completion_with_mixed_candidates():
+    profile, _, _ = clustered_spacial_profile_and_positions_generator(
+        candidates=["W1", "W2", 1, 2], number_of_ballots={"W1": 25, "W2": 25, 1: 25, 2: 25}
+    )
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+
+def test_spatial_completion_with_mixed_candidates():
+    profile, _, _ = spacial_profile_and_positions_generator(
+        candidates=["W1", "W2", 1, 2], number_of_ballots=100
     )
     assert type(profile) is RankProfile
     assert profile.total_ballot_wt == 100

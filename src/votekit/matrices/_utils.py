@@ -3,15 +3,23 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from votekit.types import Candidate
 
-def _convert_dict_to_matrix(data_dict: dict[str, dict[str, Any]]) -> np.ndarray:
+
+def _convert_dict_to_matrix(
+    data_dict: dict[Candidate, dict[Candidate, Any]]
+    | dict[str, dict[str, Any]]
+    | dict[int, dict[int, Any]],
+) -> np.ndarray:
     """
     Convert a nested dictionary to a numpy matrix with float entries.
     Will respect the order of the dictionaries.
 
     Args:
-      data_dict (dict[str, dict[str, Any]]): Top level keys are rows, bottom level keys are columns.
+      data_dict (dict[Candidate, dict[Candidate, Any]] | dict[str, dict[str, Any]]
+        | dict[int, dict[int, Any]]): Top level keys are rows, bottom level keys are columns.
         Values must be convertable to float.
+        Candidates can be strings, integers, or mix of both.
 
     Returns
       np.ndarray: Matrix representing data in dictionary.

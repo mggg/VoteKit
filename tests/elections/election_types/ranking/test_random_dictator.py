@@ -8,10 +8,11 @@ from joblib import Parallel, delayed
 from votekit.ballot import RankBallot
 from votekit.elections import RandomDictator
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import first_place_votes
 
 
-def run_election_once(test_profile: RankProfile, seed: int) -> str:
+def run_election_once(test_profile: RankProfile, seed: int) -> Candidate:
     """Run one election and return the winner."""
     random.seed(seed)
     np.random.seed(seed)

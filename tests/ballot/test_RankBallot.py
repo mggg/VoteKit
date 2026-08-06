@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import pytest
 
 from votekit.ballot import Ballot, RankBallot
@@ -66,6 +68,22 @@ def test_ballot_hash():
 def test_ballot_coerce_wt_to_float():
     assert isinstance(RankBallot(weight=3).weight, float)
     assert isinstance(RankBallot(weight=3.2).weight, float)
+
+
+def test_ballot_preserves_fraction_weight():
+    weight = Fraction(1, 3)
+    ballot = RankBallot(ranking=({"A"},), weight=weight)
+    rational_half = RankBallot(ranking=({"A"},), weight=Fraction(1, 2))
+    float_half = RankBallot(ranking=({"A"},), weight=0.5)
+
+    assert ballot.weight is weight
+    assert rational_half == float_half
+    assert hash(rational_half) == hash(float_half)
+
+
+def test_ballot_rejects_negative_fraction_weight():
+    with pytest.raises(ValueError, match="Ballot weight cannot be negative"):
+        RankBallot(ranking=({"A"},), weight=Fraction(-1, 3))
 
 
 def test_ballot_strip_whitespace():
@@ -148,3 +166,90 @@ def test_rank_sub_ballot():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         RankBallot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_single_char_str_ranking_raises_type_error():
+    with pytest.raises(
+        TypeError, match="If you intended this to be a bullet vote, then wrap it in a list."
+    ):
+        RankBallot(ranking="A")
+
+
+def test_mult_char_str_ranking_raises_type_error():
+    """
+    Regression test: Ties should be indicated by wrapping tied candidates in an iterable.
+    Previously, a string ranking would be accepted and split str elements into a tie.
+    This is not the intended behavior, and we want to raise a TypeError instead.
+    """
+    with pytest.raises(
+        TypeError, match="If you intended this to be a bullet vote, then wrap it in a list."
+    ):
+        RankBallot(ranking="AB")
+
+
+def test_str_singleton_ranking_elements():
+    b = RankBallot(ranking=["A", "B", "C"], weight=1, voter_set={"A"})
+    assert b.ranking == (frozenset({"A"}), frozenset({"B"}), frozenset({"C"}))
+
+
+def test_mixed_str_and_iterable_ranking_elements():
+    b = RankBallot(ranking=["A", {"B", "C"}, "D", {"E"}], weight=1, voter_set={"A"})
+    assert b.ranking == (
+        frozenset({"A"}),
+        frozenset({"B", "C"}),
+        frozenset({"D"}),
+        frozenset({"E"}),
+    )
+
+
+def test_mixed_str_int_candidates_ballot():
+    b = RankBallot(ranking=["A", {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})
+    assert b.ranking == (
+        frozenset({"A"}),
+        frozenset({"B", 1}),
+        frozenset({"D"}),
+        frozenset({2}),
+        frozenset({3}),
+    )
+
+
+def test_equivalent_str_int_candidates_gives_warning():
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        b = RankBallot(ranking=[1, "1"])
+    assert b.ranking == (frozenset({1}), frozenset({"1"}))
+
+
+def test_invalid_bare_candidate_type_ballot():
+    with pytest.raises(
+        TypeError, match="Ranking is a sequence of Iterables or bare str/int candidates."
+    ):
+        RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_invalid_wrapped_candidate_type_ballot():
+    with pytest.raises(
+        TypeError, match=r"Non-string/integer candidate\(s\) found in RankBallot.ranking"
+    ):
+        RankBallot(ranking=[{1.5}, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_negative_integer_candidate_ballot():
+    with pytest.raises(
+        ValueError, match=r"Negative integer candidate\(s\) found in RankBallot.ranking"
+    ):
+        RankBallot(ranking=["A", {"B", -1}, "D", {2}, 3], weight=1, voter_set={"A"})
+
+
+def test_non_sequence_ranking_ballot_raises_error():
+    with pytest.raises(TypeError, match="ranking must be a Sequence with a guaranteed order."):
+        RankBallot(ranking={4, 3, 2, 1}, weight=1, voter_set={"A"})  # type: ignore[arg-type]
+
+
+def test_bool_candidate_ballot_raises_error():
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in RankBallot.ranking"):
+        RankBallot(ranking=[1, {True}], weight=1, voter_set={"A"})
+
+
+def test_colon_char_in_candidate_ballot_raises_error():
+    with pytest.raises(ValueError, match="':' found in RankBallot.ranking"):
+        RankBallot(ranking=[{"A:B"}], weight=1, voter_set={"A"})

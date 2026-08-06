@@ -28,7 +28,7 @@ def remove_cand_score_ballot(
 
     new_ballot = ScoreBallot(
         scores=scores if scores != dict() else None,
-        weight=ballot.weight,
+        weight=float(ballot.weight),
         voter_set=ballot.voter_set,
     )
 

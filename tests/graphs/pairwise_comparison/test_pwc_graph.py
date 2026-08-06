@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import cast
 
@@ -117,6 +118,25 @@ def test_draw_pwcg_non_candidate_error():
         match="Invalid candidates found:",
     ):
         pwcg.draw(candidate_list=["A", "B", "Chris"])
+
+
+def test_draw_pwcg_collided_candidates_warning():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        profile = RankProfile(
+            ballots=(
+                RankBallot(ranking=tuple(map(frozenset, ({1}, {2}, {3}))), weight=2),
+                RankBallot(ranking=tuple(map(frozenset, ({2}, {"1"}, {3}))), weight=2),
+                RankBallot(ranking=tuple(map(frozenset, ({3}, {2}, {1}))), weight=1),
+            ),
+        )
+        pwcg = PairwiseComparisonGraph(profile)
+
+        with pytest.warns(
+            UserWarning,
+            match="These will be treated as separate candidates, and will be indistinguishable",
+        ):
+            pwcg.draw()
 
 
 def test_strict_condorcet_cycles():

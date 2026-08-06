@@ -16,6 +16,9 @@ class Approval(GeneralRating):
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -24,6 +27,8 @@ class Approval(GeneralRating):
         profile: ScoreProfile,
         n_seats: int | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -34,4 +39,6 @@ class Approval(GeneralRating):
         if n_seats is None:
             n_seats = 1
         # limit one per candidate,  but no total budget limit
-        super().__init__(profile, n_seats=n_seats, per_candidate_limit=1, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=n_seats, per_candidate_limit=1, tiebreak=tiebreak, rng_seed=rng_seed
+        )

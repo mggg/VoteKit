@@ -22,6 +22,9 @@ class _RankedBlockPlurality(Borda):
         scoring_tie_convention (Literal["high", "average", "low"], optional): How to award
             points for tied rankings. Defaults to "low", where candidates tied for a position
             receive the lowest possible points for that position. See :class:`Borda` for details.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Raises:
         ValueError: If ``budget`` exceeds ``profile.max_ranking_length``.
@@ -34,6 +37,8 @@ class _RankedBlockPlurality(Borda):
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
+        *,
+        rng_seed: Optional[int] = None,
     ):
         if budget is None or budget == 0:
             budget = n_seats
@@ -50,4 +55,5 @@ class _RankedBlockPlurality(Borda):
             score_vector=score_vector,
             tiebreak=tiebreak,
             scoring_tie_convention=scoring_tie_convention,
+            rng_seed=rng_seed,
         )

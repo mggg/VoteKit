@@ -14,14 +14,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 
 
+## [3.5.0] - 2026-08-06
+
+## Added
+
+- `sum_profiles` utility to sum a list of profile of `RankProfile` or `ScoreProfile`
+  objects. (PR #369)
+- `search_profile_for_rank_pattern` queries rank profiles for strict ranking orders and
+  candidate pair clones within a certain distance. `include_unranked` flag treats
+  unranked candidates as tied last. (PR #373)
+- `sort_candidates_pseudo_lexicographically` sorts integer and string candidates
+  canonically by numeric value or ASCII order. (PR #370)
+- `sort_strengths_descending` parameter added to `PreferenceInterval.from_dirichlet`
+  assigns preference strengths in descending order to the `candidates` list when True.
+- `rng_seed` parameter added to all public APIs with randomness. Pass an integer for
+  reproducible results or `None` for non-deterministic. (PR #375)
+- `STV`, `IRV`, and `SequentialRCV` support opt-in exact rational arithmetic with `exact=True`
+  and `fractions.Fraction` ballot weights, part of the broader rational support tracked in
+  issue #358. Exact mode includes Borda and first-place tiebreak scoring and permits custom
+  transfer methods, which are responsible for preserving exact weights. `FastSTV` and the other
+  numpy-based classes remain on their existing numeric paths.
+
+## Changed
+
+- `RankBallot` accepts bare singleton values in `ranking` (no need to wrap single
+  candidates in an iterable). (PR #368)
+- `Ballot`, `PreferenceProfile`, and `BlocSlateConfig` classes accept integer and/or
+  string candidates. Ballot generators, election methods, plots, and utilities are
+  updated accordingly. A `UserWarning` is raised when a string/integer candidate pair
+  would collide if cast (e.g. `"1"` and `1`), and a separate `UserWarning` is raised
+  in plots when two candidates are indistinguishable as strings. (PR #370)
+- `PreferenceProfile.to_csv` updated to v2 format to support integer candidates.
+  Candidates encoded as `name:type:id`. Old format CSVs remain readable via
+  `PreferenceProfile.from_csv`, which casts candidates to their labeled types in v2
+  files. (PR #370)
+- `":"` is not allowed within candidate names due to breaking
+  `PreferenceProfile.from_csv`. (PR #370)
+- Internal `RankProfile` and `ScoreProfile` DataFrames (`_df`) store candidate sets
+  and candidates as their integer IDs. `candidate_id_map` and `id_candidate_map`
+  attributes are added. Public `df` property translates back to original candidate
+  names. (PR #370)
+- Randomly sampled sets are now canonically ordered, ensuring results are stable
+  across processes regardless of `PYTHONHASHSEED`. (PR #375)
+
+## Fixed
+
+- Issues #326, #331, #347, #353, #357, #359,
+
 ## [3.4.0] - 2026-04-08
 
 ## Added
+
 - New election methods:
-    - `SimultaneousVeto`, which supports `'first_place'`, `'uniform'`, `'borda'`, and `'harmonic'` candidate weighting schemes. (PR #333)
-    - `SerialVeto`, a variant of `PluralityVeto`. Both are now subclasses of a shared `SequentialVeto` base class. (PR #325)
-    - `Schulze`, implementing the Schulze/beatpath method. (PR #320, closes #318)
-    - `AlbanySTV`, `FastIRV`, and `FastSequentialRCV`, built on the new `NumpyInnerSTV` abstract base class. (PR #249)
+  - `SimultaneousVeto`, which supports `'first_place'`, `'uniform'`, `'borda'`, and `'harmonic'` candidate weighting schemes. (PR #333)
+  - `SerialVeto`, a variant of `PluralityVeto`. Both are now subclasses of a shared `SequentialVeto` base class. (PR #325)
+  - `Schulze`, implementing the Schulze/beatpath method. (PR #320, closes #318)
+  - `AlbanySTV`, `FastIRV`, and `FastSequentialRCV`, built on the new `NumpyInnerSTV` abstract base class. (PR #249)
 - `STVAnimation`, a new module for visualizing STV elections as animations via the optional `manim` dependency.
   Supports light/dark mode, custom color palettes, candidate nicknames, and inline notebook rendering. (PR #249)
 - A `strict` parameter to `PairwiseComparisonGraph.get_condorcet_cycles` for detecting strict Condorcet cycles. (PR #330, closes #327)
@@ -30,12 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `go-task` task runner and updated contributing guide. (PR #342, closes #277)
 
 ## Changed
+
 - Renamed the `m` parameter to `n_seats` in all election classes and in `r_representation_score`.
   Old names still accepted via `**kwargs` with a `DeprecationWarning`. (PR #355)
 - Renamed `BlocPlurality` to `BlockPlurality`. `BlocPlurality` still works but is now deprecated. (PR #355)
 - Renamed parameters in the score election classes (old names still accepted with deprecation warnings): (PR #355)
-    - `GeneralRating`: `m` → `n_seats`, `k` → `per_candidate_limit`, and added `budget`.
-    - `Cumulative` and `Limited`: `m` → `n_seats`, `k` → `budget`.
+  - `GeneralRating`: `m` → `n_seats`, `k` → `per_candidate_limit`, and added `budget`.
+  - `Cumulative` and `Limited`: `m` → `n_seats`, `k` → `budget`.
 - Overhauled `PluralityVeto`: `tiebreak=None` is no longer accepted (default `'first_place'`,
   backup `'lex'`), added a `tiebreak_order` attribute, ~50-60x faster for deterministic
   tiebreaks, and unranked candidates are now eligible to be vetoed. (PR #325)
@@ -55,63 +104,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests now run in parallel via `pytest-xdist` (`-n auto`).
 
 ## Fixed
+
 - Issues #309, #325, #334, #338, #339, #348, #350, #351, #356
 
 ## [3.3.1] - 2025-11-24
+
 ## Added
 
-## Changed 
+## Changed
+
 - implemented speed improvements to sBT, sPL, and CS
 - refactored ballot generator tests
 
 ## Fixed
+
 - fixed a floating point error in STV transfers (#311)
 - fixed a cohesion issue in Cambridge sampler (#313)
 
 ## [3.3.0] - 2025-10-02
+
 ## Added
+
 - Created a `BlocSlateConfig` class for ballot generators. This validates that all of the inputs to a ballot generator are valid.
 - `FastSTV`, a new implementation of the `STV` class that relies more heavily on numpy and should be faster.
 - `RankBallot` and `RankProfile`, and `ScoreBallot` and `ScoreProfile`, now allowing us to distinguish between the two types of input. The old
-`PreferenceProfile` and `Ballot` constructors still work and create instances of `Rank` and `Score` for you.
+  `PreferenceProfile` and `Ballot` constructors still work and create instances of `Rank` and `Score` for you.
 - `RankedPairs`, `StarVoting` and `OpenList`, all new election methods.
 
-## Changed 
+## Changed
+
 - refactored the codebase to use the new updates.
 - deprecated the ballot generator classes in favor of functions.
 - `PreferenceProfile` and cvr imports can now use urls.
 
 ## Fixed
+
 - Issues 252, 229, 258, 248, 164, 205, 269, 233, 169, 285, 282, 238, 303, 302
 
-
 ## [3.2.2] - 2025-07-02
+
 ## Added
 
-## Changed 
+## Changed
 
 ## Fixed
+
 - fixed an error with the `STV` class. In edge cases where not enough candidates receive votes to pass threshold, the class was not properly counting the number of remaining candidates.
 
-
-
 ## [3.2.1] - 2025-06-17
+
 ## Added
 
-## Changed 
+## Changed
+
 - removed the `PreferenceProfile` warning raised when `max_ranking_length>0` but no rankings provided.
-We have decided an empty profile can still have positive max ranking length.
+  We have decided an empty profile can still have positive max ranking length.
 
 ## Fixed
+
 - fixed an error raised by an empty ranking of `~` symbols being passed to `utils.ballots_by_first_cand` .
 
 ## [3.2.0] - 2025-06-13
+
 ## Added
+
 - created a `PreferenceProfile.df` attribute that is a pandas `DataFrame` representation of the profile. The df is in bijection with the profile, and using the df allows for great speed improvements throughout the codebase.
 - a new tutorial notebook replicating the Portland, OR election case study.
 - added a `to_pickle` and `from_pickle` method to `PreferenceProfile`.
 
-## Changed 
+## Changed
+
 - separated the computation of the pairwise comparison dictionary from the pairwise comparison graph.
 - renamed `dominating_tiers` method of pairwise comparison graph to `get_dominating_tiers`.
 - renamed `cleaning.deduplicate_profile` to `cleaning.remove_repeated_candidates`.
@@ -123,26 +185,30 @@ We have decided an empty profile can still have positive max ranking length.
 - altered the various plotting functions for profiles, now in the `plots.profiles` module.
 
 ## Fixed
+
 - `PreferenceProfile.group_ballots()` now also groups the `voter_set` attribute of ballots.
 
 ## [3.1.0] - 2025-03-03
+
 ## Added
+
 - added support for three types of averaging conventions within `score_profile_from_rankings`: average,
-low, and high.
+  low, and high.
 - r-representation scores: compute how "satisfied" voters are with a given winners set.
 - matrices: create three kinds of matrices based on profiles: boost, mentions, and average distance. Accompanying heatmap
-code that plots them.
+  code that plots them.
 - support for Python 3.12, 3.13
 - contributing guidelines and community resources to our docs.
 
-## Changed 
+## Changed
+
 - changed the default Borda scoring to use low averaging, where tied rankings receive the lowest possible
-points
+  points
 - changed the sampling method for `boosted_random_dictator` and `random_dictator` to more clearly
-use the first place votes distribution
+  use the first place votes distribution
 - changed the structure of `plot_summary_stats`. Is now split into many functions, all called
-`profile_STAT_plot` or `multi_profile_STAT_plot`, where `STAT` can be `fpv`, `borda`, `mentions`, 
-and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plot` functions.
+  `profile_STAT_plot` or `multi_profile_STAT_plot`, where `STAT` can be `fpv`, `borda`, `mentions`,
+  and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plot` functions.
 - removed support for Python 3.9.
 
 ## Fixed
@@ -150,6 +216,7 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 ## [3.0.0] - 2024-08-15
 
 ## Added
+
 - The election methods thanks to @kevin-q2. The newest election methods are `PluralityVeto`,
   `RandomDictator`, and `BoostedRandomDictator`.
 - More comprehensive tests for the `Ballot` class.
@@ -158,76 +225,78 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 - Tests for potential errors in the `BallotGenerator` classes.
 
 ## Changed
+
 - Moved the following election methods to sorted folders in `src/votekit/elections/election_types`:
-    - `approval`
-        - `Approval`
-        - `BlockPlurality`
-    - `ranking`
-        - `RankingElection`
-        - `Alaska`
-        - `BoostedRandomDictator`
-        - `Borda`
-        - `CondoBorda`
-        - `DominatingSets`
-        - `PluralityVeto`
-        - `Plurality`
-        - `SNTV`
-        - `RandomDictator`
-    - `scores`
-        - `GeneralRating`
-        - `Limited`
-        - `Rating`
-        - `Cumulative`
+  - `approval`
+    - `Approval`
+    - `BlockPlurality`
+  - `ranking`
+    - `RankingElection`
+    - `Alaska`
+    - `BoostedRandomDictator`
+    - `Borda`
+    - `CondoBorda`
+    - `DominatingSets`
+    - `PluralityVeto`
+    - `Plurality`
+    - `SNTV`
+    - `RandomDictator`
+  - `scores`
+    - `GeneralRating`
+    - `Limited`
+    - `Rating`
+    - `Cumulative`
 
 - Updated / added the following methods to `src/votekit/utils.py`:
-    - `ballots_by_first_cand`
-    - `remove_cand`
-    - `add_missing_cands`
-    - `validate_score_vector`
-    - `score_profile`
-    - `first_place_votes`
-    - `mentions`
-    - `borda_scores`
-    - `tie_broken_ranking`
-    - `score_dict_to_ranking`
-    - `elect_cands_from_set_ranking`
-    - `expand_tied_ballot`
-    - `resolve_profile_ties`
+  - `ballots_by_first_cand`
+  - `remove_cand`
+  - `add_missing_cands`
+  - `validate_score_vector`
+  - `score_profile`
+  - `first_place_votes`
+  - `mentions`
+  - `borda_scores`
+  - `tie_broken_ranking`
+  - `score_dict_to_ranking`
+  - `elect_cands_from_set_ranking`
+  - `expand_tied_ballot`
+  - `resolve_profile_ties`
 
 - Changed the way that the `ElectionState` class operates. It now operates as a dataclass
-    storing the following data:
-    - `round_number`: The round number of the election.
-    - `remaining`: The remaining candidates in the election that have not been elected.
-    - `elected`: The set of candidates that have been elected.
-    - `eliminated`: The set of candidates that have been eliminated.
-    - `tiebreak_winners`: The set of candidates that were elected due to a tiebreak within a round.
-    - `scores`: The scores for each candidate in the election.
+  storing the following data:
+  - `round_number`: The round number of the election.
+  - `remaining`: The remaining candidates in the election that have not been elected.
+  - `elected`: The set of candidates that have been elected.
+  - `eliminated`: The set of candidates that have been eliminated.
+  - `tiebreak_winners`: The set of candidates that were elected due to a tiebreak within a round.
+  - `scores`: The scores for each candidate in the election.
 
 - The `PreferenceProfile` class is now a frozen dataclass with the idea being that, once the
-    ballots and candidates for an election have been set, they should not be changed.
-    - Several validators have also been added to the `PreferenceProfile` class to ensure that
-        the ballots and candidates are valid.
+  ballots and candidates for an election have been set, they should not be changed.
+  - Several validators have also been added to the `PreferenceProfile` class to ensure that
+    the ballots and candidates are valid.
 
-- Updated all documentation to reflect major changes in the API of the package. 
-
+- Updated all documentation to reflect major changes in the API of the package.
 
 ## Fixed
 
-
-
 ## [2.0.1] - 2024-06-11
+
 ## Added
+
 - Created a read the docs page.
 - Add `scale` parameter to `ballot_graph.draw()` to allow for easier reading of text labels.
 - Allow users to choose which bloc is W/C in historical Cambridge data for CambridgeSampler.
 
 ## Changed
+
 - Updated tutorial notebooks; larger focus on slate models, updated notebooks to match current codebase.
 - Removed the seq-RCV transfer rule since it is a dummy function, replaced with lambda function.
 - Update plot MDS to have aspect ratio 1, remove axes labels since they are meaningless in MDS.
 - Update all BLT files in scot-elex repo to be true CSV files, updated `load_scottish` accordingly.
 
 ## Fixed
+
 - Fixed bug by which slate-PlackettLuce could not generate ballots when some candidate had 0 support.
 - Updated various functions in the ballot generator module to only generate ballots for non-zero candidates.
 - Fixed one bloc s-BT pdf, which was incorrectly giving 0 weight to all ballot types.
@@ -235,6 +304,7 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 ## [2.0.0] - 2024-03-04
 
 ## Added
+
 - A `PreferenceInterval` class.
 - MCMC sampling for both `BradleyTerry` ballot generators.
 - Add print statement to `BallotGraph` so that when you draw the graph without labels, it prints a dictionary of candidate labels for you.
@@ -250,10 +320,11 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 - Wrote an `__add__` method for `PreferenceProfile` that combines the ballot lists of two profiles.
 - Created utility functions to compute the winners of a profile given a score vector, as well as to validate a score vector (non-negative and non-increasing).
 - Created a `shortPlackettLuce` class which allows you to generate ballots of arbitrary length in the style of PL.
-- Added tests for  `__add__` method of `PreferenceProfile`.
+- Added tests for `__add__` method of `PreferenceProfile`.
 - Added `SlatePreference` model and tests.
 
 ## Changed
+
 - Change the way the `condense_ballots()` method works in profiles. Rather than altering the original profile, it returns a new profile. This gives users the option to preserve the original profile.
 
 - Alter `STV` class so that the remaining candidates are always listed in order of current first place votes.
@@ -269,6 +340,7 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 - MDS plot functionality, splitting it into `compute_MDS` which computes the coordinates, and `plot_MDS` which plots them. Made because the computation is the most time intensive.
 
 ## Fixed
+
 - Fixed an error in the `PreferenceProfile` tail method.
 
 - Errors in bloc labeling in `CambridgeSampler`.
@@ -280,11 +352,11 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 - Added `to_dict()`, `to_json()` functions for `ElectionState` (107).
 - Scores attribute to `ElectionState` (113).
 - Post init to `Ballots`, handles conversion from float/int types to Fraction (113).
-- `_rename_blocs` method to `CambridgeSampler` to rename blocs to historical names. 
+- `_rename_blocs` method to `CambridgeSampler` to rename blocs to historical names.
 - Added `reset` and `run_to_step` methods to `Election` class (116).
 - `sort_by_weight` parameter to `head` and `tail` methods of `PreferenceProfile` (115).
-- `received_votes` parameter to `get_candidates` method of `PreferenceProfile`. If True, only return 
-    candidates that received votes (115).
+- `received_votes` parameter to `get_candidates` method of `PreferenceProfile`. If True, only return
+  candidates that received votes (115).
 - `__str__` method for `Ballot` (114).
 - Social choice theory documentation (112).
 
@@ -306,13 +378,11 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 - `Ballot` object can take floats and ints as weights (114).
 - `Ballot` attribute `voter` changed to `voter_set` (114).
 
-
 ## Fixed
 
 - Multiple winners correctly ordered based off previous rounds vote totals (113)
 - `CambridgeSampler` correctly computes the frequency of opposing bloc ballots.
 - `PreferenceProfile` no longer rounds all weights to integer when printing (114).
-
 
 ## [1.0.2] - 2023-09-09
 
@@ -324,7 +394,6 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 
 - Lowered pandas version requirements for wider compatibility
 
-
 ## [1.0.1] - 2023-09-03
 
 ### Added
@@ -335,7 +404,6 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 ### Changed
 
 - Renamed CVR loaders to load_csv and load_blt
-
 
 ## [1.0.0] - 2023-09-01
 
@@ -353,7 +421,6 @@ and `ballot_lengths`. Built on top of more general `bar_plot` and `multi_bar_plo
 ### Changed
 
 - Optimization for election helper functions
-
 
 [unreleased]: https://github.com/mggg/VoteKit
 [1.1.0]: https://github.com/mggg/VoteKit/releases/tag/v1.1.0

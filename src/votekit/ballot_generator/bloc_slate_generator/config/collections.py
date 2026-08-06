@@ -1,5 +1,7 @@
 """Mutable collection wrappers used by BlocSlateConfig."""
 
+from __future__ import annotations
+
 import operator
 import weakref
 from collections.abc import (
@@ -34,6 +36,8 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     convert_bloc_proportion_map_to_series,
     typecheck_bloc_proportion_mapping,
 )
+from votekit.types import Candidate
+from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
 if TYPE_CHECKING:
     from votekit.ballot_generator.bloc_slate_generator.config.core import (
@@ -41,7 +45,7 @@ if TYPE_CHECKING:
     )
 
 
-class _CandListProxy(MutableSequence[str]):
+class _CandListProxy(MutableSequence[Candidate]):
     """
     A proxy for a list of candidates in a slate.
 
@@ -62,35 +66,49 @@ class _CandListProxy(MutableSequence[str]):
         return len(self.__owner._data[self.__key])
 
     @overload
-    def __getitem__(self, index: SupportsIndex) -> str: ...
+    def __getitem__(self, index: SupportsIndex) -> Candidate: ...
 
     @overload
-    def __getitem__(self, index: slice) -> MutableSequence[str]: ...
+    def __getitem__(self, index: slice) -> MutableSequence[Candidate]: ...
 
-    def __getitem__(self, index: Union[SupportsIndex, slice]) -> Union[str, MutableSequence[str]]:
+    def __getitem__(
+        self, index: Union[SupportsIndex, slice]
+    ) -> Union[Candidate, MutableSequence[Candidate]]:
         data = self.__owner._data[self.__key]
         if isinstance(index, slice):
             return data[index]
         return data[operator.index(index)]
 
     @overload
-    def __setitem__(self, index: SupportsIndex, value: str) -> None: ...
+    def __setitem__(self, index: SupportsIndex, value: Candidate) -> None: ...
 
     @overload
-    def __setitem__(self, index: slice, value: Iterable[str]) -> None: ...
+    def __setitem__(self, index: slice, value: Iterable[Candidate]) -> None: ...
 
     def __setitem__(
         self,
         index: Union[SupportsIndex, slice],
-        value: Union[str, Iterable[str]],
+        value: Union[Candidate, Iterable[Candidate]],
     ) -> None:
         new = list(self.__owner._data[self.__key])
         if isinstance(index, slice):  # pragma: no cover
-            if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
-                raise TypeError("Slice assignment requires an iterable of str")
-            new[index] = [str(x) for x in value]
+            if isinstance(value, (Candidate, bytes)) or not isinstance(value, Iterable):
+                raise TypeError("Slice assignment requires an iterable of str and/or int")
+            _validate_candidate_names(
+                list(value),
+                self.__owner._parent,
+                f'slate_to_candidates["{self.__key}"]',
+            )
+            new[index] = [x for x in value]
         else:
-            new[operator.index(index)] = str(value)
+            _validate_candidate_names(
+                [value]
+                if isinstance(value, Candidate) or not isinstance(value, Iterable)
+                else value,
+                self.__owner._parent,
+                f'slate_to_candidates["{self.__key}"]',
+            )
+            new[operator.index(index)] = value
         self.__owner[self.__key] = new
 
     @overload
@@ -107,34 +125,36 @@ class _CandListProxy(MutableSequence[str]):
             del new[operator.index(index)]
         self.__owner[self.__key] = new
 
-    def _current(self) -> list[str]:
+    def _current(self) -> list[Candidate]:
         return list(self.__owner._data[self.__key])
 
-    def insert(self, index: SupportsIndex, value: str) -> None:
+    def insert(self, index: SupportsIndex, value: Candidate) -> None:
         """
         Inserts candidate value at index if not already present.
 
         Args:
             index (SupportsIndex): The index at which to insert the candidate.
-            value (str): The candidate name to insert.
+            value (Candidate): The candidate name to insert.
+                Candidate can be string or integer.
         """
-        if not isinstance(cast(object, value), str):
-            raise TypeError("Slate candidates must be a 'str'")
+        if not isinstance(cast(object, value), Candidate):
+            raise TypeError("Slate candidates must be a 'str' or 'int'")
         try:
             int_index = operator.index(index)
         except TypeError:
             raise TypeError("Index must be an 'int'")
         new = list(self.__owner._data[self.__key])
         if value not in new:
-            new.insert(int_index, str(value))
+            new.insert(int_index, value)
         self.__owner[self.__key] = new
 
-    def extend(self, values: Iterable[str]) -> None:
+    def extend(self, values: Iterable[Candidate]) -> None:
         """
         Extend the candidate list by appending elements from the iterable.
 
         Args:
-            values (Iterable[str]): An iterable of candidate names to append.
+            values (Iterable[Candidate]): An iterable of candidate names to append.
+                Candidates can be strings, integers, or mix of both.
         """
         rollback = self._current().copy()
         try:
@@ -145,23 +165,23 @@ class _CandListProxy(MutableSequence[str]):
             self.__owner[self.__key] = rollback
             raise e
 
-    def __iadd__(self, values: Iterable[str]) -> Self:
+    def __iadd__(self, values: Iterable[Candidate]) -> Self:
         self.extend(values)
         return self
 
-    def append(self, value: str) -> None:
+    def append(self, value: Candidate) -> None:
         """
         Append candidate value to the end of the list if not already present.
 
         Args:
-            value (str): The candidate name to append.
+            value (Candidate): The candidate name to append.
+                Candidate can be strings, integers, or mix of both.
         """
         self.insert(len(self), value)
 
     def sort(self) -> None:
         """Sort the candidate list in place."""
-        new = self._current()
-        new.sort()
+        new = sort_candidates_pseudo_lexicographically(self._current())
         self.__owner[self.__key] = new
 
     def __eq__(self, other: Union[Sequence[str], Any]):
@@ -179,9 +199,9 @@ class _CandListProxy(MutableSequence[str]):
         return str(self._current())
 
 
-class SlateCandMap(MutableMapping[str, Sequence[str]]):
+class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
     """
-    Mapping[str, Sequence[str]] that enforces slate to candidate list rules:
+    Mapping[str, Sequence[Candidate]] that enforces slate to candidate list rules:
 
     - Each slate must have a non-empty list of candidates
     - No candidate may appear in more than one slate
@@ -190,23 +210,24 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
 
     Args:
         parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[Mapping[str, Sequence[str]]]): Initial mapping of slate names to
+        init (Optional[Mapping[str, Sequence[Candidate]]]): Initial mapping of slate names to
             sequences of candidate names. If None, defaults to an empty mapping.
+            Candidates can be strings, integers, or mix of both.
     """
 
     __slots__ = ("__parent", "_data")
 
     def __init__(
         self,
-        parent: "BlocSlateConfig",
-        init: Optional[Mapping[str, Sequence[str]]] = None,
+        parent: BlocSlateConfig,
+        init: Optional[Mapping[str, Sequence[Candidate]]] = None,
     ) -> None:
         try:
             self.__parent = weakref.proxy(parent)
         except TypeError:
             # parent is already a weakref.ProxyType
             self.__parent = parent
-        self._data: dict[str, list[str]] = {}
+        self._data: dict[str, list[Candidate]] = {}
         if init is not None:
             try:
                 for k, v in init.items():
@@ -215,35 +236,41 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
                             f"Slate '{k}' has empty candidate list. "
                             "Candidate lists must be non-empty."
                         )
-                    self._data.update({k: [str(c) for c in v]})
+                    self._data.update({k: [c for c in v]})
             except AttributeError as e:
                 raise AttributeError(
                     f"SlateCandMap 'init' variable is of type '{type(init).__name__}' which "
                     "does not implement the '.items()' method."
                 ) from e
 
-    def to_dict(self) -> dict[str, list[str]]:
+    @property
+    def _parent(self) -> BlocSlateConfig:
+        return self.__parent
+
+    def to_dict(self) -> dict[str, list[Candidate]]:
         """
         Return a deep copy of the internal slate to candidates mapping as a standard dict.
 
         Returns:
-            dict[str, list[str]]: A deep copy of the internal mapping.
+            dict[str, list[Candidate]]: A deep copy of the internal mapping.
+                Candidates can be strings, integers, or mix of both.
         """
         return {k: deepcopy(v) for k, v in self._data.items()}
 
     def __getitem__(self, key: str) -> _CandListProxy:
         return _CandListProxy(self, key)
 
-    def __setitem__(self, key: str, value: Sequence[str]) -> None:
+    def __setitem__(self, key: str, value: Sequence[Candidate]) -> None:
         if not isinstance(cast(object, key), str):
             raise TypeError("Slate name must be a 'str'")
         if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
-            raise TypeError("Slate candidates must be a sequence of str")
+            raise TypeError("Slate candidates must be a sequence of str and/or int candidates.")
         if len(value) == 0:
             raise ValueError(
                 f"Slate '{key}' has empty candidate list. Candidate lists must be non-empty."
             )
-        val_list = [str(c) for c in value]
+        _validate_candidate_names(value, self.__parent, f'slate_to_candidates["{key}"]')
+        val_list = [c for c in value]
 
         # Prevent adding candidates that already exist in *other* slates
         existing_cands = set(self.__parent.candidates)
@@ -303,15 +330,15 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         self,
         other: Any = (),
         /,
-        **kw: Sequence[str],
+        **kw: Sequence[Candidate],
     ) -> None:
         """
         Update the slate to candidates mapping with the key-value pairs from other.
 
         Args:
-            other (Mapping[str, Sequence[str]] or Iterable[tuple[str, Sequence[str]]]):
+            other (Mapping[str, Sequence[Candidate]] or Iterable[tuple[str, Sequence[Candidate]]]):
                 Another mapping or iterable of key-value pairs to update the slate to candidates
-                mapping with.
+                mapping with. Candidates can be strings, integers, or mix of both.
             **kw: Additional key-value pairs to update the slate to candidates mapping with.
         """
         if isinstance(other, Mapping):
@@ -323,20 +350,20 @@ class SlateCandMap(MutableMapping[str, Sequence[str]]):
         for k, v in item_pairs:
             if not isinstance(k, str):
                 raise TypeError("Slate keys must be str in update().")
-            if isinstance(v, (str, bytes)) or not isinstance(v, Sequence):
+            if isinstance(v, (Candidate, bytes)) or not isinstance(v, Sequence):
                 raise TypeError("Slate values must be sequences of candidate names.")
-            self[k] = cast(Sequence[str], v)  # route through __setitem__
+            self[k] = cast(Sequence[Candidate], v)  # route through __setitem__
 
-    def __or__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
+    def __or__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
         new = SlateCandMap(self.__parent, self._data)
         new.update(other)
         return new
 
-    def __ror__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
+    def __ror__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
         full_map = dict(other) | self._data.copy()
         return SlateCandMap(self.__parent, full_map)
 
-    def __ior__(self, other: Mapping[str, Sequence[str]]) -> "SlateCandMap":
+    def __ior__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
         self.update(other)
         return self
 
@@ -385,7 +412,7 @@ class BlocProportions(MutableMapping[str, float]):
 
     def __init__(
         self,
-        parent: "BlocSlateConfig",
+        parent: BlocSlateConfig,
         init: Optional[BlocProportionMapping] = None,
     ) -> None:
         self.__parent = weakref.proxy(parent)

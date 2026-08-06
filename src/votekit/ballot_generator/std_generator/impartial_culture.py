@@ -10,9 +10,8 @@ import random
 from collections import Counter
 from typing import Optional, Sequence
 
-import numpy as np
-
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import (
     build_df_from_ballot_samples,
     fixed_zero_index_lex_block_size,
@@ -30,9 +29,11 @@ from votekit.utils import (
 
 
 def _generate_profile_optimized_non_short(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -40,10 +41,13 @@ def _generate_profile_optimized_non_short(
     short ballots are disallowed
 
     Args:
-        candidates (Sequence[str]): the list of candidates in the election
+        candidates (Sequence[Candidate]): the list of candidates in the election.
+            Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         RankProfile
@@ -51,8 +55,14 @@ def _generate_profile_optimized_non_short(
     num_cands = len(candidates)
     if max_ballot_length is None:
         max_ballot_length = num_cands
+    rng = random.Random() if rng is None else rng
     ballots_as_ind = [
-        tuple(np.random.choice(num_cands, size=max_ballot_length, replace=False))
+        tuple(
+            rng.sample(
+                range(num_cands),
+                k=max_ballot_length,
+            )
+        )
         for _ in range(number_of_ballots)
     ]
     ballots_as_counter = Counter(ballots_as_ind)
@@ -66,9 +76,11 @@ def _generate_profile_optimized_non_short(
 
 
 def _generate_profile_optimized_with_short(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> RankProfile:
     """
     Generate an IC profile in the case where short ballots are
@@ -77,11 +89,14 @@ def _generate_profile_optimized_with_short(
     the indices to ballots using a help function
 
     Args:
-        candidates (Sequence[str]): the list of candidates in the election
+        candidates (Sequence[Candidate]): the list of candidates in the election
+            Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate for
             the profile
         max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         RankProfile
@@ -94,10 +109,11 @@ def _generate_profile_optimized_with_short(
 
     # sample indices (representing allowed ballots) uniformally at
     # random
-    ballot_inds = [random.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
+    rng = rng if rng is not None else random.Random()
+    ballot_inds = [rng.randint(0, total_ballots - 1) for _ in range(number_of_ballots)]
     ballots_as_cand_ind = [
-        tuple(index_to_lexicographic_ballot(ballot_ind, num_cands, max_ballot_length))
-        for ballot_ind in ballot_inds
+        tuple(index_to_lexicographic_ballot(int(ballot_ind), num_cands, max_ballot_length))
+        for (ballot_ind) in ballot_inds
     ]
 
     # Instantiate the preference profile using a dataframe
@@ -117,22 +133,28 @@ def _generate_profile_optimized_with_short(
 
 
 def ic_profile_generator(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
     allow_short_ballots: bool = False,
+    *,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Impartial Culture model where each ballot is equally likely.
     Equivalent to the ballot simplex with an alpha value of infinity.
 
     Args:
-        candidates (Sequence[str]): The list of candidates in the election.
+        candidates (Sequence[Candidate]): The list of candidates in the election.
+            Candidates can be strings or integers.
         number_of_ballots (int): The number of ballots to generate for the profile.
         max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.
         allow_short_ballots (bool, optional): Whether to allow short ballots.
             Defaults to False.
+        rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: The generated preference profile
@@ -141,10 +163,18 @@ def ic_profile_generator(
         max_ballot_length = len(candidates)
     elif max_ballot_length > len(candidates):
         raise ValueError("Max ballot length larger than number of candidates given.")
-
+    rng = random.Random(rng_seed)
     if allow_short_ballots:
         return _generate_profile_optimized_with_short(
-            candidates, number_of_ballots, max_ballot_length
+            candidates,
+            number_of_ballots,
+            max_ballot_length,
+            rng=rng,
         )
 
-    return _generate_profile_optimized_non_short(candidates, number_of_ballots, max_ballot_length)
+    return _generate_profile_optimized_non_short(
+        candidates,
+        number_of_ballots,
+        max_ballot_length,
+        rng=rng,
+    )

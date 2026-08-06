@@ -1,3 +1,6 @@
+import random
+from typing import Optional
+
 import networkx as nx
 import numpy as np
 
@@ -9,7 +12,8 @@ from votekit.graphs.pairwise_comparison_graph import (
     pairwise_dict,
 )
 from votekit.pref_profile import RankProfile
-from votekit.utils import tiebreak_set
+from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically, tiebreak_set
 
 
 class Schulze(RankingElection):
@@ -32,6 +36,9 @@ class Schulze(RankingElection):
         profile (RankProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         tiebreak (str, optional): Method for breaking ties. Defaults to "lexicographic".
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
     """
 
     def __init__(
@@ -39,6 +46,8 @@ class Schulze(RankingElection):
         profile: RankProfile,
         tiebreak: str = "lexicographic",
         n_seats: int | None = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -49,10 +58,13 @@ class Schulze(RankingElection):
         if n_seats is None:
             n_seats = 1
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
 
-        def quick_tiebreak_candidates(profile: RankProfile) -> dict[str, float]:
+        def quick_tiebreak_candidates(profile: RankProfile) -> dict[Candidate, float]:
             candidate_set = frozenset(profile.candidates)
-            tiebroken_candidates = tiebreak_set(candidate_set, tiebreak=self.tiebreak)
+            tiebroken_candidates = tiebreak_set(
+                candidate_set, tiebreak=self.tiebreak, rng=self._rng
+            )
 
             if len(tiebroken_candidates) != len(profile.candidates):
                 raise RuntimeError("Tiebreak did not resolve all candidates.")
@@ -145,7 +157,9 @@ class Schulze(RankingElection):
         for candidate_tier_set in dominating_tiers:
             if len(candidate_tier_set) > 1:
                 tiebreak_resolutions[frozenset(candidate_tier_set)] = tiebreak_set(
-                    frozenset(candidate_tier_set), tiebreak=self.tiebreak
+                    frozenset(candidate_tier_set),
+                    tiebreak=self.tiebreak,
+                    rng=self._rng,
                 )
 
         ordered_candidates = []
@@ -154,8 +168,8 @@ class Schulze(RankingElection):
                 ordered_candidates.extend(candidate_set)
             else:
                 tier_key = frozenset(candidate_set)
-                for s in tiebreak_resolutions[tier_key]:
-                    ordered_candidates.extend(sorted(s))
+                for cand_set in tiebreak_resolutions[tier_key]:
+                    ordered_candidates.extend(sort_candidates_pseudo_lexicographically(cand_set))
 
         elected = tuple(frozenset({c}) for c in ordered_candidates[: self.n_seats])
         remaining = tuple(frozenset({c}) for c in ordered_candidates[self.n_seats :])

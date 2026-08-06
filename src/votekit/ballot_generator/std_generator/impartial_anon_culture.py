@@ -13,6 +13,7 @@ from functools import lru_cache
 from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
 
 # ====================================================
@@ -43,6 +44,8 @@ def _total_num_ballots(n_candidates: int, max_ballot_length: int) -> int:
 def _sample_uniform_profile_counts(
     num_ballot_types: int,
     number_of_ballots: int,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> list[int]:
     """
     Sample a weak composition of ``number_of_ballots`` into ``num_ballot_types`` parts uniformly.
@@ -53,12 +56,15 @@ def _sample_uniform_profile_counts(
     Args:
         num_ballot_types (int): The number of distinct ballot types.
         number_of_ballots (int): The total number of ballots.
-
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[int]: A list of length ``num_ballot_types`` where each entry is the frequency of a
             ballot type, and the sum of all entries is ``number_of_ballots``.
     """
+    rng = random.Random() if rng is None else rng
+
     if num_ballot_types < 1:
         raise ValueError("num_ballot_types must be positive")
 
@@ -66,7 +72,7 @@ def _sample_uniform_profile_counts(
         return [number_of_ballots]
 
     bar_locations = sorted(
-        random.sample(
+        rng.sample(
             range(number_of_ballots + num_ballot_types - 1),
             num_ballot_types - 1,
         )
@@ -136,16 +142,25 @@ def _sample_anonymous_profile_ballot_counts(
     n_candidates: int,
     number_of_ballots: int,
     max_ballot_length: int,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> list[int]:
     """
     Sample anonymous-profile frequencies over lexicographically indexed ballot types.
+
+    Args:
+        n_candidates (int): The number of candidates.
+        number_of_ballots (int): The total number of ballots.
+        max_ballot_length (int): Maximum length of each ballot.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[int]: Frequency vector whose ``i``-th entry is the count of the ballot returned by
             ``index_to_lexicographic_ballot(i, n_candidates, max_ballot_length)``.
     """
     num_valid_ballots = _total_num_ballots(n_candidates, max_ballot_length)
-    return _sample_uniform_profile_counts(num_valid_ballots, number_of_ballots)
+    return _sample_uniform_profile_counts(num_valid_ballots, number_of_ballots, rng=rng)
 
 
 # =================================================
@@ -154,19 +169,25 @@ def _sample_anonymous_profile_ballot_counts(
 
 
 def iac_profile_generator(
-    candidates: Sequence[str],
+    candidates: Sequence[Candidate],
     number_of_ballots: int,
     max_ballot_length: Optional[int] = None,
+    *,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
     is equally likely.
 
     Args:
-        candidates (Sequence[str]): List of candidate strings.
+        candidates (Sequence[Candidate]): List of candidate strings.
+            Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): Number of ballots to generate.
         max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
             the number of candidates.
+        rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         RankProfile: Generated rank profile
@@ -183,6 +204,7 @@ def iac_profile_generator(
         num_cands,
         number_of_ballots,
         max_ballot_length,
+        rng=random.Random(rng_seed),
     )
     ballots_as_counter = Counter(
         {

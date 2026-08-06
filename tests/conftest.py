@@ -180,7 +180,7 @@ def do_ballot_probs_match_ballot_dist_rank_profile():
                 failed += 1
 
         # allow for small margin of error given confidence intereval
-        failure_thresold = round((1 - alpha) * n_ballots)
+        failure_thresold = round((1 - alpha) * float(n_ballots))
         return failed <= failure_thresold
 
     return _do_ballot_probs_match_ballot_dist_rank_profile
@@ -212,7 +212,7 @@ def do_ballot_probs_match_ballot_dist_score_profile():
                 failed += 1
 
         # allow for small margin of error given confidence intereval
-        failure_thresold = round((1 - alpha) * n_ballots)
+        failure_thresold = round((1 - alpha) * float(n_ballots))
         return failed <= failure_thresold
 
     return _do_ballot_probs_match_ballot_dist_score_profile
@@ -239,6 +239,26 @@ def two_bloc_two_slate_config():
 
 
 @pytest.fixture
+def two_bloc_two_slate_mixed_config():
+    return BlocSlateConfig(
+        n_voters=100_000,
+        slate_to_candidates={"A": ["A1", "A2"], "B": [1, 2]},
+        bloc_proportions={"X": 0.7, "Y": 0.3},
+        preference_mapping={
+            "X": {
+                "A": PreferenceInterval({"A1": 0.4, "A2": 0.3}),
+                "B": PreferenceInterval({1: 0.2, 2: 0.1}),
+            },
+            "Y": {
+                "A": PreferenceInterval({"A1": 0.2, "A2": 0.2}),
+                "B": PreferenceInterval({1: 0.3, 2: 0.3}),
+            },
+        },
+        cohesion_mapping={"X": {"A": 0.7, "B": 0.3}, "Y": {"B": 0.9, "A": 0.1}},
+    )
+
+
+@pytest.fixture
 def two_bloc_two_slate_config_cambridge():
     return BlocSlateConfig(
         n_voters=200_000,
@@ -252,6 +272,26 @@ def two_bloc_two_slate_config_cambridge():
             "Y": {
                 "X": PreferenceInterval({"X1": 0.2, "X2": 0.2}),
                 "Y": PreferenceInterval({"Y1": 0.3, "Y2": 0.3}),
+            },
+        },
+        cohesion_mapping={"X": {"X": 0.7, "Y": 0.3}, "Y": {"Y": 0.9, "X": 0.1}},
+    )
+
+
+@pytest.fixture
+def two_bloc_two_slate_mixed_config_cambridge():
+    return BlocSlateConfig(
+        n_voters=200_000,
+        slate_to_candidates={"X": ["X1", "X2"], "Y": [1, 2]},
+        bloc_proportions={"X": 0.6, "Y": 0.4},
+        preference_mapping={
+            "X": {
+                "X": PreferenceInterval({"X1": 0.4, "X2": 0.3}),
+                "Y": PreferenceInterval({1: 0.2, 2: 0.1}),
+            },
+            "Y": {
+                "X": PreferenceInterval({"X1": 0.2, "X2": 0.2}),
+                "Y": PreferenceInterval({1: 0.3, 2: 0.3}),
             },
         },
         cohesion_mapping={"X": {"X": 0.7, "Y": 0.3}, "Y": {"Y": 0.9, "X": 0.1}},

@@ -1,11 +1,16 @@
+import random
+from fractions import Fraction
 from itertools import permutations
+from pathlib import Path
 from typing import Literal, cast
 
+import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.utils import (
+    _validate_candidate_names,
     add_missing_cands,
     ballot_lengths,
     ballots_by_first_cand,
@@ -19,10 +24,14 @@ from votekit.utils import (
     score_dict_from_score_vector,
     score_dict_to_ranking,
     score_profile_from_ballot_scores,
+    sort_candidates_pseudo_lexicographically,
     tiebreak_set,
     tiebroken_ranking,
     validate_score_vector,
 )
+from votekit.utils.common_utils import _mentions_from_ballots, _mentions_from_df
+
+CSV_DIR = Path(__file__).resolve().parents[1] / "data" / "csv"
 
 profile_no_ties = RankProfile(
     ballots=(
@@ -37,6 +46,14 @@ profile_with_ties = RankProfile(
         RankBallot(ranking=tuple(map(frozenset, [{"A", "B"}])), weight=1),
         RankBallot(ranking=tuple(map(frozenset, [{"A", "B", "C"}])), weight=1 / 2),
         RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"C"}, {"B"}])), weight=3),
+    )
+)
+
+profile_with_duplicates = RankProfile(
+    ballots=(
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"B"}])), weight=1),
+        RankBallot(ranking=tuple(map(frozenset, [{"A"}, {"B"}, {"C"}])), weight=1 / 2),
+        RankBallot(ranking=tuple(map(frozenset, [{"B"}, {"B"}, {"B"}])), weight=3),
     )
 )
 
@@ -70,13 +87,13 @@ class TestShortBallot:
             ValueError,
             match="number of candidates exceeds the length of the longest ranking.",
         ):
-            _ = RankProfile(ballots=(RankBallot(ranking=("AB",), weight=5),))
+            _ = RankProfile(ballots=(RankBallot(ranking=({"A", "B"},), weight=5),))
 
     def test_legal_short_profile(self):
         profile = RankProfile(
             ballots=(
                 RankBallot(
-                    ranking=("AB",),
+                    ranking=({"A", "B"},),
                     weight=5,
                 ),
             ),
@@ -244,11 +261,131 @@ def test_fpv_errors():
         first_place_votes(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
-def test_mentions():
+def test_mentions_from_ballots():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = mentions(profile_no_ties)
+    test = _mentions_from_ballots(profile_no_ties)
     assert correct == test
     assert isinstance(test["A"], float)
+
+
+def test_mentions_from_ballots_with_ties():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = _mentions_from_ballots(profile_with_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_mentions_from_ballots_with_duplicates():
+    correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
+    test = _mentions_from_ballots(profile_with_duplicates)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_mentions_from_df():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = _mentions_from_df(profile_no_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_mentions_from_df_with_ties():
+    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
+    test = _mentions_from_df(profile_with_ties)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+def test_mentions_from_df_with_duplicates():
+    correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
+    test = _mentions_from_df(profile_with_duplicates)
+    assert correct == test
+    assert isinstance(test["A"], float)
+
+
+@pytest.mark.slow
+def test_fast_and_slow_mentions_are_same():
+    profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
+    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
+
+
+def test_mentions_zero_weight_ballots():
+    # "A" appears only on a zero-weight ballot, so it is not in profile.candidates; both
+    # mentions paths must skip it rather than raise KeyError
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=0),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}])), weight=2),
+        )
+    )
+    correct = {"B": 2.0}
+    assert _mentions_from_ballots(profile) == correct
+    assert _mentions_from_df(profile) == correct
+
+
+def test_mentions_from_df_returns_python_floats():
+    assert all(type(v) is float for v in _mentions_from_df(profile_no_ties).values())
+
+
+def test_mentions_no_ranking_ballot_raises_in_both_paths():
+    # an unranked ballot materializes with ranking=None, so both paths must raise the same error
+    profile = RankProfile(ballots=(RankBallot(weight=2), RankBallot(ranking=({"A"},), weight=1)))
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_df(profile)
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_ballots(profile)
+
+
+def test_mentions_all_unranked_profile_raises_in_both_paths():
+    # every ballot has ranking=None, so the profile has no ranking columns at all
+    profile = RankProfile(ballots=(RankBallot(weight=2),))
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_df(profile)
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_ballots(profile)
+
+
+def test_mentions_empty_frozenset_ranking_consistent():
+    # a present-but-empty frozenset ranking is not ranking=None; neither path should raise
+    profile = RankProfile(ballots=(RankBallot(ranking=(frozenset(),), weight=1),))
+    assert _mentions_from_df(profile) == {}
+    assert _mentions_from_ballots(profile) == {}
+
+
+def test_mentions_from_df_duplicate_ballot_index():
+    # profiles built from a df keep the given index; duplicate labels must not break the df path
+    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).df
+    profile = RankProfile(df=pd.concat([df, df]), candidates=("A", "B"), max_ranking_length=2)
+    correct = {"A": 2.0, "B": 2.0}
+    assert _mentions_from_df(profile) == correct
+    assert _mentions_from_ballots(profile) == correct
+
+
+def _random_mentions_profile(rng: random.Random) -> RankProfile:
+    # samples every dimension that has produced a path divergence: ties, duplicate candidates,
+    # short ballots, zero and Fraction weights, mixed str/int candidates
+    cands = ["A", "B", 1, 2, "C"][: rng.randint(2, 5)]
+    ballots = []
+    for _ in range(rng.randint(1, 8)):
+        pool = [rng.choice(cands) for _ in range(rng.randint(1, len(cands)))]
+        ranking = []
+        while pool:
+            n = rng.randint(1, min(2, len(pool)))
+            ranking.append(frozenset(pool[:n]))
+            pool = pool[n:]
+        weight = rng.choice([0, 1, 3, 1 / 2, Fraction(1, 3)])
+        ballots.append(RankBallot(ranking=tuple(ranking), weight=weight))
+    # sometimes omit the explicit candidate list so profile.candidates can exclude candidates
+    # that appear only on zero-weight ballots
+    if rng.random() < 0.5:
+        return RankProfile(ballots=tuple(ballots), max_ranking_length=len(cands))
+    return RankProfile(ballots=tuple(ballots), candidates=cands, max_ranking_length=len(cands))
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_mentions_paths_stay_in_sync(seed):
+    profile = _random_mentions_profile(random.Random(seed))
+    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
 
 
 def test_mentions_errors():
@@ -690,3 +827,58 @@ def test_ballot_lengths_ranking_error():
     profile = ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))
     with pytest.raises(TypeError, match="Profile must be of type RankProfile."):
         ballot_lengths(cast(RankProfile, profile))
+
+
+def test_sort_mixed_cands_lexicographically():
+    cands = ["1", "01", 1, 2, "2.0", "3", "A"]
+    expected_sorted_cands = [1, "01", "1", 2, "2.0", "3", "A"]
+    assert expected_sorted_cands == sort_candidates_pseudo_lexicographically(cands)
+
+
+def test_sort_non_valid_type_cand_raises_error():
+    cands = ["1", 1, 1.0]
+    with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
+        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+
+
+def test_sort_nan_cand_at_end_of_list():
+    cands = ["1", 1, "nan", "NaN", "nan "]
+    assert sort_candidates_pseudo_lexicographically(cands) == [1, "1", "NaN", "nan", "nan "]
+
+
+def test_validate_candidate_names_errors_on_tilde_candidate():
+    invalid_candidates_list = ["~", "A"]
+    with pytest.raises(ValueError, match="Candidate '~' found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_errors_on_colon_in_candidate():
+    invalid_candidates_list = ["A:B", "C"]
+    with pytest.raises(ValueError, match="':' found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_errors_non_str_int_candidate():
+    invalid_candidates_list = ["A", 1.0]
+    with pytest.raises(TypeError, match=r"Non-string/integer candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")  # type: ignore[arg-type]
+
+
+def test_validate_candidate_names_errors_on_negative_int_candidate():
+    invalid_candidates_list = ["A", -1]
+    with pytest.raises(ValueError, match=r"Negative integer candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_name_raises_error_on_boolean_candidate():
+    invalid_candidates_list = ["A", True]
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in"):
+        _validate_candidate_names(invalid_candidates_list, invalid_candidates_list, "candidates")
+
+
+def test_validate_candidate_names_warns_on_collision_only():
+    collided_candidates_list = [1, "1"]
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        _validate_candidate_names(
+            collided_candidates_list, collided_candidates_list, "test.candidates"
+        )

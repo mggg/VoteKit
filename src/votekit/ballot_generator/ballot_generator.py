@@ -1,6 +1,7 @@
 import math
+import random
 from abc import abstractmethod
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -84,6 +85,8 @@ class BallotGenerator:
         bloc_voter_prop: dict,
         cohesion_parameters: dict,
         alphas: dict,
+        *,
+        rng_seed: Optional[int] = None,
         **data,
     ):
         """
@@ -99,6 +102,8 @@ class BallotGenerator:
                 keys are bloc strings and values are cohesion parameters.
             alphas (dict): Dictionary mapping of bloc string to dictionary whose
                 keys are bloc strings and values are alphas for Dirichlet distributions.
+            rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+                inputs. Seed set to None by default, different results will be generated each time.
             **data: kwargs to be passed to the init method.
 
         Raises:
@@ -115,11 +120,14 @@ class BallotGenerator:
             raise ValueError("Blocs are not the same")
 
         pref_intervals_by_bloc = {}
+        rng = np.random.default_rng(seed=rng_seed)
         for current_bloc in bloc_voter_prop:
             intervals = {}
             for b in bloc_voter_prop:
                 interval = PreferenceInterval.from_dirichlet(
-                    candidates=slate_to_candidates[b], alpha=alphas[current_bloc][b]
+                    candidates=slate_to_candidates[b],
+                    alpha=alphas[current_bloc][b],
+                    numpy_rng=rng,
                 )
                 intervals[b] = interval
 
@@ -156,17 +164,21 @@ class BallotGenerator:
         pass
 
     @staticmethod
-    def _round_num(num: float) -> int:
+    def _round_num(num: float, *, rng: Optional[random.Random] = None) -> int:
         """
+
         Rounds up or down a float randomly.
 
         Args:
             num (float): Number to round.
+            rng (random.Random, optional): Standard library random number generator. Pass a seeded
+                instance for reproducible results; defaults to None for non-deterministic results.
 
         Returns:
             int: A whole number.
         """
-        rand = np.random.random()
+        rng = random.Random() if rng is None else rng
+        rand = rng.random()
         return math.ceil(num) if rand > 0.5 else math.floor(num)
 
     @staticmethod

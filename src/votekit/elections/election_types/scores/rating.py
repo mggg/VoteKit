@@ -1,3 +1,4 @@
+import random
 from typing import Optional
 
 from votekit.ballot import ScoreBallot
@@ -28,6 +29,8 @@ class GeneralRating(Election[ScoreProfile]):
             case voters can score each candidate independently.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -38,6 +41,8 @@ class GeneralRating(Election[ScoreProfile]):
         per_candidate_limit: float | None = None,
         budget: Optional[float] = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -67,8 +72,11 @@ class GeneralRating(Election[ScoreProfile]):
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
         super().__init__(
-            profile, score_function=score_profile_from_ballot_scores, sort_high_low=True
+            profile,
+            score_function=score_profile_from_ballot_scores,
+            sort_high_low=True,
         )
 
     def _validate_params(self, profile: ScoreProfile):
@@ -145,9 +153,7 @@ class GeneralRating(Election[ScoreProfile]):
         # round 0 are ranked by score
         # raises a ValueError is tiebreak is None and a tie occurs.
         elected, remaining, tie_resolution = elect_cands_from_set_ranking(
-            prev_state.remaining,
-            self.n_seats,
-            tiebreak=self.tiebreak,
+            prev_state.remaining, self.n_seats, tiebreak=self.tiebreak, rng=self._rng
         )
 
         new_profile = remove_cand_score_profile([c for s in elected for c in s], profile)
@@ -188,6 +194,8 @@ class Rating(GeneralRating):
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     """
 
@@ -197,6 +205,8 @@ class Rating(GeneralRating):
         n_seats: int | None = None,
         per_candidate_limit: float | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -213,5 +223,9 @@ class Rating(GeneralRating):
         if per_candidate_limit is None:
             per_candidate_limit = 1
         super().__init__(
-            profile, n_seats=n_seats, per_candidate_limit=per_candidate_limit, tiebreak=tiebreak
+            profile,
+            n_seats=n_seats,
+            per_candidate_limit=per_candidate_limit,
+            tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )

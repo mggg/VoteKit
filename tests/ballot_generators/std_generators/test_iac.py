@@ -8,9 +8,10 @@ import pytest
 from votekit.ballot_generator import iac_profile_generator
 from votekit.ballot_generator.std_generator import impartial_anon_culture as iac_module
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate
 
 
-def _ballot_counter(profile: RankProfile) -> Counter[tuple[str, ...]]:
+def _ballot_counter(profile: RankProfile) -> Counter[tuple[Candidate, ...]]:
     return Counter(
         {
             tuple(next(iter(rank)) for rank in ballot.ranking): ballot.weight
@@ -65,13 +66,15 @@ def test_IAC_completion():
     assert profile.total_ballot_wt == 100
 
 
-def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
-    def fake_sample(population, k):
-        assert list(population) == list(range(5))
-        assert k == 3
-        return [0, 2, 4]
+def test_IAC_completion_with_mixed_candidates():
+    profile = iac_profile_generator(candidates=["W1", "W2", 1, 2], number_of_ballots=100)
 
-    monkeypatch.setattr(iac_module.random, "sample", fake_sample)
+    assert type(profile) is RankProfile
+    assert profile.total_ballot_wt == 100
+
+
+def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
+    monkeypatch.setattr(iac_module, "_sample_uniform_profile_counts", lambda *_, **__: [0, 1, 1, 0])
 
     profile = iac_profile_generator(candidates=["A", "B"], number_of_ballots=2)
 
@@ -80,12 +83,7 @@ def test_iac_maps_stars_and_bars_sample_to_lexicographic_ballots(monkeypatch):
 
 
 def test_iac_respects_max_ballot_length(monkeypatch):
-    def fake_sample(population, k):
-        assert list(population) == list(range(4))
-        assert k == 2
-        return [1, 2]
-
-    monkeypatch.setattr(iac_module.random, "sample", fake_sample)
+    monkeypatch.setattr(iac_module, "_sample_uniform_profile_counts", lambda *_, **__: [1, 0, 1])
 
     profile = iac_profile_generator(
         candidates=["A", "B", "C"],

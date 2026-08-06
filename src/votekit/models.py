@@ -5,6 +5,7 @@ import pandas as pd
 
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile.pref_profile import PreferenceProfile
+from votekit.types import Candidate, CandidateNumericDict
 from votekit.utils import (
     score_dict_to_ranking,
 )
@@ -18,11 +19,11 @@ class Election(Generic[P]):
 
     Args:
         profile (PreferenceProfile): The initial profile of ballots.
-        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
+        score_function (Callable[[PreferenceProfile], CandidateNumericDict], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects and sorting candidates in
             Round 0. If None, no score dictionary is saved and all candidates are tied in Round 0.
-            Defaults to None.
+            Defaults to None. Candidates can be strings, integers, or mix of both.
         sort_high_low (bool, optional): How to sort candidates based on `score_function`. True sorts
             from high to low. Defaults to True.
 
@@ -30,16 +31,17 @@ class Election(Generic[P]):
         election_states (list[ElectionState]): A list of election states, one for each round of
             the election. The list is 0 indexed, so the initial state is stored at index 0, round 1
             at 1, etc.
-        score_function (Callable[[PreferenceProfile], dict[str, float]], optional):
+        score_function (Callable[[PreferenceProfile], CandidateNumericDict], optional):
             A function that converts profiles to a score dictionary mapping candidates to
             their current score. Used in creating ElectionState objects. Defaults to None.
+            Candidates can be strings, integers, or mix of both.
         length (int): The number of rounds of the election.
     """
 
     def __init__(
         self,
         profile: P,
-        score_function: Optional[Callable[[P], dict[str, float]]] = None,
+        score_function: Optional[Callable[[P], CandidateNumericDict]] = None,
         sort_high_low: bool = True,
     ):
         self._validate_params_and_profile(profile)
@@ -90,7 +92,7 @@ class Election(Generic[P]):
         """
         return (self.get_profile(round_number), self.election_states[round_number])
 
-    def get_elected(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_elected(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the elected candidates up to the given round number.
 
@@ -99,7 +101,7 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[Candidate],...]:
                 List of winning candidates in order of election. Candidates
                 in the same set were elected simultaneously, i.e. in the final ranking
                 they are tied.
@@ -121,7 +123,7 @@ class Election(Generic[P]):
             ]
         )
 
-    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_eliminated(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the eliminated candidates up to the given round number.
 
@@ -130,10 +132,10 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[Candidate],...]:
                 Tuple of eliminated candidates in reverse order of elimination.
                 Candidates in the same set were eliminated simultaneously, i.e. in the final ranking
-                they are tied.
+                they are tied. Candidates can be strings or integers.
         """
         if (
             round_number < -len(self.election_states)
@@ -153,7 +155,7 @@ class Election(Generic[P]):
             ]
         )
 
-    def get_remaining(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_remaining(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the remaining candidates after the given round.
 
@@ -162,13 +164,14 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]:
+            tuple[frozenset[Candidate],...]:
                 Tuple of sets of remaining candidates. Ordering of tuple
                 denotes ranking of remaining candidates, sets denote ties.
+                Candidate can be strings, integers, or mix of both.
         """
         return tuple(self.election_states[round_number].remaining)
 
-    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[str], ...]:
+    def get_ranking(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
         """
         Fetch the ranking of candidates after a given round.
 
@@ -177,7 +180,8 @@ class Election(Generic[P]):
                 -1, which accesses the final profile.
 
         Returns:
-            tuple[frozenset[str],...]: Ranking of candidates.
+            tuple[frozenset[Candidate],...]: Ranking of candidates.
+                Candidates can be strings, integers, or mix of both.
         """
         # len condition handles empty remaining candidates
         return tuple(

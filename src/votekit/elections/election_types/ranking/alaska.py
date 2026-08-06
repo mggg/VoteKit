@@ -1,5 +1,6 @@
+import random
 from functools import partial
-from typing import Callable, Literal, Union
+from typing import Callable, Literal, Optional, Union
 
 from votekit.ballot import RankBallot
 from votekit.cleaning import remove_and_condense_rank_profile
@@ -12,6 +13,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.stv import STV
 from votekit.elections.transfers import fractional_transfer
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate, Numeric
 from votekit.utils import first_place_votes
 
 from .abstract_ranking import RankingElection
@@ -28,12 +30,12 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[str, float], Union[tuple[Ballot], list[Ballot]], int],
+        transfer (Callable[[Candidate, float], Union[tuple[Ballot], list[Ballot]], int],
             tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
             ballots with them ranked first, and the threshold value. Returns the list of ballots
-            after transfer.
+            after transfer. Candidates can be strings, integers, or mix of both.
         quota (str, optional): Formula to calculate quota. Accepts "droop" or "hare".
             Defaults to "droop".
         simultaneous (bool, optional): True if all candidates who cross threshold in a round are
@@ -46,6 +48,9 @@ class Alaska(RankingElection):
             for tied first place votes. Defaults to "average", where if n candidates are tied for
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
             Only used by ``score_function`` parameter.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     """
 
@@ -55,13 +60,15 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [str, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: QuotaType | None = "droop",
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
+        *,
+        rng_seed: Optional[int] = None,
     ):
         if m_1 <= 0:
             raise ValueError("m_1 must be positive.")
@@ -75,6 +82,9 @@ class Alaska(RankingElection):
         self.quota = quota
         self.simultaneous = simultaneous
         self.tiebreak = tiebreak
+        self._rng = random.Random(rng_seed)
+        self._plurality_seed = self._rng.getrandbits(32)
+        self._stv_seed = self._rng.getrandbits(32)
         super().__init__(
             profile,
             score_function=partial(first_place_votes, tie_convention=fpv_tie_convention),
@@ -115,6 +125,7 @@ class Alaska(RankingElection):
                 self.quota,
                 self.simultaneous,
                 self.tiebreak,
+                rng_seed=self._stv_seed,
             )
 
             # e.g., round 2 of Alaska is equivalent to round 1 of stv
@@ -146,7 +157,7 @@ class Alaska(RankingElection):
             RankProfile: The profile of ballots after the round is completed.
         """
         if prev_state.round_number == 0:
-            plurality = Plurality(profile, self.m_1, self.tiebreak)
+            plurality = Plurality(profile, self.m_1, self.tiebreak, rng_seed=self._plurality_seed)
             remaining = plurality.get_elected()
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
@@ -178,6 +189,7 @@ class Alaska(RankingElection):
                 self.quota,
                 self.simultaneous,
                 self.tiebreak,
+                rng_seed=self._stv_seed,
             )
             new_profile = stv.get_profile()
 

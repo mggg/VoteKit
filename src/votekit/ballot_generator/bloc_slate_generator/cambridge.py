@@ -14,6 +14,7 @@ from typing import Optional
 
 import apportionment.methods as apportion
 import numpy as np
+from numpy.random import Generator
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
@@ -37,9 +38,11 @@ def _sample_historical_slate_ballots(
         str, str
     ],  # TODO: in next major release, make sure this naming aligns with how the user sets the
     # majority/minority groups
+    *,
+    numpy_rng: Optional[Generator] = None,
 ):
     """
-    Sample historical slate ballots for a given bloc using the Cambridge model.
+    Sample historical slate ballots fort a given bloc using the Cambridge model.
 
     Args:
         ballots_per_bloc (dict[str, int]): A dictionary mapping bloc names to the number of ballots
@@ -58,14 +61,18 @@ def _sample_historical_slate_ballots(
             majority slate.
         historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
             historical data to slate names in the config.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         list[tuple[str, ...]]: A list of slate ballots, where each ballot is a tuple of slate names
             in the order they appear on that ballot.
     """
+    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
+
     n_ballots = ballots_per_bloc[bloc]
 
-    num_ballots_start_with_maj_slate = np.random.binomial(
+    num_ballots_start_with_maj_slate = numpy_rng.binomial(
         n_ballots, p=config.cohesion_df[majority_bloc].loc[bloc]
     )
 
@@ -73,14 +80,13 @@ def _sample_historical_slate_ballots(
 
     hist_maj_ballots = list(reduced_historical_majority_ballot_pmf.keys())
     hist_min_ballots = list(reduced_historical_minority_ballot_pmf.keys())
-
-    maj_slate_ballot_indices = np.random.choice(
+    maj_slate_ballot_indices = numpy_rng.choice(
         len(hist_maj_ballots),
         size=num_ballots_start_with_maj_slate,
         p=list(reduced_historical_majority_ballot_pmf.values()),
     )
 
-    min_slate_ballot_indices = np.random.choice(
+    min_slate_ballot_indices = numpy_rng.choice(
         len(hist_min_ballots),
         size=num_ballots_start_with_min_slate,
         p=list(reduced_historical_minority_ballot_pmf.values()),
@@ -197,6 +203,8 @@ def _inner_cambridge_sampler(
     config: BlocSlateConfig,
     majority_bloc: str,
     minority_bloc: str,
+    *,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate profiles by bloc using Cambridge model.
@@ -208,6 +216,8 @@ def _inner_cambridge_sampler(
             majority group.
         minority_bloc (str): Name of the group in the config corresponding to the historical
             minority group.
+        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
+            inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
@@ -252,7 +262,7 @@ def _inner_cambridge_sampler(
     bloc_lst = config.blocs
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
     pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-
+    numpy_rng = np.random.default_rng(seed=rng_seed)
     for bloc in bloc_lst:
         slate_ballots = _sample_historical_slate_ballots(
             ballots_per_bloc,
@@ -262,9 +272,12 @@ def _inner_cambridge_sampler(
             reduced_historical_minority_ballot_pmf,
             majority_bloc,
             historical_slate_to_config_slate,
+            numpy_rng=numpy_rng,
         )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(config, bloc, slate_ballots)
+        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+            config, bloc, slate_ballots, numpy_rng=numpy_rng
+        )
 
     return pref_profile_by_bloc
 
@@ -379,6 +392,7 @@ def cambridge_profiles_by_bloc_generator(
         str
     ] = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
     group_ballots: bool = True,
+    rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
@@ -405,6 +419,9 @@ def cambridge_profiles_by_bloc_generator(
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
+        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Returns:
         dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
@@ -420,6 +437,7 @@ def cambridge_profiles_by_bloc_generator(
         config,
         majority_bloc,
         minority_bloc,
+        rng_seed=rng_seed,
     )
 
     if group_ballots:
@@ -434,6 +452,7 @@ def cambridge_profile_generator(
     majority_bloc: Optional[str] = None,
     minority_bloc: Optional[str] = None,
     group_ballots: bool = True,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generates a RankProfile using historical RCV elections
@@ -459,6 +478,9 @@ def cambridge_profile_generator(
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
+        rng_seed (int): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
 
     Returns:
@@ -474,6 +496,7 @@ def cambridge_profile_generator(
         config,
         majority_bloc,
         minority_bloc,
+        rng_seed=rng_seed,
     )
 
     profile = RankProfile()

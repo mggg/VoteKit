@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from votekit.types import Candidate
+
 from ...ballot import ScoreBallot
 from .csv_utils import (
     _validate_csv_ballot_row_break_idxs,
@@ -16,11 +18,12 @@ VOTER_SET_VALUE_ROW = VOTER_SET_HEADER_ROW + 1
 EQ_SIGN_ROW = 5
 COLUMN_NAMES_ROW = 6
 DATA_START_ROW = COLUMN_NAMES_ROW + 1
+VALID_TYPE_MAP = {"str": str, "int": int}
 
 
 def _parse_profile_data_from_score_csv(
     csv_data: list[list[str]],
-) -> Tuple[dict[str, str], bool, list[int]]:
+) -> Tuple[dict[str, str] | dict[str, Candidate], bool, list[int]]:
     """
     Parse the profile data from a ScoreProfile csv.
 
@@ -28,12 +31,19 @@ def _parse_profile_data_from_score_csv(
         csv_data (list[list[str]]): Data from csv.
 
     Returns:
-        Tuple[dict[str, str],  bool, list[int]]:
+        Tuple[dict[str, str] | dict[str, Candidate],  bool, list[int]]:
             inv_candidate_mapping, max_ranking_length,
             includes_voter_set, break_indices
+            Candidates can be strings, integers, or mix of both.
     """
-    candidate_row = [c_tuple.strip("()").split(":") for c_tuple in csv_data[2]]
-    inv_candidate_mapping = {prefix: cand for cand, prefix in candidate_row}
+    candidate_row = [c_tuple[1:-1].split(":") for c_tuple in csv_data[2]]
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
+        inv_candidate_mapping = {
+            prefix: VALID_TYPE_MAP[cand_type](cand) for cand, cand_type, prefix in candidate_row
+        }
+    else:
+        inv_candidate_mapping = {prefix: cand for cand, prefix in candidate_row}
 
     includes_voter_set = csv_data[VOTER_SET_VALUE_ROW][0] == "True"
 
@@ -51,7 +61,7 @@ def _parse_ballot_from_score_csv(
     ballot_row: list[str],
     includes_voter_set: bool,
     break_indices: list[int],
-    inv_candidate_mapping: dict[str, str],
+    inv_candidate_mapping: dict[str, str] | dict[str, Candidate],
 ) -> ScoreBallot:
     """
     Parse a ballot from a ScoreProfile csv row.
@@ -61,8 +71,8 @@ def _parse_ballot_from_score_csv(
         includes_voter_set (bool): Whether or not the csv contains voter sets.
         break_indices (list[int]): Where the columns of the csv change from one data type to
             another.
-        inv_candidate_mapping (dict[str, str]): The iverted candidate mapping of prefix
-            to the cand.
+        inv_candidate_mapping (dict[str, str] | dict[str, Candidate]): The inverted candidate
+            mapping of prefix to the cand. Candidates can be strings, integers, or mix of both.
 
     Returns:
         ScoreBallot: Ballot formatted from row of csv.
@@ -78,7 +88,9 @@ def _parse_ballot_from_score_csv(
             "must be float."
         )
 
-    scores = {c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]}
+    scores: dict[Candidate, int | float] = {
+        c: float(ballot_row[i]) for i, c in enumerate(candidates) if ballot_row[i]
+    }
 
     if includes_voter_set:
         voter_set = set(v.strip() for v in ballot_row[break_indices[-1] + 1 :])
@@ -101,15 +113,49 @@ def _validate_score_csv_header_values(header_data: list[list[str]]):
         "PreferenceProfile.to_csv()."
     )
 
-    if any(char not in c_tuple for c_tuple in header_data[2] for char in "(:)"):
+    if any(
+        char not in c_tuple for c_tuple in header_data[CANDIDATES_MAPPING_ROW] for char in "(:)"
+    ):
         raise ValueError(
             (
                 f"csv file is improperly formatted. Row {CANDIDATES_MAPPING_ROW} should contain "
                 "tuples mapping candidates "
-                "to their unique prefixes. For example, (Chris:Ch), (Colleen: Co). "
+                "to their unique prefixes. For example, (Chris:0), (Colleen: 1) or (1:int:0),"
+                " (A:str:1) "
                 f"Not {header_data[2]}. " + boiler_plate
             )
         )
+
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in header_data[2]]
+    csv_version = header_data[0][1] if len(header_data[0]) > 1 else None
+    if not csv_version and any(len(candidate_tuple) != 2 for candidate_tuple in candidate_tuples):
+        raise ValueError(
+            (
+                f"csv file is improperly formatted. If not using v2 format, Row 2 should contain"
+                " tuples mapping candidates to their unique prefixes. For example, (Chris:0),"
+                f" (Colleen: 1). Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2" and any(
+        len(candidate_tuple) != 3 for candidate_tuple in candidate_tuples
+    ):
+        raise ValueError(
+            (
+                f"csv file v2 is improperly formatted. Row {CANDIDATES_MAPPING_ROW}"
+                " should contain tuples mapping candidates to their types and unique prefixes."
+                f" For example, (1:int:0), (A:str:1). Not {header_data[2]}. " + boiler_plate
+            )
+        )
+
+    if csv_version == "v2":
+        _, candidate_types, _ = zip(*candidate_tuples)
+        if any(cand_type not in VALID_TYPE_MAP.keys() for cand_type in candidate_types):
+            raise ValueError(
+                "csv file v2 is improperly formatted. Row 2 should contain candidate types of str"
+                f" or int, not {set(VALID_TYPE_MAP.keys()) ^ set(candidate_types)}"
+                f" within {header_data[2]}. " + boiler_plate
+            )
 
     if len(header_data[VOTER_SET_VALUE_ROW]) != 1 or header_data[VOTER_SET_VALUE_ROW][0] not in [
         "True",
@@ -138,11 +184,14 @@ def _validate_score_csv_header_rows(header_data: list[list[str]]):
         "PreferenceProfile.to_csv()."
     )
 
-    if header_data[0] != ["VoteKit ScoreProfile"]:
+    if header_data[0] != ["VoteKit ScoreProfile"] and header_data[0] != [
+        "VoteKit ScoreProfile",
+        "v2",
+    ]:
         raise ValueError(
             (
-                "csv file is improperly formatted. Row 0 should be 'VoteKit ScoreProfile',"
-                f"not {header_data[0]}. " + boiler_plate
+                "csv file is improperly formatted. Row 0 should be 'VoteKit ScoreProfile' or "
+                f"'VoteKit ScoreProfile,v2', not {header_data[0]}. " + boiler_plate
             )
         )
 
@@ -302,8 +351,12 @@ def _validate_score_csv_ballot_rows(csv_data: list[list[str]]):
     candidate_row = csv_data[CANDIDATES_MAPPING_ROW]
     include_voter_set_row = csv_data[VOTER_SET_VALUE_ROW]
 
-    candidate_tuples = [c_tuple.strip("()").split(":") for c_tuple in candidate_row]
-    candidates, candidate_prefixes = zip(*candidate_tuples)
+    candidate_tuples = [c_tuple[1:-1].split(":") for c_tuple in candidate_row]
+    csv_version = csv_data[0][1] if len(csv_data[0]) > 1 else None
+    if csv_version == "v2":
+        candidates, candidate_types, candidate_prefixes = zip(*candidate_tuples)
+    else:
+        candidates, candidate_prefixes = zip(*candidate_tuples)
 
     include_voter_set = include_voter_set_row[0] == "True"
 

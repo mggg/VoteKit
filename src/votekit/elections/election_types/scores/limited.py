@@ -19,6 +19,9 @@ class Limited(GeneralRating):
         budget (float, optional): Total points allowed per voter. Defaults to 1.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
 
     Raises:
         ValueError: If ``budget`` exceeds ``n_seats``.
@@ -30,6 +33,8 @@ class Limited(GeneralRating):
         n_seats: int | None = None,
         budget: float | None = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "budget"})
@@ -49,5 +54,10 @@ class Limited(GeneralRating):
             raise ValueError("budget must be less than or equal to n_seats.")
 
         super().__init__(
-            profile, n_seats=n_seats, per_candidate_limit=budget, budget=budget, tiebreak=tiebreak
+            profile,
+            n_seats=n_seats,
+            per_candidate_limit=budget,
+            budget=budget,
+            tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )

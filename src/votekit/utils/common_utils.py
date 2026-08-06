@@ -1,14 +1,20 @@
+from __future__ import annotations
+
 import math
 import random
+import warnings
 from itertools import permutations
-from typing import Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from votekit.ballot import Ballot, RankBallot
-from votekit.pref_profile import RankProfile, ScoreProfile
+if TYPE_CHECKING:
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile, ScoreProfile
+
+from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
     "#0099cd",
@@ -53,7 +59,7 @@ COLOR_LIST = [
 ]
 
 
-def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
+def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBallot]]:
     """
     Partitions the profile by first place candidate. Assumes there are no ties within first place
     positions of ballots.
@@ -62,10 +68,13 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
         profile (RankProfile): Profile to partititon.
 
     Returns:
-        dict[str, list[RankBallot]]:
-            A dictionary whose keys are candidates and values are lists of ballots that
-            have that candidate first.
+        dict[Candidate, list[RankBallot]]:
+            A dictionary whose keys are candidates and values are lists of ballots that have that
+            candidate first. Candidates can be strings, integers, or mix of both.
     """
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
 
@@ -77,7 +86,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
     weights = df["Weight"].to_numpy()
     voter_sets = df["Voter Set"].to_numpy().astype(object)
 
-    cand_dict: dict[str, list[RankBallot]] = {c: [] for c in profile.candidates}
+    cand_dict: dict[Candidate, list[RankBallot]] = {c: [] for c in profile.candidates}
     tilde = frozenset({"~"})
 
     for row, w, voter_set in zip(rank_arr, weights, voter_sets):
@@ -87,7 +96,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
             ballot_str = str(
                 RankBallot(
                     ranking=tuple(c_set for c_set in row if c_set != tilde),
-                    weight=float(w),
+                    weight=w,
                 )
             )
             raise ValueError(f"Ballot {ballot_str} has a tie for first.")
@@ -99,9 +108,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[str, list[RankBallot]]:
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(
-            RankBallot(ranking=clean_ranking, weight=float(w), voter_set=voter_set)
-        )
+        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=w, voter_set=voter_set))
 
     return cand_dict
 
@@ -117,6 +124,9 @@ def add_missing_cands(profile: RankProfile) -> RankProfile:
     Returns:
         RankProfile
     """
+    from votekit.ballot import RankBallot
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     new_ballots = [RankBallot()] * len(profile.ballots)
@@ -169,7 +179,7 @@ def validate_score_vector(score_vector: Sequence[float]):
 def _score_dict_from_rankings_df_no_ties(
     profile: RankProfile,
     score_vector: Sequence[float],
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
@@ -188,9 +198,11 @@ def _score_dict_from_rankings_df_no_ties(
             the profile. If it is shorter, we add 0s.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
 
     validate_score_vector(score_vector)
 
@@ -204,7 +216,7 @@ def _score_dict_from_rankings_df_no_ties(
 
     df = profile.df
 
-    cand_frznst = [frozenset({c}) for c in profile.candidates_cast]
+    cand_frznst = [frozenset({cand}) for cand in profile.candidates_cast]
     all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
     n_buckets = len(all_frznst)
     idx_of_empty = all_frznst.index(frozenset())
@@ -238,7 +250,7 @@ def score_dict_from_score_vector(
     profile: RankProfile,
     score_vector: Sequence[float],
     tie_convention: Literal["high", "average", "low"] = "low",
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
     Score the candidates based on a score vector. For example, the vector (1,0,...) would
     return the first place votes for each candidate. Vectors should be non-increasing and
@@ -262,9 +274,13 @@ def score_dict_from_score_vector(
             receive the points for 4th place.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.ballot import Ballot
+    from votekit.pref_profile import RankProfile
+
     validate_score_vector(score_vector)
 
     if not isinstance(profile, RankProfile):
@@ -324,7 +340,7 @@ def score_dict_from_score_vector(
 
 def _first_place_votes_from_df_no_ties(
     profile: RankProfile,
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
     Computes first place votes for all candidates_cast in a ``RankProfile``.
     Intended to be much faster than first_place_votes, but does not handle ties in ballots.
@@ -333,8 +349,9 @@ def _first_place_votes_from_df_no_ties(
         profile (RankProfile): The profile to compute first place votes for.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to number of first place votes.
+            Candidates can be strings, integers, or mix of both.
     """
     # equiv to score vector of (1,0,0,...)
     assert profile.max_ranking_length is not None
@@ -346,7 +363,7 @@ def _first_place_votes_from_df_no_ties(
 def first_place_votes(
     profile: RankProfile,
     tie_convention: Literal["high", "average", "low"] = "average",
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
     Computes first place votes for all candidates_cast in a ``RankProfile``.
 
@@ -357,9 +374,11 @@ def first_place_votes(
             first, each receives 1/n points. "high" would award them each one point, and "low" 0.
 
     Returns:
-        dict[str, float]:
-            Dictionary mapping candidates to number of first place votes.
+        dict[Candidate, float]: Dictionary mapping candidates to number of first place votes.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
+
     # equiv to score vector of (1,0,0,...)
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
@@ -369,37 +388,140 @@ def first_place_votes(
     )
 
 
-def mentions(
+def _mentions_from_ballots(
     profile: RankProfile,
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
-    Calculates total mentions for all candidates in a ``RankProfile``.
+    Calculates total mentions for all candidates by iterating the profile's ballot list.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking.
     """
+    from votekit.pref_profile import RankProfile
+
     mentions = {c: 0.0 for c in profile.candidates}
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     for ballot in profile.ballots:
         if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
-        else:
-            for s in ballot.ranking:
-                for cand in s:
-                    mentions[cand] += ballot.weight
+        # a candidate mentioned only on zero-weight ballots is absent from profile.candidates,
+        # and the ballot contributes nothing anyway
+        if ballot.weight == 0:
+            continue
+        for s in ballot.ranking:
+            for cand in s:
+                mentions[cand] += float(ballot.weight)
     return mentions
+
+
+def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
+    """
+    Calculates total mentions for all candidates from the profile df, without materializing
+    ballots.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[Candidate, float]:
+            Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking, i.e. its df row is entirely "~" cells.
+    """
+    from votekit.pref_profile import RankProfile
+
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be of type RankProfile.")
+
+    assert profile.max_ranking_length is not None
+
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+
+    tilde = frozenset({"~"})
+
+    # no ranking columns with ballots present means every ballot has ranking=None
+    if len(profile.df) and not ranking_cols:
+        raise TypeError("Ballots must have rankings.")
+
+    # positional index so duplicate df index labels cannot break the weight lookup below
+    rank_sets = cast(Any, profile.df[ranking_cols].reset_index(drop=True).stack())
+
+    mask = rank_sets.map(lambda s: isinstance(s, frozenset) and bool(s) and s != tilde)
+
+    # a row of only "~" cells is the df encoding of ranking=None; match the ballot path's
+    # error. A present-but-empty frozenset ranking is allowed in both paths.
+    is_tilde = rank_sets.map(lambda s: s == tilde)
+    if len(is_tilde) and is_tilde.groupby(level=0).all().any():
+        raise TypeError("Ballots must have rankings.")
+
+    rank_sets = rank_sets[mask]
+    exploded = rank_sets.explode()
+
+    if exploded.empty:
+        return {c: 0.0 for c in profile.candidates}
+
+    weights = profile.df["Weight"].to_numpy()[exploded.index.get_level_values(0)]
+
+    totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
+
+    # float() normalizes np.float64 so both mentions paths return the same types
+    return {c: float(totals.get(c, 0.0)) for c in profile.candidates}
+
+
+def mentions(profile: RankProfile) -> dict[Candidate, float]:
+    """
+    Calculates total mentions for all candidates in a ``RankProfile``.
+
+    Every position that lists a candidate contributes the full ballot weight, so each member of
+    a tied position receives the full weight, and a candidate ranked in multiple positions of
+    one ballot is counted once per position.
+
+    Computes from the profile's ballot list when it is already materialized and from the
+    underlying df otherwise; both give identical results.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[Candidate, float]:
+            Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking.
+    """
+    from votekit.pref_profile import RankProfile
+
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be of type RankProfile.")
+
+    # NOTE: If the ballots are materialized, then iterating through the ballots directly tends
+    # to be faster than using the DataFrame.
+    if "ballots" in profile.__dict__:
+        return _mentions_from_ballots(profile)
+
+    return _mentions_from_df(profile)
 
 
 def borda_scores(
     profile: RankProfile,
     borda_max: Optional[int] = None,
     tie_convention: Literal["high", "average", "low"] = "low",
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     r"""
     Calculates Borda scores for candidates_cast in a ``RankProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
@@ -416,9 +538,12 @@ def borda_scores(
             receive the points for 4th place.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to Borda scores.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     if borda_max is None:
@@ -431,12 +556,14 @@ def borda_scores(
 
 
 def tiebreak_set(
-    r_set: frozenset[str],
+    set_to_tiebreak: frozenset[Candidate],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
     backup_tiebreak_convention: Optional[str] = None,
-) -> tuple[frozenset[str], ...]:
+    *,
+    rng: Optional[random.Random] = None,
+) -> tuple[frozenset[Candidate], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
     to a tiebreak rule. Rule 1: random. Rule 2: first-place votes; break the tie based on
@@ -444,7 +571,8 @@ def tiebreak_set(
     profile. Rule 4: lex/lexicographic/alph/alphabetical; break the tie alphabetically.
 
     Args:
-        r_set (frozenset[str]): Set of candidates on which to break tie.
+        set_to_tiebreak (frozenset[Candidate]): Set of candidates on which to break tie.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str): Tiebreak method to use. Options are "random", "first_place", and
@@ -460,22 +588,32 @@ def tiebreak_set(
             this convention is used to break any remaining ties. Options are "random" and
             "lex/lexicographic/alph/alphabetical". Defaults to None which sets the backup to
             "lex" if the initial tiebreak is alphabetical, and "random" otherwise.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        tuple[frozenset[str],...]: tiebroken ranking
+        tuple[frozenset[Candidate],...]: tiebroken ranking
+        Candidates can be strings, integers, or mix of both.
     """
+    rng = random.Random() if rng is None else rng
     if tiebreak in ["alphabetical", "lexicographic", "alph", "lex"]:
-        sorted_cands = sorted([c for c in r_set])
+        sorted_cands = sort_candidates_pseudo_lexicographically([c for c in set_to_tiebreak])
         new_ranking = tuple(map(lambda c: frozenset({c}), sorted_cands))
 
     elif tiebreak == "random":
-        new_ranking = tuple(frozenset({c}) for c in random.sample(list(r_set), k=len(r_set)))
+        new_ranking = tuple(
+            frozenset({c})
+            for c in rng.sample(
+                sort_candidates_pseudo_lexicographically(list(set_to_tiebreak)),
+                k=len(set_to_tiebreak),
+            )
+        )
     elif (tiebreak == "first_place" or tiebreak == "borda") and profile:
         if tiebreak == "borda":
             tiebreak_scores = borda_scores(profile, tie_convention=scoring_tie_convention)
         else:
             tiebreak_scores = first_place_votes(profile, tie_convention=scoring_tie_convention)
-        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in r_set}
+        tiebreak_scores = {c: score for c, score in tiebreak_scores.items() if c in set_to_tiebreak}
         new_ranking = score_dict_to_ranking(tiebreak_scores)
 
     elif profile is None:
@@ -502,10 +640,14 @@ def tiebreak_set(
             "lex",
         ]:
             print("Initial tiebreak was unsuccessful, performing alphabetic tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="lex")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="lex", rng=rng
+            )
         elif backup_tiebreak_convention == "random":
             print("Initial tiebreak was unsuccessful, performing random tiebreak")
-            new_ranking, _ = tiebroken_ranking(new_ranking, profile=profile, tiebreak="random")
+            new_ranking, _ = tiebroken_ranking(
+                new_ranking, profile=profile, tiebreak="random", rng=rng
+            )
         else:
             raise ValueError("Invalid backup tiebreak code was provided")
 
@@ -513,33 +655,41 @@ def tiebreak_set(
 
 
 def tiebroken_ranking(
-    ranking: tuple[frozenset[str], ...],
+    ranking: tuple[frozenset[Candidate], ...],
     profile: Optional[RankProfile] = None,
     tiebreak: str = "random",
-) -> tuple[tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str], ...]]]:
+    *,
+    rng: Optional[random.Random] = None,
+) -> tuple[
+    tuple[frozenset[Candidate], ...], dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]
+]:
     """
     Breaks ties in a list-of-sets ranking according to a given scheme.
 
     Args:
-        ranking (list[set[str]]): A list-of-set ranking of candidates.
+        ranking (tuple[frozenset[Candidate]]): A list-of-set ranking of candidates.
+            Candidates can be strings, integers, or mix of both.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to random.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        tuple[tuple[frozenset[str], ...], dict[frozenset[str], tuple[frozenset[str],...]]]:
+        tuple[tuple[frozenset[Candidate], ...], dict[frozenset[Candidate]
+            tuple[frozenset[Candidate],...]]]:
             The first entry of the tuple is a list-of-set ranking of candidates (broken down to one
             candidate sets). The second entry is a dictionary that maps tied sets to their
-            resolution.
+            resolution. Candidates can be strings, integers, or mix of both.
     """
-    new_ranking: list[frozenset[str]] = [frozenset()] * len([c for s in ranking for c in s])
+    new_ranking: list[frozenset[Candidate]] = [frozenset()] * len([c for s in ranking for c in s])
 
     i = 0
     tied_dict = {}
     for s in ranking:
         if len(s) > 1:
-            tiebroken = tiebreak_set(s, profile, tiebreak)
+            tiebroken = tiebreak_set(s, profile, tiebreak, rng=rng)
             tied_dict[s] = tiebroken
         else:
             tiebroken = (s,)
@@ -550,23 +700,26 @@ def tiebroken_ranking(
 
 
 def score_dict_to_ranking(
-    score_dict: dict[str, float], sort_high_low: bool = True
-) -> tuple[frozenset[str], ...]:
+    score_dict: CandidateNumericDict,
+    sort_high_low: bool = True,
+) -> tuple[frozenset[Candidate], ...]:
     """
     Sorts candidates into a tuple of frozensets ranking based on a scoring dictionary.
 
     Args:
-        score_dict (dict[str, float]): Dictionary between candidates
-            and their score.
+        score_dict (CandidateNumericDict):
+            Dictionary between candidates and their score.
+            Candidates can be strings, integers, or mix of both.
         sort_high_low (bool, optional): How to sort candidates based on scores. True sorts
             from high to low. Defaults to True.
 
 
     Returns:
-        tuple[frozenset[str],...]: Candidate rankings in a list-of-sets form.
+        tuple[frozenset[Candidate],...]: Candidate rankings in a list-of-sets form.
+            Candidates can be strings, integers, or mix of both.
     """
 
-    score_to_cand: dict[float, list[str]] = {s: [] for s in score_dict.values()}
+    score_to_cand: dict[Numeric, list[Candidate]] = {s: [] for s in score_dict.values()}
     for c, score in score_dict.items():
         score_to_cand[score].append(c)
 
@@ -584,14 +737,16 @@ def score_dict_to_ranking(
 
 
 def elect_cands_from_set_ranking(
-    ranking: Sequence[Union[frozenset[str], set[str]]],
+    ranking: Sequence[frozenset[Candidate] | set[Candidate] | set[str] | set[int]],
     n_seats: int,
     profile: Optional[RankProfile] = None,
     tiebreak: Optional[str] = None,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> tuple[
-    tuple[frozenset[str], ...],
-    tuple[frozenset[str], ...],
-    Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]],
+    tuple[frozenset[Candidate], ...],
+    tuple[frozenset[Candidate], ...],
+    Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
 ]:
     """
     Given a ranking, elect the top n_seats candidates in the ranking.
@@ -601,33 +756,38 @@ def elect_cands_from_set_ranking(
     is a tie set and whose second entry is the resolution of the tie.
 
     Args:
-        ranking (tuple[frozenset[str],...]): A list-of-set ranking of candidates.
+        ranking (Sequence[frozenset[Candidate] | set[Candidate] | set[str] | set[int]]):
+            A list-of-set ranking of candidates.
+            Candidates can be strings, integers, or mix of both.
         n_seats (int): Number of seats to elect.
         profile (RankProfile, optional): Profile used to break ties in first-place votes or
             Borda setting. Defaults to None, which implies a random tiebreak.
         tiebreak (str, optional): Method of tiebreak, currently supports 'random', 'borda',
             'first_place'. Defaults to None, which does not break ties.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        tuple[tuple[frozenset[str]]], list[tuple[frozenset[str]],
-            Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]]:
+        tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],
+            Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
             A list-of-sets of elected candidates, a list-of-sets of remaining candidates,
             and a tuple whose first entry is a tie set and whose second entry is the resolution of
             the tie. If no ties were broken, the tuple returns None.
+            Candidates can be strings, integers, or mix of both.
     """
     if n_seats < 1:
         raise ValueError("n_seats must be strictly positive")
     if n_seats > len([c for s in ranking for c in s]):
         raise ValueError("n_seats must be no more than the number of candidates.")
 
-    ranking_fs: tuple[frozenset[str], ...] = tuple(
+    ranking_fs: tuple[frozenset[Candidate], ...] = tuple(
         s if isinstance(s, frozenset) else frozenset(s) for s in ranking
     )
 
     num_elected = 0
-    elected: list[frozenset[str]] = []
+    elected: list[frozenset[Candidate]] = []
     i = 0
-    tiebreak_ranking: Optional[tuple[frozenset[str], tuple[frozenset[str], ...]]] = None
+    tiebreak_ranking: Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = None
 
     while num_elected < n_seats:
         elected.append(ranking_fs[i])
@@ -639,10 +799,10 @@ def elect_cands_from_set_ranking(
             elected.pop()
             num_elected -= len(ranking_fs[i])
 
-            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak)
+            tiebroken = tiebreak_set(frozenset(ranking_fs[i]), profile, tiebreak, rng=rng)
             elected += tiebroken[: (n_seats - num_elected)]
 
-            remaining: list[frozenset[str]] = list(tiebroken[(n_seats - num_elected) :])
+            remaining: list[frozenset[Candidate]] = list(tiebroken[(n_seats - num_elected) :])
             if i < len(ranking_fs):
                 remaining += list(ranking_fs[(i + 1) :])
 
@@ -668,6 +828,8 @@ def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
         list[v]: All possible permutations of the tie(s).
 
     """
+    from votekit.ballot import RankBallot
+
     if not isinstance(ballot, RankBallot):
         raise TypeError("Ballot must be of type RankBallot.")
     if ballot.ranking is None:
@@ -680,7 +842,7 @@ def expand_tied_ballot(ballot: RankBallot) -> list[RankBallot]:
             if len(s) > 1:
                 new_ballots = [
                     RankBallot(
-                        weight=ballot.weight / math.factorial(len(s)),
+                        weight=float(ballot.weight) / math.factorial(len(s)),
                         voter_set=ballot.voter_set,
                         ranking=tuple(ballot.ranking[:i])
                         + tuple([frozenset({c}) for c in order])
@@ -706,6 +868,7 @@ def resolve_profile_ties(profile: RankProfile) -> RankProfile:
     Returns:
         RankProfile: A RankProfile with resolved ties.
     """
+    from votekit.pref_profile import RankProfile
 
     new_ballots = tuple([b for ballot in profile.ballots for b in expand_tied_ballot(ballot)])
     return RankProfile(ballots=new_ballots)
@@ -713,7 +876,7 @@ def resolve_profile_ties(profile: RankProfile) -> RankProfile:
 
 def score_profile_from_ballot_scores(
     profile: ScoreProfile,
-) -> dict[str, float]:
+) -> dict[Candidate, float]:
     """
     Score the candidates based on the ``scores`` parameter of the ballots.
     All ballots must have a ``scores`` parameter; note that a ``scores`` dictionary
@@ -723,9 +886,12 @@ def score_profile_from_ballot_scores(
         profile (ScoreProfile): Profile to score.
 
     Returns:
-        dict[str, float]:
+        dict[Candidate, float]:
             Dictionary mapping candidates to scores.
+            Candidates can be strings, integers, or mix of both.
     """
+    from votekit.pref_profile import ScoreProfile
+
     scores = {c: 0.0 for c in profile.candidates}
     if not isinstance(profile, ScoreProfile):
         raise TypeError("Profile must be of type ScoreProfile.")
@@ -754,6 +920,8 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
     Raises:
         TypeError: All ballots must have rankings.
     """
+    from votekit.pref_profile import RankProfile
+
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     assert profile.max_ranking_length is not None
@@ -765,7 +933,7 @@ def ballot_lengths(profile: RankProfile) -> dict[int, float]:
             raise TypeError("All ballots must have rankings.")
 
         length = len(ballot.ranking)
-        ballot_lengths[length] += ballot.weight
+        ballot_lengths[length] += float(ballot.weight)
 
     return ballot_lengths
 
@@ -897,7 +1065,7 @@ def index_to_lexicographic_ballot(
 
 
 def build_df_from_ballot_samples(
-    ballots_freq_dict: dict[tuple[int, ...], int], candidates: Sequence[str]
+    ballots_freq_dict: dict[tuple[int, ...], int], candidates: Sequence[Candidate]
 ):
     """
     Helper function which creates a pandas df to instantiate a
@@ -906,7 +1074,8 @@ def build_df_from_ballot_samples(
         ballots_freq_dict: dictionary mapping ballots to
             sampled frequency. The keys should be in candidate id
             form
-        candidates : list of candidates in the profile
+        candidates (Candidate): list of candidates in the profile.
+            Candidates can be strings, integers, or mix of both.
     returns:
         pandas df
     """
@@ -926,3 +1095,165 @@ def build_df_from_ballot_samples(
         df_data,
         columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)] + ["Weight", "Voter Set"],
     )
+
+
+def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) -> list[Candidate]:
+    """
+    Sort candidates in pseudo lexicographical order if candidates are mixed types.
+
+    Candidates will be sorted lexicographically if all are strings and numerically if all integers.
+    If candidates are of mixed type (i.e. strings and integers), integer candidates will be ordered
+    before string candidates with the exception of string candidates that can be cast to an integer
+    or float. String candidates that can be cast to an integer or float will be ordered amongst the
+    integer candidates in numerical order. If there is a corresponding integer candidate to a casted
+    string candidate, then those string candidates will follow the integer candidate.
+    String candidates that are equivalent to nan will be sorted at the end of the list in
+    lexographical order.
+
+    Example:
+        candidates = ["A", 1, "1", "1.1", "01", "2", 3]
+        returns [1, "01", "1", "1.1", "2", 3, "A"]
+
+    Args:
+        candidates (Sequence[Candidate]): list of candidates to sort
+
+    Returns:
+        tuple[Candidate,...]: sorted candidates
+
+    """
+    candidates = list(candidates)
+    try:
+        return sorted(candidates)
+    except TypeError:
+        if any(not isinstance(cand, Candidate) for cand in candidates):
+            raise TypeError(
+                "Candidates can only be strings or integers. Candidates"
+                f" {[cand for cand in candidates if not isinstance(cand, Candidate)]}"
+                " are invalid."
+            )
+
+        def is_float(cand):
+            try:
+                float(cand)
+                return True
+            except ValueError:
+                return False
+
+        def sort_mixed_cands(cand):
+            if isinstance(cand, str) and cand.strip().lower() == "nan":
+                return (2, 0, cand)
+            elif isinstance(cand, int):
+                return (0, cand, "")
+            elif isinstance(cand, str):
+                if cand.isdigit():
+                    str_as_int_cand = int(cand)
+                    return (0, str_as_int_cand, cand)
+                elif is_float(cand):
+                    str_as_fl_cand = float(cand)
+                    return (0, str_as_fl_cand, cand)
+                else:
+                    return (1, 0, cand)  # pure strings
+
+        return sorted(candidates, key=sort_mixed_cands)
+
+
+sort_candidates_pseudo_lex = sort_candidates_pseudo_lexicographically
+
+
+def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
+    """
+    Check for equivalent string and integer candidates where the candidates are the same if strings.
+
+    A warning will be thrown to alert that collided candidates will be treated as separate
+    candidates and will be indistinguishable as plot labels. Only thrown when the string cast of an
+    integer candidate exactly equals an existing string candidate. A string candidate that evaluates
+    to the same integer candidate when parsed (e.g. '01' vs. 1) is left alone, since it renders as
+    distinguishable text on a plot. Warning fires once per colliding candidate.
+
+    Args:
+        candidates (Sequence[Candidate]): list of candidates.
+
+    Raises:
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+                when casted to to other candidate's type, they are equivalent. Those candidates
+                will be treated as separate candidates.
+    """
+    int_candidates = [cand for cand in candidates if isinstance(cand, int)]
+    str_candidates = [cand for cand in candidates if isinstance(cand, str)]
+    for int_cand in int_candidates:
+        if str(int_cand) in str_candidates:
+            warnings.warn(
+                f"Candidates {int_cand} appear as both str and int within"
+                f" candidates {candidates}. These will be treated as separate"
+                " candidates, and will be indistinguishable when plotted on an axis.",
+                UserWarning,
+            )
+
+
+def _validate_candidate_names(candidates: Iterable[Candidate], source: object, attribute: str):
+    """
+    Ensure the candidates are strings or non-negative integers without reserved characters.
+
+    Args:
+        candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in df or
+            ballots. Or, the candidates defined at the profile level.
+        source (object): object with a candidates attribute to validate.
+        attribute (str): Name of the attribute.
+            Both source and attribute are used to improve error description.
+
+    Raises:
+        TypeError: Candidate must be a string or integer.
+        TypeError: Candidate must be a non-negative integer.
+        TypeError: Candidate cannot be a boolean. Could conflict with other integer
+            candidates.
+        ValueError: Candidate cannot be '~'. Its a reserved character.
+        ValueError: Candidate cannot contain ':'. Its a reserved character.
+        UserWarning: Candidate collision has occurred between a str and int candidate where
+            when casted to to other candidate's type, they are equivalent. Those candidates
+            will be treated as separate candidates.
+
+    """
+    if isinstance(candidates, str):
+        raise TypeError("Candidates cannot be a string. Wrap string in list.")
+    candidates = list(candidates)
+    source_type = source.__class__.__name__
+    if "~" in candidates:
+        raise ValueError(
+            f"Candidate '~' found in {source_type}.{attribute} {candidates}."
+            " '~' is a reserved character and cannot be used for"
+            " candidate names."
+        )
+    if any(isinstance(cand, str) and ":" in cand for cand in candidates):
+        raise ValueError(
+            f"':' found in {source_type}.{attribute} {candidates}. ':' is a reserved character"
+            " and cannot be used in candidate names."
+        )
+    if any(not isinstance(cand, (str, int)) for cand in candidates):
+        raise TypeError(
+            f"Non-string/integer candidate(s) found in {source_type}.{attribute} {candidates}."
+            " Candidates can only be strings or integers."
+        )
+    if any(cand < 0 for cand in candidates if isinstance(cand, int)):
+        raise ValueError(
+            f"Negative integer candidate(s) found in {source_type}.{attribute} {candidates}. Must"
+            " be non-negative."
+        )
+    if any(isinstance(cand, bool) for cand in candidates):
+        raise TypeError(
+            f"Boolean candidate(s) found in {source_type}.{attribute} {candidates}. Could"
+            " collide with other integer candidates. Change to 0 or 1."
+        )
+
+    str_cands = {cand for cand in candidates if isinstance(cand, str)}
+    int_cands = {cand for cand in candidates if isinstance(cand, int)}
+    collisions = {
+        str_cand for str_cand in str_cands if str_cand.isdigit() and int(str_cand) in int_cands
+    }
+    if collisions:
+        warnings.warn(
+            UserWarning(
+                f"Candidates {collisions} appear as both str and int within"
+                f" {source_type}.{attribute} {candidates}. These will be treated as separate"
+                " candidates.",
+            )
+        )

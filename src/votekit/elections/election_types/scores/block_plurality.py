@@ -18,6 +18,9 @@ class _ScoreBlockPlurality(GeneralRating):
             results in ``n_seats``.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
     """
 
     def __init__(
@@ -26,11 +29,18 @@ class _ScoreBlockPlurality(GeneralRating):
         n_seats: int = 1,
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         if budget is None or budget == 0:
             budget = n_seats
         super().__init__(
-            profile, n_seats=n_seats, per_candidate_limit=1, budget=budget, tiebreak=tiebreak
+            profile,
+            n_seats=n_seats,
+            per_candidate_limit=1,
+            budget=budget,
+            tiebreak=tiebreak,
+            rng_seed=rng_seed,
         )
 
 
@@ -45,6 +55,9 @@ class BlocPlurality(_ScoreBlockPlurality):
             results in ``n_seats``.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
+        rng_seed (int, optional): Seed for random number generator. An integer seed produces the
+            same output given identical inputs; By default, seed is None which gives
+            non-deterministic results.
     """
 
     def __init__(
@@ -53,6 +66,8 @@ class BlocPlurality(_ScoreBlockPlurality):
         n_seats: int = 1,
         budget: Optional[int] = None,
         tiebreak: Optional[str] = None,
+        *,
+        rng_seed: Optional[int] = None,
     ):
         warnings.warn(
             "BlocPlurality has been renamed to BlockPlurality. "
@@ -60,4 +75,6 @@ class BlocPlurality(_ScoreBlockPlurality):
             DeprecationWarning,
             stacklevel=2,
         )
-        super().__init__(profile, n_seats=n_seats, budget=budget, tiebreak=tiebreak)
+        super().__init__(
+            profile, n_seats=n_seats, budget=budget, tiebreak=tiebreak, rng_seed=rng_seed
+        )

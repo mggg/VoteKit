@@ -30,6 +30,52 @@ def test_csv_bijection_scores(tmp_path):
     assert profile == read_profile
 
 
+def test_csv_mixed_cand_scores(tmp_path):
+    # NOTE: Expect a warning to be thrown for 1 and "1" candidates
+    with pytest.warns(UserWarning, match="will be treated as separate candidates"):
+        profile = ScoreProfile(
+            ballots=(
+                ScoreBallot(scores={"1": 2, "A": 4, "B": 1}, voter_set={"Chris"}),
+                ScoreBallot(scores={1: 2, 2: 4, 3: 1}, voter_set={"Peter", "Moon"}),
+                ScoreBallot(
+                    scores={"A": 2, "B": 4, 1: 1},
+                ),
+                ScoreBallot(
+                    scores={3: 2, 2: 4, "1": 1},
+                ),
+                ScoreBallot(
+                    scores={"B": 5, 1: 4, "A": 1},
+                ),
+            )
+            * 5,
+            candidates=["A", "B", "1", 1, 2, 3],
+        )
+        out = str(tmp_path / "test_csv_pp_mixed_cand_scores.csv")
+        profile.to_csv(out, include_voter_set=True)
+        read_profile = ScoreProfile.from_csv(out)
+    assert profile == read_profile
+
+
+def test_csv_cand_names_with_parentheses_scores(tmp_path):
+    profile = ScoreProfile(
+        ballots=(
+            ScoreBallot(
+                scores={"Aleine (Alei)": 2, "(A)": 4, "(Alex) Alexander": 1}, voter_set={"Chris"}
+            ),
+            ScoreBallot(
+                scores={"(A)": 2, "Aleine (Alei)": 4, "(Alex) Alexander": 1},
+                voter_set={"Peter", "Moon"},
+            ),
+        )
+        * 5,
+        candidates=["Aleine (Alei)", "(Alex) Alexander", "(A)"],
+    )
+    out = str(tmp_path / "test_csv_pp_cand_name_with_parentheses_scores.csv")
+    profile.to_csv(out, include_voter_set=True)
+    read_profile = ScoreProfile.from_csv(out)
+    assert profile == read_profile
+
+
 def test_csv_filepath_error():
     with pytest.raises(ValueError, match="File path must be provided."):
         ScoreProfile().to_csv("")
@@ -63,7 +109,25 @@ def test_csv_misformatted_header_rows_error():
 
 def test_csv_misformatted_header_values_error():
     with pytest.raises(ValueError, match="Row 2 should contain tuples mapping candidates"):
-        ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2.csv")
+        ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_non_tuples.csv")
+
+    with pytest.raises(ValueError, match="If not using v2 format, Row 2 should contain tuples"):
+        ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_header_value_2_invalid_tuples.csv")
+
+    with pytest.raises(
+        ValueError, match="csv file v2 is improperly formatted. Row 2 should contain tuples"
+    ):
+        ScoreProfile.from_csv(
+            f"{filepath}/test_csv_pp_misformat_header_value_2_v2_invalid_tuples.csv"
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="csv file v2 is improperly formatted. Row 2 should contain candidate types of str or",
+    ):
+        ScoreProfile.from_csv(
+            f"{filepath}/test_csv_pp_misformat_header_value_2_v2_non_valid_type.csv"
+        )
 
     with pytest.raises(
         ValueError,

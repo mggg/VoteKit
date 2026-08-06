@@ -1,14 +1,16 @@
 import math
 import random
-from typing import Union
+from fractions import Fraction
+from typing import Optional, Union
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
+from votekit.types import Candidate, Numeric
 
 
 def fractional_transfer(
-    winner: str,
-    fpv: float,
+    winner: Candidate,
+    fpv: Numeric,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
 ) -> tuple[RankBallot, ...]:
@@ -16,8 +18,9 @@ def fractional_transfer(
     Calculates fractional transfer from winner, then removes winner from the list of ballots.
 
     Args:
-        winner (str): Candidate to transfer votes from.
-        fpv (float): Number of first place votes for winning candidate.
+        winner (Candidate): Candidate to transfer votes from.
+            Candidate can be a string or integer.
+        fpv (Numeric): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
@@ -53,20 +56,25 @@ def fractional_transfer(
 
 
 def random_transfer(
-    winner: str,
-    fpv: float,
+    winner: Candidate,
+    fpv: Numeric,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
+    *,
+    rng: Optional[random.Random] = None,
 ) -> tuple[RankBallot, ...]:
     """
     Cambridge-style transfer where transfer ballots are selected randomly.
     All ballots must have integer weights.
 
     Args:
-        winner (str): Candidate to transfer votes from.
-        fpv (float): Number of first place votes for winning candidate.
+        winner (Candidate): Candidate to transfer votes from.
+            Candidates can be strings, integers, or mix of both.
+        fpv (Numeric): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
+        rng (random.Random, optional): Standard library random number generator. Pass a seeded
+            instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         tuple[RankBallot,...]:
@@ -89,10 +97,11 @@ def random_transfer(
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
             if ballot.ranking[0] == frozenset({winner}):
+                unit_weight = Fraction(1) if isinstance(ballot.weight, Fraction) else 1
                 new_ballots = [
                     RankBallot(
                         ranking=new_ranking,
-                        weight=1,
+                        weight=unit_weight,
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)
@@ -108,7 +117,8 @@ def random_transfer(
         else:
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
-    surplus_ballots = random.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
+    rng = random.Random() if rng is None else rng
+    surplus_ballots = rng.sample([b for b in winner_ballots if b.ranking], int(fpv) - threshold)
     updated_ballots += surplus_ballots
 
     return RankProfile(
