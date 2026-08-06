@@ -4,7 +4,7 @@ import math
 import random
 import warnings
 from itertools import permutations
-from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -388,11 +388,11 @@ def first_place_votes(
     )
 
 
-def mentions(
+def _mentions_from_ballots(
     profile: RankProfile,
 ) -> dict[Candidate, float]:
     """
-    Calculates total mentions for all candidates in a ``RankProfile``.
+    Calculates total mentions for all candidates by iterating the profile's ballot list.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
@@ -400,6 +400,11 @@ def mentions(
     Returns:
         dict[Candidate, float]:
             Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking.
     """
     from votekit.pref_profile import RankProfile
 
@@ -409,11 +414,107 @@ def mentions(
     for ballot in profile.ballots:
         if ballot.ranking is None:
             raise TypeError("Ballots must have rankings.")
-        else:
-            for s in ballot.ranking:
-                for cand in s:
-                    mentions[cand] += float(ballot.weight)
+        # a candidate mentioned only on zero-weight ballots is absent from profile.candidates,
+        # and the ballot contributes nothing anyway
+        if ballot.weight == 0:
+            continue
+        for s in ballot.ranking:
+            for cand in s:
+                mentions[cand] += float(ballot.weight)
     return mentions
+
+
+def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
+    """
+    Calculates total mentions for all candidates from the profile df, without materializing
+    ballots.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[Candidate, float]:
+            Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking, i.e. its df row is entirely "~" cells.
+    """
+    from votekit.pref_profile import RankProfile
+
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be of type RankProfile.")
+
+    assert profile.max_ranking_length is not None
+
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+
+    tilde = frozenset({"~"})
+
+    # no ranking columns with ballots present means every ballot has ranking=None
+    if len(profile.df) and not ranking_cols:
+        raise TypeError("Ballots must have rankings.")
+
+    # positional index so duplicate df index labels cannot break the weight lookup below
+    rank_sets = cast(Any, profile.df[ranking_cols].reset_index(drop=True).stack())
+
+    mask = rank_sets.map(lambda s: isinstance(s, frozenset) and bool(s) and s != tilde)
+
+    # a row of only "~" cells is the df encoding of ranking=None; match the ballot path's
+    # error. A present-but-empty frozenset ranking is allowed in both paths.
+    is_tilde = rank_sets.map(lambda s: s == tilde)
+    if len(is_tilde) and is_tilde.groupby(level=0).all().any():
+        raise TypeError("Ballots must have rankings.")
+
+    rank_sets = rank_sets[mask]
+    exploded = rank_sets.explode()
+
+    if exploded.empty:
+        return {c: 0.0 for c in profile.candidates}
+
+    weights = profile.df["Weight"].to_numpy()[exploded.index.get_level_values(0)]
+
+    totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
+
+    # float() normalizes np.float64 so both mentions paths return the same types
+    return {c: float(totals.get(c, 0.0)) for c in profile.candidates}
+
+
+def mentions(profile: RankProfile) -> dict[Candidate, float]:
+    """
+    Calculates total mentions for all candidates in a ``RankProfile``.
+
+    Every position that lists a candidate contributes the full ballot weight, so each member of
+    a tied position receives the full weight, and a candidate ranked in multiple positions of
+    one ballot is counted once per position.
+
+    Computes from the profile's ballot list when it is already materialized and from the
+    underlying df otherwise; both give identical results.
+
+    Args:
+        profile (RankProfile): RankProfile of ballots.
+
+    Returns:
+        dict[Candidate, float]:
+            Dictionary mapping candidates to mention totals (values).
+            Candidates can be strings, integers, or mix of both.
+
+    Raises:
+        TypeError: If profile is not a RankProfile.
+        TypeError: If any ballot has no ranking.
+    """
+    from votekit.pref_profile import RankProfile
+
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be of type RankProfile.")
+
+    # NOTE: If the ballots are materialized, then iterating through the ballots directly tends
+    # to be faster than using the DataFrame.
+    if "ballots" in profile.__dict__:
+        return _mentions_from_ballots(profile)
+
+    return _mentions_from_df(profile)
 
 
 def borda_scores(
