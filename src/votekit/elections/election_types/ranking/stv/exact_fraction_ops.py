@@ -10,6 +10,10 @@ def to_exact_fraction_weight(value: object) -> Fraction:
     """
     Convert an exact STV ballot weight to a nonnegative ``Fraction``.
 
+    Warning:
+        Exact STV operations assume every ranking position contains at most one candidate. This
+        helper does not validate that profile-level precondition.
+
     Args:
         value (object): Ballot weight to convert. Integral real values and ``Fraction`` values
             are accepted.
@@ -52,6 +56,10 @@ def convert_profile_weights(
     """
     Return a copy of a rank profile with converted ballot weights.
 
+    Warning:
+        Exact STV operations assume every ranking position contains at most one candidate. This
+        helper does not validate that precondition.
+
     Args:
         profile (RankProfile): Profile whose weights are converted.
         converter (Callable[[Any], Numeric]): Function applied to each ballot weight.
@@ -73,6 +81,10 @@ def convert_profile_weights(
 def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     Compute exact first-place totals for an exact STV profile.
+
+    Warning:
+        The profile must already have passed STV validation. Tied ranking positions are not
+        supported.
 
     Args:
         profile (RankProfile): Profile with singleton rankings and ``Fraction`` weights.
@@ -99,6 +111,10 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     Compute exact Borda scores for an exact STV profile.
 
+    Warning:
+        The profile must already have passed STV validation. Tied ranking positions are not
+        supported.
+
     Args:
         profile (RankProfile): Profile with singleton rankings and ``Fraction`` weights.
 
@@ -107,14 +123,19 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
     assert profile.max_ranking_length is not None
+    ranking_columns = [f"Ranking_{rank}" for rank in range(1, profile.max_ranking_length + 1)]
+    candidates_by_id = {}
+    for candidate_id, candidate_set in profile.id_candidate_map.items():
+        if candidate_id == -1:
+            continue
+        assert len(candidate_set) == 1
+        candidates_by_id[candidate_id] = next(iter(candidate_set))
 
-    for ballot in profile.ballots:
-        assert ballot.ranking is not None
-        assert isinstance(ballot.weight, Fraction)
-        for rank, candidate_set in enumerate(ballot.ranking):
-            if candidate_set == frozenset({"~"}):
+    ranking_rows = profile._df[ranking_columns].itertuples(index=False, name=None)
+    for candidate_ids, weight in zip(ranking_rows, profile._df["Weight"]):
+        assert isinstance(weight, Fraction)
+        for rank, candidate_id in enumerate(candidate_ids):
+            if candidate_id == -1:
                 break
-            assert len(candidate_set) == 1
-            candidate = next(iter(candidate_set))
-            scores[candidate] += ballot.weight * (profile.max_ranking_length - rank)
+            scores[candidates_by_id[candidate_id]] += weight * (profile.max_ranking_length - rank)
     return scores
