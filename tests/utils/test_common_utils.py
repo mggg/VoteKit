@@ -2,6 +2,7 @@ from itertools import permutations
 from pathlib import Path
 from typing import Literal, cast
 
+import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -14,7 +15,6 @@ from votekit.utils import (
     borda_scores,
     elect_cands_from_set_ranking,
     expand_tied_ballot,
-    fast_mentions,
     first_place_votes,
     index_to_lexicographic_ballot,
     mentions,
@@ -27,8 +27,9 @@ from votekit.utils import (
     tiebroken_ranking,
     validate_score_vector,
 )
+from votekit.utils.common_utils import _mentions_from_ballots, _mentions_from_df
 
-CSV_DIR = Path(__file__).resolve().parents[0] / "data" / "csv"
+CSV_DIR = Path(__file__).resolve().parents[1] / "data" / "csv"
 
 profile_no_ties = RankProfile(
     ballots=(
@@ -258,44 +259,44 @@ def test_fpv_errors():
         first_place_votes(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
-def test_mentions():
+def test_mentions_from_ballots():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = mentions(profile_no_ties)
+    test = _mentions_from_ballots(profile_no_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_mentions_with_ties():
+def test_mentions_from_ballots_with_ties():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = mentions(profile_with_ties)
+    test = _mentions_from_ballots(profile_with_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_mentions_with_duplicates():
+def test_mentions_from_ballots_with_duplicates():
     correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
-    test = mentions(profile_with_duplicates)
+    test = _mentions_from_ballots(profile_with_duplicates)
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_fast_mentions():
+def test_mentions_from_df():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = fast_mentions(profile_no_ties)
+    test = _mentions_from_df(profile_no_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_fast_mentions_with_ties():
+def test_mentions_from_df_with_ties():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = fast_mentions(profile_with_ties)
+    test = _mentions_from_df(profile_with_ties)
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_fast_mentions_with_duplicates():
+def test_mentions_from_df_with_duplicates():
     correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
-    test = fast_mentions(profile_with_duplicates)
+    test = _mentions_from_df(profile_with_duplicates)
     assert correct == test
     assert isinstance(test["A"], float)
 
@@ -303,17 +304,64 @@ def test_fast_mentions_with_duplicates():
 @pytest.mark.slow
 def test_fast_and_slow_mentions_are_same():
     profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
-    assert mentions(profile) == fast_mentions(profile)
+    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
+
+
+def test_mentions_zero_weight_ballots():
+    # "A" appears only on a zero-weight ballot, so it is not in profile.candidates; both
+    # mentions paths must skip it rather than raise KeyError
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=0),
+            RankBallot(ranking=tuple(map(frozenset, [{"B"}])), weight=2),
+        )
+    )
+    correct = {"B": 2.0}
+    assert _mentions_from_ballots(profile) == correct
+    assert _mentions_from_df(profile) == correct
+
+
+def test_mentions_from_df_returns_python_floats():
+    assert all(type(v) is float for v in _mentions_from_df(profile_no_ties).values())
+
+
+def test_mentions_no_ranking_ballot_raises_in_both_paths():
+    # an unranked ballot materializes with ranking=None, so both paths must raise the same error
+    profile = RankProfile(ballots=(RankBallot(weight=2), RankBallot(ranking=({"A"},), weight=1)))
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_df(profile)
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_ballots(profile)
+
+
+def test_mentions_all_unranked_profile_raises_in_both_paths():
+    # every ballot has ranking=None, so the profile has no ranking columns at all
+    profile = RankProfile(ballots=(RankBallot(weight=2),))
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_df(profile)
+    with pytest.raises(TypeError, match="Ballots must have rankings."):
+        _mentions_from_ballots(profile)
+
+
+def test_mentions_empty_frozenset_ranking_consistent():
+    # a present-but-empty frozenset ranking is not ranking=None; neither path should raise
+    profile = RankProfile(ballots=(RankBallot(ranking=(frozenset(),), weight=1),))
+    assert _mentions_from_df(profile) == {}
+    assert _mentions_from_ballots(profile) == {}
+
+
+def test_mentions_from_df_duplicate_ballot_index():
+    # profiles built from a df keep the given index; duplicate labels must not break the df path
+    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).df
+    profile = RankProfile(df=pd.concat([df, df]), candidates=("A", "B"), max_ranking_length=2)
+    correct = {"A": 2.0, "B": 2.0}
+    assert _mentions_from_df(profile) == correct
+    assert _mentions_from_ballots(profile) == correct
 
 
 def test_mentions_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
-
-
-def test_fast_mentions_errors():
-    with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
-        fast_mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
 def test_borda_no_ties():
