@@ -288,6 +288,61 @@ def remove_cand_rank_profile(
     )
 
 
+def remove_rank_ballots_with_cands(
+    removed: Candidate | CandidateList,
+    profile: RankProfile,
+    remove_zero_weight_ballots: bool = True,
+) -> CleanedRankProfile:
+    """
+    Remove ballots containing any specified candidate or marker from a ranked profile.
+
+    Args:
+        removed (Candidate | list[Candidate] | list[str] | list[int]):
+            Candidate, marker, or list of candidates and markers to filter on.
+        profile (RankProfile): Profile to remove matching ballots from.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
+            weight. Defaults to True.
+
+    Returns:
+        CleanedRankProfile: A cleaned ``RankProfile``.
+
+    Raises:
+        ProfileError: Profile must only contain ranked ballots.
+    """
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be a RankProfile.")
+
+    if isinstance(removed, Candidate):
+        removed = [removed]
+
+    removed_set = set(removed)
+
+    assert profile.max_ranking_length is not None
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    contains_removed = profile.df[ranking_cols].map(
+        lambda cands: isinstance(cands, frozenset) and not cands.isdisjoint(removed_set)
+    )
+    matching_idxs = set(profile.df.index[contains_removed.any(axis=1)])
+
+    cleaned_df = profile.df.drop(index=matching_idxs)
+    if remove_zero_weight_ballots:
+        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+
+    unaltr_idxs = set(profile.df.index) - matching_idxs
+
+    return CleanedRankProfile(
+        df=cleaned_df,
+        candidates=profile.candidates,
+        max_ranking_length=profile.max_ranking_length,
+        parent_profile=profile,
+        df_index_column=list(cleaned_df.index),
+        no_wt_altr_idxs=set(),
+        no_rank_altr_idxs=matching_idxs,
+        nonempty_altr_idxs=set(),
+        unaltr_idxs=unaltr_idxs,
+    )
+
+
 def condense_ranking_row(
     ranking_tup: tuple,
 ) -> tuple:
