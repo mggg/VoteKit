@@ -1,3 +1,5 @@
+import random
+from fractions import Fraction
 from itertools import permutations
 from pathlib import Path
 from typing import Literal, cast
@@ -357,6 +359,33 @@ def test_mentions_from_df_duplicate_ballot_index():
     correct = {"A": 2.0, "B": 2.0}
     assert _mentions_from_df(profile) == correct
     assert _mentions_from_ballots(profile) == correct
+
+
+def _random_mentions_profile(rng: random.Random) -> RankProfile:
+    # samples every dimension that has produced a path divergence: ties, duplicate candidates,
+    # short ballots, zero and Fraction weights, mixed str/int candidates
+    cands = ["A", "B", 1, 2, "C"][: rng.randint(2, 5)]
+    ballots = []
+    for _ in range(rng.randint(1, 8)):
+        pool = [rng.choice(cands) for _ in range(rng.randint(1, len(cands)))]
+        ranking = []
+        while pool:
+            n = rng.randint(1, min(2, len(pool)))
+            ranking.append(frozenset(pool[:n]))
+            pool = pool[n:]
+        weight = rng.choice([0, 1, 3, 1 / 2, Fraction(1, 3)])
+        ballots.append(RankBallot(ranking=tuple(ranking), weight=weight))
+    # sometimes omit the explicit candidate list so profile.candidates can exclude candidates
+    # that appear only on zero-weight ballots
+    if rng.random() < 0.5:
+        return RankProfile(ballots=tuple(ballots), max_ranking_length=len(cands))
+    return RankProfile(ballots=tuple(ballots), candidates=cands, max_ranking_length=len(cands))
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_mentions_paths_stay_in_sync(seed):
+    profile = _random_mentions_profile(random.Random(seed))
+    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
 
 
 def test_mentions_errors():
