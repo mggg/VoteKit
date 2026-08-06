@@ -81,7 +81,7 @@ class RandomDictator(RankingElection):
         """
         fpv = prev_state.scores
         candidates = list(fpv.keys())
-        weights: list[float] = list(fpv.values())
+        weights = [float(weight) for weight in fpv.values()]
         idx = self._rng.choices(range(len(candidates)), weights=weights, k=1)[0]
         winning_cand = candidates[idx]
         elected = (frozenset({winning_cand}),)

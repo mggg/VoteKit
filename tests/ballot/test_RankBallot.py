@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import pytest
 
 from votekit.ballot import Ballot, RankBallot
@@ -66,6 +68,22 @@ def test_ballot_hash():
 def test_ballot_coerce_wt_to_float():
     assert isinstance(RankBallot(weight=3).weight, float)
     assert isinstance(RankBallot(weight=3.2).weight, float)
+
+
+def test_ballot_preserves_fraction_weight():
+    weight = Fraction(1, 3)
+    ballot = RankBallot(ranking=({"A"},), weight=weight)
+    rational_half = RankBallot(ranking=({"A"},), weight=Fraction(1, 2))
+    float_half = RankBallot(ranking=({"A"},), weight=0.5)
+
+    assert ballot.weight is weight
+    assert rational_half == float_half
+    assert hash(rational_half) == hash(float_half)
+
+
+def test_ballot_rejects_negative_fraction_weight():
+    with pytest.raises(ValueError, match="Ballot weight cannot be negative"):
+        RankBallot(ranking=({"A"},), weight=Fraction(-1, 3))
 
 
 def test_ballot_strip_whitespace():

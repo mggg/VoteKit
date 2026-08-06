@@ -13,7 +13,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.stv import STV
 from votekit.elections.transfers import fractional_transfer
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, Numeric
 from votekit.utils import first_place_votes
 
 from .abstract_ranking import RankingElection
@@ -60,7 +60,7 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [Candidate, float, Union[tuple[RankBallot], list[RankBallot]], int],
+            [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: QuotaType | None = "droop",

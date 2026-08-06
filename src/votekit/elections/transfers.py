@@ -1,15 +1,16 @@
 import math
 import random
+from fractions import Fraction
 from typing import Optional, Union
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate
+from votekit.types import Candidate, Numeric
 
 
 def fractional_transfer(
     winner: Candidate,
-    fpv: float,
+    fpv: Numeric,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
 ) -> tuple[RankBallot, ...]:
@@ -19,7 +20,7 @@ def fractional_transfer(
     Args:
         winner (Candidate): Candidate to transfer votes from.
             Candidate can be a string or integer.
-        fpv (float): Number of first place votes for winning candidate.
+        fpv (Numeric): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
@@ -56,7 +57,7 @@ def fractional_transfer(
 
 def random_transfer(
     winner: Candidate,
-    fpv: float,
+    fpv: Numeric,
     ballots: Union[tuple[RankBallot], list[RankBallot]],
     threshold: int,
     *,
@@ -69,7 +70,7 @@ def random_transfer(
     Args:
         winner (Candidate): Candidate to transfer votes from.
             Candidates can be strings, integers, or mix of both.
-        fpv (float): Number of first place votes for winning candidate.
+        fpv (Numeric): Number of first place votes for winning candidate.
         ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
@@ -96,10 +97,11 @@ def random_transfer(
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
             if ballot.ranking[0] == frozenset({winner}):
+                unit_weight = Fraction(1) if isinstance(ballot.weight, Fraction) else 1
                 new_ballots = [
                     RankBallot(
                         ranking=new_ranking,
-                        weight=1,
+                        weight=unit_weight,
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)

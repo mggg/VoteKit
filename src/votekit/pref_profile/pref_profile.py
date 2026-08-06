@@ -6,6 +6,7 @@ import os
 import pickle
 import urllib.request
 import warnings
+from fractions import Fraction
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -30,7 +31,7 @@ from votekit.pref_profile.utils import (
     convert_row_to_rank_ballot,
     convert_row_to_score_ballot,
 )
-from votekit.types import Candidate
+from votekit.types import Candidate, Numeric
 from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
 
@@ -68,7 +69,7 @@ class PreferenceProfile:
         candidates_cast (tuple[Candidate]): Tuple of candidates who appear on any ballot with
             positive weight, either in the ranking or in the score dictionary.
             Candidates can be strings, integers, or mix of both.
-        total_ballot_wt (float): Sum of ballot weights.
+        total_ballot_wt (Numeric): Sum of ballot weights.
         num_ballots (int): Length of ballot list.
         contains_rankings (bool): Whether or not the profile contains ballots with
             rankings.
@@ -196,12 +197,12 @@ class PreferenceProfile:
         """
         return len(self._df)
 
-    def _find_total_ballot_wt(self) -> float:
+    def _find_total_ballot_wt(self) -> Numeric:
         """
         Compute and set the total ballot weight.
 
         Returns:
-            float: total ballot weight.
+            Numeric: total ballot weight.
         """
         total_weight = 0
 
@@ -999,6 +1000,12 @@ class RankProfile(PreferenceProfile):
 
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
+
+        if any(isinstance(weight, Fraction) for weight in self._df["Weight"]):
+            raise ValueError(
+                "RankProfile CSV does not support rational weights. Convert a copied profile "
+                "to float first if a lossy export is acceptable."
+            )
 
         candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 

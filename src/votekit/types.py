@@ -1,3 +1,4 @@
+from fractions import Fraction
 from typing import Iterable, Mapping, Optional, Sequence, TypeAlias
 
 # ---------------------------------------------------------------------------
@@ -5,6 +6,16 @@ from typing import Iterable, Mapping, Optional, Sequence, TypeAlias
 # ---------------------------------------------------------------------------
 Candidate: TypeAlias = str | int
 CandidateFloatDict: TypeAlias = dict[Candidate, float] | dict[str, float] | dict[int, float]
+Numeric: TypeAlias = float | Fraction
+CandidateNumericDict: TypeAlias = (
+    CandidateFloatDict
+    | dict[Candidate, int]
+    | dict[str, int]
+    | dict[int, int]
+    | dict[Candidate, Fraction]
+    | dict[str, Fraction]
+    | dict[int, Fraction]
+)
 CandidateList: TypeAlias = list[Candidate] | list[str] | list[int]
 
 # ---------------------------------------------------------------------------

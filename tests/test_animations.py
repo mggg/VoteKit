@@ -1,6 +1,8 @@
 import shutil
 import subprocess
 import warnings
+from collections.abc import Mapping
+from fractions import Fraction
 from pathlib import Path
 from typing import Literal, Optional, cast
 
@@ -101,6 +103,32 @@ def test_STVAnimation_init(election_happy):
     assert isinstance(animation.events, list)
     assert "Pear" in animation.candidate_dict.keys()
     assert animation.candidate_dict["Pear"]["support"] == 8
+
+
+def test_STVAnimation_exact_values_cross_float_boundary():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=({"A"}, {"B"}), weight=Fraction(4, 3)),
+            RankBallot(ranking=({"B"}, {"A"}), weight=Fraction(1, 3)),
+        )
+    )
+    animation = STVAnimation(STV(profile, exact=True), focus="all")
+
+    def leaf_values(mapping):
+        for value in mapping.values():
+            if isinstance(value, Mapping):
+                yield from leaf_values(value)
+            else:
+                yield value
+
+    assert all(
+        isinstance(candidate["support"], float) for candidate in animation.candidate_dict.values()
+    )
+    assert all(
+        isinstance(value, float)
+        for event in animation.events
+        for value in leaf_values(getattr(event, "support_transferred", {}))
+    )
 
 
 def test_STVAnimation_focus_bad_literal(election_happy):

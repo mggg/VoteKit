@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
@@ -16,8 +17,8 @@ class Ballot:
             Entry i of the sequence is a candidate or iterable of candidates ranked in position i.
             Candidates can be strings, integers, or mix of both.
             Defaults to None. Will be coerced to tuple[frozenset[Candidate], ...].
-        weight (Union[float, int]): Weight assigned to a given ballot. Defaults to 1.0
-            Can be input as int or float, and will be coerced to float.
+        weight (Union[float, int, Fraction]): Weight assigned to a given ballot. Defaults to 1.0.
+            Rational weights are preserved for rank ballots; other weights are coerced to float.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
             Defaults to frozenset(). Will be coerced to frozenset.
         scores (Optional[Mapping[Candidate, float | int] | Mapping[str, float | int]
@@ -31,7 +32,7 @@ class Ballot:
         ranking (Optional[tuple[frozenset[Candidate], ...]]): Tuple of candidate ranking.
             Entry i of the tuple is a frozenset of candidates ranked in position i.
             Candidates can be strings, integers, or mix of both.
-        weight (float): Weight assigned to a given ballot.
+        weight (float | Fraction): Weight assigned to a given ballot.
         voter_set (frozenset[str]): Set of voters who cast the ballot.
         scores (Optional[Mapping[Candidate, float | int]): Scores for individual candidates.
 
@@ -55,7 +56,7 @@ class Ballot:
         *,
         ranking: RankingLike,
         scores: None = None,
-        weight: Union[float, int] = 1.0,
+        weight: Union[float, int, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
         include_zero_score: None = None,
     ) -> RankBallot: ...
@@ -87,7 +88,7 @@ class Ballot:
         *,
         ranking: RankingLike = None,
         scores: ScoresLike = None,
-        weight: Union[float, int] = 1.0,
+        weight: Union[float, int, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
         include_zero_score: bool = False,
     ):
@@ -105,7 +106,7 @@ class Ballot:
         *,
         ranking: RankingLike = None,
         scores: ScoresLike = None,
-        weight: Union[float, int] = 1.0,
+        weight: Union[float, int, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
@@ -113,8 +114,11 @@ class Ballot:
         if weight < 0:
             raise ValueError("Ballot weight cannot be negative.")
 
-        # Silently promote weight to float
-        self.weight = float(weight)
+        self.weight = (
+            weight
+            if isinstance(self, RankBallot) and isinstance(weight, Fraction)
+            else float(weight)
+        )
         self._frozen = True
 
     def __eq__(self, other):
@@ -162,14 +166,14 @@ class RankBallot(Ballot):
         ranking (RankingLike): Ranking of candidates, defaults to None.
             RankingLike = Sequence[Candidate | Iterable[Candidate]] | None
             Canidates can be strings, integers, or mix of both.
-        weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
+        weight (Union[int, float, Fraction]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
         ranking (Ranking): Ranking of candidates.
             Ranking = tuple[frozenset[Candidate], ...] | None
-        weight (float): Weight of the ballot.
+        weight (float | Fraction): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
     Raises:
@@ -184,7 +188,7 @@ class RankBallot(Ballot):
         *,
         ranking: RankingLike = None,
         scores: ScoresLike = None,
-        weight: Union[int, float] = 1.0,
+        weight: Union[int, float, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         if scores is not None:

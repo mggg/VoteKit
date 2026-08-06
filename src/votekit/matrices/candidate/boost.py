@@ -29,18 +29,18 @@ def boost_prob(i: str, j: str, pref_profile: RankProfile) -> Tuple[float, float]
 
     for ballot in pref_profile.ballots:
         if comention(i, ballot):
-            i_mentions += ballot.weight
+            i_mentions += float(ballot.weight)
 
         if comention(j, ballot):
-            j_mentions += ballot.weight
+            j_mentions += float(ballot.weight)
 
         if comention([i, j], ballot):
-            both_mentions += ballot.weight
+            both_mentions += float(ballot.weight)
 
     return (
-        float(both_mentions) / j_mentions if (j_mentions != 0) else np.nan,
+        both_mentions / j_mentions if (j_mentions != 0) else np.nan,
         (
-            float(i_mentions) / pref_profile.total_ballot_wt
+            i_mentions / float(pref_profile.total_ballot_wt)
             if (pref_profile.total_ballot_wt != 0)
             else np.nan
         ),

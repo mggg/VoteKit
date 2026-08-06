@@ -395,7 +395,7 @@ class STVAnimation:
         """
         # Initialize dictionary and add "support" key for each candidate.
         candidate_dict: dict[Candidate, dict[str, object]] = {
-            name: {"support": support}
+            name: {"support": float(support)}
             for name, support in election.election_states[0].scores.items()
             if name in self.focus
         }
@@ -545,15 +545,29 @@ class STVAnimation:
             cand_transferred_from = cands_transferred_from[0]
             transfers = {cand_transferred_from: {}}
             for to_candidate in [c for s in current_state.remaining for c in s if c in self.focus]:
-                prev_score = prev_state.scores[to_candidate]
-                current_score = current_state.scores[to_candidate]
-                transfers[cand_transferred_from][to_candidate] = current_score - prev_score
+                prev_score = next(
+                    score
+                    for candidate, score in prev_state.scores.items()
+                    if candidate == to_candidate
+                )
+                current_score = next(
+                    score
+                    for candidate, score in current_state.scores.items()
+                    if candidate == to_candidate
+                )
+                transfers[cand_transferred_from][to_candidate] = float(current_score) - float(
+                    prev_score
+                )
         elif event_type == "win":
             ballots_by_fpv = ballots_by_first_cand(prev_profile)
             for cand_transferred_from in cands_transferred_from:
                 new_ballots = election.transfer(
                     cand_transferred_from,
-                    prev_state.scores[cand_transferred_from],
+                    next(
+                        score
+                        for candidate, score in prev_state.scores.items()
+                        if candidate == cand_transferred_from
+                    ),
                     ballots_by_fpv[cand_transferred_from],
                     election.threshold,
                 )
@@ -566,7 +580,7 @@ class STVAnimation:
                     if ballot.ranking is not None:
                         (to_candidate,) = ballot.ranking[0]
                         if to_candidate in self.focus:
-                            transfer_weights_from_candidate[to_candidate] += ballot.weight
+                            transfer_weights_from_candidate[to_candidate] += float(ballot.weight)
 
                 transfers[cand_transferred_from] = transfer_weights_from_candidate
 

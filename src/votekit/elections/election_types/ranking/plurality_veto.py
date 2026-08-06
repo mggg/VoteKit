@@ -376,7 +376,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 )
         self._internal_round_number += 1
 
-        new_scores = prev_state.scores.copy()
+        new_scores = {candidate: float(score) for candidate, score in prev_state.scores.items()}
         remaining_set = self.candidates - self._eliminated
         if len(remaining_set) == self.n_seats:
             electable_candidates = remaining_set
