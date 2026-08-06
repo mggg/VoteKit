@@ -204,4 +204,4 @@ tasks:
     desc: Sync the docs contributing page from CONTRIBUTING.md
     silent: true
     cmds:
-      - uv run python docs/sync_contributing.py
+      - PYTHONHASHSEED=0 uv run python docs/sync_contributing.py
