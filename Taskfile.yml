@@ -166,8 +166,33 @@ tasks:
       - cmd /c "if exist .ruff_cache rmdir /s /q .ruff_cache"
       - for /r . %d in (__pycache__) do @if exist "%d" rmdir /s /q "%d"
 
+  check-release:
+    desc: Verify the version, changelog, lockfile, and tag state agree before release
+    silent: true
+    cmds:
+      - |
+        version="$(uv version --short)"
+        fail=0
+        err() { echo "FAIL: $1"; fail=1; }
+
+        git fetch --tags --quiet 2>/dev/null || true
+
+        if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+          err "v$version is already tagged; bump the version with \`uv version <X.Y.Z>\`."
+        fi
+        if ! grep -Fq "## [$version] - " CHANGELOG.md; then
+          err "CHANGELOG.md has no dated \`## [$version]\` section."
+        fi
+        if ! uv lock --check >/dev/null 2>&1; then
+          err "uv.lock does not match pyproject.toml; run \`uv lock\`."
+        fi
+        if [ "$fail" -ne 0 ]; then
+          exit 1
+        fi
+        echo "check-release: all checks passed for v$version"
+
   draft-release:
-    desc: Bump version, update docs, and create a tagged commit (`task draft-release -- 3.5.0`)
+    desc: Bump version, update release files, and create a tag (`task draft-release -- 3.5.0`)
     silent: true
     preconditions:
       - sh: test -n "{{.CLI_ARGS}}"
@@ -176,7 +201,9 @@ tasks:
       VERSION: "{{.CLI_ARGS}}"
     cmds:
       - uv run python scripts/draft_release.py {{.VERSION}}
-      - git add pyproject.toml CHANGELOG.md
+      - uv lock
+      - task: check-release
+      - git add pyproject.toml uv.lock CHANGELOG.md
       - git commit -m "Release v{{.VERSION}}"
       - git tag -a "v{{.VERSION}}" -m "v{{.VERSION}}"
       - echo "Created commit and tag v{{.VERSION}}. Review with 'git log --oneline -1' and 'git tag -l'."
