@@ -1,5 +1,6 @@
 import math
 import random
+from fractions import Fraction
 from typing import Optional, Union
 
 from votekit.ballot import RankBallot
@@ -96,10 +97,11 @@ def random_transfer(
             new_ranking = tuple([s for s in new_ranking if len(s) != 0])
 
             if ballot.ranking[0] == frozenset({winner}):
+                unit_weight = Fraction(1) if isinstance(ballot.weight, Fraction) else 1
                 new_ballots = [
                     RankBallot(
                         ranking=new_ranking,
-                        weight=1,
+                        weight=unit_weight,
                         voter_set=ballot.voter_set,
                     )
                 ] * int(ballot.weight)

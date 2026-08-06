@@ -1,7 +1,7 @@
 import random
 from fractions import Fraction
 from functools import partial
-from typing import Callable, Literal, Optional, TypeAlias, Union
+from typing import Callable, Literal, Optional, TypeAlias, Union, cast
 from warnings import warn
 
 import numpy as np
@@ -60,10 +60,7 @@ def _candidate_score(scores: CandidateNumericDict, candidate: Candidate) -> Nume
     Raises:
         KeyError: If the candidate is absent from the score mapping.
     """
-    for scored_candidate, score in scores.items():
-        if scored_candidate == candidate:
-            return score
-    raise KeyError(candidate)
+    return cast(dict[Candidate, Numeric], scores)[candidate]
 
 
 class NumpyInnerSTV(NumpySTVBase):

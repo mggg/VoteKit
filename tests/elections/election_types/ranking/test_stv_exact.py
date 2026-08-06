@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot
-from votekit.elections import IRV, STV, SequentialRCV, fractional_transfer
+from votekit.elections import IRV, STV, SequentialRCV, fractional_transfer, random_transfer
 from votekit.graphs.ballot_graph import BallotGraph
 from votekit.pref_profile import RankProfile
 from votekit.pref_profile.utils import (
@@ -363,6 +363,29 @@ def test_exact_stv_accepts_custom_fraction_preserving_transfer():
         isinstance(score, Fraction)
         for state in election.election_states
         for score in state.scores.values()
+    )
+
+
+def test_exact_stv_random_transfer_preserves_fraction_weights():
+    profile = _three_candidate_profile(Fraction(3), Fraction(1), Fraction(1))
+
+    election = STV(
+        profile,
+        n_seats=2,
+        exact=True,
+        transfer=random_transfer,
+        rng_seed=1,
+    )
+
+    assert all(
+        isinstance(score, Fraction)
+        for state in election.election_states
+        for score in state.scores.values()
+    )
+    assert all(
+        isinstance(ballot.weight, Fraction)
+        for round_number in range(len(election.election_states))
+        for ballot in election.get_profile(round_number).ballots
     )
 
 
