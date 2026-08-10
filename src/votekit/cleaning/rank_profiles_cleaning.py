@@ -195,6 +195,65 @@ def remove_repeat_cands_rank_profile(
     )
 
 
+def remove_repeat_cands_and_condense_rank_profile(
+    profile: RankProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = True,
+) -> CleanedRankProfile:
+    """
+    Remove repeated candidates from each ranking and condense the resulting rankings.
+
+    A candidate's first appearance is retained and subsequent appearances are removed. Empty
+    ranking positions created by that removal, as well as pre-existing empty positions, are then
+    condensed. Ballots with no repeated candidates and only trailing empty positions are considered
+    unaltered because their expressed ranking does not change.
+
+    Args:
+        profile (RankProfile): Profile to clean.
+        remove_empty_ballots (bool, optional): Whether to remove ballots with no ranking after
+            cleaning. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether to remove zero-weight ballots.
+            Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether to retain the original profile's
+            candidate list. Defaults to True.
+
+    Returns:
+        CleanedRankProfile: A cleaned ``RankProfile``.
+    """
+
+    cleaned_profile = clean_rank_profile(
+        profile,
+        lambda ranking: condense_ranking_row(remove_repeat_cands_from_ranking_row(ranking)),
+        remove_empty_ballots,
+        remove_zero_weight_ballots,
+        retain_original_candidate_list,
+    )
+
+    assert profile.max_ranking_length is not None
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_df = profile.df[ranking_cols]
+    additional_unaltr_idxs = {
+        i
+        for i in cleaned_profile.nonempty_altr_idxs
+        if tuple(ranking_df.loc[i])
+        == remove_repeat_cands_from_ranking_row(tuple(ranking_df.loc[i]))
+        and _is_equiv_to_condensed(ranking_df.loc[i])  # type: ignore[arg-type]
+    }
+
+    return CleanedRankProfile(
+        df=cleaned_profile.df,
+        candidates=cleaned_profile.candidates,
+        max_ranking_length=cleaned_profile.max_ranking_length,
+        parent_profile=profile,
+        df_index_column=cleaned_profile.df_index_column,
+        no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
+        no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
+        nonempty_altr_idxs=cleaned_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs),
+        unaltr_idxs=cleaned_profile.unaltr_idxs | additional_unaltr_idxs,
+    )
+
+
 def remove_cand_from_ranking_row(
     removed: Candidate | CandidateList,
     ranking_tup: tuple[frozenset, ...],
