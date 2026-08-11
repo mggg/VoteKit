@@ -101,6 +101,27 @@ def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...
     )
 
 
+def _move_group_keys_to_columns(grouped_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Move the group keys of an aggregated, group-indexed df back into columns, placing them
+    ahead of the aggregated columns. Equivalent to ``grouped_df.reset_index()``, but builds
+    the result in a single concatenation.
+
+    Args:
+        grouped_df (pd.DataFrame): Aggregated df indexed by its group keys.
+
+    Returns:
+        pd.DataFrame: Df with the group keys as leading columns and a fresh integer index.
+
+    """
+    # reset_index() inserts one column per group key, so a profile with many ranking or
+    # candidate columns trips pandas' "DataFrame is highly fragmented" PerformanceWarning.
+    return pd.concat(
+        [grouped_df.index.to_frame(index=False), grouped_df.reset_index(drop=True)],
+        axis=1,
+    )
+
+
 def _df_to_rank_ballot_tuple(
     df: pd.DataFrame, candidates: tuple[Candidate, ...], max_ranking_length: int = 0
 ) -> tuple[RankBallot, ...]:

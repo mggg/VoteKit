@@ -26,6 +26,7 @@ from votekit.pref_profile.csv_utils import (
     _validate_score_csv_format,
 )
 from votekit.pref_profile.utils import (
+    _move_group_keys_to_columns,
     _sum_rank_profiles,
     _sum_score_profiles,
     convert_row_to_rank_ballot,
@@ -818,12 +819,14 @@ class RankProfile(PreferenceProfile):
 
         ranking_cols = [c for c in self.df.columns if "Ranking_" in c]
         group_df = self.df.groupby(ranking_cols, dropna=False)
-        new_df = group_df.aggregate(
-            {
-                "Weight": "sum",
-                "Voter Set": (lambda sets: set().union(*sets)),
-            }
-        ).reset_index()
+        new_df = _move_group_keys_to_columns(
+            group_df.aggregate(
+                {
+                    "Weight": "sum",
+                    "Voter Set": (lambda sets: set().union(*sets)),
+                }
+            )
+        )
 
         new_df.index.name = "Ballot Index"
 
@@ -1487,12 +1490,14 @@ class ScoreProfile(PreferenceProfile):
         cand_cols = [c for c in self.df.columns if c not in non_group_cols]
 
         group_df = self.df.groupby(cand_cols, dropna=False)
-        new_df = group_df.aggregate(
-            {
-                "Weight": "sum",
-                "Voter Set": (lambda sets: set().union(*sets)),
-            }
-        ).reset_index()
+        new_df = _move_group_keys_to_columns(
+            group_df.aggregate(
+                {
+                    "Weight": "sum",
+                    "Voter Set": (lambda sets: set().union(*sets)),
+                }
+            )
+        )
 
         new_df.index.name = "Ballot Index"
 
