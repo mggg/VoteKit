@@ -574,3 +574,159 @@ def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
             f"Cannot sum profiles of type {type(profiles[0]).__name__}. "
             "List can only contain RankProfiles or ScoreProfiles."
         )
+
+
+def subtract_profiles(
+    minuend: PreferenceProfile, subtrahend: PreferenceProfile
+) -> PreferenceProfile:
+    """
+    Subtract the ballot weights of one profile from another, matched by
+    identical ballot rankings (or scores).
+
+    Profiles with the same ballot rankings but differing weights have their
+    weights subtracted, leaving the voter set of the minuend untouched.
+
+    Args:
+        minuend (PreferenceProfile): The profile being subtracted from.
+        subtrahend (PreferenceProfile): The profile whose weights are subtracted.
+
+    Returns:
+        PreferenceProfile: A new profile with the subtracted ballot weights.
+
+    Raises:
+        TypeError: Both profiles must be of the same type, RankProfile or ScoreProfile.
+        ValueError: A ballot weight would become negative.
+    """
+
+    from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
+
+    if type(minuend) is not type(subtrahend):
+        raise TypeError(
+            f"Both profiles must be of the same type. "
+            f"Got {type(minuend).__name__} and {type(subtrahend).__name__}."
+        )
+
+    if isinstance(minuend, RankProfile):
+        return _subtract_rank_profiles(minuend, subtrahend)
+
+    if isinstance(minuend, ScoreProfile):
+        return _subtract_score_profiles(minuend, subtrahend)
+
+    raise TypeError(
+        f"Cannot subtract profiles of type {type(minuend).__name__}. "
+        "Only RankProfiles or ScoreProfiles are supported."
+    )
+
+
+def _subtract_rank_profiles(minuend: "RankProfile", subtrahend: "RankProfile") -> "RankProfile":
+    """Helper function for subtract_profiles that subtracts RankProfiles."""
+
+    from votekit.pref_profile.pref_profile import RankProfile
+
+    candidates = list(set().union(*[set(profile.candidates) for profile in [minuend, subtrahend]]))
+    max_ranking_length = max(
+        [
+            profile.max_ranking_length
+            for profile in [minuend, subtrahend]
+            if profile.max_ranking_length is not None
+        ]
+    )
+
+    # Pad both profiles to the same ranking length
+    padded_dfs = []
+    for profile in [minuend, subtrahend]:
+        assert profile.max_ranking_length is not None
+        curr_df = profile.df.copy()
+        for i in range(profile.max_ranking_length, max_ranking_length):
+            curr_df.insert(
+                len(curr_df.columns),
+                f"Ranking_{i + 1}",
+                pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
+            )
+        padded_dfs.append(curr_df)
+
+    minuend_df, subtrahend_df = padded_dfs
+    ranking_cols = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
+
+    # Align by ranking and subtract weights
+    subtrahend_weights = subtrahend_df.groupby(ranking_cols, dropna=False)["Weight"].sum()
+    minuend_grouped = minuend_df.groupby(ranking_cols, dropna=False)
+    new_rows = []
+    for key, group in minuend_grouped:
+        key = key[0] if isinstance(key, tuple) and len(key) == 1 else key
+        weight = group["Weight"].sum() - subtrahend_weights.get(key, 0)
+        if weight < 0:
+            raise ValueError(
+                f"Cannot subtract profiles: ballot weight would become negative for ranking {key}."
+            )
+        voter_set = set().union(*group["Voter Set"])
+        ranking = {
+            col: key[i] if i < len(key) else frozenset("~") for i, col in enumerate(ranking_cols)
+        }
+        new_rows.append(
+            {
+                **ranking,
+                "Weight": weight,
+                "Voter Set": voter_set,
+            }
+        )
+
+    # Ballots present only in the subtrahend do not appear in the result
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)[ranking_cols + ["Weight", "Voter Set"]]
+    else:
+        new_df = pd.DataFrame(columns=ranking_cols + ["Weight", "Voter Set"], dtype=object)
+    new_df.index.name = "Ballot Index"
+
+    return RankProfile(
+        candidates=candidates,
+        df=new_df,
+        max_ranking_length=max_ranking_length,
+    )
+
+
+def _subtract_score_profiles(minuend: "ScoreProfile", subtrahend: "ScoreProfile") -> "ScoreProfile":
+    """Helper function for subtract_profiles that subtracts ScoreProfiles."""
+
+    from votekit.pref_profile.pref_profile import ScoreProfile
+
+    total_cand = set().union(*[set(profile.candidates) for profile in [minuend, subtrahend]])
+    minuend_df = minuend.df.copy()
+    subtrahend_df = subtrahend.df.copy()
+    for df in (minuend_df, subtrahend_df):
+        for cand in total_cand - set(df.columns) - {"Weight", "Voter Set"}:
+            df[cand] = [np.nan] * len(df)
+
+    cand_cols = sort_candidates_pseudo_lexicographically(total_cand)
+    # NaN keys never compare equal, so fill missing scores with a sentinel
+    # before grouping so identical ballots match across profiles.
+    sentinel = -np.inf
+    subtrahend_filled = subtrahend_df.copy()
+    subtrahend_filled[cand_cols] = subtrahend_filled[cand_cols].fillna(sentinel)
+    minuend_filled = minuend_df.copy()
+    minuend_filled[cand_cols] = minuend_filled[cand_cols].fillna(sentinel)
+
+    subtrahend_weights = subtrahend_filled.groupby(cand_cols, dropna=False)["Weight"].sum()
+    minuend_grouped = minuend_filled.groupby(cand_cols, dropna=False)
+    new_rows = []
+    for key, group in minuend_grouped:
+        key = key[0] if isinstance(key, tuple) and len(key) == 1 else key
+        weight = group["Weight"].sum() - subtrahend_weights.get(key, 0)
+        if weight < 0:
+            raise ValueError(
+                f"Cannot subtract profiles: ballot weight would become negative for scores {key}."
+            )
+        voter_set = set().union(*group["Voter Set"])
+        scores = {cand: (np.nan if v == sentinel else v) for cand, v in zip(cand_cols, key)}
+        new_rows.append({**scores, "Weight": weight, "Voter Set": voter_set})
+
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)[cand_cols + ["Weight", "Voter Set"]]
+    else:
+        new_df = pd.DataFrame(columns=cand_cols + ["Weight", "Voter Set"], dtype=object)
+    new_df.index.name = "Ballot Index"
+
+    return ScoreProfile(
+        candidates=sort_candidates_pseudo_lexicographically(total_cand),
+        df=new_df,
+    )
