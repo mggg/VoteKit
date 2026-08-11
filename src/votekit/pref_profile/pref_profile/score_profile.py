@@ -26,7 +26,7 @@ from votekit.pref_profile.csv_utils import (
 from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique_candidates
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import ScoreMatrix
-from votekit.pref_profile.utils import _sum_score_profiles
+from votekit.pref_profile.utils import _subtract_score_profiles, _sum_score_profiles
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
@@ -442,6 +442,16 @@ class ScoreProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         return _sum_score_profiles([self, other])
+
+    def __sub__(self, other):
+        """
+        Subtract the ballot weights of another profile, matched by identical
+        scores. Voter sets of the minuend are retained.
+
+        Raises:
+            ValueError: A ballot weight would become negative.
+        """
+        return _subtract_score_profiles(self, other)
 
     def group_ballots(self) -> ScoreProfile:
         """
