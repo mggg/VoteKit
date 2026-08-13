@@ -278,6 +278,7 @@ def _inner_slate_bradley_terry(
     config: BlocSlateConfig,
     use_mcmc: bool = False,
     *,
+    final_max_ranking_length: Optional[int] = None,
     rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
@@ -290,6 +291,9 @@ def _inner_slate_bradley_terry(
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         use_mcmc (bool): If True, use MCMC to sample ballot types. Defaults to False.
+        final_max_ranking_length (Optional[int]): The maximum length of the ranking on each
+            ballot. If None, this is set to the total number of candidates in the configuration.
+            Defaults to None.
         rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
@@ -355,6 +359,7 @@ def _inner_slate_bradley_terry(
             config,
             bloc,
             slate_ballots,
+            final_max_ranking_length=final_max_ranking_length,
             numpy_rng=numpy_rng,
         )
 
@@ -367,7 +372,11 @@ def _inner_slate_bradley_terry(
 
 
 def slate_bt_profile_generator(
-    config: BlocSlateConfig, *, group_ballots=True, rng_seed: Optional[int] = None
+    config: BlocSlateConfig,
+    *,
+    final_max_ranking_length: Optional[int] = None,
+    group_ballots=True,
+    rng_seed: Optional[int] = None,
 ) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
@@ -386,6 +395,9 @@ def slate_bt_profile_generator(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        final_max_ranking_length (Optional[int]): The maximum length of the ranking on each
+            ballot. If None, this is set to the total number of candidates in the configuration.
+            Defaults to None.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
         rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
@@ -398,7 +410,9 @@ def slate_bt_profile_generator(
     _check_slate_bt_memory(config)
 
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
+    pp_by_bloc = _inner_slate_bradley_terry(
+        config, final_max_ranking_length=final_max_ranking_length, rng_seed=rng_seed
+    )
 
     profile = RankProfile()
     for prof in pp_by_bloc.values():

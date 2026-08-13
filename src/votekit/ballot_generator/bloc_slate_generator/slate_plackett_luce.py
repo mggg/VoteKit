@@ -114,6 +114,7 @@ def _sample_pl_slate_ballots(
 def _inner_slate_plackett_luce(
     config: BlocSlateConfig,
     *,
+    final_max_ranking_length: Optional[int] = None,
     rng_seed: Optional[int] = None,
 ) -> dict[str, RankProfile]:
     """
@@ -129,8 +130,9 @@ def _inner_slate_plackett_luce(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
-            set to the total number of candidates in the configuration. Defaults to None.
+        final_max_ranking_length (Optional[int]): The maximum length of the ranking on each
+            ballot. If None, this is set to the total number of candidates in the configuration.
+            Defaults to None.
         rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
@@ -181,7 +183,11 @@ def _inner_slate_plackett_luce(
                 numpy_rng=numpy_rng,
             )
         pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, numpy_rng=numpy_rng
+            config,
+            bloc,
+            slate_ballots,
+            final_max_ranking_length=final_max_ranking_length,
+            numpy_rng=numpy_rng,
         )
 
     return pref_profile_by_bloc
@@ -195,6 +201,7 @@ def _inner_slate_plackett_luce(
 def slate_pl_profile_generator(
     config: BlocSlateConfig,
     *,
+    final_max_ranking_length: Optional[int] = None,
     group_ballots: bool = True,
     rng_seed: Optional[int] = None,
 ) -> RankProfile:
@@ -211,6 +218,9 @@ def slate_pl_profile_generator(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
+        final_max_ranking_length (Optional[int]): The maximum length of the ranking on each
+            ballot. If None, this is set to the total number of candidates in the configuration.
+            Defaults to None.
         group_ballots (bool): If True, group identical ballots in the returned profile and
             set the weight accordingly. Defaults to True.
         rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
@@ -222,7 +232,9 @@ def slate_pl_profile_generator(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_plackett_luce(config, rng_seed=rng_seed)
+    pp_by_bloc = _inner_slate_plackett_luce(
+        config, final_max_ranking_length=final_max_ranking_length, rng_seed=rng_seed
+    )
 
     pp = RankProfile(ballots=tuple())
     for profile in pp_by_bloc.values():

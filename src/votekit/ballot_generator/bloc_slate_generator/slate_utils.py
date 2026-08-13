@@ -203,6 +203,7 @@ def _convert_slate_ballots_to_profile(
     bloc: str,
     slate_ballots: list[tuple[str, ...]],
     *,
+    final_max_ranking_length: Optional[int] = None,
     numpy_rng: Optional[Generator] = None,
 ) -> RankProfile:
     """
@@ -214,6 +215,9 @@ def _convert_slate_ballots_to_profile(
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
+        final_max_ranking_length (Optional[int]): The maximum length of the ranking on each
+            ballot. If None, this is set to the total number of candidates in the configuration.
+            Defaults to None.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.
 
@@ -221,6 +225,8 @@ def _convert_slate_ballots_to_profile(
         RankProfile: A preference profile.
     """
     n_candidates = len(config.candidates)
+    if final_max_ranking_length is None:
+        final_max_ranking_length = n_candidates
     n_ballots = len(slate_ballots)
 
     # full orderings of all candidates in each slate
@@ -231,20 +237,20 @@ def _convert_slate_ballots_to_profile(
         numpy_rng=numpy_rng,
     )
 
-    ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
+    ballot_pool = np.full((n_ballots, final_max_ranking_length), frozenset("~"))
     for i, slate_ballot in enumerate(slate_ballots):
         ranking = _convert_slate_ballot_type_to_ranking(
             ballot_type=slate_ballot,
             cand_ordering_by_slate={
                 s: cand_ordering[i] for s, cand_ordering in cand_orderings_by_slate.items()
             },
-            final_max_ranking_length=n_candidates,
+            final_max_ranking_length=final_max_ranking_length,
         )
         ballot_pool[i] = np.array(ranking)
 
     df = pd.DataFrame(ballot_pool)
     df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
+    df.columns = [f"Ranking_{i + 1}" for i in range(final_max_ranking_length)]
     df["Weight"] = 1
     df.insert(
         len(df.columns),
@@ -254,7 +260,7 @@ def _convert_slate_ballots_to_profile(
     pp = RankProfile(
         candidates=config.candidates,
         df=df,
-        max_ranking_length=n_candidates,
+        max_ranking_length=final_max_ranking_length,
     )
 
     return pp
