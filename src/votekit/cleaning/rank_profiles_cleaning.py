@@ -525,3 +525,94 @@ def remove_and_condense_rank_profile(
         nonempty_altr_idxs=new_nonempty_altr_idxs,
         unaltr_idxs=new_unaltr_idxs,
     )
+
+
+def remove_ballots_with_cand_rank_profile(
+    removed: Candidate | list[Candidate],
+    profile: RankProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = False,
+) -> CleanedRankProfile:
+    """
+    Given a ranked profile, remove the ballots that contain the given candidate(s).
+
+    A removed ballot is considered altered for both weight and ranking. No ballots are altered in
+    place, only removed.
+
+    Args:
+        removed (Candidate | list[Candidate]): Candidate or list of candidates to remove their
+            ballots. Candidates can be strings, integers, or mix of both.
+        profile (RankProfile): Profile to remove ballots from.
+        remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
+            ranking or scores as a result of cleaning. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
+            weight as a result of cleaning. Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether or not to retain the original list
+            of candidates. Defaults to False.
+
+    Returns:
+        CleanedRankProfile: A cleaned ``RankProfile`` with ballots containing the specified
+            candidate(s) removed.
+
+    Raises:
+        ProfileError: Profile must contain ranked ballots.
+        TypeError: Candidates to be removed must be strings or integers. A boolean or float
+            candidate of the same value as an integer candidate would result in removing the ballots
+            with that integer candidate.
+    """
+    if not isinstance(profile, RankProfile):
+        raise ProfileError("Profile must be a RankProfile.")
+
+    if isinstance(removed, Candidate) and not isinstance(removed, bool):
+        removed = [removed]
+    elif isinstance(removed, list):
+        if any(not isinstance(cand, (str, int)) or isinstance(cand, bool) for cand in removed):
+            raise TypeError("Candidates must be strings or integers within removed.")
+    else:
+        raise TypeError("removed must be a str/int candidate or a list of candidates.")
+
+    cand_ids = []
+    for cand in removed:
+        cand_ids.extend(
+            [
+                profile.candidate_id_map[cand_set]
+                for cand_set in profile.candidate_id_map
+                if cand in cand_set
+            ]
+        )
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ballots_to_remove = profile._df[ranking_cols].isin(cand_ids).any(axis=1)
+    cleaned_df = profile.df[~ballots_to_remove]
+    removed_ballot_idxs = set(profile.df.index[ballots_to_remove])
+
+    empty_ballot_idxs: set[int] = set()
+    if remove_empty_ballots:
+        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        empty_ballot_idxs = set(cleaned_df.index[mask])
+        cleaned_df = cleaned_df[~mask]
+
+    zero_weight_ballot_idxs: set[int] = set()
+    if remove_zero_weight_ballots:
+        mask = cleaned_df["Weight"] > 0
+        zero_weight_ballot_idxs = set(cleaned_df.index[~mask])
+        cleaned_df = cleaned_df[mask]
+
+    candidates = (
+        profile.candidates
+        if retain_original_candidate_list
+        else tuple(set(profile.candidates) - set(removed))
+    )
+
+    unaltered_idxs = list(cleaned_df.index)
+    return CleanedRankProfile(
+        df=cleaned_df,
+        candidates=candidates,
+        max_ranking_length=profile.max_ranking_length,
+        parent_profile=profile,
+        df_index_column=unaltered_idxs,
+        no_wt_altr_idxs=removed_ballot_idxs | zero_weight_ballot_idxs,
+        no_rank_altr_idxs=removed_ballot_idxs | empty_ballot_idxs,
+        nonempty_altr_idxs=set(),
+        unaltr_idxs=set(unaltered_idxs),
+    )
