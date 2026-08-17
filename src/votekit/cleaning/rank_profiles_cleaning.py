@@ -40,10 +40,14 @@ def _iterate_and_clean_ranking_tuples(
     cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
     tilde = frozenset({"~"})
+    empty = frozenset()
     idxs = cleaned_df.index
 
     unaltr_idxs = {idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c}
-    no_rank_altr_idxs = {idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)}
+    no_rank_altr_idxs = {
+        idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde or x == empty for x in c)
+    }
+    no_rank_altr_idxs = no_rank_altr_idxs - unaltr_idxs
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
     no_wt_altr_idxs: set[int] = set()
 

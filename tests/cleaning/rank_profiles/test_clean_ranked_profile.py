@@ -9,6 +9,7 @@ profile = RankProfile(
         RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
         RankBallot(ranking=({"A"},)),
         RankBallot(ranking=({"B"},), weight=0),
+        RankBallot(ranking=(), weight=2),
     ]
 )
 
@@ -30,9 +31,9 @@ def test_clean_profile_with_defaults():
     assert adj_profile != profile
 
     assert adj_profile.no_wt_altr_idxs == set()
-    assert adj_profile.no_rank_altr_idxs == set()
-    assert adj_profile.nonempty_altr_idxs == {0, 1, 2, 3}
-    assert adj_profile.unaltr_idxs == {4}
+    assert adj_profile.no_rank_altr_idxs == {3}
+    assert adj_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert adj_profile.unaltr_idxs == {4, 5}
 
 
 def test_clean_profile_change_defaults():
@@ -59,12 +60,13 @@ def test_clean_profile_change_defaults():
             ),
             RankBallot(ranking=(frozenset(),)),
             RankBallot(ranking=({"B"},), weight=0),
+            RankBallot(weight=2),
         )
     )
 
     assert adj_profile.candidates == profile.candidates
     assert adj_profile.max_ranking_length == 3
     assert adj_profile.no_wt_altr_idxs == set()
-    assert adj_profile.no_rank_altr_idxs == set()
-    assert adj_profile.nonempty_altr_idxs == {0, 1, 2, 3}
-    assert adj_profile.unaltr_idxs == {4}
+    assert adj_profile.no_rank_altr_idxs == {3}
+    assert adj_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert adj_profile.unaltr_idxs == {4, 5}
