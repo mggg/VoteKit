@@ -26,6 +26,8 @@ from votekit.pref_profile.csv_utils import (
     _validate_score_csv_format,
 )
 from votekit.pref_profile.utils import (
+    _subtract_rank_profiles,
+    _subtract_score_profiles,
     _sum_rank_profiles,
     _sum_score_profiles,
     convert_row_to_rank_ballot,
@@ -703,7 +705,7 @@ class RankProfile(PreferenceProfile):
         ranking_cols = [col for col in df.columns if col.startswith("Ranking_")]
         translated_df = df.copy()
         translated_df[ranking_cols] = translated_df[ranking_cols].map(
-            lambda ranking: (candidate_mapping[ranking])
+            lambda ranking: candidate_mapping[ranking]
         )
         return translated_df
 
@@ -798,6 +800,16 @@ class RankProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         return _sum_rank_profiles([self, other])
+
+    def __sub__(self, other) -> RankProfile:
+        """
+        Subtract the ballot weights of another profile, matched by identical
+        rankings. Voter sets of the minuend are retained.
+
+        Raises:
+            ValueError: A ballot weight would become negative.
+        """
+        return _subtract_rank_profiles(self, other)
 
     def group_ballots(self) -> RankProfile:
         """
@@ -1466,6 +1478,16 @@ class ScoreProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         return _sum_score_profiles([self, other])
+
+    def __sub__(self, other):
+        """
+        Subtract the ballot weights of another profile, matched by identical
+        scores. Voter sets of the minuend are retained.
+
+        Raises:
+            ValueError: A ballot weight would become negative.
+        """
+        return _subtract_score_profiles(self, other)
 
     def group_ballots(self) -> ScoreProfile:
         """
