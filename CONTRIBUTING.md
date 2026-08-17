@@ -33,7 +33,7 @@ Recommended setup:
 3. From the repository root, run `task setup`.
 
 `task setup` installs Astral's official standalone `uv` if you don't have it, installs a managed
-Python 3.11 environment, syncs the pinned dependencies, and installs the pre-commit hooks. 
+Python 3.11 environment, syncs the pinned dependencies, and installs the pre-commit hooks.
 
 If you already have `uv` installed and prefer to run the steps directly, the equivalent setup is:
 
@@ -108,7 +108,29 @@ Before opening a pull request, make sure that:
 - linting, formatting, and type checks pass locally
 - the PR description explains the user-facing impact and any notable tradeoffs
 
-Small pull requests are much easier to review and merge than large mixed changes.
+Small pull requests are much easier to review and merge than large, mixed changes.
+
+## Use of AI tools
+
+Researchers rely on VoteKit and its results, so contributors have a heightened responsibility for
+the correctness and clarity of every change.
+
+- Core implementation and business logic in `src/votekit/` must be written by humans. AI tools may
+  provide inline assistance (e.g., an editor copilot) and may be used to navigate and deepen
+  understanding of the codebase and domain material (e.g., with chat agents). Contributors should
+  not delegate the generation or rewriting of core implementation code to agentic coding tools.
+  For example, Codex GUI/CLI, Claude GUI/CLI, Cursor v3+, and similar tools should not be asked to
+  generate or substantially rewrite that code.
+- Tests may be developed jointly by humans and AI. AI is particularly useful for adversarial
+  testing, such as searching for user inputs that break an implementation, but the person
+  responsible for the pull request must review every AI-generated or AI-assisted test and confirm
+  that it meaningfully tests the intended behavior.
+- Docstrings may be developed jointly by humans and AI. The person responsible for the pull
+  request must read, edit, and review every AI-assisted docstring for accuracy, thoroughness, and
+  compliance with the documentation and formatting guidelines below.
+
+The person responsible for a pull request remains accountable for all of its contents, regardless
+of which tools assisted in preparing it.
 
 ## Code style guidelines
 
@@ -119,7 +141,7 @@ the current conventions below and avoid style-only churn in unrelated files.
   and linting.
 - Use absolute imports in all implementation files. Relative imports are only used in `__init__.py`
   files for re-exporting. For example, prefer `from votekit.elections.election_state import
-  ElectionState` over `from ..election_state import ElectionState`.
+ElectionState` over `from ..election_state import ElectionState`.
 - Keep lines at roughly 100 characters to match the configured formatter and linter settings.
 - Add type annotations for function parameters and return values. Run `uv run ty check src tests`
   on changes that add or reshape APIs.
@@ -179,7 +201,7 @@ Tests are required for behavior changes.
   `tests/elections/...`.
 - Cover both successful behavior and expected failures.
 - When raising exceptions, prefer tests that check the error message with `pytest.raises(...,
-  match=...)`.
+match=...)`.
 - Include edge cases that are natural for the change: empty inputs, invalid candidate data,
   malformed rankings, tie handling, or zero-weight behavior.
 - Mark long-running tests with `@pytest.mark.slow`.
@@ -202,11 +224,11 @@ export the class from the subfolder's `__init__.py` and from `src/votekit/electi
 
 ### Choosing a base class
 
-| Ballot type          | Base class                                            | Profile type   |
-|----------------------|-------------------------------------------------------|----------------|
-| Ranked ballots       | `RankingElection`                                     | `RankProfile`  |
-| Score/rating ballots | `GeneralRating` (or `Election[ScoreProfile]` directly)| `ScoreProfile` |
-| Approval ballots     | `GeneralRating` (with `per_candidate_limit=1`)        | `ScoreProfile` |
+| Ballot type          | Base class                                             | Profile type   |
+| -------------------- | ------------------------------------------------------ | -------------- |
+| Ranked ballots       | `RankingElection`                                      | `RankProfile`  |
+| Score/rating ballots | `GeneralRating` (or `Election[ScoreProfile]` directly) | `ScoreProfile` |
+| Approval ballots     | `GeneralRating` (with `per_candidate_limit=1`)         | `ScoreProfile` |
 
 `RankingElection` and `GeneralRating` both ultimately inherit from `Election[P]`, the root
 abstract base class in `src/votekit/models.py`.
@@ -297,5 +319,5 @@ abide by the expectations in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Questions
 
-If anything in the contribution process is unclear, please feel free to reach out to 
-`code@mggg.org` with questions. Thanks! 
+If anything in the contribution process is unclear, please feel free to reach out to
+`code@mggg.org` with questions. Thanks!
