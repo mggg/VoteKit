@@ -537,8 +537,8 @@ def remove_ballots_with_cand_rank_profile(
     """
     Given a ranked profile, remove the ballots that contain the given candidate(s).
 
-    A removed ballot is considered altered for both weight and ranking. No ballots are altered in
-    place, only removed.
+    A removed ballot's ranking is considered empty after cleaning and recorded in the
+    ``no_rank_altr_idxs`` of the returned ``CleanedRankProfile``.
 
     Args:
         removed (Candidate | list[Candidate]): Candidate or list of candidates to remove their
@@ -584,19 +584,14 @@ def remove_ballots_with_cand_rank_profile(
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
     ballots_to_remove = profile._df[ranking_cols].isin(cand_ids).any(axis=1)
     cleaned_df = profile.df[~ballots_to_remove]
-    removed_ballot_idxs = set(profile.df.index[ballots_to_remove])
+    removed_ballot_idxs = set(profile.df[ballots_to_remove].index)
 
-    empty_ballot_idxs: set[int] = set()
     if remove_empty_ballots:
         mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
-        empty_ballot_idxs = set(cleaned_df.index[mask])
         cleaned_df = cleaned_df[~mask]
 
-    zero_weight_ballot_idxs: set[int] = set()
     if remove_zero_weight_ballots:
-        mask = cleaned_df["Weight"] > 0
-        zero_weight_ballot_idxs = set(cleaned_df.index[~mask])
-        cleaned_df = cleaned_df[mask]
+        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
 
     candidates = (
         profile.candidates
@@ -611,8 +606,8 @@ def remove_ballots_with_cand_rank_profile(
         max_ranking_length=profile.max_ranking_length,
         parent_profile=profile,
         df_index_column=unaltered_idxs,
-        no_wt_altr_idxs=removed_ballot_idxs | zero_weight_ballot_idxs,
-        no_rank_altr_idxs=removed_ballot_idxs | empty_ballot_idxs,
+        no_wt_altr_idxs=set(),
+        no_rank_altr_idxs=removed_ballot_idxs,
         nonempty_altr_idxs=set(),
         unaltr_idxs=set(unaltered_idxs),
     )
