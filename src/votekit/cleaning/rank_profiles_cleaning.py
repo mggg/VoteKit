@@ -288,6 +288,83 @@ def remove_cand_rank_profile(
     )
 
 
+def truncate_ranking_row(
+    removed: Candidate | CandidateList,
+    ranking_tup: tuple[frozenset, ...],
+) -> tuple[frozenset, ...]:
+    """
+    Truncate a ranking at the first position containing a specified candidate or marker.
+
+    The matching position and every position below it are replaced with trailing ``~``
+    placeholders so that the ranking keeps its original width in a profile dataframe.
+
+    Args:
+        removed (Candidate | list[Candidate]): Candidate or list of candidates or markers at
+            which to truncate.
+        ranking_tup (tuple): Ranking to truncate.
+
+    Returns:
+        tuple: Ranking truncated at the first matching position.
+    """
+    if isinstance(removed, Candidate):
+        removed = [removed]
+
+    removed_set = set(removed)
+    out: list[frozenset] = []
+
+    for cand_set in ranking_tup:
+        if cand_set.isdisjoint(removed_set):
+            out.append(cand_set)
+            continue
+
+        out.extend([frozenset("~")] * (len(ranking_tup) - len(out)))
+        break
+
+    return tuple(out)
+
+
+def truncate_rank_profile(
+    removed: Candidate | CandidateList,
+    profile: RankProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = True,
+) -> CleanedRankProfile:
+    """
+    Truncate ranked ballots at the first position containing a specified candidate or marker.
+
+    This is useful for cleaning CVR data where values such as ``"overvote"`` or ``"undervote"``
+    terminate the meaningful portion of a ballot. The matching position and all lower-ranked
+    positions are removed. Ballots without a matching value are retained unchanged.
+
+    Args:
+        removed (Candidate | list[Candidate]): Candidate, marker, or list of candidates and
+            markers at which to truncate.
+        profile (RankProfile): Profile to truncate.
+        remove_empty_ballots (bool, optional): Whether or not to remove ballots with no ranking
+            after truncation. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove zero-weight ballots.
+            Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether or not to retain the original
+            candidate list. Defaults to True.
+
+    Returns:
+        CleanedRankProfile: A cleaned ``RankProfile``.
+
+    Raises:
+        ProfileError: Profile must only contain ranked ballots.
+    """
+    cleaned_profile = clean_rank_profile(
+        profile,
+        partial(truncate_ranking_row, removed),
+        remove_empty_ballots,
+        remove_zero_weight_ballots,
+        retain_original_candidate_list,
+    )
+
+    return cleaned_profile
+
+
 def condense_ranking_row(
     ranking_tup: tuple,
 ) -> tuple:
