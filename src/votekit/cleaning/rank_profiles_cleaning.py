@@ -318,7 +318,7 @@ def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
     """
     Returns True if the given ranking is equivalent to its condensed form. It is equivalent
     if the rankings are identical, or if the original ranking only has trailing empty frozensets
-    in its ranking after some listed candidate.
+    or tilde frozensets in its ranking after some listed candidate.
 
     Args:
         ranking (pd.Series): Ranking to check.
@@ -326,8 +326,8 @@ def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
     Returns:
         bool: True if the given ranking is equivalent to its condensed form.
     """
-    if all(cs == frozenset() for cs in ranking):
-        return False
+    if all(cs != frozenset() for cs in ranking):
+        return True
 
     for i, cand_set in enumerate(ranking):
         if cand_set != frozenset():
@@ -384,13 +384,14 @@ def condense_rank_profile(
     additional_unaltr_idxs = set(
         [
             i
-            for i in condensed_profile.nonempty_altr_idxs
+            for i in (condensed_profile.nonempty_altr_idxs | condensed_profile.no_rank_altr_idxs)
             if _is_equiv_to_condensed(ranking_df.loc[i])  # type: ignore[arg-type]
         ]
     )
 
     new_unaltr_idxs = condensed_profile.unaltr_idxs | additional_unaltr_idxs
     new_nonempty_altr_idxs = condensed_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
+    new_no_rank_altr_idxs = condensed_profile.no_rank_altr_idxs.difference(additional_unaltr_idxs)
 
     return CleanedRankProfile(
         df=condensed_profile.df,
@@ -399,7 +400,7 @@ def condense_rank_profile(
         parent_profile=profile,
         df_index_column=condensed_profile.df_index_column,
         no_wt_altr_idxs=condensed_profile.no_wt_altr_idxs,
-        no_rank_altr_idxs=condensed_profile.no_rank_altr_idxs,
+        no_rank_altr_idxs=new_no_rank_altr_idxs,
         nonempty_altr_idxs=new_nonempty_altr_idxs,
         unaltr_idxs=new_unaltr_idxs,
     )
@@ -409,8 +410,8 @@ def _is_equiv_for_remove_and_condense(removed: CandidateList, ranking: pd.Series
     """
     Returns True if the given ranking is equivalent to its removed and condensed form.
     It is equivalent if the ranking has no candidate in the removed list and either no empty
-    frozensets or only trailing ones. If its has internal empty frozensets or any candidate
-    in the removed list, it is not equivalent.
+    frozensets or only trailing ones. Tilde frozensets can also be trailing. If its has internal
+    empty frozensets or any candidate in the removed list, it is not equivalent.
 
     Args:
         removed (list[Candidate] | list[str] | list[int]): Candidates to be removed.
@@ -430,19 +431,7 @@ def _is_equiv_for_remove_and_condense(removed: CandidateList, ranking: pd.Series
     ):
         return False
 
-    if all(c_set != frozenset() for c_set in ranking):
-        return True
-
-    for i, cand_set in enumerate(ranking):
-        if cand_set != frozenset():
-            continue
-
-        if all(cs == frozenset() for cs in ranking[i:]):
-            return True
-
-        return False
-
-    return True
+    return _is_equiv_to_condensed(ranking)
 
 
 def remove_and_condense_rank_profile(
@@ -507,7 +496,7 @@ def remove_and_condense_rank_profile(
     additional_unaltr_idxs = set(
         [
             i
-            for i in cleaned_profile.nonempty_altr_idxs
+            for i in (cleaned_profile.nonempty_altr_idxs | cleaned_profile.no_rank_altr_idxs)
             if _is_equiv_for_remove_and_condense(
                 removed,
                 ranking_df.loc[i],  # type: ignore[arg-type]
@@ -517,6 +506,7 @@ def remove_and_condense_rank_profile(
 
     new_unaltr_idxs = cleaned_profile.unaltr_idxs | additional_unaltr_idxs
     new_nonempty_altr_idxs = cleaned_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
+    new_no_rank_altr_idxs = cleaned_profile.no_rank_altr_idxs.difference(additional_unaltr_idxs)
 
     return CleanedRankProfile(
         df=cleaned_profile.df,
@@ -525,7 +515,7 @@ def remove_and_condense_rank_profile(
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
-        no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
+        no_rank_altr_idxs=new_no_rank_altr_idxs,
         nonempty_altr_idxs=new_nonempty_altr_idxs,
         unaltr_idxs=new_unaltr_idxs,
     )
