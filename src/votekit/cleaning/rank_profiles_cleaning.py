@@ -73,6 +73,7 @@ def clean_rank_profile(
     remove_null_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Allows user-defined cleaning rules for RankProfile. Input function
@@ -89,6 +90,10 @@ def clean_rank_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
+            candidates ranked of any ballot within the profile which is the minimum allowed.
+            Defaults to False.
 
     Returns:
         CleanedRankProfile: A cleaned ``RankProfile``.
@@ -105,6 +110,7 @@ def clean_rank_profile(
         candidates=profile.candidates if retain_original_candidate_list else (),
         remove_null_ballots=remove_null_ballots,
         remove_zero_weight_ballots=remove_zero_weight_ballots,
+        reduce_max_ranking_length=reduce_max_ranking_length,
     )
 
 
@@ -115,6 +121,7 @@ def _clean_rank_profile_with_candidates(
     candidates: tuple[Candidate, ...],
     remove_null_ballots: bool,
     remove_zero_weight_ballots: bool,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Clean and filter rankings, then construct one profile with the final candidate universe.
@@ -126,6 +133,8 @@ def _clean_rank_profile_with_candidates(
             infers candidates from retained positive-weight ballots.
         remove_null_ballots (bool): Whether to discard rankings containing only end markers.
         remove_zero_weight_ballots (bool): Whether to discard rows with zero weight.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+        max_ranking_length.
 
     Returns:
         CleanedRankProfile: Cleaned profile with the source as its immediate parent.
@@ -152,7 +161,9 @@ def _clean_rank_profile_with_candidates(
     return CleanedRankProfile(
         df=cleaned_df,
         candidates=candidates,
-        max_ranking_length=profile.max_ranking_length,
+        max_ranking_length=profile.max_ranking_length
+        if not reduce_max_ranking_length
+        else profile.max_candidates_ranked,
         no_wt_altr_idxs=no_wt_altr_idxs,
         no_rank_altr_idxs=no_rank_altr_idxs,
         nonempty_altr_idxs=nonempty_altr_idxs,
@@ -203,6 +214,7 @@ def remove_repeat_cands_rank_profile(
     remove_null_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Given a profile, if a candidate appears multiple times on a ballot, keep the first instance and
@@ -220,6 +232,10 @@ def remove_repeat_cands_rank_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
+            candidates ranked of any ballot within the profile which is the minimum allowed.
+            Defaults to False.
 
     Returns:
         CleanedRankProfile: A cleaned ``RankProfile``.
@@ -234,6 +250,7 @@ def remove_repeat_cands_rank_profile(
         remove_null_ballots,
         remove_zero_weight_ballots,
         retain_original_candidate_list,
+        reduce_max_ranking_length,
     )
 
 
@@ -273,6 +290,7 @@ def remove_cand_rank_profile(
     remove_null_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Given a ranked profile, remove the given candidate(s) from the ballots. Does not condense the
@@ -292,6 +310,10 @@ def remove_cand_rank_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
+            Defaults to False.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
+            candidates ranked of any ballot within the profile which is the minimum allowed.
             Defaults to False.
 
     Returns:
@@ -320,7 +342,9 @@ def remove_cand_rank_profile(
     return CleanedRankProfile(
         df=cleaned_profile.to_df(),
         candidates=new_candidates,
-        max_ranking_length=cleaned_profile.max_ranking_length,
+        max_ranking_length=cleaned_profile.max_ranking_length
+        if not reduce_max_ranking_length
+        else profile.max_candidates_ranked,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
@@ -357,6 +381,7 @@ def condense_rank_profile(
     remove_null_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = True,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Given a ranked profile, removes any empty frozensets from the rankings and condenses the
@@ -385,6 +410,10 @@ def condense_rank_profile(
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
+            candidates ranked of any ballot within the profile which is the minimum allowed.
+            Defaults to False.
 
     Returns:
         CleanedRankProfile: A cleaned ``RankProfile``.
@@ -401,7 +430,9 @@ def condense_rank_profile(
     return CleanedRankProfile(
         df=condensed_profile.to_df(),
         candidates=condensed_profile.candidates,
-        max_ranking_length=condensed_profile.max_ranking_length,
+        max_ranking_length=condensed_profile.max_ranking_length
+        if not reduce_max_ranking_length
+        else profile.max_candidates_ranked,
         parent_profile=profile,
         df_index_column=condensed_profile.df_index_column,
         no_wt_altr_idxs=condensed_profile.no_wt_altr_idxs,
@@ -417,6 +448,7 @@ def remove_and_condense_rank_profile(
     remove_null_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
     retain_original_candidate_list: bool = False,
+    reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
     Given a ranked profile, remove the given candidate(s) and condense the resulting rankings.
@@ -451,6 +483,10 @@ def remove_and_condense_rank_profile(
             from the original profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
+        reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
+            candidates ranked of any ballot within the profile which is the minimum allowed.
+            Defaults to False.
 
     Returns:
         CleanedRankProfile: A cleaned ``RankProfile``.
@@ -474,6 +510,7 @@ def remove_and_condense_rank_profile(
         candidates=new_candidates,
         remove_null_ballots=remove_null_ballots,
         remove_zero_weight_ballots=remove_zero_weight_ballots,
+        reduce_max_ranking_length=reduce_max_ranking_length,
     )
 
 
