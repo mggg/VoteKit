@@ -80,8 +80,9 @@ def clean_rank_profile(
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
         reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
-            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
-            candidates ranked of any ballot within the profile which is the minimum allowed.
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the minimum
+            number of columns necessary to represent all rankings, or to the maximum number of
+            unique candidates ranked in any ballot within the profile. Whichever is higher.
             Defaults to False.
 
     Returns:
@@ -117,7 +118,7 @@ def clean_rank_profile(
         candidates=(profile.candidates if retain_original_candidate_list else tuple()),
         max_ranking_length=profile.max_ranking_length
         if not reduce_max_ranking_length
-        else _max_candidates_ranked(profile),
+        else _reduced_max_ranking_length(cleaned_df),
         no_wt_altr_idxs=no_wt_altr_idxs,
         no_rank_altr_idxs=no_rank_altr_idxs,
         nonempty_altr_idxs=nonempty_altr_idxs,
@@ -251,7 +252,9 @@ def remove_cand_rank_profile(
     resulting ballots.
 
     Wrapper for clean_rank_profile that does some extra processing to ensure the candidate list
-    is handled correctly.
+    is handled correctly. A removed candidate is replaced with an empty slot if not tied. This means
+    the ballots' ranking lengths stay the say and reduce_max_ranking_length has no effect unless
+    ballots are also condensed to remove the empty frozensets.
 
     Args:
         removed (Candidate | list[Candidate]): Candidate or list of candidates to be removed.
@@ -296,9 +299,7 @@ def remove_cand_rank_profile(
     return CleanedRankProfile(
         df=cleaned_profile.df,
         candidates=new_candidates,
-        max_ranking_length=cleaned_profile.max_ranking_length
-        if not reduce_max_ranking_length
-        else _max_candidates_ranked(profile),
+        max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
@@ -383,8 +384,9 @@ def condense_rank_profile(
             from the original profile in the new profile. If False, uses only candidates who receive
             votes. Defaults to True.
         reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
-            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
-            candidates ranked of any ballot within the profile which is the minimum allowed.
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the minimum
+            number of columns necessary to represent all rankings, or to the maximum number of
+            unique candidates ranked in any ballot within the profile. Whichever is higher.
             Defaults to False.
 
     Returns:
@@ -418,7 +420,7 @@ def condense_rank_profile(
         candidates=condensed_profile.candidates,
         max_ranking_length=condensed_profile.max_ranking_length
         if not reduce_max_ranking_length
-        else _max_candidates_ranked(profile),
+        else _reduced_max_ranking_length(condensed_profile),
         parent_profile=profile,
         df_index_column=condensed_profile.df_index_column,
         no_wt_altr_idxs=condensed_profile.no_wt_altr_idxs,
@@ -503,8 +505,9 @@ def remove_and_condense_rank_profile(
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
         reduce_max_ranking_length (bool, optional): Whether or not to reduce to the profile's
-            max_ranking_length after cleaning. If True, the max_ranking_length is set to the max
-            candidates ranked of any ballot within the profile which is the minimum allowed.
+            max_ranking_length after cleaning. If True, the max_ranking_length is set to the minimum
+            number of columns necessary to represent all rankings, or to the maximum number of
+            unique candidates ranked in any ballot within the profile. Whichever is higher.
             Defaults to False.
 
     Returns:
@@ -551,7 +554,7 @@ def remove_and_condense_rank_profile(
         candidates=new_candidates,
         max_ranking_length=cleaned_profile.max_ranking_length
         if not reduce_max_ranking_length
-        else _max_candidates_ranked(profile),
+        else _reduced_max_ranking_length(cleaned_profile),
         parent_profile=cleaned_profile.parent_profile,
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
@@ -561,29 +564,56 @@ def remove_and_condense_rank_profile(
     )
 
 
-def _max_candidates_ranked(profile: RankProfile) -> int:
+def _max_candidates_ranked(profile: RankProfile | pd.DataFrame) -> int:
     """
-    The maximum number of candidates ranked on any ballot in the profile.
+    The maximum number of unique candidates ranked on any ballot in the profile.
 
     Can be longer than the number of ranking columns in df if candidates are tied.
 
     Args:
-        profile (RankProfile): rank profile.
+        profile (RankProfile | pd.DataFrame): rank profile or the profile's df.
 
     Returns:
         int: Maximum number of candidates ranked amongst all ballots within profile.
     """
-    if profile._df.empty:
+    df = profile.df if isinstance(profile, RankProfile) else profile
+
+    if df.empty:
         return 0
+
     tilde = frozenset("~")
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+
+    ranking_cols = [col for col in df.columns if "Ranking_" in col]
     return (
-        profile._df[ranking_cols]
+        df[ranking_cols]
         .apply(
-            lambda row: len(
-                frozenset.union(*(profile.id_candidate_map[cand_id] for cand_id in row)) - tilde
-            ),
+            lambda row: len(frozenset.union(*row) - tilde),
             axis=1,
         )
         .max()
     )
+
+
+def _reduced_max_ranking_length(profile: RankProfile | pd.DataFrame) -> int:
+    """
+    The maximum ranking length after cleaning.
+
+    Can not be shorter than the max unique candidates ranked on any ballot.
+    Will check if the ballots' max ranking lengths are shorter after cleaning by identifying
+    the last column with valid candidates, not all end of ballot characters (i.e. "~").
+
+    Args:
+        profile (RankProfile | pd.DataFrame): rank profile or the profile's df.
+
+    Returns:
+        int: Maximum ranking length.
+    """
+    df = profile.df if isinstance(profile, RankProfile) else profile
+    tilde = frozenset("~")
+
+    ranking_cols = [col for col in df.columns if "Ranking_" in col]
+    last_col_with_cands = max(
+        (i + 1 for i, col in enumerate(ranking_cols) if (df[col] != tilde).any()),
+        default=0,
+    )
+    return max(last_col_with_cands, _max_candidates_ranked(profile))

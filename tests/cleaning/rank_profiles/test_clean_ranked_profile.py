@@ -42,6 +42,7 @@ def test_clean_profile_change_defaults():
         remove_empty_ballots=False,
         remove_zero_weight_ballots=False,
         retain_original_candidate_list=True,
+        reduce_max_ranking_length=True,
     )
     assert isinstance(adj_profile, CleanedRankProfile)
     assert adj_profile.parent_profile == profile
