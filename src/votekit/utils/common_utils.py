@@ -1190,7 +1190,9 @@ def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
             )
 
 
-def _validate_candidate_names(candidates: Iterable[Candidate], source: object, attribute: str):
+def _validate_candidate_names(
+    candidates: Iterable[Candidate], source: Optional[object] = None, attribute: str = "candidates"
+) -> None:
     """
     Ensure the candidates are strings or non-negative integers without reserved characters.
 
@@ -1216,31 +1218,32 @@ def _validate_candidate_names(candidates: Iterable[Candidate], source: object, a
     if isinstance(candidates, str):
         raise TypeError("Candidates cannot be a string. Wrap string in list.")
     candidates = list(candidates)
-    source_type = source.__class__.__name__
+    source_description = f"{source.__class__.__name__}.{attribute}" if source else f"{attribute}"
+
     if "~" in candidates:
         raise ValueError(
-            f"Candidate '~' found in {source_type}.{attribute} {candidates}."
+            f"Candidate '~' found in {source_description} {candidates}."
             " '~' is a reserved character and cannot be used for"
             " candidate names."
         )
     if any(isinstance(cand, str) and ":" in cand for cand in candidates):
         raise ValueError(
-            f"':' found in {source_type}.{attribute} {candidates}. ':' is a reserved character"
+            f"':' found in {source_description} {candidates}. ':' is a reserved character"
             " and cannot be used in candidate names."
         )
     if any(not isinstance(cand, (str, int)) for cand in candidates):
         raise TypeError(
-            f"Non-string/integer candidate(s) found in {source_type}.{attribute} {candidates}."
+            f"Non-string/integer candidate(s) found in {source_description} {candidates}."
             " Candidates can only be strings or integers."
         )
     if any(cand < 0 for cand in candidates if isinstance(cand, int)):
         raise ValueError(
-            f"Negative integer candidate(s) found in {source_type}.{attribute} {candidates}. Must"
+            f"Negative integer candidate(s) found in {source_description} {candidates}. Must"
             " be non-negative."
         )
     if any(isinstance(cand, bool) for cand in candidates):
         raise TypeError(
-            f"Boolean candidate(s) found in {source_type}.{attribute} {candidates}. Could"
+            f"Boolean candidate(s) found in {source_description} {candidates}. Could"
             " collide with other integer candidates. Change to 0 or 1."
         )
 
@@ -1253,7 +1256,7 @@ def _validate_candidate_names(candidates: Iterable[Candidate], source: object, a
         warnings.warn(
             UserWarning(
                 f"Candidates {collisions} appear as both str and int within"
-                f" {source_type}.{attribute} {candidates}. These will be treated as separate"
+                f" {source_description} {candidates}. These will be treated as separate"
                 " candidates.",
             )
         )

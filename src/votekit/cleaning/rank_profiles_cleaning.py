@@ -6,10 +6,10 @@ import pandas as pd
 
 from votekit.pref_profile import (
     CleanedRankProfile,
-    ProfileError,
     RankProfile,
 )
 from votekit.types import Candidate, CandidateList
+from votekit.utils import _validate_candidate_names
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -65,7 +65,7 @@ def clean_rank_profile(
     clean_ranking_func: Callable[[tuple], tuple],
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
+    retain_original_candidate_list: bool = False,
 ) -> CleanedRankProfile:
     """
     Allows user-defined cleaning rules for RankProfile. Input function
@@ -81,16 +81,16 @@ def clean_rank_profile(
             weight as a result of the cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
             from the original profile in the new profile. If False, uses only candidates who receive
-            votes. Defaults to True.
+            votes. Defaults to False.
 
     Returns:
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
     if not isinstance(profile, RankProfile):
-        raise ProfileError("Profile must be a RankProfile.")
+        raise TypeError("Profile must be a RankProfile.")
 
     (
         cleaned_df,
@@ -187,7 +187,7 @@ def remove_repeat_cands_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
 
     return clean_rank_profile(
@@ -260,7 +260,7 @@ def remove_cand_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
     if isinstance(removed, Candidate):
         removed = [removed]
@@ -531,8 +531,9 @@ def remove_ballots_with_cand_rank_profile(
     """
     Given a ranked profile, remove the ballots that contain the given candidate(s).
 
-    A removed ballot's ranking is considered empty after cleaning and recorded in the
-    ``no_rank_altr_idxs`` of the returned ``CleanedRankProfile``.
+    A removed ballot is not considered altered after cleaning and is accounted for in the difference
+    between the parent profile's index versus the indices of the returned
+    ``CleanedRankProfile``. The same goes for removed empty ranking and zero weight ballots.
 
     Args:
         removed (Candidate | list[Candidate]): Candidate or list of candidates to remove their
@@ -550,21 +551,17 @@ def remove_ballots_with_cand_rank_profile(
             candidate(s) removed.
 
     Raises:
-        ProfileError: Profile must contain ranked ballots.
+        TypeError: Profile must contain ranked ballots.
         TypeError: Candidates to be removed must be strings or integers. A boolean or float
             candidate of the same value as an integer candidate would result in removing the ballots
             with that integer candidate.
     """
     if not isinstance(profile, RankProfile):
-        raise ProfileError("Profile must be a RankProfile.")
+        raise TypeError("Profile must be a RankProfile.")
 
-    if isinstance(removed, Candidate) and not isinstance(removed, bool):
+    if isinstance(removed, Candidate):
         removed = [removed]
-    elif isinstance(removed, list):
-        if any(not isinstance(cand, (str, int)) or isinstance(cand, bool) for cand in removed):
-            raise TypeError("Candidates must be strings or integers within removed.")
-    else:
-        raise TypeError("removed must be a str/int candidate or a list of candidates.")
+    _validate_candidate_names(removed, attribute="removed")
 
     cand_ids = []
     for cand in removed:
@@ -578,7 +575,6 @@ def remove_ballots_with_cand_rank_profile(
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
     ballots_to_remove = profile._df[ranking_cols].isin(cand_ids).any(axis=1)
     cleaned_df = profile.df[~ballots_to_remove]
-    removed_ballot_idxs = set(profile.df[ballots_to_remove].index)
 
     if remove_empty_ballots:
         mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
@@ -593,15 +589,14 @@ def remove_ballots_with_cand_rank_profile(
         else tuple(set(profile.candidates) - set(removed))
     )
 
-    unaltered_idxs = list(cleaned_df.index)
     return CleanedRankProfile(
         df=cleaned_df,
         candidates=candidates,
         max_ranking_length=profile.max_ranking_length,
         parent_profile=profile,
-        df_index_column=unaltered_idxs,
+        df_index_column=list(cleaned_df.index),
         no_wt_altr_idxs=set(),
-        no_rank_altr_idxs=removed_ballot_idxs,
+        no_rank_altr_idxs=set(),
         nonempty_altr_idxs=set(),
-        unaltr_idxs=set(unaltered_idxs),
+        unaltr_idxs=set(profile.df.index),  # ballots are only dropped, never altered
     )
