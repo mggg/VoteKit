@@ -164,6 +164,7 @@ class Alaska(RankingElection):
             new_profile: RankProfile = remove_and_condense_rank_profile(
                 [c for s in eliminated for c in s],
                 profile,
+                retain_original_candidate_list=False,
             )
 
             if self.score_function is None:
