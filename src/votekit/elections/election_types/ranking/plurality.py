@@ -89,9 +89,7 @@ class Plurality(RankingElection):
             rng=self._rng,
         )
 
-        new_profile = remove_and_condense_rank_profile(
-            [c for s in elected for c in s], profile, retain_original_candidate_list=False
-        )
+        new_profile = remove_and_condense_rank_profile([c for s in elected for c in s], profile)
 
         if store_states:
             if self.score_function:

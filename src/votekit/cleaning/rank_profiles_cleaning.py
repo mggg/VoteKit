@@ -238,7 +238,7 @@ def remove_cand_rank_profile(
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
+    retain_original_candidate_list: bool = False,
 ) -> CleanedRankProfile:
     """
     Given a ranked profile, remove the given candidate(s) from the ballots. Does not condense the
@@ -461,7 +461,7 @@ def remove_and_condense_rank_profile(
     profile: RankProfile,
     remove_empty_ballots: bool = True,
     remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
+    retain_original_candidate_list: bool = False,
     reduce_max_ranking_length: bool = False,
 ) -> CleanedRankProfile:
     """
