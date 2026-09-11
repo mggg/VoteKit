@@ -3,8 +3,9 @@ from __future__ import annotations
 import math
 import random
 import warnings
+from dataclasses import dataclass
 from itertools import permutations
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, TypeAlias, cast
 
 import numpy as np
 import pandas as pd
@@ -1190,8 +1191,32 @@ def check_for_equivalent_str_int_labels(candidates: Iterable[Candidate]):
             )
 
 
+@dataclass(frozen=True, slots=True)
+class SourceWithAttribute:
+    source: object
+    attribute: str
+
+    def __post_init(self):
+        if not isinstance(self.attribute, str):
+            raise TypeError("Attribute must be a string.")
+        if not hasattr(self.source, self.attribute):
+            raise AttributeError(
+                f"Source object of type {self.source.__class__.__name__} does not"
+                f" have attribute '{self.attribute}'."
+            )
+
+    def __repr__(self) -> str:
+        return f"{self.source.__class__.__name__}.{self.attribute}"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
+VariableName: TypeAlias = str
+
+
 def _validate_candidate_names(
-    candidates: Iterable[Candidate], source: Optional[object] = None, attribute: str = "candidates"
+    candidates: Iterable[Candidate], context: SourceWithAttribute | VariableName
 ) -> None:
     """
     Ensure the candidates are strings or non-negative integers without reserved characters.
@@ -1199,9 +1224,8 @@ def _validate_candidate_names(
     Args:
         candidates (Sequence[Candidate]): candidates to validate. Can be candidates cast in df or
             ballots. Or, the candidates defined at the profile level.
-        source (object): object with a candidates attribute to validate.
-        attribute (str): Name of the attribute.
-            Both source and attribute are used to improve error description.
+        context (SourceWithAttribute | VariableName): The source of candidates to validate. Gives
+            the error messages context.
 
     Raises:
         TypeError: Candidate must be a string or integer.
@@ -1218,32 +1242,30 @@ def _validate_candidate_names(
     if isinstance(candidates, str):
         raise TypeError("Candidates cannot be a string. Wrap string in list.")
     candidates = list(candidates)
-    source_description = f"{source.__class__.__name__}.{attribute}" if source else f"{attribute}"
 
     if "~" in candidates:
         raise ValueError(
-            f"Candidate '~' found in {source_description} {candidates}."
+            f"Candidate '~' found in {context} {candidates}."
             " '~' is a reserved character and cannot be used for"
             " candidate names."
         )
     if any(isinstance(cand, str) and ":" in cand for cand in candidates):
         raise ValueError(
-            f"':' found in {source_description} {candidates}. ':' is a reserved character"
+            f"':' found in {context} {candidates}. ':' is a reserved character"
             " and cannot be used in candidate names."
         )
     if any(not isinstance(cand, (str, int)) for cand in candidates):
         raise TypeError(
-            f"Non-string/integer candidate(s) found in {source_description} {candidates}."
+            f"Non-string/integer candidate(s) found in {context} {candidates}."
             " Candidates can only be strings or integers."
         )
     if any(cand < 0 for cand in candidates if isinstance(cand, int)):
         raise ValueError(
-            f"Negative integer candidate(s) found in {source_description} {candidates}. Must"
-            " be non-negative."
+            f"Negative integer candidate(s) found in {context} {candidates}. Must be non-negative."
         )
     if any(isinstance(cand, bool) for cand in candidates):
         raise TypeError(
-            f"Boolean candidate(s) found in {source_description} {candidates}. Could"
+            f"Boolean candidate(s) found in {context} {candidates}. Could"
             " collide with other integer candidates. Change to 0 or 1."
         )
 
@@ -1256,7 +1278,7 @@ def _validate_candidate_names(
         warnings.warn(
             UserWarning(
                 f"Candidates {collisions} appear as both str and int within"
-                f" {source_description} {candidates}. These will be treated as separate"
+                f" {context} {candidates}. These will be treated as separate"
                 " candidates.",
             )
         )

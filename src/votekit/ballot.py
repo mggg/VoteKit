@@ -5,7 +5,7 @@ from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
-from votekit.utils import _validate_candidate_names
+from votekit.utils import SourceWithAttribute, _validate_candidate_names
 
 
 class Ballot:
@@ -241,7 +241,7 @@ class RankBallot(Ballot):
                     "Ranking is a sequence of Iterables or bare str/int candidates."
                     f" {cand_set} is invalid."
                 )
-        _validate_candidate_names(candidates, self, "ranking")
+        _validate_candidate_names(candidates, SourceWithAttribute(self, "ranking"))
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
@@ -334,7 +334,7 @@ class ScoreBallot(Ballot):
             if any(not isinstance(s, Real) for s in scores.values()):
                 raise TypeError("Score values must be numeric.")
 
-            _validate_candidate_names(list(scores.keys()), self, "scores")
+            _validate_candidate_names(list(scores.keys()), SourceWithAttribute(self, "scores"))
 
     def __eq__(self, other):
         if not isinstance(other, ScoreBallot):

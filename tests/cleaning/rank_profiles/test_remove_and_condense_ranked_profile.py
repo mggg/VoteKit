@@ -10,7 +10,12 @@ from votekit.pref_profile import CleanedRankProfile, RankProfile
 
 profile_no_ties = RankProfile(
     ballots=[
-        RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+        RankBallot(
+            ranking=[
+                {"A"},
+            ],
+            weight=1,
+        ),
         RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
         RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
     ]
@@ -31,14 +36,13 @@ def test_remove_and_condense():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
     assert cleaned_profile.ballots == (
-        RankBallot(ranking=[{"B"}], weight=1),
         RankBallot(ranking=[{"B"}, {"C"}], weight=1 / 2),
         RankBallot(ranking=[{"C"}, {"B"}], weight=3),
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_altr_idxs == set()
-    assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert cleaned_profile.no_rank_altr_idxs == {0}
+    assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
 
 

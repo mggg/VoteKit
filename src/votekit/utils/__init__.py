@@ -1,5 +1,6 @@
 from votekit.utils.common_utils import (
     COLOR_LIST,
+    SourceWithAttribute,
     _first_place_votes_from_df_no_ties,
     _validate_candidate_names,
     add_missing_cands,
@@ -52,6 +53,7 @@ __all__ = [
     "check_for_equivalent_str_int_labels",
     "_validate_candidate_names",
     "search_profile_for_rank_pattern",
+    "SourceWithAttribute",
 ]
 
 # Patch __module__ on every exported symbol so that Sphinx autodoc displays
