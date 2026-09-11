@@ -6,10 +6,10 @@ import pandas as pd
 
 from votekit.pref_profile import (
     CleanedRankProfile,
-    ProfileError,
     RankProfile,
 )
 from votekit.types import Candidate, CandidateList
+from votekit.utils import _validate_candidate_names
 
 
 def _iterate_and_clean_ranking_tuples(
@@ -40,10 +40,20 @@ def _iterate_and_clean_ranking_tuples(
     cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
     tilde = frozenset({"~"})
+    empty = frozenset()
     idxs = cleaned_df.index
 
-    unaltr_idxs = {idx for idx, (o, c) in zip(idxs, zip(orig_rows, cleaned_rows)) if o == c}
-    no_rank_altr_idxs = {idx for idx, c in zip(idxs, cleaned_rows) if all(x == tilde for x in c)}
+    unaltr_idxs = {
+        idx
+        for idx, (orig_row, cleaned_row) in zip(idxs, zip(orig_rows, cleaned_rows))
+        if orig_row == cleaned_row
+    }
+    no_rank_altr_idxs = {
+        idx
+        for idx, cleaned_row in zip(idxs, cleaned_rows)
+        if all(cand_set == tilde or cand_set == empty for cand_set in cleaned_row)
+    }
+    no_rank_altr_idxs = no_rank_altr_idxs - unaltr_idxs
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
     no_wt_altr_idxs: set[int] = set()
 
@@ -83,10 +93,10 @@ def clean_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
     if not isinstance(profile, RankProfile):
-        raise ProfileError("Profile must be a RankProfile.")
+        raise TypeError("Profile must be a RankProfile.")
 
     (
         cleaned_df,
@@ -183,7 +193,7 @@ def remove_repeat_cands_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
 
     return clean_rank_profile(
@@ -256,7 +266,7 @@ def remove_cand_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
 
     Raises:
-        ProfileError: Profile must only contain ranked ballots.
+        TypeError: Profile must only contain ranked ballots.
     """
     if isinstance(removed, Candidate):
         removed = [removed]
@@ -310,33 +320,6 @@ def condense_ranking_row(
     return tuple(condensed_ranking)
 
 
-def _is_equiv_to_condensed(ranking: pd.Series) -> bool:
-    """
-    Returns True if the given ranking is equivalent to its condensed form. It is equivalent
-    if the rankings are identical, or if the original ranking only has trailing empty frozensets
-    in its ranking after some listed candidate.
-
-    Args:
-        ranking (pd.Series): Ranking to check.
-
-    Returns:
-        bool: True if the given ranking is equivalent to its condensed form.
-    """
-    if all(cs == frozenset() for cs in ranking):
-        return False
-
-    for i, cand_set in enumerate(ranking):
-        if cand_set != frozenset():
-            continue
-
-        if all(cs in [frozenset(), frozenset("~")] for cs in ranking[i:]):
-            return True
-
-        return False
-
-    return True
-
-
 def condense_rank_profile(
     profile: RankProfile,
     remove_empty_ballots: bool = True,
@@ -374,20 +357,6 @@ def condense_rank_profile(
         retain_original_candidate_list,
     )
 
-    assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    ranking_df = profile.df[ranking_cols]
-    additional_unaltr_idxs = set(
-        [
-            i
-            for i in condensed_profile.nonempty_altr_idxs
-            if _is_equiv_to_condensed(ranking_df.loc[i])  # type: ignore[arg-type]
-        ]
-    )
-
-    new_unaltr_idxs = condensed_profile.unaltr_idxs | additional_unaltr_idxs
-    new_nonempty_altr_idxs = condensed_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
-
     return CleanedRankProfile(
         df=condensed_profile.df,
         candidates=condensed_profile.candidates,
@@ -396,49 +365,9 @@ def condense_rank_profile(
         df_index_column=condensed_profile.df_index_column,
         no_wt_altr_idxs=condensed_profile.no_wt_altr_idxs,
         no_rank_altr_idxs=condensed_profile.no_rank_altr_idxs,
-        nonempty_altr_idxs=new_nonempty_altr_idxs,
-        unaltr_idxs=new_unaltr_idxs,
+        nonempty_altr_idxs=condensed_profile.nonempty_altr_idxs,
+        unaltr_idxs=condensed_profile.unaltr_idxs,
     )
-
-
-def _is_equiv_for_remove_and_condense(removed: CandidateList, ranking: pd.Series) -> bool:
-    """
-    Returns True if the given ranking is equivalent to its removed and condensed form.
-    It is equivalent if the ranking has no candidate in the removed list and either no empty
-    frozensets or only trailing ones. If its has internal empty frozensets or any candidate
-    in the removed list, it is not equivalent.
-
-    Args:
-        removed (list[Candidate] | list[str] | list[int]): Candidates to be removed.
-            Candidates can be strings, integers, or mix of both.
-        ranking (pd.Series): Ranking to check.
-
-    Returns:
-        bool: True if the given ranking is equivalent to its remove and condensed form.
-    """
-
-    if any(
-        c_remove == cand
-        for c_remove in removed
-        for c_set in ranking
-        if isinstance(c_set, frozenset)
-        for cand in c_set
-    ):
-        return False
-
-    if all(c_set != frozenset() for c_set in ranking):
-        return True
-
-    for i, cand_set in enumerate(ranking):
-        if cand_set != frozenset():
-            continue
-
-        if all(cs == frozenset() for cs in ranking[i:]):
-            return True
-
-        return False
-
-    return True
 
 
 def remove_and_condense_rank_profile(
@@ -496,24 +425,6 @@ def remove_and_condense_rank_profile(
         else tuple(set(profile.candidates) - set(removed))
     )
 
-    assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    ranking_df = profile.df[ranking_cols]
-
-    additional_unaltr_idxs = set(
-        [
-            i
-            for i in cleaned_profile.nonempty_altr_idxs
-            if _is_equiv_for_remove_and_condense(
-                removed,
-                ranking_df.loc[i],  # type: ignore[arg-type]
-            )
-        ]
-    )
-
-    new_unaltr_idxs = cleaned_profile.unaltr_idxs | additional_unaltr_idxs
-    new_nonempty_altr_idxs = cleaned_profile.nonempty_altr_idxs.difference(additional_unaltr_idxs)
-
     return CleanedRankProfile(
         df=cleaned_profile.df,
         candidates=new_candidates,
@@ -522,6 +433,89 @@ def remove_and_condense_rank_profile(
         df_index_column=cleaned_profile.df_index_column,
         no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
         no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
-        nonempty_altr_idxs=new_nonempty_altr_idxs,
-        unaltr_idxs=new_unaltr_idxs,
+        nonempty_altr_idxs=cleaned_profile.nonempty_altr_idxs,
+        unaltr_idxs=cleaned_profile.unaltr_idxs,
+    )
+
+
+def remove_ballots_with_cand_rank_profile(
+    removed: Candidate | list[Candidate],
+    profile: RankProfile,
+    remove_empty_ballots: bool = True,
+    remove_zero_weight_ballots: bool = True,
+    retain_original_candidate_list: bool = False,
+) -> CleanedRankProfile:
+    """
+    Given a ranked profile, remove the ballots that contain the given candidate(s).
+
+    A removed ballot is not considered altered after cleaning and is accounted for in the difference
+    between the parent profile's index versus the indices of the returned
+    ``CleanedRankProfile``. The same goes for removed empty ranking and zero weight ballots.
+
+    Args:
+        removed (Candidate | list[Candidate]): Candidate or list of candidates to remove their
+            ballots. Candidates can be strings, integers, or mix of both.
+        profile (RankProfile): Profile to remove ballots from.
+        remove_empty_ballots (bool, optional): Whether or not to remove ballots that have no
+            ranking or scores as a result of cleaning. Defaults to True.
+        remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
+            weight as a result of cleaning. Defaults to True.
+        retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
+            from the orginal profile in the new profile. If False, takes the original candidate
+            list and removes the candidate(s) given in ``removed``, but preserves all others.
+            Defaults to False.
+
+    Returns:
+        CleanedRankProfile: A cleaned ``RankProfile`` with ballots containing the specified
+            candidate(s) removed.
+
+    Raises:
+        TypeError: Profile must contain ranked ballots.
+        TypeError: Candidates to be removed must be strings or integers. A boolean or float
+            candidate of the same value as an integer candidate would result in removing the ballots
+            with that integer candidate.
+    """
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be a RankProfile.")
+
+    if isinstance(removed, Candidate):
+        removed = [removed]
+    _validate_candidate_names(removed, "removed")
+
+    cand_ids = []
+    for cand in removed:
+        cand_ids.extend(
+            [
+                profile.candidate_id_map[cand_set]
+                for cand_set in profile.candidate_id_map
+                if cand in cand_set
+            ]
+        )
+    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ballots_to_remove = profile._df[ranking_cols].isin(cand_ids).any(axis=1)
+    cleaned_df = profile.df[~ballots_to_remove]
+
+    if remove_empty_ballots:
+        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        cleaned_df = cleaned_df[~mask]
+
+    if remove_zero_weight_ballots:
+        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+
+    candidates = (
+        profile.candidates
+        if retain_original_candidate_list
+        else tuple(set(profile.candidates) - set(removed))
+    )
+
+    return CleanedRankProfile(
+        df=cleaned_df,
+        candidates=candidates,
+        max_ranking_length=profile.max_ranking_length,
+        parent_profile=profile,
+        df_index_column=list(cleaned_df.index),
+        no_wt_altr_idxs=set(),
+        no_rank_altr_idxs=set(),
+        nonempty_altr_idxs=set(),
+        unaltr_idxs=set(profile.df.index),  # ballots are only dropped, never altered
     )
