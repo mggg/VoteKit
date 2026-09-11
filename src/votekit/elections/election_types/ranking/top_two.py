@@ -78,7 +78,7 @@ class TopTwo(RankingElection):
             eliminated = plurality.get_remaining()
             tiebreaks = plurality.election_states[-1].tiebreaks
             new_profile: RankProfile = remove_and_condense_rank_profile(
-                [c for s in eliminated for c in s], profile, retain_original_candidate_list=False
+                [c for s in eliminated for c in s], profile
             )
 
             if self.score_function is None:

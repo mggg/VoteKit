@@ -53,7 +53,7 @@ def test_remove_and_condense(profile_no_ties):
     assert cleaned_profile.no_rank_altr_idxs == {0}
     assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
-    assert set(cleaned_profile.candidates) == set(profile_no_ties.candidates)
+    assert set(cleaned_profile.candidates) == {"B", "C"}
     assert cleaned_profile.max_ranking_length == profile_no_ties.max_ranking_length
 
 
@@ -200,9 +200,7 @@ def test_remove_and_condense_all_candidates(retain_candidates):
 
 
 def test_remove_and_condense_reduce_candidates_list(profile_no_ties):
-    cleaned_profile = remove_and_condense_rank_profile(
-        "A", profile_no_ties, retain_original_candidate_list=False
-    )
+    cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
 
     assert set(cleaned_profile.candidates) != set(profile_no_ties.candidates)
     assert set(cleaned_profile.candidates) == {"B", "C"}
