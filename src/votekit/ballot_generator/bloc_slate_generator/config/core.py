@@ -36,7 +36,11 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
 )
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit.types import Candidate
-from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
+from votekit.utils import (
+    SourceWithAttribute,
+    _validate_candidate_names,
+    sort_candidates_pseudo_lexicographically,
+)
 
 
 class BlocSlateConfig:
@@ -160,7 +164,8 @@ class BlocSlateConfig:
         else:
             slate_map = SlateCandMap(self, slate_to_candidates)
             _validate_candidate_names(
-                self._get_candidates_from_slate(slate_to_candidates), self, "slate_to_candidates"
+                self._get_candidates_from_slate(slate_to_candidates),
+                SourceWithAttribute(self, "slate_to_candidates"),
             )
         object.__setattr__(self, "slate_to_candidates", slate_map)
 
@@ -314,7 +319,7 @@ class BlocSlateConfig:
                     f"{sorted(self.blocs)}, got {sorted(list(blocs))}"
                 )
 
-        _validate_candidate_names(candidates, self, "preference_mapping")
+        _validate_candidate_names(candidates, SourceWithAttribute(self, "preference_df"))
 
         if set(candidates) != set(self.candidates):
             if self.candidates == []:
@@ -860,7 +865,8 @@ class BlocSlateConfig:
     def __set_slate_to_candidates_attr(self, value: Any) -> None:
         slate_map = value if isinstance(value, SlateCandMap) else SlateCandMap(self, value)
         _validate_candidate_names(
-            self._get_candidates_from_slate(slate_map), self, "slate_to_candidates"
+            self._get_candidates_from_slate(slate_map),
+            SourceWithAttribute(self, "slate_to_candidates"),
         )
         object.__setattr__(self, "slate_to_candidates", slate_map)
         if self.bloc_proportions != {}:

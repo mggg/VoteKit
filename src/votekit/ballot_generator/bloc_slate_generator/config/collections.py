@@ -37,7 +37,11 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     typecheck_bloc_proportion_mapping,
 )
 from votekit.types import Candidate
-from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
+from votekit.utils import (
+    SourceWithAttribute,
+    _validate_candidate_names,
+    sort_candidates_pseudo_lexicographically,
+)
 
 if TYPE_CHECKING:
     from votekit.ballot_generator.bloc_slate_generator.config.core import (
@@ -96,8 +100,7 @@ class _CandListProxy(MutableSequence[Candidate]):
                 raise TypeError("Slice assignment requires an iterable of str and/or int")
             _validate_candidate_names(
                 list(value),
-                self.__owner._parent,
-                f'slate_to_candidates["{self.__key}"]',
+                SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
             new[index] = [x for x in value]
         else:
@@ -105,8 +108,7 @@ class _CandListProxy(MutableSequence[Candidate]):
                 [value]
                 if isinstance(value, Candidate) or not isinstance(value, Iterable)
                 else value,
-                self.__owner._parent,
-                f'slate_to_candidates["{self.__key}"]',
+                SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
             new[operator.index(index)] = value
         self.__owner[self.__key] = new
@@ -269,7 +271,10 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
             raise ValueError(
                 f"Slate '{key}' has empty candidate list. Candidate lists must be non-empty."
             )
-        _validate_candidate_names(value, self.__parent, f'slate_to_candidates["{key}"]')
+        _validate_candidate_names(
+            value,
+            SourceWithAttribute(self.__parent, "slate_to_candidates"),
+        )
         val_list = [c for c in value]
 
         # Prevent adding candidates that already exist in *other* slates

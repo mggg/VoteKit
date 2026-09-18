@@ -675,7 +675,7 @@ class SimultaneousVeto(RankingElection):
                     removed=eliminated_candidate,
                     profile=profile,
                     remove_zero_weight_ballots=False,
-                    remove_empty_ballots=False,
+                    remove_null_ballots=False,
                 )
 
         if store_states:

@@ -9,12 +9,35 @@ from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
 
 class CleanedRankProfile(RankProfile):
     """
-    CleanedRankProfile class, which is used to keep track of how ballots are altered from the
-    original
-    profile. In addition to a custom __str__ method, this class implements a collection of sets
+    CleanedRankProfile class, keeps track of how ballots are altered from the original profile.
+
+    In addition to a custom __str__ method, this class implements a collection of sets
     that track the indices of the ballot dataframe, and how they are changed by different cleaning
     rules. It also retains the parent profile of the CleanedRankProfile, allowing for full recovery
     of the cleaning steps.
+
+    A ballot is considered altered by a cleaning function when its ranking or weight are not
+    equivalent to their values prior to cleaning. A ballot is considered empty when its ranking
+    consists of only ``frozenset()`` (empty set), ``frozenset({'~'})`` (special character tilde), or
+    mix of both. A ballot with an empty, or "no", ranking can still be altered by a cleaning
+    function if the position of ``frozenset()`` and ``frozenset({'~'})`` are not identical to before
+    cleaning.
+
+    Example:
+        profile = RankProfile(
+            ballots=[
+                RankBallot(ranking=[{"A"}], weight=1),
+                RankBallot(ranking=[{"B"}], weight=0),
+                RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1),
+                RankBallot(ranking=[], weight=1),
+                ],
+            )
+        cleaned_profile = remove_cand_rank_profile("A", profile)
+        cleaned_profile.df_index_column = [0, 2]
+        cleaned_profile.no_wt_altr_idxs = set()
+        cleaned_profile.no_rank_altr_idxs = {0}
+        cleaned_profile.nonempty_altr_idxs = {2}
+        cleaned_profile.unaltr_idxs = {1, 3}
 
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
@@ -28,17 +51,20 @@ class CleanedRankProfile(RankProfile):
             If you apply multiple cleaning functions, the parent is always the profile immediately
             before cleaning, so you need to recurse to get the original, uncleaned profile.
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
-        no_wt_altr_idxs (set[int], optional): Set of indices of ballots that have
-            0 weight as a result of cleaning. Indices are with respect
+        no_wt_altr_idxs (set[int], optional): The indices of ballots whose positive weight is set
+            to zero as a result of cleaning. Indices are with respect to ``parent_profile.df``.
+        no_rank_altr_idxs (set[int], optional): Indices of ballots whose rankings consist of only
+            ``frozenset()`` (empty set), ``frozenset({'~'})`` (special character tilde), or mix of
+            both after cleaning, and is not a member of the ``unaltr_idxs`` (ballots identical
+            before and after cleaning). Indices are with respect to ``parent_profile.df``.
+        nonempty_altr_idxs (set[int], optional):  Indices of ballots that are not a member of
+            ``unaltr_idxs`` (ballots identical before and after cleaning) and their ranking contains
+            at least one ranking position with ``frozenset(<SET_OF_CANDS>``) where ``<SET_OF_CAND>``
+            is a non-empty set of valid candidate identifier(s).
+        unaltr_idxs (set[int], optional):  Set of indices of ballots that are identical before and
+            after cleaning. Includes dropped ballots whose ranking and weight are unaltered by
+            cleaning but their index is removed from the cleaned profile. Indices are with respect
             to ``parent_profile.df``.
-        no_rank_altr_idxs (set[int], optional): Set of indices of
-            ballots that have no ranking as a result of cleaning. Indices are with
-            respect to ``parent_profile.df``.
-        nonempty_altr_idxs (set[int], optional):  Set of indices of ballots that
-            have been altered but still have weight and (ranking or score) as a result of cleaning.
-            Indices are with respect to ``parent_profile.df``.
-        unaltr_idxs (set[int], optional):  Set of indices of ballots that have
-            been unaltered by cleaning. Indices are with respect to ``parent_profile.df``.
 
 
     """

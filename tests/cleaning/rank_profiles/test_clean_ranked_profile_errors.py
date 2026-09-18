@@ -4,7 +4,7 @@ import pytest
 
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import clean_rank_profile
-from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 
 
 def test_clean_ranked_error():
@@ -14,5 +14,5 @@ def test_clean_ranked_error():
         ]
     )
 
-    with pytest.raises(ProfileError, match="Profile must be a RankProfile."):
+    with pytest.raises(TypeError, match="Profile must be a RankProfile."):
         clean_rank_profile(cast(RankProfile, profile), lambda x: x)
