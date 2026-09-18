@@ -50,3 +50,6 @@ def test_remove_repeated_candidates_ties():
     assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1}
     assert cleaned_profile.unaltr_idxs == set()
+
+    assert set(cleaned_profile.candidates) == set(profile.candidates)
+    assert cleaned_profile.max_ranking_length == profile.max_ranking_length

@@ -8,24 +8,30 @@ from votekit.cleaning import (
 )
 from votekit.pref_profile import CleanedRankProfile, RankProfile
 
-profile_no_ties = RankProfile(
-    ballots=[
-        RankBallot(ranking=[{"A"}, {"B"}], weight=1),
-        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
-        RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
-    ]
-)
 
-profile_with_ties = RankProfile(
-    ballots=[
-        RankBallot(ranking=[{"A", "B"}], weight=1),
-        RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-        RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
-    ]
-)
+@pytest.fixture
+def profile_no_ties():
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
+            RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+        ]
+    )
 
 
-def test_remove_and_condense():
+@pytest.fixture
+def profile_with_ties():
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A", "B"}], weight=1),
+            RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        ]
+    )
+
+
+def test_remove_and_condense(profile_no_ties):
     cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
@@ -40,16 +46,18 @@ def test_remove_and_condense():
     assert cleaned_profile.no_rank_altr_idxs == set()
     assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
     assert cleaned_profile.unaltr_idxs == set()
+    assert set(cleaned_profile.candidates) == {"B", "C"}
+    assert cleaned_profile.max_ranking_length == profile_no_ties.max_ranking_length
 
 
-def test_remove_then_condense_equivalence():
+def test_remove_then_condense_equivalence(profile_no_ties):
     cleaned_profile_1 = remove_and_condense_rank_profile("A", profile_no_ties)
     cleaned_profile_2 = condense_rank_profile(remove_cand_rank_profile("A", profile_no_ties))
 
     assert cleaned_profile_1 == cleaned_profile_2
 
 
-def test_remove_mult_cands():
+def test_remove_mult_cands(profile_no_ties):
     cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
@@ -69,7 +77,7 @@ def test_remove_mult_cands():
     assert cleaned_profile.unaltr_idxs == set()
 
 
-def test_remove_and_condense_with_ties():
+def test_remove_and_condense_with_ties(profile_with_ties):
     cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_with_ties)
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
@@ -86,3 +94,19 @@ def test_remove_and_condense_with_ties():
     assert cleaned_profile.no_rank_altr_idxs == {0}
     assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
+
+
+def test_remove_and_condense_reduce_candidates_list(profile_no_ties):
+    cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
+
+    assert set(cleaned_profile.candidates) != set(profile_no_ties.candidates)
+    assert set(cleaned_profile.candidates) == {"B", "C"}
+
+
+def test_remove_and_condense_reduce_max_ranking_length(profile_no_ties):
+    cleaned_profile = remove_and_condense_rank_profile(
+        "A", profile_no_ties, reduce_max_ranking_length=True
+    )
+
+    assert cleaned_profile.max_ranking_length != profile_no_ties.max_ranking_length
+    assert cleaned_profile.max_ranking_length == 2
