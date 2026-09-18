@@ -467,26 +467,26 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
     max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
 
     total_dfs = []
+    sum_df_columns = [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + [
+        "Weight",
+        "Voter Set",
+    ]
     for profile in rank_profiles:
         assert profile.max_ranking_length is not None
-        curr_df = (
-            profile.df.copy() if profile.max_ranking_length < max_ranking_length else profile.df
-        )
-        for i in range(profile.max_ranking_length, max_ranking_length):
+        num_ranking_cols = len([col for col in profile.df.columns if "Ranking_" in col])
+        curr_df = profile.df.copy() if num_ranking_cols < max_ranking_length else profile.df
+        for i in range(num_ranking_cols, max_ranking_length):
             curr_df.insert(
                 len(curr_df.columns),
                 f"Ranking_{i + 1}",
                 pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
             )
-        total_dfs.append(curr_df)
+        total_dfs.append(curr_df[sum_df_columns])
 
     new_df = pd.concat(total_dfs, ignore_index=True)
     new_df.index.name = "Ballot Index"
     ranking_cols = [col for col in new_df.columns if "Ranking_" in col]
     new_df[ranking_cols] = new_df[ranking_cols].astype("object")
-    new_df = new_df[
-        [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
-    ]
 
     return RankProfile(
         candidates=candidates,

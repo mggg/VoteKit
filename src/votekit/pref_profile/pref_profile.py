@@ -371,7 +371,7 @@ class RankProfile(PreferenceProfile):
         self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
         self.candidate_id_map = candidate_id_map
 
-        self.max_ranking_length = self._find_max_ranking_length()
+        self.max_ranking_length = self._find_max_ranking_length() if max_ranking_length != 0 else 0
 
         if self.max_ranking_length > 0:
             if self.max_candidates_ranked > self.max_ranking_length:
@@ -605,9 +605,15 @@ class RankProfile(PreferenceProfile):
             return
 
         if self.max_ranking_length == 0:
-            raise ProfileError(
-                boiler_plate + "max_ranking_length must be provided and be non-zero."
-            )
+            ranking_cols = [col for col in df.columns if "Ranking_" in col]
+            if (
+                not df[ranking_cols]
+                .map(lambda cand_set: cand_set == frozenset({"~"}))
+                .all(axis=None)
+            ):
+                raise ProfileError(
+                    boiler_plate + "max_ranking_length must be provided and be non-zero."
+                )
 
     def __validate_init_rank_df(self, df: pd.DataFrame) -> None:
         """

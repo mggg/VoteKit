@@ -176,7 +176,6 @@ def test_sum_rank_profiles():
             RankBallot(weight=0),
         ],
         candidates=["D", "E", "F"],
-        max_ranking_length=0,
     )
 
     profile_3 = RankProfile(
@@ -187,7 +186,6 @@ def test_sum_rank_profiles():
             RankBallot(weight=0),
         ],
         candidates=["G", "H", "I"],
-        max_ranking_length=0,
     )
     summed_profile = sum_profiles([profile_1, profile_2, profile_3])
     true_summed_profile = RankProfile(
@@ -213,3 +211,63 @@ def test_sum_rank_profiles():
     assert summed_profile.max_ranking_length == 4
     assert isinstance(summed_profile, RankProfile)
     assert true_summed_profile == summed_profile
+
+
+def test_sum_rank_profile_with_reduced_max_ranking_length():
+    original_profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+            RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
+            RankBallot(),
+            RankBallot(weight=0),
+        ],
+        candidates=["A", "B", "C", "D"],
+        max_ranking_length=5,
+    )
+    reduced_profile = RankProfile(
+        df=original_profile.df,
+        max_ranking_length=3,
+    )
+
+    assert reduced_profile.max_ranking_length == 3
+    assert len(reduced_profile.df.columns) == len(original_profile.df.columns) == 7
+    padded_ranking_cols = [
+        f"Ranking_{i}"
+        for i in range(reduced_profile.max_ranking_length + 1, original_profile.max_ranking_length)
+    ]
+    print(padded_ranking_cols)
+    assert (
+        reduced_profile.df[padded_ranking_cols]
+        .map(lambda cand_set: cand_set == frozenset({"~"}))
+        .all(axis=None)
+    )
+
+    profile_2 = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"E"}, {"D"}, {"F"}, {"E"}), weight=2),
+            RankBallot(ranking=({"D"}, {"E"}, {"F"}), weight=2),
+            RankBallot(),
+            RankBallot(weight=0),
+        ],
+        candidates=["D", "E", "F"],
+        max_ranking_length=4,
+    )
+
+    true_summed_profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
+            RankBallot(ranking=({"A", "B"}, frozenset(), {"D"}), voter_set={"Chris"}),
+            RankBallot(),
+            RankBallot(weight=0),
+            RankBallot(ranking=({"E"}, {"D"}, {"F"}, {"E"}), weight=2),
+            RankBallot(ranking=({"D"}, {"E"}, {"F"}), weight=2),
+            RankBallot(),
+            RankBallot(weight=0),
+        ],
+        candidates=["A", "B", "C", "D", "E", "F"],
+        max_ranking_length=4,
+    )
+
+    summed_profile = reduced_profile + profile_2
+    assert summed_profile.max_ranking_length == 4
+    assert summed_profile == true_summed_profile
