@@ -357,9 +357,15 @@ class RankProfile(PreferenceProfile):
             return
 
         if self.max_ranking_length == 0:
-            raise ProfileError(
-                boiler_plate + "max_ranking_length must be provided and be non-zero."
-            )
+            ranking_cols = [c for c in df.columns if c.startswith(RANKING_COLUMN_PREFIX)]
+            if (
+                not df[ranking_cols]
+                .map(lambda cand_set: cand_set == frozenset({"~"}))
+                .all(axis=None)
+            ):
+                raise ProfileError(
+                    boiler_plate + "max_ranking_length must be provided and be non-zero."
+                )
 
     def __validate_init_rank_df(self, df: pd.DataFrame) -> None:
         """
