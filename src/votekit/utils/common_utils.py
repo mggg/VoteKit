@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import math
 import random
 import warnings
@@ -1196,14 +1197,17 @@ class SourceWithAttribute:
     source: object
     attribute: str
 
-    def __post_init(self):
+    def __post_init__(self):
         if not isinstance(self.attribute, str):
             raise TypeError("Attribute must be a string.")
         if not hasattr(self.source, self.attribute):
-            raise AttributeError(
-                f"Source object of type {self.source.__class__.__name__} does not"
-                f" have attribute '{self.attribute}'."
-            )
+            try:
+                inspect.getattr_static(self.source, self.attribute)
+            except AttributeError:
+                raise AttributeError(
+                    f"Source object of type {self.source.__class__.__name__} does not"
+                    f" have attribute '{self.attribute}'."
+                )
 
     def __repr__(self) -> str:
         return f"{self.source.__class__.__name__}.{self.attribute}"

@@ -100,13 +100,57 @@ def test_remove_ballots_with_cand_idempotent(profile_no_ties):
     assert cleaned_profile == double_cleaned
 
 
-def test_remove_ballots_with_cand_chaining(profile_no_ties):
+def test_remove_ballots_with_candidate_chaining_remove_cand(profile_no_ties):
     cleaned_profile = remove_ballots_with_cand_rank_profile("A", profile_no_ties)
     double_cleaned = remove_cand_rank_profile("A", cleaned_profile)
 
     assert cleaned_profile == double_cleaned
+    assert double_cleaned.parent_profile == cleaned_profile
+    assert (
+        cleaned_profile.ballots
+        == double_cleaned.ballots
+        == (
+            RankBallot(ranking=[{"B"}, {"C"}], weight=1 / 2),
+            RankBallot(ranking=[{"C"}], weight=3),
+        )
+    )
 
     cleaned_profile = remove_cand_rank_profile("A", profile_no_ties)
     double_cleaned = remove_ballots_with_cand_rank_profile("A", cleaned_profile)
 
     assert cleaned_profile == double_cleaned
+    assert double_cleaned.parent_profile == cleaned_profile
+    assert (
+        cleaned_profile.ballots
+        == double_cleaned.ballots
+        == (
+            RankBallot(ranking=[{}, {"B"}, {"C"}], weight=1),
+            RankBallot(ranking=[{"B"}, {"C"}], weight=1 / 2),
+            RankBallot(ranking=[{"C"}], weight=3),
+            RankBallot(ranking=[{"B", "C"}], weight=3),
+        )
+    )
+
+
+def test_remove_ballots_with_different_candidates_chaining(profile_no_ties):
+    first_cleaned_profile = remove_ballots_with_cand_rank_profile("A", profile_no_ties)
+
+    assert first_cleaned_profile.parent_profile == profile_no_ties
+    assert list(first_cleaned_profile.df.index) == first_cleaned_profile.df_index_column == [1, 2]
+    assert first_cleaned_profile.unaltr_idxs == {0, 1, 2, 3}
+    assert first_cleaned_profile.ballots == (
+        RankBallot(ranking=[{"B"}, {"C"}], weight=1 / 2),
+        RankBallot(ranking=[{"C"}], weight=3),
+    )
+
+    second_cleaned_profile = remove_ballots_with_cand_rank_profile("B", first_cleaned_profile)
+
+    assert second_cleaned_profile.parent_profile == first_cleaned_profile
+    assert list(second_cleaned_profile.df.index) == second_cleaned_profile.df_index_column == [2]
+    assert second_cleaned_profile.unaltr_idxs == {1, 2}
+    assert second_cleaned_profile.ballots == (RankBallot(ranking=[{"C"}], weight=3),)
+
+    for cleaned in (first_cleaned_profile, second_cleaned_profile):
+        assert cleaned.no_rank_altr_idxs == set()
+        assert cleaned.no_wt_altr_idxs == set()
+        assert cleaned.nonempty_altr_idxs == set()

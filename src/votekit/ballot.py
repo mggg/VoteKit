@@ -193,9 +193,8 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        self._validate_ranking_candidates(ranking)
-        ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
-        self.ranking = ranking
+        self.ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
+        self._validate_ranking_candidates(self.ranking)
         super().__init__(weight=weight, voter_set=voter_set)
 
     def _convert_ranking_candidates_to_frozenset_strip_whitespace(
@@ -221,10 +220,12 @@ class RankBallot(Ballot):
                 normalized_ranking.append(
                     frozenset({cand_set.strip() if isinstance(cand_set, str) else cand_set})
                 )
-            else:
+            elif isinstance(cand_set, Iterable):
                 normalized_ranking.append(
                     frozenset(c.strip() if isinstance(c, str) else c for c in cand_set)
                 )
+            else:
+                normalized_ranking.append(frozenset({cand_set}))
         return tuple(normalized_ranking)
 
     def _validate_ranking_candidates(self, ranking: RankingLike):

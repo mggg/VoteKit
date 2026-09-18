@@ -221,7 +221,7 @@ def test_equivalent_str_int_candidates_gives_warning():
 
 def test_invalid_bare_candidate_type_ballot():
     with pytest.raises(
-        TypeError, match="Ranking is a sequence of Iterables or bare str/int candidates."
+        TypeError, match=r"Non-string\/integer candidate\(s\) found in RankBallot.ranking."
     ):
         RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
 

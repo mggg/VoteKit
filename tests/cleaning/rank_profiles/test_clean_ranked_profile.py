@@ -40,7 +40,7 @@ def test_clean_profile_change_defaults():
     adj_profile = clean_rank_profile(
         profile,
         lambda x: tuple(c_set - {"A"} if isinstance(c_set, frozenset) else c_set for c_set in x),
-        remove_empty_ballots=False,
+        remove_null_ballots=False,
         remove_zero_weight_ballots=False,
         retain_original_candidate_list=True,
     )
