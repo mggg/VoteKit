@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Protocol, TypeVar, cast, overload, runtime_checkable
+from typing import Any, Callable, Optional, Protocol, TypeVar, cast, overload, runtime_checkable
 
+import numpy as np
 import pandas as pd
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+from votekit.types import Candidate
 
 RankBallotFunc = Callable[[RankBallot], RankBallot]
 ScoreBallotFunc = Callable[[ScoreBallot], ScoreBallot]
@@ -53,12 +55,14 @@ class _DataFrameOperation(_ProfileTransformOperation):
 
     transform() enforces symmetric aggrement with overloads, so Any is the parameter internally.
     An error is thrown if the ProfileTransform operation does not return a pd.DataFrame.
+
+    ``transform_df`` acts upon the internal df where candidate sets are represented as integer IDs.
     """
 
     transform: ProfileTransform[Any]
 
     def transformed_df(self, profile: PreferenceProfile) -> pd.DataFrame:
-        result = self.transform.transform_df(profile.df.copy(), profile)
+        result = self.transform.transform_df(profile._df.copy(), profile)
         class_name = type(self.transform).__name__
         if not isinstance(result, pd.DataFrame):
             raise TransformContractError(
@@ -332,3 +336,140 @@ def _reduced_max_ranking_length(profile: RankProfile | pd.DataFrame) -> int:
         default=0,
     )
     return max(last_col_with_cands, _max_candidates_ranked(profile))
+
+
+@dataclass
+class SwapCandidates:
+    candidate_a: Candidate
+    candidate_b: Candidate
+    max_distance: Optional[int] = None
+    min_distance: Optional[int] = None
+    strict_order: bool = False
+    swap_ties: bool = False  # TODO: need to implement
+
+    def transform_df(self, df: pd.DataFrame, profile: RankProfile) -> pd.DataFrame:
+        if self.swap_ties:
+            cand_a_ids = [
+                id
+                for id, cand_set in profile.id_candidate_map.items()
+                if self.candidate_a in cand_set
+            ]
+            cand_b_ids = [
+                id
+                for id, cand_set in profile.id_candidate_map.items()
+                if self.candidate_b in cand_set
+            ]
+        else:
+            cand_a_ids = [
+                id
+                for id, cand_set in profile.id_candidate_map.items()
+                if frozenset({self.candidate_a}) == cand_set
+            ]
+            cand_b_ids = [
+                id
+                for id, cand_set in profile.id_candidate_map.items()
+                if frozenset({self.candidate_b}) == cand_set
+            ]
+
+        ranking_cols = [col for col in df.columns if "Ranking_" in col]
+        ranking_arr = df[ranking_cols].to_numpy().copy()
+
+        cand_a_positions = np.isin(ranking_arr, cand_a_ids)
+        cand_b_positions = np.isin(ranking_arr, cand_b_ids)
+        cand_a_counts = np.count_nonzero(cand_a_positions, axis=1)
+        cand_b_counts = np.count_nonzero(cand_b_positions, axis=1)
+        swapable_row_mask = (cand_a_counts == 1) & (cand_b_counts == 1)
+        if np.any(cand_a_counts > 1):  # check only rows with a and b?
+            raise ValueError(
+                f"Profile contains rankings with candidate {str(self.candidate_a)}"
+                " Cannot deterministically swap."
+            )
+        if np.any(cand_b_counts > 1):
+            raise ValueError(
+                f"Profile contains rankings with candidate {str(self.candidate_b)}"
+                " Cannot deterministically swap."
+            )
+
+        cand_a_rank_idxs = np.argmax(cand_a_positions, axis=1)
+        cand_b_rank_idxs = np.argmax(cand_b_positions, axis=1)
+
+        cand_dists = cand_a_rank_idxs - cand_b_rank_idxs
+        swap_cand_mask = np.ones(len(cand_a_rank_idxs), dtype=bool) & swapable_row_mask
+        if self.strict_order:
+            swap_cand_mask &= cand_dists < 0
+        abs_cand_dists = np.abs(cand_dists)
+        if self.min_distance is not None:
+            swap_cand_mask &= abs_cand_dists >= (self.min_distance + 1)
+        if self.max_distance is not None:
+            swap_cand_mask &= abs_cand_dists <= (self.max_distance + 1)
+
+        swap_rows = np.nonzero(swap_cand_mask)[0]
+        cand_a_idxs, cand_b_idxs = cand_a_rank_idxs[swap_rows], cand_b_rank_idxs[swap_rows]
+        cand_a_id_vals = ranking_arr[swap_rows, cand_a_idxs]
+        cand_b_id_vals = ranking_arr[swap_rows, cand_b_idxs]
+        ranking_arr[swap_rows, cand_a_idxs] = cand_b_id_vals
+        ranking_arr[swap_rows, cand_b_idxs] = cand_a_id_vals
+
+        df[ranking_cols] = ranking_arr
+
+        return profile._translate_df_ranking_values(df, profile.id_candidate_map)
+
+
+@dataclass
+class SwapRankPositions:
+    # Index refers to Ranking_{i}
+    ranking_col_a_idx: int
+    ranking_col_b_idx: int
+
+    def transform_df(self, df: pd.DataFrame, profile: RankProfile):
+        ranking_cols = [col for col in df.columns if "Ranking_" in col]
+        ranking_arr = df[ranking_cols].to_numpy().copy()
+        # ranking columns are 1-based
+        ranking_arr_a_idx = self.ranking_col_a_idx - 1
+        ranking_arr_b_idx = self.ranking_col_b_idx - 1
+        ranking_arr[:, [ranking_arr_a_idx, ranking_arr_b_idx]] = ranking_arr[
+            :, [ranking_arr_b_idx, ranking_arr_a_idx]
+        ]
+
+        df[ranking_cols] = ranking_arr
+        return profile._translate_df_ranking_values(df, profile.id_candidate_map)
+
+
+@dataclass
+class RemoveCandidate:
+    removed: Candidate
+
+    def transform_df(self, df: pd.DataFrame, profile: RankProfile):
+        removed_ids_dict = {}
+        removed_set = frozenset({self.removed})
+        orig_ids, orig_cand_sets = zip(*profile.id_candidate_map.items())
+        for id, cand_set in zip(orig_ids, orig_cand_sets):
+            if removed_set == cand_set:
+                removed_ids_dict[id] = profile.candidate_id_map.get(
+                    frozenset(), len(profile.candidate_id_map)
+                )
+                if removed_ids_dict[id] == len(profile.candidate_id_map):
+                    profile.id_candidate_map[len(profile.candidate_id_map)] = frozenset()
+                    profile.candidate_id_map[frozenset()] = len(profile.candidate_id_map)
+            elif self.removed in cand_set:
+                new_cand_set = cand_set - removed_set
+                removed_ids_dict[id] = profile.candidate_id_map.get(
+                    new_cand_set, len(profile.candidate_id_map)
+                )
+                if removed_ids_dict[id] == len(profile.candidate_id_map):
+                    profile.id_candidate_map[len(profile.candidate_id_map)] = new_cand_set
+                    profile.candidate_id_map[new_cand_set] = len(profile.candidate_id_map)
+            else:
+                removed_ids_dict[id] = id
+
+        ranking_cols = [col for col in df.columns if "Ranking_" in col]
+        ranking_arr = df[ranking_cols].to_numpy().copy()
+        min_id = min(removed_ids_dict)  # always -1 for frozenset({'~'})
+        id_mapping = np.zeros(len(removed_ids_dict) + 1)
+        for old_id, new_id in removed_ids_dict.items():
+            id_mapping[old_id - min_id] = new_id
+
+        ranking_arr_zero_idx = ranking_arr - min_id
+        mapped_ranking_arr = id_mapping[ranking_arr_zero_idx]
+        df[ranking_cols] = mapped_ranking_arr
+        return profile._translate_df_ranking_values(df, profile.id_candidate_map)
