@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from fractions import Fraction
 from typing import (
     Any,
     Callable,
     Optional,
     Protocol,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -250,10 +250,10 @@ def _lift_to_operation(
         ballot_func = cast(BallotFunc, transformation)
         return _BallotOperation(_with_return_contract(ballot_func, expected_ballot_type))
     else:
-        raise TypeError("Transformation must be a ballot function or ProfileTransform instance.")
-
-
-ProbabilityFunctions = Callable[[Any], bool] | Callable[[pd.DataFrame, dict], Sequence[bool]]
+        raise TypeError(
+            "Transformation must be a ballot function or ProfileTransform instance. Got"
+            f" {transformation}."
+        )
 
 
 @runtime_checkable
@@ -265,19 +265,19 @@ class DataFrameProbability(Protocol):
     ) -> Any: ...
 
 
-def _lift_to_transform_mask(probability: object, profile: PreferenceProfile) -> Callable:
+def _lift_to_transform_mask(probability: object) -> Callable:
     if isinstance(probability, type):
         raise TransformContractError(
-            f"Probability was given the class {probability.__class__}"
+            f"Probability was given the class {probability.__name__}"
             " Did you mean to construct it like"
-            f" {probability.__class__}(...)?"
+            f" {probability.__name__}(...)?"
         )
     if isinstance(probability, DataFrameProbability):
-        # TODO: check the output is an array of booleans
+
         def dataframe_probability(profile: PreferenceProfile):
-            # TODO: PreferenceProfile does not have mapping, add as an attribute?
             assert isinstance(profile, (RankProfile, ScoreProfile))
             result = probability.transform_mask(profile._df.copy(), profile.id_candidate_map.copy())
+            result = np.asarray(result)
             if any(not isinstance(ballot_result, (bool, np.bool_)) for ballot_result in result):
                 raise TransformContractError(
                     f"Probability {probability.__class__} must return a list of boolean values."
@@ -293,14 +293,14 @@ def _lift_to_transform_mask(probability: object, profile: PreferenceProfile) -> 
 
         return dataframe_probability
     elif isinstance(probability, Callable):
-        prob_func = cast(Callable[[Ballot], bool], probability)
+        prob_func = cast(Callable[[Ballot], np.bool_ | bool], probability)
 
         def ballot_probability(profile: PreferenceProfile):
             result = []
             for ballot in profile.ballots:
                 for _ in range(int(ballot.weight)):
                     ballot_result = prob_func(ballot)
-                    if not isinstance(ballot_result, bool):
+                    if not isinstance(ballot_result, (np.bool_, bool)):
                         raise TransformContractError(
                             f"Probability {probability.__class__}"
                             " must return a bool, got"
@@ -311,7 +311,11 @@ def _lift_to_transform_mask(probability: object, profile: PreferenceProfile) -> 
 
         return ballot_probability
     else:
-        raise TransformContractError()
+        raise TransformContractError(
+            "Probability must follow the DataFrameProbability protocol or"
+            " be a callable that accepts a ballot and returns a bool, Got"
+            f" {probability}."
+        )
 
 
 @overload
@@ -361,6 +365,10 @@ def transform(
         transformation (object): Object with ``transform_df`` func assignable to ProfileTransform or
             a ballot transform function assignable to Callable[[Ballot], Ballot]. Must return the
             ballot type it consumes.
+        probability (Optional[object]):  Object with ``transform_mask`` func assignable to
+            DataFrameProbability or a ballot probability function assignable to
+            Callable[[Ballot], bool]. Must return a boolean value indicating whether a given ballot
+            will be passed to the transformation.
         group_ballots_first (bool, optional): whether to group profile's ballots by unique ballot
             type. True by default.
         remove_empty_ballots (bool, optional): whether to remove ballots with an empty ranking. An
@@ -389,7 +397,17 @@ def transform(
     profile = profile.group_ballots() if group_ballots_first else profile
     ballot_wt_transform_mask = None
     if probability is not None:
-        probability_func = _lift_to_transform_mask(probability, profile)
+        if any(isinstance(weight, Fraction) for weight in profile._df["Weight"]):
+            raise ValueError(
+                "Transform does not support fractional weights. Convert a copy of the"
+                " profile to integer weights."
+            )
+        if any(weight % 1 != 0 for weight in profile._df["Weight"]):
+            raise ValueError(
+                "Transform does not support non-integer weights. Convert a copy of the"
+                " profile to integer weights."
+            )
+        probability_func = _lift_to_transform_mask(probability)
         transform_mask = probability_func(profile)
         ballot_wt_transform_mask = _ballot_weight_to_transform(transform_mask, profile)
 
@@ -444,8 +462,6 @@ def _ballot_weight_to_transform(per_wt_transform_mask: Any, profile) -> Any:
     return ballot_wt_to_transform
 
 
-# TODO: target the feat/reduce-max-ranking-length-clean branch and move these functions
-# into a shared utility
 def _max_candidates_ranked(profile: RankProfile | pd.DataFrame) -> int:
     """
     The maximum number of unique candidates ranked on any ballot in the profile.
@@ -503,20 +519,44 @@ def _reduced_max_ranking_length(profile: RankProfile | pd.DataFrame) -> int:
     return max(last_col_with_cands, _max_candidates_ranked(profile))
 
 
-# TODO: add a probability function and wire throughout
-# provide a probability function that returns 0 and 1s or true and falses when provided a list
-
-
 @dataclass
 class SwapCandidates:
+    """
+    ProfileTransform class to swap candidates using the profile's internal df with candidate IDs.
+
+    Swapping of the specified candidates within a ballot's ranking will only occur if certain
+    criteria is met. Criteria includes the distance between the candidates' ranking positions, their
+    rank order in relation to each other, and whether swapping includes rank slots with the
+    candidates to swap being tied with another candidate. Distance between the candidates is
+    the number of ranking slots between them. Thus, a distance of 0 means the candidates'
+    rank positions are directly adjacent to each other.
+
+    Attributes:
+        candidate_a (Candidate): Candidate to swap with candidate_b.
+        candidate_b (Candidate): Candidate to swap with candidate_a.
+        min_distance (Optional[int]): minimum distance between candidate ranking slots to perform
+            swap. If the candidates' ranked positions are separated by less than the minimum
+            distance, then the ballot will not be altered.
+        max_distance (Optional[int]): maximum distance between candidate ranking slots to perform a
+            swap. If the candidates' ranked positions are separated by more than the maximum
+            distance, then the ballot will not be altered.
+        strict_order (bool): whether to only swap the specified candidates based on their rank
+            order. If True, candidate a and b will only be swapped if a is ranked before b. Else,
+            candidate a and b will be swapped regardless of their rank in relation to each other.
+            False by default.
+        swap_ties (bool): whether to swap the specified candidates when either one appears in a tie.
+            False by default.
+
+    Raises:
+        ValueError: Cannot swap candidates a and b if either is repeated within a ballot.
+    """
+
     candidate_a: Candidate
     candidate_b: Candidate
-    max_distance: Optional[int] = None
     min_distance: Optional[int] = None
+    max_distance: Optional[int] = None
     strict_order: bool = False
     swap_ties: bool = False  # TODO: need to implement
-
-    # TODO: swap
 
     def transform_df(
         self, df: pd.DataFrame, profile: RankProfile
@@ -552,12 +592,12 @@ class SwapCandidates:
         cand_a_counts = np.count_nonzero(cand_a_positions, axis=1)
         cand_b_counts = np.count_nonzero(cand_b_positions, axis=1)
         swapable_row_mask = (cand_a_counts == 1) & (cand_b_counts == 1)
-        if np.any(cand_a_counts > 1):  # check only rows with a and b?
+        if np.any((cand_a_counts > 1) & (cand_b_counts > 0)):
             raise ValueError(
                 f"Profile contains rankings with candidate {str(self.candidate_a)}"
                 " Cannot deterministically swap."
             )
-        if np.any(cand_b_counts > 1):
+        if np.any((cand_b_counts > 1) & (cand_a_counts > 0)):
             raise ValueError(
                 f"Profile contains rankings with candidate {str(self.candidate_b)}"
                 " Cannot deterministically swap."
@@ -590,14 +630,22 @@ class SwapCandidates:
 
 @dataclass
 class SwapRankPositions:
-    # Index refers to Ranking_{i}
+    """
+    ProfileTransform class to swap ranking positions.
+
+    Rank positions are based on the profile df's columns which start at 1.
+
+    Attributes:
+        ranking_col_a_idx (int): Ranking column index to swap with the b index.
+        ranking_col_b_idx (int): Ranking column index to swap with the a index.
+    """
+
     ranking_col_a_idx: int
     ranking_col_b_idx: int
 
     def transform_df(self, df: pd.DataFrame, profile: RankProfile):
         ranking_cols = [col for col in df.columns if "Ranking_" in col]
         ranking_arr = df[ranking_cols].to_numpy().copy()
-        # ranking columns are 1-based
         ranking_arr_a_idx = self.ranking_col_a_idx - 1
         ranking_arr_b_idx = self.ranking_col_b_idx - 1
         ranking_arr[:, [ranking_arr_a_idx, ranking_arr_b_idx]] = ranking_arr[
@@ -610,6 +658,13 @@ class SwapRankPositions:
 
 @dataclass
 class RemoveCandidate:
+    """
+    ProfileTransform class to remove candidates from ballot rankings and replace with an empty set.
+
+    Attributes:
+        removed (Candidate): Canidate to remove.
+    """
+
     removed: Candidate
 
     def transform_df(self, df: pd.DataFrame, profile: RankProfile):
@@ -650,3 +705,40 @@ class RemoveCandidate:
         mapped_ranking_arr = id_mapping[ranking_arr_zero_idx]
         df[ranking_cols] = mapped_ranking_arr
         return df, id_candidate_map_copy
+
+
+@dataclass
+class TruncateRankingAtIdx:
+    """
+    ProfileTransform class to truncate ballot's ranking at a specified index.
+
+    Rank indexes are based on the profile df's columns which start at 1.
+
+    Attributes:
+    truncate_idx (int): Ranking column index at which to truncate ballot.
+    """
+
+    truncate_idx: int
+
+
+@dataclass
+class BernoulliBallotProbability:
+    """
+    Transform each ballot indenpendently with some probability.
+
+    Attributes:
+        prob (float): probability of a ballot to be transformed.
+        rng_seed (Optional[int]): seed for random probability distribution. Enables for reproducible
+            results.
+    """
+
+    prob: float
+    rng_seed: Optional[int] = None
+
+    def __post_init__(self):
+        if not 0.0 <= self.prob <= 1.0:
+            raise ValueError(f"probability must be in [0, 1], got {self.prob}.")
+        self._rng = np.random.default_rng(self.rng_seed)
+
+    def __call__(self, ballot: Ballot) -> bool:
+        return bool(self._rng.random() < self.prob)
