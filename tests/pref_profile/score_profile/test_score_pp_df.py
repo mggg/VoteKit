@@ -127,11 +127,12 @@ def test_df_with_mixed_cand_types_as_score_cols():
     assert score_profile.df.equals(true_df)
 
 
-def test_internal_df_with_cand_ids_as_score_cols():
+def test_internal_matrix_with_cand_ids_as_score_cols():
     score_profile = ScoreProfile(
         ballots=ballots_scores,
         candidates=["A", "B", "C", "D", "E"],
     )
+    matrix = score_profile._matrix
     candidate_ids = set([i for i in range(len(score_profile.candidates))])
     candidate_id_map = dict(zip(score_profile.candidates, candidate_ids))
 
@@ -140,31 +141,23 @@ def test_internal_df_with_cand_ids_as_score_cols():
     id_C = candidate_id_map["C"]
     id_D = candidate_id_map["D"]
     id_E = candidate_id_map["E"]
-    cand_id_data = {
-        id_A: [
-            1,
-            np.nan,
-            np.nan,
-            np.nan,
-        ],
-        id_B: [
-            2,
-            np.nan,
-            np.nan,
-            np.nan,
-        ],
-        id_C: [
-            np.nan,
-            np.nan,
-            np.nan,
-            np.nan,
-        ],
-        id_D: [np.nan, 2, np.nan, np.nan],
-        id_E: [np.nan, 1, np.nan, np.nan],
-        "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [2.0, 1.0, 1.0, 0.0],
-    }
-    true_id_df = pd.DataFrame(cand_id_data)
-    true_id_df.index.name = "Ballot Index"
-    assert score_profile._df.equals(true_id_df)
-    assert score_profile.candidate_id_map == candidate_id_map
+
+    true_scores = np.array(
+        [
+            [1.0, 2.0, np.nan, np.nan, np.nan],
+            [np.nan, np.nan, np.nan, 2.0, 1.0],
+            [np.nan, np.nan, np.nan, np.nan, np.nan],
+            [np.nan, np.nan, np.nan, np.nan, np.nan],
+        ]
+    )
+    assert matrix.score_columns == [id_A, id_B, id_C, id_D, id_E]
+    assert matrix.scores.dtype == np.float64
+    assert np.array_equal(matrix.scores, true_scores, equal_nan=True)
+
+    assert np.array_equal(matrix.weights, np.array([2.0, 1.0, 1.0, 0.0]))
+    assert not matrix.has_fraction_weights
+
+    assert matrix.voter_sets is not None
+    assert list(matrix.voter_sets) == [set(), {"Chris"}, set(), set()]
+
+    assert {cand: cid for cid, cand in matrix.id_cand_map.items()} == candidate_id_map
