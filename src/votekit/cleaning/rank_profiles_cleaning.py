@@ -258,7 +258,7 @@ def remove_cand_rank_profile(
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
             weight as a result of cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
-            from the orginal profile in the new profile. If False, takes the original candidate
+            from the original profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
 
@@ -330,23 +330,24 @@ def condense_rank_profile(
     Given a ranked profile, removes any empty frozensets from the rankings and condenses the
     resulting ranking.
 
-    Empty frozensets between ranking positions with candidate sets are removed
-    and remaining ranking positions are shifted up to fill the gaps. These ballot's rankings will be
-    grouped under ``nonempty_altr_idxs``.
-    Trailing empty frozensets (``frozenset()``), with no ranking positions with sets of the
-    profile's candidates following them, are replaced with tilde frozensets, ``frozenset('~')``.
-    Rankings with at least one ranking position with a candidate set followed by trailing
-    empty frozensets are recorded in ``nonempty_altr_idxs``. Rankings with only empty frozensets
-    or a mix of empty frozensets with tilde frozensets will be replaced entirely with tilde
-    frozensets and recorded in ``no_rank_altr_idxs``.
+    Rankings with empty frozensets (``frozenset()``) will be handled as follows:
+    - Empty frozensets between ranking positions with candidate sets are removed and remaining
+    ranking positions are shifted up to fill the gaps. These ranking's indices will be recorded in
+    ``nonempty_altr_idxs``.
+    - Trailing empty frozensets, that have no ranking positions with candidate sets following them,
+    are replaced with tilde frozensets, ``frozenset('~')``. If the ranking had at least one ranking
+    position with a candidate set followed by trailing empty frozenset(s), then the ranking's index
+    will be recorded in ``nonempty_altr_idxs``.
+    - Rankings with only empty frozensets or a mix of empty frozensets with tilde frozensets will be
+    replaced entirely with tilde frozensets and recorded in ``no_rank_altr_idxs``.
 
     Wrapper for clean_rank_profile that does some extra processing to ensure condensed ranking
     equivalence is handled correctly.
 
     Args:
-        profile (RankProfile): Profile to remove repeated candidates from.
-        remove_null_ballots (bool, optional): Whether or not to remove ballots that have no
-            ranking or scores as a result of cleaning. Defaults to True.
+        profile (RankProfile): Profile to condense rankings.
+        remove_null_ballots (bool, optional): Whether or not to remove ballots whose rankings are
+            made of only tilde frozensets (``frozenset('~')``). Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
             weight as a result of cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
@@ -388,15 +389,16 @@ def remove_and_condense_rank_profile(
     """
     Given a ranked profile, remove the given candidate(s) and condense the resulting rankings.
 
-    Empty frozensets between ranking positions with candidate sets are removed
-    and remaining ranking positions are shifted up to fill the gaps. These ballot's rankings will be
-    grouped under ``nonempty_altr_idxs``.
-    Trailing empty frozensets (``frozenset()``), with no ranking positions with sets of the
-    profile's candidates following them, are replaced with tilde frozensets, ``frozenset('~')``.
-    Rankings with at least one ranking position with a candidate set followed by trailing
-    empty frozensets are recorded in ``nonempty_altr_idxs``. Rankings with only empty frozensets
-    or a mix of empty frozensets with tilde frozensets will be replaced entirely with tilde
-    frozensets and recorded in ``no_rank_altr_idxs``.
+    Rankings with empty frozensets (``frozenset()``) will be handled as follows:
+    - Empty frozensets between ranking positions with candidate sets are removed and remaining
+    ranking positions are shifted up to fill the gaps. These ranking's indices will be recorded in
+    ``nonempty_altr_idxs``.
+    - Trailing empty frozensets, that have no ranking positions with candidate sets following them,
+    are replaced with tilde frozensets, ``frozenset('~')``. If the ranking had at least one ranking
+    position with a candidate set followed by trailing empty frozenset(s), then the ranking's index
+    will be recorded in ``nonempty_altr_idxs``.
+    - Rankings with only empty frozensets or a mix of empty frozensets with tilde frozensets will be
+    replaced entirely with tilde frozensets and recorded in ``no_rank_altr_idxs``.
 
     This function is intended to save computational time in election methods, where removing
     and condensing happen frequently. Researches interested in the difference between
@@ -409,13 +411,13 @@ def remove_and_condense_rank_profile(
         removed (Candidate | list[Candidate] | list[str] | list[int]):
             Candidate or list of candidates to be removed.
             Candidates can be strings, integers, or mix of both.
-        profile (RankProfile): Profile to remove repeated candidates from.
+        profile (RankProfile): Profile to remove candidates from and condense rankings.
         remove_null_ballots (bool, optional): Whether or not to remove ballots whose rankings are
             made of only tilde frozensets (``frozenset('~')``). Defaults to True.
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
             weight as a result of cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
-            from the orginal profile in the new profile. If False, takes the original candidate
+            from the original profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
 
@@ -476,7 +478,7 @@ def remove_ballots_with_cand_rank_profile(
         remove_zero_weight_ballots (bool, optional): Whether or not to remove ballots that have no
             weight as a result of cleaning. Defaults to True.
         retain_original_candidate_list (bool, optional): Whether or not to use the candidate list
-            from the orginal profile in the new profile. If False, takes the original candidate
+            from the original profile in the new profile. If False, takes the original candidate
             list and removes the candidate(s) given in ``removed``, but preserves all others.
             Defaults to False.
 
