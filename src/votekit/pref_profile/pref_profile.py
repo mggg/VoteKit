@@ -6,7 +6,6 @@ import os
 import pickle
 import urllib.request
 import warnings
-from fractions import Fraction
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -25,6 +24,7 @@ from votekit.pref_profile.csv_utils import (
     _validate_rank_csv_format,
     _validate_score_csv_format,
 )
+from votekit.pref_profile.profile_matrix import ProfileMatrix, RankMatrix, ScoreMatrix
 from votekit.pref_profile.utils import (
     _sum_rank_profiles,
     _sum_score_profiles,
@@ -33,101 +33,6 @@ from votekit.pref_profile.utils import (
 )
 from votekit.types import Candidate, Numeric
 from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
-
-
-class ProfileMatrix:
-    EMPTY_VOTER_SET = frozenset()
-    index = "Ballot Index"
-    matrix_columns: list
-    weights: np.ndarray
-    voter_sets: np.ndarray | None
-
-    def __init__(self, df: pd.DataFrame, id_candidate_map):
-        raise NotImplementedError
-
-    def __len__(self) -> int:
-        return len(self.weights)
-
-
-class RankMatrix(ProfileMatrix):
-    rankings: np.ndarray
-    id_cand_set_map: dict[int, frozenset[Candidate]]
-    ranking_columns: list[str]
-
-    def __init__(self, df: pd.DataFrame, id_candidate_map: dict[int, frozenset[Candidate]]):
-        self.ranking_columns = [col for col in df.columns if "Ranking_" in col]
-        self.rankings = df[self.ranking_columns].to_numpy(dtype=int)
-        self.weights = df["Weight"].to_numpy()
-
-        if (df["Voter Set"] != self.EMPTY_VOTER_SET).any():
-            self.voter_sets = df["Voter Set"].to_numpy()
-        else:
-            self.voter_sets = None
-
-        self.id_cand_set_map = id_candidate_map
-
-    def to_df(self) -> pd.DataFrame:
-        """
-        Converts the RankMatrix to a df with rankings of candidate sets, not their IDs.
-
-        Returns:
-            pd.DataFrame: df with rankings mapped from int IDs to candidate sets.
-        """
-        # translate rankings using index lookup
-        # because id_cand_set_map keys start at -1, ids needs to be shifted up by 1
-        cand_id_lookup = np.empty(max(self.id_cand_set_map) + 2, dtype=object)
-        for cand_id, cand_set in self.id_cand_set_map.items():
-            cand_id_lookup[cand_id + 1] = cand_set
-        translated_rankings = cand_id_lookup[self.rankings + 1]
-
-        df = pd.DataFrame(translated_rankings, columns=self.ranking_columns)
-        df["Voter Set"] = (
-            self.voter_sets
-            if self.voter_sets is not None
-            else [self.EMPTY_VOTER_SET] * len(self.rankings)
-        )
-        df["Weight"] = self.weights
-        df.index.name = "Ballot Index"
-
-        return df
-
-
-class ScoreMatrix(ProfileMatrix):
-    scores: np.ndarray
-    id_cand_map: dict[int, Candidate]
-    score_columns: list[int]
-
-    def __init__(self, df: pd.DataFrame, id_candidate_map: dict[int, Candidate]):
-        self.score_columns = [col for col in df.columns if col not in ["Voter Set", "Weight"]]
-        self.scores = df[self.score_columns].to_numpy()
-        self.weights = df["Weight"].to_numpy()
-
-        if (df["Voter Set"] != self.EMPTY_VOTER_SET).any():
-            self.voter_sets = df["Voter Set"].to_numpy()
-        else:
-            self.voter_sets = None
-
-        self.id_cand_map = id_candidate_map
-
-    def to_df(self) -> pd.DataFrame:
-        """
-        Converts the ScoreMatrix to a df with scoring columns with candidate names, not their IDs.
-
-        Returns:
-            pd.DataFrame: df with scoring columns mapped from int IDs to candidate names.
-        """
-        translated_columns = [self.id_cand_map[col_id] for col_id in self.score_columns]
-        df = pd.DataFrame(self.scores, columns=translated_columns)
-
-        df["Voter Set"] = (
-            self.voter_sets
-            if self.voter_sets is not None
-            else [self.EMPTY_VOTER_SET] * len(self.scores)
-        )
-        df["Weight"] = self.weights
-        df.index.name = "Ballot Index"
-
-        return df
 
 
 class PreferenceProfile:
@@ -1092,7 +997,7 @@ class RankProfile(PreferenceProfile):
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        if any(isinstance(weight, Fraction) for weight in self._matrix.weights):
+        if self._matrix.has_fraction_weights:
             raise ValueError(
                 "RankProfile CSV does not support rational weights. Convert a copied profile "
                 "to float first if a lossy export is acceptable."
