@@ -20,6 +20,8 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
 @pytest.fixture
 def slate_map():
     class Parent:
+        slate_to_candidates = None  # satisfies SourceWithAttribute check
+
         def __init__(self):
             self._map = None
             self._current_preference_df_slate_cand_mapping = None
@@ -140,6 +142,8 @@ def parent_and_map():
     """
 
     class Parent:
+        slate_to_candidates = None  # satisfies SourceWithAttribute check
+
         def __init__(self):
             self._map = None
             self._current_preference_df_slate_cand_mapping = None
@@ -209,6 +213,8 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
     """
 
     class Parent:
+        slate_to_candidates = None  # satisfies SourceWithAttribute check
+
         def __init__(self):
             self._map = None
             self._current_preference_df_slate_cand_mapping = None
@@ -242,6 +248,8 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
     """
 
     class Parent:
+        slate_to_candidates = None  # satisfies SourceWithAttribute check
+
         def __init__(self):
             self._map = None
             self._current_preference_df_slate_cand_mapping = None

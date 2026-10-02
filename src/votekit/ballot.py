@@ -5,7 +5,7 @@ from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
-from votekit.utils import _validate_candidate_names
+from votekit.utils import SourceWithAttribute, _validate_candidate_names
 
 
 class Ballot:
@@ -193,9 +193,8 @@ class RankBallot(Ballot):
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
-        self._validate_ranking_candidates(ranking)
-        ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
-        self.ranking = ranking
+        self.ranking = self._convert_ranking_candidates_to_frozenset_strip_whitespace(ranking)
+        self._validate_ranking_candidates(self.ranking)
         super().__init__(weight=weight, voter_set=voter_set)
 
     def _convert_ranking_candidates_to_frozenset_strip_whitespace(
@@ -221,10 +220,12 @@ class RankBallot(Ballot):
                 normalized_ranking.append(
                     frozenset({cand_set.strip() if isinstance(cand_set, str) else cand_set})
                 )
-            else:
+            elif isinstance(cand_set, Iterable):
                 normalized_ranking.append(
                     frozenset(c.strip() if isinstance(c, str) else c for c in cand_set)
                 )
+            else:
+                normalized_ranking.append(frozenset({cand_set}))
         return tuple(normalized_ranking)
 
     def _validate_ranking_candidates(self, ranking: RankingLike):
@@ -241,7 +242,7 @@ class RankBallot(Ballot):
                     "Ranking is a sequence of Iterables or bare str/int candidates."
                     f" {cand_set} is invalid."
                 )
-        _validate_candidate_names(candidates, self, "ranking")
+        _validate_candidate_names(candidates, SourceWithAttribute(self, "ranking"))
 
     def __eq__(self, other):
         if not isinstance(other, RankBallot):
@@ -334,7 +335,7 @@ class ScoreBallot(Ballot):
             if any(not isinstance(s, Real) for s in scores.values()):
                 raise TypeError("Score values must be numeric.")
 
-            _validate_candidate_names(list(scores.keys()), self, "scores")
+            _validate_candidate_names(list(scores.keys()), SourceWithAttribute(self, "scores"))
 
     def __eq__(self, other):
         if not isinstance(other, ScoreBallot):

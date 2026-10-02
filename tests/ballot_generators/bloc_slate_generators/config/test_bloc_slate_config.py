@@ -723,14 +723,14 @@ def test_error_when_pref_mapping_contains_invalid_candidates(valid_config):
     }
     with pytest.raises(
         TypeError,
-        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.preference_mapping",
+        match=r"Non-string/integer candidate\(s\) found in BlocSlateConfig.preference_df",
     ):
         BlocSlateConfig(**invalid_config, n_voters=100, silent=True)  # type: ignore[arg-type]
 
     config = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
     with pytest.raises(
         ValueError,
-        match="Candidate '~' found in BlocSlateConfig.preference_mapping",
+        match="Candidate '~' found in BlocSlateConfig.preference_df",
     ):
         invalid_df = config.preference_df.copy()
         invalid_df.rename(columns={"A": "~"}, inplace=True)

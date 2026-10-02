@@ -7,6 +7,7 @@ from .rank_profiles_cleaning import (
     clean_rank_profile,
     condense_rank_profile,
     remove_and_condense_rank_profile,
+    remove_ballots_with_cand_rank_profile,
     remove_cand_rank_profile,
     remove_repeat_cands_rank_profile,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "remove_cand_score_ballot",
     "clean_score_profile",
     "remove_cand_score_profile",
+    "remove_ballots_with_cand_rank_profile",
 ]
 
 # Patch __module__ on every exported symbol so that Sphinx autodoc displays

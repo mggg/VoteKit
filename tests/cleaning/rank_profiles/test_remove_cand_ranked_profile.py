@@ -6,7 +6,12 @@ from votekit.pref_profile import CleanedRankProfile, RankProfile
 
 profile_no_ties = RankProfile(
     ballots=[
-        RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+        RankBallot(
+            ranking=[
+                {"A"},
+            ],
+            weight=1,
+        ),
         RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
         RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
     ]
@@ -27,14 +32,19 @@ def test_remove_cand():
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_no_ties
     assert cleaned_profile.ballots == (
-        RankBallot(ranking=[frozenset(), {"B"}], weight=1),
+        RankBallot(
+            ranking=[
+                frozenset(),
+            ],
+            weight=1,
+        ),
         RankBallot(ranking=[frozenset(), {"B"}, {"C"}], weight=1 / 2),
         RankBallot(ranking=[{"C"}, {"B"}, frozenset()], weight=3),
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_altr_idxs == set()
-    assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert cleaned_profile.no_rank_altr_idxs == {0}
+    assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
 
 
@@ -48,15 +58,15 @@ def test_remove_mult_cands():
         grouped = cleaned_profile.group_ballots()
     assert set(grouped.ballots) == set(
         [
-            RankBallot(ranking=[frozenset(), frozenset()], weight=1),
+            RankBallot(ranking=[frozenset()], weight=1),
             RankBallot(ranking=[frozenset(), frozenset(), {"C"}], weight=1 / 2),
             RankBallot(ranking=[{"C"}, frozenset(), frozenset()], weight=3),
         ]
     )
     assert cleaned_profile != profile_no_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_altr_idxs == set()
-    assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert cleaned_profile.no_rank_altr_idxs == {0}
+    assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
 
 
@@ -76,6 +86,6 @@ def test_remove_cand_with_ties():
     )
     assert cleaned_profile != profile_with_ties
     assert cleaned_profile.no_wt_altr_idxs == set()
-    assert cleaned_profile.no_rank_altr_idxs == set()
-    assert cleaned_profile.nonempty_altr_idxs == {0, 1, 2}
+    assert cleaned_profile.no_rank_altr_idxs == {0}
+    assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
