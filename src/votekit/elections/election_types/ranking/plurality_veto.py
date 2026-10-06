@@ -406,7 +406,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 removed=list(eliminated_set),
                 profile=profile,
                 remove_zero_weight_ballots=False,
-                remove_empty_ballots=False,
+                remove_null_ballots=False,
             )
 
         if store_states:

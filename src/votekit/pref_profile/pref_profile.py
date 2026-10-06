@@ -32,7 +32,11 @@ from votekit.pref_profile.utils import (
     convert_row_to_score_ballot,
 )
 from votekit.types import Candidate, Numeric
-from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
+from votekit.utils import (
+    SourceWithAttribute,
+    _validate_candidate_names,
+    sort_candidates_pseudo_lexicographically,
+)
 
 
 class PreferenceProfile:
@@ -229,8 +233,10 @@ class PreferenceProfile:
                     )
                 )
 
-        _validate_candidate_names(self.candidates, self, "candidates")
-        _validate_candidate_names(self.candidates_cast, self, "candidates_cast")
+        _validate_candidate_names(self.candidates, SourceWithAttribute(self, "candidates"))
+        _validate_candidate_names(
+            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
+        )
 
         if not len(set(self.candidates)) == len(self.candidates):
             raise ProfileError("All candidates must be unique.")
