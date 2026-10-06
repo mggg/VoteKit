@@ -6,8 +6,6 @@ import pandas as pd
 
 from votekit.types import Candidate
 
-META_COLUMNS = ("Voter Set", "Weight")
-
 
 class ProfileMatrix:
     """
@@ -23,8 +21,6 @@ class ProfileMatrix:
         voter_sets (np.ndarray | None): Voter set per ballot, or None when no ballot has any voters.
             None is the common case, e.g. for generated profiles.
         has_fraction_weights (bool): Whether any ballot weight is a Fraction.
-        meta_col_order (list): ``Weight`` and ``Voter Set`` in the relative order the data frame
-            this matrix was built from had them, so ``to_df`` can return them that way.
     """
 
     EMPTY_VOTER_SET = set()
@@ -33,7 +29,6 @@ class ProfileMatrix:
     weights: np.ndarray
     voter_sets: np.ndarray | None
     has_fraction_weights: bool
-    meta_col_order: list
 
     def __init__(self, df: pd.DataFrame):
         """
@@ -42,7 +37,6 @@ class ProfileMatrix:
         Args:
             df (pd.DataFrame): df with Weights and Voter Set columns.
         """
-        self.meta_col_order = [col for col in df.columns if col in META_COLUMNS]
         self.weights = df["Weight"].to_numpy()
 
         voter_set_column = df["Voter Set"]
@@ -88,7 +82,10 @@ class RankMatrix(ProfileMatrix):
     ranking_columns: list[str]
 
     def __init__(self, df: pd.DataFrame, id_candidate_map: dict[int, frozenset[Candidate]]):
-        self.ranking_columns = [col for col in df.columns if "Ranking_" in col]
+        self.ranking_columns = sorted(
+            [col for col in df.columns if col.startswith("Ranking_")],
+            key=lambda col: int(col.removeprefix("Ranking_")),
+        )
         self.rankings = df[self.ranking_columns].to_numpy(dtype=int)
         self.id_cand_set_map = id_candidate_map
         super().__init__(df)
@@ -114,7 +111,7 @@ class RankMatrix(ProfileMatrix):
         df["Voter Set"] = voter_sets
         df["Weight"] = self.weights
         df.index.name = self.index
-        return df[self.ranking_columns + self.meta_col_order]
+        return df
 
 
 class ScoreMatrix(ProfileMatrix):
@@ -138,7 +135,7 @@ class ScoreMatrix(ProfileMatrix):
     score_columns: list
 
     def __init__(self, df: pd.DataFrame, id_candidate_map: dict[int, Candidate]):
-        self.score_columns = [col for col in df.columns if col not in META_COLUMNS]
+        self.score_columns = [col for col in df.columns if col not in ["Weight", "Voter Set"]]
 
         self.scores = df[self.score_columns].to_numpy(dtype=float)
         self.id_cand_map = id_candidate_map
@@ -162,4 +159,4 @@ class ScoreMatrix(ProfileMatrix):
         df["Voter Set"] = voter_sets
         df["Weight"] = self.weights
         df.index.name = self.index
-        return df[translated_columns + self.meta_col_order]
+        return df

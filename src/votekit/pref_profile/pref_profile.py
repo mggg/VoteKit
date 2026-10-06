@@ -803,9 +803,6 @@ class RankProfile(PreferenceProfile):
         Returns:
             RankProfile: A RankProfile object with grouped ballot list.
         """
-        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
-        empty_df.index.name = "Ballot Index"
-
         if len(self.df) == 0:
             return RankProfile(
                 candidates=self.candidates,
@@ -1473,9 +1470,6 @@ class ScoreProfile(PreferenceProfile):
         Returns:
             ScoreProfile: A ScoreProfile object with grouped ballot list.
         """
-        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
-        empty_df.index.name = "Ballot Index"
-
         if len(self.df) == 0:
             return ScoreProfile(
                 candidates=self.candidates,
