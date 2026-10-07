@@ -964,6 +964,9 @@ class RankProfile(PreferenceProfile):
         """
         assert self.max_ranking_length is not None
         data_col_names = [f"Ranking_{i + 1}" for i in range(self.max_ranking_length)]
+        # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
+        # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
+        # will break if the order is changed.
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:
@@ -1610,6 +1613,9 @@ class ScoreProfile(PreferenceProfile):
                 Candidates can be strings, integers, or mix of both.
         """
         data_col_names = [f"{cand_label}" for cand_label in candidate_mapping.values()]
+        # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
+        # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
+        # will break if the order is changed.
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:
