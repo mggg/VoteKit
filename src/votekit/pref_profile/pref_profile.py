@@ -6,7 +6,6 @@ import os
 import pickle
 import urllib.request
 import warnings
-from fractions import Fraction
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -25,6 +24,7 @@ from votekit.pref_profile.csv_utils import (
     _validate_rank_csv_format,
     _validate_score_csv_format,
 )
+from votekit.pref_profile.profile_matrix import RankMatrix, ScoreMatrix
 from votekit.pref_profile.utils import (
     _sum_rank_profiles,
     _sum_score_profiles,
@@ -37,6 +37,24 @@ from votekit.utils import (
     _validate_candidate_names,
     sort_candidates_pseudo_lexicographically,
 )
+
+
+def _get_new_cand_set_id(cand_set_to_id_map: dict[frozenset[Candidate], int]) -> int:
+    """
+    Get the next available candidate set ID.
+
+    Candidate set IDs -1 and -2 are reserved for frozenset({"~"}) and frozenset() respectively. The
+    next available candidate set ID is the length of the candidate set to ID mapping minus the
+    two reserved IDs.
+
+    Args:
+        cand_set_to_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to
+            integer IDs. Candidates can be strings, integers, or mix of both.
+
+    Returns:
+        int: Next available candidate set ID.
+    """
+    return len(cand_set_to_id_map) - 2
 
 
 class PreferenceProfile:
@@ -95,6 +113,7 @@ class PreferenceProfile:
     """
 
     _is_frozen: bool = False
+    _matrix: RankMatrix | ScoreMatrix | None = None
 
     @overload
     def __new__(
@@ -180,7 +199,6 @@ class PreferenceProfile:
         self.candidates_cast = candidates_cast
         self.candidates = candidates
         self.max_ranking_length = max_ranking_length
-        self._df = df
 
         self.total_ballot_wt = self._find_total_ballot_wt()
         self.num_ballots = self._find_num_ballots()
@@ -199,7 +217,7 @@ class PreferenceProfile:
         Returns:
             int: num ballots
         """
-        return len(self._df)
+        return len(self._matrix) if self._matrix is not None else 0
 
     def _find_total_ballot_wt(self) -> Numeric:
         """
@@ -207,11 +225,16 @@ class PreferenceProfile:
 
         Returns:
             Numeric: total ballot weight.
+
+        Raises:
+            ProfileError: A ballot weight is NaN.
         """
         total_weight = 0
 
-        if not self._df.equals(pd.DataFrame()):
-            total_weight = self._df["Weight"].sum()
+        if self._matrix is not None:
+            total_weight = np.sum(self._matrix.voter_weight_data.weights)
+            if isinstance(total_weight, float) and np.isnan(total_weight):
+                raise ProfileError("Ballot weights cannot be NaN.")
 
         return total_weight
 
@@ -346,6 +369,7 @@ class PreferenceProfile:
 
 class RankProfile(PreferenceProfile):
     max_ranking_length: int
+    _matrix: RankMatrix
 
     def __init__(
         self,
@@ -357,25 +381,27 @@ class RankProfile(PreferenceProfile):
         include_zero_score: None = None,
     ):
         self.candidates = tuple(candidates)
-        candidate_id_map: dict[frozenset[Candidate], int] = {frozenset({"~"}): -1}
+        candidate_id_map: dict[frozenset[Candidate], int] = {frozenset({"~"}): -1, frozenset(): -2}
 
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
         if df.equals(pd.DataFrame()):
-            (self._df, self.candidates_cast, candidate_id_map) = self._init_from_rank_ballots(
+            (cand_set_id_df, self.candidates_cast, candidate_id_map) = self._init_from_rank_ballots(
                 cast(Sequence[RankBallot], ballots), candidate_id_map
             )
 
         else:
-            self._df, self.candidates_cast, candidate_id_map = self._init_from_rank_df(
+            cand_set_id_df, self.candidates_cast, candidate_id_map = self._init_from_rank_df(
                 df, candidate_id_map
             )
 
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
-        self.candidate_id_map = candidate_id_map
+        id_candidate_map = {
+            cand_set_id: cand_set for cand_set, cand_set_id in candidate_id_map.items()
+        }
+        self._matrix = RankMatrix.from_df(cand_set_id_df, id_candidate_map)
 
         self.max_ranking_length = self._find_max_ranking_length()
 
@@ -394,7 +420,6 @@ class RankProfile(PreferenceProfile):
         super().__init__(
             candidates=self.candidates,
             candidates_cast=self.candidates_cast,
-            df=self._df,
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -403,9 +428,9 @@ class RankProfile(PreferenceProfile):
         """
         The dataframe of all ballots cast within a profile.
         """
-        # NOTE: The dataframe is internally stored with candidate integer IDs. The dataframe will be
-        # translated to original candidate names as a cached property.
-        return self._translate_df_ranking_values(self._df, self.id_candidate_map)
+        # NOTE: The dataframe is internally stored as a matrix. The dataframe will be constructed
+        # from the matrix with the original candidate sets as a cached property.
+        return self._matrix.to_df()
 
     def __update_ballot_ranking_data(
         self,
@@ -436,7 +461,7 @@ class RankProfile(PreferenceProfile):
 
         for j, cand_set in enumerate(rank_ballot.ranking):
             if cand_set not in candidate_id_map:
-                candidate_id_map[cand_set] = len(candidate_id_map)
+                candidate_id_map[cand_set] = _get_new_cand_set_id(candidate_id_map)
 
             for c in cand_set:
                 if self.candidates != tuple():
@@ -672,7 +697,7 @@ class RankProfile(PreferenceProfile):
         all_sets = df[ranking_cols].to_numpy().ravel()
         for cand_set in all_sets:
             if cand_set not in candidate_id_map:
-                candidate_id_map[cand_set] = len(candidate_id_map)
+                candidate_id_map[cand_set] = _get_new_cand_set_id(candidate_id_map)
 
         candidates_cast.discard("~")
 
@@ -754,7 +779,7 @@ class RankProfile(PreferenceProfile):
 
         """
         if self.max_ranking_length == 0 or self.max_ranking_length is None:
-            return len([c for c in self._df.columns if "Ranking_" in c])
+            return len(self._matrix.ranking_columns)
 
         return self.max_ranking_length
 
@@ -767,21 +792,7 @@ class RankProfile(PreferenceProfile):
         E.g., a ballot that ranks two candidates tied for first and ranks no other candidates
         has length 1, but ranks 2 candidates in total.
         """
-        if self._df.empty:
-            return 0
-        tilde = frozenset("~")
-        assert self.max_ranking_length is not None
-        ranking_cols = [f"Ranking_{i}" for i in range(1, self.max_ranking_length + 1)]
-        return (
-            self._df[ranking_cols]
-            .apply(
-                lambda row: len(
-                    frozenset.union(*(self.id_candidate_map[cand_id] for cand_id in row)) - tilde
-                ),
-                axis=1,
-            )
-            .max()
-        )
+        return self._matrix.max_candidates_ranked()
 
     @cached_property
     def ballots(self: RankProfile) -> tuple[RankBallot, ...]:
@@ -813,9 +824,6 @@ class RankProfile(PreferenceProfile):
         Returns:
             RankProfile: A RankProfile object with grouped ballot list.
         """
-        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
-        empty_df.index.name = "Ballot Index"
-
         if len(self.df) == 0:
             return RankProfile(
                 candidates=self.candidates,
@@ -971,6 +979,9 @@ class RankProfile(PreferenceProfile):
         """
         assert self.max_ranking_length is not None
         data_col_names = [f"Ranking_{i + 1}" for i in range(self.max_ranking_length)]
+        # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
+        # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
+        # will break if the order is changed.
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:
@@ -1007,7 +1018,7 @@ class RankProfile(PreferenceProfile):
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
 
-        if any(isinstance(weight, Fraction) for weight in self._df["Weight"]):
+        if self._matrix.voter_weight_data.has_fraction_weights:
             raise ValueError(
                 "RankProfile CSV does not support rational weights. Convert a copied profile "
                 "to float first if a lossy export is acceptable."
@@ -1083,6 +1094,8 @@ class RankProfile(PreferenceProfile):
 
 
 class ScoreProfile(PreferenceProfile):
+    _matrix: ScoreMatrix
+
     def __init__(
         self,
         *,
@@ -1092,14 +1105,15 @@ class ScoreProfile(PreferenceProfile):
         df: pd.DataFrame = pd.DataFrame(),
     ):
         self.candidates = tuple(candidates)
-        cand_ids = tuple([cand_id for cand_id in range(len(self.candidates))])
+        cand_set_ids = tuple([cand_set_id for cand_set_id in range(len(self.candidates))])
         candidate_id_map: dict[Candidate, int] = {
-            cand: cand_id for cand, cand_id in zip(self.candidates, cand_ids, strict=True)
+            cand: cand_set_id
+            for cand, cand_set_id in zip(self.candidates, cand_set_ids, strict=True)
         }
 
         if df.equals(pd.DataFrame()):
             (
-                self._df,
+                cand_set_id_df,
                 self.candidates_cast,
                 candidate_id_map,
             ) = self._init_from_score_ballots(
@@ -1111,19 +1125,19 @@ class ScoreProfile(PreferenceProfile):
             )
 
         else:
-            self._df, self.candidates_cast, candidate_id_map = self._init_from_score_df(
+            cand_set_id_df, self.candidates_cast, candidate_id_map = self._init_from_score_df(
                 df, candidate_id_map
             )
 
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        self.id_candidate_map = {cand_id: cand for cand, cand_id in candidate_id_map.items()}
-        self.candidate_id_map = candidate_id_map
+        id_candidate_map = {cand_set_id: cand for cand, cand_set_id in candidate_id_map.items()}
+        self._matrix = ScoreMatrix.from_df(cand_set_id_df, id_candidate_map)
+
         super().__init__(
             candidates=self.candidates,
             candidates_cast=self.candidates_cast,
-            df=self._df,
         )
 
     @cached_property
@@ -1131,9 +1145,9 @@ class ScoreProfile(PreferenceProfile):
         """
         The dataframe of all ballots cast within a profile.
         """
-        # NOTE: The dataframe is internally stored with candidate integer IDs. The dataframe will be
-        # translated to original candidate names as a cached property.
-        return self._translate_df_score_values(self._df, self.id_candidate_map)
+        # NOTE: The dataframe is internally stored as a matrix. The dataframe will be constructed
+        # from the matrix with the original candidate names as a cached property.
+        return self._matrix.to_df()
 
     def __update_ballot_scores_data(
         self,
@@ -1277,8 +1291,8 @@ class ScoreProfile(PreferenceProfile):
         col_order = list(candidate_id_map.values()) + temp_col_order
 
         if self.candidates == tuple():
-            cand_ids = [candidate_id_map[cand] for cand in candidates_cast]
-            remaining_cands = set(cand_ids) - set(df.columns)
+            cand_set_ids = [candidate_id_map[cand] for cand in candidates_cast]
+            remaining_cands = set(cand_set_ids) - set(df.columns)
             empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
             df[list(remaining_cands)] = empty_df_cols
             col_order = [
@@ -1481,9 +1495,6 @@ class ScoreProfile(PreferenceProfile):
         Returns:
             ScoreProfile: A ScoreProfile object with grouped ballot list.
         """
-        empty_df = pd.DataFrame(columns=["Voter Set", "Weight"], dtype=np.float64)
-        empty_df.index.name = "Ballot Index"
-
         if len(self.df) == 0:
             return ScoreProfile(
                 candidates=self.candidates,
@@ -1618,6 +1629,9 @@ class ScoreProfile(PreferenceProfile):
                 Candidates can be strings, integers, or mix of both.
         """
         data_col_names = [f"{cand_label}" for cand_label in candidate_mapping.values()]
+        # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
+        # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
+        # will break if the order is changed.
         data_col_names += ["&", "Weight", "&"]
 
         if include_voter_set:

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from votekit.ballot import RankBallot
@@ -109,13 +110,16 @@ def test_df_with_mixed_cand_types_as_ranking_values():
     assert rank_profile.df.equals(true_df)
 
 
-def test_internal_df_with_cand_ids_as_ranking_values():
+def test_internal_matrix_with_cand_ids_as_ranking_values():
     rank_profile = RankProfile(
         ballots=ballots_rankings,
         candidates=["A", "B", "C", "D", "E"],
         max_ranking_length=4,
     )
-    candidate_id_map = rank_profile.candidate_id_map
+    matrix = rank_profile._matrix
+    candidate_id_map = {
+        cand_set: cand_set_id for cand_set_id, cand_set in matrix.id_to_cand_set_map.items()
+    }
 
     id_A = candidate_id_map[frozenset({"A"})]
     id_B = candidate_id_map[frozenset({"B"})]
@@ -124,24 +128,31 @@ def test_internal_df_with_cand_ids_as_ranking_values():
     id_AB_tie = candidate_id_map[frozenset({"A", "B"})]
     id_tilde = candidate_id_map[frozenset({"~"})]
     id_empty = candidate_id_map[frozenset()]
-    cand_id_data = {
-        "Ranking_1": [
-            id_A,
-            id_AB_tie,
-            id_tilde,
-            id_tilde,
-        ],
-        "Ranking_2": [id_B, id_empty, id_tilde, id_tilde],
-        "Ranking_3": [
-            id_C,
-            id_D,
-            id_tilde,
-            id_tilde,
-        ],
-        "Ranking_4": [id_tilde, id_tilde, id_tilde, id_tilde],
-        "Voter Set": [set(), {"Chris"}, set(), set()],
-        "Weight": [2.0, 1.0, 1.0, 0.0],
-    }
-    true_id_df = pd.DataFrame(cand_id_data)
-    true_id_df.index.name = "Ballot Index"
-    assert rank_profile._df.equals(true_id_df)
+
+    true_rankings = np.array(
+        [
+            [id_A, id_B, id_C, id_tilde],
+            [id_AB_tie, id_empty, id_D, id_tilde],
+            [id_tilde, id_tilde, id_tilde, id_tilde],
+            [id_tilde, id_tilde, id_tilde, id_tilde],
+        ]
+    )
+    assert np.array_equal(matrix.rankings, true_rankings)
+    assert matrix.ranking_columns == ["Ranking_1", "Ranking_2", "Ranking_3", "Ranking_4"]
+
+    assert np.array_equal(matrix.voter_weight_data.weights, np.array([2.0, 1.0, 1.0, 0.0]))
+    assert not matrix.voter_weight_data.has_fraction_weights
+
+    # One ballot carries a voter set, so the vector is stored rather than left as None.
+    assert matrix.voter_weight_data.voter_sets is not None
+    assert list(matrix.voter_weight_data.voter_sets) == [set(), {"Chris"}, set(), set()]
+
+
+def test_internal_matrix_voter_sets_none_when_all_empty():
+    rank_profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=1)],
+        candidates=["A", "B"],
+        max_ranking_length=2,
+    )
+    assert rank_profile._matrix.voter_weight_data.voter_sets is None
+    assert rank_profile.df["Voter Set"].tolist() == [frozenset()]

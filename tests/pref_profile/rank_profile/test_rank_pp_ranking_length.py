@@ -29,3 +29,37 @@ def test_ranking_length_no_default():
     )
 
     assert profile.max_ranking_length == 4
+
+
+def test_max_candidates_ranked_no_ballots():
+    profile = RankProfile()
+
+    assert profile.max_candidates_ranked == 0
+
+
+def test_max_candidates_ranked_no_rankings():
+    profile = RankProfile(
+        ballots=(
+            RankBallot(weight=1),
+            RankBallot(ranking=(), weight=2),
+        )
+    )
+
+    assert profile.max_candidates_ranked == 0
+
+
+def test_max_candidates_ranked_no_rankings_with_max_ranking_length():
+    profile = RankProfile(
+        ballots=(RankBallot(weight=1),),
+        max_ranking_length=3,
+    )
+
+    assert profile.max_candidates_ranked == 0
+
+
+def test_max_candidates_ranked_skipped_position():
+    profile = RankProfile(
+        ballots=(RankBallot(ranking=({"A"}, frozenset(), {"B"})),),
+    )
+
+    assert profile.max_candidates_ranked == 2

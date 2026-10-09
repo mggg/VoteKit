@@ -232,13 +232,13 @@ def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]
     if isinstance(cand, Candidate):
         cand_set_ids = [
             cand_set_id
-            for cand_set, cand_set_id in profile.candidate_id_map.items()
+            for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
             if cand in cand_set
         ]
     elif isinstance(cand, set):
         cand_set_ids = [
             cand_set_id
-            for cand_set, cand_set_id in profile.candidate_id_map.items()
+            for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
             if frozenset(cand) == cand_set
         ]
     else:
@@ -252,19 +252,18 @@ def _get_candidate_id_locations(profile: RankProfile, cand_ids: Iterable[int]) -
     """
     Get the boolean matrix of all candidate ID positions within a profile.
 
-    profile._df uses integer IDs to represent candidate sets.
+    profile._matrix.rankings uses integer IDs to represent candidate sets.
 
     Args:
         profile (RankProfile): profile with ranking ballots.
         cand_ids (Iterable[int]): set of candidate set IDs that represent candidate sets within
-            profile's df.
+            profile's rankings.
 
     Returns:
         np.ndarray: boolean matrix with all locations of the set of candidate IDs marked as
             True.
     """
-    ranking_cols = [col for col in profile._df.columns if "Ranking_" in col]
-    return profile._df[ranking_cols].isin(cand_ids).to_numpy()
+    return np.isin(profile._matrix.rankings, list(cand_ids))
 
 
 def _extend_cand_locations(candidate_locations: np.ndarray) -> np.ndarray:
@@ -301,8 +300,7 @@ def _include_unranked_in_cand_locations(profile: RankProfile, cand_set_locations
      np.ndarray: Boolean matrix where all candidate locations are marked as True including its
         unranked locations at the end of the ballot.
     """
-    ranking_cols = [col for col in profile._df.columns if "Ranking_" in col]
-    rank_array = profile._df[ranking_cols].to_numpy()
+    rank_array = profile._matrix.rankings
     rank_array = np.column_stack((rank_array, [-1] * len(rank_array)))
 
     # can only be one end of a ballot, remove duplicates of -1 within a ballot
@@ -325,9 +323,9 @@ def _make_boolean_matrix_for_cand_set_id(
     Create a boolean matrix of the candidate's locations within the profile's rankings.
 
     Args:
-        profile (RankProfile): profile with internal _df that represents candidate sets as
+        profile (RankProfile): profile with an internal matrix that represents candidate sets as
             integer IDs.
-        candidate (Candidate | set): candidate to get locations of within profile._df
+        candidate (Candidate | set): candidate to get locations of within profile's rankings
             Candidate can be a integer, string, or set of strings/integers.
         include_unranked (bool): Determines whether unranked candidates are included in query.
             If True, unranked candidates are considered tied at the end of a ballot.
@@ -335,7 +333,7 @@ def _make_boolean_matrix_for_cand_set_id(
             enforces a strict match. Unranked candidates will be excluded by default.
 
     Returns:
-        (np.ndarray): Boolean matrix where candidate's locations in the _df rankings are marked as
+        (np.ndarray): Boolean matrix where candidate's locations in the rankings are marked as
             True
     """
     candidate_id_locations = _get_candidate_id_locations(
@@ -380,9 +378,10 @@ def _boolean_matrix(
 
 
     Args:
-        profile (RankProfile): profile with internal _df that represents candidate sets as
+        profile (RankProfile): profile with an internal matrix that represents candidate sets as
             integer IDs.
-        query_slot (Candidate | set | tuple): query slot to get locations of within profile._df
+        query_slot (Candidate | set | tuple): query slot to get locations of within the
+            profile's rankings.
             Query slot can be a singleton candidate or a group of candidates.
         include_unranked (bool): Determines whether unranked candidates are included in query.
             If True, unranked candidates are considered tied at the end of a ballot.
@@ -390,13 +389,12 @@ def _boolean_matrix(
             enforces a strict match. Unranked candidates will be excluded by default.
 
     Returns:
-        (np.ndarray): Boolean matrix where candidate's locations in the _df rankings are marked as
+        (np.ndarray): Boolean matrix where candidate's locations in the rankings are marked as
             True
 
     """
     if isinstance(query_slot, tuple):
-        ranking_cols = [col for col in profile._df.columns if "Ranking_" in col]
-        cand_set_locations = np.zeros(profile._df[ranking_cols].shape, dtype=bool)
+        cand_set_locations = np.zeros(profile._matrix.rankings.shape, dtype=bool)
         if include_unranked:
             cand_set_locations = _extend_cand_locations(cand_set_locations)
         for candidate in query_slot:  # candidate can be a set or singleton

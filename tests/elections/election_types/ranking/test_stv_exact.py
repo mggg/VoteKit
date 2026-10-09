@@ -451,7 +451,9 @@ def test_shared_rational_profile_float_boundaries():
     graph = BallotGraph(profile)
 
     assert all(isinstance(value, float) for value in values)
-    assert all(isinstance(weight, float) for weight in score_profile._df["Weight"])
+    assert all(
+        isinstance(weight, float) for weight in score_profile._matrix.voter_weight_data.weights
+    )
     assert isinstance(score_profile.total_ballot_wt, float)
     assert all(isinstance(ballot.weight, float) for ballot in score_profile.ballots)
     assert isinstance(graph.num_voters, float)

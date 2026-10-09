@@ -93,13 +93,15 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
         dict[Candidate, Fraction]: First-place total for every candidate, including zero totals.
     """
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
-    if profile._df.empty:
+    if profile._matrix.rankings.size == 0:
         return scores
 
-    for candidate_id, weight in zip(profile._df["Ranking_1"], profile._df["Weight"]):
+    for candidate_id, weight in zip(
+        profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
+    ):
         if candidate_id == -1:
             continue
-        candidate_set = profile.id_candidate_map[candidate_id]
+        candidate_set = profile._matrix.id_to_cand_set_map[candidate_id]
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
@@ -122,17 +124,19 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
         dict[Candidate, Fraction]: Exact Borda score for every candidate.
     """
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
-    assert profile.max_ranking_length is not None
-    ranking_columns = [f"Ranking_{rank}" for rank in range(1, profile.max_ranking_length + 1)]
+    if profile._matrix.rankings.size == 0:
+        return scores
+
     candidates_by_id = {}
-    for candidate_id, candidate_set in profile.id_candidate_map.items():
-        if candidate_id == -1:
+    for candidate_id, candidate_set in profile._matrix.id_to_cand_set_map.items():
+        if candidate_id < 0:
             continue
         assert len(candidate_set) == 1
         candidates_by_id[candidate_id] = next(iter(candidate_set))
 
-    ranking_rows = profile._df[ranking_columns].itertuples(index=False, name=None)
-    for candidate_ids, weight in zip(ranking_rows, profile._df["Weight"]):
+    for candidate_ids, weight in zip(
+        profile._matrix.rankings, profile._matrix.voter_weight_data.weights
+    ):
         assert isinstance(weight, Fraction)
         for rank, candidate_id in enumerate(candidate_ids):
             if candidate_id == -1:
