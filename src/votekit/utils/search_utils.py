@@ -232,13 +232,13 @@ def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]
     if isinstance(cand, Candidate):
         cand_set_ids = [
             cand_set_id
-            for cand_set_id, cand_set in profile._matrix.id_cand_set_map.items()
+            for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
             if cand in cand_set
         ]
     elif isinstance(cand, set):
         cand_set_ids = [
             cand_set_id
-            for cand_set_id, cand_set in profile._matrix.id_cand_set_map.items()
+            for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
             if frozenset(cand) == cand_set
         ]
     else:

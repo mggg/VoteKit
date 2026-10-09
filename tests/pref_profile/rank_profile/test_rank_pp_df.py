@@ -117,7 +117,9 @@ def test_internal_matrix_with_cand_ids_as_ranking_values():
         max_ranking_length=4,
     )
     matrix = rank_profile._matrix
-    candidate_id_map = {cand_set: cand_id for cand_id, cand_set in matrix.id_cand_set_map.items()}
+    candidate_id_map = {
+        cand_set: cand_set_id for cand_set_id, cand_set in matrix.id_to_cand_set_map.items()
+    }
 
     id_A = candidate_id_map[frozenset({"A"})]
     id_B = candidate_id_map[frozenset({"B"})]
@@ -138,12 +140,12 @@ def test_internal_matrix_with_cand_ids_as_ranking_values():
     assert np.array_equal(matrix.rankings, true_rankings)
     assert matrix.ranking_columns == ["Ranking_1", "Ranking_2", "Ranking_3", "Ranking_4"]
 
-    assert np.array_equal(matrix.weights, np.array([2.0, 1.0, 1.0, 0.0]))
-    assert not matrix.has_fraction_weights
+    assert np.array_equal(matrix.voter_weight_data.weights, np.array([2.0, 1.0, 1.0, 0.0]))
+    assert not matrix.voter_weight_data.has_fraction_weights
 
     # One ballot carries a voter set, so the vector is stored rather than left as None.
-    assert matrix.voter_sets is not None
-    assert list(matrix.voter_sets) == [set(), {"Chris"}, set(), set()]
+    assert matrix.voter_weight_data.voter_sets is not None
+    assert list(matrix.voter_weight_data.voter_sets) == [set(), {"Chris"}, set(), set()]
 
 
 def test_internal_matrix_voter_sets_none_when_all_empty():
@@ -152,5 +154,5 @@ def test_internal_matrix_voter_sets_none_when_all_empty():
         candidates=["A", "B"],
         max_ranking_length=2,
     )
-    assert rank_profile._matrix.voter_sets is None
+    assert rank_profile._matrix.voter_weight_data.voter_sets is None
     assert rank_profile.df["Voter Set"].tolist() == [frozenset()]

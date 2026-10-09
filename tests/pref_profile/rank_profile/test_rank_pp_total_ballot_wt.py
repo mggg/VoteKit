@@ -1,5 +1,8 @@
+import numpy as np
+import pytest
+
 from votekit.ballot import RankBallot
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import ProfileError, RankProfile
 
 ballots = [
     RankBallot(ranking=({"A"}, {"B"}, {"C"}), weight=2),
@@ -23,3 +26,12 @@ def test_pp_total_ballot_wt():
 
     pp = pp.group_ballots()
     assert pp.total_ballot_wt == 10
+
+
+def test_pp_total_ballot_wt_nan_weight_error():
+    pp = RankProfile(ballots=ballots)
+    df = pp.df.copy()
+    df.loc[0, "Weight"] = np.nan
+
+    with pytest.raises(ProfileError, match="Ballot weights cannot be NaN."):
+        RankProfile(df=df, candidates=pp.candidates, max_ranking_length=pp.max_ranking_length)

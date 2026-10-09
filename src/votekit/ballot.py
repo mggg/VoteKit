@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from fractions import Fraction
 from numbers import Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
@@ -110,9 +111,14 @@ class Ballot:
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
-
+        if isinstance(weight, bool) or not isinstance(weight, Real):
+            raise TypeError(
+                f"Ballot weight must be a float, int, or Fraction. Got {type(weight).__name__}."
+            )
+        if not math.isfinite(weight):
+            raise ValueError(f"Ballot weight cannot be NaN or infinity. Got {weight}.")
         if weight < 0:
-            raise ValueError("Ballot weight cannot be negative.")
+            raise ValueError(f"Ballot weight cannot be negative. Got {weight}.")
 
         self.weight = (
             weight

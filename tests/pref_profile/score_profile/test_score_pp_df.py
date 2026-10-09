@@ -154,10 +154,10 @@ def test_internal_matrix_with_cand_ids_as_score_cols():
     assert matrix.scores.dtype == np.float64
     assert np.array_equal(matrix.scores, true_scores, equal_nan=True)
 
-    assert np.array_equal(matrix.weights, np.array([2.0, 1.0, 1.0, 0.0]))
-    assert not matrix.has_fraction_weights
+    assert np.array_equal(matrix.voter_weight_data.weights, np.array([2.0, 1.0, 1.0, 0.0]))
+    assert not matrix.voter_weight_data.has_fraction_weights
 
-    assert matrix.voter_sets is not None
-    assert list(matrix.voter_sets) == [set(), {"Chris"}, set(), set()]
+    assert matrix.voter_weight_data.voter_sets is not None
+    assert list(matrix.voter_weight_data.voter_sets) == [set(), {"Chris"}, set(), set()]
 
-    assert {cand: cid for cid, cand in matrix.id_cand_map.items()} == candidate_id_map
+    assert {cand: cid for cid, cand in matrix.id_to_cand_set_map.items()} == candidate_id_map

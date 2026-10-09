@@ -96,10 +96,12 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     if profile._matrix.rankings.size == 0:
         return scores
 
-    for candidate_id, weight in zip(profile._matrix.rankings[:, 0], profile._matrix.weights):
+    for candidate_id, weight in zip(
+        profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
+    ):
         if candidate_id == -1:
             continue
-        candidate_set = profile._matrix.id_cand_set_map[candidate_id]
+        candidate_set = profile._matrix.id_to_cand_set_map[candidate_id]
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
@@ -126,13 +128,15 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
         return scores
 
     candidates_by_id = {}
-    for candidate_id, candidate_set in profile._matrix.id_cand_set_map.items():
-        if candidate_id == -1:
+    for candidate_id, candidate_set in profile._matrix.id_to_cand_set_map.items():
+        if candidate_id < 0:
             continue
         assert len(candidate_set) == 1
         candidates_by_id[candidate_id] = next(iter(candidate_set))
 
-    for candidate_ids, weight in zip(profile._matrix.rankings, profile._matrix.weights):
+    for candidate_ids, weight in zip(
+        profile._matrix.rankings, profile._matrix.voter_weight_data.weights
+    ):
         assert isinstance(weight, Fraction)
         for rank, candidate_id in enumerate(candidate_ids):
             if candidate_id == -1:

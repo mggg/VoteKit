@@ -499,17 +499,17 @@ def remove_ballots_with_cand_rank_profile(
         removed = [removed]
     _validate_candidate_names(removed, "removed")
 
-    cand_ids = []
+    cand_set_ids = []
     for cand in removed:
-        cand_ids.extend(
+        cand_set_ids.extend(
             [
-                cand_id
-                for cand_id, cand_set in profile._matrix.id_cand_set_map.items()
+                cand_set_id
+                for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
                 if cand in cand_set
             ]
         )
     ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_ids), axis=1)
+    ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_set_ids), axis=1)
     cleaned_df = profile.df[~ballots_to_remove]
 
     if remove_null_ballots:

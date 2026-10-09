@@ -1,5 +1,8 @@
+import numpy as np
+import pytest
+
 from votekit.ballot import ScoreBallot
-from votekit.pref_profile import ScoreProfile
+from votekit.pref_profile import ProfileError, ScoreProfile
 
 
 def test_pp_total_ballot_wt():
@@ -16,3 +19,12 @@ def test_pp_total_ballot_wt():
 
     pp = pp.group_ballots()
     assert pp.total_ballot_wt == 4
+
+
+def test_pp_total_ballot_wt_rejects_nan_weight():
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=2)])
+    df = profile.df.copy()
+    df["Weight"] = [np.nan]
+
+    with pytest.raises(ProfileError, match="Ballot weights cannot be NaN."):
+        ScoreProfile(df=df, candidates=profile.candidates)

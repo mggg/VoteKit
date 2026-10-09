@@ -846,7 +846,7 @@ class STV(RankingElection):
                     "or a lexicographic alias."
                 )
             profile = convert_profile_weights(profile, to_exact_fraction_weight)
-        elif profile._matrix.has_fraction_weights:
+        elif profile._matrix.voter_weight_data.has_fraction_weights:
             profile = convert_profile_weights(profile, float)
 
         self.threshold = 0
