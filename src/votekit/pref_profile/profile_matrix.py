@@ -180,7 +180,7 @@ class RankMatrix:
         """
         # candidate set IDs start at -2 for empty set, -1 for tilde set, and 0+ for candidate sets.
         # Shift by 2 for the reserved negative IDs to index into the lookup array.
-        cand_id_lookup = np.empty(max(self.id_to_cand_set_map) + 3, dtype=object)
+        cand_id_lookup = np.empty(len(self.id_to_cand_set_map), dtype=object)
         for cand_id, cand_set in self.id_to_cand_set_map.items():
             cand_id_lookup[cand_id + 2] = cand_set
         translated_rankings = cand_id_lookup[self.rankings + 2]
