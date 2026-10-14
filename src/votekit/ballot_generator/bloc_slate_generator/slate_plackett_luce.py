@@ -14,12 +14,13 @@ from typing import Optional
 
 import apportionment.methods as apportion
 import numpy as np
+import pandas as pd
 from numpy.random import Generator
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _append_zero_slate_symbols,
-    _convert_slate_ballots_to_profile,
+    _convert_slate_ballots_to_candidate_ids,
 )
 from votekit.pref_profile import RankProfile
 
@@ -35,11 +36,11 @@ def _sample_pl_slate_ballots(
     non_zero_slate_set: set[str],
     *,
     numpy_rng: Optional[Generator] = None,
-) -> list[tuple[str, ...]]:
+) -> np.ndarray:
     """
-    Returns a list of slate ballots; each ballot is a list of slate names (strings)
-    in the order they appear on that ballot. Only generates ballots for slates
-    that have non-zero cohesion for the given bloc.
+    Returns an array of slate ballots; each row contains the indexes into ``config.slates`` in the
+    order the slates appear on that ballot. Only fills positions for slates that have non-zero
+    cohesion for the given bloc; remaining positions are filled with -1.
 
 
     Args:
@@ -48,28 +49,21 @@ def _sample_pl_slate_ballots(
         num_ballots (int): The number of ballots to generate.
         bloc (str): The name of the bloc for which to generate slate ballots.
         non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        numpy_rng (Generator, optional): NumPy random number generatorseeded with a known value for
+        numpy_rng (Generator, optional): NumPy random number generator seeded with a known value for
             reproducible results. By default, seeded with None to generate different results each
             time.
 
     Returns:
-        list[tuple[str, ...]]: A list of tuples, where each tuple contains the bloc names in the
-            order they appear on the ballot.
+        np.ndarray: An array of shape (num_ballots, len(config.candidates)), where each row contains
+            the slate indexes in the order they appear on the ballot. Padded with -1.
     """
-    num_candidates_per_slate = {s: len(config.slate_to_candidates[s]) for s in non_zero_slate_set}
+    slates = list(sorted(non_zero_slate_set))
+    num_candidates_per_slate = np.array([len(config.slate_to_candidates[s]) for s in slates])
 
-    num_candidates = sum(num_candidates_per_slate.values())
-
-    ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
+    num_candidates = int(num_candidates_per_slate.sum())
 
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
     rand_unif_seqs = numpy_rng.uniform(size=(num_ballots, num_candidates))
-
-    def which_bin(dist_bins: list[float], flip: float) -> int:
-        for i, left in enumerate(dist_bins[:-1]):
-            if left < flip <= dist_bins[i + 1]:
-                return i
-        return len(dist_bins) - 2
 
     slates = list(sorted(non_zero_slate_set))
     cohesion_values_og: list[float] = []
@@ -81,29 +75,38 @@ def _sample_pl_slate_ballots(
             )
         cohesion_values_og.append(float(cohesion_value))
 
-    for i, rand_unif_seq in enumerate(rand_unif_seqs):
-        cohesion_values = np.array(cohesion_values_og)
-        distribution_bins: list[float] = [0.0] + np.cumsum(cohesion_values).tolist()
-        ballot_type: list[str] = [""] * num_candidates
-        slate_count = {s: 0 for s in slates}
+    cohesion_values = np.tile(cohesion_values_og, (num_ballots, 1))
+    slate_counts = np.zeros(cohesion_values.shape, dtype=int)
+    ballot_types = np.empty((num_ballots, num_candidates), dtype=int)
+    ballots = np.arange(num_ballots)
+    for ranking_idx in range(num_candidates):
+        bin_right = np.cumsum(cohesion_values, axis=1)
+        bin_left = np.zeros_like(bin_right)
+        bin_left[:, 1:] = bin_right[:, :-1]
+        ranking_idx_samples = rand_unif_seqs[:, ranking_idx, None]  # shape (num_ballots, 1)
+        within_bin = (bin_left < ranking_idx_samples) & (ranking_idx_samples <= bin_right)
+        slate_indices = np.where(within_bin.any(axis=1), within_bin.argmax(axis=1), len(slates) - 1)
 
-        for j, rand_float in enumerate(rand_unif_seq):
-            slate_index = which_bin(distribution_bins, float(rand_float))
-            slate_type = slates[slate_index]
-            ballot_type[j] = slate_type
-            slate_count[slate_type] += 1
+        ballot_types[:, ranking_idx] = slate_indices
+        slate_counts[ballots, slate_indices] += 1
 
-            if (
-                j < num_candidates - 1
-                and slate_count[slate_type] == num_candidates_per_slate[slate_type]
-            ):
-                cohesion_values[slate_index] = 0
-                cohesion_values = cohesion_values / cohesion_values.sum()
-                distribution_bins = [0.0] + np.cumsum(cohesion_values).tolist()
+        # check if any slate has reached its max count and set its cohesion to 0 for those ballots
+        # check across all ballots for only the slate added in this ranking index
+        if ranking_idx < num_candidates - 1:
+            full_slate_mask = ballots[
+                slate_counts[ballots, slate_indices] == num_candidates_per_slate[slate_indices]
+            ]
+            cohesion_values[full_slate_mask, slate_indices[full_slate_mask]] = 0
+            cohesion_values[full_slate_mask] /= cohesion_values[full_slate_mask].sum(
+                axis=1, keepdims=True
+            )
 
-        ballots[i] = tuple(ballot_type)
+    # pad ballot types with -1 for zero cohesion slate candidates
+    slate_ballots = np.full((num_ballots, len(config.candidates)), -1, dtype=int)
+    config_slate_index = np.array([config.slates.index(slate) for slate in slates], dtype=int)
+    slate_ballots[:, :num_candidates] = config_slate_index[ballot_types]
 
-    return ballots
+    return slate_ballots
 
 
 # ===========================================================
@@ -115,7 +118,7 @@ def _inner_slate_plackett_luce(
     config: BlocSlateConfig,
     *,
     rng_seed: Optional[int] = None,
-) -> dict[str, RankProfile]:
+) -> dict[str, np.ndarray]:
     """
     Inner function to generate preference profiles by bloc using the slate-Plackett-Luce model.
 
@@ -136,8 +139,8 @@ def _inner_slate_plackett_luce(
             non-deterministic results.
 
     Returns:
-        dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects.
+        dict[str, np.ndarray]: Dictionary whose keys are bloc strings and values are arrays of
+            shape (n_ballots, n_candidates) of indices into ``config.candidates`` for that bloc.
     """
     bloc_lst = config.blocs
 
@@ -152,7 +155,7 @@ def _inner_slate_plackett_luce(
 
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
+    candidate_ids_by_bloc: dict[str, np.ndarray] = {}
     numpy_rng = np.random.default_rng(seed=rng_seed)
 
     for bloc in bloc_lst:
@@ -180,11 +183,11 @@ def _inner_slate_plackett_luce(
                 config,
                 numpy_rng=numpy_rng,
             )
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+        candidate_ids_by_bloc[bloc] = _convert_slate_ballots_to_candidate_ids(
             config, bloc, slate_ballots, numpy_rng=numpy_rng
         )
 
-    return pref_profile_by_bloc
+    return candidate_ids_by_bloc
 
 
 # =================================================
@@ -222,11 +225,21 @@ def slate_pl_profile_generator(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_plackett_luce(config, rng_seed=rng_seed)
+    candidate_ids_by_bloc = _inner_slate_plackett_luce(config, rng_seed=rng_seed)
 
-    pp = RankProfile(ballots=tuple())
-    for profile in pp_by_bloc.values():
-        pp += profile
+    rankings = np.concatenate(list(candidate_ids_by_bloc.values()), axis=0)
+    candidate_sets = np.array(
+        [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+    )
+    df = pd.DataFrame(
+        candidate_sets[rankings + 1],
+        columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+        copy=False,
+    )
+    df.index.name = "Ballot Index"
+    df["Weight"] = 1
+    df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+    pp = RankProfile(df=df, candidates=config.candidates, max_ranking_length=len(config.candidates))
 
     if group_ballots:
         pp = pp.group_ballots()
@@ -266,10 +279,29 @@ def slate_pl_profiles_by_bloc_generator(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_plackett_luce(config, rng_seed=rng_seed)
+    candidate_ids_by_bloc = _inner_slate_plackett_luce(config, rng_seed=rng_seed)
 
-    if group_ballots:
-        for bloc, profile in pp_by_bloc.items():
-            pp_by_bloc[bloc] = profile.group_ballots()
+    pp_by_bloc: dict[str, RankProfile] = {}
+    for bloc in candidate_ids_by_bloc:
+        rankings = candidate_ids_by_bloc[bloc]
+        candidate_sets = np.array(
+            [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+        )
+        df = pd.DataFrame(
+            candidate_sets[rankings + 1],
+            columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+            copy=False,
+        )
+        df.index.name = "Ballot Index"
+        df["Weight"] = 1
+        df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+        pp = RankProfile(
+            df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+        )
+
+        if group_ballots:
+            pp = pp.group_ballots()
+
+        pp_by_bloc[bloc] = pp
 
     return pp_by_bloc

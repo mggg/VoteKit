@@ -14,11 +14,12 @@ from typing import Optional
 
 import apportionment.methods as apportion
 import numpy as np
+import pandas as pd
 from numpy.random import Generator
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _convert_slate_ballots_to_profile,
+    _convert_slate_ballots_to_candidate_ids,
 )
 from votekit.pref_profile import RankProfile
 
@@ -205,9 +206,9 @@ def _inner_cambridge_sampler(
     minority_bloc: str,
     *,
     rng_seed: Optional[int] = None,
-) -> dict[str, RankProfile]:
+) -> dict[str, np.ndarray]:
     """
-    Inner function to generate profiles by bloc using Cambridge model.
+    Inner function to generate ballots by bloc using Cambridge model.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -220,8 +221,8 @@ def _inner_cambridge_sampler(
             inputs. Seed set to None by default, different results will be generated each time.
 
     Returns:
-        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects representing the generated preference profiles for each bloc.
+        dict[str, np.ndarray]: Dictionary whose keys are bloc strings and values are arrays of
+            shape (n_ballots, n_candidates) of indices into ``config.candidates`` for that bloc.
     """
     historical_slate_to_config_slate = {
         "W": majority_bloc,
@@ -261,8 +262,10 @@ def _inner_cambridge_sampler(
 
     bloc_lst = config.blocs
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
+    candidate_ids_by_bloc: dict[str, np.ndarray] = {}
     numpy_rng = np.random.default_rng(seed=rng_seed)
+    slate_to_index = {slate: i for i, slate in enumerate(config.slates)}
+    n_candidates = len(config.candidates)
     for bloc in bloc_lst:
         slate_ballots = _sample_historical_slate_ballots(
             ballots_per_bloc,
@@ -275,11 +278,20 @@ def _inner_cambridge_sampler(
             numpy_rng=numpy_rng,
         )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, numpy_rng=numpy_rng
+        # encode slate ballot types as indexes into config.slates, truncated to the number of
+        # candidates and padded with -1
+        slate_ballots_array = np.full((len(slate_ballots), n_candidates), -1, dtype=int)
+        for i, slate_ballot in enumerate(slate_ballots):
+            slate_ballot = slate_ballot[:n_candidates]
+            slate_ballots_array[i, : len(slate_ballot)] = [
+                slate_to_index[slate] for slate in slate_ballot
+            ]
+
+        candidate_ids_by_bloc[bloc] = _convert_slate_ballots_to_candidate_ids(
+            config, bloc, slate_ballots_array, numpy_rng=numpy_rng
         )
 
-    return pref_profile_by_bloc
+    return candidate_ids_by_bloc
 
 
 def _validate_slates_and_blocs(
@@ -433,16 +445,36 @@ def cambridge_profiles_by_bloc_generator(
         config, majority_bloc, minority_bloc
     )
 
-    pp_by_bloc = _inner_cambridge_sampler(
+    candidate_ids_by_bloc = _inner_cambridge_sampler(
         config,
         majority_bloc,
         minority_bloc,
         rng_seed=rng_seed,
     )
 
-    if group_ballots:
-        for bloc, profile in pp_by_bloc.items():
-            pp_by_bloc[bloc] = profile.group_ballots()
+    pp_by_bloc: dict[str, RankProfile] = {}
+    for bloc in candidate_ids_by_bloc:
+        rankings = candidate_ids_by_bloc[bloc]
+        candidate_sets = np.array(
+            [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+        )
+        df = pd.DataFrame(
+            candidate_sets[rankings + 1],
+            columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+            copy=False,
+        )
+        df.index.name = "Ballot Index"
+        df["Weight"] = 1
+        df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+        pp = RankProfile(
+            df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+        )
+
+        if group_ballots:
+            pp = pp.group_ballots()
+
+        pp_by_bloc[bloc] = pp
+
     return pp_by_bloc
 
 
@@ -492,16 +524,28 @@ def cambridge_profile_generator(
         config, majority_bloc, minority_bloc
     )
 
-    pp_by_bloc = _inner_cambridge_sampler(
+    candidate_ids_by_bloc = _inner_cambridge_sampler(
         config,
         majority_bloc,
         minority_bloc,
         rng_seed=rng_seed,
     )
 
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
+    rankings = np.concatenate(list(candidate_ids_by_bloc.values()), axis=0)
+    candidate_sets = np.array(
+        [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+    )
+    df = pd.DataFrame(
+        candidate_sets[rankings + 1],
+        columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+        copy=False,
+    )
+    df.index.name = "Ballot Index"
+    df["Weight"] = 1
+    df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+    profile = RankProfile(
+        df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+    )
 
     if group_ballots:
         profile = profile.group_ballots()
