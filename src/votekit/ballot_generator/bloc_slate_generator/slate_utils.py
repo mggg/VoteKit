@@ -1,13 +1,10 @@
-from typing import Iterator, Optional, Sequence
+from typing import Iterator, Optional
 
 import numpy as np
-import pandas as pd
 from numpy.random import Generator
 from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
-from votekit.pref_profile import RankProfile
-from votekit.types import Candidate
 
 
 def _lexicographic_symbol_tuple_iterator(
@@ -101,7 +98,8 @@ def _construct_slate_to_candidate_ordering_arrays(
     numpy_rng: Optional[Generator] = None,
 ) -> dict[str, np.ndarray]:
     """
-    Create candidate orderings within each slate based on preference intervals.
+    Create orderings of candidate IDs within each slate based on preference intervals.
+
     Orders non-zero support candidates by sampling without replacement according to the
     preference intervals. Randomly permutes candidates with 0 support at the end of the
     ordering.
@@ -116,164 +114,46 @@ def _construct_slate_to_candidate_ordering_arrays(
 
     Returns:
         dict[str, np.ndarray]: A dictionary mapping slate names to an n_samples x n_cands matrix
-            of candidate orderings.
+            of candidate orderings, given as indices into ``config.candidates``.
     """
     results: dict[str, np.ndarray] = {}
     pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
+    candidate_to_index = {cand: i for i, cand in enumerate(config.candidates)}
 
     for slate in config.slates:
         preference_interval = pref_intervals_by_slate_dict[slate].interval
-        candidates = config.slate_to_candidates[slate]
-        cand_ordering = np.empty(
-            (n_samples, len(candidates)),
-            dtype=object,
+        slate_candidates = config.slate_to_candidates[slate]
+
+        slate_cand_ids = np.array(
+            [candidate_to_index[cand] for cand in slate_candidates], dtype=int
         )
+        slate_cand_dist = np.array([preference_interval[cand] for cand in slate_candidates])
+        indices = _fast_sample_without_replacement(
+            slate_cand_dist, n_samples, numpy_rng=numpy_rng
+        )  # shape
 
-        cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
-        distribution = np.array([preference_interval[c] for c in candidates])
-        indices = _fast_sample_without_replacement(distribution, n_samples, numpy_rng=numpy_rng)
-        cand_ordering[:, : len(candidates)] = cands_list[indices]
-
-        results[slate] = cand_ordering
+        results[slate] = slate_cand_ids[indices]
 
     return results
 
 
-def _convert_slate_ballot_type_to_ranking(
-    ballot_type: Sequence[str],
-    cand_ordering_by_slate: dict[str, Sequence[Candidate]],
-    final_max_ranking_length,
-) -> list[frozenset[Candidate]]:
-    """
-    Given a ballot type and a candidate ordering by slate, convert the ballot type to a ranking.
-
-    Example:
-
-    Given a ballot type "AABBA" and candidate ordering by slate
-    {"A": ["a3", "a1", "a2"], "B": ["b2", "b1"]}, the function will return
-    [frozenset({"a3"}), frozenset({"a1"}), frozenset({"b2"}), frozenset({"b1"}), frozenset({"a2"})].
-
-    If there are not enough candidates to fill all positions, the ballot will be truncated.
-
-    Args:
-        ballot_type (Sequence[str]): A sequence of slate names representing the ballot type.
-        cand_ordering_by_slate (dict[str, list[Candidate]]): A dictionary mapping slate names to a
-            list of candidate names ordered according to the sampled preference intervals.
-            Candidates can be strings, integers, or mix of both.
-        final_max_ranking_length (int): The maximum length of the ranking.
-
-    Returns:
-        list[frozenset[Candidate]]: A list of frozensets, where each frozenset contains a single
-            candidate name, representing the ranking derived from the ballot type and candidate
-            ordering. Candidates can be strings, integers, or mix of both.
-    """
-
-    positions = {s: 0 for s in cand_ordering_by_slate}
-    ranking: list[frozenset[Candidate]] = [frozenset("~")] * final_max_ranking_length
-
-    fset_cache: dict[Candidate, frozenset[Candidate]] = {}
-    rank_position = 0
-    for slate in ballot_type[:final_max_ranking_length]:
-        pos = positions[slate]
-
-        try:
-            cand = cand_ordering_by_slate[slate][pos]
-        except IndexError:
-            raise IndexError(
-                f"There are insufficiently many candidates ({len(cand_ordering_by_slate[slate])}) "
-                "in slate "
-                f"{slate} to complete ballot of type {ballot_type[:final_max_ranking_length]}"
-            )
-        except Exception as e:
-            raise e
-        positions[slate] = pos + 1
-
-        fset = fset_cache.get(cand)
-        if fset is None:
-            fset = frozenset((cand,))
-            fset_cache[cand] = fset
-        ranking[rank_position] = fset
-        rank_position += 1
-
-    return ranking
-
-
-def _convert_slate_ballots_to_profile(
-    config: BlocSlateConfig,
-    bloc: str,
-    slate_ballots: list[tuple[str, ...]],
-    *,
-    numpy_rng: Optional[Generator] = None,
-) -> RankProfile:
-    """
-    Convert slate ballot types to a preference profile, filling out
-    candidate orderings for each slate.
-
-    Args:
-        config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        bloc (str): The name of the bloc.
-        slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        RankProfile: A preference profile.
-    """
-    n_candidates = len(config.candidates)
-    n_ballots = len(slate_ballots)
-
-    # full orderings of all candidates in each slate
-    cand_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(
-        config,
-        bloc,
-        n_ballots,
-        numpy_rng=numpy_rng,
-    )
-
-    ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
-    for i, slate_ballot in enumerate(slate_ballots):
-        ranking = _convert_slate_ballot_type_to_ranking(
-            ballot_type=slate_ballot,
-            cand_ordering_by_slate={
-                s: cand_ordering[i] for s, cand_ordering in cand_orderings_by_slate.items()
-            },
-            final_max_ranking_length=n_candidates,
-        )
-        ballot_pool[i] = np.array(ranking)
-
-    df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
-    df.insert(
-        len(df.columns),
-        "Voter Set",
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
-    )
-    pp = RankProfile(
-        candidates=config.candidates,
-        df=df,
-        max_ranking_length=n_candidates,
-    )
-
-    return pp
-
-
 def _append_zero_slate_symbols(
-    ballots: list[tuple[str, ...]],
+    ballots: np.ndarray,
     zero_slate_set: set[str],
     n_ballots: int,
     config: BlocSlateConfig,
     *,
     numpy_rng: Optional[Generator] = None,
-) -> list[tuple[str, ...]]:
+) -> np.ndarray:
     """
-    Append zero cohesion slate symbols to the end of slate ballot types.
-    Randomly permutes the zero cohesion slate symbols for each ballot.
+    Fills in the trailing positions of each slate ballot type with the zero cohesion slate indices.
+
+    The zero cohesion slate indices are randomly permuted for each ballot. ``ballots`` is modified
+    in place.
 
     Args:
-        ballots (list[tuple[str, ...]]): List of slate ballot types.
+        ballots (np.ndarray): Array of slate ballot types where slates are represented as indices
+            into ``config.slates`` and end positions are unfilled for zero cohesion candidates.
         zero_slate_set (set[str]): Set of slates with zero cohesion for the given bloc.
         n_ballots (int): The number of ballots to generate.
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
@@ -282,15 +162,75 @@ def _append_zero_slate_symbols(
             for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols appended.
+        np.ndarray: Array of slate ballot types with zero cohesion slate symbols filled in.
     """
-    zero_slate_symbols = [
-        slate for slate in sorted(zero_slate_set) for c in config.slate_to_candidates[slate]
-    ]
+    zero_slate_symbols = np.array(
+        [
+            config.slates.index(slate)
+            for slate in sorted(zero_slate_set)
+            for _ in config.slate_to_candidates[slate]
+        ],
+        dtype=int,
+    )
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
     noise = numpy_rng.random(size=(n_ballots, len(zero_slate_symbols)))
     permutation_indices = np.argsort(noise, axis=1)
-    zero_slate_orderings = np.array(list(zero_slate_symbols), dtype=object)[permutation_indices]
-
-    ballots = [ballot + tuple(zero_slate_orderings[i]) for i, ballot in enumerate(ballots)]
+    ballots[:, ballots.shape[1] - len(zero_slate_symbols) :] = zero_slate_symbols[
+        permutation_indices
+    ]
     return ballots
+
+
+def _convert_slate_ballots_to_candidate_ids(
+    config: BlocSlateConfig,
+    bloc: str,
+    slate_ballots: np.ndarray,
+    *,
+    numpy_rng: Optional[Generator] = None,
+) -> np.ndarray:
+    """
+    Fill out slate ballot types with candidate IDs by sampling from the bloc's preference intervals.
+
+    Args:
+        config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
+            working with a bloc-slate ballot generator.
+        bloc (str): The name of the bloc.
+        slate_ballots (np.ndarray): Array of slate ballot types where the slates are represented as
+            indices into ``config.slates``.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
+            for reproducible results. Defaults to None for non-deterministic results.
+
+    Returns:
+        np.ndarray: Array of n_ballots x n_candidates with candidate IDs as indices into
+            ``config.candidates``; padded with -1.
+    """
+    n_candidates = len(config.candidates)
+    n_ballots = len(slate_ballots)
+
+    # full orderings of all candidates as their indices into ``config.candidates`` in each slate
+    cand_id_orderings_by_slate = _construct_slate_to_candidate_ordering_arrays(
+        config,
+        bloc,
+        n_ballots,
+        numpy_rng=numpy_rng,
+    )
+
+    candidate_ids = np.full((n_ballots, n_candidates), -1, dtype=int)
+    for slate_index, slate in enumerate(config.slates):
+        slate_ballot_mask = slate_ballots == slate_index
+        ballots, candidates = np.nonzero(slate_ballot_mask)
+        slate_cand_positions = (np.cumsum(slate_ballot_mask, axis=1) - 1)[ballots, candidates]
+        cand_slate_orderings = cand_id_orderings_by_slate[slate]
+
+        if (
+            len(slate_cand_positions)
+            and slate_cand_positions.max() >= cand_slate_orderings.shape[1]
+        ):
+            raise IndexError(
+                f"There are insufficiently many candidates ({cand_slate_orderings.shape[1]})"
+                f" in slate {slate} to complete ballot that lists the slate"
+                f" {slate_cand_positions.max() + 1}."
+            )
+        candidate_ids[ballots, candidates] = cand_slate_orderings[ballots, slate_cand_positions]
+
+    return candidate_ids

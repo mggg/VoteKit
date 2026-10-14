@@ -21,12 +21,13 @@ from typing import Optional, Sequence, cast
 
 import apportionment.methods as apportion
 import numpy as np
+import pandas as pd
 from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _append_zero_slate_symbols,
-    _convert_slate_ballots_to_profile,
+    _convert_slate_ballots_to_candidate_ids,
     _lexicographic_symbol_tuple_iterator,
 )
 from votekit.ballot_generator.utils import system_memory
@@ -279,9 +280,9 @@ def _inner_slate_bradley_terry(
     use_mcmc: bool = False,
     *,
     rng_seed: Optional[int] = None,
-) -> dict[str, RankProfile]:
+) -> dict[str, np.ndarray]:
     """
-    Inner function to generate preference profiles using the slate-BradleyTerry model.
+    Inner function to generate candidate ID arrays using the slate-BradleyTerry model.
 
     Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
     Candidates with zero support are randomly permuted at the end of the candidate ordering.
@@ -295,8 +296,8 @@ def _inner_slate_bradley_terry(
             non-deterministic results.
 
     Returns:
-        dict[str, RankProfile]: A dictionary mapping bloc names to their corresponding
-            generated preference profiles.
+        dict[str, np.ndarray]: A dictionary mapping bloc names to their corresponding
+            generated candidate ID arrays.
     """
     # Save on repeated calls to computed property
     bloc_lst = config.blocs
@@ -312,9 +313,10 @@ def _inner_slate_bradley_terry(
 
     ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
 
-    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
+    candidate_ids_by_bloc: dict[str, np.ndarray] = {}
     numpy_rng = np.random.default_rng(seed=rng_seed)
     rng = random.Random(rng_seed)
+    slate_to_index = {slate: i for i, slate in enumerate(config.slates)}
 
     for bloc in bloc_lst:
         # number of voters in this bloc
@@ -342,23 +344,31 @@ def _inner_slate_bradley_terry(
                 rng=rng,
             )
 
+        # encode slate ballot types as indexes into config.slates, padded with -1 for zero
+        # cohesion slate candidates
+        slate_ballots_array = np.full((n_ballots, len(config.candidates)), -1, dtype=int)
+        for i, slate_ballot in enumerate(slate_ballots):
+            slate_ballots_array[i, : len(slate_ballot)] = [
+                slate_to_index[slate] for slate in slate_ballot
+            ]
+
         if len(zero_slate_set) != 0:
-            slate_ballots = _append_zero_slate_symbols(
-                slate_ballots,
+            slate_ballots_array = _append_zero_slate_symbols(
+                slate_ballots_array,
                 zero_slate_set,
                 n_ballots,
                 config,
                 numpy_rng=numpy_rng,
             )
 
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
+        candidate_ids_by_bloc[bloc] = _convert_slate_ballots_to_candidate_ids(
             config,
             bloc,
-            slate_ballots,
+            slate_ballots_array,
             numpy_rng=numpy_rng,
         )
 
-    return pref_profile_by_bloc
+    return candidate_ids_by_bloc
 
 
 # =================================================
@@ -398,11 +408,23 @@ def slate_bt_profile_generator(
     _check_slate_bt_memory(config)
 
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
+    candidate_ids_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
 
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
+    rankings = np.concatenate(list(candidate_ids_by_bloc.values()), axis=0)
+    candidate_sets = np.array(
+        [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+    )
+    df = pd.DataFrame(
+        candidate_sets[rankings + 1],
+        columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+        copy=False,
+    )
+    df.index.name = "Ballot Index"
+    df["Weight"] = 1
+    df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+    profile = RankProfile(
+        df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+    )
 
     if group_ballots:
         profile = profile.group_ballots()
@@ -446,10 +468,30 @@ def slate_bt_profiles_by_bloc_generator(
     _check_slate_bt_memory(config)
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+    candidate_ids_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
+
+    pp_by_bloc: dict[str, RankProfile] = {}
+    for bloc in candidate_ids_by_bloc:
+        rankings = candidate_ids_by_bloc[bloc]
+        candidate_sets = np.array(
+            [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+        )
+        df = pd.DataFrame(
+            candidate_sets[rankings + 1],
+            columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+            copy=False,
+        )
+        df.index.name = "Ballot Index"
+        df["Weight"] = 1
+        df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+        pp = RankProfile(
+            df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+        )
+
+        if group_ballots:
+            pp = pp.group_ballots()
+
+        pp_by_bloc[bloc] = pp
 
     return pp_by_bloc
 
@@ -494,11 +536,23 @@ def slate_bt_profile_generator_using_mcmc(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
+    candidate_ids_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
 
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
+    rankings = np.concatenate(list(candidate_ids_by_bloc.values()), axis=0)
+    candidate_sets = np.array(
+        [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+    )
+    df = pd.DataFrame(
+        candidate_sets[rankings + 1],
+        columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+        copy=False,
+    )
+    df.index.name = "Ballot Index"
+    df["Weight"] = 1
+    df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+    profile = RankProfile(
+        df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+    )
 
     if group_ballots:
         profile = profile.group_ballots()
@@ -547,9 +601,29 @@ def slate_bt_profiles_by_bloc_generator_using_mcmc(
     """
     config.is_valid(raise_errors=True)
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+    candidate_ids_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
+
+    pp_by_bloc: dict[str, RankProfile] = {}
+    for bloc in candidate_ids_by_bloc:
+        rankings = candidate_ids_by_bloc[bloc]
+        candidate_sets = np.array(
+            [frozenset({"~"})] + [frozenset({c}) for c in config.candidates], dtype=object
+        )
+        df = pd.DataFrame(
+            candidate_sets[rankings + 1],
+            columns=[f"Ranking_{i + 1}" for i in range(len(config.candidates))],
+            copy=False,
+        )
+        df.index.name = "Ballot Index"
+        df["Weight"] = 1
+        df["Voter Set"] = pd.Series([frozenset()] * len(df), dtype=object, index=df.index)
+        pp = RankProfile(
+            df=df, candidates=config.candidates, max_ranking_length=len(config.candidates)
+        )
+
+        if group_ballots:
+            pp = pp.group_ballots()
+
+        pp_by_bloc[bloc] = pp
 
     return pp_by_bloc
