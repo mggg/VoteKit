@@ -14,6 +14,12 @@ from typing import Optional, Self, Sequence, Tuple, Union, cast, overload
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
@@ -181,7 +187,7 @@ class PreferenceProfile:
                     f"{len(score_idxs)} ScoreBallots and {len(rank_idxs)} RankBallots."
                 )
 
-        if any(c.startswith("Ranking_") for c in df.columns if isinstance(c, str)):
+        if any(c.startswith(RANKING_COLUMN_PREFIX) for c in df.columns if isinstance(c, str)):
             return super().__new__(RankProfile)
 
         return super().__new__(ScoreProfile)
@@ -248,7 +254,7 @@ class PreferenceProfile:
             ProfileError: Candidate names must be unique.
         """
         for cand in self.candidates:
-            if any(f"Ranking_{i}" == cand for i in range(len(self.candidates))):
+            if any(f"{RANKING_COLUMN_PREFIX}{i}" == cand for i in range(len(self.candidates))):
                 raise ProfileError(
                     (
                         f"{cand} is a name reserved for ranking columns, it cannot be used as a "
@@ -473,7 +479,7 @@ class RankProfile(PreferenceProfile):
                 if rank_ballot.weight > 0 and c not in candidates_cast:
                     candidates_cast.append(c)
 
-            if f"Ranking_{j + 1}" not in rank_ballot_data:
+            if f"{RANKING_COLUMN_PREFIX}{j + 1}" not in rank_ballot_data:
                 assert self.max_ranking_length is not None
 
                 if self.max_ranking_length > 0:
@@ -481,10 +487,10 @@ class RankProfile(PreferenceProfile):
                         f"Max ranking length {self.max_ranking_length} given but "
                         f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"Ranking_{j + 1}"] = [
+                rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"] = [
                     candidate_id_map[frozenset("~")]
                 ] * num_ballots
-            rank_ballot_data[f"Ranking_{j + 1}"][idx] = candidate_id_map[cand_set]
+            rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"][idx] = candidate_id_map[cand_set]
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -508,10 +514,10 @@ class RankProfile(PreferenceProfile):
             candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
                 IDs. Candidates can be strings, integers, or mix of both.
         """
-        rank_ballot_data["Weight"][idx] = rank_ballot.weight
+        rank_ballot_data[WEIGHT_COLUMN][idx] = rank_ballot.weight
 
         if rank_ballot.voter_set != frozenset():
-            rank_ballot_data["Voter Set"][idx] = rank_ballot.voter_set
+            rank_ballot_data[VOTER_SET_COLUMN][idx] = rank_ballot.voter_set
 
         if rank_ballot.ranking is not None:
             self.__update_ballot_ranking_data(
@@ -540,14 +546,17 @@ class RankProfile(PreferenceProfile):
         num_ballots = len(rank_ballots)
 
         rank_ballot_data: dict[str, list] = {
-            "Weight": [np.nan] * num_ballots,
-            "Voter Set": [set()] * num_ballots,
+            WEIGHT_COLUMN: [np.nan] * num_ballots,
+            VOTER_SET_COLUMN: [set()] * num_ballots,
         }
         assert self.max_ranking_length is not None
 
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
-                {f"Ranking_{i + 1}": [-1] * num_ballots for i in range(self.max_ranking_length)}
+                {
+                    f"{RANKING_COLUMN_PREFIX}{i + 1}": [-1] * num_ballots
+                    for i in range(self.max_ranking_length)
+                }
             )
         return num_ballots, rank_ballot_data
 
@@ -565,13 +574,13 @@ class RankProfile(PreferenceProfile):
             pd.DataFrame: Dataframe of profile.
         """
         df = pd.DataFrame(rank_ballot_data)
-        col_order = [c for c in df.columns if "Ranking_" in c] + [
-            "Voter Set",
-            "Weight",
+        col_order = [c for c in df.columns if RANKING_COLUMN_PREFIX in c] + [
+            VOTER_SET_COLUMN,
+            WEIGHT_COLUMN,
         ]
 
         df = df[col_order]
-        df.index.name = "Ballot Index"
+        df.index.name = BALLOT_INDEX_NAME
         return df
 
     def _init_from_rank_ballots(
@@ -654,16 +663,19 @@ class RankProfile(PreferenceProfile):
             ProfileError: Index column is misformatted.
 
         """
-        if "Weight" not in df.columns:
+        if WEIGHT_COLUMN not in df.columns:
             raise ProfileError(f"Weight column not in dataframe: {df.columns}")
-        if "Voter Set" not in df.columns:
+        if VOTER_SET_COLUMN not in df.columns:
             raise ProfileError(f"Voter Set column not in dataframe: {df.columns}")
-        if df.index.name != "Ballot Index":
+        if df.index.name != BALLOT_INDEX_NAME:
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         assert self.max_ranking_length is not None
-        if any(f"Ranking_{i + 1}" not in df.columns for i in range(self.max_ranking_length)):
+        if any(
+            f"{RANKING_COLUMN_PREFIX}{i + 1}" not in df.columns
+            for i in range(self.max_ranking_length)
+        ):
             for i in range(self.max_ranking_length):
-                if f"Ranking_{i + 1}" not in df.columns:
+                if f"{RANKING_COLUMN_PREFIX}{i + 1}" not in df.columns:
                     raise ProfileError(
                         f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
                     )
@@ -686,11 +698,11 @@ class RankProfile(PreferenceProfile):
             dict[frozenset[Candidate], int]: Candidate to ID mapping
         """
 
-        mask = df["Weight"] > 0
+        mask = df[WEIGHT_COLUMN] > 0
 
         candidates_cast: set[Candidate] = set()
 
-        ranking_cols = [c for c in df.columns if c.startswith("Ranking_")]
+        ranking_cols = [c for c in df.columns if c.startswith(RANKING_COLUMN_PREFIX)]
         sets = df.loc[mask, ranking_cols].to_numpy().ravel()
         candidates_cast |= set().union(*sets)
 
@@ -731,7 +743,7 @@ class RankProfile(PreferenceProfile):
         Raises:
 
         """
-        ranking_cols = [col for col in df.columns if col.startswith("Ranking_")]
+        ranking_cols = [col for col in df.columns if col.startswith(RANKING_COLUMN_PREFIX)]
         translated_df = df.copy()
         translated_df[ranking_cols] = translated_df[ranking_cols].map(
             lambda ranking: (candidate_mapping[ranking])
@@ -830,16 +842,16 @@ class RankProfile(PreferenceProfile):
                 max_ranking_length=self.max_ranking_length,
             )
 
-        ranking_cols = [c for c in self.df.columns if "Ranking_" in c]
+        ranking_cols = [c for c in self.df.columns if RANKING_COLUMN_PREFIX in c]
         group_df = self.df.groupby(ranking_cols, dropna=False)
         new_df = group_df.aggregate(
             {
-                "Weight": "sum",
-                "Voter Set": (lambda sets: set().union(*sets)),
+                WEIGHT_COLUMN: "sum",
+                VOTER_SET_COLUMN: (lambda sets: set().union(*sets)),
             }
         ).reset_index()
 
-        new_df.index.name = "Ballot Index"
+        new_df.index.name = BALLOT_INDEX_NAME
 
         return RankProfile(
             df=new_df,
@@ -978,14 +990,14 @@ class RankProfile(PreferenceProfile):
                 prefixes. Candidates can be strings, integers, or mix of both.
         """
         assert self.max_ranking_length is not None
-        data_col_names = [f"Ranking_{i + 1}" for i in range(self.max_ranking_length)]
+        data_col_names = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(self.max_ranking_length)]
         # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
         # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
         # will break if the order is changed.
-        data_col_names += ["&", "Weight", "&"]
+        data_col_names += ["&", WEIGHT_COLUMN, "&"]
 
         if include_voter_set:
-            data_col_names += ["Voter Set"]
+            data_col_names += [VOTER_SET_COLUMN]
 
         return data_col_names
 
@@ -1216,10 +1228,10 @@ class ScoreProfile(PreferenceProfile):
             candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
                 Candidates can be strings, integers, or mix of both.
         """
-        score_ballot_data["Weight"][idx] = ballot.weight
+        score_ballot_data[WEIGHT_COLUMN][idx] = ballot.weight
 
         if ballot.voter_set != frozenset():
-            score_ballot_data["Voter Set"][idx] = ballot.voter_set
+            score_ballot_data[VOTER_SET_COLUMN][idx] = ballot.voter_set
 
         if ballot.scores is not None:
             self.__update_ballot_scores_data(
@@ -1250,8 +1262,8 @@ class ScoreProfile(PreferenceProfile):
         num_ballots = len(ballots)
 
         score_ballot_data: dict[str | int, list] = {
-            "Weight": [np.nan] * num_ballots,
-            "Voter Set": [set()] * num_ballots,
+            WEIGHT_COLUMN: [np.nan] * num_ballots,
+            VOTER_SET_COLUMN: [set()] * num_ballots,
         }
 
         if self.candidates != tuple():
@@ -1284,8 +1296,8 @@ class ScoreProfile(PreferenceProfile):
         """
         df = pd.DataFrame(score_ballot_data)
         temp_col_order = [
-            "Voter Set",
-            "Weight",
+            VOTER_SET_COLUMN,
+            WEIGHT_COLUMN,
         ]
 
         col_order = list(candidate_id_map.values()) + temp_col_order
@@ -1301,7 +1313,7 @@ class ScoreProfile(PreferenceProfile):
             ] + temp_col_order
 
         df = df[col_order]
-        df.index.name = "Ballot Index"
+        df.index.name = BALLOT_INDEX_NAME
         return df
 
     def _init_from_score_ballots(
@@ -1385,11 +1397,11 @@ class ScoreProfile(PreferenceProfile):
             ValueError: Index column is misformatted.
 
         """
-        if "Weight" not in df.columns:
+        if WEIGHT_COLUMN not in df.columns:
             raise ProfileError(f"Weight column not in dataframe: {df.columns}")
-        if "Voter Set" not in df.columns:
+        if VOTER_SET_COLUMN not in df.columns:
             raise ProfileError(f"Voter Set column not in dataframe: {df.columns}")
-        if df.index.name != "Ballot Index":
+        if df.index.name != BALLOT_INDEX_NAME:
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
         if any(c not in df.columns for c in self.candidates):
             for c in self.candidates:
@@ -1408,10 +1420,10 @@ class ScoreProfile(PreferenceProfile):
             tuple[str | int]: Candidates cast.
         """
 
-        mask = df["Weight"] > 0
+        mask = df[WEIGHT_COLUMN] > 0
 
         candidates_cast: set[Candidate] = set()
-        cand_cols = df.columns.difference(["Voter Set", "Weight"])
+        cand_cols = df.columns.difference([VOTER_SET_COLUMN, WEIGHT_COLUMN])
         positive = df.loc[mask, list(cand_cols)].gt(0).any()
         # .any() applies along the columns, so we get a boolean series where the
         # value is True the candidate has any positive score the column
@@ -1500,18 +1512,18 @@ class ScoreProfile(PreferenceProfile):
                 candidates=self.candidates,
             )
 
-        non_group_cols = ["Weight", "Voter Set"]
+        non_group_cols = [WEIGHT_COLUMN, VOTER_SET_COLUMN]
         cand_cols = [c for c in self.df.columns if c not in non_group_cols]
 
         group_df = self.df.groupby(cand_cols, dropna=False)
         new_df = group_df.aggregate(
             {
-                "Weight": "sum",
-                "Voter Set": (lambda sets: set().union(*sets)),
+                WEIGHT_COLUMN: "sum",
+                VOTER_SET_COLUMN: (lambda sets: set().union(*sets)),
             }
         ).reset_index()
 
-        new_df.index.name = "Ballot Index"
+        new_df.index.name = BALLOT_INDEX_NAME
 
         return ScoreProfile(
             df=new_df,
@@ -1632,10 +1644,10 @@ class ScoreProfile(PreferenceProfile):
         # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
         # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
         # will break if the order is changed.
-        data_col_names += ["&", "Weight", "&"]
+        data_col_names += ["&", WEIGHT_COLUMN, "&"]
 
         if include_voter_set:
-            data_col_names += ["Voter Set"]
+            data_col_names += [VOTER_SET_COLUMN]
 
         return data_col_names
 

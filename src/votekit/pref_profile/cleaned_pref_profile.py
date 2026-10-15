@@ -4,6 +4,7 @@ import warnings
 
 import pandas as pd
 
+from votekit._df_schema import BALLOT_INDEX_NAME
 from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
 
 
@@ -175,7 +176,7 @@ class CleanedRankProfile(RankProfile):
 
         df_copy = self.df.copy()
         df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = "Ballot Index"
+        df_copy.index.name = BALLOT_INDEX_NAME
         object.__setattr__(self, "df", df_copy)
 
     def group_ballots(self) -> RankProfile:
@@ -332,7 +333,7 @@ class CleanedScoreProfile(ScoreProfile):
 
         df_copy = self.df.copy()
         df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = "Ballot Index"
+        df_copy.index.name = BALLOT_INDEX_NAME
         object.__setattr__(self, "df", df_copy)
 
     def group_ballots(self) -> ScoreProfile:

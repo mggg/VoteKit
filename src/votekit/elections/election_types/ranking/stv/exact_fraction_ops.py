@@ -2,6 +2,7 @@ from fractions import Fraction
 from numbers import Integral, Real
 from typing import Any, Callable, cast
 
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate, Numeric
 
@@ -68,7 +69,7 @@ def convert_profile_weights(
         RankProfile: Profile with converted weights and unchanged rankings and candidates.
     """
     converted_df = profile.df.copy()
-    converted_df["Weight"] = converted_df["Weight"].map(converter)
+    converted_df[WEIGHT_COLUMN] = converted_df[WEIGHT_COLUMN].map(converter)
     converted_profile = RankProfile(
         df=converted_df,
         candidates=profile.candidates,

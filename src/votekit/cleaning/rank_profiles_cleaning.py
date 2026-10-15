@@ -4,6 +4,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
@@ -30,7 +31,7 @@ def _iterate_and_clean_ranking_tuples(
     """
     cleaned_df = profile.df.copy()
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     orig_rows = [
         tuple(vals) for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
@@ -108,14 +109,16 @@ def clean_rank_profile(
 
     if remove_null_ballots:
         assert profile.max_ranking_length is not None
-        ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+        ranking_cols = [
+            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
+        ]
 
         mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
 
         cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:
-        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+        cleaned_df = cleaned_df[cleaned_df[WEIGHT_COLUMN] > 0]
 
     return CleanedRankProfile(
         df=cleaned_df,
@@ -508,7 +511,7 @@ def remove_ballots_with_cand_rank_profile(
                 if cand in cand_set
             ]
         )
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
     ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_set_ids), axis=1)
     cleaned_df = profile.df[~ballots_to_remove]
 
@@ -517,7 +520,7 @@ def remove_ballots_with_cand_rank_profile(
         cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:
-        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+        cleaned_df = cleaned_df[cleaned_df[WEIGHT_COLUMN] > 0]
 
     candidates = (
         profile.candidates

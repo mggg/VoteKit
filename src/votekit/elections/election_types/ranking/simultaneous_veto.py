@@ -8,6 +8,7 @@ from typing import Literal, Optional, cast
 import numpy as np
 from typing_extensions import Sentinel
 
+from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
@@ -143,7 +144,9 @@ class SimultaneousVeto(RankingElection):
         # unmentioned candidates are considered tied for last place
         assert grouped_profile.max_ranking_length is not None
         self._max_ranking_length: int = grouped_profile.max_ranking_length
-        self._ranking_cols = [f"Ranking_{i}" for i in range(1, self._max_ranking_length + 1)]
+        self._ranking_cols = [
+            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, self._max_ranking_length + 1)
+        ]
         self._unlisted_candidates_by_ballot = tuple(
             self.candidates - (frozenset.union(*ballot[self._ranking_cols]))
             for _, ballot in self._df.iterrows()
@@ -342,7 +345,7 @@ class SimultaneousVeto(RankingElection):
         """
         veto_matrix = np.zeros((n_candidates, n_ballots))
         for ballot_idx in np.arange(n_ballots, dtype=np.intp):
-            veto_weight = self._df["Weight"].iloc[ballot_idx]
+            veto_weight = self._df[WEIGHT_COLUMN].iloc[ballot_idx]
             vetoes = self._get_vetoes(ballot_idx)
             veto_indices = [self._candidate_to_idx[c] for c in vetoes]
             veto_weight /= len(veto_indices)

@@ -11,6 +11,12 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
@@ -33,7 +39,7 @@ def _convert_ranking_cols_to_ranking(
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking_cols_idxs = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
+    ranking_cols_idxs = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
@@ -68,8 +74,8 @@ def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> R
     ranking = None
     if max_ranking_length > 0:
         ranking = _convert_ranking_cols_to_ranking(row, max_ranking_length)
-    voter_set = row["Voter Set"]
-    weight = row["Weight"]
+    voter_set = row[VOTER_SET_COLUMN]
+    weight = row[WEIGHT_COLUMN]
 
     return RankBallot(
         ranking=ranking,
@@ -91,8 +97,8 @@ def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...
         ScoreBallot: Ballot corresponding to the row of the df.
     """
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
-    voter_set = row["Voter Set"]
-    weight = row["Weight"]
+    voter_set = row[VOTER_SET_COLUMN]
+    weight = row[WEIGHT_COLUMN]
 
     return ScoreBallot(
         scores=scores if scores != dict() else None,
@@ -301,7 +307,7 @@ def profile_df_head(
     """
 
     if sort_by_weight:
-        df = profile.df.sort_values(by="Weight", ascending=False).head(n).copy()
+        df = profile.df.sort_values(by=WEIGHT_COLUMN, ascending=False).head(n).copy()
 
     else:
         df = profile.df.head(n).copy()
@@ -310,10 +316,10 @@ def profile_df_head(
     if percents:
         if profile.total_ballot_wt == 0:
             raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
-        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
+        df["Percent"] = df[WEIGHT_COLUMN] / float(profile.total_ballot_wt)
 
     if totals:
-        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        total_row = [""] * (df_col_num - 1) + [df[WEIGHT_COLUMN].sum()]
         if percents:
             total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
@@ -352,7 +358,7 @@ def profile_df_tail(
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
     if sort_by_weight:
-        df = profile.df.sort_values(by="Weight", ascending=False).tail(n).copy()
+        df = profile.df.sort_values(by=WEIGHT_COLUMN, ascending=False).tail(n).copy()
     else:
         df = profile.df.tail(n).copy()
 
@@ -360,10 +366,10 @@ def profile_df_tail(
     if percents:
         if profile.total_ballot_wt == 0:
             raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
-        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
+        df["Percent"] = df[WEIGHT_COLUMN] / float(profile.total_ballot_wt)
 
     if totals:
-        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        total_row = [""] * (df_col_num - 1) + [df[WEIGHT_COLUMN].sum()]
         if percents:
             total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
@@ -405,7 +411,9 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
-    ranking_cols = [f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)]
+    ranking_cols = [
+        f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, rank_profile.max_ranking_length + 1)
+    ]
     rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
     if any(len(x) > 1 for x in rankings_arr):
         raise ValueError("Ballots must not contain ties.")
@@ -425,9 +433,9 @@ def convert_rank_profile_to_score_profile_via_score_vector(
             )
 
     new_df = pd.DataFrame(cand_to_score_list)
-    new_df.index.name = "Ballot Index"
-    new_df["Voter Set"] = rank_profile.df["Voter Set"]
-    new_df["Weight"] = rank_profile.df["Weight"].map(float)
+    new_df.index.name = BALLOT_INDEX_NAME
+    new_df[VOTER_SET_COLUMN] = rank_profile.df[VOTER_SET_COLUMN]
+    new_df[WEIGHT_COLUMN] = rank_profile.df[WEIGHT_COLUMN].map(float)
 
     return ScoreProfile(
         df=new_df,
@@ -475,17 +483,18 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
         for i in range(profile.max_ranking_length, max_ranking_length):
             curr_df.insert(
                 len(curr_df.columns),
-                f"Ranking_{i + 1}",
+                f"{RANKING_COLUMN_PREFIX}{i + 1}",
                 pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
             )
         total_dfs.append(curr_df)
 
     new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = "Ballot Index"
-    ranking_cols = [col for col in new_df.columns if "Ranking_" in col]
+    new_df.index.name = BALLOT_INDEX_NAME
+    ranking_cols = [col for col in new_df.columns if RANKING_COLUMN_PREFIX in col]
     new_df[ranking_cols] = new_df[ranking_cols].astype("object")
     new_df = new_df[
-        [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
+        [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
+        + [WEIGHT_COLUMN, VOTER_SET_COLUMN]
     ]
 
     return RankProfile(
@@ -533,9 +542,9 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
         total_dfs.append(curr_df)
 
     new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = "Ballot Index"
+    new_df.index.name = BALLOT_INDEX_NAME
     new_candidates = sort_candidates_pseudo_lexicographically(total_cand)
-    new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
+    new_df = new_df[new_candidates + [WEIGHT_COLUMN, VOTER_SET_COLUMN]]
 
     return ScoreProfile(
         candidates=new_candidates,

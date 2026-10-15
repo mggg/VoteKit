@@ -5,6 +5,12 @@ import pandas as pd
 from numpy.random import Generator
 from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -243,12 +249,12 @@ def _convert_slate_ballots_to_profile(
         ballot_pool[i] = np.array(ranking)
 
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
+        VOTER_SET_COLUMN,
         pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
     )
     pp = RankProfile(

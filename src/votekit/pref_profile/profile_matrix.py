@@ -5,11 +5,15 @@ from typing import Any, Protocol, cast
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.types import Candidate
 
 EMPTY_VOTER_SET = frozenset()
-INDEX_NAME = "Ballot Index"
-RANKING_PREFIX = "Ranking_"
 TILDE_FROZENSET = frozenset("~")
 
 
@@ -42,12 +46,12 @@ class ProfileVoterWeightData:
         Returns:
             ProfileVoterWeightData: Weights and voter sets of the df.
         """
-        weights = df["Weight"].to_numpy()
+        weights = df[WEIGHT_COLUMN].to_numpy()
         has_fraction_weights = weights.dtype == object and any(
             isinstance(weight, Fraction) for weight in weights
         )
 
-        voter_set_column = df["Voter Set"]
+        voter_set_column = df[VOTER_SET_COLUMN]
         voter_sets = (
             voter_set_column.to_numpy() if (voter_set_column != EMPTY_VOTER_SET).any() else None
         )
@@ -131,8 +135,8 @@ class RankMatrix:
         self.voter_weight_data = ProfileVoterWeightData.from_df(df)
 
         self.ranking_columns = sorted(
-            [col for col in df.columns if col.startswith(RANKING_PREFIX)],
-            key=lambda col: int(col.removeprefix(RANKING_PREFIX)),
+            [col for col in df.columns if col.startswith(RANKING_COLUMN_PREFIX)],
+            key=lambda col: int(col.removeprefix(RANKING_COLUMN_PREFIX)),
         )
         self.rankings = df[self.ranking_columns].to_numpy(dtype=int)
         self.id_to_cand_set_map = id_to_cand_set_map
@@ -190,9 +194,9 @@ class RankMatrix:
             voter_sets = cast(Any, [EMPTY_VOTER_SET] * len(self))
 
         df = pd.DataFrame(translated_rankings, columns=self.ranking_columns, copy=False)
-        df["Voter Set"] = voter_sets
-        df["Weight"] = self.voter_weight_data.weights
-        df.index.name = INDEX_NAME
+        df[VOTER_SET_COLUMN] = voter_sets
+        df[WEIGHT_COLUMN] = self.voter_weight_data.weights
+        df.index.name = BALLOT_INDEX_NAME
         return df
 
         def get_all_candidates_ranked_in_row(self, row_index: int) -> list[frozenset[Candidate]]:
@@ -235,7 +239,9 @@ class ScoreMatrix:
 
         self.voter_weight_data = ProfileVoterWeightData.from_df(df)
 
-        self.score_columns = [col for col in df.columns if col not in ["Weight", "Voter Set"]]
+        self.score_columns = [
+            col for col in df.columns if col not in [WEIGHT_COLUMN, VOTER_SET_COLUMN]
+        ]
 
         self.scores = df[self.score_columns].to_numpy(dtype=float)
         self.id_to_cand_set_map = id_to_cand_set_map
@@ -265,7 +271,7 @@ class ScoreMatrix:
             voter_sets = cast(Any, [EMPTY_VOTER_SET] * len(self))
 
         df = pd.DataFrame(self.scores, columns=translated_columns, copy=False)
-        df["Voter Set"] = voter_sets
-        df["Weight"] = self.voter_weight_data.weights
-        df.index.name = INDEX_NAME
+        df[VOTER_SET_COLUMN] = voter_sets
+        df[WEIGHT_COLUMN] = self.voter_weight_data.weights
+        df.index.name = BALLOT_INDEX_NAME
         return df

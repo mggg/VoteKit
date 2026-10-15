@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from votekit.ballot import RankBallot
     from votekit.pref_profile import RankProfile, ScoreProfile
 
+from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
@@ -82,11 +83,11 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
 
     df = profile.df
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     rank_arr = df[ranking_cols].to_numpy()
-    weights = df["Weight"].to_numpy()
-    voter_sets = df["Voter Set"].to_numpy().astype(object)
+    weights = df[WEIGHT_COLUMN].to_numpy()
+    voter_sets = df[VOTER_SET_COLUMN].to_numpy().astype(object)
 
     cand_dict: dict[Candidate, list[RankBallot]] = {c: [] for c in profile.candidates}
     tilde = frozenset({"~"})
@@ -224,10 +225,10 @@ def _score_dict_from_rankings_df_no_ties(
     idx_of_empty = all_frznst.index(frozenset())
 
     # Pull out weights and score_vector as NumPy arrays:
-    weights = df["Weight"].to_numpy(dtype=float)
+    weights = df[WEIGHT_COLUMN].to_numpy(dtype=float)
     score_arr = np.array(score_vector, dtype=float).reshape(1, -1)
 
-    rank_cols = [f"Ranking_{i}" for i in range(1, max_len + 1)]
+    rank_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, max_len + 1)]
     arr = df[rank_cols].to_numpy(dtype=object)
     flat_arr = arr.ravel()
 
@@ -295,12 +296,12 @@ def score_dict_from_score_vector(
     scores = {c: 0.0 for c in profile.candidates_cast}
 
     try:
-        ranking_cols = [f"Ranking_{i}" for i in range(1, max_length + 1)]
+        ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, max_length + 1)]
         ranking_mat = profile.df[ranking_cols].to_numpy()
     except KeyError as e:
         raise TypeError("Ballots must have rankings.") from e
 
-    weights = profile.df["Weight"].to_numpy(dtype=float)
+    weights = profile.df[WEIGHT_COLUMN].to_numpy(dtype=float)
 
     if tie_convention not in ["high", "average", "low"]:
         raise ValueError(
@@ -450,7 +451,7 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
 
     assert profile.max_ranking_length is not None
 
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
     tilde = frozenset({"~"})
 
@@ -475,7 +476,7 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
     if exploded.empty:
         return {c: 0.0 for c in profile.candidates}
 
-    weights = profile.df["Weight"].to_numpy()[exploded.index.get_level_values(0)]
+    weights = profile.df[WEIGHT_COLUMN].to_numpy()[exploded.index.get_level_values(0)]
 
     totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
 
@@ -1095,7 +1096,8 @@ def build_df_from_ballot_samples(
         df_data.append(completed_ballot)
     return pd.DataFrame(
         df_data,
-        columns=[f"Ranking_{i}" for i in range(1, n_cands + 1)] + ["Weight", "Voter Set"],
+        columns=[f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, n_cands + 1)]
+        + [WEIGHT_COLUMN, VOTER_SET_COLUMN],
     )
 
 

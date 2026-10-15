@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from numba import float64, int32, njit
 from numpy.typing import NDArray
 
+from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -36,7 +37,7 @@ def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, in
     fs_to_idx = {frozenset({c}): cand_name_to_idx[c] for c in cand_name_to_idx.keys()}
     fs_to_idx[frozenset({"~"})] = -2  # Make a special value for short ballots
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
     mat_obj = profile.df[ranking_cols].to_numpy(object)
     flat = mat_obj.ravel()
     flat_idx = np.empty(flat.shape[0], dtype=np.int32)
@@ -116,7 +117,7 @@ def pairwise_dict(
 
     cand_to_idx = {c: i for i, c in enumerate(candidates_lst)}
     integer_rankings_mat = __rows_to_indices(profile, cand_to_idx)
-    wt_vec = profile.df["Weight"].to_numpy().astype(np.float64)
+    wt_vec = profile.df[WEIGHT_COLUMN].to_numpy().astype(np.float64)
 
     head_to_head_matrix = np.zeros((n_cands, n_cands), dtype=np.float64)
 

@@ -18,6 +18,12 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate, CandidateList
@@ -65,12 +71,12 @@ def onedim_spacial_profile_generator(
         ballot_pool[i] = candidate_ranking
 
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
+        VOTER_SET_COLUMN,
         pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
     )
     return RankProfile(
@@ -192,12 +198,12 @@ def spacial_profile_and_positions_generator(
 
     n_candidates = len(candidates)
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
+        VOTER_SET_COLUMN,
         pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
     )
     return (
@@ -349,12 +355,12 @@ def clustered_spacial_profile_and_positions_generator(
     voter_positions_array = np.vstack(voter_positions)
 
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
+        VOTER_SET_COLUMN,
         pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
     )
     return (
