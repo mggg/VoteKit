@@ -122,7 +122,7 @@ def test_internal_matrix_with_cand_ids_as_ranking_values():
     )
     matrix = rank_profile._matrix
     candidate_id_map = {
-        cand_set: cand_set_id for cand_set_id, cand_set in matrix.iter_cand_set_ids()
+        cand_set: cand_set_id for cand_set_id, cand_set in matrix.iter_candidate_sets()
     }
 
     id_A = candidate_id_map[frozenset({"A"})]

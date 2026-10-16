@@ -63,3 +63,14 @@ def test_max_candidates_ranked_skipped_position():
     )
 
     assert profile.max_candidates_ranked == 2
+
+
+def test_stored_positions_include_padding_and_count_distinct_tied_candidates():
+    profile = RankProfile(
+        ballots=(RankBallot(ranking=({"A", "B"}, {"A"})),),
+        max_ranking_length=4,
+    )
+
+    assert profile._matrix.num_ranking_positions == 4
+    assert profile.max_ranking_length == 4
+    assert profile.max_candidates_ranked == 2

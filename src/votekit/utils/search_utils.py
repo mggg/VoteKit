@@ -217,9 +217,9 @@ def _validate_max_cand_pair_dist(max_cand_pair_dist: dict[tuple, int], profile: 
             )
 
 
-def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]:
+def _get_candidate_set_ids(profile: RankProfile, cand: Candidate | set) -> list[int]:
     """
-    Gets the profile's candidate set IDs that contain the candidate.
+    Find matrix-local candidate-set IDs by candidate membership or exact set match.
 
     Args:
         profile (RankProfile): profile with a mapping of candidate sets to IDs.
@@ -227,18 +227,18 @@ def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]
             candidate. A set of candidates will only return the ID that matches that set.
 
     Returns:
-        list[int]: candidate set IDs.
+        list[int]: Matching candidate-set IDs, valid only within this profile's matrix.
     """
     if isinstance(cand, Candidate):
         cand_set_ids = [
             cand_set_id
-            for cand_set_id, cand_set in profile._matrix.iter_cand_set_ids()
+            for cand_set_id, cand_set in profile._matrix.iter_candidate_sets()
             if cand in cand_set
         ]
     elif isinstance(cand, set):
         cand_set_ids = [
             cand_set_id
-            for cand_set_id, cand_set in profile._matrix.iter_cand_set_ids()
+            for cand_set_id, cand_set in profile._matrix.iter_candidate_sets()
             if frozenset(cand) == cand_set
         ]
     else:
@@ -248,22 +248,22 @@ def _get_candidate_ids(profile: RankProfile, cand: Candidate | set) -> list[int]
     return cand_set_ids
 
 
-def _get_candidate_id_locations(profile: RankProfile, cand_ids: Iterable[int]) -> np.ndarray:
+def _get_candidate_set_id_locations(
+    profile: RankProfile, candidate_set_ids: Iterable[int]
+) -> np.ndarray:
     """
-    Get the boolean matrix of all candidate ID positions within a profile.
+    Locate ranking positions containing any of the supplied candidate-set IDs.
 
     profile._matrix.rankings uses integer IDs to represent candidate sets.
 
     Args:
         profile (RankProfile): profile with ranking ballots.
-        cand_ids (Iterable[int]): set of candidate set IDs that represent candidate sets within
-            profile's rankings.
+        candidate_set_ids (Iterable[int]): Candidate-set IDs from this profile's matrix.
 
     Returns:
-        np.ndarray: boolean matrix with all locations of the set of candidate IDs marked as
-            True.
+        np.ndarray: Boolean matrix with matching candidate-set positions marked as True.
     """
-    return np.isin(profile._matrix.rankings, list(cand_ids))
+    return np.isin(profile._matrix.rankings, list(candidate_set_ids))
 
 
 def _extend_cand_locations(candidate_locations: np.ndarray) -> np.ndarray:
@@ -300,11 +300,15 @@ def _include_unranked_in_cand_locations(profile: RankProfile, cand_set_locations
      np.ndarray: Boolean matrix where all candidate locations are marked as True including its
         unranked locations at the end of the ballot.
     """
-    rank_array = profile._matrix.rankings
-    rank_array = np.column_stack((rank_array, [-1] * len(rank_array)))
+    from votekit.pref_profile.profile_matrix import TILDE_SET_ID
 
-    # can only be one end of a ballot, remove duplicates of -1 within a ballot
-    unranked_locations = (np.cumsum(rank_array == -1, axis=1) == 1) & (rank_array == -1)
+    rank_array = profile._matrix.rankings
+    rank_array = np.column_stack((rank_array, [TILDE_SET_ID] * len(rank_array)))
+
+    # Only the first tilde position marks the end of a ballot.
+    unranked_locations = (np.cumsum(rank_array == TILDE_SET_ID, axis=1) == 1) & (
+        rank_array == TILDE_SET_ID
+    )
     # use cand set positions for ranked candidates, fall back to unranked position otherwise
     use_cand_set_location_mask = cand_set_locations.any(axis=1, keepdims=True)
     cand_set_locations_add_col = np.column_stack(
@@ -336,19 +340,19 @@ def _make_boolean_matrix_for_cand_set_id(
         (np.ndarray): Boolean matrix where candidate's locations in the rankings are marked as
             True
     """
-    candidate_id_locations = _get_candidate_id_locations(
-        profile, set(_get_candidate_ids(profile, candidate))
+    candidate_set_id_locations = _get_candidate_set_id_locations(
+        profile, set(_get_candidate_set_ids(profile, candidate))
     )
     if include_unranked:
         if isinstance(candidate, set):
             # strict set query adds a column for the end of the ballot
             # but unranked locations are not evaluated.
-            candidate_id_locations = _extend_cand_locations(candidate_id_locations)
+            candidate_set_id_locations = _extend_cand_locations(candidate_set_id_locations)
         else:
-            candidate_id_locations = _include_unranked_in_cand_locations(
-                profile, candidate_id_locations
+            candidate_set_id_locations = _include_unranked_in_cand_locations(
+                profile, candidate_set_id_locations
             )
-    return candidate_id_locations
+    return candidate_set_id_locations
 
 
 def _boolean_matrix(

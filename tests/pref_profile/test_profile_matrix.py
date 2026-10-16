@@ -488,6 +488,11 @@ def test_rank_matrix_constructor_preserves_reserved_ids_ties_and_mixed_candidate
         candidates=(1, "1", "unranked"),
     )
 
+    assert list(matrix.iter_candidate_sets()) == [
+        (-2, frozenset()),
+        (-1, frozenset({"~"})),
+        (0, frozenset({1, "1"})),
+    ]
     assert matrix.get_cand_set_from_id(-2) == frozenset()
     assert matrix.get_cand_set_from_id(-1) == frozenset({"~"})
     assert matrix.get_cand_set_from_id(0) == frozenset({1, "1"})
@@ -526,7 +531,7 @@ def test_rank_matrix_constructor_accepts_empty_dimensions(shape: tuple[int, int]
     )
 
     assert len(matrix) == num_ballots
-    assert matrix.max_ranking_length == num_columns
+    assert matrix.num_ranking_positions == num_columns
     assert matrix.max_candidates_ranked() == 0
     assert matrix.to_df().shape == (num_ballots, num_columns + 2)
 

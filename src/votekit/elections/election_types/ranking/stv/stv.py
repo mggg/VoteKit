@@ -7,7 +7,7 @@ from warnings import warn
 import numpy as np
 from numpy.typing import NDArray
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
     condense_rank_ballot,
@@ -879,12 +879,10 @@ class STV(RankingElection):
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
         assert profile.max_ranking_length is not None
-        ranking_rows = [
-            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_columns = list(profile._matrix.ranking_columns)
         try:
             profile_df = profile.to_df()
-            np_arr = profile_df[ranking_rows].to_numpy()
+            np_arr = profile_df[ranking_columns].to_numpy()
             weight_col = profile_df[WEIGHT_COLUMN]
         except KeyError:
             raise TypeError("Ballots must have rankings.")

@@ -83,7 +83,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
 
     df = profile.to_df()
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
 
     rank_arr = df[ranking_cols].to_numpy()
     weights = df[WEIGHT_COLUMN].to_numpy()
@@ -228,7 +228,7 @@ def _score_dict_from_rankings_df_no_ties(
     weights = df[WEIGHT_COLUMN].to_numpy(dtype=float)
     score_arr = np.array(score_vector, dtype=float).reshape(1, -1)
 
-    rank_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, max_len + 1)]
+    rank_cols = list(profile._matrix.ranking_columns)
     arr = df[rank_cols].to_numpy(dtype=object)
     flat_arr = arr.ravel()
 
@@ -298,7 +298,7 @@ def score_dict_from_score_vector(
     profile_df = profile.to_df()
 
     try:
-        ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, max_length + 1)]
+        ranking_cols = list(profile._matrix.ranking_columns)
         ranking_mat = profile_df[ranking_cols].to_numpy()
     except KeyError as e:
         raise TypeError("Ballots must have rankings.") from e
@@ -455,7 +455,7 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
 
     assert profile.max_ranking_length is not None
 
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
 
     profile_df = profile.to_df()
 

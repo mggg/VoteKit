@@ -408,7 +408,9 @@ class ProfileMatrix(Protocol):
 
     RankMatrix and ScoreMatrix implement this protocol structurally. Common profile operations
     use this interface; rank- and score-specific operations use their concrete matrix types.
-    Dataframe parsing belongs to the Python adapters exposed by ``from_df``.
+    Dataframe parsing belongs to the Python adapters exposed by ``from_df``. Construction
+    owns input storage and preserves ballot row order. Exports are independent snapshots;
+    round trips preserve ballot meaning, not necessarily input dtypes or column order.
 
     Attributes:
         voter_weight_data (_ProfileVoterWeightData): Aligned weights, voters, and index labels.
@@ -440,7 +442,8 @@ class ProfileMatrix(Protocol):
             candidates (Sequence[Candidate]): Candidate universe in its declared order.
 
         Returns:
-            Self: Matrix containing owned, validated ballot data.
+            Self: Matrix containing owned, validated ballot data in input row order. Later
+                changes to the dataframe do not affect the matrix.
         """
         ...
 
@@ -455,9 +458,10 @@ class ProfileMatrix(Protocol):
         Export stored ballot data using the concrete matrix's public dataframe schema.
 
         Returns:
-            pd.DataFrame: Ballot rows with decoded candidate data, shared columns, and source
-                index labels when retained. Arrays are detached from matrix storage; immutable sets
-                may be shared. Weight normalization may differ from the original input.
+            pd.DataFrame: Ballot rows in stored order, with decoded candidate data, shared columns,
+                and source index labels when retained. Mutating an export affects neither the
+                matrix nor other exports. Immutable sets may be shared. Weight dtypes, column
+                ordering, and index metadata may differ from the original input.
         """
         ...
 
@@ -699,18 +703,19 @@ class RankMatrix:
         )
 
     @property
-    def max_ranking_length(self) -> int:
+    def num_ranking_positions(self) -> int:
         """
-        Return the number of stored ranking positions per ballot.
+        Return the number of stored ranking columns, including empty and tilde padding.
         """
         return self.rankings.shape[1]
 
     def get_cand_set_from_id(self, cand_set_id: int) -> frozenset[Candidate]:
         """
-        Look up a candidate set by its stored ID, including the two reserved IDs.
+        Look up a candidate set by its matrix-local ID, including the two reserved IDs.
 
         Args:
             cand_set_id (int): Valid ID from EMPTY_SET_ID through ``len(cand_sets) - 3``.
+                IDs must come from this matrix; another matrix may assign them differently.
                 This accessor assumes a validated ID and does not perform a separate range check.
 
         Returns:
@@ -719,9 +724,9 @@ class RankMatrix:
         """
         return self.cand_sets[cand_set_id - EMPTY_SET_ID]
 
-    def iter_cand_set_ids(self) -> Iterator[tuple[int, frozenset[Candidate]]]:
+    def iter_candidate_sets(self) -> Iterator[tuple[int, frozenset[Candidate]]]:
         """
-        Iterate over the dense candidate-set table in ID order, including reserved sets.
+        Iterate over (ID, candidate set) pairs in matrix-local ID order, including reserved sets.
 
         Returns:
             Iterator[tuple[int, frozenset[Candidate]]]: Pairs of candidate-set ID and frozen set,

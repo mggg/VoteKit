@@ -5,7 +5,7 @@ from scipy.optimize import linprog
 from scipy.sparse import csr_matrix, identity, kron, vstack
 from scipy.stats import kendalltau
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
@@ -297,9 +297,7 @@ def __build_simultaneous_profile_distribution(
 
     assert profile1.max_ranking_length is not None
     profile1_df = profile1.to_df()
-    profile1_ranking_array = profile1_df[
-        [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile1.max_ranking_length + 1)]
-    ].to_numpy()
+    profile1_ranking_array = profile1_df[list(profile1._matrix.ranking_columns)].to_numpy()
     profile1_wt_vector = profile1_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile1_wt_vector = profile1_wt_vector / np.sum(profile1_wt_vector)
 
@@ -320,9 +318,7 @@ def __build_simultaneous_profile_distribution(
 
     assert profile2.max_ranking_length is not None
     profile2_df = profile2.to_df()
-    profile2_ranking_array = profile2_df[
-        [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile2.max_ranking_length + 1)]
-    ].to_numpy()
+    profile2_ranking_array = profile2_df[list(profile2._matrix.ranking_columns)].to_numpy()
     profile2_wt_vector = profile2_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile2_wt_vector = profile2_wt_vector / np.sum(profile2_wt_vector)
 

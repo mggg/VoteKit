@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
@@ -31,7 +31,7 @@ def _iterate_and_clean_ranking_tuples(
     """
     cleaned_df = profile.to_df()
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
 
     orig_rows = [
         tuple(vals) for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
@@ -109,9 +109,7 @@ def clean_rank_profile(
 
     if remove_null_ballots:
         assert profile.max_ranking_length is not None
-        ranking_cols = [
-            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_cols = list(profile._matrix.ranking_columns)
 
         mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
 
@@ -507,11 +505,11 @@ def remove_ballots_with_cand_rank_profile(
         cand_set_ids.extend(
             [
                 cand_set_id
-                for cand_set_id, cand_set in profile._matrix.iter_cand_set_ids()
+                for cand_set_id, cand_set in profile._matrix.iter_candidate_sets()
                 if cand in cand_set
             ]
         )
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
     ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_set_ids), axis=1)
     profile_df = profile.to_df()
     cleaned_df = profile_df[~ballots_to_remove]

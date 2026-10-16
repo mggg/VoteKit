@@ -852,7 +852,7 @@ class RankProfile(PreferenceProfile):
 
         """
         if self.max_ranking_length == 0 or self.max_ranking_length is None:
-            return len(self._matrix.ranking_columns)
+            return self._matrix.num_ranking_positions
 
         return self.max_ranking_length
 
@@ -1048,7 +1048,7 @@ class RankProfile(PreferenceProfile):
                 prefixes. Candidates can be strings, integers, or mix of both.
         """
         assert self.max_ranking_length is not None
-        data_col_names = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(self.max_ranking_length)]
+        data_col_names = list(self._matrix.ranking_columns)
         # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
         # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
         # will break if the order is changed.

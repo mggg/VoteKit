@@ -8,7 +8,7 @@ from typing import Literal, Optional, cast
 import numpy as np
 from typing_extensions import Sentinel
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
@@ -144,9 +144,7 @@ class SimultaneousVeto(RankingElection):
         # unmentioned candidates are considered tied for last place
         assert grouped_profile.max_ranking_length is not None
         self._max_ranking_length: int = grouped_profile.max_ranking_length
-        self._ranking_cols = [
-            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, self._max_ranking_length + 1)
-        ]
+        self._ranking_cols = list(grouped_profile._matrix.ranking_columns)
         self._unlisted_candidates_by_ballot = tuple(
             self.candidates - (frozenset.union(*ballot[self._ranking_cols]))
             for _, ballot in self._df.iterrows()

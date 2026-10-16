@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from typing import Callable, Optional
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX
 from votekit.elections.election_state import ElectionState
 from votekit.models import Election
 from votekit.pref_profile import ProfileError, RankProfile
@@ -77,9 +76,7 @@ class RankingElection(Election[RankProfile]):
             raise ProfileError("Profile must contain at least one ranked candidate.")
 
         assert profile.max_ranking_length is not None
-        ranking_cols = [
-            f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
-        ]
+        ranking_cols = list(profile._matrix.ranking_columns)
         try:
             np_arr = profile_df[ranking_cols].to_numpy()
             tilde = frozenset("~")

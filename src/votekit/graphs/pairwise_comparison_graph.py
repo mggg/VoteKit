@@ -10,7 +10,7 @@ from matplotlib.axes import Axes
 from numba import float64, int32, njit
 from numpy.typing import NDArray
 
-from votekit._df_schema import RANKING_COLUMN_PREFIX, WEIGHT_COLUMN
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -114,7 +114,7 @@ def pairwise_dict(
 
     cand_to_idx = {c: i for i, c in enumerate(candidates_lst)}
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
     profile_df = profile.to_df()
     integer_rankings_mat = __rows_to_indices(profile_df[ranking_cols].to_numpy(object), cand_to_idx)
     wt_vec = profile_df[WEIGHT_COLUMN].to_numpy().astype(np.float64)

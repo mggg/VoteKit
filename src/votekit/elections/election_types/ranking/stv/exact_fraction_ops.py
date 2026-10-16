@@ -4,6 +4,7 @@ from typing import Any, Callable, cast
 
 from votekit._df_schema import WEIGHT_COLUMN
 from votekit.pref_profile import RankProfile
+from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
 from votekit.types import Candidate, Numeric
 
 
@@ -97,12 +98,12 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     if profile._matrix.rankings.size == 0:
         return scores
 
-    for candidate_id, weight in zip(
+    for candidate_set_id, weight in zip(
         profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
     ):
-        if candidate_id == -1:
+        if candidate_set_id == TILDE_SET_ID:
             continue
-        candidate_set = profile._matrix.get_cand_set_from_id(candidate_id)
+        candidate_set = profile._matrix.get_cand_set_from_id(candidate_set_id)
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
@@ -128,19 +129,21 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
     if profile._matrix.rankings.size == 0:
         return scores
 
-    candidates_by_id = {}
-    for candidate_id, candidate_set in profile._matrix.iter_cand_set_ids():
-        if candidate_id < 0:
+    candidates_by_set_id = {}
+    for candidate_set_id, candidate_set in profile._matrix.iter_candidate_sets():
+        if candidate_set_id in (EMPTY_SET_ID, TILDE_SET_ID):
             continue
         assert len(candidate_set) == 1
-        candidates_by_id[candidate_id] = next(iter(candidate_set))
+        candidates_by_set_id[candidate_set_id] = next(iter(candidate_set))
 
-    for candidate_ids, weight in zip(
+    for candidate_set_ids, weight in zip(
         profile._matrix.rankings, profile._matrix.voter_weight_data.weights
     ):
         assert isinstance(weight, Fraction)
-        for rank, candidate_id in enumerate(candidate_ids):
-            if candidate_id == -1:
+        for rank, candidate_set_id in enumerate(candidate_set_ids):
+            if candidate_set_id == TILDE_SET_ID:
                 break
-            scores[candidates_by_id[candidate_id]] += weight * (profile.max_ranking_length - rank)
+            scores[candidates_by_set_id[candidate_set_id]] += weight * (
+                profile.max_ranking_length - rank
+            )
     return scores

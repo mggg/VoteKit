@@ -413,9 +413,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
     profile_df = rank_profile.to_df()
-    ranking_cols = [
-        f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, rank_profile.max_ranking_length + 1)
-    ]
+    ranking_cols = list(rank_profile._matrix.ranking_columns)
     rankings_arr = profile_df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
     if any(len(x) > 1 for x in rankings_arr):
         raise ValueError("Ballots must not contain ties.")
@@ -491,12 +489,9 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
 
     new_df = pd.concat(total_dfs, ignore_index=True)
     new_df.index.name = BALLOT_INDEX_NAME
-    ranking_cols = [col for col in new_df.columns if RANKING_COLUMN_PREFIX in col]
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
     new_df[ranking_cols] = new_df[ranking_cols].astype("object")
-    new_df = new_df[
-        [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
-        + [WEIGHT_COLUMN, VOTER_SET_COLUMN]
-    ]
+    new_df = new_df[ranking_cols + [WEIGHT_COLUMN, VOTER_SET_COLUMN]]
 
     return RankProfile(
         candidates=candidates,
