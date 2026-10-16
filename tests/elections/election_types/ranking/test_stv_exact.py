@@ -91,20 +91,19 @@ def test_exact_stv_rejects_non_integral_float_weight():
         STV(invalid, n_seats=2, exact=True)
 
 
-def test_df_weights_narrow_to_float64_unless_fraction():
-    # 2**53 + 0.5 is integral in float64, so the narrowed profile passes exact validation
-    weight = np.longdouble(2**53) + np.longdouble("0.5")
+def test_profile_rejects_integer_rounding_before_exact_stv_validation():
+    weight = 2**53 + 1
+
     profile = _three_candidate_profile()
     df = profile.df.copy()
     df["Weight"] = pd.Series([weight, 2, 1], dtype=object)
-    narrowed = RankProfile(
-        df=df,
-        candidates=profile.candidates,
-        max_ranking_length=profile.max_ranking_length,
-    )
 
-    assert narrowed.df["Weight"].dtype == np.float64
-    STV(narrowed, n_seats=2, exact=True, rng_seed=2)
+    with pytest.raises(ProfileError, match="represented exactly as float64"):
+        RankProfile(
+            df=df,
+            candidates=profile.candidates,
+            max_ranking_length=profile.max_ranking_length,
+        )
 
 
 @pytest.mark.parametrize("weight", [-1, Fraction(-1, 3)])

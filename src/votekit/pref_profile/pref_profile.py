@@ -1662,13 +1662,19 @@ class ScoreProfile(PreferenceProfile):
 
         Raises:
             ProfileError: Cannot write a profile with no ballots to a csv.
-            ValueError: File path must be provided.
+            ValueError: The file path is empty or the profile contains Fraction weights.
         """
         if fpath is not None and str(fpath) == "":
             raise ValueError("File path must be provided.")
 
         if len(self.ballots) == 0:
             raise ProfileError("Cannot write a profile with no ballots to a csv.")
+
+        if self._matrix.voter_weight_data.has_fraction_weights:
+            raise ValueError(
+                "ScoreProfile CSV does not support rational weights. Convert a copied profile "
+                "to float first if a lossy export is acceptable."
+            )
 
         candidate_mapping = {c: str(i) for i, c in enumerate(self.candidates)}
 

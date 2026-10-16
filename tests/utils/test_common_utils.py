@@ -373,7 +373,7 @@ def _random_mentions_profile(rng: random.Random) -> RankProfile:
             n = rng.randint(1, min(2, len(pool)))
             ranking.append(frozenset(pool[:n]))
             pool = pool[n:]
-        weight = rng.choice([0, 1, 3, 1 / 2, Fraction(1, 3)])
+        weight = rng.choice([0, 1, 3, Fraction(1, 2), Fraction(1, 3)])
         ballots.append(RankBallot(ranking=tuple(ranking), weight=weight))
     # sometimes omit the explicit candidate list so profile.candidates can exclude candidates
     # that appear only on zero-weight ballots

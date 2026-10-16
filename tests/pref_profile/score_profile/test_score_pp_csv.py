@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import pytest
 
 from votekit.ballot import ScoreBallot
@@ -264,3 +266,14 @@ def test_csv_seven_errors():
 def test_csv_11_errors():
     with pytest.raises(ValueError, match="There are errors on at least ten lines"):
         ScoreProfile.from_csv(f"{filepath}/test_csv_pp_misformat_11_errors.csv")
+
+
+def test_fraction_weights_are_rejected_before_csv_file_is_overwritten(tmp_path):
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=Fraction(1, 3))])
+    destination = tmp_path / "profile.csv"
+    destination.write_text("existing content")
+
+    with pytest.raises(ValueError, match="CSV does not support rational weights"):
+        profile.to_csv(destination)
+
+    assert destination.read_text() == "existing content"

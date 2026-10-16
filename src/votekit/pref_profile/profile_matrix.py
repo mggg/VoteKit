@@ -2,7 +2,6 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
-from numbers import Integral
 from typing import Any, Iterator, Protocol, Self, Sequence, cast, runtime_checkable
 
 import numpy as np
@@ -15,7 +14,7 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
-from votekit.ballot import validate_weight
+from votekit.ballot import _to_float_weight, validate_weight
 from votekit.exceptions import ProfileError
 from votekit.types import Candidate
 
@@ -283,17 +282,16 @@ def _non_default_index(index: pd.Index) -> NDArray | None:
 
 def _normalize_weights(weights: NDArray) -> tuple[NDArray, WeightKind]:
     """
-    Validate input weights and choose float64 or Fraction storage.
+    Validate weights and select float64 or Fraction storage without changing their values.
 
-    An object array containing any Fraction is converted entirely to Fractions. Existing
-    Fractions are retained; integral values are converted exactly; other values pass through
-    ``float`` and ``limit_denominator``. This approximation can change small positive weights
-    to zero. Other arrays become float64, which can lose precision or overflow for wider inputs.
-    An empty array uses FLOAT. The shared-data constructor checks the resulting stored values.
+    Any Fraction selects Fraction storage for the entire array. Other entries must then be
+    integers or integral floats and are converted exactly. Without Fractions, every value must
+    be exactly representable as float64. Supported floating inputs are Python float and NumPy
+    float64; other floating dtypes require explicit caller conversion. Empty input uses FLOAT.
 
     Args:
-        weights (NDArray): One-dimensional weight array. Numeric arrays are expected to contain
-            real values; object entries are individually checked by ``validate_weight``.
+        weights (NDArray): One-dimensional array of real, finite, nonnegative weights.
+            Booleans are not weights, including in numeric arrays.
 
     Returns:
         tuple[NDArray, WeightKind]: Normalized weights and their representation. A compatible
@@ -301,37 +299,75 @@ def _normalize_weights(weights: NDArray) -> tuple[NDArray, WeightKind]:
             ownership.
 
     Raises:
-        ProfileError: Input checks find negative or nonfinite values, or reject an object entry.
-        OverflowError: A value cannot be converted to the target numeric representation.
+        ProfileError: Input is not one-dimensional, contains invalid weights, mixes Fractions
+            with non-integral floats, or requires lossy conversion to float64.
     """
+    if weights.ndim != 1:
+        raise ProfileError("weights must be a 1D array.")
+    if weights.size == 0:
+        return np.empty(0, dtype=np.float64), WeightKind.FLOAT
+
     if weights.dtype != object:
         _validate_numeric_weights(weights)
-        return weights.astype(np.float64, copy=False), WeightKind.FLOAT
+        return _numeric_weights_to_float64(weights), WeightKind.FLOAT
 
-    for weight in weights:
-        try:
+    try:
+        for weight in weights:
             validate_weight(weight)
-        except (TypeError, ValueError) as error:
-            raise ProfileError(str(error)) from error
 
-    if not any(isinstance(weight, Fraction) for weight in weights):
-        return weights.astype(np.float64), WeightKind.FLOAT
+        if any(isinstance(weight, Fraction) for weight in weights):
+            fractions = np.empty(len(weights), dtype=object)
+            fractions[:] = [_as_fraction(weight) for weight in weights]
+            return fractions, WeightKind.FRACTION
 
-    fractions = np.empty(len(weights), dtype=object)
-    fractions[:] = [_as_fraction(weight) for weight in weights]
-    return fractions, WeightKind.FRACTION
+        return np.array([_to_float_weight(weight) for weight in weights]), WeightKind.FLOAT
+    except (TypeError, ValueError) as error:
+        raise ProfileError(str(error)) from error
+
+
+def _numeric_weights_to_float64(weights: NDArray) -> NDArray[np.float64]:
+    """
+    Retain validated float64 weights or convert integer weights exactly.
+
+    Args:
+        weights (NDArray): Finite, nonnegative weights with an integer or float64 dtype.
+
+    Returns:
+        NDArray[np.float64]: Exact float64 values; compatible input storage may be reused.
+
+    Raises:
+        ProfileError: An integer cannot be represented exactly as float64.
+    """
+    if weights.dtype == np.float64:
+        return weights
+
+    # Smaller nonnegative integers are always exactly representable in float64.
+    if weights.dtype.kind in "iu":
+        for weight in weights[weights > 2**53]:
+            try:
+                _to_float_weight(weight)
+            except ValueError as error:
+                raise ProfileError(str(error)) from error
+
+    return weights.astype(np.float64, copy=False)
 
 
 def _validate_numeric_weights(weights: NDArray) -> None:
     """
-    Reject negative, NaN, or infinite values in a real numeric array.
+    Validate nonnegative integer or float64 weights, rejecting other numeric dtypes.
 
     Args:
-        weights (NDArray): Array supporting NumPy's finiteness and ordering operations.
+        weights (NDArray): Array with an integer or float64 dtype.
 
     Raises:
-        ProfileError: Any entry is negative, NaN, or infinite.
+        ProfileError: The dtype is unsupported or an entry is negative, NaN, or infinite.
     """
+    if weights.dtype.kind not in "iuf":
+        raise ProfileError("Ballot weights must be real numbers, excluding booleans.")
+    if weights.dtype.kind == "f" and weights.dtype.type is not np.float64:
+        raise ProfileError(
+            "Floating ballot weights must use float64; convert other dtypes explicitly."
+        )
     if np.isnan(weights).any():
         raise ProfileError("Ballot weights cannot be NaN.")
     if np.isinf(weights).any():
@@ -342,25 +378,27 @@ def _validate_numeric_weights(weights: NDArray) -> None:
 
 def _as_fraction(weight: Any) -> Fraction:
     """
-    Convert a validated real weight to a Fraction using the normalization policy.
+    Retain a Fraction or convert a validated integral weight exactly.
 
     Args:
-        weight (Any): Validated real weight. Existing Fractions are retained and integers are
-            converted exactly. Other values are converted to float and then approximated with
-            ``limit_denominator``.
+        weight (Any): Finite, nonnegative real weight already checked by ``validate_weight``.
 
     Returns:
-        Fraction: Converted or retained weight.
+        Fraction: Existing Fraction or exact integer weight, without float64 narrowing.
 
     Raises:
-        OverflowError: Conversion to float overflows or produces infinity.
-        ValueError: Conversion to Fraction encounters NaN.
+        ValueError: A non-integral float is mixed with Fraction weights.
     """
     if isinstance(weight, Fraction):
         return weight
-    if isinstance(weight, Integral):
-        return Fraction(int(weight))
-    return Fraction(float(weight)).limit_denominator()
+
+    integer_weight = int(weight)
+    if weight != integer_weight:
+        raise ValueError(
+            "Cannot mix Fraction weights with non-integral float weights. "
+            "Pass Fraction(numerator, denominator) explicitly for fractional weights."
+        )
+    return Fraction(integer_weight)
 
 
 @runtime_checkable

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from fractions import Fraction
-from numbers import Rational, Real
+from numbers import Integral, Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
@@ -13,25 +13,60 @@ def validate_weight(weight: object) -> None:
     """
     Validate a single real, finite, nonnegative ballot weight without converting it.
 
-    Integers and Fractions are checked without conversion to float, so large finite rational
-    values do not overflow during validation.
+    Supported floating weights are Python float and NumPy float64. Integers and Fractions are
+    checked without conversion to float, so large finite values do not overflow during validation.
 
     Args:
         weight (object): Proposed ballot weight. Booleans are rejected even though bool is
             a subclass of int.
 
     Raises:
-        TypeError: The weight is a bool or is not a real number.
+        TypeError: The weight is a bool or has an unsupported numeric type.
         ValueError: The weight is negative, NaN, or infinite.
     """
-    if isinstance(weight, bool) or not isinstance(weight, Real):
+    if isinstance(weight, bool) or not isinstance(weight, (float, Integral, Fraction)):
         raise TypeError(
-            f"Ballot weight must be a float, int, or Fraction. Got {type(weight).__name__}."
+            "Ballot weight must be a float, int, or Fraction. "
+            "Floating weights must use Python float or NumPy float64. "
+            f"Got {type(weight).__name__}."
         )
-    if not isinstance(weight, Rational) and not math.isfinite(weight):
+    if isinstance(weight, float) and not math.isfinite(weight):
         raise ValueError(f"Ballot weight cannot be NaN or infinity. Got {weight}.")
     if weight < 0:
         raise ValueError(f"Ballot weight cannot be negative. Got {weight}.")
+
+
+def _to_float_weight(weight: float | int) -> float:
+    """
+    Retain a validated float or convert an integer without rounding or overflow.
+
+    Args:
+        weight (float | int): Supported, finite, nonnegative float or integer already checked
+            by ``validate_weight``.
+
+    Returns:
+        float: Exactly represented weight as a Python float.
+
+    Raises:
+        ValueError: Conversion changes the supplied value or exceeds float64's finite range.
+    """
+    if isinstance(weight, float):
+        # NumPy float64 can pass this guard. Convert to python float.
+        return float(weight)
+
+    error_message = (
+        "Ballot weight cannot be represented exactly as float64. "
+        "Pass an explicit float to allow rounding, or a Fraction for an exact weight."
+    )
+    try:
+        converted = float(weight)
+    except OverflowError as error:
+        raise ValueError(error_message) from error
+
+    # Compare integers to avoid NumPy rounding the source value during comparison.
+    if int(converted) != int(weight):
+        raise ValueError(error_message)
+    return converted
 
 
 class Ballot:
@@ -44,7 +79,8 @@ class Ballot:
             Candidates can be strings, integers, or mix of both.
             Defaults to None. Will be coerced to tuple[frozenset[Candidate], ...].
         weight (Union[float, int, Fraction]): Weight assigned to a given ballot. Defaults to 1.0.
-            Rational weights are preserved for rank ballots; other weights are coerced to float.
+            Fractions are preserved. Floating weights must be Python float or NumPy float64;
+            integer weights must be exactly representable as float64.
         voter_set (Union[set[str], frozenset[str]]): Set of voters who cast the ballot.
             Defaults to frozenset(). Will be coerced to frozenset.
         scores (Optional[Mapping[Candidate, float | int] | Mapping[str, float | int]
@@ -64,7 +100,8 @@ class Ballot:
 
     Raises:
         TypeError: Only one of ranking or scores can be provided.
-        ValueError: Ballot weight cannot be negative.
+        ValueError: Weight is negative, nonfinite, or cannot be represented exactly as float64
+            without an explicit Fraction.
     """
 
     # Memory trick since this is a basic type
@@ -93,7 +130,7 @@ class Ballot:
         *,
         ranking: None = None,
         scores: ScoresLike,
-        weight: Union[float, int] = 1.0,
+        weight: Union[float, int, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
         include_zero_score: bool = False,
     ) -> ScoreBallot: ...
@@ -104,7 +141,7 @@ class Ballot:
         *,
         ranking: RankingLike = None,
         scores: ScoresLike = None,
-        weight: Union[float, int] = 1.0,
+        weight: Union[float, int, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
         include_zero_score: bool = False,
     ) -> Ballot: ...
@@ -138,11 +175,7 @@ class Ballot:
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
         validate_weight(weight)
 
-        self.weight = (
-            weight
-            if isinstance(self, RankBallot) and isinstance(weight, Fraction)
-            else float(weight)
-        )
+        self.weight = weight if isinstance(weight, Fraction) else _to_float_weight(weight)
         self._frozen = True
 
     def __eq__(self, other):
@@ -203,7 +236,8 @@ class RankBallot(Ballot):
     Raises:
         TypeError: Ranking is a sequence of bare or iterable str/int candidates.
         ValueError: Candidate '~' found in ballot ranking.
-        ValueError: Ballot weight cannot be negative.
+        ValueError: Weight is negative, nonfinite, or cannot be represented exactly as float64
+            without an explicit Fraction.
         UserWarning: '1' and 1 candidates are treated as separate candidates.
     """
 
@@ -308,18 +342,19 @@ class ScoreBallot(Ballot):
             ScoresLike = Mapping[Candidate, int | float] | Mapping[str, int | float]
             | Mapping[int, int | float] | None
             Candidates can be strings, integers, or mix of both.
-        weight (Union[int, float]): Weight of the ballot, defaults to 1.0.
+        weight (Union[int, float, Fraction]): Weight of the ballot, defaults to 1.0.
         voter_set (Union[set[str], frozenset[str]]): Voter set of the ballot,
             defaults to frozenset().
 
     Attributes:
         scores (Optional[dict[Candidate, float]]): Scores of candidates.
-        weight (float): Weight of the ballot.
+        weight (float | Fraction): Weight of the ballot.
         voter_set (frozenset[str]): Voter set of the ballot.
 
     Raises:
         ValueError: Candidate '~' found in ballot scores.
-        ValueError: Ballot weight cannot be negative.
+        ValueError: Weight is negative, nonfinite, or cannot be represented exactly as float64
+            without an explicit Fraction.
         TypeError: Scores must be a mapping of candidates to score values.
         TypeError: Score values must be numeric.
         UserWarning: '1' and 1 candidates are treated as separate candidates.
@@ -330,7 +365,7 @@ class ScoreBallot(Ballot):
         *,
         ranking: RankingLike = None,
         scores: ScoresLike = None,
-        weight: Union[int, float] = 1.0,
+        weight: Union[int, float, Fraction] = 1.0,
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         if ranking is not None:
