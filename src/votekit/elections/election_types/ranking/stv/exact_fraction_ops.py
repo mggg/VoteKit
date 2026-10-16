@@ -102,7 +102,7 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     ):
         if candidate_id == -1:
             continue
-        candidate_set = profile._matrix.id_to_cand_set_map[candidate_id]
+        candidate_set = profile._matrix.get_cand_set_from_id(candidate_id)
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
@@ -129,7 +129,7 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
         return scores
 
     candidates_by_id = {}
-    for candidate_id, candidate_set in profile._matrix.id_to_cand_set_map.items():
+    for candidate_id, candidate_set in profile._matrix.iter_cand_set_ids():
         if candidate_id < 0:
             continue
         assert len(candidate_set) == 1

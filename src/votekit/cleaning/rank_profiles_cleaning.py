@@ -507,7 +507,7 @@ def remove_ballots_with_cand_rank_profile(
         cand_set_ids.extend(
             [
                 cand_set_id
-                for cand_set_id, cand_set in profile._matrix.id_to_cand_set_map.items()
+                for cand_set_id, cand_set in profile._matrix.iter_cand_set_ids()
                 if cand in cand_set
             ]
         )

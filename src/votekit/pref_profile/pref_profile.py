@@ -30,7 +30,7 @@ from votekit.pref_profile.csv_utils import (
     _validate_rank_csv_format,
     _validate_score_csv_format,
 )
-from votekit.pref_profile.profile_matrix import RankMatrix, ScoreMatrix
+from votekit.pref_profile.profile_matrix import TILDE_SET, ProfileMatrix, RankMatrix, ScoreMatrix
 from votekit.pref_profile.utils import (
     _sum_rank_profiles,
     _sum_score_profiles,
@@ -43,24 +43,6 @@ from votekit.utils import (
     _validate_candidate_names,
     sort_candidates_pseudo_lexicographically,
 )
-
-
-def _get_new_cand_set_id(cand_set_to_id_map: dict[frozenset[Candidate], int]) -> int:
-    """
-    Get the next available candidate set ID.
-
-    Candidate set IDs -1 and -2 are reserved for frozenset({"~"}) and frozenset() respectively. The
-    next available candidate set ID is the length of the candidate set to ID mapping minus the
-    two reserved IDs.
-
-    Args:
-        cand_set_to_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to
-            integer IDs. Candidates can be strings, integers, or mix of both.
-
-    Returns:
-        int: Next available candidate set ID.
-    """
-    return len(cand_set_to_id_map) - 2
 
 
 class PreferenceProfile:
@@ -119,7 +101,7 @@ class PreferenceProfile:
     """
 
     _is_frozen: bool = False
-    _matrix: RankMatrix | ScoreMatrix | None = None
+    _matrix: ProfileMatrix | None = None
 
     @overload
     def __new__(
@@ -387,27 +369,24 @@ class RankProfile(PreferenceProfile):
         include_zero_score: None = None,
     ):
         self.candidates = tuple(candidates)
-        candidate_id_map: dict[frozenset[Candidate], int] = {frozenset({"~"}): -1, frozenset(): -2}
 
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
         if df.equals(pd.DataFrame()):
-            (cand_set_id_df, self.candidates_cast, candidate_id_map) = self._init_from_rank_ballots(
-                cast(Sequence[RankBallot], ballots), candidate_id_map
+            rank_df, self.candidates_cast = self._init_from_rank_ballots(
+                cast(Sequence[RankBallot], ballots)
             )
 
         else:
-            cand_set_id_df, self.candidates_cast, candidate_id_map = self._init_from_rank_df(
-                df, candidate_id_map
-            )
+            rank_df, self.candidates_cast = self._init_from_rank_df(df)
 
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        id_candidate_map = {
-            cand_set_id: cand_set for cand_set, cand_set_id in candidate_id_map.items()
-        }
-        self._matrix = RankMatrix.from_df(cand_set_id_df, id_candidate_map)
+        _validate_candidate_names(
+            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
+        )
+        self._matrix = RankMatrix.from_df(rank_df, self.candidates)
 
         self.max_ranking_length = self._find_max_ranking_length()
 
@@ -445,30 +424,23 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[frozenset[Candidate], int],
     ):
         """
         Update the ranking data from a ballot.
 
         Args:
-            rank_ballot_data (dict[str, list]): Dictionary storing ballot data.
+            rank_ballot_data (dict[str, list]): Per-column ballot lists, updated in place.
             idx (int): Index of ballot.
             rank_ballot (RankBallot): Ballot.
-            candidates_cast (list[Candidate]): List of candidates who have received votes.
-                Candidates can be strings, integers, or mix of both.
+            candidates_cast (list[Candidate]): Candidates cast, updated in place.
+                Only positive-weight ballots contribute. Names can be strings or integers.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[frozenset[Candidate],int]): mapping of candidate sets to integer
-                IDs. Candidates can be strings, integers, or mix of both.
-
         """
 
         if rank_ballot.ranking is None:
             return
 
         for j, cand_set in enumerate(rank_ballot.ranking):
-            if cand_set not in candidate_id_map:
-                candidate_id_map[cand_set] = _get_new_cand_set_id(candidate_id_map)
-
             for c in cand_set:
                 if self.candidates != tuple():
                     if c not in self.candidates:
@@ -487,10 +459,8 @@ class RankProfile(PreferenceProfile):
                         f"Max ranking length {self.max_ranking_length} given but "
                         f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"] = [
-                    candidate_id_map[frozenset("~")]
-                ] * num_ballots
-            rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"][idx] = candidate_id_map[cand_set]
+                rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"] = [TILDE_SET] * num_ballots
+            rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"][idx] = cand_set
 
     def __update_rank_ballot_data_attrs(
         self,
@@ -499,20 +469,17 @@ class RankProfile(PreferenceProfile):
         rank_ballot: RankBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[frozenset[Candidate], int],
     ):
         """
         Update ballot data from a rank ballot.
 
         Args:
-            rank_ballot_data (dict[str, list]): Dictionary storing ballot data.
+            rank_ballot_data (dict[str, list]): Per-column ballot lists, updated in place.
             idx (int): Index of ballot.
             rank_ballot (RankBallot): Ballot.
-            candidates_cast (list[Candidate]): List of candidates who have received votes.
-                Candidates can be strings, integers, or mix of both.
+            candidates_cast (list[Candidate]): Candidates cast, updated in place.
+                Only positive-weight ballots contribute. Names can be strings or integers.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
-                IDs. Candidates can be strings, integers, or mix of both.
         """
         rank_ballot_data[WEIGHT_COLUMN][idx] = rank_ballot.weight
 
@@ -526,7 +493,6 @@ class RankProfile(PreferenceProfile):
                 rank_ballot=rank_ballot,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
-                candidate_id_map=candidate_id_map,
             )
 
     def __init_rank_ballot_data(
@@ -537,11 +503,11 @@ class RankProfile(PreferenceProfile):
         Create the ballot data objects.
 
         Args:
-            rank_ballots (Sequence[RankBallot,...]): Tuple of ballots.
+            rank_ballots (Sequence[RankBallot]): Ballots in dataframe row order.
 
         Returns:
-            Tuple[int, dict[str, list]]: num_ballots, rank_ballot_data
-
+            Tuple[int, dict[str, list]]: Ballot count and allocated shared/ranking column lists.
+                Ranking slots begin with tilde markers for unranked positions.
         """
         num_ballots = len(rank_ballots)
 
@@ -554,7 +520,7 @@ class RankProfile(PreferenceProfile):
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
                 {
-                    f"{RANKING_COLUMN_PREFIX}{i + 1}": [-1] * num_ballots
+                    f"{RANKING_COLUMN_PREFIX}{i + 1}": [TILDE_SET] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )
@@ -584,21 +550,21 @@ class RankProfile(PreferenceProfile):
         return df
 
     def _init_from_rank_ballots(
-        self, ballots: Sequence[RankBallot], candidate_id_map: dict[frozenset[Candidate], int]
-    ) -> tuple[pd.DataFrame, tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
+        self, ballots: Sequence[RankBallot]
+    ) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Create the pandas dataframe representation of the profile.
+        Build candidate-set dataframe rows and collect candidates on positive-weight ballots.
 
         Args:
-            ballots (Sequence[RankBallot,...]): Sequence of ballots.
-            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
-                IDs. Candidates can be strings, integers, or mix of both.
+            ballots (Sequence[RankBallot]): Ballots in the order their rows should appear.
 
         Returns:
-            tuple[pd.DataFrame, tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
-                df, candidates_cast, candidate_id_map
-                Candidates can be strings, integers, or mix of both.
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: Ranking dataframe and candidates cast.
+                Dataframe cells contain candidate sets; matrix construction assigns their IDs.
 
+        Raises:
+            ProfileError: A ballot contains an undeclared candidate or exceeds a supplied maximum
+                ranking length.
         """
         # `rank_ballot_data` sends {Weight, Voter Set} keys to a list to be
         # indexed in the same order as the output df containing information
@@ -615,18 +581,13 @@ class RankProfile(PreferenceProfile):
                 rank_ballot=b,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
-                candidate_id_map=candidate_id_map,
             )
 
         df = self.__init_formatted_rank_df(
             rank_ballot_data=rank_ballot_data,
         )
 
-        return (
-            df,
-            tuple(candidates_cast),
-            candidate_id_map,
-        )
+        return df, tuple(candidates_cast)
 
     def __validate_init_rank_df_params(self, df: pd.DataFrame) -> None:
         """
@@ -680,22 +641,16 @@ class RankProfile(PreferenceProfile):
                         f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
                     )
 
-    def __find_candidates_cast_from_init_rank_df(
-        self, df: pd.DataFrame, candidate_id_map: dict[frozenset[Candidate], int]
-    ) -> tuple[tuple[Candidate, ...], dict[frozenset[Candidate], int]]:
+    def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[Candidate, ...]:
         """
-        Compute which candidates received votes from the df and set the candidates_cast and
-        candidates attr.
+        Find candidates ranked on positive-weight dataframe rows, excluding tilde markers.
 
         Args:
-            df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_id_map (dict[frozenset[Candidate], int]): Candidate sets to integer
-                IDs.
+            df (pd.DataFrame): Profile dataframe with ranking columns of candidate sets and weights.
 
         Returns:
-            tuple[Candidate]: Candidates cast.
-                Candidates can be strings, integers, or mix of both.
-            dict[frozenset[Candidate], int]: Candidate to ID mapping
+            tuple[Candidate, ...]: Distinct candidates in pseudo-lexicographic order when names
+                support sorting. Invalid names are retained for subsequent candidate validation.
         """
 
         mask = df[WEIGHT_COLUMN] > 0
@@ -706,11 +661,6 @@ class RankProfile(PreferenceProfile):
         sets = df.loc[mask, ranking_cols].to_numpy().ravel()
         candidates_cast |= set().union(*sets)
 
-        all_sets = df[ranking_cols].to_numpy().ravel()
-        for cand_set in all_sets:
-            if cand_set not in candidate_id_map:
-                candidate_id_map[cand_set] = _get_new_cand_set_id(candidate_id_map)
-
         candidates_cast.discard("~")
 
         try:
@@ -719,68 +669,33 @@ class RankProfile(PreferenceProfile):
             # catch when an invalid candidate is casted, defer error handling to validation
             candidates_cast_list = list(candidates_cast)
 
-        return tuple(candidates_cast_list), candidate_id_map
+        return tuple(candidates_cast_list)
 
-    def _translate_df_ranking_values(
-        self,
-        df: pd.DataFrame,
-        candidate_mapping: dict[frozenset[Candidate], int] | dict[int, frozenset[Candidate]],
-    ) -> pd.DataFrame:
+    def _init_from_rank_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Translate candidate values in ranking columns using a candidate mapping.
-        Maps either candidate names to integer IDs for internal storage or
-        integer IDs to candidate names for the public-facing df.
+        Validate a ranking dataframe and identify candidates on positive-weight rows.
+
+        An empty dataframe resets the profile's maximum ranking length to zero.
 
         Args:
-            df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_mapping (dict[frozenset[Candidate], int] | dict[int, frozenset[Candidate]]):
-                Mapping from candidates names to integer IDs, or vice versa.
-                Candidates can be strings, integers, or mix of both.
+            df (pd.DataFrame): Profile dataframe with candidate-set ranking columns, shared columns,
+                and an index named Ballot Index.
 
         Returns:
-            pd.DataFrame: Copy of df with ranking values translated
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: The supplied dataframe and candidates cast.
+                This adapter does not copy the dataframe or encode candidate-set IDs.
 
         Raises:
-
-        """
-        ranking_cols = [col for col in df.columns if col.startswith(RANKING_COLUMN_PREFIX)]
-        translated_df = df.copy()
-        translated_df[ranking_cols] = translated_df[ranking_cols].map(
-            lambda ranking: (candidate_mapping[ranking])
-        )
-        return translated_df
-
-    def _init_from_rank_df(
-        self, df: pd.DataFrame, candidate_id_map: dict[frozenset[Candidate], int]
-    ) -> tuple[
-        pd.DataFrame,
-        tuple[Candidate, ...],
-        dict[frozenset[Candidate], int],
-    ]:
-        """
-        Validate the dataframe and determine the candidates cast.
-
-        Args:
-            df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_id_map (dict[frozenset[Candidate], int]): Mapping of candidate sets to integer
-                IDs. Candidates can be strings, integers, or mix of both.
-
-        Returns
-            tuple[pd.DataFrame, tuple[Candidate], dict[frozenset[Candidate], int]]:
-                df, candidates_cast, candidate_id_map
-                Candidates can be strings, integers, or mix of both.
+            ProfileError: Required construction parameters, columns, or the index name are invalid.
         """
         self.__validate_init_rank_df_params(df)
         self.__validate_init_rank_df(df)
-        candidates_cast, candidate_id_map = self.__find_candidates_cast_from_init_rank_df(
-            df, candidate_id_map
-        )
-        new_df = self._translate_df_ranking_values(df, candidate_id_map)
+        candidates_cast = self.__find_candidates_cast_from_init_rank_df(df)
 
-        if len(new_df) == 0:
+        if len(df) == 0:
             self.max_ranking_length = 0
 
-        return new_df, candidates_cast, candidate_id_map
+        return df, candidates_cast
 
     def _find_max_ranking_length(self) -> int:
         """
@@ -1117,35 +1032,26 @@ class ScoreProfile(PreferenceProfile):
         df: pd.DataFrame = pd.DataFrame(),
     ):
         self.candidates = tuple(candidates)
-        cand_set_ids = tuple([cand_set_id for cand_set_id in range(len(self.candidates))])
-        candidate_id_map: dict[Candidate, int] = {
-            cand: cand_set_id
-            for cand, cand_set_id in zip(self.candidates, cand_set_ids, strict=True)
-        }
 
         if df.equals(pd.DataFrame()):
-            (
-                cand_set_id_df,
-                self.candidates_cast,
-                candidate_id_map,
-            ) = self._init_from_score_ballots(
-                cast(
-                    Sequence[ScoreBallot],
-                    ballots,
-                ),
-                candidate_id_map,
+            score_df, self.candidates_cast = self._init_from_score_ballots(
+                cast(Sequence[ScoreBallot], ballots)
             )
 
         else:
-            cand_set_id_df, self.candidates_cast, candidate_id_map = self._init_from_score_df(
-                df, candidate_id_map
-            )
+            score_df, self.candidates_cast = self._init_from_score_df(df)
 
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        id_candidate_map = {cand_set_id: cand for cand, cand_set_id in candidate_id_map.items()}
-        self._matrix = ScoreMatrix.from_df(cand_set_id_df, id_candidate_map)
+        _validate_candidate_names(self.candidates, SourceWithAttribute(self, "candidates"))
+        _validate_candidate_names(
+            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
+        )
+        if len(set(self.candidates)) != len(self.candidates):
+            raise ProfileError("All candidates must be unique.")
+
+        self._matrix = ScoreMatrix.from_df(score_df, self.candidates)
 
         super().__init__(
             candidates=self.candidates,
@@ -1168,40 +1074,38 @@ class ScoreProfile(PreferenceProfile):
         ballot: ScoreBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[Candidate, int],
+        seen_candidates: list[Candidate],
     ) -> None:
         """
         Update the score data from a ballot.
 
         Args:
-            ballot_data (dict[str | int, list]): Dictionary storing ballot data.
+            score_ballot_data (dict[str | int, list]): Per-column ballot lists, updated in place.
                 Dictionary keys represent the column names.
-                The candidate columns will be their integer ids.
             idx (int): Index of ballot.
             ballot (ScoreBallot): Ballot.
-            candidates_cast (list[Candidate]): List of candidates who have received votes.
-                Candidates can be strings, integers, or mix of both.
+            candidates_cast (list[Candidate]): Candidates cast, updated in place.
+                Only positive-weight ballots contribute. Names can be strings or integers.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            seen_candidates (list[Candidate]): Encountered candidates, updated in place.
+                Starts with declared candidates and appends new candidates in encounter order.
         """
         if ballot.scores is None:
             return
 
         for c, score in ballot.scores.items():
-            if c not in candidate_id_map:
+            if c not in seen_candidates:
                 if self.candidates:
                     raise ProfileError(
                         f"Candidate {c} found in ballot {ballot} but not in "
                         f"candidate list {self.candidates}."
                     )
-                candidate_id_map[c] = len(candidate_id_map)
+                seen_candidates.append(c)
             if ballot.weight > 0 and c not in candidates_cast:
                 candidates_cast.append(c)
-            cand_col = candidate_id_map[c]
-            if cand_col not in score_ballot_data:
-                score_ballot_data[cand_col] = [np.nan] * num_ballots
-            score_ballot_data[cand_col][idx] = score
+            if c not in score_ballot_data:
+                score_ballot_data[c] = [np.nan] * num_ballots
+            score_ballot_data[c][idx] = score
 
     def __update_score_ballot_data_attrs(
         self,
@@ -1210,23 +1114,21 @@ class ScoreProfile(PreferenceProfile):
         ballot: ScoreBallot,
         candidates_cast: list[Candidate],
         num_ballots: int,
-        candidate_id_map: dict[Candidate, int],
+        seen_candidates: list[Candidate],
     ) -> None:
         """
         Update all ballot data from a ballot.
 
         Args:
-            ballot_data (dict[Candidate, list]): Dictionary storing ballot data.
+            score_ballot_data (dict[Candidate, list]): Per-column ballot lists, updated in place.
                 Dictionary keys represent the column names.
-                The candidate column names will be their integer IDs.
                 Candidates can be strings, integers, or mix of both.
             idx (int): Index of ballot.
             ballot (ScoreBallot): Ballot.
-            candidates_cast (list[Candidate]): List of candidates who have received votes.
-                Candidates can be strings, integers, or mix of both.
+            candidates_cast (list[Candidate]): Candidates cast, updated in place.
+                Only positive-weight ballots contribute. Names can be strings or integers.
             num_ballots (int): Total number of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            seen_candidates (list[Candidate]): Candidates encountered so far, in column order.
         """
         score_ballot_data[WEIGHT_COLUMN][idx] = ballot.weight
 
@@ -1240,24 +1142,21 @@ class ScoreProfile(PreferenceProfile):
                 ballot=ballot,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
-                candidate_id_map=candidate_id_map,
+                seen_candidates=seen_candidates,
             )
 
     def __init_score_ballot_data(
-        self, ballots: Sequence[ScoreBallot], candidate_id_map: dict[Candidate, int]
+        self, ballots: Sequence[ScoreBallot]
     ) -> Tuple[int, dict[str | int, list]]:
         """
         Create the ballot data objects.
 
         Args:
-            ballots (Sequence[ScoreBallot,...]): Tuple of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidate to integer ID.
-                Candidates can be strings, integers, or mix of both.
+            ballots (Sequence[ScoreBallot]): Ballots in dataframe row order.
 
         Returns:
-            Tuple[int, dict[str | int, list]]: num_ballots, score_ballot_data
-                Dictionary keys include the candidates integer IDs.
-
+            Tuple[int, dict[str | int, list]]: Ballot count and allocated column lists.
+                Declared candidate columns begin with NaN for unscored entries.
         """
         num_ballots = len(ballots)
 
@@ -1267,9 +1166,7 @@ class ScoreProfile(PreferenceProfile):
         }
 
         if self.candidates != tuple():
-            score_ballot_data.update(
-                {candidate_id_map[cand]: [np.nan] * num_ballots for cand in self.candidates}
-            )
+            score_ballot_data.update({cand: [np.nan] * num_ballots for cand in self.candidates})
 
         return num_ballots, score_ballot_data
 
@@ -1277,22 +1174,23 @@ class ScoreProfile(PreferenceProfile):
         self,
         score_ballot_data: dict[str | int, list],
         candidates_cast: list[Candidate],
-        candidate_id_map: dict[Candidate, int],
+        seen_candidates: list[Candidate],
     ) -> pd.DataFrame:
         """
         Create a pandas dataframe from the ballot data.
 
         Args:
-            score_ballot_data (dict[str | int, list]): Dictionary storing ballot data.
-                Dictionary keys represent the column names.
-                The candidate columns will be their integer IDs.
-            candidates_cast (list[Candidate]): List of candidates who received votes.
+            score_ballot_data (dict[str | int, list]): Per-column ballot lists keyed by candidate or
+                shared-column name.
+            candidates_cast (list[Candidate]): Candidates on positive-weight ballots.
                 Candidates can be strings, integers, or mix of both.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidates to integer IDs.
+            seen_candidates (list[Candidate]): Candidates in column order.
                 Candidates can be strings, integers, or mix of both.
 
         Returns:
-            pd.DataFrame: Dataframe of profile.
+            pd.DataFrame: Candidate-labelled scores, followed by Voter Set and Weight.
+                Columns follow declared candidate order, or pseudo-lexicographic order when
+                candidates are inferred from ballots.
         """
         df = pd.DataFrame(score_ballot_data)
         temp_col_order = [
@@ -1300,46 +1198,45 @@ class ScoreProfile(PreferenceProfile):
             WEIGHT_COLUMN,
         ]
 
-        col_order = list(candidate_id_map.values()) + temp_col_order
+        col_order = list(seen_candidates) + temp_col_order
 
         if self.candidates == tuple():
-            cand_set_ids = [candidate_id_map[cand] for cand in candidates_cast]
-            remaining_cands = set(cand_set_ids) - set(df.columns)
+            remaining_cands = set(candidates_cast) - set(df.columns)
             empty_df_cols = np.full((len(df), len(remaining_cands)), np.nan)
             df[list(remaining_cands)] = empty_df_cols
-            col_order = [
-                candidate_id_map[cand]
-                for cand in sort_candidates_pseudo_lexicographically(candidate_id_map.keys())
-            ] + temp_col_order
+            col_order = (
+                list(sort_candidates_pseudo_lexicographically(seen_candidates)) + temp_col_order
+            )
 
         df = df[col_order]
         df.index.name = BALLOT_INDEX_NAME
         return df
 
     def _init_from_score_ballots(
-        self, ballots: Sequence[ScoreBallot], candidate_id_map: dict[Candidate, int]
-    ) -> tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
+        self, ballots: Sequence[ScoreBallot]
+    ) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Create the pandas dataframe representation of the profile.
+        Build candidate-labelled score rows and collect candidates on positive-weight ballots.
 
         Args:
-            ballots (Sequence[ScoreBallot,...]): Tuple of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidate names to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            ballots (Sequence[ScoreBallot]): Ballots in the order their rows should appear.
 
         Returns:
-            tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
-                df, candidates_cast, candidate_id_map
-                Candidates can be strings, integers, or mix of both.
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: Score dataframe and candidates cast.
+                Declared candidate order is retained; otherwise columns use pseudo-lexicographic
+                order.
 
+        Raises:
+            ProfileError: A ballot scores a candidate outside an explicitly supplied candidate list.
         """
         # `score_ballot_data` sends {Weight, Voter Set} keys to a list to be
         # indexed in the same order as the output df containing information
         # for each ballot. So ballot_data[<weight>][<index>] is the weight value for
         # the ballot at index <index> in the df.
-        num_ballots, score_ballot_data = self.__init_score_ballot_data(ballots, candidate_id_map)
+        num_ballots, score_ballot_data = self.__init_score_ballot_data(ballots)
 
         candidates_cast: list[Candidate] = []
+        seen_candidates: list[Candidate] = list(self.candidates)
 
         for i, b in enumerate(ballots):
             self.__update_score_ballot_data_attrs(
@@ -1348,19 +1245,15 @@ class ScoreProfile(PreferenceProfile):
                 ballot=b,
                 candidates_cast=candidates_cast,
                 num_ballots=num_ballots,
-                candidate_id_map=candidate_id_map,
+                seen_candidates=seen_candidates,
             )
 
         df = self.__init_formatted_score_df(
             score_ballot_data=score_ballot_data,
             candidates_cast=candidates_cast,
-            candidate_id_map=candidate_id_map,
+            seen_candidates=seen_candidates,
         )
-        return (
-            df,
-            tuple(candidates_cast),
-            candidate_id_map,
-        )
+        return df, tuple(candidates_cast)
 
     def __validate_init_score_df_params(self, df: pd.DataFrame) -> None:
         """
@@ -1436,51 +1329,25 @@ class ScoreProfile(PreferenceProfile):
 
         return tuple(candidates_cast_list)
 
-    def _init_from_score_df(
-        self, df: pd.DataFrame, candidate_id_map: dict[Candidate, int]
-    ) -> tuple[pd.DataFrame, tuple[Candidate, ...], dict[Candidate, int]]:
+    def _init_from_score_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Validate the dataframe and determine the candidates cast.
+        Validate a score dataframe and find candidates with positive scores on positive-weight rows.
 
         Args:
-            df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_id_map (dict[Candidate, int]): Mapping of candidate names to integer IDs.
-                Candidates can be strings, integers, or mix of both.
+            df (pd.DataFrame): Profile dataframe with candidate-labelled scores, shared columns,
+                and an index named Ballot Index.
 
-        Returns
-            tuple[pd.DataFrame, tuple[Candidate], dict[Candidate, int]]:
-                df, candidates_cast, candidate_id_map
-                Candidates can be strings, integers, or mix of both.
+        Returns:
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: The supplied dataframe and candidates cast.
+                This adapter does not copy the dataframe or rename candidate columns.
+
+        Raises:
+            ProfileError: Required candidates or columns are missing, or the index name is invalid.
         """
         self.__validate_init_score_df_params(df)
         self.__validate_init_score_df(df)
         candidates_cast = self.__find_candidates_cast_from_init_score_df(df)
-        for cand in candidates_cast:
-            if cand not in candidate_id_map:
-                candidate_id_map[cand] = len(candidate_id_map)
-        new_df = self._translate_df_score_values(df, candidate_id_map)
-        return new_df, candidates_cast, candidate_id_map
-
-    def _translate_df_score_values(
-        self, df: pd.DataFrame, candidate_mapping: dict[Candidate, int] | dict[int, Candidate]
-    ) -> pd.DataFrame:
-        """
-        Rename candidate columns using a candidate mapping.
-        Maps either candidate names to integer IDs for internal storage or
-        integer IDs to candidate names for the public-facing df.
-
-        Args:
-            df (pd.DataFrame): Dataframe representation of ballots.
-            candidate_mapping (dict[Candidate, int] | dict[int, Candidate]):
-                Mapping from candidates names to integer IDs, or vice versa.
-
-        Returns:
-            pd.DataFrame: Copy of df with columns renamed.
-
-        """
-        translated_df = df.copy()
-        translated_df.rename(columns=candidate_mapping, inplace=True)
-        return translated_df
+        return df, candidates_cast
 
     @cached_property
     def ballots(self: ScoreProfile) -> tuple[ScoreBallot, ...]:

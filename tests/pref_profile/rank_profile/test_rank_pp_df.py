@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from votekit.ballot import RankBallot
+from votekit.cleaning import remove_cand_rank_profile
 from votekit.pref_profile import RankProfile
 
 ballots_rankings = [
@@ -118,7 +119,7 @@ def test_internal_matrix_with_cand_ids_as_ranking_values():
     )
     matrix = rank_profile._matrix
     candidate_id_map = {
-        cand_set: cand_set_id for cand_set_id, cand_set in matrix.id_to_cand_set_map.items()
+        cand_set: cand_set_id for cand_set_id, cand_set in matrix.iter_cand_set_ids()
     }
 
     id_A = candidate_id_map[frozenset({"A"})]
@@ -138,7 +139,7 @@ def test_internal_matrix_with_cand_ids_as_ranking_values():
         ]
     )
     assert np.array_equal(matrix.rankings, true_rankings)
-    assert matrix.ranking_columns == ["Ranking_1", "Ranking_2", "Ranking_3", "Ranking_4"]
+    assert matrix.ranking_columns == ("Ranking_1", "Ranking_2", "Ranking_3", "Ranking_4")
 
     assert np.array_equal(matrix.voter_weight_data.weights, np.array([2.0, 1.0, 1.0, 0.0]))
     assert not matrix.voter_weight_data.has_fraction_weights
@@ -156,3 +157,29 @@ def test_internal_matrix_voter_sets_none_when_all_empty():
     )
     assert rank_profile._matrix.voter_weight_data.voter_sets is None
     assert rank_profile.df["Voter Set"].tolist() == [frozenset()]
+
+
+def _df_with_weights(weights) -> pd.DataFrame:
+    df = pd.DataFrame(
+        {
+            "Ranking_1": [frozenset({"A"}), frozenset({"B"})],
+            "Voter Set": [frozenset(), frozenset()],
+            "Weight": weights,
+        }
+    )
+    df.index.name = "Ballot Index"
+    return df
+
+
+def _profile_from(df: pd.DataFrame) -> RankProfile:
+    return RankProfile(df=df, candidates=["A", "B"], max_ranking_length=1)
+
+
+def test_df_ballot_index_round_trips():
+    df = _df_with_weights([1.0, 2.0])
+    df.index = pd.Index([10, 42], name="Ballot Index")
+    profile = _profile_from(df)
+
+    assert list(profile.df.index) == [10, 42]
+    assert list(remove_cand_rank_profile("A", profile).df.index) == [10, 42]
+    assert list(RankProfile(ballots=profile.ballots).df.index) == [0, 1]

@@ -150,7 +150,14 @@ def test_internal_matrix_with_cand_ids_as_score_cols():
             [np.nan, np.nan, np.nan, np.nan, np.nan],
         ]
     )
-    assert matrix.score_columns == [id_A, id_B, id_C, id_D, id_E]
+    assert matrix.score_columns == ("A", "B", "C", "D", "E")
+    assert [matrix.score_columns[i] for i in (id_A, id_B, id_C, id_D, id_E)] == [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+    ]
     assert matrix.scores.dtype == np.float64
     assert np.array_equal(matrix.scores, true_scores, equal_nan=True)
 
@@ -160,4 +167,4 @@ def test_internal_matrix_with_cand_ids_as_score_cols():
     assert matrix.voter_weight_data.voter_sets is not None
     assert list(matrix.voter_weight_data.voter_sets) == [set(), {"Chris"}, set(), set()]
 
-    assert {cand: cid for cid, cand in matrix.id_to_cand_set_map.items()} == candidate_id_map
+    assert {cand: cid for cid, cand in enumerate(matrix.score_columns)} == candidate_id_map
