@@ -210,12 +210,14 @@ class PreferenceProfile:
         include_zero_score: Optional[bool] = None,
     ):
         self.candidates_cast = candidates_cast
-        self.candidates = candidates
+        self.candidates = _normalize_unique_candidates(
+            candidates, f"{type(self).__name__}.candidates"
+        )
         self.max_ranking_length = max_ranking_length
 
         self.total_ballot_wt = self._find_total_ballot_wt()
         self.num_ballots = self._find_num_ballots()
-        self._validate_and_set_candidates()
+        self._validate_candidates()
 
         self._is_frozen = True
 
@@ -245,30 +247,31 @@ class PreferenceProfile:
         # Object-array weights are validated Fraction values by construction.
         return cast(Numeric, np.sum(self._matrix.voter_weight_data.weights))
 
-    def _validate_and_set_candidates(self) -> None:
+    def _validate_candidates(self) -> None:
         """
-        Ensure that the candidate names are not equal to the ranking column names, that they are
-        unique, and strips whitespace from candidates.
+        Validate normalized candidate names, uniqueness, and candidates-cast membership.
 
         Raises:
-            ProfileError: Candidate names must not be the same as "Ranking_i".
-            ProfileError: Candidate names must be unique.
+            ProfileError: Candidate names are reserved, duplicated, or omit candidates cast.
+            TypeError: A candidate has an unsupported type.
+            ValueError: A candidate name contains a prohibited value or character.
         """
-        for cand in self.candidates:
-            if any(f"{RANKING_COLUMN_PREFIX}{i}" == cand for i in range(len(self.candidates))):
-                raise ProfileError(
-                    (
-                        f"{cand} is a name reserved for ranking columns, it cannot be used as a "
-                        "candidate name."
-                    )
-                )
-
         _validate_candidate_names(self.candidates, SourceWithAttribute(self, "candidates"))
         _validate_candidate_names(
             self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
         )
 
-        if not len(set(self.candidates)) == len(self.candidates):
+        for candidate in self.candidates:
+            if any(
+                f"{RANKING_COLUMN_PREFIX}{index}" == candidate
+                for index in range(len(self.candidates))
+            ):
+                raise ProfileError(
+                    f"{candidate} is a name reserved for ranking columns, it cannot be used as a "
+                    "candidate name."
+                )
+
+        if len(set(self.candidates)) != len(self.candidates):
             raise ProfileError("All candidates must be unique.")
         if not set(self.candidates_cast).issubset(self.candidates):
             raise ProfileError(
@@ -276,11 +279,6 @@ class PreferenceProfile:
                 " candidates are in candidates_cast but not candidates: "
                 f"{set(self.candidates_cast) - set(self.candidates)}."
             )
-
-        self.candidates = tuple([c.strip() if isinstance(c, str) else c for c in self.candidates])
-        self.candidates_cast = tuple(
-            [c.strip() if isinstance(c, str) else c for c in self.candidates_cast]
-        )
 
     def __setattr__(self, name, value):
         if getattr(self, "_is_frozen", False):
@@ -374,6 +372,112 @@ class PreferenceProfile:
         return data
 
 
+def _normalize_candidate_name(candidate: Candidate) -> Candidate:
+    """
+    Normalize a candidate name by stripping whitespace if it's a string.
+    """
+    return candidate.strip() if isinstance(candidate, str) else candidate
+
+
+def _normalize_unique_candidates(
+    candidates: Sequence[Candidate], context: str = "candidates"
+) -> tuple[Candidate, ...]:
+    """
+    Normalize candidate names while preserving order and rejecting collisions.
+
+    Args:
+        candidates (Sequence[Candidate]): Candidate names to normalize.
+        context (str, optional): Source name used in validation errors. Defaults to "candidates".
+
+    Returns:
+        tuple[Candidate, ...]: Normalized candidate names.
+
+    Raises:
+        ProfileError: Two entries have the same identity after normalization.
+        TypeError: Candidates is a bare string or a candidate has an unsupported type.
+        ValueError: A normalized name contains a prohibited value or character.
+    """
+    if isinstance(candidates, str):
+        raise TypeError("Candidates cannot be a string. Wrap string in list.")
+
+    normalized_candidates = tuple(_normalize_candidate_name(c) for c in candidates)
+    _validate_candidate_names(normalized_candidates, context)
+
+    if len(set(normalized_candidates)) != len(normalized_candidates):
+        raise ProfileError(
+            "All candidates must be unique. "
+            "Two or more candidates have the same identity after stripping whitespace."
+        )
+
+    return normalized_candidates
+
+
+def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cells") -> pd.DataFrame:
+    """
+    Normalize candidate names in ranking cells without modifying the supplied dataframe.
+
+    Args:
+        df (pd.DataFrame): Dataframe with ranking columns containing candidate sets.
+        context (str, optional): Source name used in validation errors. Defaults to "ranking cells".
+
+    Returns:
+        pd.DataFrame: Copy of the dataframe with normalized candidate names in ranking columns.
+            Empty sets and literal tilde padding sets are preserved; spelling variants merge.
+
+    Raises:
+        TypeError: A ranking cell is not a set or a candidate has an unsupported type.
+        ValueError: A raw or normalized candidate name contains a prohibited value or character.
+    """
+    normalized_df = df.copy()
+    ranking_cols = [
+        column
+        for column in df.columns
+        if isinstance(column, str) and column.startswith(RANKING_COLUMN_PREFIX)
+    ]
+
+    def normalize_ranking_set(candidate_set: frozenset[Candidate]) -> frozenset[Candidate]:
+        if not isinstance(candidate_set, (set, frozenset)):
+            raise TypeError("Ranking cells must contain sets or frozensets of candidates.")
+        if candidate_set == TILDE_SET:
+            return TILDE_SET
+
+        _validate_candidate_names(candidate_set, context)
+        normalized = tuple(_normalize_candidate_name(candidate) for candidate in candidate_set)
+        _validate_candidate_names(normalized, context)
+        return frozenset(normalized)
+
+    normalized_df[ranking_cols] = df[ranking_cols].map(normalize_ranking_set)
+    return normalized_df
+
+
+def _normalize_score_df_candidates(
+    df: pd.DataFrame, context: str = "score columns"
+) -> pd.DataFrame:
+    """
+    Normalize score-column names without modifying the supplied dataframe.
+
+    Args:
+        df (pd.DataFrame): Dataframe with candidate-labelled score columns and shared columns.
+        context (str, optional): Source name used in validation errors. Defaults to "score columns".
+
+    Returns:
+        pd.DataFrame: Copy with normalized candidate-column names in their original order.
+
+    Raises:
+        ProfileError: Normalized score names collide with each other or a shared column name.
+        TypeError: A candidate column has an unsupported label type.
+        ValueError: A raw or normalized label contains a prohibited value or character.
+    """
+    shared_columns = {WEIGHT_COLUMN, VOTER_SET_COLUMN}
+    score_columns = [column for column in df.columns if column not in shared_columns]
+    normalized_columns = _normalize_unique_candidates(score_columns, context)
+    if shared_columns.intersection(normalized_columns):
+        raise ProfileError("Candidate names cannot normalize to reserved dataframe column names.")
+
+    column_mapping = dict(zip(score_columns, normalized_columns, strict=True))
+    return df.rename(columns=column_mapping)
+
+
 class RankProfile(PreferenceProfile):
     max_ranking_length: int
     _matrix: RankMatrix
@@ -394,7 +498,9 @@ class RankProfile(PreferenceProfile):
                     f"is {type(ballot).__name__}."
                 )
 
-        self.candidates = tuple(candidates)
+        self.candidates = _normalize_unique_candidates(
+            candidates, f"{type(self).__name__}.candidates"
+        )
 
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
@@ -409,9 +515,7 @@ class RankProfile(PreferenceProfile):
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        _validate_candidate_names(
-            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
-        )
+        self._validate_candidates()
         self._matrix = RankMatrix.from_df(rank_df, self.candidates)
 
         self.max_ranking_length = self._find_max_ranking_length()
@@ -699,7 +803,7 @@ class RankProfile(PreferenceProfile):
 
     def _init_from_rank_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Validate a ranking dataframe and identify candidates on positive-weight rows.
+        Normalize a ranking dataframe and identify candidates on positive-weight rows.
 
         An empty dataframe resets the profile's maximum ranking length to zero.
 
@@ -708,14 +812,17 @@ class RankProfile(PreferenceProfile):
                 and an index named Ballot Index.
 
         Returns:
-            tuple[pd.DataFrame, tuple[Candidate, ...]]: The supplied dataframe and candidates cast.
-                This adapter does not copy the dataframe or encode candidate-set IDs.
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: A copy with normalized ranking sets and
+                candidates cast. Candidate-set IDs are encoded during matrix construction.
 
         Raises:
             ProfileError: Required construction parameters, columns, or the index name are invalid.
+            TypeError: Ranking cells or candidate names have unsupported types.
+            ValueError: Raw or normalized candidate names contain prohibited values or characters.
         """
         self.__validate_init_rank_df_params(df)
         self.__validate_init_rank_df(df)
+        df = _normalize_rank_df_candidates(df, f"{type(self).__name__}.candidates_cast")
         candidates_cast = self.__find_candidates_cast_from_init_rank_df(df)
 
         if len(df) == 0:
@@ -1060,7 +1167,9 @@ class ScoreProfile(PreferenceProfile):
                     f"is {type(ballot).__name__}."
                 )
 
-        self.candidates = tuple(candidates)
+        self.candidates = _normalize_unique_candidates(
+            candidates, f"{type(self).__name__}.candidates"
+        )
 
         if df.equals(pd.DataFrame()):
             score_df, self.candidates_cast = self._init_from_score_ballots(
@@ -1073,12 +1182,7 @@ class ScoreProfile(PreferenceProfile):
         if self.candidates == tuple():
             self.candidates = self.candidates_cast
 
-        _validate_candidate_names(self.candidates, SourceWithAttribute(self, "candidates"))
-        _validate_candidate_names(
-            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
-        )
-        if len(set(self.candidates)) != len(self.candidates):
-            raise ProfileError("All candidates must be unique.")
+        self._validate_candidates()
 
         self._matrix = ScoreMatrix.from_df(score_df, self.candidates)
 
@@ -1306,17 +1410,13 @@ class ScoreProfile(PreferenceProfile):
 
     def __validate_init_score_df(self, df: pd.DataFrame) -> None:
         """
-        Validate that the df passed to the init method is of valid type.
+        Validate shared columns and the index before normalizing score-column names.
 
         Args:
             df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
-            ValueError: Candidate column is missing.
-            ValueError: Ranking column is missing.
-            ValueError: Weight column is missing.
-            ValueError: Voter set column is missing.
-            ValueError: Index column is misformatted.
+            ProfileError: Weight or voter-set columns are missing, or the index name is invalid.
 
         """
         if WEIGHT_COLUMN not in df.columns:
@@ -1325,10 +1425,6 @@ class ScoreProfile(PreferenceProfile):
             raise ProfileError(f"Voter Set column not in dataframe: {df.columns}")
         if df.index.name != BALLOT_INDEX_NAME:
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
-        if any(c not in df.columns for c in self.candidates):
-            for c in self.candidates:
-                if c not in df.columns:
-                    raise ProfileError(f"Candidate column '{c}' not in dataframe: {df.columns}")
 
     def __find_candidates_cast_from_init_score_df(self, df: pd.DataFrame) -> tuple[Candidate, ...]:
         """
@@ -1360,21 +1456,30 @@ class ScoreProfile(PreferenceProfile):
 
     def _init_from_score_df(self, df: pd.DataFrame) -> tuple[pd.DataFrame, tuple[Candidate, ...]]:
         """
-        Validate a score dataframe and find candidates with positive scores on positive-weight rows.
+        Normalize a score dataframe and find candidates with positive scores and ballot weights.
 
         Args:
             df (pd.DataFrame): Profile dataframe with candidate-labelled scores, shared columns,
                 and an index named Ballot Index.
 
         Returns:
-            tuple[pd.DataFrame, tuple[Candidate, ...]]: The supplied dataframe and candidates cast.
-                This adapter does not copy the dataframe or rename candidate columns.
+            tuple[pd.DataFrame, tuple[Candidate, ...]]: A copy with normalized score-column names
+                and candidates cast.
 
         Raises:
-            ProfileError: Required candidates or columns are missing, or the index name is invalid.
+            ProfileError: Required candidates or columns are missing, the index name is invalid,
+                or normalized score names collide with each other or a shared column name.
+            TypeError: Candidate-column labels have unsupported types.
+            ValueError: Raw or normalized candidate names contain prohibited values or characters.
         """
         self.__validate_init_score_df_params(df)
         self.__validate_init_score_df(df)
+        df = _normalize_score_df_candidates(df, f"{type(self).__name__}.candidates_cast")
+
+        for candidate in self.candidates:
+            if candidate not in df.columns:
+                raise ProfileError(f"Candidate column '{candidate}' not in dataframe: {df.columns}")
+
         candidates_cast = self.__find_candidates_cast_from_init_score_df(df)
         return df, candidates_cast
 

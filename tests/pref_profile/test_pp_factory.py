@@ -166,3 +166,28 @@ def test_explicit_profile_constructor_return_types():
     assert_type(ScoreProfile(df=score_profile.df), ScoreProfile)
     assert_type(DerivedRankProfile(), DerivedRankProfile)
     assert_type(DerivedScoreProfile(), DerivedScoreProfile)
+
+
+@pytest.mark.parametrize(
+    "profile_type, ballot",
+    [(RankProfile, RankBallot(ranking=[{"A"}])), (ScoreProfile, ScoreBallot(scores={"A": 1}))],
+)
+def test_ballot_construction_normalizes_declared_candidates_before_membership(profile_type, ballot):
+    profile = profile_type(ballots=[ballot], candidates=[" A ", " unused "])
+
+    assert profile.candidates == profile._matrix.candidates == ("A", "unused")
+    assert profile.candidates_cast == ("A",)
+    assert profile.ballots == (ballot,)
+
+
+@pytest.mark.parametrize("profile_type", [RankProfile, ScoreProfile])
+@pytest.mark.parametrize("candidate", [True, 1.5, ["A"]])
+def test_candidate_types_are_validated_before_duplicate_detection(profile_type, candidate):
+    with pytest.raises(TypeError, match="candidate"):
+        profile_type(candidates=[candidate])
+
+
+@pytest.mark.parametrize("profile_type", [PreferenceProfile, RankProfile, ScoreProfile])
+def test_profile_rejects_bare_string_candidates(profile_type):
+    with pytest.raises(TypeError, match="Candidates cannot be a string"):
+        profile_type(candidates="Alice")
