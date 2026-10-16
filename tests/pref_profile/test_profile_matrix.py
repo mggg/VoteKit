@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from votekit.exceptions import ProfileError
 from votekit.pref_profile import RankProfile
 from votekit.pref_profile.profile_matrix import (
     RankMatrix,
@@ -157,6 +158,68 @@ def test_shared_data_constructor_rejects_optional_column_length_mismatch(
             voter_sets=voter_sets,
             weight_kind=WeightKind.FLOAT,
             ballot_index=ballot_index,
+        )
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.int64, np.bool_, np.object_, np.complex128])
+def test_shared_data_constructor_rejects_non_float64_dtype_for_float_weights(dtype):
+    with pytest.raises(ValueError, match=r"float64.*FLOAT"):
+        _ProfileVoterWeightData(
+            weights=np.array([1], dtype=dtype),
+            voter_sets=None,
+            weight_kind=WeightKind.FLOAT,
+        )
+
+
+@pytest.mark.parametrize("dtype", [np.float64, np.int64])
+def test_shared_data_constructor_rejects_non_object_dtype_for_fraction_weights(dtype):
+    with pytest.raises(ValueError, match=r"object.*FRACTION"):
+        _ProfileVoterWeightData(
+            weights=np.array([1], dtype=dtype),
+            voter_sets=None,
+            weight_kind=WeightKind.FRACTION,
+        )
+
+
+@pytest.mark.parametrize("invalid_weight", [1, 1.0, "1", None], ids=["int", "float", "str", "none"])
+def test_shared_data_constructor_rejects_non_fraction_entries(invalid_weight):
+    with pytest.raises(ValueError, match="Fractions"):
+        _ProfileVoterWeightData(
+            weights=np.array([Fraction(1, 3), invalid_weight], dtype=object),
+            voter_sets=None,
+            weight_kind=WeightKind.FRACTION,
+        )
+
+
+@pytest.mark.parametrize(
+    ("invalid_weight", "message"),
+    [(np.nan, "NaN"), (np.inf, "infinite"), (-np.inf, "infinite"), (-0.5, "negative")],
+    ids=["nan", "positive-infinity", "negative-infinity", "negative"],
+)
+def test_shared_data_constructor_rejects_invalid_float_values(invalid_weight: float, message: str):
+    with pytest.raises(ProfileError, match=message):
+        _ProfileVoterWeightData(
+            weights=np.array([invalid_weight], dtype=np.float64),
+            voter_sets=None,
+            weight_kind=WeightKind.FLOAT,
+        )
+
+
+def test_shared_data_constructor_rejects_negative_fraction():
+    with pytest.raises(ValueError, match="negative"):
+        _ProfileVoterWeightData(
+            weights=np.array([Fraction(1, 3), Fraction(-1, 2)], dtype=object),
+            voter_sets=None,
+            weight_kind=WeightKind.FRACTION,
+        )
+
+
+def test_shared_data_constructor_rejects_unknown_weight_kind():
+    with pytest.raises(ValueError, match="weight_kind"):
+        _ProfileVoterWeightData(
+            weights=np.array([1.0]),
+            voter_sets=None,
+            weight_kind=cast(WeightKind, "FLOAT"),
         )
 
 

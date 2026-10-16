@@ -1,6 +1,8 @@
+from fractions import Fraction
+
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import Ballot, RankBallot
 
 
 def test_ballot_init():
@@ -79,3 +81,22 @@ def test_ballot_negative_weight():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         Ballot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_ballot_rejects_bool_and_non_real_weight():
+    with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
+        Ballot(weight=True)
+    with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
+        Ballot(weight="2")
+
+
+def test_ballot_rejects_nan_and_infinite_weight():
+    with pytest.raises(ValueError, match="cannot be NaN or infinity"):
+        Ballot(weight=float("nan"))
+    with pytest.raises(ValueError, match="cannot be NaN or infinity"):
+        Ballot(weight=float("inf"))
+
+
+def test_ballot_accepts_large_rational_weight():
+    big = Fraction(10**400)
+    assert RankBallot(ranking=["A"], weight=big).weight == big

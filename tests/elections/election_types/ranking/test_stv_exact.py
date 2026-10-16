@@ -9,7 +9,7 @@ import pytest
 from votekit.ballot import RankBallot
 from votekit.elections import IRV, STV, SequentialRCV, fractional_transfer, random_transfer
 from votekit.graphs.ballot_graph import BallotGraph
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import ProfileError, RankProfile
 from votekit.pref_profile.utils import (
     convert_rank_profile_to_score_profile_via_score_vector,
     rank_profile_to_ballot_dict,
@@ -91,22 +91,20 @@ def test_exact_stv_rejects_non_integral_float_weight():
         STV(invalid, n_seats=2, exact=True)
 
 
-def test_exact_stv_rejects_non_integral_longdouble_without_narrowing():
+def test_df_weights_narrow_to_float64_unless_fraction():
+    # 2**53 + 0.5 is integral in float64, so the narrowed profile passes exact validation
     weight = np.longdouble(2**53) + np.longdouble("0.5")
-    if weight == int(weight):
-        return
-
     profile = _three_candidate_profile()
     df = profile.df.copy()
     df["Weight"] = pd.Series([weight, 2, 1], dtype=object)
-    invalid = RankProfile(
+    narrowed = RankProfile(
         df=df,
         candidates=profile.candidates,
         max_ranking_length=profile.max_ranking_length,
     )
 
-    with pytest.raises(ValueError, match=r"pass Fraction\(numerator, denominator\)"):
-        STV(invalid, n_seats=2, exact=True)
+    assert narrowed.df["Weight"].dtype == np.float64
+    STV(narrowed, n_seats=2, exact=True, rng_seed=2)
 
 
 @pytest.mark.parametrize("weight", [-1, Fraction(-1, 3)])
@@ -114,14 +112,13 @@ def test_exact_stv_rejects_negative_dataframe_weight(weight: object):
     profile = _three_candidate_profile()
     df = profile.df.copy()
     df["Weight"] = pd.Series([weight, 2, 1], dtype=object)
-    invalid = RankProfile(
-        df=df,
-        candidates=profile.candidates,
-        max_ranking_length=profile.max_ranking_length,
-    )
 
-    with pytest.raises(ValueError, match="Ballot weight cannot be negative"):
-        STV(invalid, n_seats=2, exact=True)
+    with pytest.raises(ProfileError, match="Ballot weight cannot be negative"):
+        RankProfile(
+            df=df,
+            candidates=profile.candidates,
+            max_ranking_length=profile.max_ranking_length,
+        )
 
 
 @pytest.mark.parametrize(

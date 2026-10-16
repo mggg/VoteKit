@@ -209,22 +209,15 @@ class PreferenceProfile:
 
     def _find_total_ballot_wt(self) -> Numeric:
         """
-        Compute and set the total ballot weight.
+        Sum the weights stored in the authoritative matrix.
 
         Returns:
-            Numeric: total ballot weight.
-
-        Raises:
-            ProfileError: A ballot weight is NaN.
+            Numeric: Total ballot weight, or zero when no matrix is attached.
         """
-        total_weight = 0
+        if self._matrix is None:
+            return 0
 
-        if self._matrix is not None:
-            total_weight = np.sum(self._matrix.voter_weight_data.weights)
-            if isinstance(total_weight, float) and np.isnan(total_weight):
-                raise ProfileError("Ballot weights cannot be NaN.")
-
-        return total_weight
+        return np.sum(self._matrix.voter_weight_data.weights)
 
     def _validate_and_set_candidates(self) -> None:
         """

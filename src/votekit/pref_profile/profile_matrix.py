@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
+from numbers import Integral
 from typing import Any, Iterator, Protocol, Self, Sequence, cast, runtime_checkable
 
 import numpy as np
@@ -14,6 +15,8 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
+from votekit.ballot import validate_weight
+from votekit.exceptions import ProfileError
 from votekit.types import Candidate
 
 EMPTY_VOTER_SET: frozenset[str] = frozenset()
@@ -49,7 +52,10 @@ def _arrays_equal(arr_1: NDArray | None, arr_2: NDArray | None) -> bool:
 
 class WeightKind(Enum):
     """
-    Whether the weight array contains Fraction values.
+    Identify the numeric representation of a profile's ballot weights.
+
+    FLOAT requires a float64 array. FRACTION requires an object array containing only
+    ``Fraction`` values. The shared-data constructor validates the selected representation.
     """
 
     FLOAT = "float"
@@ -59,32 +65,39 @@ class WeightKind(Enum):
 @dataclass(frozen=True, slots=True, eq=False)
 class _ProfileVoterWeightData:
     """
-    The per-ballot columns every profile carries, as parallel arrays.
+    Store aligned ballot weights, voter sets, and optional source index labels.
 
-    Parameters:
-        weights (NDArray): Ballot weights, retaining their input dtype. ``weight_kind`` is
-            FRACTION when the array contains any Fraction values, and FLOAT otherwise.
-        voter_sets (NDArray | None): Voter set per ballot, or None when no ballot has voters.
-        weight_kind (WeightKind): Which numeric type ``weights`` holds.
-        ballot_index (NDArray | None): The source df's index labels, or None when it was a
-            default ``RangeIndex``. Restored by ``to_df`` so callers can join results back to
-            their own records.
+    Construction copies each array and marks it read-only. Voter entries become frozensets;
+    index labels in object arrays are retained without recursively copying their contents.
+
+    Args:
+        weights (``NDArray[np.float64] | NDArray[np.object_]``): One-dimensional array of finite,
+            nonnegative weights. FLOAT requires float64; FRACTION requires only Fraction values.
+        voter_sets (``NDArray[np.object_] | None``): One voter collection per ballot, or None when
+            voter data is absent. Collections are converted to frozensets during construction.
+        weight_kind (WeightKind): Numeric representation required for ``weights``.
+        ballot_index (NDArray[Any] | None, optional): One source index label per ballot. None
+            recreates a default RangeIndex on export. Defaults to None.
     """
 
-    weights: NDArray
+    weights: NDArray[np.float64] | NDArray[np.object_]
     voter_sets: NDArray[np.object_] | None
     weight_kind: WeightKind
     ballot_index: NDArray[Any] | None = None
 
     def __post_init__(self) -> None:
         """
-        Validate aligned columns and retain independently owned copies of the data.
-        """
-        # NOTE: The independent copies will prevent external mutation of the arrays and should make
-        # the translation to Rust easier.
+        Validate aligned columns and retain owned, read-only array storage.
 
+        Raises:
+            ValueError: Array dimensions or lengths disagree, the weight kind or dtype is invalid,
+                or a Fraction weight is negative or has the wrong type.
+            ProfileError: A floating-point weight is negative, NaN, or infinite.
+            TypeError: A voter entry cannot be converted to a frozenset.
+        """
         self._validate_weight_voterset_index_alignment()
 
+        self._validate_weight_values_and_types()
         owned_weights = np.copy(self.weights)
         owned_weights.setflags(write=False)
 
@@ -129,19 +142,81 @@ class _ProfileVoterWeightData:
                     f"{len(column)} ({column}) != {len(self.weights)} (weights)."
                 )
 
+    def _validate_weight_values_and_types(self) -> None:
+        """
+        Check weight representation and nonnegative, finite values without converting them.
+
+        Raises:
+            ValueError: The weight kind is unknown, a dtype disagrees with the weight kind, or a
+                FRACTION array contains a non-Fraction or negative value.
+            ProfileError: A FLOAT array contains a negative, NaN, or infinite value.
+        """
+
+        if self.weight_kind is WeightKind.FLOAT:
+            if self.weights.dtype != np.float64:
+                raise ValueError(
+                    f"weights must be float64 when weight_kind is FLOAT. Found:{self.weights.dtype}"
+                )
+            _validate_numeric_weights(self.weights)
+
+        elif self.weight_kind is WeightKind.FRACTION:
+            if self.weights.dtype != np.object_:
+                raise ValueError(
+                    f"weights must be object when weight_kind is FRACTION. "
+                    f"Found: {self.weights.dtype}"
+                )
+
+            if not all(isinstance(weight, Fraction) for weight in self.weights):
+                bad_weights = [
+                    weight for weight in self.weights if not isinstance(weight, Fraction)
+                ]
+                bad_weight_err_msg = ", ".join(
+                    f"{weight} ({type(weight).__name__})" for weight in bad_weights[:3]
+                )
+
+                if len(bad_weights) > 3:
+                    bad_weight_err_msg += f", and {len(bad_weights) - 3} more..."
+                raise ValueError(
+                    "weights must be an object array of Fractions when weight_kind is FRACTION."
+                    f" Found: {bad_weights}"
+                )
+
+            if any(weight < 0 for weight in self.weights):
+                neg_weights = [weight for weight in self.weights if weight < 0]
+                neg_weight_err_msg = ", ".join(
+                    f"{weight} ({type(weight).__name__})" for weight in neg_weights[:3]
+                )
+
+                if len(neg_weights) > 3:
+                    neg_weight_err_msg += f", and {len(neg_weights) - 3} more..."
+
+                raise ValueError(f"Ballot weights cannot be negative. Found: {neg_weight_err_msg}")
+
+        else:
+            raise ValueError(f"weight_kind must be FLOAT or FRACTION. Found: {self.weight_kind}")
+
     @classmethod
     def from_df(cls, df: pd.DataFrame) -> Self:
         """
-        Extract the weights, voter sets, and index from a profile's df.
+        Build owned ballot data from a profile dataframe's shared columns.
+
+        Weights follow ``_normalize_weights``. A default zero-based, unit-step RangeIndex is
+        represented by None; other index labels are retained for export.
 
         Args:
-            df (pd.DataFrame): df with Weight and Voter Set columns.
+            df (pd.DataFrame): Dataframe with Weight and Voter Set columns. Voter entries must be
+                collections that can be converted to frozensets.
+
+        Returns:
+            Self: Validated ballot data with independent array storage.
+
+        Raises:
+            KeyError: A required shared column is missing.
+            ProfileError: Weight validation rejects a value before or after conversion.
+            ValueError: Converted data violates the shared-data constructor's shape or type rules.
+            TypeError: Voter entries cannot be converted to frozensets.
         """
-        weights = df[WEIGHT_COLUMN].to_numpy()
-        has_fraction_weights = weights.dtype == object and any(
-            isinstance(weight, Fraction) for weight in weights
-        )
-        weight_kind = WeightKind.FRACTION if has_fraction_weights else WeightKind.FLOAT
+        weights, weight_kind = _normalize_weights(df[WEIGHT_COLUMN].to_numpy())
 
         voter_set_column = df[VOTER_SET_COLUMN]
         voter_sets = (
@@ -204,6 +279,88 @@ def _non_default_index(index: pd.Index) -> NDArray | None:
     if isinstance(index, pd.RangeIndex) and index.start == 0 and index.step == 1:
         return None
     return index.to_numpy()
+
+
+def _normalize_weights(weights: NDArray) -> tuple[NDArray, WeightKind]:
+    """
+    Validate input weights and choose float64 or Fraction storage.
+
+    An object array containing any Fraction is converted entirely to Fractions. Existing
+    Fractions are retained; integral values are converted exactly; other values pass through
+    ``float`` and ``limit_denominator``. This approximation can change small positive weights
+    to zero. Other arrays become float64, which can lose precision or overflow for wider inputs.
+    An empty array uses FLOAT. The shared-data constructor checks the resulting stored values.
+
+    Args:
+        weights (NDArray): One-dimensional weight array. Numeric arrays are expected to contain
+            real values; object entries are individually checked by ``validate_weight``.
+
+    Returns:
+        tuple[NDArray, WeightKind]: Normalized weights and their representation. A compatible
+            float64 input may be returned without copying; this function does not establish
+            ownership.
+
+    Raises:
+        ProfileError: Input checks find negative or nonfinite values, or reject an object entry.
+        OverflowError: A value cannot be converted to the target numeric representation.
+    """
+    if weights.dtype != object:
+        _validate_numeric_weights(weights)
+        return weights.astype(np.float64, copy=False), WeightKind.FLOAT
+
+    for weight in weights:
+        try:
+            validate_weight(weight)
+        except (TypeError, ValueError) as error:
+            raise ProfileError(str(error)) from error
+
+    if not any(isinstance(weight, Fraction) for weight in weights):
+        return weights.astype(np.float64), WeightKind.FLOAT
+
+    fractions = np.empty(len(weights), dtype=object)
+    fractions[:] = [_as_fraction(weight) for weight in weights]
+    return fractions, WeightKind.FRACTION
+
+
+def _validate_numeric_weights(weights: NDArray) -> None:
+    """
+    Reject negative, NaN, or infinite values in a real numeric array.
+
+    Args:
+        weights (NDArray): Array supporting NumPy's finiteness and ordering operations.
+
+    Raises:
+        ProfileError: Any entry is negative, NaN, or infinite.
+    """
+    if np.isnan(weights).any():
+        raise ProfileError("Ballot weights cannot be NaN.")
+    if np.isinf(weights).any():
+        raise ProfileError("Ballot weights cannot be infinite.")
+    if (weights < 0).any():
+        raise ProfileError("Ballot weights cannot be negative.")
+
+
+def _as_fraction(weight: Any) -> Fraction:
+    """
+    Convert a validated real weight to a Fraction using the normalization policy.
+
+    Args:
+        weight (Any): Validated real weight. Existing Fractions are retained and integers are
+            converted exactly. Other values are converted to float and then approximated with
+            ``limit_denominator``.
+
+    Returns:
+        Fraction: Converted or retained weight.
+
+    Raises:
+        OverflowError: Conversion to float overflows or produces infinity.
+        ValueError: Conversion to Fraction encounters NaN.
+    """
+    if isinstance(weight, Fraction):
+        return weight
+    if isinstance(weight, Integral):
+        return Fraction(int(weight))
+    return Fraction(float(weight)).limit_denominator()
 
 
 @runtime_checkable

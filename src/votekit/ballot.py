@@ -2,11 +2,36 @@ from __future__ import annotations
 
 import math
 from fractions import Fraction
-from numbers import Real
+from numbers import Rational, Real
 from typing import Iterable, Mapping, Optional, Sequence, Union, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
 from votekit.utils import SourceWithAttribute, _validate_candidate_names
+
+
+def validate_weight(weight: object) -> None:
+    """
+    Validate a single real, finite, nonnegative ballot weight without converting it.
+
+    Integers and Fractions are checked without conversion to float, so large finite rational
+    values do not overflow during validation.
+
+    Args:
+        weight (object): Proposed ballot weight. Booleans are rejected even though bool is
+            a subclass of int.
+
+    Raises:
+        TypeError: The weight is a bool or is not a real number.
+        ValueError: The weight is negative, NaN, or infinite.
+    """
+    if isinstance(weight, bool) or not isinstance(weight, Real):
+        raise TypeError(
+            f"Ballot weight must be a float, int, or Fraction. Got {type(weight).__name__}."
+        )
+    if not isinstance(weight, Rational) and not math.isfinite(weight):
+        raise ValueError(f"Ballot weight cannot be NaN or infinity. Got {weight}.")
+    if weight < 0:
+        raise ValueError(f"Ballot weight cannot be negative. Got {weight}.")
 
 
 class Ballot:
@@ -111,14 +136,7 @@ class Ballot:
         voter_set: Union[set[str], frozenset[str]] = frozenset(),
     ):
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
-        if isinstance(weight, bool) or not isinstance(weight, Real):
-            raise TypeError(
-                f"Ballot weight must be a float, int, or Fraction. Got {type(weight).__name__}."
-            )
-        if not math.isfinite(weight):
-            raise ValueError(f"Ballot weight cannot be NaN or infinity. Got {weight}.")
-        if weight < 0:
-            raise ValueError(f"Ballot weight cannot be negative. Got {weight}.")
+        validate_weight(weight)
 
         self.weight = (
             weight

@@ -395,23 +395,25 @@ def _mentions_from_ballots(
     profile: RankProfile,
 ) -> dict[Candidate, float]:
     """
-    Calculates total mentions for all candidates by iterating the profile's ballot list.
+    Sum candidate mentions over ranked ballots, preserving weight arithmetic until export.
+
+    Each occurrence contributes the ballot's weight. Fraction weights accumulate exactly;
+    completed totals are converted to floats. Zero-weight ballots contribute nothing.
 
     Args:
-        profile (RankProfile): RankProfile of ballots.
+        profile (RankProfile): Profile whose ballot rankings are counted.
 
     Returns:
-        dict[Candidate, float]:
-            Dictionary mapping candidates to mention totals (values).
-            Candidates can be strings, integers, or mix of both.
+        dict[Candidate, float]: Mention totals for every profile candidate, including zeros.
 
     Raises:
-        TypeError: If profile is not a RankProfile.
-        TypeError: If any ballot has no ranking.
+        TypeError: The profile is not a RankProfile or a ballot has no ranking.
     """
     from votekit.pref_profile import RankProfile
 
-    mentions = {c: 0.0 for c in profile.candidates}
+    # Accumulate in the weights' own type and round once at the end, so Fraction profiles agree
+    # with the exact df path instead of drifting by float rounding order.
+    mentions: dict[Candidate, Any] = {c: 0 for c in profile.candidates}
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     for ballot in profile.ballots:
@@ -423,8 +425,8 @@ def _mentions_from_ballots(
             continue
         for s in ballot.ranking:
             for cand in s:
-                mentions[cand] += float(ballot.weight)
-    return mentions
+                mentions[cand] += ballot.weight
+    return {cand: float(total) for cand, total in mentions.items()}
 
 
 def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
