@@ -4,6 +4,7 @@ import csv
 import io
 import os
 import pickle
+import re
 import urllib.request
 import warnings
 from functools import cached_property
@@ -39,7 +40,6 @@ from votekit.pref_profile.utils import (
 )
 from votekit.types import Candidate, Numeric
 from votekit.utils import (
-    SourceWithAttribute,
     _validate_candidate_names,
     sort_candidates_pseudo_lexicographically,
 )
@@ -103,14 +103,7 @@ class PreferenceProfile:
         max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election. Defaults to longest observed
             ballot.
-        contains_rankings (bool, optional): Whether or not the profile contains ballots with
-            rankings. If no boolean is provided, then the appropriate boolean value will be
-            interpreted from the input preference profile (i.e. if some ballot in the profile has
-            a ranking, then this will be set  to `True`).
-        contains_scores (bool, optional): Whether or not the profile contains ballots with
-            scores. If no boolean is provided, then the appropriate boolean value will be
-            interpreted from the input preference profile (i.e. if some ballot in the profile has
-            a ranking, then this will be set  to `True`).
+        df (pd.DataFrame, optional): Input ballot dataframe. Defaults to an empty dataframe.
 
     Parameters:
         ballots (Sequence[Ballot]): Tuple of ``Ballot`` objects.
@@ -118,23 +111,16 @@ class PreferenceProfile:
             Candidates can be strings, integers, or mix of both.
         max_ranking_length (int): The length of the longest allowable ballot, i.e., how
             many candidates are allowed to be ranked in an election.
-        df (pandas.DataFrame): Data frame view of the ballots.
+        df (pandas.DataFrame): Detached dataframe export of the ballots. Each access creates
+            a new dataframe; editing it does not change the profile.
         candidates_cast (tuple[Candidate]): Tuple of candidates who appear on any ballot with
             positive weight, either in the ranking or in the score dictionary.
             Candidates can be strings, integers, or mix of both.
         total_ballot_wt (Numeric): Sum of ballot weights.
         num_ballots (int): Length of ballot list.
-        contains_rankings (bool): Whether or not the profile contains ballots with
-            rankings.
-        contains_scores (bool): Whether or not the profile contains ballots with
-            scores.
 
     Raises:
         ProfileError: a data frame and ballot list are passed to the init method.
-        ProfileError: contains_rankings is set to False but a ballot contains a ranking.
-        ProfileError: contains_rankings is set to True but no ballot contains a ranking.
-        ProfileError: contains_scores is set to False but a ballot contains a score.
-        ProfileError: contains_scores is set to True but no ballot contains a score.
         ProfileError: max_ranking_length is set but a ballot ranking excedes the length.
         ProfileError: a candidate is found on a ballot that is not listed on a provided
             candidate list.
@@ -209,21 +195,40 @@ class PreferenceProfile:
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: Optional[bool] = None,
     ):
-        self.candidates_cast = candidates_cast
+        self.candidates_cast = _normalize_unique_candidates(
+            candidates_cast, f"{type(self).__name__}.candidates_cast"
+        )
         self.candidates = _normalize_unique_candidates(
             candidates, f"{type(self).__name__}.candidates"
         )
         self.max_ranking_length = max_ranking_length
 
+        self._validate_candidates()
+        self._finalize_profile()
+
+    def _finalize_profile(self) -> None:
+        """
+        Compute matrix-derived metadata and freeze the initialized profile.
+        """
         self.total_ballot_wt = self._find_total_ballot_wt()
         self.num_ballots = self._find_num_ballots()
-        self._validate_candidates()
-
         self._is_frozen = True
 
-    @cached_property
+    @property
     def df(self) -> pd.DataFrame:
-        raise NotImplementedError
+        """
+        Export a detached dataframe; changes to it do not affect the profile.
+
+        Each access allocates a dataframe from the authoritative matrix. Retain the returned
+        dataframe locally when performing several pandas operations on the same export.
+
+        Returns:
+            pd.DataFrame: Ballot data and index labels with independent array storage.
+                Immutable candidate and voter sets may be shared with the matrix.
+        """
+        if self._matrix is None:
+            raise NotImplementedError
+        return self._matrix.to_df()
 
     def _find_num_ballots(self) -> int:
         """
@@ -249,30 +254,20 @@ class PreferenceProfile:
 
     def _validate_candidates(self) -> None:
         """
-        Validate normalized candidate names, uniqueness, and candidates-cast membership.
+        Check reserved ranking-column names and membership after candidate normalization.
 
         Raises:
-            ProfileError: Candidate names are reserved, duplicated, or omit candidates cast.
-            TypeError: A candidate has an unsupported type.
-            ValueError: A candidate name contains a prohibited value or character.
+            ProfileError: A candidate name is reserved or candidates cast are undeclared.
         """
-        _validate_candidate_names(self.candidates, SourceWithAttribute(self, "candidates"))
-        _validate_candidate_names(
-            self.candidates_cast, SourceWithAttribute(self, "candidates_cast")
-        )
-
         for candidate in self.candidates:
-            if any(
-                f"{RANKING_COLUMN_PREFIX}{index}" == candidate
-                for index in range(len(self.candidates))
+            if isinstance(candidate, str) and re.fullmatch(
+                rf"{re.escape(RANKING_COLUMN_PREFIX)}\d+", candidate
             ):
                 raise ProfileError(
                     f"{candidate} is a name reserved for ranking columns, it cannot be used as a "
                     "candidate name."
                 )
 
-        if len(set(self.candidates)) != len(self.candidates):
-            raise ProfileError("All candidates must be unique.")
         if not set(self.candidates_cast).issubset(self.candidates):
             raise ProfileError(
                 "Candidates cast are not a subset of candidates list. The following "
@@ -334,9 +329,6 @@ class PreferenceProfile:
     @property
     def ballots(self) -> tuple[Ballot, ...]:
         raise NotImplementedError
-
-    _candidates: tuple[int, ...]
-    _candidates_cast: tuple[int, ...]
 
     def to_pickle(self, fpath: Union[str, PathLike, Path]):
         """
@@ -426,7 +418,7 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
 
     Raises:
         TypeError: A ranking cell is not a set or a candidate has an unsupported type.
-        ValueError: A raw or normalized candidate name contains a prohibited value or character.
+        ValueError: A normalized candidate name contains a prohibited value or character.
     """
     normalized_df = df.copy()
     ranking_cols = [
@@ -435,18 +427,21 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
         if isinstance(column, str) and column.startswith(RANKING_COLUMN_PREFIX)
     ]
 
+    # Include types in the keys so an invalid boolean cannot disappear behind an integer.
+    candidate_names: dict[tuple[type, Candidate], None] = {}
+
     def normalize_ranking_set(candidate_set: frozenset[Candidate]) -> frozenset[Candidate]:
         if not isinstance(candidate_set, (set, frozenset)):
             raise TypeError("Ranking cells must contain sets or frozensets of candidates.")
         if candidate_set == TILDE_SET:
             return TILDE_SET
 
-        _validate_candidate_names(candidate_set, context)
         normalized = tuple(_normalize_candidate_name(candidate) for candidate in candidate_set)
-        _validate_candidate_names(normalized, context)
+        candidate_names.update(((type(candidate), candidate), None) for candidate in normalized)
         return frozenset(normalized)
 
     normalized_df[ranking_cols] = df[ranking_cols].map(normalize_ranking_set)
+    _validate_candidate_names([candidate for _, candidate in candidate_names], context)
     return normalized_df
 
 
@@ -466,7 +461,7 @@ def _normalize_score_df_candidates(
     Raises:
         ProfileError: Normalized score names collide with each other or a shared column name.
         TypeError: A candidate column has an unsupported label type.
-        ValueError: A raw or normalized label contains a prohibited value or character.
+        ValueError: A normalized label contains a prohibited value or character.
     """
     shared_columns = {WEIGHT_COLUMN, VOTER_SET_COLUMN}
     score_columns = [column for column in df.columns if column not in shared_columns]
@@ -481,6 +476,12 @@ def _normalize_score_df_candidates(
 class RankProfile(PreferenceProfile):
     max_ranking_length: int
     _matrix: RankMatrix
+
+    def __new__(cls, **kwargs) -> Self:
+        """
+        Preserve the explicitly requested profile type, including subclasses.
+        """
+        return cast(Self, super().__new__(cls, **kwargs))
 
     def __init__(
         self,
@@ -513,7 +514,9 @@ class RankProfile(PreferenceProfile):
             rank_df, self.candidates_cast = self._init_from_rank_df(df)
 
         if self.candidates == tuple():
-            self.candidates = self.candidates_cast
+            self.candidates = _normalize_unique_candidates(
+                self.candidates_cast, f"{type(self).__name__}.candidates"
+            )
 
         self._validate_candidates()
         self._matrix = RankMatrix.from_df(rank_df, self.candidates)
@@ -532,20 +535,7 @@ class RankProfile(PreferenceProfile):
                 )
                 raise ValueError(msg)
 
-        super().__init__(
-            candidates=self.candidates,
-            candidates_cast=self.candidates_cast,
-            max_ranking_length=self.max_ranking_length,
-        )
-
-    @cached_property
-    def df(self) -> pd.DataFrame:
-        """
-        The dataframe of all ballots cast within a profile.
-        """
-        # NOTE: The dataframe is internally stored as a matrix. The dataframe will be constructed
-        # from the matrix with the original candidate sets as a cached property.
-        return self._matrix.to_df()
+        self._finalize_profile()
 
     def __update_ballot_ranking_data(
         self,
@@ -748,7 +738,7 @@ class RankProfile(PreferenceProfile):
             df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
-            ProfileError: Ranking column is missing.
+            ProfileError: A ranking column is missing, unexpected, or duplicated.
             ProfileError: Weight column is missing.
             ProfileError: Voter set column is missing.
             ProfileError: Index column is misformatted.
@@ -760,16 +750,19 @@ class RankProfile(PreferenceProfile):
             raise ProfileError(f"Voter Set column not in dataframe: {df.columns}")
         if df.index.name != BALLOT_INDEX_NAME:
             raise ProfileError(f"Index not named 'Ballot Index': {df.index.name}")
-        assert self.max_ranking_length is not None
-        if any(
-            f"{RANKING_COLUMN_PREFIX}{i + 1}" not in df.columns
-            for i in range(self.max_ranking_length)
-        ):
-            for i in range(self.max_ranking_length):
-                if f"{RANKING_COLUMN_PREFIX}{i + 1}" not in df.columns:
-                    raise ProfileError(
-                        f"Ranking column 'Ranking_{i + 1}' not in dataframe: {df.columns}"
-                    )
+        expected_columns = {
+            f"{RANKING_COLUMN_PREFIX}{rank}" for rank in range(1, self.max_ranking_length + 1)
+        }
+        for rank in range(1, self.max_ranking_length + 1):
+            column = f"{RANKING_COLUMN_PREFIX}{rank}"
+            if column not in df.columns:
+                raise ProfileError(f"Ranking column '{column}' not in dataframe: {df.columns}")
+
+        unexpected_columns = set(df.columns) - expected_columns - {WEIGHT_COLUMN, VOTER_SET_COLUMN}
+        if unexpected_columns:
+            raise ProfileError(f"Unexpected columns in ranked dataframe: {unexpected_columns}")
+        if not df.columns.is_unique:
+            raise ProfileError("Ranked dataframe columns must be unique.")
 
     def __find_candidates_cast_from_init_rank_df(self, df: pd.DataFrame) -> tuple[Candidate, ...]:
         """
@@ -880,14 +873,15 @@ class RankProfile(PreferenceProfile):
         Returns:
             RankProfile: A RankProfile object with grouped ballot list.
         """
-        if len(self.df) == 0:
+        if self.num_ballots == 0:
             return RankProfile(
                 candidates=self.candidates,
                 max_ranking_length=self.max_ranking_length,
             )
 
-        ranking_cols = [c for c in self.df.columns if RANKING_COLUMN_PREFIX in c]
-        group_df = self.df.groupby(ranking_cols, dropna=False)
+        df = self.df
+        ranking_cols = list(self._matrix.ranking_columns)
+        group_df = df.groupby(ranking_cols, dropna=False)
         new_df = group_df.aggregate(
             {
                 WEIGHT_COLUMN: "sum",
@@ -912,7 +906,7 @@ class RankProfile(PreferenceProfile):
         """
         return RankProfile(
             candidates=self.candidates,
-            df=self.df.copy(),
+            df=self.df,
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -1152,6 +1146,12 @@ class RankProfile(PreferenceProfile):
 class ScoreProfile(PreferenceProfile):
     _matrix: ScoreMatrix
 
+    def __new__(cls, **kwargs) -> Self:
+        """
+        Preserve the explicitly requested profile type, including subclasses.
+        """
+        return cast(Self, super().__new__(cls, **kwargs))
+
     def __init__(
         self,
         *,
@@ -1180,25 +1180,16 @@ class ScoreProfile(PreferenceProfile):
             score_df, self.candidates_cast = self._init_from_score_df(df)
 
         if self.candidates == tuple():
-            self.candidates = self.candidates_cast
+            self.candidates = _normalize_unique_candidates(
+                self.candidates_cast, f"{type(self).__name__}.candidates"
+            )
 
         self._validate_candidates()
 
         self._matrix = ScoreMatrix.from_df(score_df, self.candidates)
 
-        super().__init__(
-            candidates=self.candidates,
-            candidates_cast=self.candidates_cast,
-        )
-
-    @cached_property
-    def df(self) -> pd.DataFrame:
-        """
-        The dataframe of all ballots cast within a profile.
-        """
-        # NOTE: The dataframe is internally stored as a matrix. The dataframe will be constructed
-        # from the matrix with the original candidate names as a cached property.
-        return self._matrix.to_df()
+        self.max_ranking_length = None
+        self._finalize_profile()
 
     def __update_ballot_scores_data(
         self,
@@ -1507,15 +1498,14 @@ class ScoreProfile(PreferenceProfile):
         Returns:
             ScoreProfile: A ScoreProfile object with grouped ballot list.
         """
-        if len(self.df) == 0:
+        if self.num_ballots == 0:
             return ScoreProfile(
                 candidates=self.candidates,
             )
 
-        non_group_cols = [WEIGHT_COLUMN, VOTER_SET_COLUMN]
-        cand_cols = [c for c in self.df.columns if c not in non_group_cols]
-
-        group_df = self.df.groupby(cand_cols, dropna=False)
+        df = self.df
+        cand_cols = list(self._matrix.score_columns)
+        group_df = df.groupby(cand_cols, dropna=False)
         new_df = group_df.aggregate(
             {
                 WEIGHT_COLUMN: "sum",
@@ -1538,7 +1528,7 @@ class ScoreProfile(PreferenceProfile):
             ScoreProfile: New ScoreProfile object
         """
         return ScoreProfile(
-            df=self.df.copy(),
+            df=self.df,
             candidates=self.candidates,
         )
 

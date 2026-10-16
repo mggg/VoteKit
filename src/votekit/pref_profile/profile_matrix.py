@@ -178,7 +178,7 @@ class _ProfileVoterWeightData:
                     bad_weight_err_msg += f", and {len(bad_weights) - 3} more..."
                 raise ValueError(
                     "weights must be an object array of Fractions when weight_kind is FRACTION."
-                    f" Found: {bad_weights}"
+                    f" Found: {bad_weight_err_msg}"
                 )
 
             if any(weight < 0 for weight in self.weights):
@@ -377,8 +377,19 @@ class ProfileMatrix(Protocol):
         candidates (tuple[Candidate, ...]): Candidate universe associated with the profile.
     """
 
-    voter_weight_data: _ProfileVoterWeightData
-    candidates: tuple[Candidate, ...]
+    @property
+    def voter_weight_data(self) -> _ProfileVoterWeightData:
+        """
+        Aligned weights, voters, and index labels, exposed without a setter.
+        """
+        ...
+
+    @property
+    def candidates(self) -> tuple[Candidate, ...]:
+        """
+        Candidate universe in its declared order, exposed without a setter.
+        """
+        ...
 
     @classmethod
     def from_df(cls, df: pd.DataFrame, candidates: Sequence[Candidate]) -> Self:
@@ -407,7 +418,8 @@ class ProfileMatrix(Protocol):
 
         Returns:
             pd.DataFrame: Ballot rows with decoded candidate data, shared columns, and source
-                index labels when retained. Weight normalization may differ from the original input.
+                index labels when retained. Arrays are detached from matrix storage; immutable sets
+                may be shared. Weight normalization may differ from the original input.
         """
         ...
 
@@ -422,12 +434,12 @@ def _attach_ballot_columns(df: pd.DataFrame, data: _ProfileVoterWeightData) -> p
 
     Returns:
         pd.DataFrame: The supplied dataframe, with Voter Set and Weight appended in that order
-            and its index named Ballot Index. Restored index labels may share storage with data.
+            and its index named Ballot Index. Restored index labels have independent storage.
     """
     df[VOTER_SET_COLUMN] = data.voter_set_column()
     df[WEIGHT_COLUMN] = data.weights
     if data.ballot_index is not None:
-        df.index = pd.Index(data.ballot_index)
+        df.index = pd.Index(data.ballot_index, copy=True)
     df.index.name = BALLOT_INDEX_NAME
     return df
 
@@ -713,7 +725,7 @@ class RankMatrix:
             pd.DataFrame: Ranking columns in stored order, followed by Voter Set and Weight.
                 Payload arrays are independent; candidate and voter frozensets can be shared.
                 The index is named Ballot Index and uses retained labels when present; its label
-                storage may be shared with the matrix.
+                storage is independent of the matrix.
         """
         lookup = np.empty(len(self.cand_sets), dtype=object)
         lookup[:] = self.cand_sets
@@ -885,7 +897,7 @@ class ScoreMatrix:
         Returns:
             pd.DataFrame: Writable score columns followed by Voter Set and Weight. Score values
                 have independent storage. The index is named Ballot Index and uses retained labels
-                when present; its label storage may be shared with the matrix.
+                when present; its label storage is independent of the matrix.
         """
         df = pd.DataFrame(self.scores, columns=list(self.score_columns), copy=True)
         return _attach_ballot_columns(df, self.voter_weight_data)

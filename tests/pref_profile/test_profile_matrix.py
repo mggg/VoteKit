@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.exceptions import ProfileError
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.profile_matrix import (
+    ProfileMatrix,
     RankMatrix,
     ScoreMatrix,
     WeightKind,
@@ -92,7 +94,7 @@ def _df_with_weights(weights) -> pd.DataFrame:
 
 
 def _profile_from_df(df: pd.DataFrame) -> RankProfile:
-    return cast(RankProfile, RankProfile(df=df, candidates=["A", "B"], max_ranking_length=1))
+    return RankProfile(df=df, candidates=["A", "B"], max_ranking_length=1)
 
 
 def test_profile_isolates_weights_from_input_dataframe():
@@ -247,7 +249,11 @@ def test_shared_data_constructor_accepts_empty_arrays(
     voter_sets = np.empty(0, dtype=object) if include_optional_columns else None
     ballot_index = np.empty(0, dtype=int) if include_optional_columns else None
     data = _ProfileVoterWeightData(
-        weights=np.empty(0, dtype=dtype),
+        weights=(
+            np.empty(0, dtype=np.float64)
+            if weight_kind is WeightKind.FLOAT
+            else np.empty(0, dtype=object)
+        ),
         voter_sets=voter_sets,
         weight_kind=weight_kind,
         ballot_index=ballot_index,
@@ -738,3 +744,59 @@ def test_score_matrix_from_df_owns_score_values():
     df.loc[0, "A"] = 99.0
 
     assert matrix.scores[0, 0] == 1.0
+
+
+@pytest.mark.parametrize("weight", [2.0, Fraction(2, 3)])
+@pytest.mark.parametrize(
+    "profile_type, ballot_type, payload, column, replacement",
+    [
+        (RankProfile, RankBallot, {"ranking": [{"A"}]}, "Ranking_1", frozenset({"B"})),
+        (ScoreProfile, ScoreBallot, {"scores": {"A": 3}}, "A", 99.0),
+    ],
+)
+def test_profile_dataframe_exports_are_detached(
+    profile_type, ballot_type, payload, column, replacement, weight
+):
+    ballot = ballot_type(**payload, weight=weight, voter_set={"voter"})
+    source = profile_type(ballots=[ballot]).df
+    source["Weight"] = pd.Series([weight], dtype=object)
+    source.index = pd.Index([37], name="Ballot Index")
+    profile = profile_type(df=source, candidates=["A"], max_ranking_length=1)
+    expected = profile.df
+
+    exported = profile.df
+    exported.at[37, "Weight"] = 9
+    exported.at[37, "Voter Set"] = frozenset({"other voter"})
+    exported.at[37, column] = replacement
+    assert not np.shares_memory(
+        exported.index.to_numpy(), profile._matrix.voter_weight_data.ballot_index
+    )
+    exported.index = pd.Index([99], name="Ballot Index")
+
+    pd.testing.assert_frame_equal(profile.df, expected)
+    pd.testing.assert_frame_equal(profile._matrix.to_df(), expected)
+    pd.testing.assert_frame_equal(profile.copy().df, expected)
+    assert profile.total_ballot_wt == weight
+    assert profile.group_ballots().total_ballot_wt == weight
+    assert profile.ballots == (ballot,)
+
+
+def test_frozen_matrices_implement_profile_matrix_protocol():
+    rank = RankProfile(ballots=[RankBallot(ranking=[{"A"}])])
+    score = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})])
+    matrices: tuple[ProfileMatrix, ...] = (rank._matrix, score._matrix)
+
+    for matrix in matrices:
+        assert isinstance(matrix, ProfileMatrix)
+        assert len(matrix) == 1
+        assert matrix.candidates == ("A",)
+        assert matrix.to_df()["Weight"].tolist() == [1.0]
+
+
+def test_fraction_weight_type_error_summarizes_invalid_entries():
+    with pytest.raises(ValueError, match=r"0 \(int\), 1 \(int\), 2 \(int\), and 2 more"):
+        _ProfileVoterWeightData(
+            weights=np.array([0, 1, 2, 3, 4], dtype=object),
+            voter_sets=None,
+            weight_kind=WeightKind.FRACTION,
+        )

@@ -166,6 +166,8 @@ def test_explicit_profile_constructor_return_types():
     assert_type(ScoreProfile(df=score_profile.df), ScoreProfile)
     assert_type(DerivedRankProfile(), DerivedRankProfile)
     assert_type(DerivedScoreProfile(), DerivedScoreProfile)
+    assert_type(DerivedRankProfile(ballots=[RankBallot()]), DerivedRankProfile)
+    assert_type(DerivedScoreProfile(ballots=[ScoreBallot()]), DerivedScoreProfile)
 
 
 @pytest.mark.parametrize(
@@ -191,3 +193,35 @@ def test_candidate_types_are_validated_before_duplicate_detection(profile_type, 
 def test_profile_rejects_bare_string_candidates(profile_type):
     with pytest.raises(TypeError, match="Candidates cannot be a string"):
         profile_type(candidates="Alice")
+
+
+@pytest.mark.parametrize("profile_type", [PreferenceProfile, RankProfile, ScoreProfile])
+@pytest.mark.parametrize("name", ["Ranking_0", "Ranking_1", "Ranking_100"])
+@pytest.mark.parametrize("other_candidates", [[], ["A", "B"]])
+def test_reserved_ranking_names_do_not_depend_on_candidate_count(
+    profile_type, name, other_candidates
+):
+    with pytest.raises(ProfileError, match="name reserved for ranking columns"):
+        profile_type(candidates=[name, *other_candidates])
+
+
+@pytest.mark.parametrize(
+    "cleaned_type, profile_type, ballot",
+    [
+        (CleanedRankProfile, RankProfile, RankBallot(ranking=[{"A"}])),
+        (CleanedScoreProfile, ScoreProfile, ScoreBallot(scores={"A": 1})),
+    ],
+)
+def test_cleaned_profile_retains_parent_indices_in_matrix(cleaned_type, profile_type, ballot):
+    parent = profile_type(ballots=[type(ballot)(weight=0), ballot])
+    cleaned = cleaned_type(
+        parent,
+        df_index_column=[1],
+        unaltr_idxs={1},
+        no_wt_altr_idxs={0},
+        ballots=[ballot],
+    )
+
+    assert cleaned.df.index.tolist() == [1]
+    assert cleaned._matrix.to_df().index.tolist() == [1]
+    assert cleaned.copy().df.index.tolist() == [1]

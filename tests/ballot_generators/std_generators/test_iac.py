@@ -93,6 +93,8 @@ def test_iac_respects_max_ballot_length(monkeypatch):
 
     assert _ballot_counter(profile) == Counter({("A",): 1, ("C",): 1})
     assert all(len(ballot) == 1 for ballot in _ballot_counter(profile))
+    assert profile.max_ranking_length == 1
+    assert profile._matrix.ranking_columns == ("Ranking_1",)
 
 
 def test_iac_profile_count_sampler_is_uniform_for_small_case():

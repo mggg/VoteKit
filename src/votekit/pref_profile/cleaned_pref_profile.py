@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import warnings
+from dataclasses import replace
 
 import pandas as pd
 
-from votekit._df_schema import BALLOT_INDEX_NAME
 from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
 
 
@@ -16,6 +16,8 @@ class CleanedRankProfile(RankProfile):
     that track the indices of the ballot dataframe, and how they are changed by different cleaning
     rules. It also retains the parent profile of the CleanedRankProfile, allowing for full recovery
     of the cleaning steps.
+
+    Construction copies the index-label list and provenance sets supplied by the caller.
 
     A ballot is considered altered by a cleaning function when its ranking or weight are not
     equivalent to their values prior to cleaning. A ballot is considered empty when its ranking
@@ -84,15 +86,15 @@ class CleanedRankProfile(RankProfile):
         **kwargs,
     ):
         self.parent_profile = parent_profile
-        self.df_index_column = df_index_column
-        self.no_wt_altr_idxs = no_wt_altr_idxs
-        self.no_rank_altr_idxs = no_rank_altr_idxs
-        self.nonempty_altr_idxs = nonempty_altr_idxs
-        self.unaltr_idxs = unaltr_idxs
+        self.df_index_column = df_index_column.copy()
+        self.no_wt_altr_idxs = no_wt_altr_idxs.copy()
+        self.no_rank_altr_idxs = no_rank_altr_idxs.copy()
+        self.nonempty_altr_idxs = nonempty_altr_idxs.copy()
+        self.unaltr_idxs = unaltr_idxs.copy()
 
         self._indices_must_match_parent_df()
         super().__init__(**kwargs)
-        self._reindex_ballot_df()
+        self._reindex_matrix()
 
     def _indices_must_match_parent_df(self) -> None:
         """
@@ -162,21 +164,22 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-    def _reindex_ballot_df(self) -> None:
+    def _reindex_matrix(self) -> None:
         """
-        Reindex the df to keep track of which ballots are which.
+        Store retained parent ballot indices in the authoritative matrix.
 
         Raises:
             ValueError: If df_index_column does not have the same length as the ballot list.
 
         """
-        if len(self.df) != len(self.df_index_column):
+        if len(self._matrix) != len(self.df_index_column):
             raise ValueError("df_index_column does not have the same length as the ballot list.")
 
-        df_copy = self.df.copy()
-        df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = BALLOT_INDEX_NAME
-        object.__setattr__(self, "df", df_copy)
+        data = replace(
+            self._matrix.voter_weight_data, ballot_index=pd.Index(self.df_index_column).to_numpy()
+        )
+        matrix = replace(self._matrix, voter_weight_data=data)
+        object.__setattr__(self, "_matrix", matrix)
 
     def group_ballots(self) -> RankProfile:
         warnings.warn(
@@ -201,6 +204,8 @@ class CleanedScoreProfile(ScoreProfile):
     that track the indices of the ballot dataframe, and how they are changed by different cleaning
     rules. It also retains the parent profile of the CleanedScoreProfile, allowing for full recovery
     of the cleaning steps.
+
+    Construction copies the index-label list and provenance sets supplied by the caller.
 
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
@@ -240,15 +245,15 @@ class CleanedScoreProfile(ScoreProfile):
         **kwargs,
     ):
         self.parent_profile = parent_profile
-        self.df_index_column = df_index_column
-        self.no_wt_altr_idxs = no_wt_altr_idxs
-        self.no_scores_altr_idxs = no_scores_altr_idxs
-        self.nonempty_altr_idxs = nonempty_altr_idxs
-        self.unaltr_idxs = unaltr_idxs
+        self.df_index_column = df_index_column.copy()
+        self.no_wt_altr_idxs = no_wt_altr_idxs.copy()
+        self.no_scores_altr_idxs = no_scores_altr_idxs.copy()
+        self.nonempty_altr_idxs = nonempty_altr_idxs.copy()
+        self.unaltr_idxs = unaltr_idxs.copy()
 
         self._indices_must_match_parent_df()
         super().__init__(**kwargs)
-        self._reindex_ballot_df()
+        self._reindex_matrix()
 
     def _indices_must_match_parent_df(self) -> None:
         """
@@ -318,21 +323,22 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-    def _reindex_ballot_df(self) -> None:
+    def _reindex_matrix(self) -> None:
         """
-        Reindex the df to keep track of which ballots are which.
+        Store retained parent ballot indices in the authoritative matrix.
 
         Raises:
             ValueError: If df_index_column does not have the same length as the ballot list.
 
         """
-        if len(self.df) != len(self.df_index_column):
+        if len(self._matrix) != len(self.df_index_column):
             raise ValueError("df_index_column does not have the same length as the ballot list.")
 
-        df_copy = self.df.copy()
-        df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = BALLOT_INDEX_NAME
-        object.__setattr__(self, "df", df_copy)
+        data = replace(
+            self._matrix.voter_weight_data, ballot_index=pd.Index(self.df_index_column).to_numpy()
+        )
+        matrix = replace(self._matrix, voter_weight_data=data)
+        object.__setattr__(self, "_matrix", matrix)
 
     def group_ballots(self) -> ScoreProfile:
         warnings.warn(

@@ -140,3 +140,40 @@ def test_from_df_normalization_rejects_non_set_ranking_cells(cell):
 
     with pytest.raises(TypeError, match="Ranking cells must contain sets"):
         RankProfile(df=source, candidates=["A"], max_ranking_length=1)
+
+
+@pytest.mark.parametrize("extra_column", ["Ranking_0", "Ranking_2", "Ranking_01", "Ranking_bad", 7])
+def test_from_df_rejects_columns_that_would_be_omitted_from_ballots(extra_column):
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).df
+    source[extra_column] = pd.Series([frozenset({"B"})])
+
+    with pytest.raises(ProfileError, match="Unexpected columns"):
+        RankProfile(df=source, max_ranking_length=1)
+
+
+def test_from_df_rejects_duplicate_ranking_columns():
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).df
+    source = pd.concat([source, source[["Ranking_1"]]], axis=1)
+
+    with pytest.raises(ProfileError, match="columns must be unique"):
+        RankProfile(df=source, max_ranking_length=1)
+
+
+def test_from_df_accepts_reordered_ranking_columns():
+    ballot = RankBallot(ranking=[{"A"}, {"B"}])
+    source = RankProfile(ballots=[ballot]).df
+    source = source[["Weight", "Ranking_2", "Voter Set", "Ranking_1"]]
+
+    result = RankProfile(df=source, max_ranking_length=2)
+
+    assert result.ballots == (ballot,)
+    assert result._matrix.ranking_columns == ("Ranking_1", "Ranking_2")
+
+
+@pytest.mark.parametrize("invalid_candidate", [True, 1.0])
+def test_from_df_checks_candidate_types_across_equal_ranking_sets(invalid_candidate):
+    source = RankProfile(ballots=[RankBallot(ranking=[{1}])] * 2).df
+    source["Ranking_1"] = pd.Series([frozenset({1}), frozenset({invalid_candidate})])
+
+    with pytest.raises(TypeError, match="candidate"):
+        RankProfile(df=source, max_ranking_length=1)
