@@ -47,8 +47,7 @@ def test_from_df_init_errors():
 
     with pytest.raises(
         ProfileError,
-        match="Profile cannot contain RankBallots and ScoreBallots. "
-        "There are 1 ScoreBallots and 1 RankBallots.",
+        match="RankProfile requires RankBallots; ballot at index 1 is ScoreBallot.",
     ):
         RankProfile(ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1})))
 

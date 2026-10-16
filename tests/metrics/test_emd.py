@@ -1,16 +1,17 @@
 from time import time
+from typing import cast
 
 import numpy as np
 import pytest
 from scipy.stats import wasserstein_distance
 
-from votekit.ballot import RankBallot
+from votekit.ballot import RankBallot, ScoreBallot
 from votekit.metrics.distances import (
     __vaildate_ranking_distance_inputs,
     earth_mover_dist,
     emd_via_scipy_linear_program,
 )
-from votekit.pref_profile import RankProfile
+from votekit.pref_profile import RankProfile, ScoreProfile
 
 
 def test_lp_perfect_match():
@@ -204,9 +205,12 @@ def test_emd_profile_errors():
     with pytest.raises(ValueError, match="Both profiles must contain rankings"):
         earth_mover_dist(
             RankProfile(ballots=(_ballot(["A", "B"]),), candidates=("A", "B")),
-            RankProfile(
-                ballots=(RankBallot(scores={"A": 1, "B": 1}),),
-                candidates=("A", "B"),
+            cast(
+                RankProfile,
+                ScoreProfile(
+                    ballots=(ScoreBallot(scores={"A": 1, "B": 1}),),
+                    candidates=("A", "B"),
+                ),
             ),
         )
 

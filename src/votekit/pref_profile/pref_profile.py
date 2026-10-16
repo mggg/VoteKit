@@ -45,11 +45,54 @@ from votekit.utils import (
 )
 
 
+def _infer_profile_type(ballots: Sequence[Ballot], df: pd.DataFrame) -> type[PreferenceProfile]:
+    """
+    Select the profile type for a direct PreferenceProfile construction.
+
+    A dataframe with a ranking-prefixed column selects RankProfile; other dataframes
+    select ScoreProfile. Without a dataframe, all ballots must have the same type.
+    Empty inputs retain the base PreferenceProfile type.
+
+    Args:
+        ballots (Sequence[Ballot]): Ballots used when no dataframe is supplied.
+        df (pd.DataFrame): Input dataframe, or a default empty dataframe when absent.
+
+    Returns:
+        type[PreferenceProfile]: The class to allocate and initialize.
+
+    Raises:
+        ProfileError: The ballot sequence does not consist entirely of rank or score ballots.
+    """
+    if not df.equals(pd.DataFrame()):
+        if any(c.startswith(RANKING_COLUMN_PREFIX) for c in df.columns if isinstance(c, str)):
+            return RankProfile
+        return ScoreProfile
+
+    if len(ballots) == 0:
+        return PreferenceProfile
+    if all(isinstance(ballot, RankBallot) for ballot in ballots):
+        return RankProfile
+    if all(isinstance(ballot, ScoreBallot) for ballot in ballots):
+        return ScoreProfile
+
+    score_count = sum(isinstance(ballot, ScoreBallot) for ballot in ballots)
+    rank_count = sum(isinstance(ballot, RankBallot) for ballot in ballots)
+    raise ProfileError(
+        "Profile cannot contain RankBallots and ScoreBallots. There are "
+        f"{score_count} ScoreBallots and {rank_count} RankBallots."
+    )
+
+
 class PreferenceProfile:
     """
     PreferenceProfile class, contains ballots and candidates for a given election.
     This is a frozen class, so you need to create a new PreferenceProfile any time
     you want to edit the ballots, candidates, etc.
+
+    Calling PreferenceProfile directly infers RankProfile or ScoreProfile from the inputs.
+    With no ballots or dataframe, it creates an empty PreferenceProfile. Explicit calls to
+    RankProfile, ScoreProfile, or their subclasses preserve the requested type and reject
+    incompatible ballot types.
 
     Args:
         ballots (Sequence[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
@@ -134,7 +177,7 @@ class PreferenceProfile:
         max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
-    ) -> PreferenceProfile: ...
+    ) -> Self: ...
 
     def __new__(
         cls,
@@ -144,35 +187,17 @@ class PreferenceProfile:
         max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
-    ):
+    ) -> PreferenceProfile:
         if not df.equals(pd.DataFrame()) and len(ballots) != 0:
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
             )
 
-        if df.equals(pd.DataFrame()) and len(ballots) == 0:
+        if cls is not PreferenceProfile:
             return super().__new__(cls)
 
-        elif df.equals(pd.DataFrame()):
-            if all(isinstance(b, RankBallot) for b in ballots):
-                return super().__new__(RankProfile)
-
-            elif all(isinstance(b, ScoreBallot) for b in ballots):
-                return super().__new__(ScoreProfile)
-
-            else:
-                score_idxs = [idx for idx, b in enumerate(ballots) if isinstance(b, ScoreBallot)]
-                rank_idxs = [idx for idx, b in enumerate(ballots) if isinstance(b, RankBallot)]
-
-                raise ProfileError(
-                    f"Profile cannot contain RankBallots and ScoreBallots. There are "
-                    f"{len(score_idxs)} ScoreBallots and {len(rank_idxs)} RankBallots."
-                )
-
-        if any(c.startswith(RANKING_COLUMN_PREFIX) for c in df.columns if isinstance(c, str)):
-            return super().__new__(RankProfile)
-
-        return super().__new__(ScoreProfile)
+        profile_type = _infer_profile_type(ballots, df)
+        return object.__new__(profile_type)
 
     def __init__(
         self,
@@ -217,7 +242,8 @@ class PreferenceProfile:
         if self._matrix is None:
             return 0
 
-        return np.sum(self._matrix.voter_weight_data.weights)
+        # Object-array weights are validated Fraction values by construction.
+        return cast(Numeric, np.sum(self._matrix.voter_weight_data.weights))
 
     def _validate_and_set_candidates(self) -> None:
         """
@@ -361,6 +387,13 @@ class RankProfile(PreferenceProfile):
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: None = None,
     ):
+        for index, ballot in enumerate(ballots):
+            if not isinstance(ballot, RankBallot):
+                raise ProfileError(
+                    f"RankProfile requires RankBallots; ballot at index {index} "
+                    f"is {type(ballot).__name__}."
+                )
+
         self.candidates = tuple(candidates)
 
         self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
@@ -538,7 +571,7 @@ class RankProfile(PreferenceProfile):
             WEIGHT_COLUMN,
         ]
 
-        df = df[col_order]
+        df = df.loc[:, col_order]
         df.index.name = BALLOT_INDEX_NAME
         return df
 
@@ -721,14 +754,10 @@ class RankProfile(PreferenceProfile):
         """
         assert self.max_ranking_length is not None
 
-        # TODO do this with map?
-        computed_ballots = [RankBallot()] * len(self.df)
-        for i, (_, b_row) in enumerate(self.df.iterrows()):
-            computed_ballots[i] = convert_row_to_rank_ballot(
-                b_row,
-                self.max_ranking_length,
-            )
-        return tuple(computed_ballots)
+        return tuple(
+            convert_row_to_rank_ballot(row, self.max_ranking_length)
+            for _, row in self.df.iterrows()
+        )
 
     def __add__(self, other) -> RankProfile:
         """
@@ -1024,6 +1053,13 @@ class ScoreProfile(PreferenceProfile):
         max_ranking_length: Optional[int] = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
+        for index, ballot in enumerate(ballots):
+            if not isinstance(ballot, ScoreBallot):
+                raise ProfileError(
+                    f"ScoreProfile requires ScoreBallots; ballot at index {index} "
+                    f"is {type(ballot).__name__}."
+                )
+
         self.candidates = tuple(candidates)
 
         if df.equals(pd.DataFrame()):
@@ -1201,7 +1237,7 @@ class ScoreProfile(PreferenceProfile):
                 list(sort_candidates_pseudo_lexicographically(seen_candidates)) + temp_col_order
             )
 
-        df = df[col_order]
+        df = df.loc[:, col_order]
         df.index.name = BALLOT_INDEX_NAME
         return df
 
@@ -1347,11 +1383,10 @@ class ScoreProfile(PreferenceProfile):
         """
         Compute the ballot tuple as a cached property.
         """
-        # TODO with map?
-        computed_ballots = [ScoreBallot()] * len(self.df)
-        for i, (_, b_row) in enumerate(self.df.iterrows()):
-            computed_ballots[i] = convert_row_to_score_ballot(b_row, tuple(self.candidates))
-        return tuple(computed_ballots)
+        return tuple(
+            convert_row_to_score_ballot(row, tuple(self.candidates))
+            for _, row in self.df.iterrows()
+        )
 
     def __add__(self, other):
         """

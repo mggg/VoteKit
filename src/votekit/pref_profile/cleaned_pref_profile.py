@@ -71,8 +71,7 @@ class CleanedRankProfile(RankProfile):
     """
 
     def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls)
-        return instance
+        return super().__new__(cls, **kwargs)
 
     def __init__(
         self,
@@ -228,8 +227,7 @@ class CleanedScoreProfile(ScoreProfile):
     """
 
     def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls)
-        return instance
+        return super().__new__(cls, **kwargs)
 
     def __init__(
         self,
