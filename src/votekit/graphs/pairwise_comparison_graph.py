@@ -19,15 +19,15 @@ from votekit.utils import (
 )
 
 
-def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
+def __rows_to_indices(rankings: NDArray, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
     """
-    Converts the ranking columns of a RankProfile to integer indices.
+    Converts an array of candidate-set rankings to integer indices.
     Each singleton candidate set is converted to an index based on the provided candidates list.
     A special value of -2 is used for the short ballot candidate set {"~"} and -1 for undefined
     entries.
 
     Args:
-        profile (RankProfile): The preference profile containing rankings.
+        rankings (NDArray): Two-dimensional array of candidate-set ranking cells.
         cand_name_to_idx (dict[Candidate, int]): A mapping from candidate names to their
             integer index representations. Candidates can be strings, integers, or mix of both.
 
@@ -36,14 +36,11 @@ def __rows_to_indices(profile: RankProfile, cand_name_to_idx: dict[Candidate, in
     """
     fs_to_idx = {frozenset({c}): cand_name_to_idx[c] for c in cand_name_to_idx.keys()}
     fs_to_idx[frozenset({"~"})] = -2  # Make a special value for short ballots
-    assert profile.max_ranking_length is not None
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
-    mat_obj = profile.df[ranking_cols].to_numpy(object)
-    flat = mat_obj.ravel()
+    flat = rankings.ravel()
     flat_idx = np.empty(flat.shape[0], dtype=np.int32)
     for k, x in enumerate(flat):
         flat_idx[k] = fs_to_idx.get(x, -1)  # -1 for any undefined entry
-    return flat_idx.reshape(mat_obj.shape).astype(np.int32)
+    return flat_idx.reshape(rankings.shape).astype(np.int32)
 
 
 # NOTE: There are a couple more optimizations that could be made here, such as avoiding the
@@ -116,8 +113,11 @@ def pairwise_dict(
     n_cands = len(candidates_lst)
 
     cand_to_idx = {c: i for i, c in enumerate(candidates_lst)}
-    integer_rankings_mat = __rows_to_indices(profile, cand_to_idx)
-    wt_vec = profile.df[WEIGHT_COLUMN].to_numpy().astype(np.float64)
+    assert profile.max_ranking_length is not None
+    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
+    profile_df = profile.to_df()
+    integer_rankings_mat = __rows_to_indices(profile_df[ranking_cols].to_numpy(object), cand_to_idx)
+    wt_vec = profile_df[WEIGHT_COLUMN].to_numpy().astype(np.float64)
 
     head_to_head_matrix = np.zeros((n_cands, n_cands), dtype=np.float64)
 

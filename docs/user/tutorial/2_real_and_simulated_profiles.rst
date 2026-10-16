@@ -344,7 +344,7 @@ documentation <../../social_choice_docs/scr.html#slate-bradley-terry>`__.
     )
     
     profile = bg.slate_bt_profile_generator(config)
-    print(profile.df)
+    print(profile.to_df())
 
 
 .. parsed-literal::
@@ -397,7 +397,7 @@ increased to ensure mixing of the chain.
 
     config.n_voters = 100000
     mcmc_profile = bg.slate_bt_profile_generator_using_mcmc(config)
-    print(profile.df)
+    print(profile.to_df())
 
 
 .. parsed-literal::
@@ -566,7 +566,7 @@ the opposing candidates.
     profile_dict = bg.slate_pl_profiles_by_bloc_generator(config)
     
     print()
-    print(profile_dict["X"].df)
+    print(profile_dict["X"].to_df())
 
 
 .. parsed-literal::
@@ -670,7 +670,7 @@ data.
     
     
     profile = bg.cambridge_profile_generator(config)
-    print(profile.df.head(10).to_string())
+    print(profile.to_df().head(10).to_string())
 
 
 .. parsed-literal::

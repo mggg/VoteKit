@@ -41,7 +41,7 @@ def test_init():
 
     assert empty_profile.ballots == ()
     assert not empty_profile.candidates
-    assert empty_profile.df.equals(true_df)
+    assert empty_profile.to_df().equals(true_df)
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots
@@ -65,8 +65,8 @@ def test_parents():
 
 
 def test_reindexing_df():
-    assert list(clean_1.df.index) == [0, 1]
-    assert list(clean_2.df.index) == [0]
+    assert list(clean_1.to_df().index) == [0, 1]
+    assert list(clean_2.to_df().index) == [0]
 
 
 def test_no_wt_altr_idxs_subset_error():
@@ -172,7 +172,7 @@ def test_cleaned_profile_eq():
 @pytest.mark.parametrize("from_df", [False, True], ids=["ballots", "dataframe"])
 def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool) -> None:
     parent = clean_1
-    retained_df = clean_2.df
+    retained_df = clean_2.to_df()
     indices = list(retained_df.index)
     no_weight = set(clean_2.no_wt_altr_idxs)
     no_payload = set(clean_2.no_scores_altr_idxs)
@@ -189,8 +189,8 @@ def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool)
         df=retained_df if from_df else pd.DataFrame(),
         ballots=() if from_df else clean_2.ballots,
     )
-    expected_df = cleaned.df
-    expected_parent_df = parent.df
+    expected_df = cleaned.to_df()
+    expected_parent_df = parent.to_df()
     expected_ballots = cleaned.ballots
     expected_total = cleaned.total_ballot_wt
 
@@ -206,7 +206,7 @@ def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool)
     assert cleaned.nonempty_altr_idxs == clean_2.nonempty_altr_idxs
     assert cleaned.unaltr_idxs == clean_2.unaltr_idxs
 
-    exported_df = cleaned.df
+    exported_df = cleaned.to_df()
     first_index = exported_df.index[0]
     exported_df.at[first_index, "A"] = 99.0
     exported_df.at[first_index, "Weight"] = 99.0
@@ -219,17 +219,17 @@ def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool)
     exported_df.rename(index={first_index: 99}, inplace=True)
     exported_df.index.name = "Changed index"
 
-    pd.testing.assert_frame_equal(cleaned.df, expected_df)
+    pd.testing.assert_frame_equal(cleaned.to_df(), expected_df)
     pd.testing.assert_frame_equal(cleaned._matrix.to_df(), expected_df)
-    pd.testing.assert_frame_equal(cleaned.copy().df, expected_df)
-    pd.testing.assert_frame_equal(parent.df, expected_parent_df)
+    pd.testing.assert_frame_equal(cleaned.copy().to_df(), expected_df)
+    pd.testing.assert_frame_equal(parent.to_df(), expected_parent_df)
     assert cleaned.ballots == expected_ballots
     assert cleaned.total_ballot_wt == expected_total
 
 
 @pytest.mark.parametrize("from_df", [False, True], ids=["ballots", "dataframe"])
 def test_grouping_returns_ordinary_profile_with_reset_indices(from_df: bool) -> None:
-    retained_df = clean_2.df
+    retained_df = clean_2.to_df()
     retained_df.index = pd.Index(retained_df.index + 10, name="Ballot Index")
     parent = ScoreProfile(
         df=retained_df,
@@ -247,8 +247,8 @@ def test_grouping_returns_ordinary_profile_with_reset_indices(from_df: bool) -> 
         grouped = cleaned.group_ballots()
 
     assert type(grouped) is ScoreProfile
-    assert grouped.df.index.tolist() == list(range(grouped.num_ballots))
-    assert grouped.df.index.name == "Ballot Index"
+    assert grouped.to_df().index.tolist() == list(range(grouped.num_ballots))
+    assert grouped.to_df().index.name == "Ballot Index"
     assert grouped.total_ballot_wt == cleaned.total_ballot_wt
     assert grouped == ScoreProfile(ballots=cleaned.ballots).group_ballots()
-    pd.testing.assert_frame_equal(cleaned.df, retained_df)
+    pd.testing.assert_frame_equal(cleaned.to_df(), retained_df)

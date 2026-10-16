@@ -134,7 +134,7 @@ class SimultaneousVeto(RankingElection):
         self.return_all_tied_winners = return_all_tied_winners
 
         grouped_profile = profile.group_ballots()
-        self._df = grouped_profile.df.copy()
+        self._df = grouped_profile.to_df()
         self.candidates = frozenset(grouped_profile.candidates_cast)
         self._eliminated: set[Candidate] = set("~")
 

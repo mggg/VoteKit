@@ -23,7 +23,7 @@ def test_pp_total_ballot_wt():
 
 def test_pp_total_ballot_wt_rejects_nan_weight():
     profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=2)])
-    df = profile.df.copy()
+    df = profile.to_df().copy()
     df["Weight"] = [np.nan]
 
     with pytest.raises(ProfileError, match="Ballot weights cannot be NaN."):

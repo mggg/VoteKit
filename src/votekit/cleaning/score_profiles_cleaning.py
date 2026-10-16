@@ -26,7 +26,7 @@ def _iterate_and_clean_score_tuples(
         tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]: cleaned_df, unaltr_idxs,
             nonempty_altr_idxs, no_wt_altr_idxs, no_scores_altr_idxs
     """
-    cleaned_df = profile.df.copy()
+    cleaned_df = profile.to_df()
     candidate_cols = [c for c in cleaned_df.columns if c not in [WEIGHT_COLUMN, VOTER_SET_COLUMN]]
 
     orig_rows = [
@@ -179,7 +179,7 @@ def remove_cand_score_profile(
     """
     if isinstance(removed, Candidate):
         removed = [removed]
-    removed_idxs = [i for i, c in enumerate(profile.df.columns) if c in removed]
+    removed_idxs = [i for i, c in enumerate(profile.to_df().columns) if c in removed]
 
     cleaned_profile = clean_score_profile(
         profile,
@@ -195,9 +195,9 @@ def remove_cand_score_profile(
         else list(profile.candidates)
     )
     new_df = (
-        cleaned_profile.df[new_candidates + [VOTER_SET_COLUMN, WEIGHT_COLUMN]]
+        cleaned_profile.to_df()[new_candidates + [VOTER_SET_COLUMN, WEIGHT_COLUMN]]
         if not retain_original_candidate_list
-        else cleaned_profile.df
+        else cleaned_profile.to_df()
     )
 
     return CleanedScoreProfile(

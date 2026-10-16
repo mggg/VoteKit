@@ -64,7 +64,7 @@ def test_exact_stv_does_not_mutate_float_input_profile():
 @pytest.mark.parametrize("value", [1, 1.0, np.int64(1), np.float64(1.0)])
 def test_exact_stv_converts_integral_real_weights(value: object):
     profile = _three_candidate_profile()
-    df = profile.df.copy()
+    df = profile.to_df().copy()
     df["Weight"] = pd.Series([value, 2, 1], dtype=object)
     converted = RankProfile(
         df=df,
@@ -79,7 +79,7 @@ def test_exact_stv_converts_integral_real_weights(value: object):
 
 def test_exact_stv_rejects_non_integral_float_weight():
     profile = _three_candidate_profile()
-    df = profile.df.copy()
+    df = profile.to_df().copy()
     df["Weight"] = pd.Series([1.5, 2, 1], dtype=object)
     invalid = RankProfile(
         df=df,
@@ -95,7 +95,7 @@ def test_profile_rejects_integer_rounding_before_exact_stv_validation():
     weight = 2**53 + 1
 
     profile = _three_candidate_profile()
-    df = profile.df.copy()
+    df = profile.to_df().copy()
     df["Weight"] = pd.Series([weight, 2, 1], dtype=object)
 
     with pytest.raises(ProfileError, match="represented exactly as float64"):
@@ -109,7 +109,7 @@ def test_profile_rejects_integer_rounding_before_exact_stv_validation():
 @pytest.mark.parametrize("weight", [-1, Fraction(-1, 3)])
 def test_exact_stv_rejects_negative_dataframe_weight(weight: object):
     profile = _three_candidate_profile()
-    df = profile.df.copy()
+    df = profile.to_df().copy()
     df["Weight"] = pd.Series([weight, 2, 1], dtype=object)
 
     with pytest.raises(ProfileError, match="Ballot weight cannot be negative"):

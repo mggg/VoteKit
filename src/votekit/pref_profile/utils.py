@@ -26,10 +26,10 @@ def _convert_ranking_cols_to_ranking(
     row: pd.Series, max_ranking_length: int
 ) -> Optional[tuple[frozenset, ...]]:
     """
-    Convert the ranking cols to a ranking tuple in profile.df.
+    Convert the ranking cols to a ranking tuple in profile.to_df().
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         max_ranking_length (int, optional): The maximum length of a ranking.
 
     Returns:
@@ -61,10 +61,10 @@ def _convert_ranking_cols_to_ranking(
 
 def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> RankBallot:
     """
-    Convert a row of a properly formatted profile.df to a Ballot.
+    Convert a row of a properly formatted profile.to_df() to a Ballot.
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
             is used for ballots with no ranking.
 
@@ -86,10 +86,10 @@ def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> R
 
 def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...]) -> ScoreBallot:
     """
-    Convert a row of a properly formatted profile.df to a Ballot.
+    Convert a row of a properly formatted profile.to_df() to a Ballot.
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         candidates (tuple[Candidate,...]): The name of the candidates.
             Candidates can be strings, integers, or mix of both.
 
@@ -111,10 +111,10 @@ def _df_to_rank_ballot_tuple(
     df: pd.DataFrame, candidates: tuple[Candidate, ...], max_ranking_length: int = 0
 ) -> tuple[RankBallot, ...]:
     """
-    Convert a properly formatted profile.df into a list of ballots.
+    Convert a properly formatted profile.to_df() into a list of ballots.
 
     Args:
-        df (pd.DataFrame): A profile.df.
+        df (pd.DataFrame): A profile.to_df().
         candidates (tuple[Candidate,...]): The candidates.
             Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
@@ -307,10 +307,10 @@ def profile_df_head(
     """
 
     if sort_by_weight:
-        df = profile.df.sort_values(by=WEIGHT_COLUMN, ascending=False).head(n).copy()
+        df = profile.to_df().sort_values(by=WEIGHT_COLUMN, ascending=False).head(n).copy()
 
     else:
-        df = profile.df.head(n).copy()
+        df = profile.to_df().head(n).copy()
 
     df_col_num = len(df.columns)
     if percents:
@@ -358,9 +358,9 @@ def profile_df_tail(
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
     if sort_by_weight:
-        df = profile.df.sort_values(by=WEIGHT_COLUMN, ascending=False).tail(n).copy()
+        df = profile.to_df().sort_values(by=WEIGHT_COLUMN, ascending=False).tail(n).copy()
     else:
-        df = profile.df.tail(n).copy()
+        df = profile.to_df().tail(n).copy()
 
     df_col_num = len(df.columns)
     if percents:
@@ -394,7 +394,8 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         score_vector (Sequence[float]): Score vector to use.
 
     Returns:
-        ScoreProfile: Score profile.
+        ScoreProfile: Score profile retaining ballot row order, index labels, voters, and weights
+            converted to floats.
 
     Raises:
         ValueError: Ballots must not contain ties.
@@ -411,31 +412,33 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
+    profile_df = rank_profile.to_df()
     ranking_cols = [
         f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, rank_profile.max_ranking_length + 1)
     ]
-    rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
+    rankings_arr = profile_df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
     if any(len(x) > 1 for x in rankings_arr):
         raise ValueError("Ballots must not contain ties.")
 
     cand_to_score_list = {
-        cand: [np.nan for _ in range(len(rank_profile.df))] for cand in rank_profile.candidates
+        cand: [np.nan for _ in range(len(profile_df))] for cand in rank_profile.candidates
     }
 
-    for df_tuple in rank_profile.df[ranking_cols].itertuples():
-        ballot_idx, ranking = df_tuple[0], df_tuple[1:]
+    for ballot_position, ranking in enumerate(
+        profile_df[ranking_cols].itertuples(index=False, name=None)
+    ):
         for ranking_pos, cand_set in enumerate(ranking):
             if cand_set == frozenset({"~"}):
                 continue
             cand = next(iter(cand_set))  # no ties so this is unique
-            cand_to_score_list[cand][ballot_idx] = (
+            cand_to_score_list[cand][ballot_position] = (
                 score_vector[ranking_pos] if score_vector[ranking_pos] > 0 else np.nan
             )
 
-    new_df = pd.DataFrame(cand_to_score_list)
+    new_df = pd.DataFrame(cand_to_score_list, index=profile_df.index.copy())
     new_df.index.name = BALLOT_INDEX_NAME
-    new_df[VOTER_SET_COLUMN] = rank_profile.df[VOTER_SET_COLUMN]
-    new_df[WEIGHT_COLUMN] = rank_profile.df[WEIGHT_COLUMN].map(float)
+    new_df[VOTER_SET_COLUMN] = profile_df[VOTER_SET_COLUMN]
+    new_df[WEIGHT_COLUMN] = profile_df[WEIGHT_COLUMN].map(float)
 
     return ScoreProfile(
         df=new_df,
@@ -477,9 +480,7 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
     total_dfs = []
     for profile in rank_profiles:
         assert profile.max_ranking_length is not None
-        curr_df = (
-            profile.df.copy() if profile.max_ranking_length < max_ranking_length else profile.df
-        )
+        curr_df = profile.to_df()
         for i in range(profile.max_ranking_length, max_ranking_length):
             curr_df.insert(
                 len(curr_df.columns),
@@ -536,7 +537,7 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
     total_dfs = []
     for profile in score_profiles:
         curr_cand = set(profile.candidates)
-        curr_df = profile.df.copy() if curr_cand < total_cand else profile.df
+        curr_df = profile.to_df()
         for cand in total_cand - curr_cand:
             curr_df[cand] = [np.nan] * len(curr_df)
         total_dfs.append(curr_df)

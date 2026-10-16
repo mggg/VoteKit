@@ -296,10 +296,11 @@ def __build_simultaneous_profile_distribution(
     profile_distribution_dict = dict()
 
     assert profile1.max_ranking_length is not None
-    profile1_ranking_array = profile1.df[
+    profile1_df = profile1.to_df()
+    profile1_ranking_array = profile1_df[
         [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile1.max_ranking_length + 1)]
     ].to_numpy()
-    profile1_wt_vector = profile1.df[WEIGHT_COLUMN].astype(float).to_numpy()
+    profile1_wt_vector = profile1_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile1_wt_vector = profile1_wt_vector / np.sum(profile1_wt_vector)
 
     if (profile1_ranking_array == frozenset({})).any():
@@ -318,10 +319,11 @@ def __build_simultaneous_profile_distribution(
         profile_distribution_dict[tup] = (float(profile1_wt_vector[idx]), 0.0)
 
     assert profile2.max_ranking_length is not None
-    profile2_ranking_array = profile2.df[
+    profile2_df = profile2.to_df()
+    profile2_ranking_array = profile2_df[
         [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile2.max_ranking_length + 1)]
     ].to_numpy()
-    profile2_wt_vector = profile2.df[WEIGHT_COLUMN].astype(float).to_numpy()
+    profile2_wt_vector = profile2_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile2_wt_vector = profile2_wt_vector / np.sum(profile2_wt_vector)
 
     if (profile2_ranking_array == frozenset({})).any():

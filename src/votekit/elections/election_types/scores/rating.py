@@ -108,7 +108,7 @@ class GeneralRating(Election[ScoreProfile]):
         if not isinstance(profile, ScoreProfile):
             raise ProfileError("Profile must be of type ScoreProfile.")
 
-        if profile.df.empty:
+        if profile.to_df().empty:
             raise ProfileError("Profile must contain at least one ballot.")
 
         for b in profile.ballots:

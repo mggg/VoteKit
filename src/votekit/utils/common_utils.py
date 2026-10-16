@@ -81,7 +81,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
 
-    df = profile.df
+    df = profile.to_df()
     assert profile.max_ranking_length is not None
     ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
@@ -217,7 +217,7 @@ def _score_dict_from_rankings_df_no_ties(
     if len(score_vector) < max_len:
         score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
 
-    df = profile.df
+    df = profile.to_df()
 
     cand_frznst = [frozenset({cand}) for cand in profile.candidates_cast]
     all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
@@ -295,13 +295,15 @@ def score_dict_from_score_vector(
 
     scores = {c: 0.0 for c in profile.candidates_cast}
 
+    profile_df = profile.to_df()
+
     try:
         ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, max_length + 1)]
-        ranking_mat = profile.df[ranking_cols].to_numpy()
+        ranking_mat = profile_df[ranking_cols].to_numpy()
     except KeyError as e:
         raise TypeError("Ballots must have rankings.") from e
 
-    weights = profile.df[WEIGHT_COLUMN].to_numpy(dtype=float)
+    weights = profile_df[WEIGHT_COLUMN].to_numpy(dtype=float)
 
     if tie_convention not in ["high", "average", "low"]:
         raise ValueError(
@@ -455,14 +457,16 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
 
     ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
+    profile_df = profile.to_df()
+
     tilde = frozenset({"~"})
 
     # no ranking columns with ballots present means every ballot has ranking=None
-    if len(profile.df) and not ranking_cols:
+    if len(profile_df) and not ranking_cols:
         raise TypeError("Ballots must have rankings.")
 
     # positional index so duplicate df index labels cannot break the weight lookup below
-    rank_sets = cast(Any, profile.df[ranking_cols].reset_index(drop=True).stack())
+    rank_sets = cast(Any, profile_df[ranking_cols].reset_index(drop=True).stack())
 
     mask = rank_sets.map(lambda s: isinstance(s, frozenset) and bool(s) and s != tilde)
 
@@ -478,7 +482,7 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
     if exploded.empty:
         return {c: 0.0 for c in profile.candidates}
 
-    weights = profile.df[WEIGHT_COLUMN].to_numpy()[exploded.index.get_level_values(0)]
+    weights = profile_df[WEIGHT_COLUMN].to_numpy()[exploded.index.get_level_values(0)]
 
     totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
 

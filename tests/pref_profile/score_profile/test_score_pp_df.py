@@ -54,7 +54,7 @@ def test_pp_df_scores():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert pp.df.equals(true_df)
+    assert pp.to_df().equals(true_df)
 
 
 def test_pp_df_scores_args():
@@ -88,7 +88,7 @@ def test_pp_df_scores_args():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert pp.df.equals(true_df)
+    assert pp.to_df().equals(true_df)
 
 
 def test_df_with_mixed_cand_types_as_score_cols():
@@ -124,7 +124,7 @@ def test_df_with_mixed_cand_types_as_score_cols():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert score_profile.df.equals(true_df)
+    assert score_profile.to_df().equals(true_df)
 
 
 def test_internal_matrix_with_cand_ids_as_score_cols():

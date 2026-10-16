@@ -38,7 +38,7 @@ def test_profile_converts_integral_weights_to_fractions_exactly(profile_type, we
     profile = _profile_from_weights(profile_type, pd.Series([weight, expected[1]], dtype=object))
 
     assert profile._matrix.voter_weight_data.weight_kind is WeightKind.FRACTION
-    assert profile.df["Weight"].tolist() == expected
+    assert profile.to_df()["Weight"].tolist() == expected
     assert [ballot.weight for ballot in profile.ballots] == expected
     assert all(isinstance(ballot.weight, Fraction) for ballot in profile.ballots)
     assert profile.total_ballot_wt == sum(expected)
@@ -81,7 +81,7 @@ def test_profile_accepts_exact_float64_conversion(profile_type, weight, dtype):
     profile = _profile_from_weights(profile_type, pd.Series([weight, weight], dtype=dtype))
 
     assert profile._matrix.voter_weight_data.weight_kind is WeightKind.FLOAT
-    assert profile.df["Weight"].tolist() == [float(weight), float(weight)]
+    assert profile.to_df()["Weight"].tolist() == [float(weight), float(weight)]
     assert profile.total_ballot_wt == 2 * float(weight)
     assert set(profile.candidates_cast) == {"A", "B"}
 

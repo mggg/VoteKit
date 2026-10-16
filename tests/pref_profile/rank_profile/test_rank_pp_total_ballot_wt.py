@@ -30,7 +30,7 @@ def test_pp_total_ballot_wt():
 
 def test_pp_total_ballot_wt_nan_weight_error():
     pp = RankProfile(ballots=ballots)
-    df = pp.df.copy()
+    df = pp.to_df().copy()
     df.loc[0, "Weight"] = np.nan
 
     with pytest.raises(ProfileError, match="Ballot weights cannot be NaN."):

@@ -94,7 +94,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._pv_validate_input(grouped_profile)
         self._rng = random.Random(rng_seed)
 
-        self._df = grouped_profile.df.copy()
+        self._df = grouped_profile.to_df()
         assert grouped_profile.max_ranking_length is not None
         self._ranking_cols = [
             f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, grouped_profile.max_ranking_length + 1)

@@ -160,7 +160,7 @@ candidates running for :math:`m=3` seats with the following profile.
     
     profile = PreferenceProfile(ballots=ballots)
     
-    print(profile.df)
+    print(profile.to_df())
     print("Sum of ballot weights:", profile.total_ballot_wt)
     print("Number of candidates:", len(profile.candidates))
     print()
@@ -258,7 +258,7 @@ returns the ``PreferenceProfile`` after a particular round.
 
 .. code:: ipython3
 
-    election.get_profile(1).df
+    election.get_profile(1).to_df()
 
 
 
@@ -378,7 +378,7 @@ and state of a given round.
     print("elected", state.elected)
     print("\neliminated", state.eliminated)
     print("\nremaining", state.remaining)
-    print(profile.df)
+    print(profile.to_df())
 
 
 .. parsed-literal::
@@ -417,7 +417,7 @@ will be eliminated.
     print("\nremaining", election.election_states[3].remaining)
     print("\ntiebreak resolution", election.election_states[3].tiebreaks)
     print()
-    print(election.get_profile(3).df)
+    print(election.get_profile(3).to_df())
 
 
 .. parsed-literal::
@@ -490,7 +490,7 @@ low-tech physical way to do the transfers.)
     
     profile = PreferenceProfile(ballots=ballots)
     
-    print(profile.df)
+    print(profile.to_df())
     print("Sum of ballot weights:", profile.total_ballot_wt)
     print("Number of candidates:", len(profile.candidates))
     print()
@@ -639,7 +639,7 @@ using the ``score_vector`` parameter.
 
 .. code:: ipython3
 
-    print(election.get_profile(0).df.head(10).to_string())
+    print(election.get_profile(0).to_df().head(10).to_string())
     print()
     
     print(election)

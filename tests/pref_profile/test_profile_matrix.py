@@ -7,7 +7,13 @@ import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.exceptions import ProfileError
-from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile import (
+    CleanedRankProfile,
+    CleanedScoreProfile,
+    PreferenceProfile,
+    RankProfile,
+    ScoreProfile,
+)
 from votekit.pref_profile.profile_matrix import (
     ProfileMatrix,
     RankMatrix,
@@ -107,7 +113,7 @@ def test_profile_isolates_weights_from_input_dataframe():
         profile._matrix.voter_weight_data.weights,
         [1.0, 2.0],
     )
-    assert profile.df["Weight"].to_list() == [1.0, 2.0]
+    assert profile.to_df()["Weight"].to_list() == [1.0, 2.0]
     assert profile.total_ballot_wt == 3.0
 
 
@@ -758,13 +764,13 @@ def test_profile_dataframe_exports_are_detached(
     profile_type, ballot_type, payload, column, replacement, weight
 ):
     ballot = ballot_type(**payload, weight=weight, voter_set={"voter"})
-    source = profile_type(ballots=[ballot]).df
+    source = profile_type(ballots=[ballot]).to_df()
     source["Weight"] = pd.Series([weight], dtype=object)
     source.index = pd.Index([37], name="Ballot Index")
     profile = profile_type(df=source, candidates=["A"], max_ranking_length=1)
-    expected = profile.df
+    expected = profile.to_df()
 
-    exported = profile.df
+    exported = profile.to_df()
     exported.at[37, "Weight"] = 9
     exported.at[37, "Voter Set"] = frozenset({"other voter"})
     exported.at[37, column] = replacement
@@ -773,9 +779,9 @@ def test_profile_dataframe_exports_are_detached(
     )
     exported.index = pd.Index([99], name="Ballot Index")
 
-    pd.testing.assert_frame_equal(profile.df, expected)
+    pd.testing.assert_frame_equal(profile.to_df(), expected)
     pd.testing.assert_frame_equal(profile._matrix.to_df(), expected)
-    pd.testing.assert_frame_equal(profile.copy().df, expected)
+    pd.testing.assert_frame_equal(profile.copy().to_df(), expected)
     assert profile.total_ballot_wt == weight
     assert profile.group_ballots().total_ballot_wt == weight
     assert profile.ballots == (ballot,)
@@ -800,3 +806,24 @@ def test_fraction_weight_type_error_summarizes_invalid_entries():
             voter_sets=None,
             weight_kind=WeightKind.FRACTION,
         )
+
+
+@pytest.mark.parametrize(
+    "profile_type", [RankProfile, ScoreProfile, CleanedRankProfile, CleanedScoreProfile]
+)
+def test_df_warns_and_delegates_to_explicit_export(
+    profile_type: type[PreferenceProfile], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = profile_type()
+    snapshot = pd.DataFrame({"Weight": [2.0]})
+    monkeypatch.setattr(profile_type, "to_df", lambda self: snapshot)
+
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"deprecated as of VoteKit 3\.6\.0.*next major release.*to_df\(\).*fresh",
+    ) as recorded:
+        exported = profile.df
+
+    assert exported is snapshot
+    assert len(recorded) == 1
+    assert recorded[0].filename == __file__

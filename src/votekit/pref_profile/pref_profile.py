@@ -214,12 +214,11 @@ class PreferenceProfile:
         self.num_ballots = self._find_num_ballots()
         self._is_frozen = True
 
-    @property
-    def df(self) -> pd.DataFrame:
+    def to_df(self) -> pd.DataFrame:
         """
         Export a detached dataframe; changes to it do not affect the profile.
 
-        Each access allocates a dataframe from the authoritative matrix. Retain the returned
+        Each call constructs a fresh dataframe from the authoritative matrix. Retain the returned
         dataframe locally when performing several pandas operations on the same export.
 
         Returns:
@@ -229,6 +228,27 @@ class PreferenceProfile:
         if self._matrix is None:
             raise NotImplementedError
         return self._matrix.to_df()
+
+    @property
+    def df(self) -> pd.DataFrame:
+        """
+        Deprecated alias for to_df(), returning a fresh dataframe on each access.
+
+        Deprecated as of VoteKit 3.6.0 and scheduled for removal in the next major release.
+        Use to_df() to make dataframe construction explicit, and retain its result locally
+        when performing several pandas operations on the same export.
+
+        Returns:
+            pd.DataFrame: Detached snapshot of the profile's ballot data and index labels.
+        """
+        warnings.warn(
+            "PreferenceProfile.df is deprecated as of VoteKit 3.6.0 and will be removed "
+            "in the next major release. Use to_df() instead: profiles now construct a fresh "
+            "dataframe on each call. Save the result locally when reusing it.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.to_df()
 
     def _find_num_ballots(self) -> int:
         """
@@ -856,7 +876,7 @@ class RankProfile(PreferenceProfile):
 
         return tuple(
             convert_row_to_rank_ballot(row, self.max_ranking_length)
-            for _, row in self.df.iterrows()
+            for _, row in self.to_df().iterrows()
         )
 
     def __add__(self, other) -> RankProfile:
@@ -879,7 +899,7 @@ class RankProfile(PreferenceProfile):
                 max_ranking_length=self.max_ranking_length,
             )
 
-        df = self.df
+        df = self.to_df()
         ranking_cols = list(self._matrix.ranking_columns)
         group_df = df.groupby(ranking_cols, dropna=False)
         new_df = group_df.aggregate(
@@ -906,7 +926,7 @@ class RankProfile(PreferenceProfile):
         """
         return RankProfile(
             candidates=self.candidates,
-            df=self.df,
+            df=self.to_df(),
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -1481,7 +1501,7 @@ class ScoreProfile(PreferenceProfile):
         """
         return tuple(
             convert_row_to_score_ballot(row, tuple(self.candidates))
-            for _, row in self.df.iterrows()
+            for _, row in self.to_df().iterrows()
         )
 
     def __add__(self, other):
@@ -1503,7 +1523,7 @@ class ScoreProfile(PreferenceProfile):
                 candidates=self.candidates,
             )
 
-        df = self.df
+        df = self.to_df()
         cand_cols = list(self._matrix.score_columns)
         group_df = df.groupby(cand_cols, dropna=False)
         new_df = group_df.aggregate(
@@ -1528,7 +1548,7 @@ class ScoreProfile(PreferenceProfile):
             ScoreProfile: New ScoreProfile object
         """
         return ScoreProfile(
-            df=self.df,
+            df=self.to_df(),
             candidates=self.candidates,
         )
 

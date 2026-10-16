@@ -44,7 +44,7 @@ def test_pp_df_rankings():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert pp.df.equals(true_df)
+    assert pp.to_df().equals(true_df)
 
 
 def test_pp_df_rankings_args():
@@ -73,7 +73,7 @@ def test_pp_df_rankings_args():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert pp.df.equals(true_df)
+    assert pp.to_df().equals(true_df)
 
 
 def test_df_with_mixed_cand_types_as_ranking_values():
@@ -111,7 +111,7 @@ def test_df_with_mixed_cand_types_as_ranking_values():
     }
     true_df = pd.DataFrame(data)
     true_df.index.name = "Ballot Index"
-    assert rank_profile.df.equals(true_df)
+    assert rank_profile.to_df().equals(true_df)
 
 
 def test_internal_matrix_with_cand_ids_as_ranking_values():
@@ -159,7 +159,7 @@ def test_internal_matrix_voter_sets_none_when_all_empty():
         max_ranking_length=2,
     )
     assert rank_profile._matrix.voter_weight_data.voter_sets is None
-    assert rank_profile.df["Voter Set"].tolist() == [frozenset()]
+    assert rank_profile.to_df()["Voter Set"].tolist() == [frozenset()]
 
 
 def _df_with_weights(weights) -> pd.DataFrame:
@@ -197,7 +197,7 @@ def test_df_integral_reals_mixed_with_fraction_become_fractions(other):
     profile = _profile_from(_df_with_weights(pd.Series([other, Fraction(1, 3)], dtype=object)))
 
     assert profile._matrix.voter_weight_data.has_fraction_weights
-    assert list(profile.df["Weight"]) == [Fraction(2), Fraction(1, 3)]
+    assert list(profile.to_df()["Weight"]) == [Fraction(2), Fraction(1, 3)]
 
 
 def test_df_rejects_non_integral_float_mixed_with_fraction():
@@ -208,8 +208,8 @@ def test_df_rejects_non_integral_float_mixed_with_fraction():
 def test_df_object_column_without_fractions_becomes_float64():
     profile = _profile_from(_df_with_weights(pd.Series([np.float64(1.5), 2], dtype=object)))
 
-    assert profile.df["Weight"].dtype == np.float64
-    assert list(profile.df["Weight"]) == [1.5, 2.0]
+    assert profile.to_df()["Weight"].dtype == np.float64
+    assert list(profile.to_df()["Weight"]) == [1.5, 2.0]
 
 
 def test_df_ballot_index_round_trips():
@@ -217,6 +217,6 @@ def test_df_ballot_index_round_trips():
     df.index = pd.Index([10, 42], name="Ballot Index")
     profile = _profile_from(df)
 
-    assert list(profile.df.index) == [10, 42]
-    assert list(remove_cand_rank_profile("A", profile).df.index) == [10, 42]
-    assert list(RankProfile(ballots=profile.ballots).df.index) == [0, 1]
+    assert list(profile.to_df().index) == [10, 42]
+    assert list(remove_cand_rank_profile("A", profile).to_df().index) == [10, 42]
+    assert list(RankProfile(ballots=profile.ballots).to_df().index) == [0, 1]

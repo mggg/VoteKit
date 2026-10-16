@@ -68,7 +68,7 @@ def convert_profile_weights(
     Returns:
         RankProfile: Profile with converted weights and unchanged rankings and candidates.
     """
-    converted_df = profile.df.copy()
+    converted_df = profile.to_df()
     converted_df[WEIGHT_COLUMN] = converted_df[WEIGHT_COLUMN].map(converter)
     converted_profile = RankProfile(
         df=converted_df,

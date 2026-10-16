@@ -29,7 +29,7 @@ def _iterate_and_clean_ranking_tuples(
         tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]: cleaned_df, unaltr_idxs,
             nonempty_altr_idxs, no_wt_altr_idxs, no_rank_altr_idxs
     """
-    cleaned_df = profile.df.copy()
+    cleaned_df = profile.to_df()
     assert profile.max_ranking_length is not None
     ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
 
@@ -289,7 +289,7 @@ def remove_cand_rank_profile(
     )
 
     return CleanedRankProfile(
-        df=cleaned_profile.df,
+        df=cleaned_profile.to_df(),
         candidates=new_candidates,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
@@ -370,7 +370,7 @@ def condense_rank_profile(
     )
 
     return CleanedRankProfile(
-        df=condensed_profile.df,
+        df=condensed_profile.to_df(),
         candidates=condensed_profile.candidates,
         max_ranking_length=condensed_profile.max_ranking_length,
         parent_profile=profile,
@@ -446,7 +446,7 @@ def remove_and_condense_rank_profile(
     )
 
     return CleanedRankProfile(
-        df=cleaned_profile.df,
+        df=cleaned_profile.to_df(),
         candidates=new_candidates,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
@@ -513,7 +513,8 @@ def remove_ballots_with_cand_rank_profile(
         )
     ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)]
     ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_set_ids), axis=1)
-    cleaned_df = profile.df[~ballots_to_remove]
+    profile_df = profile.to_df()
+    cleaned_df = profile_df[~ballots_to_remove]
 
     if remove_null_ballots:
         mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
@@ -537,5 +538,5 @@ def remove_ballots_with_cand_rank_profile(
         no_wt_altr_idxs=set(),
         no_rank_altr_idxs=set(),
         nonempty_altr_idxs=set(),
-        unaltr_idxs=set(profile.df.index),  # ballots are only dropped, never altered
+        unaltr_idxs=set(profile_df.index),  # ballots are only dropped, never altered
     )

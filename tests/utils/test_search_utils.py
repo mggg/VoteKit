@@ -43,7 +43,7 @@ def test_search_profile_for_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["B", "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -66,7 +66,7 @@ def test_search_for_set_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=[{"B"}, "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -94,7 +94,7 @@ def test_search_for_tuple_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=[("A", 2), "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -120,7 +120,7 @@ def test_search_for_singleton_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -143,7 +143,7 @@ def test_search_for_multiple_elements_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A", "C", 1])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -166,7 +166,7 @@ def test_search_returns_empty_df():
 
     pd.testing.assert_frame_equal(
         search_profile_for_rank_pattern(profile, ranking_query=["B", "D"]).reset_index(drop=True),
-        empty_profile.df.reset_index(drop=True),
+        empty_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -194,7 +194,7 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings():
 
     pd.testing.assert_frame_equal(
         search_profile_for_rank_pattern(profile, ranking_query=["B", "A"]).reset_index(drop=True),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -220,7 +220,7 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings_for_multipl
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -245,7 +245,7 @@ def test_search_with_ranking_query_for_multiple_ranking_elements_returns_one_bal
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -276,7 +276,7 @@ def test_search_with_ranking_query_for_multiple_ranking_elements_returns_mult_ba
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -307,7 +307,7 @@ def test_search_with_ranking_query_unranked_tuple():
         search_profile_for_rank_pattern(
             profile, ranking_query=["B", ("A", "C")], include_unranked=True
         ).reset_index(drop=True),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -350,14 +350,14 @@ def test_search_with_max_cand_pair_dist():
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0)
         .reset_index(drop=True)
-        .equals(profile_match_dist_0.df.reset_index(drop=True))
+        .equals(profile_match_dist_0.to_df().reset_index(drop=True))
     )
 
     max_sep_dist_1 = {("B", "C"): 1}
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_1)
         .reset_index(drop=True)
-        .equals(profile_match_dist_1.df.reset_index(drop=True))
+        .equals(profile_match_dist_1.to_df().reset_index(drop=True))
     )
 
 
@@ -383,7 +383,7 @@ def test_search_with_max_cand_pair_dist_with_multiple_cand_pairs():
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0)
         .reset_index(drop=True)
-        .equals(profile_match_dist_0.df.reset_index(drop=True))
+        .equals(profile_match_dist_0.to_df().reset_index(drop=True))
     )
 
 
@@ -412,7 +412,7 @@ def test_search_with_max_cand_pair_dist_with_duplicate_candidate_rankings():
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=cand_pair_dict).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -442,7 +442,7 @@ def test_search_with_matching_ranking_query_and_max_cand_pair_dist():
             profile, ranking_query=[2, "C"], max_cand_pair_dist=max_sep_dist
         )
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -471,7 +471,7 @@ def test_search_for_ranking_query_with_include_unranked():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A", 1], include_unranked=True)
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 

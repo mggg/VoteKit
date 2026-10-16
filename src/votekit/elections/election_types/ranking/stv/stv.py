@@ -883,8 +883,9 @@ class STV(RankingElection):
             f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
         try:
-            np_arr = profile.df[ranking_rows].to_numpy()
-            weight_col = profile.df[WEIGHT_COLUMN]
+            profile_df = profile.to_df()
+            np_arr = profile_df[ranking_rows].to_numpy()
+            weight_col = profile_df[WEIGHT_COLUMN]
         except KeyError:
             raise TypeError("Ballots must have rankings.")
 

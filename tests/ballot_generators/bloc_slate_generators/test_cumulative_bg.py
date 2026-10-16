@@ -26,7 +26,7 @@ def test_name_cumulative_total_points_None_is_n_cands():
 
     profile = bg.name_cumulative_profile_generator(config)
 
-    df = profile.df
+    df = profile.to_df()
 
     assert all(df[["A", "B", "C"]].sum(axis=1) == 3)
     assert all(df[["A", "B", "C"]].max(axis=1) <= 3)
@@ -57,7 +57,7 @@ def test_name_cumulative_total_points_less_than_n_candidates():
 
     profile = bg.name_cumulative_profile_generator(config, total_points=total_points)
 
-    df = profile.df
+    df = profile.to_df()
 
     assert all(df[["A", "B", "C"]].sum(axis=1) == total_points)
     assert all(df[["A", "B", "C"]].max(axis=1) <= total_points)
@@ -86,7 +86,7 @@ def test_name_cumulative_total_points_more_than_n_candidates():
 
     profile = bg.name_cumulative_profile_generator(config, total_points=total_points)
 
-    df = profile.df
+    df = profile.to_df()
 
     assert all(df[["A", "B", "C"]].sum(axis=1) == total_points)
     assert all(df[["A", "B", "C"]].max(axis=1) <= total_points)

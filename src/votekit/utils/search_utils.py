@@ -52,7 +52,7 @@ def search_profile_for_rank_pattern(
             Defaults to False.
 
     Returns:
-        (pd.DataFrame): Rows from profile.df whose ballots satisfy the query.
+        (pd.DataFrame): Rows from profile.to_df() whose ballots satisfy the query.
 
     Raises:
         TypeError: Can only query RankProfiles.
@@ -101,7 +101,7 @@ def search_profile_for_rank_pattern(
     strict_order_with_clones_mask = _compare_candidate_pair_ranks(
         cand_location_matrices, cand_pair_max_dists, strict_order_mask
     )
-    return profile.df[strict_order_with_clones_mask]
+    return profile.to_df()[strict_order_with_clones_mask]
 
 
 def _validate_ranking_query(ranking_query: Sequence[Candidate | tuple | set], profile: RankProfile):

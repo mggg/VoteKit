@@ -58,7 +58,9 @@ class DerivedScoreProfile(ScoreProfile):
 @pytest.mark.parametrize("from_dataframe", [False, True])
 def test_explicit_profile_preserves_type_and_initializes(profile_type, ballot, from_dataframe):
     kwargs = (
-        {"df": PreferenceProfile(ballots=[ballot]).df} if from_dataframe else {"ballots": [ballot]}
+        {"df": PreferenceProfile(ballots=[ballot]).to_df()}
+        if from_dataframe
+        else {"ballots": [ballot]}
     )
     profile = profile_type(**kwargs, candidates=("Chris",), max_ranking_length=1)
 
@@ -127,7 +129,7 @@ def test_empty_profile_preserves_requested_type(profile_type):
 )
 def test_factory_infers_profile_type_from_dataframe(profile_type, ballot):
     profile = PreferenceProfile(
-        df=profile_type(ballots=[ballot]).df, candidates=("Chris",), max_ranking_length=1
+        df=profile_type(ballots=[ballot]).to_df(), candidates=("Chris",), max_ranking_length=1
     )
 
     assert type(profile) is profile_type
@@ -136,7 +138,7 @@ def test_factory_infers_profile_type_from_dataframe(profile_type, ballot):
 
 def test_explicit_score_profile_does_not_infer_type_from_column_prefix():
     ballot = ScoreBallot(scores={"Ranking_label": 1})
-    profile = ScoreProfile(df=ScoreProfile(ballots=[ballot]).df, candidates=("Ranking_label",))
+    profile = ScoreProfile(df=ScoreProfile(ballots=[ballot]).to_df(), candidates=("Ranking_label",))
 
     assert type(profile) is ScoreProfile
     assert profile.ballots == (ballot,)
@@ -162,8 +164,8 @@ def test_explicit_profile_constructor_return_types():
     rank_profile = assert_type(RankProfile(), RankProfile)
     score_profile = assert_type(ScoreProfile(), ScoreProfile)
 
-    assert_type(RankProfile(df=rank_profile.df), RankProfile)
-    assert_type(ScoreProfile(df=score_profile.df), ScoreProfile)
+    assert_type(RankProfile(df=rank_profile.to_df()), RankProfile)
+    assert_type(ScoreProfile(df=score_profile.to_df()), ScoreProfile)
     assert_type(DerivedRankProfile(), DerivedRankProfile)
     assert_type(DerivedScoreProfile(), DerivedScoreProfile)
     assert_type(DerivedRankProfile(ballots=[RankBallot()]), DerivedRankProfile)
@@ -222,6 +224,6 @@ def test_cleaned_profile_retains_parent_indices_in_matrix(cleaned_type, profile_
         ballots=[ballot],
     )
 
-    assert cleaned.df.index.tolist() == [1]
+    assert cleaned.to_df().index.tolist() == [1]
     assert cleaned._matrix.to_df().index.tolist() == [1]
-    assert cleaned.copy().df.index.tolist() == [1]
+    assert cleaned.copy().to_df().index.tolist() == [1]

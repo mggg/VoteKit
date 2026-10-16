@@ -65,8 +65,8 @@ def test_state_list():
 def test_get_profile():
     e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_profile(0) == profile_no_tied_limited
-    print(e.get_profile(1).df.to_string())
-    print(profile_no_tied_limited_round_1.df.to_string())
+    print(e.get_profile(1).to_df().to_string())
+    print(profile_no_tied_limited_round_1.to_df().to_string())
     assert e.get_profile(1) == profile_no_tied_limited_round_1
 
 

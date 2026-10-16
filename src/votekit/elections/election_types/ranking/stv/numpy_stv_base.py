@@ -159,7 +159,7 @@ class NumpySTVBase(ABC):
         Returns:
             tuple[NDArray, NDArray]: The ballot matrix and weights vector.
         """
-        df = pf.df.copy()
+        df = pf.to_df()
         candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
         candidate_to_index[frozenset(["~"])] = int(
             NumpySTVSentinel.BLANK_RANKING.value

@@ -69,7 +69,8 @@ class RankingElection(Election[RankProfile]):
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
 
-        if profile.df.empty:
+        profile_df = profile.to_df()
+        if profile_df.empty:
             raise ProfileError("Profile must contain at least one ballot.")
 
         if profile.max_ranking_length is None or profile.max_ranking_length < 1:
@@ -80,7 +81,7 @@ class RankingElection(Election[RankProfile]):
             f"{RANKING_COLUMN_PREFIX}{i}" for i in range(1, profile.max_ranking_length + 1)
         ]
         try:
-            np_arr = profile.df[ranking_cols].to_numpy()
+            np_arr = profile_df[ranking_cols].to_numpy()
             tilde = frozenset("~")
             for row in np_arr:
                 if (row == tilde).all():

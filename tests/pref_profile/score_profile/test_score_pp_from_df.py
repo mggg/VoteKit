@@ -14,7 +14,7 @@ profile = ScoreProfile(
     ),
     candidates=("A", "B", "C", "D", "E"),
 )
-df = profile.df
+df = profile.to_df()
 
 
 def test_from_df():
@@ -78,9 +78,13 @@ def test_from_df_validation_errors():
 
 @pytest.mark.parametrize("declared_candidates", [(" A ", " unused "), ("A", "unused")])
 def test_from_df_normalizes_candidate_identities_without_mutating_input(declared_candidates):
-    source = ScoreProfile(
-        ballots=[ScoreBallot(scores={"A": 2}), ScoreBallot(scores={"B": 3}, weight=0)],
-    ).df.copy()
+    source = (
+        ScoreProfile(
+            ballots=[ScoreBallot(scores={"A": 2}), ScoreBallot(scores={"B": 3}, weight=0)],
+        )
+        .to_df()
+        .copy()
+    )
     source["unused"] = float("nan")
     source = source.rename(columns={"A": " A ", "B": " B ", "unused": " unused "})
     original = source.copy(deep=True)
@@ -91,7 +95,7 @@ def test_from_df_normalizes_candidate_identities_without_mutating_input(declared
     assert result.candidates_cast == ("A",)
     assert result._matrix.score_columns == ("A", "B", "unused")
     assert result.ballots[0].scores == {"A": 2}
-    assert result.df["B"].tolist()[1] == 3
+    assert result.to_df()["B"].tolist()[1] == 3
     pd.testing.assert_frame_equal(source, original)
 
 
@@ -108,15 +112,19 @@ def test_from_df_rejects_colliding_score_column_names(second_column):
 
 @pytest.mark.parametrize("column", [" Weight ", " Voter Set "])
 def test_from_df_rejects_score_columns_normalizing_to_shared_names(column):
-    source = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})]).df.rename(columns={"A": column})
+    source = (
+        ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})]).to_df().rename(columns={"A": column})
+    )
 
     with pytest.raises(ProfileError, match="reserved dataframe column names"):
         ScoreProfile(df=source, candidates=[column])
 
 
 def test_from_df_normalization_preserves_integer_and_string_candidates():
-    source = ScoreProfile(ballots=[ScoreBallot(scores={1: 2, "A": 3})]).df.rename(
-        columns={"A": " 1 "}
+    source = (
+        ScoreProfile(ballots=[ScoreBallot(scores={1: 2, "A": 3})])
+        .to_df()
+        .rename(columns={"A": " 1 "})
     )
 
     with pytest.warns(UserWarning, match="both str and int"):

@@ -354,7 +354,7 @@ def test_mentions_empty_frozenset_ranking_consistent():
 
 def test_mentions_from_df_duplicate_ballot_index():
     # profiles built from a df keep the given index; duplicate labels must not break the df path
-    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).df
+    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).to_df()
     profile = RankProfile(df=pd.concat([df, df]), candidates=("A", "B"), max_ranking_length=2)
     correct = {"A": 2.0, "B": 2.0}
     assert _mentions_from_df(profile) == correct

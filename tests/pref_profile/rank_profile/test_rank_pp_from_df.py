@@ -14,7 +14,7 @@ profile = RankProfile(
     candidates=("A", "B", "C", "D", "E"),
     max_ranking_length=3,
 )
-df = profile.df
+df = profile.to_df()
 
 
 def test_from_df():
@@ -86,9 +86,11 @@ def test_from_df_validation_errors():
 
 @pytest.mark.parametrize("declared_candidates", [(" A ", " unused "), ("A", "unused"), ()])
 def test_from_df_normalizes_candidate_identities_without_mutating_input(declared_candidates):
-    source = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}]), RankBallot(weight=0, ranking=[{"B"}])]
-    ).df.copy()
+    source = (
+        RankProfile(ballots=[RankBallot(ranking=[{"A"}]), RankBallot(weight=0, ranking=[{"B"}])])
+        .to_df()
+        .copy()
+    )
     source["Ranking_1"] = pd.Series([frozenset({"A", " A "}), frozenset({" B "})])
     original = source.copy(deep=True)
 
@@ -97,24 +99,24 @@ def test_from_df_normalizes_candidate_identities_without_mutating_input(declared
     expected_candidates = ("A", "unused") if declared_candidates else ("A",)
     assert result.candidates == result._matrix.candidates == expected_candidates
     assert result.candidates_cast == ("A",)
-    assert result.df["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"B"})]
+    assert result.to_df()["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"B"})]
     assert result.ballots[0].ranking == (frozenset({"A"}),)
     assert result.ballots[1].ranking == (frozenset({"B"}),)
     pd.testing.assert_frame_equal(source, original)
 
 
 def test_from_df_normalization_preserves_empty_and_tilde_sets():
-    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}, set()]), RankBallot()]).df.copy()
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}, set()]), RankBallot()]).to_df().copy()
     source["Ranking_1"] = pd.Series([frozenset({" A "}), frozenset({"~"})])
     result = RankProfile(df=source, candidates=[" A "], max_ranking_length=2)
 
-    assert result.df["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"~"})]
-    assert result.df["Ranking_2"].tolist() == [frozenset(), frozenset({"~"})]
+    assert result.to_df()["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"~"})]
+    assert result.to_df()["Ranking_2"].tolist() == [frozenset(), frozenset({"~"})]
 
 
 @pytest.mark.parametrize("weight", [0, 1])
 def test_from_df_rejects_padded_tilde_candidate(weight):
-    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=weight)]).df.copy()
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=weight)]).to_df().copy()
     source["Ranking_1"] = pd.Series([frozenset({" ~ "})])
 
     with pytest.raises(ValueError, match="reserved character"):
@@ -122,7 +124,7 @@ def test_from_df_rejects_padded_tilde_candidate(weight):
 
 
 def test_from_df_normalization_preserves_integer_and_string_candidates():
-    source = RankProfile(ballots=[RankBallot(ranking=[{1}, {"A"}])]).df.copy()
+    source = RankProfile(ballots=[RankBallot(ranking=[{1}, {"A"}])]).to_df().copy()
     source["Ranking_2"] = pd.Series([frozenset({" 1 "})])
 
     with pytest.warns(UserWarning, match="both str and int"):
@@ -135,7 +137,7 @@ def test_from_df_normalization_preserves_integer_and_string_candidates():
 
 @pytest.mark.parametrize("cell", [" A ", (" A ",)])
 def test_from_df_normalization_rejects_non_set_ranking_cells(cell):
-    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).df.copy()
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).to_df().copy()
     source["Ranking_1"] = pd.Series([cell], dtype=object)
 
     with pytest.raises(TypeError, match="Ranking cells must contain sets"):
@@ -144,7 +146,7 @@ def test_from_df_normalization_rejects_non_set_ranking_cells(cell):
 
 @pytest.mark.parametrize("extra_column", ["Ranking_0", "Ranking_2", "Ranking_01", "Ranking_bad", 7])
 def test_from_df_rejects_columns_that_would_be_omitted_from_ballots(extra_column):
-    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).df
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).to_df()
     source[extra_column] = pd.Series([frozenset({"B"})])
 
     with pytest.raises(ProfileError, match="Unexpected columns"):
@@ -152,7 +154,7 @@ def test_from_df_rejects_columns_that_would_be_omitted_from_ballots(extra_column
 
 
 def test_from_df_rejects_duplicate_ranking_columns():
-    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).df
+    source = RankProfile(ballots=[RankBallot(ranking=[{"A"}])]).to_df()
     source = pd.concat([source, source[["Ranking_1"]]], axis=1)
 
     with pytest.raises(ProfileError, match="columns must be unique"):
@@ -161,7 +163,7 @@ def test_from_df_rejects_duplicate_ranking_columns():
 
 def test_from_df_accepts_reordered_ranking_columns():
     ballot = RankBallot(ranking=[{"A"}, {"B"}])
-    source = RankProfile(ballots=[ballot]).df
+    source = RankProfile(ballots=[ballot]).to_df()
     source = source[["Weight", "Ranking_2", "Voter Set", "Ranking_1"]]
 
     result = RankProfile(df=source, max_ranking_length=2)
@@ -172,7 +174,7 @@ def test_from_df_accepts_reordered_ranking_columns():
 
 @pytest.mark.parametrize("invalid_candidate", [True, 1.0])
 def test_from_df_checks_candidate_types_across_equal_ranking_sets(invalid_candidate):
-    source = RankProfile(ballots=[RankBallot(ranking=[{1}])] * 2).df
+    source = RankProfile(ballots=[RankBallot(ranking=[{1}])] * 2).to_df()
     source["Ranking_1"] = pd.Series([frozenset({1}), frozenset({invalid_candidate})])
 
     with pytest.raises(TypeError, match="candidate"):
