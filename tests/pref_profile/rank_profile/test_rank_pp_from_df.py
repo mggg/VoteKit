@@ -179,3 +179,36 @@ def test_from_df_checks_candidate_types_across_equal_ranking_sets(invalid_candid
 
     with pytest.raises(TypeError, match="candidate"):
         RankProfile(df=source, max_ranking_length=1)
+
+
+def test_normalization_processes_candidate_names_once_per_distinct_set(monkeypatch):
+    import votekit.pref_profile.pref_profile as profile_module
+
+    original_normalize = profile_module._normalize_candidate_name
+    visited = []
+
+    def record_normalization(candidate):
+        visited.append(candidate)
+        return original_normalize(candidate)
+
+    monkeypatch.setattr(profile_module, "_normalize_candidate_name", record_normalization)
+    source = pd.DataFrame(
+        {"Ranking_1": [frozenset({" A "}) for _ in range(1000)] + [frozenset({"A"})]}
+    )
+    normalized = profile_module._normalize_rank_df_candidates(source)
+
+    assert visited == [" A ", "A"]
+    assert normalized["Ranking_1"].tolist() == [frozenset({"A"})] * len(source)
+    assert source["Ranking_1"].iloc[0] == frozenset({" A "})
+
+
+@pytest.mark.parametrize("invalid_candidate", [True, 1.0])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_normalization_does_not_hide_equal_invalid_candidate_types(invalid_candidate, reverse):
+    from votekit.pref_profile.pref_profile import _normalize_rank_df_candidates
+
+    cells = [frozenset({1}), frozenset({invalid_candidate})]
+    if reverse:
+        cells.reverse()
+    with pytest.raises(TypeError, match="candidate"):
+        _normalize_rank_df_candidates(pd.DataFrame({"Ranking_1": cells}))

@@ -281,7 +281,6 @@ def score_dict_from_score_vector(
             Dictionary mapping candidates to scores.
             Candidates can be strings, integers, or mix of both.
     """
-    from votekit.ballot import Ballot
     from votekit.pref_profile import RankProfile
 
     validate_score_vector(score_vector)
@@ -319,8 +318,8 @@ def score_dict_from_score_vector(
             position_size = len(s)
             if position_size == 0:
                 raise TypeError(
-                    f"Ballot {Ballot(ranking=ranking.tolist(), weight=wt)} has an empty ranking "
-                    "position."
+                    f"Ballot at row {idx} has an empty ranking position. "
+                    f"Ranking: {ranking.tolist()}"
                 )
             if s == tilde:
                 continue

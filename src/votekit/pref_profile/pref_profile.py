@@ -426,7 +426,10 @@ def _normalize_unique_candidates(
 
 def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cells") -> pd.DataFrame:
     """
-    Normalize candidate names in ranking cells without modifying the supplied dataframe.
+    Normalize distinct ranking sets without modifying the supplied dataframe.
+
+    Equal sets reuse normalized names. Candidate types are checked before reusing an equal set
+    because boolean and floating-point values can compare equal to integer candidates.
 
     Args:
         df (pd.DataFrame): Dataframe with ranking columns containing candidate sets.
@@ -449,6 +452,9 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
 
     # Include types in the keys so an invalid boolean cannot disappear behind an integer.
     candidate_names: dict[tuple[type, Candidate], None] = {}
+    normalized_sets: dict[
+        frozenset[Candidate], tuple[frozenset[Candidate], frozenset[Candidate]]
+    ] = {}
 
     def normalize_ranking_set(candidate_set: frozenset[Candidate]) -> frozenset[Candidate]:
         if not isinstance(candidate_set, (set, frozenset)):
@@ -456,9 +462,25 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
         if candidate_set == TILDE_SET:
             return TILDE_SET
 
-        normalized = tuple(_normalize_candidate_name(candidate) for candidate in candidate_set)
+        frozen_set = frozenset(candidate_set)
+        cached = normalized_sets.get(frozen_set)
+        if cached is not None:
+            original_set, normalized_set = cached
+            if frozen_set is not original_set:
+                invalid_candidates = [
+                    candidate
+                    for candidate in frozen_set
+                    if not isinstance(candidate, (str, int)) or isinstance(candidate, bool)
+                ]
+                if invalid_candidates:
+                    _validate_candidate_names(invalid_candidates, context)
+            return normalized_set
+
+        normalized = tuple(_normalize_candidate_name(candidate) for candidate in frozen_set)
         candidate_names.update(((type(candidate), candidate), None) for candidate in normalized)
-        return frozenset(normalized)
+        normalized_set = frozenset(normalized)
+        normalized_sets[frozen_set] = (frozen_set, normalized_set)
+        return normalized_set
 
     normalized_df[ranking_cols] = df[ranking_cols].map(normalize_ranking_set)
     _validate_candidate_names([candidate for _, candidate in candidate_names], context)

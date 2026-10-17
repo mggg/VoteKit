@@ -454,3 +454,45 @@ def test_shared_rational_profile_float_boundaries():
     assert all(isinstance(ballot.weight, float) for ballot in score_profile.ballots)
     assert isinstance(graph.num_voters, float)
     assert all(isinstance(weight, float) for weight in graph.node_weights.values() if weight)
+
+
+@pytest.mark.parametrize("weight", [Fraction(0), Fraction(2, 3)])
+def test_exact_first_place_votes_ignores_empty_first_position(weight):
+    from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
+        exact_first_place_votes,
+    )
+    from votekit.utils import _first_place_votes_from_df_no_ties
+
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[set(), {"A"}], weight=weight),
+            RankBallot(ranking=[{"B"}], weight=Fraction(1)),
+        ],
+    )
+
+    exact_scores = exact_first_place_votes(profile)
+    assert exact_scores == {
+        candidate: Fraction(candidate == "B") for candidate in profile.candidates_cast
+    }
+    assert {candidate: float(score) for candidate, score in exact_scores.items()} == (
+        _first_place_votes_from_df_no_ties(profile)
+    )
+
+
+@pytest.mark.parametrize("ranking", [[set(), {"A"}], [{"A"}, set(), {"B"}]])
+@pytest.mark.parametrize("weight", [Fraction(0), Fraction(1)])
+def test_exact_borda_rejects_empty_positions_like_float_borda(ranking, weight):
+    from votekit.elections.election_types.ranking.stv.exact_fraction_ops import exact_borda_scores
+    from votekit.utils import borda_scores
+
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=ranking, weight=weight),
+            RankBallot(ranking=[{"A"}, {"B"}], weight=Fraction(1)),
+        ],
+        max_ranking_length=3,
+    )
+
+    for score in (borda_scores, exact_borda_scores):
+        with pytest.raises(TypeError, match="empty ranking position"):
+            score(profile)

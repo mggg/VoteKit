@@ -102,9 +102,12 @@ class _ProfileVoterWeightData:
 
         owned_voter_sets = None
         if self.voter_sets is not None:
-            owned_voter_sets = np.empty(len(self.voter_sets), dtype=object)
-            for index, voter_set in enumerate(self.voter_sets):
-                owned_voter_sets[index] = frozenset(voter_set)
+            if all(isinstance(voter_set, frozenset) for voter_set in self.voter_sets):
+                owned_voter_sets = np.array(self.voter_sets, dtype=object, copy=True)
+            else:
+                owned_voter_sets = np.empty(len(self.voter_sets), dtype=object)
+                for index, voter_set in enumerate(self.voter_sets):
+                    owned_voter_sets[index] = frozenset(voter_set)
             owned_voter_sets.setflags(write=False)
 
         owned_ballot_index = None

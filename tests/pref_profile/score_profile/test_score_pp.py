@@ -148,7 +148,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
     with pytest.raises(
         TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreProfile.candidates"
     ):
-        ScoreProfile(  # type: ignore[arg-type]
+        ScoreProfile(
             ballots=[
                 ScoreBallot(scores={1: 1}),
             ],

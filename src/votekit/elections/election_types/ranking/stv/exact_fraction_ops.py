@@ -84,6 +84,8 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     Compute exact first-place totals for an exact STV profile.
 
+    Empty and tilde first positions contribute no votes, matching the float STV scorer.
+
     Warning:
         The profile must already have passed STV validation. Tied ranking positions are not
         supported.
@@ -101,7 +103,7 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     for candidate_set_id, weight in zip(
         profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
     ):
-        if candidate_set_id == TILDE_SET_ID:
+        if candidate_set_id in (EMPTY_SET_ID, TILDE_SET_ID):
             continue
         candidate_set = profile._matrix.get_cand_set_from_id(candidate_set_id)
         assert len(candidate_set) == 1
@@ -124,7 +126,13 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
 
     Returns:
         dict[Candidate, Fraction]: Exact Borda score for every candidate.
+
+    Raises:
+        ValueError: A ballot has an empty ranking position, including on zero-weight ballots.
     """
+    if (profile._matrix.rankings == EMPTY_SET_ID).any():
+        raise ValueError("Cannot compute Borda scores for a ballot with an empty ranking position.")
+
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
     if profile._matrix.rankings.size == 0:
         return scores

@@ -88,7 +88,7 @@ def test_ballot_rejects_bool_and_non_real_weight():
     with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
         Ballot(weight=True)
     with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
-        Ballot(weight="2")
+        Ballot(weight="2")  # type: ignore[arg-type]
 
 
 def test_ballot_rejects_nan_and_infinite_weight():
