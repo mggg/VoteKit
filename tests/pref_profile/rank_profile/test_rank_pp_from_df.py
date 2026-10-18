@@ -182,7 +182,7 @@ def test_from_df_checks_candidate_types_across_equal_ranking_sets(invalid_candid
 
 
 def test_normalization_processes_candidate_names_once_per_distinct_set(monkeypatch):
-    import votekit.pref_profile.pref_profile as profile_module
+    import votekit.pref_profile.pref_profile.rank_profile as profile_module
 
     original_normalize = profile_module._normalize_candidate_name
     visited = []
@@ -205,7 +205,7 @@ def test_normalization_processes_candidate_names_once_per_distinct_set(monkeypat
 @pytest.mark.parametrize("invalid_candidate", [True, 1.0])
 @pytest.mark.parametrize("reverse", [False, True])
 def test_normalization_does_not_hide_equal_invalid_candidate_types(invalid_candidate, reverse):
-    from votekit.pref_profile.pref_profile import _normalize_rank_df_candidates
+    from votekit.pref_profile.pref_profile.rank_profile import _normalize_rank_df_candidates
 
     cells = [frozenset({1}), frozenset({invalid_candidate})]
     if reverse:
