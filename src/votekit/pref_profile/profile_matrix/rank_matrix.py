@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import re
+from copy import copy as shallow_copy
 from dataclasses import dataclass
 from typing import Iterator, Self, Sequence
 
@@ -9,9 +12,9 @@ from numpy.typing import NDArray
 from votekit._df_schema import RANKING_COLUMN_PREFIX
 from votekit.pref_profile.profile_matrix.shared_data import (
     EMPTY_VOTER_SET,
+    ProfileVoterWeightData,
     _arrays_equal,
     _attach_ballot_columns,
-    _ProfileVoterWeightData,
 )
 from votekit.types import Candidate
 
@@ -39,7 +42,8 @@ class RankMatrix:
             per ballot and one column per ranking position. Empty dimensions are supported.
         cand_sets (tuple[frozenset[Candidate], ...]): Dense decoding table: slot 0 is the empty
             set (ID -2), slot 1 is the tilde set (ID -1), and slot ``cand_set_id + 2`` stores
-            each real set. Mutable set entries are accepted and frozen during construction.
+            each real set. Entries must be unique. Mutable set entries are accepted and frozen
+            during construction.
         ranking_columns (tuple[str, ...]): Ranking_i labels with unique, increasing numeric
             suffixes. Their count must match the ranking array's column count.
         candidates (tuple[Candidate, ...]): Profile candidate universe, including declared
@@ -47,7 +51,7 @@ class RankMatrix:
             in unused table entries may be absent from this tuple.
     """
 
-    voter_weight_data: _ProfileVoterWeightData
+    voter_weight_data: ProfileVoterWeightData
     rankings: NDArray
     cand_sets: tuple[frozenset[Candidate], ...]
     ranking_columns: tuple[str, ...]
@@ -138,7 +142,7 @@ class RankMatrix:
 
     def _validate_candidate_sets(self, candidate_sets: tuple[frozenset[Candidate], ...]) -> None:
         """
-        Check reserved sets and candidate membership on positive-weight ballots.
+        Check unique sets, reserved entries, and candidate membership on positive-weight ballots.
 
         Args:
             candidate_sets (tuple[frozenset[Candidate], ...]): Frozen candidate sets in dense ID
@@ -146,8 +150,9 @@ class RankMatrix:
 
         Raises:
             TypeError: A real set contains a candidate other than a string or non-boolean integer.
-            ValueError: Reserved entries are incorrect, a real set is empty or contains tilde,
-                or a positive-weight ballot references a candidate outside the profile universe.
+            ValueError: Sets are repeated, reserved entries are incorrect, a real set is empty
+                or contains tilde, or a positive-weight ballot references a candidate outside
+                the profile universe.
         """
         if len(candidate_sets) < 2 or candidate_sets[:2] != (frozenset(), TILDE_SET):
             raise ValueError("Candidate sets must begin with the reserved empty and tilde sets.")
@@ -164,6 +169,9 @@ class RankMatrix:
                 raise TypeError("Candidate sets must contain string or integer candidate names.")
             if not cand_set.issubset(candidates):
                 undeclared_set_ids.add(cand_set_id)
+
+        if len(set(candidate_sets)) != len(candidate_sets):
+            raise ValueError("Candidate sets must be unique.")
 
         if undeclared_set_ids:
             # Profiles may retain candidates outside their universe on zero-weight ballots.
@@ -217,7 +225,7 @@ class RankMatrix:
         )
 
         return cls(
-            voter_weight_data=_ProfileVoterWeightData.from_df(df),
+            voter_weight_data=ProfileVoterWeightData.from_df(df),
             rankings=rankings,
             cand_sets=tuple(cand_set_to_id),  # insertion order is ID order
             ranking_columns=ranking_columns,
@@ -314,3 +322,103 @@ class RankMatrix:
 
         df = pd.DataFrame(translated_rankings, columns=list(self.ranking_columns))
         return _attach_ballot_columns(df, self.voter_weight_data)
+
+    def get_candidates_cast(self) -> frozenset[Candidate]:
+        """
+        Return the set of candidates that appear on any ballot with nonzero weight.
+
+        Returns:
+            frozenset[Candidate]: Candidates ranked on at least one ballot.
+        """
+        active_candidate_set_ids = np.unique(self.rankings[self.voter_weight_data.weights > 0])
+
+        return frozenset().union(
+            *(
+                self.get_cand_set_from_id(cand_set_id)
+                for cand_set_id in active_candidate_set_ids
+                if cand_set_id >= 0
+            )
+        )
+
+    def copy(self, *, shallow: bool = False) -> RankMatrix:
+        """
+        Return a copy of the matrix with independent arrays and tuples.
+
+        Args:
+            shallow (bool, optional): If True, return a shallow copy with shared arrays and tuples.
+                Defaults to False.
+
+        Returns:
+            RankMatrix: New matrix with the same data.
+        """
+        if shallow:
+            return shallow_copy(self)
+
+        return RankMatrix(
+            voter_weight_data=self.voter_weight_data.copy(),
+            rankings=self.rankings,
+            cand_sets=self.cand_sets,
+            ranking_columns=self.ranking_columns,
+            candidates=self.candidates,
+        )
+
+    def _group_ranking_rows(self) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+        """
+        Identify equal rankings, ordering groups by their first source row.
+
+        Candidate sets have unique IDs, so ranking rows can be compared directly.
+        Empty positions and tilde padding remain distinct.
+
+        Returns:
+            tuple[NDArray[np.intp], NDArray[np.intp]]: Representative source rows and the
+                group assigned to each source row. Both arrays are empty for an empty matrix.
+        """
+        if not len(self):
+            return np.empty(0, dtype=np.intp), np.empty(0, dtype=np.intp)
+
+        if not self.rankings.shape[1]:
+            return np.array([0], dtype=np.intp), np.zeros(len(self), dtype=np.intp)
+
+        rows = np.ascontiguousarray(self.rankings)  # each row continuous in memory
+
+        row_dtype = np.dtype(
+            (np.void, rows.dtype.itemsize * rows.shape[1])
+        )  # size of each row in bytes
+
+        # view interprets each row is a single void element (fixed size block of raw bytes) so
+        # that we may use it as a key for np.unique.
+        row_keys = rows.view(row_dtype).reshape(-1)
+
+        _, first_rows_idx, group_ids = np.unique(
+            row_keys,
+            return_index=True,
+            return_inverse=True,
+        )
+
+        group_order = np.argsort(first_rows_idx)
+        reordered_ids = np.empty(len(group_order), dtype=np.intp)
+        reordered_ids[group_order] = np.arange(len(group_order))
+
+        return first_rows_idx[group_order], reordered_ids[group_ids]
+
+    def group_ballots(self) -> RankMatrix:
+        """
+        Combine equal rankings in first-appearance order without dataframe conversion.
+
+        Returns:
+            RankMatrix: Grouped matrix with owned, read-only arrays. An empty result uses
+                float64 weights. Immutable candidate and voter sets may be shared.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
+        """
+        first_rows_idx, group_ids = self._group_ranking_rows()
+        grouped_data = self.voter_weight_data.group_rows(first_rows_idx, group_ids)
+
+        return RankMatrix(
+            voter_weight_data=grouped_data,
+            rankings=self.rankings[first_rows_idx],
+            cand_sets=self.cand_sets,
+            ranking_columns=self.ranking_columns,
+            candidates=self.candidates,
+        )

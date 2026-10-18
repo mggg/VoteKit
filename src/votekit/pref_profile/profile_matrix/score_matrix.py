@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Self, Sequence
 
@@ -10,9 +12,9 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.pref_profile.profile_matrix.shared_data import (
+    ProfileVoterWeightData,
     _arrays_equal,
     _attach_ballot_columns,
-    _ProfileVoterWeightData,
 )
 from votekit.types import Candidate
 
@@ -24,7 +26,7 @@ class ScoreMatrix:
 
     Construction copies scores into a read-only array without changing their dtype and retains
     column and candidate metadata as tuples. The validated shared-data block is reused.
-    Candidate names are not normalized here.
+    Signed zeros are stored as positive zero. Candidate names are not normalized here.
 
     Args:
         voter_weight_data (_ProfileVoterWeightData): Shared data with one entry per ballot.
@@ -38,7 +40,7 @@ class ScoreMatrix:
             non-NaN scores only on zero-weight ballots.
     """
 
-    voter_weight_data: _ProfileVoterWeightData
+    voter_weight_data: ProfileVoterWeightData
     scores: NDArray
     score_columns: tuple[Candidate, ...]
     candidates: tuple[Candidate, ...]
@@ -55,6 +57,7 @@ class ScoreMatrix:
         self._validate_score_columns()
 
         owned_scores = np.array(self.scores, copy=True)
+        owned_scores[owned_scores == 0] = 0.0
         owned_scores.setflags(write=False)
 
         object.__setattr__(self, "scores", owned_scores)
@@ -150,7 +153,7 @@ class ScoreMatrix:
         )
 
         return cls(
-            voter_weight_data=_ProfileVoterWeightData.from_df(df),
+            voter_weight_data=ProfileVoterWeightData.from_df(df),
             scores=df[list(score_columns)].to_numpy(dtype=float),
             score_columns=score_columns,
             candidates=tuple(candidates),
@@ -183,3 +186,80 @@ class ScoreMatrix:
         """
         df = pd.DataFrame(self.scores, columns=list(self.score_columns), copy=True)
         return _attach_ballot_columns(df, self.voter_weight_data)
+
+    def copy(self) -> ScoreMatrix:
+        """
+        Return a deep copy of the matrix with independent arrays and tuples.
+
+        Returns:
+            ScoreMatrix: New matrix with the same data.
+        """
+        return ScoreMatrix(
+            voter_weight_data=self.voter_weight_data.copy(),
+            scores=self.scores,
+            score_columns=self.score_columns,
+            candidates=self.candidates,
+        )
+
+    def get_candidates_cast(self) -> frozenset[Candidate]:
+        """
+        Return candidates with a positive score on at least one positive-weight ballot.
+        """
+        active_scores = self.scores[self.voter_weight_data.weights > 0]
+        active_columns = np.flatnonzero(np.any(active_scores > 0, axis=0))
+        return frozenset(self.score_columns[column] for column in active_columns)
+
+    def _group_score_rows(self) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+        """
+        Identify equal scores in first-appearance order, treating all NaNs as unscored.
+
+        Zero and unscored entries remain distinct. Constructor normalization already makes
+        signed zeros equal. Comparison keys do not alter the stored scores.
+
+        Returns:
+            tuple[NDArray[np.intp], NDArray[np.intp]]: Representative source rows and one
+                group ID per source row. Both arrays are empty for an empty matrix.
+        """
+        if not len(self):
+            return np.empty(0, dtype=np.intp), np.empty(0, dtype=np.intp)
+
+        if not self.scores.shape[1]:
+            return np.array([0], dtype=np.intp), np.zeros(len(self), dtype=np.intp)
+
+        if self.scores.dtype.itemsize > np.dtype(np.float64).itemsize:
+            # Extended floats may have padding bytes; compare values before making byte keys.
+            rows = np.empty(self.scores.shape, dtype=np.intp)
+            for column in range(self.scores.shape[1]):
+                _, rows[:, column] = np.unique(self.scores[:, column], return_inverse=True)
+        else:
+            rows = np.array(self.scores, copy=True, order="C")
+            rows[np.isnan(rows)] = np.nan
+
+        row_dtype = np.dtype((np.void, rows.dtype.itemsize * len(self.score_columns)))
+        row_keys = rows.view(row_dtype).reshape(-1)
+        _, first_rows_idx, group_ids = np.unique(row_keys, return_index=True, return_inverse=True)
+
+        group_order = np.argsort(first_rows_idx)
+        reordered_ids = np.empty(len(group_order), dtype=np.intp)
+        reordered_ids[group_order] = np.arange(len(group_order))
+        return first_rows_idx[group_order], reordered_ids[group_ids]
+
+    def group_ballots(self) -> ScoreMatrix:
+        """
+        Combine equal score rows in first-appearance order without dataframe conversion.
+
+        Returns:
+            ScoreMatrix: Grouped matrix with owned, read-only arrays. An empty result uses
+                float64 weights. Immutable voter sets may be shared.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
+        """
+        first_rows_idx, group_ids = self._group_score_rows()
+        grouped_data = self.voter_weight_data.group_rows(first_rows_idx, group_ids)
+        return ScoreMatrix(
+            voter_weight_data=grouped_data,
+            scores=self.scores[first_rows_idx],
+            score_columns=self.score_columns,
+            candidates=self.candidates,
+        )

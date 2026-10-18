@@ -1,15 +1,18 @@
-from typing import Protocol, Self, Sequence, runtime_checkable
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Protocol, Self, runtime_checkable
 
 import pandas as pd
 
-from votekit.pref_profile.profile_matrix.shared_data import _ProfileVoterWeightData
+from votekit.pref_profile.profile_matrix.shared_data import ProfileVoterWeightData
 from votekit.types import Candidate
 
 
 @runtime_checkable
 class ProfileMatrix(Protocol):
     """
-    Define the shared construction and export interface for profile matrices.
+    Define the shared construction, grouping, and export interface for profile matrices.
 
     RankMatrix and ScoreMatrix implement this protocol structurally. Common profile operations
     use this interface; rank- and score-specific operations use their concrete matrix types.
@@ -23,7 +26,7 @@ class ProfileMatrix(Protocol):
     """
 
     @property
-    def voter_weight_data(self) -> _ProfileVoterWeightData:
+    def voter_weight_data(self) -> ProfileVoterWeightData:
         """
         Aligned weights, voters, and index labels, exposed without a setter.
         """
@@ -67,5 +70,18 @@ class ProfileMatrix(Protocol):
                 and source index labels when retained. Mutating an export affects neither the
                 matrix nor other exports. Immutable sets may be shared. Weight dtypes, column
                 ordering, and index metadata may differ from the original input.
+        """
+        ...
+
+    def group_ballots(self) -> ProfileMatrix:
+        """
+        Combine equal ballot payloads in first-appearance order.
+
+        Returns:
+            ProfileMatrix: Grouped matrix of the same ballot kind, with owned, read-only arrays.
+                Empty input produces float64 weights.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
         """
         ...

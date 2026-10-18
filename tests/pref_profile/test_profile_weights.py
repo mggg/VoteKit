@@ -7,7 +7,7 @@ import pytest
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.exceptions import ProfileError
 from votekit.pref_profile import RankProfile, ScoreProfile
-from votekit.pref_profile.profile_matrix import WeightKind, _ProfileVoterWeightData
+from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, WeightKind
 
 
 def _profile_from_weights(profile_type, weights: pd.Series):
@@ -92,7 +92,7 @@ def test_weight_adapter_rejects_boolean_and_complex_values(dtype, weight):
     df = pd.DataFrame({"Weight": pd.Series([weight], dtype=dtype), "Voter Set": [frozenset()]})
 
     with pytest.raises(ProfileError, match="real numbers|float, int, or Fraction"):
-        _ProfileVoterWeightData.from_df(df)
+        ProfileVoterWeightData.from_df(df)
 
 
 @pytest.mark.parametrize(

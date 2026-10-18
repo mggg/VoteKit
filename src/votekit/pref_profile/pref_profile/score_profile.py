@@ -410,44 +410,29 @@ class ScoreProfile(PreferenceProfile):
 
     def group_ballots(self) -> ScoreProfile:
         """
-        Groups ballots by scores and updates weights. Retains voter sets, but
-        loses ballot ids.
+        Combine equal scores in first-appearance order, summing weights and unioning voters.
+
+        Declared candidates and score-column order are preserved. Ballot indices reset to a
+        default index. Fraction sums remain exact; float sums use NumPy accumulation.
+        Unscored entries compare equally but remain distinct from explicit zero scores.
 
         Returns:
-            ScoreProfile: A ScoreProfile object with grouped ballot list.
+            ScoreProfile: New profile with one ballot per distinct score row.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
         """
-        if self.num_ballots == 0:
-            return ScoreProfile(
-                candidates=self.candidates,
-            )
-
-        df = self.to_df()
-        cand_cols = list(self._matrix.score_columns)
-        group_df = df.groupby(cand_cols, dropna=False)
-        new_df = group_df.aggregate(
-            {
-                WEIGHT_COLUMN: "sum",
-                VOTER_SET_COLUMN: (lambda sets: set().union(*sets)),
-            }
-        ).reset_index()
-
-        new_df.index.name = BALLOT_INDEX_NAME
-
-        return ScoreProfile(
-            df=new_df,
-            candidates=self.candidates,
-        )
+        return ScoreProfile._from_matrix(self._matrix.group_ballots())
 
     def copy(self) -> ScoreProfile:
         """
-        Returns a copy of a ScoreProfile
+        Return a new profile sharing the immutable score matrix.
 
         Returns:
             ScoreProfile: New ScoreProfile object
         """
-        return ScoreProfile(
-            df=self.to_df(),
-            candidates=self.candidates,
+        return ScoreProfile._from_matrix(
+            matrix=self._matrix,
         )
 
     def __eq__(self, other):
@@ -659,3 +644,33 @@ class ScoreProfile(PreferenceProfile):
             ballots=tuple(ballots),
             candidates=tuple(inv_candidate_mapping.values()),
         )
+
+    @staticmethod
+    def _from_matrix(matrix: ScoreMatrix) -> ScoreProfile:
+        """
+        Create a ScoreProfile from a ScoreMatrix.
+
+        Args:
+            matrix (ScoreMatrix): Validated, owned score matrix to share with the new profile.
+
+        Returns:
+            ScoreProfile: Ordinary profile with derived metadata and frozen attributes.
+        """
+        profile = object.__new__(ScoreProfile)
+        profile._matrix = matrix
+        profile.candidates = matrix.candidates
+        profile.candidates_cast = tuple(
+            sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())
+        )
+        profile._finalize_profile()
+        return profile
+
+    def to_matrix(self) -> ScoreMatrix:
+        """
+        Export the score matrix with independent, read-only array storage.
+
+        Returns:
+            ScoreMatrix: New matrix preserving scores, weights, voters, labels, and candidate
+                metadata. Immutable candidate names and voter sets may be shared.
+        """
+        return self._matrix.copy()

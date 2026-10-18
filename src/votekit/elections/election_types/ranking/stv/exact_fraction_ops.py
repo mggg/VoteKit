@@ -69,15 +69,13 @@ def convert_profile_weights(
     Returns:
         RankProfile: Profile with converted weights and unchanged rankings and candidates.
     """
-    converted_df = profile.to_df()
-    converted_df[WEIGHT_COLUMN] = converted_df[WEIGHT_COLUMN].map(converter)
-    converted_profile = RankProfile(
-        df=converted_df,
-        candidates=profile.candidates,
-        max_ranking_length=profile.max_ranking_length,
-    )
-    assert isinstance(converted_profile, RankProfile)
-    return converted_profile
+    weights = profile.voter_weight_data.weights
+    converted_weights = np.empty(len(weights), dtype=object)
+
+    for idx, weight in enumerate(weights):
+        converted_weights[idx] = converter(weight)
+
+    return profile._with_weights(converted_weights)
 
 
 def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from copy import copy as shallow_copy
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
@@ -52,7 +55,7 @@ class WeightKind(Enum):
 
 
 @dataclass(frozen=True, slots=True, eq=False)
-class _ProfileVoterWeightData:
+class ProfileVoterWeightData:
     """
     Store aligned ballot weights, voter sets, and optional source index labels.
 
@@ -192,7 +195,7 @@ class _ProfileVoterWeightData:
         """
         Build owned ballot data from a profile dataframe's shared columns.
 
-        Weights follow ``_normalize_weights``. A default zero-based, unit-step RangeIndex is
+        Weights follow ``_standardize_weights``. A default zero-based, unit-step RangeIndex is
         represented by None; other index labels are retained for export.
 
         Args:
@@ -208,7 +211,7 @@ class _ProfileVoterWeightData:
             ValueError: Converted data violates the shared-data constructor's shape or type rules.
             TypeError: Voter entries cannot be converted to frozensets.
         """
-        weights, weight_kind = _normalize_weights(df[WEIGHT_COLUMN].to_numpy())
+        weights, weight_kind = _standardize_weights(df[WEIGHT_COLUMN].to_numpy())
 
         voter_set_column = df[VOTER_SET_COLUMN]
         voter_sets = (
@@ -236,7 +239,7 @@ class _ProfileVoterWeightData:
         return len(self.weights)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, _ProfileVoterWeightData):
+        if not isinstance(other, ProfileVoterWeightData):
             return NotImplemented
         return (
             _arrays_equal(self.weights, other.weights)
@@ -256,6 +259,120 @@ class _ProfileVoterWeightData:
             return self.voter_sets
         return cast(Any, [EMPTY_VOTER_SET] * len(self))
 
+    def group_rows(
+        self, first_rows_idx: NDArray[np.intp], group_ids: NDArray[np.intp]
+    ) -> ProfileVoterWeightData:
+        """
+        Sum weights and union voters for internally computed row groups, resetting labels.
+
+        Args:
+            first_rows_idx (NDArray[np.intp]): First source row for each group, in output order.
+            group_ids (NDArray[np.intp]): One group ID per source row, indexing first_rows_idx.
+                The matrix grouping operation must supply consistent, complete assignments.
+
+        Returns:
+            _ProfileVoterWeightData: Owned, read-only grouped columns without source labels.
+                Fraction sums remain exact. Empty input produces float64 weights, and absent
+                or entirely empty voter sets produce None.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
+        """
+        additional_rows = np.ones(len(self), dtype=bool)
+        additional_rows[first_rows_idx] = False
+        additional_row_idxs = np.flatnonzero(additional_rows)  # where the mask is True
+
+        if not len(self):
+            weights = np.empty(0, dtype=np.float64)
+
+        elif self.weight_kind is WeightKind.FRACTION:
+            weights = self.weights[first_rows_idx]
+            for row in additional_row_idxs:
+                weights[group_ids[row]] += self.weights[row]  # need to add fractions in Python
+
+        else:
+            weights = cast(
+                NDArray[np.float64],
+                np.bincount(group_ids, weights=self.weights, minlength=len(first_rows_idx)),
+            )
+
+        voter_sets = None
+        if self.voter_sets is not None:
+            voter_sets = self.voter_sets[first_rows_idx]
+            voter_unions: dict[int, set[str]] = {}
+
+            for row in additional_row_idxs:
+                group = int(group_ids[row])
+                if group not in voter_unions:
+                    voter_unions[group] = set(voter_sets[group])
+                voter_unions[group].update(self.voter_sets[row])
+
+            for group, voters in voter_unions.items():
+                voter_sets[group] = frozenset(voters)
+
+            if not any(voter_sets):
+                voter_sets = None
+
+        return ProfileVoterWeightData(
+            weights=weights,
+            voter_sets=voter_sets,
+            weight_kind=self.weight_kind if len(self) else WeightKind.FLOAT,
+        )
+
+    def with_weights(self, new_weights: NDArray) -> Self:
+        """
+        Replace weights with owned storage while sharing voters and ballot labels.
+
+        The supplied weights follow the same normalization rules as dataframe construction.
+        Ballot count and row order remain unchanged. The original object is not modified.
+
+        Args:
+            weights (NDArray): One replacement weight per existing ballot, in source row order.
+
+        Returns:
+            Self: New data object with independently owned, read-only weights. Existing voter
+                and index arrays are shared.
+
+        Raises:
+            ProfileError: Weights have invalid dimensions, types, or values, or their count
+                differs from the existing ballot count.
+        """
+
+        new_weights, new_weight_kind = _standardize_weights(new_weights)
+
+        if len(new_weights) != len(self):
+            raise ProfileError(
+                f"Replacement weights must have the same length as existing weights: "
+                f"{len(new_weights)} != {len(self)}."
+            )
+
+        owned_weights = np.array(new_weights, copy=True)
+        owned_weights.setflags(write=False)
+
+        data = shallow_copy(self)
+        object.__setattr__(data, "weights", owned_weights)
+        object.__setattr__(data, "weight_kind", new_weight_kind)
+
+        return data
+
+    def copy(self, *, shallow=False) -> ProfileVoterWeightData:
+        """
+        Return a shallow copy of the shared-data object with independent array storage.
+
+        The returned object shares no storage with the original, but its arrays are read-only.
+
+        """
+        if shallow:
+            return shallow_copy(self)
+
+        else:
+            return ProfileVoterWeightData(
+                weights=self.weights,
+                voter_sets=self.voter_sets,
+                weight_kind=self.weight_kind,
+                ballot_index=self.ballot_index,
+            )
+
 
 def _non_default_index(index: pd.Index) -> NDArray | None:
     """
@@ -273,7 +390,7 @@ def _non_default_index(index: pd.Index) -> NDArray | None:
     return index.to_numpy()
 
 
-def _normalize_weights(weights: NDArray) -> tuple[NDArray, WeightKind]:
+def _standardize_weights(weights: NDArray) -> tuple[NDArray, WeightKind]:
     """
     Validate weights and select float64 or Fraction storage without changing their values.
 
@@ -394,7 +511,7 @@ def _as_fraction(weight: Any) -> Fraction:
     return Fraction(integer_weight)
 
 
-def _attach_ballot_columns(df: pd.DataFrame, data: _ProfileVoterWeightData) -> pd.DataFrame:
+def _attach_ballot_columns(df: pd.DataFrame, data: ProfileVoterWeightData) -> pd.DataFrame:
     """
     Append shared ballot columns and restore index labels on a payload dataframe.
 

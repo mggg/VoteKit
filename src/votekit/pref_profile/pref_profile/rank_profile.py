@@ -9,6 +9,7 @@ from typing import Optional, Self, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from votekit._df_schema import (
     BALLOT_INDEX_NAME,
@@ -497,46 +498,31 @@ class RankProfile(PreferenceProfile):
 
     def group_ballots(self) -> RankProfile:
         """
-        Groups ballots by rankings and updates weights. Retains voter sets, but
-        loses ballot indices.
+        Combine equal rankings in first-appearance order, summing weights and unioning voters.
+
+        Declared candidates and the ranking limit are preserved. Ballot indices reset to a
+        default index. Fraction sums remain exact; float sums use NumPy accumulation.
 
         Returns:
-            RankProfile: A RankProfile object with grouped ballot list.
+            RankProfile: New profile with one ballot per distinct ranking.
+
+        Raises:
+            ProfileError: A grouped floating-point weight overflows to a nonfinite value.
         """
-        if self.num_ballots == 0:
-            return RankProfile(
-                candidates=self.candidates,
-                max_ranking_length=self.max_ranking_length,
-            )
-
-        df = self.to_df()
-        ranking_cols = list(self._matrix.ranking_columns)
-        group_df = df.groupby(ranking_cols, dropna=False)
-        new_df = group_df.aggregate(
-            {
-                WEIGHT_COLUMN: "sum",
-                VOTER_SET_COLUMN: (lambda sets: set().union(*sets)),
-            }
-        ).reset_index()
-
-        new_df.index.name = BALLOT_INDEX_NAME
-
-        return RankProfile(
-            df=new_df,
-            candidates=self.candidates,
+        return RankProfile._from_matrix(
+            self._matrix.group_ballots(),
             max_ranking_length=self.max_ranking_length,
         )
 
     def copy(self) -> RankProfile:
         """
-        Returns a copy of a RankProfile
+        Returns a shallow copy of the immutable RankProfile.
 
         Returns:
             RankProfile: New RankProfile object
         """
-        return RankProfile(
-            candidates=self.candidates,
-            df=self.to_df(),
+        return RankProfile._from_matrix(
+            self._matrix,
             max_ranking_length=self.max_ranking_length,
         )
 
@@ -771,3 +757,60 @@ class RankProfile(PreferenceProfile):
             candidates=tuple(inv_candidate_mapping.values()),
             max_ranking_length=max_ranking_length,
         )
+
+    # Static because we intend to bypass the constructor
+    @staticmethod
+    def _from_matrix(matrix: RankMatrix, *, max_ranking_length: int) -> RankProfile:
+        """
+        Create a RankProfile from a RankMatrix.
+
+        Args:
+            RankMatrix (RankMatrix): A RankMatrix object.
+
+        Returns:
+            RankProfile: A RankProfile object.
+        """
+        profile = object.__new__(RankProfile)
+        profile._matrix = matrix
+        profile.candidates = matrix.candidates
+        profile.max_ranking_length = max_ranking_length
+        profile.candidates_cast = tuple(
+            sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())
+        )
+        profile._finalize_profile()
+        return profile
+
+    def to_matrix(self) -> RankMatrix:
+        """
+        Returns a deep copy of the RankMatrix representation of the RankProfile.
+
+        Returns:
+            RankMatrix: A RankMatrix object.
+        """
+        return self._matrix.copy()
+
+    def _with_weights(self, weights: NDArray) -> RankProfile:
+        """
+        Create a new RankProfile with the same ballots but different weights.
+
+        Args:
+            weights (np.ndarray): New weights for the ballots.
+
+        Returns:
+            RankProfile: A new RankProfile with the same ballots but different weights.
+        """
+        data = self._matrix.voter_weight_data.with_weights(weights)
+        new_matrix = self._matrix.copy(shallow=True)
+
+        object.__setattr__(new_matrix, "_voter_weight_data", data)
+
+        if not new_matrix.candidates:
+            candidates = tuple(
+                sort_candidates_pseudo_lexicographically(new_matrix.get_candidates_cast())
+            )
+            object.__setattr__(new_matrix, "_candidates", candidates)
+
+        profile = RankProfile._from_matrix(new_matrix, max_ranking_length=self.max_ranking_length)
+        profile._validate_candidates()
+
+        return profile

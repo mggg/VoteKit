@@ -496,7 +496,7 @@ def name_bt_profile_generator(
         pp += profile
 
     if group_ballots:
-        pp.group_ballots()
+        pp = pp.group_ballots()
     return pp
 
 
@@ -548,7 +548,7 @@ def name_bt_profile_generator_using_mcmc(
         pp += profile
 
     if group_ballots:
-        pp.group_ballots()
+        pp = pp.group_ballots()
     return pp
 
 

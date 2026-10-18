@@ -16,10 +16,10 @@ from votekit.pref_profile import (
 )
 from votekit.pref_profile.profile_matrix import (
     ProfileMatrix,
+    ProfileVoterWeightData,
     RankMatrix,
     ScoreMatrix,
     WeightKind,
-    _ProfileVoterWeightData,
 )
 from votekit.types import Candidate
 
@@ -28,7 +28,7 @@ from votekit.types import Candidate
 
 def test_constructor_isolates_weights_from_input_array():
     weights = np.array([1.0, 2.0])
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=weights,
         voter_sets=None,
         weight_kind=WeightKind.FLOAT,
@@ -43,7 +43,7 @@ def test_constructor_isolates_voter_sets_from_input_set():
     voters = {"Alice"}
     voter_sets = np.empty(1, dtype=object)
     voter_sets[0] = voters
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=np.array([1.0]),
         voter_sets=voter_sets,
         weight_kind=WeightKind.FLOAT,
@@ -61,7 +61,7 @@ def test_constructor_isolates_voter_array_from_input_array():
     voter_sets = np.empty(1, dtype=object)
     voter_sets[0] = frozenset({"Alice"})
 
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=np.array([1.0]),
         voter_sets=voter_sets,
         weight_kind=WeightKind.FLOAT,
@@ -75,7 +75,7 @@ def test_constructor_isolates_voter_array_from_input_array():
 
 def test_constructor_isolates_index_labels_from_input_array():
     labels = np.array([10, 42])
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=np.array([1.0, 2.0]),
         voter_sets=None,
         weight_kind=WeightKind.FLOAT,
@@ -120,7 +120,7 @@ def test_profile_isolates_weights_from_input_dataframe():
 @pytest.mark.parametrize("shape", [(), (1, 1), (1, 1, 1)], ids=["scalar", "2d", "3d"])
 def test_shared_data_constructor_rejects_non_vector_weights(shape: tuple[int, ...]):
     with pytest.raises(ValueError, match=r"weights.*1D"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.ones(shape),
             voter_sets=None,
             weight_kind=WeightKind.FLOAT,
@@ -140,7 +140,7 @@ def test_shared_data_constructor_rejects_non_vector_optional_columns(
     voter_sets, ballot_index, message: str
 ):
     with pytest.raises(ValueError, match=message):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([1.0]),
             voter_sets=voter_sets,
             weight_kind=WeightKind.FLOAT,
@@ -161,7 +161,7 @@ def test_shared_data_constructor_rejects_optional_column_length_mismatch(
     voter_sets, ballot_index, message: str
 ):
     with pytest.raises(ValueError, match=message):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([1.0]),
             voter_sets=voter_sets,
             weight_kind=WeightKind.FLOAT,
@@ -172,7 +172,7 @@ def test_shared_data_constructor_rejects_optional_column_length_mismatch(
 @pytest.mark.parametrize("dtype", [np.float32, np.int64, np.bool_, np.object_, np.complex128])
 def test_shared_data_constructor_rejects_non_float64_dtype_for_float_weights(dtype):
     with pytest.raises(ValueError, match=r"float64.*FLOAT"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([1], dtype=dtype),
             voter_sets=None,
             weight_kind=WeightKind.FLOAT,
@@ -182,7 +182,7 @@ def test_shared_data_constructor_rejects_non_float64_dtype_for_float_weights(dty
 @pytest.mark.parametrize("dtype", [np.float64, np.int64])
 def test_shared_data_constructor_rejects_non_object_dtype_for_fraction_weights(dtype):
     with pytest.raises(ValueError, match=r"object.*FRACTION"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([1], dtype=dtype),
             voter_sets=None,
             weight_kind=WeightKind.FRACTION,
@@ -192,7 +192,7 @@ def test_shared_data_constructor_rejects_non_object_dtype_for_fraction_weights(d
 @pytest.mark.parametrize("invalid_weight", [1, 1.0, "1", None], ids=["int", "float", "str", "none"])
 def test_shared_data_constructor_rejects_non_fraction_entries(invalid_weight):
     with pytest.raises(ValueError, match="Fractions"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([Fraction(1, 3), invalid_weight], dtype=object),
             voter_sets=None,
             weight_kind=WeightKind.FRACTION,
@@ -206,7 +206,7 @@ def test_shared_data_constructor_rejects_non_fraction_entries(invalid_weight):
 )
 def test_shared_data_constructor_rejects_invalid_float_values(invalid_weight: float, message: str):
     with pytest.raises(ProfileError, match=message):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([invalid_weight], dtype=np.float64),
             voter_sets=None,
             weight_kind=WeightKind.FLOAT,
@@ -215,7 +215,7 @@ def test_shared_data_constructor_rejects_invalid_float_values(invalid_weight: fl
 
 def test_shared_data_constructor_rejects_negative_fraction():
     with pytest.raises(ValueError, match="negative"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([Fraction(1, 3), Fraction(-1, 2)], dtype=object),
             voter_sets=None,
             weight_kind=WeightKind.FRACTION,
@@ -224,7 +224,7 @@ def test_shared_data_constructor_rejects_negative_fraction():
 
 def test_shared_data_constructor_rejects_unknown_weight_kind():
     with pytest.raises(ValueError, match="weight_kind"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([1.0]),
             voter_sets=None,
             weight_kind=cast(WeightKind, "FLOAT"),
@@ -233,7 +233,7 @@ def test_shared_data_constructor_rejects_unknown_weight_kind():
 
 def test_shared_data_constructor_preserves_and_owns_nonnegative_fractions():
     weights = np.array([Fraction(0), Fraction(1, 3), Fraction(2)], dtype=object)
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=weights,
         voter_sets=None,
         weight_kind=WeightKind.FRACTION,
@@ -254,7 +254,7 @@ def test_shared_data_constructor_accepts_empty_arrays(
     dtype = np.float64 if weight_kind is WeightKind.FLOAT else np.object_
     voter_sets = np.empty(0, dtype=object) if include_optional_columns else None
     ballot_index = np.empty(0, dtype=int) if include_optional_columns else None
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=(
             np.empty(0, dtype=np.float64)
             if weight_kind is WeightKind.FLOAT
@@ -279,8 +279,8 @@ def test_shared_data_constructor_accepts_empty_arrays(
         assert data.ballot_index is None
 
 
-def _make_voter_weight_data(num_ballots: int = 1) -> _ProfileVoterWeightData:
-    return _ProfileVoterWeightData(
+def _make_voter_weight_data(num_ballots: int = 1) -> ProfileVoterWeightData:
+    return ProfileVoterWeightData(
         weights=np.ones(num_ballots, dtype=np.float64),
         voter_sets=None,
         weight_kind=WeightKind.FLOAT,
@@ -316,6 +316,20 @@ def test_score_matrix_constructor_owns_scores():
 
     np.testing.assert_array_equal(matrix.scores, [[1.0]])
     assert matrix.to_df()["A"].tolist() == [1.0]
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_score_matrix_constructor_canonicalizes_zeros_without_mutating_input(dtype):
+    scores = np.array([[-0.0, 0.0, np.nan, 1.5]], dtype=dtype)
+    candidates = ("A", "B", "C", "D")
+    matrix = ScoreMatrix(_make_voter_weight_data(), scores, candidates, candidates)
+
+    np.testing.assert_array_equal(matrix.scores, scores)
+    assert not np.signbit(matrix.scores[0, :2]).any()
+    assert np.signbit(scores[0, 0])
+    assert matrix.scores.dtype == dtype
+    assert not matrix.scores.flags.writeable
+    assert not np.shares_memory(matrix.scores, scores)
 
 
 def test_rank_matrix_constructor_freezes_candidate_sets():
@@ -657,7 +671,7 @@ def test_rank_matrix_constructor_protects_owned_rankings_from_accidental_writes(
 
 
 def test_rank_matrix_constructor_retains_undeclared_candidates_on_zero_weight_ballots():
-    data = _ProfileVoterWeightData(
+    data = ProfileVoterWeightData(
         weights=np.array([0.0, 1.0]), voter_sets=None, weight_kind=WeightKind.FLOAT
     )
     matrix = RankMatrix(
@@ -729,7 +743,7 @@ def test_score_matrix_constructor_preserves_floating_score_values(dtype):
 
 
 def test_score_matrix_constructor_preserves_undeclared_candidates_on_zero_weight_ballots():
-    data = _ProfileVoterWeightData(np.array([1.0, 0.0]), None, WeightKind.FLOAT)
+    data = ProfileVoterWeightData(np.array([1.0, 0.0]), None, WeightKind.FLOAT)
     scores = np.array([[1.0, np.nan], [np.nan, 2.0]])
     matrix = ScoreMatrix(data, scores, ("A", "B"), ("A",))
 
@@ -793,20 +807,29 @@ def test_profile_dataframe_exports_are_detached(
 
 
 def test_frozen_matrices_implement_profile_matrix_protocol():
-    rank = RankProfile(ballots=[RankBallot(ranking=[{"A"}])])
-    score = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})])
+    rank = RankProfile(ballots=[RankBallot(ranking=[{"A"}])] * 2)
+    score = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})] * 2)
     matrices: tuple[ProfileMatrix, ...] = (rank._matrix, score._matrix)
 
     for matrix in matrices:
         assert isinstance(matrix, ProfileMatrix)
-        assert len(matrix) == 1
+        assert len(matrix) == 2
         assert matrix.candidates == ("A",)
-        assert matrix.to_df()["Weight"].tolist() == [1.0]
+        assert matrix.to_df()["Weight"].tolist() == [1.0, 1.0]
+
+        grouped = matrix.group_ballots()
+
+        assert isinstance(grouped, ProfileMatrix)
+        assert type(grouped) is type(matrix)
+        assert len(grouped) == 1
+        assert grouped.candidates == matrix.candidates
+        assert grouped.to_df()["Weight"].tolist() == [2.0]
+        assert len(matrix) == 2
 
 
 def test_fraction_weight_type_error_summarizes_invalid_entries():
     with pytest.raises(ValueError, match=r"0 \(int\), 1 \(int\), 2 \(int\), and 2 more"):
-        _ProfileVoterWeightData(
+        ProfileVoterWeightData(
             weights=np.array([0, 1, 2, 3, 4], dtype=object),
             voter_sets=None,
             weight_kind=WeightKind.FRACTION,
@@ -832,3 +855,134 @@ def test_df_warns_and_delegates_to_explicit_export(
     assert exported is snapshot
     assert len(recorded) == 1
     assert recorded[0].filename == __file__
+
+
+def test_trusted_rank_constructor_shares_storage_and_derives_metadata():
+    source = RankProfile(
+        ballots=[RankBallot(ranking=[{"B"}, {"A"}], weight=Fraction(2, 3))],
+        candidates=("B", "A", "unused"),
+        max_ranking_length=3,
+    )
+    result = RankProfile._from_matrix(source._matrix, max_ranking_length=3)
+
+    assert type(result) is RankProfile
+    assert result._matrix is source._matrix
+    assert result.candidates == ("B", "A", "unused")
+    assert result.candidates_cast == ("A", "B")
+    assert result.total_ballot_wt == Fraction(2, 3)
+    assert result.num_ballots == 1
+    assert result.max_ranking_length == 3
+    assert result.max_candidates_ranked == 2
+    with pytest.raises(AttributeError, match="frozen"):
+        result.candidates = ()
+    exported = result.to_df()
+    exported["Weight"] = pd.Series([Fraction(99)])
+    assert result.total_ballot_wt == source.total_ballot_wt == Fraction(2, 3)
+
+
+@pytest.mark.parametrize("rankings", [np.array([[0], [1]]), np.array([[0], [0]])])
+def test_rank_matrix_constructor_rejects_duplicate_candidate_sets(rankings):
+    with pytest.raises(ValueError, match="Candidate sets must be unique"):
+        RankMatrix(
+            voter_weight_data=_make_voter_weight_data(2),
+            rankings=rankings,
+            cand_sets=(frozenset(), frozenset({"~"}), frozenset({"A"}), frozenset({"A"})),
+            ranking_columns=("Ranking_1",),
+            candidates=("A",),
+        )
+
+
+@pytest.mark.parametrize("weights", [np.array([1.0, 2.0]), np.array([[1.0]])])
+def test_replacement_weights_reject_wrong_shape_or_count(weights):
+    data = ProfileVoterWeightData(np.array([1.0]), None, WeightKind.FLOAT)
+    with pytest.raises(ProfileError, match="same length as existing weights|1D"):
+        data.with_weights(weights)
+
+
+def test_replacement_weights_own_input_buffer():
+    data = ProfileVoterWeightData(np.array([1.0]), None, WeightKind.FLOAT)
+    weights = np.array([2.0])
+    replaced = data.with_weights(weights)
+    weights[0] = 99.0
+    assert replaced.weights.tolist() == [2.0]
+    assert data.weights.tolist() == [1.0]
+    assert not replaced.weights.flags.writeable
+
+
+@pytest.mark.parametrize("fraction_weights", [False, True])
+def test_score_matrix_grouping_canonicalizes_nan_keys_but_preserves_source_scores(fraction_weights):
+    nan_values = np.array([0x7FF8000000000001, 0xFFF8000000000002], dtype=np.uint64).view(
+        np.float64
+    )
+    scores = np.array([[nan_values[0], -0.0], [1.0, 2.0], [nan_values[1], 0.0], [0.0, 0.0]])
+    weights = np.array(
+        [Fraction(n, 3) if fraction_weights else n / 4 for n in (1, 2, 3, 4)],
+        dtype=object if fraction_weights else float,
+    )
+    voters = np.empty(4, dtype=object)
+    voters[:] = [frozenset({"Alice"}), frozenset({"Bob"}), frozenset({"Carol"}), frozenset()]
+    data = ProfileVoterWeightData(
+        weights,
+        voters,
+        WeightKind.FRACTION if fraction_weights else WeightKind.FLOAT,
+        ballot_index=np.array([10, 10, 20, 30]),
+    )
+    matrix = ScoreMatrix(data, scores, ("B", "A"), ("unused", "A", "B"))
+    source_bits = matrix.scores.view(np.uint64).copy()
+
+    grouped = matrix.group_ballots()
+
+    np.testing.assert_array_equal(grouped.scores.view(np.uint64), source_bits[[0, 1, 3]])
+    np.testing.assert_array_equal(matrix.scores.view(np.uint64), source_bits)
+    assert grouped.voter_weight_data.weights.tolist() == [
+        weights[0] + weights[2],
+        weights[1],
+        weights[3],
+    ]
+    assert grouped.voter_weight_data.voter_sets is not None
+    assert grouped.voter_weight_data.voter_sets.tolist() == [
+        frozenset({"Alice", "Carol"}),
+        frozenset({"Bob"}),
+        frozenset(),
+    ]
+    assert grouped.voter_weight_data.ballot_index is None
+    assert grouped.score_columns == matrix.score_columns
+    assert grouped.candidates == matrix.candidates
+    assert not np.shares_memory(grouped.scores, matrix.scores)
+    assert not np.shares_memory(grouped.voter_weight_data.weights, data.weights)
+    assert not grouped.scores.flags.writeable
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64, np.longdouble])
+def test_score_matrix_grouping_preserves_distinct_representable_scores(dtype):
+    one = dtype(1)
+    next_value = np.nextafter(one, dtype(2))
+    scores = np.array([[one], [next_value], [one]], dtype=dtype)
+    matrix = ScoreMatrix(_make_voter_weight_data(3), scores, ("A",), ("A",))
+
+    grouped = matrix.group_ballots()
+
+    assert grouped.scores.dtype == scores.dtype
+    np.testing.assert_array_equal(grouped.scores, scores[:2])
+    np.testing.assert_array_equal(grouped.voter_weight_data.weights, [2.0, 1.0])
+
+
+def test_trusted_score_constructor_derives_metadata_and_shares_immutable_storage():
+    source = ScoreProfile(
+        ballots=[ScoreBallot(scores={"B": 2, "A": 1}, weight=Fraction(2, 3))],
+        candidates=("unused", "B", "A"),
+    )
+    result = ScoreProfile._from_matrix(source._matrix)
+
+    assert type(result) is ScoreProfile
+    assert result._matrix is source._matrix
+    assert result.candidates == source.candidates
+    assert result.candidates_cast == ("A", "B")
+    assert result.total_ballot_wt == Fraction(2, 3)
+    assert result.num_ballots == 1
+    assert result.copy() == result
+    with pytest.raises(AttributeError, match="frozen"):
+        result.candidates = ()
+    exported = result.to_df()
+    exported.loc[0, "A"] = 99.0
+    assert result.to_df().loc[0, "A"] == 1.0
