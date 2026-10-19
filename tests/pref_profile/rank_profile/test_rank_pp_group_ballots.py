@@ -137,6 +137,7 @@ def test_grouping_without_ranking_columns(num_ballots):
     assert grouped.total_ballot_wt == 2 * num_ballots
     assert grouped.candidates_cast == ()
     assert grouped.max_ranking_length == grouped.max_candidates_ranked == 0
+
     if num_ballots:
         assert grouped.ballots == (RankBallot(weight=6, voter_set={"voter"}),)
 

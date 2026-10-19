@@ -131,5 +131,6 @@ def test_from_df_normalization_preserves_integer_and_string_candidates():
         result = ScoreProfile(df=source, candidates=[1, " 1 "])
 
     assert result.candidates == result._matrix.candidates == (1, "1")
+
     with pytest.warns(UserWarning, match="both str and int"):
         assert result.ballots[0].scores == {1: 2, "1": 3}

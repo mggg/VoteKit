@@ -27,6 +27,7 @@ def test_to_matrix_exports_independent_read_only_arrays_without_dataframe_conver
     with monkeypatch.context() as patch:
         patch.setattr(ScoreProfile, "to_df", unexpected_call)
         patch.setattr(ScoreProfile, "__init__", unexpected_call)
+
         exported = profile.to_matrix()
 
     assert type(exported) is ScoreMatrix
@@ -39,6 +40,7 @@ def test_to_matrix_exports_independent_read_only_arrays_without_dataframe_conver
 
     source_data = profile._matrix.voter_weight_data
     exported_data = exported.voter_weight_data
+
     for copied, original in (
         (exported.scores, profile._matrix.scores),
         (exported_data.weights, source_data.weights),
@@ -51,4 +53,5 @@ def test_to_matrix_exports_independent_read_only_arrays_without_dataframe_conver
 
     exported.scores.setflags(write=True)
     exported.scores[0, 0] = 99.0
+
     pd.testing.assert_frame_equal(profile.to_df(), expected)

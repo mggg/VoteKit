@@ -87,6 +87,7 @@ def test_explicit_profile_rejects_incompatible_ballots(
     profile_type, valid_ballot, invalid_ballot, valid_prefix
 ):
     ballots = [valid_ballot, invalid_ballot] if valid_prefix else [invalid_ballot]
+
     with pytest.raises(ProfileError, match=f"ballot at index {int(valid_prefix)} is"):
         profile_type(ballots=ballots)
 

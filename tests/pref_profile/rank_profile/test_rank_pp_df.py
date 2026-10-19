@@ -171,6 +171,7 @@ def _df_with_weights(weights) -> pd.DataFrame:
         }
     )
     df.index.name = "Ballot Index"
+
     return df
 
 
@@ -186,8 +187,10 @@ def test_df_rejects_nan_float64_weight():
 def test_df_rejects_infinite_and_negative_weights():
     with pytest.raises(ProfileError, match="cannot be infinite"):
         _profile_from(_df_with_weights([np.inf, 1.0]))
+
     with pytest.raises(ProfileError, match="cannot be negative"):
         _profile_from(_df_with_weights([-1.0, 1.0]))
+
     with pytest.raises(ProfileError, match="cannot be NaN or infinity"):
         _profile_from(_df_with_weights(pd.Series([np.nan, Fraction(1)], dtype=object)))
 

@@ -265,7 +265,7 @@ def score_dict_from_score_vector(
             Candidates can be strings, integers, or mix of both.
     """
     from votekit.pref_profile import RankProfile
-    from votekit.pref_profile.profile_matrix import TILDE_SET_ID
+    from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 
     validate_score_vector(score_vector)
 
@@ -297,7 +297,7 @@ def score_dict_from_score_vector(
                     f"Ballot at row {row_index} has an empty ranking position. "
                     f"Ranking: {[matrix.get_cand_set_from_id(int(i)) for i in ranking_ids]}"
                 )
-            if set_id == TILDE_SET_ID:
+            if set_id == END_OF_RANKING_ID:
                 continue
 
             local_score_vector: Sequence[float | int] = score_vector[

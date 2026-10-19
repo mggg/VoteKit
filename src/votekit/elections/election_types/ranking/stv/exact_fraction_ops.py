@@ -7,7 +7,7 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
+from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, END_OF_RANKING_ID
 from votekit.types import Candidate, Numeric
 
 
@@ -104,7 +104,7 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     for candidate_set_id, weight in zip(
         profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
     ):
-        if candidate_set_id in (EMPTY_SET_ID, TILDE_SET_ID):
+        if candidate_set_id in (EMPTY_SET_ID, END_OF_RANKING_ID):
             continue
         candidate_set = profile._matrix.get_cand_set_from_id(candidate_set_id)
         assert len(candidate_set) == 1
@@ -140,7 +140,7 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
 
     candidates_by_set_id = {}
     for candidate_set_id, candidate_set in profile._matrix.iter_candidate_sets():
-        if candidate_set_id in (EMPTY_SET_ID, TILDE_SET_ID):
+        if candidate_set_id in (EMPTY_SET_ID, END_OF_RANKING_ID):
             continue
         assert len(candidate_set) == 1
         candidates_by_set_id[candidate_set_id] = next(iter(candidate_set))
@@ -150,7 +150,7 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
     ):
         assert isinstance(weight, Fraction)
         for rank, candidate_set_id in enumerate(candidate_set_ids):
-            if candidate_set_id == TILDE_SET_ID:
+            if candidate_set_id == END_OF_RANKING_ID:
                 break
             scores[candidates_by_set_id[candidate_set_id]] += weight * (
                 profile.max_ranking_length - rank

@@ -21,13 +21,13 @@ from votekit.pref_profile.profile_matrix.shared_data import (
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
-TILDE_SET: frozenset[str] = frozenset({"~"})
+END_OF_RANKING_SET: frozenset[str] = frozenset({"~"})
 
 # NOTE: Reserved candidate set IDs. Real candidate sets are numbered from 0 in order
 # of first appearance, so ``cand_sets[cand_set_id - EMPTY_SET_ID]`` is the set for any ID.
 # This access pattern makes the dense array representation easier to think about.
 EMPTY_SET_ID = -2
-TILDE_SET_ID = -1
+END_OF_RANKING_ID = -1
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -126,7 +126,10 @@ class RankMatrix:
                 f"{self.rankings.shape[1]} != {len(self.ranking_columns)}"
             )
 
-        if np.any((self.rankings[:, :-1] == TILDE_SET_ID) & (self.rankings[:, 1:] != TILDE_SET_ID)):
+        if np.any(
+            (self.rankings[:, :-1] == END_OF_RANKING_ID)
+            & (self.rankings[:, 1:] != END_OF_RANKING_ID)
+        ):
             raise ValueError("'~' values can only trail on a ranking.")
 
     def _validate_ranking_columns(self) -> None:
@@ -163,7 +166,7 @@ class RankMatrix:
                 or contains tilde, or a positive-weight ballot references a candidate outside
                 the profile universe.
         """
-        if len(candidate_sets) < 2 or candidate_sets[:2] != (frozenset(), TILDE_SET):
+        if len(candidate_sets) < 2 or candidate_sets[:2] != (frozenset(), END_OF_RANKING_SET):
             raise ValueError("Candidate sets must begin with the reserved empty and tilde sets.")
 
         candidates = set(self.candidates)
@@ -223,7 +226,7 @@ class RankMatrix:
 
         cand_set_to_id: dict[frozenset[Candidate], int] = {
             EMPTY_VOTER_SET: EMPTY_SET_ID,
-            TILDE_SET: TILDE_SET_ID,
+            END_OF_RANKING_SET: END_OF_RANKING_ID,
         }
         for cand_set in cells.ravel():
             if cand_set not in cand_set_to_id:
@@ -285,7 +288,7 @@ class RankMatrix:
 
         Returns:
             Iterator[tuple[int, frozenset[Candidate]]]: Pairs of candidate-set ID and frozen set,
-                beginning with EMPTY_SET_ID (-2) and TILDE_SET_ID (-1).
+                beginning with EMPTY_SET_ID (-2) and END_OF_RANKING_ID (-1).
         """
         return enumerate(self.cand_sets, start=EMPTY_SET_ID)
 
@@ -301,7 +304,7 @@ class RankMatrix:
             NDArray[np.bool_]: One flag per source row, including zero-weight rows. Empty ranking
                 sets count as positions; entirely padded rows and rows with no columns are false.
         """
-        return np.any(self.rankings != TILDE_SET_ID, axis=1)
+        return np.any(self.rankings != END_OF_RANKING_ID, axis=1)
 
     def has_ranked_candidates(self) -> NDArray[np.bool_]:
         """
@@ -341,7 +344,7 @@ class RankMatrix:
         return tuple(
             self.get_cand_set_from_id(int(set_id))
             for set_id in self.rankings[row]
-            if set_id != TILDE_SET_ID
+            if set_id != END_OF_RANKING_ID
         )
 
     def max_candidates_ranked(self) -> int:
@@ -363,7 +366,7 @@ class RankMatrix:
                     frozenset.union(
                         *(self.get_cand_set_from_id(cand_set_id) for cand_set_id in row)
                     )
-                    - TILDE_SET
+                    - END_OF_RANKING_SET
                 ),
                 axis=1,
                 arr=self.rankings,
@@ -544,8 +547,8 @@ def _concatenate_rank_matrices(
         RankMatrix: Owned combined arrays with a canonical candidate-set table and reset labels.
     """
     data = _concatenate_voter_weight_data([matrix.voter_weight_data for matrix in matrices])
-    rankings = np.full((len(data), max_ranking_length), TILDE_SET_ID, dtype=np.intp)
-    candidate_set_ids = {frozenset(): EMPTY_SET_ID, TILDE_SET: TILDE_SET_ID}
+    rankings = np.full((len(data), max_ranking_length), END_OF_RANKING_ID, dtype=np.intp)
+    candidate_set_ids = {frozenset(): EMPTY_SET_ID, END_OF_RANKING_SET: END_OF_RANKING_ID}
 
     offset = 0
 

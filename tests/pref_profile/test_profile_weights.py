@@ -12,6 +12,7 @@ from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, WeightKi
 
 def _profile_from_weights(profile_type, weights: pd.Series):
     df = pd.DataFrame({"Weight": weights, "Voter Set": [frozenset()] * len(weights)})
+
     if profile_type is RankProfile:
         df["Ranking_1"] = pd.Series(
             [frozenset({"A" if row % 2 == 0 else "B"}) for row in range(len(weights))],
@@ -20,7 +21,9 @@ def _profile_from_weights(profile_type, weights: pd.Series):
     else:
         df["A"] = [int(row % 2 == 0) for row in range(len(weights))]
         df["B"] = [int(row % 2 == 1) for row in range(len(weights))]
+
     df.index.name = "Ballot Index"
+
     return profile_type(df=df, candidates=["A", "B"], max_ranking_length=1)
 
 
@@ -105,10 +108,12 @@ def test_weight_adapter_rejects_boolean_and_complex_values(dtype, weight):
 def test_ballot_input_obeys_mixed_weight_policy(profile_type, ballot_type, payload):
     rational = ballot_type(**payload, weight=Fraction(1, 3))
     fractional_float = ballot_type(**payload, weight=0.1)
+
     with pytest.raises(ProfileError, match="Cannot mix Fraction weights with non-integral"):
         profile_type(ballots=[rational, fractional_float])
 
     profile = profile_type(ballots=[rational, ballot_type(**payload, weight=2)])
+
     assert profile.total_ballot_wt == Fraction(7, 3)
     assert [ballot.weight for ballot in profile.ballots] == [Fraction(1, 3), Fraction(2)]
 

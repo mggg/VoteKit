@@ -87,6 +87,7 @@ def test_rank_and_score():
 def test_ballot_rejects_bool_and_non_real_weight():
     with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
         Ballot(weight=True)
+
     with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
         Ballot(weight="2")  # type: ignore[arg-type]
 
@@ -94,12 +95,14 @@ def test_ballot_rejects_bool_and_non_real_weight():
 def test_ballot_rejects_nan_and_infinite_weight():
     with pytest.raises(ValueError, match="cannot be NaN or infinity"):
         Ballot(weight=float("nan"))
+
     with pytest.raises(ValueError, match="cannot be NaN or infinity"):
         Ballot(weight=float("inf"))
 
 
 def test_ballot_accepts_large_rational_weight():
     big = Fraction(10**400)
+
     assert RankBallot(ranking=["A"], weight=big).weight == big
 
 

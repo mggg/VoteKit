@@ -300,14 +300,14 @@ def _include_unranked_in_cand_locations(profile: RankProfile, cand_set_locations
      np.ndarray: Boolean matrix where all candidate locations are marked as True including its
         unranked locations at the end of the ballot.
     """
-    from votekit.pref_profile.profile_matrix import TILDE_SET_ID
+    from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 
     rank_array = profile._matrix.rankings
-    rank_array = np.column_stack((rank_array, [TILDE_SET_ID] * len(rank_array)))
+    rank_array = np.column_stack((rank_array, [END_OF_RANKING_ID] * len(rank_array)))
 
     # Only the first tilde position marks the end of a ballot.
-    unranked_locations = (np.cumsum(rank_array == TILDE_SET_ID, axis=1) == 1) & (
-        rank_array == TILDE_SET_ID
+    unranked_locations = (np.cumsum(rank_array == END_OF_RANKING_ID, axis=1) == 1) & (
+        rank_array == END_OF_RANKING_ID
     )
     # use cand set positions for ranked candidates, fall back to unranked position otherwise
     use_cand_set_location_mask = cand_set_locations.any(axis=1, keepdims=True)

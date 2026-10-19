@@ -69,7 +69,9 @@ def test_empty_subclass_copy_returns_ordinary_profile():
         pass
 
     profile = SpecializedProfile(candidates=("unused",), max_ranking_length=3)
+
     copied = profile.copy()
+
     assert type(copied) is RankProfile
     assert copied._matrix is profile._matrix
     assert copied.num_ballots == 0

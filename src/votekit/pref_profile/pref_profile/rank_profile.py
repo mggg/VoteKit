@@ -30,7 +30,7 @@ from votekit.pref_profile.pref_profile._candidate_names import (
     _normalize_unique_candidates,
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import TILDE_SET, RankMatrix
+from votekit.pref_profile.profile_matrix import END_OF_RANKING_SET, RankMatrix
 from votekit.pref_profile.utils import _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
@@ -74,8 +74,8 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
     def normalize_ranking_set(candidate_set: frozenset[Candidate]) -> frozenset[Candidate]:
         if not isinstance(candidate_set, (set, frozenset)):
             raise TypeError("Ranking cells must contain sets or frozensets of candidates.")
-        if candidate_set == TILDE_SET:
-            return TILDE_SET
+        if candidate_set == END_OF_RANKING_SET:
+            return END_OF_RANKING_SET
 
         frozen_set = frozenset(candidate_set)
         cached = normalized_sets.get(frozen_set)
@@ -208,7 +208,9 @@ class RankProfile(PreferenceProfile):
                         f"Max ranking length {self.max_ranking_length} given but "
                         f"ballot {rank_ballot} has length at least {j + 1}."
                     )
-                rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"] = [TILDE_SET] * num_ballots
+                rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"] = [
+                    END_OF_RANKING_SET
+                ] * num_ballots
             rank_ballot_data[f"{RANKING_COLUMN_PREFIX}{j + 1}"][idx] = cand_set
 
     def __update_rank_ballot_data_attrs(
@@ -269,7 +271,7 @@ class RankProfile(PreferenceProfile):
         if self.max_ranking_length > 0:
             rank_ballot_data.update(
                 {
-                    f"{RANKING_COLUMN_PREFIX}{i + 1}": [TILDE_SET] * num_ballots
+                    f"{RANKING_COLUMN_PREFIX}{i + 1}": [END_OF_RANKING_SET] * num_ballots
                     for i in range(self.max_ranking_length)
                 }
             )

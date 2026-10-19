@@ -98,6 +98,7 @@ def _df_with_weights(weights) -> pd.DataFrame:
         }
     )
     df.index.name = "Ballot Index"
+
     return df
 
 
@@ -271,6 +272,7 @@ def test_shared_data_constructor_accepts_empty_arrays(
     assert data.weights.shape == (0,)
     assert data.weights.dtype == dtype
     assert data.weight_kind is weight_kind
+
     if include_optional_columns:
         assert data.voter_sets is not None
         assert data.voter_sets.shape == (0,)
@@ -544,6 +546,7 @@ def test_score_matrix_constructor_preserves_column_order_and_unscored_values():
     )
 
     exported = matrix.to_df()
+
     assert exported.columns.tolist() == ["1", 1, "Voter Set", "Weight"]
     assert exported["1"].iloc[0] == 2.0
     assert np.isnan(exported[1].iloc[0])
@@ -735,6 +738,7 @@ def test_score_matrix_constructor_owns_metadata_and_to_df_returns_writable_score
         cast(tuple[Candidate, ...], score_columns),
         cast(tuple[Candidate, ...], candidates),
     )
+
     score_columns[0] = "B"
     candidates.clear()
 
@@ -945,6 +949,7 @@ def test_trusted_rank_constructor_shares_storage_and_derives_metadata():
         candidates=("B", "A", "unused"),
         max_ranking_length=3,
     )
+
     result = RankProfile._from_matrix(source._matrix, max_ranking_length=3)
 
     assert type(result) is RankProfile
@@ -955,10 +960,13 @@ def test_trusted_rank_constructor_shares_storage_and_derives_metadata():
     assert result.num_ballots == 1
     assert result.max_ranking_length == 3
     assert result.max_candidates_ranked == 2
+
     with pytest.raises(AttributeError, match="frozen"):
         result.candidates = ()
+
     exported = result.to_df()
     exported["Weight"] = pd.Series([Fraction(99)])
+
     assert result.total_ballot_wt == source.total_ballot_wt == Fraction(2, 3)
 
 
@@ -1006,6 +1014,7 @@ def test_rank_matrix_weight_replacement_owns_weights_and_checks_candidates() -> 
 @pytest.mark.parametrize("weights", [np.array([1.0, 2.0]), np.array([[1.0]])])
 def test_replacement_weights_reject_wrong_shape_or_count(weights):
     data = ProfileVoterWeightData(np.array([1.0]), None, WeightKind.FLOAT)
+
     with pytest.raises(ProfileError, match="same length as existing weights|1D"):
         data.with_weights(weights)
 
@@ -1013,8 +1022,11 @@ def test_replacement_weights_reject_wrong_shape_or_count(weights):
 def test_replacement_weights_own_input_buffer():
     data = ProfileVoterWeightData(np.array([1.0]), None, WeightKind.FLOAT)
     weights = np.array([2.0])
+
     replaced = data.with_weights(weights)
+
     weights[0] = 99.0
+
     assert replaced.weights.tolist() == [2.0]
     assert data.weights.tolist() == [1.0]
     assert not replaced.weights.flags.writeable
@@ -1083,6 +1095,7 @@ def test_trusted_score_constructor_derives_metadata_and_shares_immutable_storage
         ballots=[ScoreBallot(scores={"B": 2, "A": 1}, weight=Fraction(2, 3))],
         candidates=("unused", "B", "A"),
     )
+
     result = ScoreProfile._from_matrix(source._matrix)
 
     assert type(result) is ScoreProfile
@@ -1092,8 +1105,11 @@ def test_trusted_score_constructor_derives_metadata_and_shares_immutable_storage
     assert result.total_ballot_wt == Fraction(2, 3)
     assert result.num_ballots == 1
     assert result.copy() == result
+
     with pytest.raises(AttributeError, match="frozen"):
         result.candidates = ()
+
     exported = result.to_df()
     exported.loc[0, "A"] = 99.0
+
     assert result.to_df().loc[0, "A"] == 1.0

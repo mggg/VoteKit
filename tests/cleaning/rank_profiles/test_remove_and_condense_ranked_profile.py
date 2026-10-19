@@ -120,9 +120,11 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
     ).to_df()
     source.index = pd.Index([8, 8, 20, 31], name="Ballot Index")
     parent = RankProfile(df=source, candidates=("A", "B", 1, "unused"), max_ranking_length=4)
+
     # Exercise a provenance chain as well as duplicate, non-default labels.
     profile = clean_rank_profile(parent, lambda row: row, remove_zero_weight_ballots=False)
     original_df = profile.to_df()
+
     intermediate = clean_rank_profile(
         profile,
         lambda row: condense_ranking_row(remove_cand_from_ranking_row(["A"], row)),
@@ -142,16 +144,19 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
         nonempty_altr_idxs=intermediate.nonempty_altr_idxs,
         unaltr_idxs=intermediate.unaltr_idxs,
     )
+
     constructions = 0
     original_init = RankProfile.__init__
 
     def count_init(self, **kwargs):
         nonlocal constructions
         constructions += 1
+
         original_init(self, **kwargs)
 
     with monkeypatch.context() as patch:
         patch.setattr(RankProfile, "__init__", count_init)
+
         result = remove_and_condense_rank_profile(
             "A", profile, remove_null, remove_zero, retain_candidates
         )
@@ -171,16 +176,20 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
     assert result.unaltr_idxs == expected.unaltr_idxs
     pd.testing.assert_frame_equal(result.to_df(), expected.to_df())
     pd.testing.assert_frame_equal(profile.to_df(), original_df)
+
     result.unaltr_idxs.clear()
+
     assert profile.unaltr_idxs == {8, 20, 31}
 
 
 @pytest.mark.parametrize("retain_candidates", [False, True])
 def test_remove_and_condense_all_candidates(retain_candidates):
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}])])
+
     result = remove_and_condense_rank_profile(
         "A", profile, retain_original_candidate_list=retain_candidates
     )
+
     assert result.num_ballots == 0
     assert result.candidates == (("A",) if retain_candidates else ())
     assert result.no_rank_altr_idxs == {0}

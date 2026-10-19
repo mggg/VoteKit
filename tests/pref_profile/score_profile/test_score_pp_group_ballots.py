@@ -59,6 +59,7 @@ def test_score_grouping_preserves_first_appearance_weights_voters_and_metadata(
     expected_weights = {}
     expected_voters = {}
     expected_scores = {}
+
     for row, weight, voter_set in zip(scores, weights, voters, strict=True):
         key = tuple(None if np.isnan(score) else score for score in row)
         expected_weights[key] = expected_weights.get(key, 0) + weight
@@ -127,6 +128,7 @@ def test_score_grouping_without_score_columns(num_ballots):
     assert grouped.total_ballot_wt == 2 * num_ballots
     assert grouped.candidates_cast == ()
     assert grouped._matrix.scores.shape == ((1 if num_ballots else 0), 0)
+
     if num_ballots:
         assert grouped.ballots == (ScoreBallot(weight=6, voter_set={"voter"}),)
 

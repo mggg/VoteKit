@@ -471,6 +471,7 @@ def test_exact_first_place_votes_ignores_empty_first_position(weight):
     )
 
     exact_scores = exact_first_place_votes(profile)
+
     assert exact_scores == {
         candidate: Fraction(candidate == "B") for candidate in profile.candidates_cast
     }

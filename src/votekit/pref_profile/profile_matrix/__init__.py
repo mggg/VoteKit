@@ -1,5 +1,5 @@
 from .protocol import ProfileMatrix
-from .rank_matrix import EMPTY_SET_ID, TILDE_SET, TILDE_SET_ID, RankMatrix
+from .rank_matrix import EMPTY_SET_ID, END_OF_RANKING_ID, END_OF_RANKING_SET, RankMatrix
 from .score_matrix import ScoreMatrix
 from .shared_data import EMPTY_VOTER_SET, WeightKind
 from .shared_data import ProfileVoterWeightData as ProfileVoterWeightData
@@ -19,8 +19,8 @@ __all__ = [
     "ScoreMatrix",
     "WeightKind",
     "EMPTY_SET_ID",
-    "TILDE_SET_ID",
-    "TILDE_SET",
+    "END_OF_RANKING_ID",
+    "END_OF_RANKING_SET",
     "EMPTY_VOTER_SET",
 ]
 

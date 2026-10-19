@@ -249,6 +249,7 @@ def test_grouping_returns_ordinary_profile_with_reset_indices(from_df: bool) -> 
         df=retained_df if from_df else pd.DataFrame(),
         ballots=() if from_df else clean_2.ballots,
     )
+
     with pytest.warns(UserWarning, match="resets ballot indices"):
         grouped = cleaned.group_ballots()
 

@@ -101,6 +101,7 @@ def test_from_df_normalizes_candidate_identities_without_mutating_input(declared
     result = RankProfile(df=source, candidates=declared_candidates, max_ranking_length=1)
 
     expected_candidates = ("A", "unused") if declared_candidates else ("A",)
+
     assert result.candidates == result._matrix.candidates == expected_candidates
     assert result.candidates_cast == ("A",)
     assert result.to_df()["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"B"})]
@@ -112,6 +113,7 @@ def test_from_df_normalizes_candidate_identities_without_mutating_input(declared
 def test_from_df_normalization_preserves_empty_and_tilde_sets():
     source = RankProfile(ballots=[RankBallot(ranking=[{"A"}, set()]), RankBallot()]).to_df().copy()
     source["Ranking_1"] = pd.Series([frozenset({" A "}), frozenset({"~"})])
+
     result = RankProfile(df=source, candidates=[" A "], max_ranking_length=2)
 
     assert result.to_df()["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"~"})]
@@ -135,6 +137,7 @@ def test_from_df_normalization_preserves_integer_and_string_candidates():
         result = RankProfile(df=source, candidates=[1, " 1 "], max_ranking_length=2)
 
     assert result.candidates == result._matrix.candidates == (1, "1")
+
     with pytest.warns(UserWarning, match="both str and int"):
         assert result.ballots[0].ranking == (frozenset({1}), frozenset({"1"}))
 
@@ -193,12 +196,15 @@ def test_normalization_processes_candidate_names_once_per_distinct_set(monkeypat
 
     def record_normalization(candidate):
         visited.append(candidate)
+
         return original_normalize(candidate)
 
     monkeypatch.setattr(profile_module, "_normalize_candidate_name", record_normalization)
+
     source = pd.DataFrame(
         {"Ranking_1": [frozenset({" A "}) for _ in range(1000)] + [frozenset({"A"})]}
     )
+
     normalized = profile_module._normalize_rank_df_candidates(source)
 
     assert visited == [" A ", "A"]
@@ -212,8 +218,10 @@ def test_normalization_does_not_hide_equal_invalid_candidate_types(invalid_candi
     from votekit.pref_profile.pref_profile.rank_profile import _normalize_rank_df_candidates
 
     cells = [frozenset({1}), frozenset({invalid_candidate})]
+
     if reverse:
         cells.reverse()
+
     with pytest.raises(TypeError, match="candidate"):
         _normalize_rank_df_candidates(pd.DataFrame({"Ranking_1": cells}))
 

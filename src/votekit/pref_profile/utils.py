@@ -20,7 +20,7 @@ from votekit._df_schema import (
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.pref_profile.profile_matrix import (
     EMPTY_SET_ID,
-    TILDE_SET_ID,
+    END_OF_RANKING_ID,
     ScoreMatrix,
 )
 from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
@@ -454,7 +454,7 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if any(len(matrix.get_cand_set_from_id(int(set_id))) > 1 for set_id in referenced_ids):
         raise ValueError("Ballots must not contain ties.")
     for set_id in referenced_ids:
-        if set_id == TILDE_SET_ID:
+        if set_id == END_OF_RANKING_ID:
             continue
         candidate_set = matrix.get_cand_set_from_id(int(set_id))
         candidate = next(iter(candidate_set))
