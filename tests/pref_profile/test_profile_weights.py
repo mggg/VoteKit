@@ -32,7 +32,7 @@ def test_profile_rejects_fraction_mixed_with_non_integral_float(profile_type, we
 
 
 @pytest.mark.parametrize("profile_type", [RankProfile, ScoreProfile])
-@pytest.mark.parametrize("weight", [0, 2.0, np.float64(2), 2**53 + 1, 10**400])
+@pytest.mark.parametrize("weight", [0, 2.0, np.float64(2), 2**49 + 1, 2**50 - 1])
 def test_profile_converts_integral_weights_to_fractions_exactly(profile_type, weight):
     expected = [Fraction(int(weight)), Fraction(1, 3)]
     profile = _profile_from_weights(profile_type, pd.Series([weight, expected[1]], dtype=object))
@@ -75,7 +75,7 @@ def test_profile_rejects_unsupported_floating_weight_types(
 
 
 @pytest.mark.parametrize("profile_type", [RankProfile, ScoreProfile])
-@pytest.mark.parametrize("weight", [0.1, np.float64(1.5), np.uint64(2**63), 1e-9])
+@pytest.mark.parametrize("weight", [0.1, np.float64(1.5), np.uint64(2**40), 1e-9])
 @pytest.mark.parametrize("dtype", [None, object])
 def test_profile_accepts_exact_float64_conversion(profile_type, weight, dtype):
     profile = _profile_from_weights(profile_type, pd.Series([weight, weight], dtype=dtype))

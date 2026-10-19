@@ -6,11 +6,10 @@ import random
 import warnings
 from dataclasses import dataclass
 from itertools import permutations
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, TypeAlias, cast
+from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, TypeAlias
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from votekit.ballot import RankBallot
@@ -81,25 +80,25 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
     if not isinstance(profile, RankProfile):
         raise TypeError("Ballots must have rankings.")
 
-    df = profile.to_df()
-    assert profile.max_ranking_length is not None
-    ranking_cols = list(profile._matrix.ranking_columns)
-
-    rank_arr = df[ranking_cols].to_numpy()
-    weights = df[WEIGHT_COLUMN].to_numpy()
-    voter_sets = df[VOTER_SET_COLUMN].to_numpy().astype(object)
+    matrix = profile._matrix
+    ballot_data = matrix.voter_weight_data
 
     cand_dict: dict[Candidate, list[RankBallot]] = {c: [] for c in profile.candidates}
     tilde = frozenset({"~"})
 
-    for row, w, voter_set in zip(rank_arr, weights, voter_sets):
+    for row_index, ranking_ids in enumerate(matrix.rankings):
+        row = tuple(matrix.get_cand_set_from_id(int(set_id)) for set_id in ranking_ids)
+        weight = ballot_data.weights[row_index]
+        voter_set = (
+            ballot_data.voter_sets[row_index] if ballot_data.voter_sets is not None else frozenset()
+        )
         first = row[0]
 
         if len(first) > 1:
             ballot_str = str(
                 RankBallot(
                     ranking=tuple(c_set for c_set in row if c_set != tilde),
-                    weight=w,
+                    weight=weight,
                 )
             )
             raise ValueError(f"Ballot {ballot_str} has a tie for first.")
@@ -111,7 +110,9 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
 
         clean_ranking = tuple(s for s in row if s != tilde)
 
-        cand_dict[cand].append(RankBallot(ranking=clean_ranking, weight=w, voter_set=voter_set))
+        cand_dict[cand].append(
+            RankBallot(ranking=clean_ranking, weight=weight, voter_set=voter_set)
+        )
 
     return cand_dict
 
@@ -206,6 +207,7 @@ def _score_dict_from_rankings_df_no_ties(
             Candidates can be strings, integers, or mix of both.
     """
     from votekit.pref_profile import RankProfile
+    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID
 
     validate_score_vector(score_vector)
 
@@ -217,36 +219,22 @@ def _score_dict_from_rankings_df_no_ties(
     if len(score_vector) < max_len:
         score_vector = list(score_vector) + [0] * (max_len - len(score_vector))
 
-    df = profile.to_df()
-
-    cand_frznst = [frozenset({cand}) for cand in profile.candidates_cast]
-    all_frznst = cand_frznst + [frozenset({"~"}), frozenset()]
-    n_buckets = len(all_frznst)
-    idx_of_empty = all_frznst.index(frozenset())
-
-    # Pull out weights and score_vector as NumPy arrays:
-    weights = df[WEIGHT_COLUMN].to_numpy(dtype=float)
-    score_arr = np.array(score_vector, dtype=float).reshape(1, -1)
-
-    rank_cols = list(profile._matrix.ranking_columns)
-    arr = df[rank_cols].to_numpy(dtype=object)
-    flat_arr = arr.ravel()
-
-    # Slick way of converting frozensets to integer codes:
-    codes_flat: NDArray[np.int64] = pd.Categorical(flat_arr, categories=all_frznst).codes.astype(
-        np.int64
+    matrix = profile._matrix
+    weights = matrix.voter_weight_data.weights.astype(float, copy=False)
+    weighted_scores = weights[:, None] * np.asarray(score_vector, dtype=float)
+    set_totals = np.bincount(
+        (matrix.rankings - EMPTY_SET_ID).ravel(),
+        weights=weighted_scores.ravel(),
+        minlength=len(matrix.cand_sets),
     )
-
-    # Take care of error codes (-1)
-    if (codes_flat == -1).any():
-        codes_flat = np.where(codes_flat == -1, idx_of_empty, codes_flat)
-
-    weight_matrix = weights[:, None] * score_arr
-
-    weights_flat = weight_matrix.ravel()
-    bucket_sums = np.bincount(codes_flat, weights=weights_flat, minlength=n_buckets)
-
-    return {next(iter(k)): round(bucket_sums[idx], 10) for idx, k in enumerate(cand_frznst)}
+    scores = {candidate: 0.0 for candidate in profile.candidates_cast}
+    for set_id, candidate_set in matrix.iter_candidate_sets():
+        if set_id < 0 or len(candidate_set) != 1:
+            continue
+        candidate = next(iter(candidate_set))
+        if candidate in scores:
+            scores[candidate] = float(round(set_totals[set_id - EMPTY_SET_ID], 10))
+    return scores
 
 
 def score_dict_from_score_vector(
@@ -282,6 +270,7 @@ def score_dict_from_score_vector(
             Candidates can be strings, integers, or mix of both.
     """
     from votekit.pref_profile import RankProfile
+    from votekit.pref_profile.profile_matrix import TILDE_SET_ID
 
     validate_score_vector(score_vector)
 
@@ -294,38 +283,30 @@ def score_dict_from_score_vector(
 
     scores = {c: 0.0 for c in profile.candidates_cast}
 
-    profile_df = profile.to_df()
-
-    try:
-        ranking_cols = list(profile._matrix.ranking_columns)
-        ranking_mat = profile_df[ranking_cols].to_numpy()
-    except KeyError as e:
-        raise TypeError("Ballots must have rankings.") from e
-
-    weights = profile_df[WEIGHT_COLUMN].to_numpy(dtype=float)
+    matrix = profile._matrix
+    weights = matrix.voter_weight_data.weights.astype(float, copy=False)
 
     if tie_convention not in ["high", "average", "low"]:
         raise ValueError(
             (f"tie_convention must be one of 'high', 'low', 'average', not {tie_convention}")
         )
 
-    tilde = frozenset({"~"})
-    for idx in range(len(ranking_mat)):
-        current_ind = 0
-        ranking = ranking_mat[idx]
-        wt = weights[idx]
-        for s in ranking:
-            position_size = len(s)
+    for row_index, ranking_ids in enumerate(matrix.rankings):
+        score_offset = 0
+        weight = weights[row_index]
+        for set_id in ranking_ids:
+            candidate_set = matrix.get_cand_set_from_id(int(set_id))
+            position_size = len(candidate_set)
             if position_size == 0:
                 raise TypeError(
-                    f"Ballot at row {idx} has an empty ranking position. "
-                    f"Ranking: {ranking.tolist()}"
+                    f"Ballot at row {row_index} has an empty ranking position. "
+                    f"Ranking: {[matrix.get_cand_set_from_id(int(i)) for i in ranking_ids]}"
                 )
-            if s == tilde:
+            if set_id == TILDE_SET_ID:
                 continue
 
             local_score_vector: Sequence[float | int] = score_vector[
-                current_ind : current_ind + position_size
+                score_offset : score_offset + position_size
             ]
 
             if tie_convention == "high":
@@ -335,9 +316,9 @@ def score_dict_from_score_vector(
             else:
                 allocation = sum(local_score_vector) / position_size
 
-            for c in s:
-                scores[c] += round(allocation * wt, 10)
-            current_ind += position_size
+            for candidate in candidate_set:
+                scores[candidate] += round(allocation * weight, 10)
+            score_offset += position_size
 
     return scores
 
@@ -399,7 +380,8 @@ def _mentions_from_ballots(
     Sum candidate mentions over ranked ballots, preserving weight arithmetic until export.
 
     Each occurrence contributes the ballot's weight. Fraction weights accumulate exactly;
-    completed totals are converted to floats. Zero-weight ballots contribute nothing.
+    completed totals are converted to floats. Float weights use math.fsum. Zero-weight ballots
+    contribute nothing.
 
     Args:
         profile (RankProfile): Profile whose ballot rankings are counted.
@@ -412,9 +394,7 @@ def _mentions_from_ballots(
     """
     from votekit.pref_profile import RankProfile
 
-    # Accumulate in the weights' own type and round once at the end, so Fraction profiles agree
-    # with the exact df path instead of drifting by float rounding order.
-    mentions: dict[Candidate, Any] = {c: 0 for c in profile.candidates}
+    contributions: dict[Candidate, list[Numeric]] = {c: [] for c in profile.candidates}
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
     for ballot in profile.ballots:
@@ -426,14 +406,18 @@ def _mentions_from_ballots(
             continue
         for s in ballot.ranking:
             for cand in s:
-                mentions[cand] += ballot.weight
-    return {cand: float(total) for cand, total in mentions.items()}
+                contributions[cand].append(ballot.weight)
+    if profile._matrix.voter_weight_data.has_fraction_weights:
+        return {candidate: float(sum(weights)) for candidate, weights in contributions.items()}
+    return {candidate: math.fsum(weights) for candidate, weights in contributions.items()}
 
 
 def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
     """
-    Calculates total mentions for all candidates from the profile df, without materializing
-    ballots.
+    Calculate total mentions from matrix IDs without materializing ballots.
+
+    Fraction weights remain exact until the completed totals are converted to floats. Floating
+    weights use math.fsum, counting each occurrence of a candidate in a ballot.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
@@ -445,48 +429,36 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
 
     Raises:
         TypeError: If profile is not a RankProfile.
-        TypeError: If any ballot has no ranking, i.e. its df row is entirely "~" cells.
+        TypeError: If any ballot has no ranking, i.e. all its ranking positions are padding.
     """
     from votekit.pref_profile import RankProfile
+    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
 
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
 
-    assert profile.max_ranking_length is not None
-
-    ranking_cols = list(profile._matrix.ranking_columns)
-
-    profile_df = profile.to_df()
-
-    tilde = frozenset({"~"})
-
-    # no ranking columns with ballots present means every ballot has ranking=None
-    if len(profile_df) and not ranking_cols:
+    matrix = profile._matrix
+    if np.any(np.all(matrix.rankings == TILDE_SET_ID, axis=1)):
         raise TypeError("Ballots must have rankings.")
 
-    # positional index so duplicate df index labels cannot break the weight lookup below
-    rank_sets = cast(Any, profile_df[ranking_cols].reset_index(drop=True).stack())
-
-    mask = rank_sets.map(lambda s: isinstance(s, frozenset) and bool(s) and s != tilde)
-
-    # a row of only "~" cells is the df encoding of ranking=None; match the ballot path's
-    # error. A present-but-empty frozenset ranking is allowed in both paths.
-    is_tilde = rank_sets.map(lambda s: s == tilde)
-    if len(is_tilde) and is_tilde.groupby(level=0).all().any():
-        raise TypeError("Ballots must have rankings.")
-
-    rank_sets = rank_sets[mask]
-    exploded = rank_sets.explode()
-
-    if exploded.empty:
-        return {c: 0.0 for c in profile.candidates}
-
-    weights = profile_df[WEIGHT_COLUMN].to_numpy()[exploded.index.get_level_values(0)]
-
-    totals = pd.Series(weights).groupby(exploded.to_numpy(), sort=False).sum()
-
-    # float() normalizes np.float64 so both mentions paths return the same types
-    return {c: float(totals.get(c, 0.0)) for c in profile.candidates}
+    weights = matrix.voter_weight_data.weights
+    candidate_set_slots = matrix.rankings - EMPTY_SET_ID
+    totals: dict[Candidate, float] = {}
+    for candidate in profile.candidates:
+        sets_with_candidate = np.fromiter(
+            (candidate in candidate_set for candidate_set in matrix.cand_sets),
+            dtype=bool,
+            count=len(matrix.cand_sets),
+        )
+        occurrences_per_ballot = np.count_nonzero(sets_with_candidate[candidate_set_slots], axis=1)
+        contributions = np.repeat(weights, occurrences_per_ballot)
+        total = (
+            sum(contributions)
+            if matrix.voter_weight_data.has_fraction_weights
+            else math.fsum(contributions)
+        )
+        totals[candidate] = float(total)
+    return totals
 
 
 def mentions(profile: RankProfile) -> dict[Candidate, float]:
@@ -498,7 +470,7 @@ def mentions(profile: RankProfile) -> dict[Candidate, float]:
     one ballot is counted once per position.
 
     Computes from the profile's ballot list when it is already materialized and from the
-    underlying df otherwise; both give identical results.
+    underlying matrix otherwise. Fraction totals remain exact until conversion to floats.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
@@ -517,8 +489,6 @@ def mentions(profile: RankProfile) -> dict[Candidate, float]:
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
 
-    # NOTE: If the ballots are materialized, then iterating through the ballots directly tends
-    # to be faster than using the DataFrame.
     if "ballots" in profile.__dict__:
         return _mentions_from_ballots(profile)
 

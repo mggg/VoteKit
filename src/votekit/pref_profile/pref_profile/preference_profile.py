@@ -74,7 +74,7 @@ class PreferenceProfile:
     Calling PreferenceProfile directly infers RankProfile or ScoreProfile from the inputs.
     With no ballots or dataframe, it creates an empty PreferenceProfile. Explicit calls to
     RankProfile, ScoreProfile, or their subclasses preserve the requested type and reject
-    incompatible ballot types.
+    incompatible ballot types. Total ballot weight must not exceed 2**50.
 
     Args:
         ballots (Sequence[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
@@ -106,6 +106,7 @@ class PreferenceProfile:
         ProfileError: max_ranking_length is set but a ballot ranking excedes the length.
         ProfileError: a candidate is found on a ballot that is not listed on a provided
             candidate list.
+        ProfileError: Total ballot weight exceeds 2**50.
         ProfileError: candidates must be unique.
         ProfileError: candidates must not have names matching ranking columns.
 

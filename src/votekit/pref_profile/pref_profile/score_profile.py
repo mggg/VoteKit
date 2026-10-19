@@ -25,10 +25,7 @@ from votekit.pref_profile.csv_utils import (
 from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique_candidates
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import ScoreMatrix
-from votekit.pref_profile.utils import (
-    _sum_score_profiles,
-    convert_row_to_score_ballot,
-)
+from votekit.pref_profile.utils import _sum_score_profiles
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
@@ -395,12 +392,41 @@ class ScoreProfile(PreferenceProfile):
     @cached_property
     def ballots(self: ScoreProfile) -> tuple[ScoreBallot, ...]:
         """
-        Compute the ballot tuple as a cached property.
+        Materialize and cache ballots directly from matrix rows in source order.
+
+        Returns:
+            tuple[ScoreBallot, ...]: Ballots with weights and voters, including zero-weight rows.
         """
-        return tuple(
-            convert_row_to_score_ballot(row, tuple(self.candidates))
-            for _, row in self.to_df().iterrows()
-        )
+        matrix = self._matrix
+        ballot_data = matrix.voter_weight_data
+        column_positions = {
+            candidate: column for column, candidate in enumerate(matrix.score_columns)
+        }
+        candidate_columns = [
+            (candidate, column_positions[candidate])
+            for candidate in self.candidates
+            if candidate in column_positions
+        ]
+
+        ballots: list[ScoreBallot] = []
+        for row_index, score_row in enumerate(matrix.scores):
+            scores = {
+                candidate: score_row[column]
+                for candidate, column in candidate_columns
+                if not np.isnan(score_row[column])
+            }
+            voters = (
+                ballot_data.voter_sets[row_index]
+                if ballot_data.voter_sets is not None
+                else frozenset()
+            )
+            ballots.append(
+                ScoreBallot(
+                    scores=scores or None, weight=ballot_data.weights[row_index], voter_set=voters
+                )
+            )
+
+        return tuple(ballots)
 
     def __add__(self, other):
         """

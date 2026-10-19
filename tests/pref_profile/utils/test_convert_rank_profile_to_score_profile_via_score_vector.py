@@ -107,7 +107,7 @@ def test_convert_catches_bad_score_vector():
 
 
 @pytest.mark.parametrize("labels", [[0, 1], [42, 10], [7, 7]])
-def test_conversion_reuses_export_and_preserves_row_alignment(
+def test_conversion_avoids_export_and_preserves_row_alignment(
     labels: list[int], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source_df = RankProfile(
@@ -129,7 +129,7 @@ def test_conversion_reuses_export_and_preserves_row_alignment(
     monkeypatch.setattr(RankMatrix, "to_df", count_exports)
     converted = convert_rank_profile_to_score_profile_via_score_vector(profile, [2, 1])
 
-    assert export_count == 1
+    assert export_count == 0
     expected_df = pd.DataFrame(
         {
             "A": [2.0, 1.0],

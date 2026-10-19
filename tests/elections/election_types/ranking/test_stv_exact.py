@@ -123,8 +123,8 @@ def test_exact_stv_rejects_negative_dataframe_weight(weight: object):
 @pytest.mark.parametrize(
     ("quota", "total", "expected"),
     [
-        ("droop", 2**53 + 1, (2**53 + 1) // 3 + 1),
-        ("hare", 2**53 + 3, (2**53 + 3) // 2),
+        ("droop", 2**50 - 1, (2**50 - 1) // 3 + 1),
+        ("hare", 2**50 - 3, (2**50 - 3) // 2),
     ],
 )
 def test_exact_stv_large_threshold_uses_exact_total(quota: str, total: int, expected: int):
@@ -141,7 +141,7 @@ def test_exact_stv_large_threshold_uses_exact_total(quota: str, total: int, expe
 
 
 def test_default_stv_converts_rational_profile_to_float_path():
-    weights = (3002399751580327, 3002399751580331, 3002399751580335)
+    weights = (300_000_001, 300_000_005, 300_000_009)
     rational_profile = _three_candidate_profile(*(Fraction(weight) for weight in weights))
     float_profile = _three_candidate_profile(*(float(weight) for weight in weights))
 
@@ -160,7 +160,7 @@ def test_default_stv_converts_rational_profile_to_float_path():
         rng_seed=1,
     )
 
-    assert rational_election.threshold == float_election.threshold == 3002399751580331
+    assert rational_election.threshold == float_election.threshold == 300_000_006
     assert rational_election.get_elected() == float_election.get_elected()
     assert all(
         isinstance(ballot.weight, float) for ballot in rational_election.get_profile(0).ballots
@@ -232,8 +232,8 @@ def test_exact_stv_tallies_and_tie_are_exact():
 def test_exact_stv_distinguishes_scores_below_float_resolution():
     profile = RankProfile(
         ballots=(
-            RankBallot(ranking=({"A"}, {"B"}), weight=Fraction(2**54 + 1)),
-            RankBallot(ranking=({"B"}, {"A"}), weight=Fraction(2**54)),
+            RankBallot(ranking=({"A"}, {"B"}), weight=Fraction(2**54 + 1, 2**54)),
+            RankBallot(ranking=({"B"}, {"A"}), weight=Fraction(1)),
         )
     )
 
@@ -281,7 +281,7 @@ def test_exact_stv_accepts_lexicographic_tiebreak_aliases(tiebreak: str):
 
 
 def test_exact_stv_uses_exact_borda_tiebreak():
-    large_weight = 2**54
+    large_weight = 1_000_000
     profile = RankProfile(
         ballots=(
             RankBallot(ranking=({"A"}, {"C"}, {"B"}), weight=Fraction(large_weight)),
@@ -493,6 +493,6 @@ def test_exact_borda_rejects_empty_positions_like_float_borda(ranking, weight):
         max_ranking_length=3,
     )
 
-    for score in (borda_scores, exact_borda_scores):
-        with pytest.raises(TypeError, match="empty ranking position"):
+    for score, error_type in ((borda_scores, TypeError), (exact_borda_scores, ValueError)):
+        with pytest.raises(error_type, match="empty ranking position"):
             score(profile)

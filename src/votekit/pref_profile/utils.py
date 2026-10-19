@@ -6,18 +6,29 @@ if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
 from functools import partial
-from typing import Optional, Sequence
+from typing import Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from votekit._df_schema import (
-    BALLOT_INDEX_NAME,
     RANKING_COLUMN_PREFIX,
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.pref_profile.profile_matrix import (
+    EMPTY_SET_ID,
+    TILDE_SET,
+    TILDE_SET_ID,
+    ProfileMatrix,
+    ProfileVoterWeightData,
+    RankMatrix,
+    ScoreMatrix,
+    _attach_ballot_columns,
+    _standardize_weights,
+)
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
@@ -278,6 +289,66 @@ def score_profile_to_scores_dict(
     return di
 
 
+def _export_profile_rows(profile: PreferenceProfile, row_indices: NDArray[np.intp]) -> pd.DataFrame:
+    """
+    Export selected matrix rows, retaining their source ballot labels.
+
+    Args:
+        profile (PreferenceProfile): Profile whose rows are selected.
+        row_indices (NDArray[np.intp]): Positional row indices in the requested output order.
+
+    Returns:
+        pd.DataFrame: Independent export of the selected rows, including repeated index labels.
+    """
+    matrix = profile._matrix
+    if matrix is None:
+        raise NotImplementedError
+    ballot_data = matrix.voter_weight_data
+    ballot_labels = (
+        ballot_data.ballot_index[row_indices]
+        if ballot_data.ballot_index is not None
+        else row_indices
+    )
+    voter_sets = ballot_data.voter_sets[row_indices] if ballot_data.voter_sets is not None else None
+    if voter_sets is None and len(ballot_data) and not len(row_indices):
+        # Empty selections retain the object dtype of the source voter column.
+        voter_sets = np.empty(0, dtype=object)
+
+    selected_data = ProfileVoterWeightData(
+        weights=ballot_data.weights[row_indices],
+        voter_sets=voter_sets,
+        weight_kind=ballot_data.weight_kind,
+        ballot_index=ballot_labels,
+    )
+
+    if isinstance(matrix, RankMatrix):
+        lookup = np.empty(len(matrix.cand_sets), dtype=object)
+        lookup[:] = matrix.cand_sets
+        selected_df = pd.DataFrame(
+            lookup[matrix.rankings[row_indices] - EMPTY_SET_ID],
+            columns=list(matrix.ranking_columns),
+        )
+    elif isinstance(matrix, ScoreMatrix):
+        selected_df = pd.DataFrame(matrix.scores[row_indices], columns=list(matrix.score_columns))
+    else:
+        raise TypeError("Profile must contain a rank or score matrix.")
+
+    return _attach_ballot_columns(selected_df, selected_data)
+
+
+def _ordered_profile_rows(
+    profile: PreferenceProfile, sort_by_weight: bool | None
+) -> NDArray[np.intp]:
+    """
+    Select source row order or descending weight order, preserving source order for ties.
+    """
+    matrix = profile._matrix
+    if matrix is None:
+        raise NotImplementedError
+    weights = matrix.voter_weight_data.weights
+    return np.argsort(-weights, kind="stable") if sort_by_weight else np.arange(len(weights))
+
+
 def profile_df_head(
     profile: PreferenceProfile,
     n: int,
@@ -292,7 +363,7 @@ def profile_df_head(
     Args:
         n (int): Number of ballots to view.
         sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
-            If sorting by weight, index resets. Defaults to True.
+            Equal weights retain source order. Source index labels are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -306,11 +377,8 @@ def profile_df_head(
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
 
-    if sort_by_weight:
-        df = profile.to_df().sort_values(by=WEIGHT_COLUMN, ascending=False).head(n).copy()
-
-    else:
-        df = profile.to_df().head(n).copy()
+    rows = _ordered_profile_rows(profile, sort_by_weight)[:n]
+    df = _export_profile_rows(profile, rows)
 
     df_col_num = len(df.columns)
     if percents:
@@ -343,8 +411,8 @@ def profile_df_tail(
 
     Args:
         n (int): Number of ballots to view.
-        sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
-            Defaults to True.
+        sort_by_weight (bool, optional): If True, select the last rows in descending weight order.
+            Equal weights retain source order. Source index labels are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -357,10 +425,9 @@ def profile_df_tail(
     Raises:
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
     """
-    if sort_by_weight:
-        df = profile.to_df().sort_values(by=WEIGHT_COLUMN, ascending=False).tail(n).copy()
-    else:
-        df = profile.to_df().tail(n).copy()
+    ordered_rows = _ordered_profile_rows(profile, sort_by_weight)
+    rows = ordered_rows[-n:] if n else ordered_rows[:0]
+    df = _export_profile_rows(profile, rows)
 
     df_col_num = len(df.columns)
     if percents:
@@ -412,35 +479,103 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
-    profile_df = rank_profile.to_df()
-    ranking_cols = list(rank_profile._matrix.ranking_columns)
-    rankings_arr = profile_df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
-    if any(len(x) > 1 for x in rankings_arr):
-        raise ValueError("Ballots must not contain ties.")
-
-    cand_to_score_list = {
-        cand: [np.nan for _ in range(len(profile_df))] for cand in rank_profile.candidates
+    matrix = rank_profile._matrix
+    candidate_columns = {
+        candidate: column for column, candidate in enumerate(rank_profile.candidates)
     }
+    score_columns_by_set = np.full(len(matrix.cand_sets), -1, dtype=np.intp)
+    referenced_ids = np.unique(matrix.rankings)
+    if any(len(matrix.get_cand_set_from_id(int(set_id))) > 1 for set_id in referenced_ids):
+        raise ValueError("Ballots must not contain ties.")
+    for set_id in referenced_ids:
+        if set_id == TILDE_SET_ID:
+            continue
+        candidate_set = matrix.get_cand_set_from_id(int(set_id))
+        candidate = next(iter(candidate_set))
+        score_columns_by_set[set_id - EMPTY_SET_ID] = candidate_columns[candidate]
 
-    for ballot_position, ranking in enumerate(
-        profile_df[ranking_cols].itertuples(index=False, name=None)
-    ):
-        for ranking_pos, cand_set in enumerate(ranking):
-            if cand_set == frozenset({"~"}):
-                continue
-            cand = next(iter(cand_set))  # no ties so this is unique
-            cand_to_score_list[cand][ballot_position] = (
-                score_vector[ranking_pos] if score_vector[ranking_pos] > 0 else np.nan
+    scores = np.full((len(matrix), len(rank_profile.candidates)), np.nan)
+    for position, set_ids in enumerate(matrix.rankings.T):
+        columns = score_columns_by_set[set_ids - EMPTY_SET_ID]
+        rows = np.flatnonzero(columns >= 0)
+        scores[rows, columns[rows]] = (
+            score_vector[position] if score_vector[position] > 0 else np.nan
+        )
+
+    data = matrix.voter_weight_data.with_weights(matrix.voter_weight_data.weights.astype(float))
+    return ScoreProfile._from_matrix(
+        ScoreMatrix(
+            voter_weight_data=data,
+            scores=scores,
+            score_columns=rank_profile.candidates,
+            candidates=rank_profile.candidates,
+        )
+    )
+
+
+def _concatenate_voter_weight_data(matrices: Sequence[ProfileMatrix]) -> ProfileVoterWeightData:
+    """
+    Concatenate aligned weights and voters using the common numeric policy, resetting labels.
+
+    Args:
+        matrices (Sequence[ProfileMatrix]): Nonempty sequence of matrices in source row order.
+
+    Returns:
+        ProfileVoterWeightData: Owned weights and voter arrays without source index labels.
+
+    Raises:
+        ProfileError: Fraction weights are mixed with non-integral floats.
+    """
+    weights, weight_kind = _standardize_weights(
+        np.concatenate([matrix.voter_weight_data.weights for matrix in matrices])
+    )
+    voters = None
+    if any(matrix.voter_weight_data.voter_sets is not None for matrix in matrices):
+        voters = np.concatenate(
+            [
+                np.asarray(matrix.voter_weight_data.voter_set_column(), dtype=object)
+                for matrix in matrices
+            ]
+        )
+    return ProfileVoterWeightData(weights, voters, weight_kind)
+
+
+def _concatenate_rank_matrices(
+    matrices: Sequence[RankMatrix],
+    candidates: tuple[Candidate, ...],
+    max_ranking_length: int,
+) -> RankMatrix:
+    """
+    Concatenate rows, remapping candidate-set IDs and padding shorter rankings.
+
+    Args:
+        matrices (Sequence[RankMatrix]): Nonempty sequence of matrices in source row order.
+        candidates (tuple[Candidate, ...]): Combined candidate universe.
+        max_ranking_length (int): Output width, at least each source matrix's width.
+
+    Returns:
+        RankMatrix: Owned combined arrays with a canonical candidate-set table and reset labels.
+    """
+    data = _concatenate_voter_weight_data(matrices)
+    rankings = np.full((len(data), max_ranking_length), TILDE_SET_ID, dtype=np.intp)
+    candidate_set_ids = {frozenset(): EMPTY_SET_ID, TILDE_SET: TILDE_SET_ID}
+    offset = 0
+    for matrix in matrices:
+        remapping = np.empty(len(matrix.cand_sets), dtype=np.intp)
+        for slot, candidate_set in enumerate(matrix.cand_sets):
+            remapping[slot] = candidate_set_ids.setdefault(
+                candidate_set, len(candidate_set_ids) + EMPTY_SET_ID
             )
+        end = offset + len(matrix)
+        rankings[offset:end, : matrix.rankings.shape[1]] = remapping[matrix.rankings - EMPTY_SET_ID]
+        offset = end
 
-    new_df = pd.DataFrame(cand_to_score_list, index=profile_df.index.copy())
-    new_df.index.name = BALLOT_INDEX_NAME
-    new_df[VOTER_SET_COLUMN] = profile_df[VOTER_SET_COLUMN]
-    new_df[WEIGHT_COLUMN] = profile_df[WEIGHT_COLUMN].map(float)
-
-    return ScoreProfile(
-        df=new_df,
-        candidates=rank_profile.candidates,
+    return RankMatrix(
+        voter_weight_data=data,
+        rankings=rankings,
+        cand_sets=tuple(candidate_set_ids),
+        ranking_columns=tuple(f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)),
+        candidates=tuple(candidates),
     )
 
 
@@ -475,28 +610,41 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
     candidates = list(set().union(*[set(profile.candidates) for profile in rank_profiles]))
     max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
 
-    total_dfs = []
-    for profile in rank_profiles:
-        assert profile.max_ranking_length is not None
-        curr_df = profile.to_df()
-        for i in range(profile.max_ranking_length, max_ranking_length):
-            curr_df.insert(
-                len(curr_df.columns),
-                f"{RANKING_COLUMN_PREFIX}{i + 1}",
-                pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
-            )
-        total_dfs.append(curr_df)
+    validated_profiles = cast(Sequence[RankProfile], rank_profiles)
+    matrices = [profile._matrix for profile in validated_profiles]
+    matrix = _concatenate_rank_matrices(matrices, tuple(candidates), max_ranking_length)
+    return RankProfile._from_matrix(matrix, max_ranking_length=max_ranking_length)
 
-    new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = BALLOT_INDEX_NAME
-    ranking_cols = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
-    new_df[ranking_cols] = new_df[ranking_cols].astype("object")
-    new_df = new_df[ranking_cols + [WEIGHT_COLUMN, VOTER_SET_COLUMN]]
 
-    return RankProfile(
+def _concatenate_score_matrices(
+    matrices: Sequence[ScoreMatrix], candidates: tuple[Candidate, ...]
+) -> ScoreMatrix:
+    """
+    Concatenate score rows, aligning columns to the combined candidate universe.
+
+    Args:
+        matrices (Sequence[ScoreMatrix]): Nonempty sequence of matrices in source row order.
+        candidates (tuple[Candidate, ...]): Output column order and candidate universe.
+
+    Returns:
+        ScoreMatrix: Owned combined arrays with reset labels. Columns outside a source's
+            declared candidate universe are excluded from that source's rows.
+    """
+    data = _concatenate_voter_weight_data(matrices)
+    scores = np.full((len(data), len(candidates)), np.nan)
+    candidate_columns = {candidate: column for column, candidate in enumerate(candidates)}
+    offset = 0
+    for matrix in matrices:
+        end = offset + len(matrix)
+        for column, candidate in enumerate(matrix.score_columns):
+            if candidate in matrix.candidates:
+                scores[offset:end, candidate_columns[candidate]] = matrix.scores[:, column]
+        offset = end
+    return ScoreMatrix(
+        voter_weight_data=data,
+        scores=scores,
+        score_columns=candidates,
         candidates=candidates,
-        df=new_df,
-        max_ranking_length=max_ranking_length,
     )
 
 
@@ -528,29 +676,19 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
             f"non-ScoreProfiles found at: {invalid_profiles_str}"
         )
 
-    total_cand = set().union(*[set(profile.candidates) for profile in score_profiles])
-    total_dfs = []
-    for profile in score_profiles:
-        curr_cand = set(profile.candidates)
-        curr_df = profile.to_df()
-        for cand in total_cand - curr_cand:
-            curr_df[cand] = [np.nan] * len(curr_df)
-        total_dfs.append(curr_df)
-
-    new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = BALLOT_INDEX_NAME
-    new_candidates = sort_candidates_pseudo_lexicographically(total_cand)
-    new_df = new_df[new_candidates + [WEIGHT_COLUMN, VOTER_SET_COLUMN]]
-
-    return ScoreProfile(
-        candidates=new_candidates,
-        df=new_df,
+    candidates = tuple(
+        sort_candidates_pseudo_lexicographically(
+            set().union(*(set(profile.candidates) for profile in score_profiles))
+        )
     )
+    validated_profiles = cast(Sequence[ScoreProfile], score_profiles)
+    matrices = [profile._matrix for profile in validated_profiles]
+    return ScoreProfile._from_matrix(_concatenate_score_matrices(matrices, candidates))
 
 
 def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
     """
-    Combines multiple PreferenceProfiles by combining their ball lists.
+    Combine profiles of the same type by concatenating their matrix rows.
 
     Args:
         profiles (Sequence[PreferenceProfile]): The profiles to sum.

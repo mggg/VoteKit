@@ -105,7 +105,12 @@ class CleanedRankProfile(RankProfile):
             ValueError: union of indices is not equal to the parent df index.
 
         """
-        parent_index = self.parent_profile.to_df().index
+        parent_data = self.parent_profile._matrix.voter_weight_data
+        parent_index = (
+            parent_data.ballot_index
+            if parent_data.ballot_index is not None
+            else range(len(parent_data))
+        )
         index_sets = [
             self.no_wt_altr_idxs,
             self.no_rank_altr_idxs,
@@ -265,7 +270,12 @@ class CleanedScoreProfile(ScoreProfile):
             ValueError: union of indices is not equal to the parent df index.
 
         """
-        parent_index = self.parent_profile.to_df().index
+        parent_data = self.parent_profile._matrix.voter_weight_data
+        parent_index = (
+            parent_data.ballot_index
+            if parent_data.ballot_index is not None
+            else range(len(parent_data))
+        )
         index_sets = [
             self.no_wt_altr_idxs,
             self.no_scores_altr_idxs,

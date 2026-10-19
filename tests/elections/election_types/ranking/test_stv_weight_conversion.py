@@ -118,12 +118,12 @@ def test_conversion_validates_newly_active_undeclared_candidates(has_declared_ca
     assert profile.candidates == (("A",) if has_declared_candidates else ())
 
 
-def test_conversion_passes_python_float_to_callback_and_propagates_its_error():
+def test_conversion_passes_float_to_callback_and_propagates_its_error():
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}])])
     error = RuntimeError("conversion failed")
 
     def fail(weight):
-        assert type(weight) is float
+        assert isinstance(weight, float)
         raise error
 
     with pytest.raises(RuntimeError, match="conversion failed") as raised:
@@ -142,3 +142,17 @@ def test_empty_conversion_does_not_call_converter():
     assert converted.total_ballot_wt == 0
     assert converted.candidates == profile.candidates
     pd.testing.assert_frame_equal(converted.to_df(), profile.to_df())
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_with_weights_owns_replacement_array(exact: bool) -> None:
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1)])
+    replacement = np.array([Fraction(1, 3)] if exact else [0.5], dtype=object if exact else float)
+    converted = profile._with_weights(replacement)
+    expected_weight = replacement[0]
+    replacement[0] = 99
+
+    assert converted.total_ballot_wt == expected_weight
+    assert converted._matrix.voter_weight_data.weights[0] == expected_weight
+    assert not converted._matrix.voter_weight_data.weights.flags.writeable
+    assert profile.total_ballot_wt == 1

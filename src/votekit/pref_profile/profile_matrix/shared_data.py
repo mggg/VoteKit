@@ -4,6 +4,7 @@ from copy import copy as shallow_copy
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
+from math import fsum
 from typing import Any, Self, cast
 
 import numpy as np
@@ -18,6 +19,7 @@ from votekit._df_schema import (
 from votekit.ballot import _to_float_weight, validate_weight
 from votekit.exceptions import ProfileError
 
+MAX_TOTAL_BALLOT_WEIGHT = 2**50
 EMPTY_VOTER_SET: frozenset[str] = frozenset()
 
 
@@ -59,6 +61,7 @@ class ProfileVoterWeightData:
     """
     Store aligned ballot weights, voter sets, and optional source index labels.
 
+    Total ballot weight must not exceed 2**50.
     Construction copies each array and marks it read-only. Voter entries become frozensets;
     index labels in object arrays are retained without recursively copying their contents.
 
@@ -84,12 +87,14 @@ class ProfileVoterWeightData:
         Raises:
             ValueError: Array dimensions or lengths disagree, the weight kind or dtype is invalid,
                 or a Fraction weight is negative or has the wrong type.
-            ProfileError: A floating-point weight is negative, NaN, or infinite.
+            ProfileError: A floating-point weight is negative, NaN, or infinite, or total ballot
+                weight exceeds 2**50.
             TypeError: A voter entry cannot be converted to a frozenset.
         """
         self._validate_weight_voterset_index_alignment()
 
         self._validate_weight_values_and_types()
+        _validate_total_ballot_weight(self.weights)
         owned_weights = np.copy(self.weights)
         owned_weights.setflags(write=False)
 
@@ -335,7 +340,7 @@ class ProfileVoterWeightData:
 
         Raises:
             ProfileError: Weights have invalid dimensions, types, or values, or their count
-                differs from the existing ballot count.
+                differs from the existing ballot count, or total weight exceeds 2**50.
         """
 
         new_weights, new_weight_kind = _standardize_weights(new_weights)
@@ -346,6 +351,7 @@ class ProfileVoterWeightData:
                 f"{len(new_weights)} != {len(self)}."
             )
 
+        _validate_total_ballot_weight(new_weights)
         owned_weights = np.array(new_weights, copy=True)
         owned_weights.setflags(write=False)
 
@@ -372,6 +378,32 @@ class ProfileVoterWeightData:
                 weight_kind=self.weight_kind,
                 ballot_index=self.ballot_index,
             )
+
+
+def _validate_total_ballot_weight(weights: NDArray[np.float64] | NDArray[np.object_]) -> None:
+    """
+    Reject validated, nonnegative weights whose combined total exceeds 2**50.
+
+    The limit bounds the supported profile size when replacing pandas' compensated
+    mentions reduction with direct matrix operations. Near 2**53, naive float summation
+    can lose individual votes alongside large weights; 2**50 leaves headroom below that
+    consecutive-integer boundary instead of requiring support for such large profiles.
+    The cap alone does not preserve small fractional contributions, so float totals and
+    mentions still use math.fsum. Fraction totals remain exact and follow the same cap.
+
+    Args:
+        weights (NDArray[np.float64] | NDArray[np.object_]): Finite float64 or Fraction weights.
+
+    Raises:
+        ProfileError: An individual weight or the total exceeds the supported profile size.
+    """
+    error_message = f"Total ballot weight must be at most {MAX_TOTAL_BALLOT_WEIGHT} (2**50)."
+    if np.any(weights > MAX_TOTAL_BALLOT_WEIGHT):
+        raise ProfileError(error_message)
+
+    total_weight = sum(weights) if weights.dtype == object else fsum(weights)
+    if total_weight > MAX_TOTAL_BALLOT_WEIGHT:
+        raise ProfileError(error_message)
 
 
 def _non_default_index(index: pd.Index) -> NDArray | None:

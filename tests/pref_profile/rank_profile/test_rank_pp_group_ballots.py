@@ -129,12 +129,9 @@ def test_grouping_without_ranking_columns(num_ballots):
         assert grouped.ballots == (RankBallot(weight=6, voter_set={"voter"}),)
 
 
-def test_grouping_rejects_weight_overflow():
-    with np.errstate(over="ignore"):
-        profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1e308)] * 2)
-
-    with pytest.raises(ProfileError, match="infinite"):
-        profile.group_ballots()
+def test_rank_profile_rejects_excessive_weights_before_grouping() -> None:
+    with pytest.raises(ProfileError, match="Total ballot weight must be at most"):
+        RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1e308)] * 2)
 
 
 def test_grouping_keeps_zero_weight_candidates_out_of_candidates_cast():

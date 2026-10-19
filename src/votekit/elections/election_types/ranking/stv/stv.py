@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 from fractions import Fraction
 from functools import partial
@@ -7,7 +9,6 @@ from warnings import warn
 import numpy as np
 from numpy.typing import NDArray
 
-from votekit._df_schema import WEIGHT_COLUMN
 from votekit.ballot import RankBallot
 from votekit.cleaning import (
     condense_rank_ballot,
@@ -35,6 +36,7 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import ProfileError, RankProfile
+from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 from votekit.utils import (
     _first_place_votes_from_df_no_ties,
@@ -878,24 +880,24 @@ class STV(RankingElection):
         """
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
-        assert profile.max_ranking_length is not None
-        ranking_columns = list(profile._matrix.ranking_columns)
-        try:
-            profile_df = profile.to_df()
-            np_arr = profile_df[ranking_columns].to_numpy()
-            weight_col = profile_df[WEIGHT_COLUMN]
-        except KeyError:
-            raise TypeError("Ballots must have rankings.")
+        matrix = profile._matrix
+        set_sizes = np.fromiter(map(len, matrix.cand_sets), dtype=np.intp)
+        tied_rows = np.any(set_sizes[matrix.rankings - EMPTY_SET_ID] > 1, axis=1)
+        unranked_rows = np.all(matrix.rankings == TILDE_SET_ID, axis=1)
+        invalid_rows = np.flatnonzero(tied_rows | unranked_rows)
+        if not invalid_rows.size:
+            return
 
-        tilde = frozenset({"~"})
-        for idx, row in enumerate(np_arr):
-            if any(len(s) > 1 for s in row):
-                raise TypeError(
-                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight=weight_col[idx])} "
-                    "contains a tied ranking."
-                )
-            if (row == tilde).all():
-                raise TypeError("Ballots must have rankings.")
+        row = int(invalid_rows[0])
+        if tied_rows[row]:
+            ranking = tuple(
+                matrix.get_cand_set_from_id(int(set_id))
+                for set_id in matrix.rankings[row]
+                if set_id != TILDE_SET_ID
+            )
+            ballot = RankBallot(ranking=ranking, weight=matrix.voter_weight_data.weights[row])
+            raise TypeError(f"Ballot {ballot} contains a tied ranking.")
+        raise TypeError("Ballots must have rankings.")
 
     def get_threshold(self, total_ballot_wt: Numeric) -> int:
         """

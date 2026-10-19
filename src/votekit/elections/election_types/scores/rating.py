@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import random
 from typing import Optional
+
+import numpy as np
 
 from votekit.ballot import ScoreBallot
 from votekit.cleaning import remove_cand_score_profile
@@ -108,24 +112,54 @@ class GeneralRating(Election[ScoreProfile]):
         if not isinstance(profile, ScoreProfile):
             raise ProfileError("Profile must be of type ScoreProfile.")
 
-        if profile.to_df().empty:
+        matrix = profile._matrix
+        if not len(matrix):
             raise ProfileError("Profile must contain at least one ballot.")
 
-        for b in profile.ballots:
-            if not isinstance(b, ScoreBallot):
-                raise TypeError(f"Ballot {b} must be of type ScoreBallot")
-            elif b.scores is None:
-                raise TypeError("All ballots must have score dictionary.")
-            elif any(score > self.per_candidate_limit for score in b.scores.values()):
-                raise TypeError(
-                    f"Ballot {b} violates score limit {self.per_candidate_limit} per candidate."
-                )
-            elif any(score < 0 for score in b.scores.values()):
-                raise TypeError(f"Ballot {b} must have non-negative scores.")
+        column_positions = {
+            candidate: column for column, candidate in enumerate(matrix.score_columns)
+        }
+        candidates = [
+            candidate for candidate in profile.candidates if candidate in column_positions
+        ]
+        scores = matrix.scores[:, [column_positions[candidate] for candidate in candidates]]
+        missing_scores = np.all(np.isnan(scores), axis=1)
+        above_limit = np.any(scores > self.per_candidate_limit, axis=1)
+        negative_scores = np.any(scores < 0, axis=1)
+        above_budget = np.zeros(len(matrix), dtype=bool)
+        if self.budget:
+            # Use Python floats and sum, matching ScoreBallot's budget arithmetic.
+            totals = np.fromiter(
+                (sum(float(score) for score in row if not np.isnan(score)) for row in scores),
+                dtype=float,
+                count=len(matrix),
+            )
+            above_budget = totals > self.budget
+        invalid_rows = np.flatnonzero(missing_scores | above_limit | negative_scores | above_budget)
+        if not invalid_rows.size:
+            return
 
-            if self.budget:
-                if sum(b.scores.values()) > self.budget:
-                    raise TypeError(f"Ballot {b} violates total score budget {self.budget}.")
+        row = int(invalid_rows[0])
+        if missing_scores[row]:
+            raise TypeError("All ballots must have score dictionary.")
+        data = matrix.voter_weight_data
+        voters = data.voter_sets[row] if data.voter_sets is not None else frozenset()
+        ballot = ScoreBallot(
+            scores={
+                candidate: score
+                for candidate, score in zip(candidates, scores[row])
+                if not np.isnan(score)
+            },
+            weight=data.weights[row],
+            voter_set=voters,
+        )
+        if above_limit[row]:
+            raise TypeError(
+                f"Ballot {ballot} violates score limit {self.per_candidate_limit} per candidate."
+            )
+        if negative_scores[row]:
+            raise TypeError(f"Ballot {ballot} must have non-negative scores.")
+        raise TypeError(f"Ballot {ballot} violates total score budget {self.budget}.")
 
     def _is_finished(self):
         # single round election

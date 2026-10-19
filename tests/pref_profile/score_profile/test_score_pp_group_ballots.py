@@ -127,12 +127,9 @@ def test_score_grouping_without_score_columns(num_ballots):
         assert grouped.ballots == (ScoreBallot(weight=6, voter_set={"voter"}),)
 
 
-def test_score_grouping_rejects_weight_overflow():
-    with np.errstate(over="ignore"):
-        profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=1e308)] * 2)
-
-    with pytest.raises(ProfileError, match="infinite"):
-        profile.group_ballots()
+def test_score_profile_rejects_excessive_weights_before_grouping() -> None:
+    with pytest.raises(ProfileError, match="Total ballot weight must be at most"):
+        ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=1e308)] * 2)
 
 
 def test_score_grouping_candidates_cast_requires_positive_weight_and_score():

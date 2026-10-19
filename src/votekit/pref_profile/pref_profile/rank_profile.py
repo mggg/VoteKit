@@ -29,11 +29,8 @@ from votekit.pref_profile.pref_profile._candidate_names import (
     _normalize_unique_candidates,
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import TILDE_SET, RankMatrix
-from votekit.pref_profile.utils import (
-    _sum_rank_profiles,
-    convert_row_to_rank_ballot,
-)
+from votekit.pref_profile.profile_matrix import TILDE_SET, TILDE_SET_ID, RankMatrix
+from votekit.pref_profile.utils import _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
     _validate_candidate_names,
@@ -481,14 +478,39 @@ class RankProfile(PreferenceProfile):
     @cached_property
     def ballots(self: RankProfile) -> tuple[RankBallot, ...]:
         """
-        Compute the ballot tuple as a cached property.
-        """
-        assert self.max_ranking_length is not None
+        Materialize and cache ballots directly from matrix rows in source order.
 
-        return tuple(
-            convert_row_to_rank_ballot(row, self.max_ranking_length)
-            for _, row in self.to_df().iterrows()
-        )
+        Returns:
+            tuple[RankBallot, ...]: Ballots with weights and voters, including zero-weight rows.
+        """
+        matrix = self._matrix
+        ballot_data = matrix.voter_weight_data
+        ballots: list[RankBallot] = []
+        for row_index, ranking_ids in enumerate(matrix.rankings):
+            padding = np.flatnonzero(ranking_ids == TILDE_SET_ID)
+            ranking_end = int(padding[0]) if padding.size else len(ranking_ids)
+            if np.any(ranking_ids[ranking_end:] != TILDE_SET_ID):
+                raise ValueError(
+                    f"Row {row_index} has '~' between valid ranking positions. "
+                    "'~' values can only trail on a ranking."
+                )
+
+            ranking = tuple(
+                matrix.get_cand_set_from_id(int(set_id)) for set_id in ranking_ids[:ranking_end]
+            )
+            voters = (
+                ballot_data.voter_sets[row_index]
+                if ballot_data.voter_sets is not None
+                else frozenset()
+            )
+
+            ballots.append(
+                RankBallot(
+                    ranking=ranking or None, weight=ballot_data.weights[row_index], voter_set=voters
+                )
+            )
+
+        return tuple(ballots)
 
     def __add__(self, other) -> RankProfile:
         """
@@ -791,24 +813,29 @@ class RankProfile(PreferenceProfile):
 
     def _with_weights(self, weights: NDArray) -> RankProfile:
         """
-        Create a new RankProfile with the same ballots but different weights.
+        Replace ballot weights while sharing immutable rankings, voters, and index labels.
 
         Args:
-            weights (np.ndarray): New weights for the ballots.
+            weights (NDArray): One replacement weight per ballot, in source row order.
 
         Returns:
-            RankProfile: A new RankProfile with the same ballots but different weights.
+            RankProfile: Plain rank profile with owned weights and recomputed totals and active
+                candidates. An empty candidate universe is inferred from the new active rows.
+
+        Raises:
+            ProfileError: Replacement weights are invalid or newly active candidates fall outside
+                a nonempty declared candidate universe.
         """
         data = self._matrix.voter_weight_data.with_weights(weights)
         new_matrix = self._matrix.copy(shallow=True)
 
-        object.__setattr__(new_matrix, "_voter_weight_data", data)
+        object.__setattr__(new_matrix, "voter_weight_data", data)
 
         if not new_matrix.candidates:
             candidates = tuple(
                 sort_candidates_pseudo_lexicographically(new_matrix.get_candidates_cast())
             )
-            object.__setattr__(new_matrix, "_candidates", candidates)
+            object.__setattr__(new_matrix, "candidates", candidates)
 
         profile = RankProfile._from_matrix(new_matrix, max_ranking_length=self.max_ranking_length)
         profile._validate_candidates()

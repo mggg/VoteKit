@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from fractions import Fraction
 from numbers import Integral, Real
 from typing import Any, Callable, cast
 
-from votekit._df_schema import WEIGHT_COLUMN
+import numpy as np
+
 from votekit.pref_profile import RankProfile
 from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
 from votekit.types import Candidate, Numeric
@@ -69,7 +72,7 @@ def convert_profile_weights(
     Returns:
         RankProfile: Profile with converted weights and unchanged rankings and candidates.
     """
-    weights = profile.voter_weight_data.weights
+    weights = profile._matrix.voter_weight_data.weights
     converted_weights = np.empty(len(weights), dtype=object)
 
     for idx, weight in enumerate(weights):
