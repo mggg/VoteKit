@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterator
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -29,7 +30,7 @@ from votekit.pref_profile.pref_profile._candidate_names import (
     _normalize_unique_candidates,
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import TILDE_SET, TILDE_SET_ID, RankMatrix
+from votekit.pref_profile.profile_matrix import TILDE_SET, RankMatrix
 from votekit.pref_profile.utils import _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
@@ -475,42 +476,47 @@ class RankProfile(PreferenceProfile):
         """
         return self._matrix.max_candidates_ranked()
 
+    def get_ballot(self, row: int) -> RankBallot:
+        """
+        Materialize one ballot without constructing or caching the full ballot tuple.
+
+        Args:
+            row (int): Positional row index, with negative indices counted from the end.
+                Source dataframe labels do not affect positional lookup.
+
+        Returns:
+            RankBallot: Ballot with the stored weight and voters, including zero-weight rows.
+
+        Raises:
+            IndexError: The row is outside the profile.
+        """
+        ranking = self._matrix.get_ranking(row)
+        ballot_data = self._matrix.voter_weight_data
+        voters = ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else frozenset()
+        return RankBallot(
+            ranking=ranking or None, weight=ballot_data.weights[row], voter_set=voters
+        )
+
+    def iter_ballots(self) -> Iterator[RankBallot]:
+        """
+        Yield ballots in source row order without materializing or caching the full tuple.
+
+        Yields:
+            RankBallot: One ballot at a time, including zero-weight rows. Each iteration builds
+                fresh ballot objects from the matrix; an existing ballot cache is not used.
+        """
+        for row in range(len(self._matrix)):
+            yield self.get_ballot(row)
+
     @cached_property
-    def ballots(self: RankProfile) -> tuple[RankBallot, ...]:
+    def ballots(self) -> tuple[RankBallot, ...]:
         """
         Materialize and cache ballots directly from matrix rows in source order.
 
         Returns:
             tuple[RankBallot, ...]: Ballots with weights and voters, including zero-weight rows.
         """
-        matrix = self._matrix
-        ballot_data = matrix.voter_weight_data
-        ballots: list[RankBallot] = []
-        for row_index, ranking_ids in enumerate(matrix.rankings):
-            padding = np.flatnonzero(ranking_ids == TILDE_SET_ID)
-            ranking_end = int(padding[0]) if padding.size else len(ranking_ids)
-            if np.any(ranking_ids[ranking_end:] != TILDE_SET_ID):
-                raise ValueError(
-                    f"Row {row_index} has '~' between valid ranking positions. "
-                    "'~' values can only trail on a ranking."
-                )
-
-            ranking = tuple(
-                matrix.get_cand_set_from_id(int(set_id)) for set_id in ranking_ids[:ranking_end]
-            )
-            voters = (
-                ballot_data.voter_sets[row_index]
-                if ballot_data.voter_sets is not None
-                else frozenset()
-            )
-
-            ballots.append(
-                RankBallot(
-                    ranking=ranking or None, weight=ballot_data.weights[row_index], voter_set=voters
-                )
-            )
-
-        return tuple(ballots)
+        return tuple(self.iter_ballots())
 
     def __add__(self, other) -> RankProfile:
         """
@@ -826,17 +832,7 @@ class RankProfile(PreferenceProfile):
             ProfileError: Replacement weights are invalid or newly active candidates fall outside
                 a nonempty declared candidate universe.
         """
-        data = self._matrix.voter_weight_data.with_weights(weights)
-        new_matrix = self._matrix.copy(shallow=True)
-
-        object.__setattr__(new_matrix, "voter_weight_data", data)
-
-        if not new_matrix.candidates:
-            candidates = tuple(
-                sort_candidates_pseudo_lexicographically(new_matrix.get_candidates_cast())
-            )
-            object.__setattr__(new_matrix, "candidates", candidates)
-
+        new_matrix = self._matrix.with_weights(weights)
         profile = RankProfile._from_matrix(new_matrix, max_ranking_length=self.max_ranking_length)
         profile._validate_candidates()
 

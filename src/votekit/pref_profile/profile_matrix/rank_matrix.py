@@ -10,13 +10,16 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX
+from votekit.exceptions import ProfileError
 from votekit.pref_profile.profile_matrix.shared_data import (
     EMPTY_VOTER_SET,
     ProfileVoterWeightData,
     _arrays_equal,
-    _attach_ballot_columns,
+    _attach_index_voterset_and_weight_columns,
+    _concatenate_voter_weight_data,
 )
 from votekit.types import Candidate
+from votekit.utils import sort_candidates_pseudo_lexicographically
 
 TILDE_SET: frozenset[str] = frozenset({"~"})
 
@@ -39,7 +42,9 @@ class RankMatrix:
     Args:
         voter_weight_data (_ProfileVoterWeightData): Shared data with one entry per ballot.
         rankings (NDArray): Two-dimensional integer array of candidate-set IDs, with one row
-            per ballot and one column per ranking position. Empty dimensions are supported.
+            per ballot and one column per ranking position. Tilde ends a ranking, so only tilde
+            may follow it. Empty candidate sets are allowed before that sentinel. Empty dimensions
+            are supported.
         cand_sets (tuple[frozenset[Candidate], ...]): Dense decoding table: slot 0 is the empty
             set (ID -2), slot 1 is the tilde set (ID -1), and slot ``cand_set_id + 2`` stores
             each real set. Entries must be unique. Mutable set entries are accepted and frozen
@@ -63,7 +68,8 @@ class RankMatrix:
 
         Raises:
             TypeError: Rankings are not an array or candidate sets contain unsupported types.
-            ValueError: The dtype, dimensions, ranking labels, candidate sets, or IDs are invalid.
+            ValueError: The dtype, dimensions, ranking labels, candidate sets, IDs, or sentinel
+                placement are invalid.
         """
         self._validate_ranking_array()
         self._validate_ranking_columns()
@@ -98,7 +104,7 @@ class RankMatrix:
         Raises:
             TypeError: Rankings are not a NumPy array.
             ValueError: Rankings are not two-dimensional integers or row/column counts disagree
-                with the shared data or ranking labels.
+                with the shared data or ranking labels, or a nonpadding position follows tilde.
         """
         if not isinstance(self.rankings, np.ndarray):
             raise TypeError(f"rankings must be a numpy array, not {type(self.rankings)}.")
@@ -119,6 +125,9 @@ class RankMatrix:
                 f"rankings must have the same number of columns as ranking_columns: "
                 f"{self.rankings.shape[1]} != {len(self.ranking_columns)}"
             )
+
+        if np.any((self.rankings[:, :-1] == TILDE_SET_ID) & (self.rankings[:, 1:] != TILDE_SET_ID)):
+            raise ValueError("'~' values can only trail on a ranking.")
 
     def _validate_ranking_columns(self) -> None:
         """
@@ -280,6 +289,61 @@ class RankMatrix:
         """
         return enumerate(self.cand_sets, start=EMPTY_SET_ID)
 
+    def has_rankings(self) -> NDArray[np.bool_]:
+        """
+        Identify rows containing at least one ranking position; includes empty set rankings.
+
+        Example:
+            [-2, -1, -1, -1, -1] has rankings, but [-1, -1, -1, -1, -1] does not.
+            (-2 means empty set, -1 means tilde padding.)
+
+        Returns:
+            NDArray[np.bool_]: One flag per source row, including zero-weight rows. Empty ranking
+                sets count as positions; entirely padded rows and rows with no columns are false.
+        """
+        return np.any(self.rankings != TILDE_SET_ID, axis=1)
+
+    def has_ranked_candidates(self) -> NDArray[np.bool_]:
+        """
+        Identify rows ranking at least one candidate, excluding empty sets and tilde padding.
+
+        Returns:
+            NDArray[np.bool_]: One flag per source row, including zero-weight rows. Rows containing
+                only empty sets or padding, and rows with no columns, are false.
+        """
+        return np.any(self.rankings >= 0, axis=1)
+
+    def has_ties(self) -> NDArray[np.bool_]:
+        """
+        Identify rows containing a candidate set with more than one member.
+
+        Returns:
+            NDArray[np.bool_]: One flag per source row, including zero-weight rows. Empty sets,
+                padding, and repeated singleton candidates do not count as ties.
+        """
+        set_sizes = np.fromiter(map(len, self.cand_sets), dtype=np.intp)
+        return np.any(set_sizes[self.rankings - EMPTY_SET_ID] > 1, axis=1)
+
+    def get_ranking(self, row: int) -> tuple[frozenset[Candidate], ...]:
+        """
+        Decode one ranking, removing trailing padding and preserving empty ranking positions.
+
+        Args:
+            row (int): Positional row index, with negative indices counted from the end.
+
+        Returns:
+            tuple[frozenset[Candidate], ...]: Ranking sets in stored order. An entirely padded
+                row returns an empty tuple. The immutable candidate sets may be shared.
+
+        Raises:
+            IndexError: The row is outside the matrix.
+        """
+        return tuple(
+            self.get_cand_set_from_id(int(set_id))
+            for set_id in self.rankings[row]
+            if set_id != TILDE_SET_ID
+        )
+
     def max_candidates_ranked(self) -> int:
         """
         Count the largest number of distinct candidates ranked on any stored ballot.
@@ -306,9 +370,14 @@ class RankMatrix:
             ).max()
         )
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, *, rows: NDArray[np.intp] | None = None) -> pd.DataFrame:
         """
         Decode ranking IDs into a new dataframe with public candidate-set cells.
+
+        Args:
+            rows (NDArray[np.intp] | None, optional): Positional row indices in output order.
+                Repeated and negative indices are supported. Defaults to None for all rows.
+                Source ballot labels are preserved, including implicit labels.
 
         Returns:
             pd.DataFrame: Ranking columns in stored order, followed by Voter Set and Weight.
@@ -318,10 +387,11 @@ class RankMatrix:
         """
         lookup = np.empty(len(self.cand_sets), dtype=object)
         lookup[:] = self.cand_sets
-        translated_rankings = lookup[self.rankings - EMPTY_SET_ID]
+        rankings = self.rankings if rows is None else self.rankings[rows]
+        translated_rankings = lookup[rankings - EMPTY_SET_ID]
 
         df = pd.DataFrame(translated_rankings, columns=list(self.ranking_columns))
-        return _attach_ballot_columns(df, self.voter_weight_data)
+        return _attach_index_voterset_and_weight_columns(df, self.voter_weight_data, rows=rows)
 
     def get_candidates_cast(self) -> frozenset[Candidate]:
         """
@@ -361,6 +431,39 @@ class RankMatrix:
             ranking_columns=self.ranking_columns,
             candidates=self.candidates,
         )
+
+    def with_weights(self, weights: NDArray) -> RankMatrix:
+        """
+        Replace weights while sharing immutable rankings, voters, and source labels.
+
+        Args:
+            weights (NDArray): One replacement weight per source row.
+
+        Returns:
+            RankMatrix: Matrix with owned, validated weights. A nonempty candidate universe is
+                preserved; an empty universe is inferred from the newly active rows.
+
+        Raises:
+            ProfileError: Weights are invalid or activate candidates outside a nonempty universe.
+        """
+        data = self.voter_weight_data.with_weights(weights)
+        matrix = shallow_copy(self)
+
+        object.__setattr__(matrix, "voter_weight_data", data)
+
+        active_candidates = matrix.get_candidates_cast()
+        if not self.candidates:
+            candidates = tuple(sort_candidates_pseudo_lexicographically(active_candidates))
+            object.__setattr__(matrix, "candidates", candidates)
+
+        elif not active_candidates.issubset(self.candidates):
+            raise ProfileError(
+                "Candidates cast are not a subset of candidates list. The following "
+                " candidates are in candidates_cast but not candidates: "
+                f"{set(active_candidates) - set(self.candidates)}."
+            )
+
+        return matrix
 
     def _group_ranking_rows(self) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
         """
@@ -422,3 +525,45 @@ class RankMatrix:
             ranking_columns=self.ranking_columns,
             candidates=self.candidates,
         )
+
+
+def _concatenate_rank_matrices(
+    matrices: Sequence[RankMatrix],
+    candidates: tuple[Candidate, ...],
+    max_ranking_length: int,
+) -> RankMatrix:
+    """
+    Concatenate rows, remapping candidate-set IDs and padding shorter rankings.
+
+    Args:
+        matrices (Sequence[RankMatrix]): Nonempty sequence of matrices in source row order.
+        candidates (tuple[Candidate, ...]): Combined candidate universe.
+        max_ranking_length (int): Output width, at least each source matrix's width.
+
+    Returns:
+        RankMatrix: Owned combined arrays with a canonical candidate-set table and reset labels.
+    """
+    data = _concatenate_voter_weight_data([matrix.voter_weight_data for matrix in matrices])
+    rankings = np.full((len(data), max_ranking_length), TILDE_SET_ID, dtype=np.intp)
+    candidate_set_ids = {frozenset(): EMPTY_SET_ID, TILDE_SET: TILDE_SET_ID}
+
+    offset = 0
+
+    for matrix in matrices:
+        remapping = np.empty(len(matrix.cand_sets), dtype=np.intp)
+        for slot, candidate_set in enumerate(matrix.cand_sets):
+            remapping[slot] = candidate_set_ids.setdefault(
+                candidate_set, len(candidate_set_ids) + EMPTY_SET_ID
+            )
+
+        end = offset + len(matrix)
+        rankings[offset:end, : matrix.rankings.shape[1]] = remapping[matrix.rankings - EMPTY_SET_ID]
+        offset = end
+
+    return RankMatrix(
+        voter_weight_data=data,
+        rankings=rankings,
+        cand_sets=tuple(candidate_set_ids),
+        ranking_columns=tuple(f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)),
+        candidates=tuple(candidates),
+    )

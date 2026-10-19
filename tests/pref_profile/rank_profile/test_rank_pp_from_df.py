@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+
 import pandas as pd
 import pytest
 
@@ -212,3 +216,22 @@ def test_normalization_does_not_hide_equal_invalid_candidate_types(invalid_candi
         cells.reverse()
     with pytest.raises(TypeError, match="candidate"):
         _normalize_rank_df_candidates(pd.DataFrame({"Ranking_1": cells}))
+
+
+def test_rank_construction_rejects_nontrailing_padding_without_dataframe_conversion(
+    forbid_dataframe_conversion: Callable[[], None],
+) -> None:
+    ranking_df = pd.DataFrame(
+        {
+            "Ranking_1": [frozenset({"~"})],
+            "Ranking_2": [frozenset({"A"})],
+            "Weight": [1.0],
+            "Voter Set": [frozenset()],
+        }
+    )
+    ranking_df.index.name = "Ballot Index"
+
+    forbid_dataframe_conversion()
+
+    with pytest.raises(ValueError, match="can only trail"):
+        RankProfile(df=ranking_df, candidates=("A",), max_ranking_length=2)

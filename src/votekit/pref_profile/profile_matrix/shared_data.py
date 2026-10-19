@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
 from math import fsum
-from typing import Any, Self, cast
+from typing import Any, Self, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -543,21 +543,74 @@ def _as_fraction(weight: Any) -> Fraction:
     return Fraction(integer_weight)
 
 
-def _attach_ballot_columns(df: pd.DataFrame, data: ProfileVoterWeightData) -> pd.DataFrame:
+def _attach_index_voterset_and_weight_columns(
+    df: pd.DataFrame, data: ProfileVoterWeightData, *, rows: NDArray[np.intp] | None = None
+) -> pd.DataFrame:
     """
     Append shared ballot columns and restore index labels on a payload dataframe.
 
     Args:
-        df (pd.DataFrame): Payload dataframe to modify in place. Its rows must align with data.
+        df (pd.DataFrame): Payload dataframe to modify in place, already restricted to rows.
         data (_ProfileVoterWeightData): Shared columns and optional source index labels.
+        rows (NDArray[np.intp] | None, optional): Positional source rows in output order.
+            Defaults to None for all rows; negative indices count from the end.
 
     Returns:
         pd.DataFrame: The supplied dataframe, with Voter Set and Weight appended in that order
             and its index named Ballot Index. Restored index labels have independent storage.
     """
-    df[VOTER_SET_COLUMN] = data.voter_set_column()
-    df[WEIGHT_COLUMN] = data.weights
-    if data.ballot_index is not None:
-        df.index = pd.Index(data.ballot_index, copy=True)
+    if rows is None:
+        df[VOTER_SET_COLUMN] = data.voter_set_column()
+        df[WEIGHT_COLUMN] = data.weights
+
+        if data.ballot_index is not None:
+            df.index = pd.Index(data.ballot_index, copy=True)
+
+    else:
+        if data.voter_sets is not None:
+            voters = data.voter_sets[rows]
+        else:
+            voters = np.empty(len(rows), dtype=object if len(data) else float)
+            voters[:] = [EMPTY_VOTER_SET] * len(rows)
+
+        df[VOTER_SET_COLUMN] = voters
+        df[WEIGHT_COLUMN] = data.weights[rows]
+
+        labels = (
+            data.ballot_index[rows]
+            if data.ballot_index is not None
+            else np.where(rows < 0, rows + len(data), rows)
+        )
+
+        df.index = pd.Index(labels, copy=True)
+
     df.index.name = BALLOT_INDEX_NAME
     return df
+
+
+def _concatenate_voter_weight_data(
+    ballot_data: Sequence[ProfileVoterWeightData],
+) -> ProfileVoterWeightData:
+    """
+    Concatenate aligned weights and voters using the common numeric policy, resetting labels.
+
+    Args:
+        ballot_data (Sequence[ProfileVoterWeightData]): Nonempty sequence in source row order.
+
+    Returns:
+        ProfileVoterWeightData: Owned weights and voter arrays without source index labels.
+
+    Raises:
+        ProfileError: Fraction weights are mixed with non-integral floats.
+    """
+    weights, weight_kind = _standardize_weights(
+        np.concatenate([data.weights for data in ballot_data])
+    )
+    voters = None
+
+    if any(data.voter_sets is not None for data in ballot_data):
+        voters = np.concatenate(
+            [np.asarray(data.voter_set_column(), dtype=object) for data in ballot_data]
+        )
+
+    return ProfileVoterWeightData(weights, voters, weight_kind)

@@ -36,7 +36,6 @@ from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer, random_transfer
 from votekit.pref_profile import ProfileError, RankProfile
-from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 from votekit.utils import (
     _first_place_votes_from_df_no_ties,
@@ -873,7 +872,7 @@ class STV(RankingElection):
 
     def _stv_validate_profile(self, profile: RankProfile):
         """
-        Validate that each ballot has a ranking, and that there are no ties in ballots.
+        Validate that each ballot ranks at least one candidate and contains no ties.
 
         Args:
             profile (RankProfile): Profile to validate.
@@ -881,20 +880,15 @@ class STV(RankingElection):
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
         matrix = profile._matrix
-        set_sizes = np.fromiter(map(len, matrix.cand_sets), dtype=np.intp)
-        tied_rows = np.any(set_sizes[matrix.rankings - EMPTY_SET_ID] > 1, axis=1)
-        unranked_rows = np.all(matrix.rankings == TILDE_SET_ID, axis=1)
+        tied_rows = matrix.has_ties()
+        unranked_rows = ~matrix.has_ranked_candidates()
         invalid_rows = np.flatnonzero(tied_rows | unranked_rows)
         if not invalid_rows.size:
             return
 
         row = int(invalid_rows[0])
         if tied_rows[row]:
-            ranking = tuple(
-                matrix.get_cand_set_from_id(int(set_id))
-                for set_id in matrix.rankings[row]
-                if set_id != TILDE_SET_ID
-            )
+            ranking = matrix.get_ranking(row)
             ballot = RankBallot(ranking=ranking, weight=matrix.voter_weight_data.weights[row])
             raise TypeError(f"Ballot {ballot} contains a tied ranking.")
         raise TypeError("Ballots must have rankings.")

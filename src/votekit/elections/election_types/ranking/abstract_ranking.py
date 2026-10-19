@@ -5,11 +5,9 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from votekit.ballot import RankBallot
 from votekit.elections.election_state import ElectionState
 from votekit.models import Election
 from votekit.pref_profile import ProfileError, RankProfile
-from votekit.pref_profile.profile_matrix import TILDE_SET_ID
 from votekit.types import CandidateNumericDict
 
 
@@ -66,7 +64,7 @@ class RankingElection(Election[RankProfile]):
 
     def _validate_profile(self, profile: RankProfile):
         """
-        Validates that a profile contains appropriate ballots for the election.
+        Validate that the profile is nonempty and each ballot ranks at least one candidate.
 
         Args:
             profile (RankProfile): Profile of ballots.
@@ -81,12 +79,10 @@ class RankingElection(Election[RankProfile]):
         if profile.max_ranking_length < 1:
             raise ProfileError("Profile must contain at least one ranked candidate.")
 
-        unranked_rows = np.flatnonzero(np.all(matrix.rankings == TILDE_SET_ID, axis=1))
+        unranked_rows = np.flatnonzero(~matrix.has_ranked_candidates())
         if unranked_rows.size:
             row = int(unranked_rows[0])
-            data = matrix.voter_weight_data
-            voters = data.voter_sets[row] if data.voter_sets is not None else frozenset()
-            ballot = RankBallot(weight=data.weights[row], voter_set=voters)
+            ballot = profile.get_ballot(row)
             raise TypeError(f"Ballot {ballot} has no ranking.")
 
     @abstractmethod

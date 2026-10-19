@@ -84,20 +84,19 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
     ballot_data = matrix.voter_weight_data
 
     cand_dict: dict[Candidate, list[RankBallot]] = {c: [] for c in profile.candidates}
-    tilde = frozenset({"~"})
 
     for row_index, ranking_ids in enumerate(matrix.rankings):
-        row = tuple(matrix.get_cand_set_from_id(int(set_id)) for set_id in ranking_ids)
+        first = matrix.get_cand_set_from_id(int(ranking_ids[0]))
+        ranking = matrix.get_ranking(row_index)
         weight = ballot_data.weights[row_index]
         voter_set = (
             ballot_data.voter_sets[row_index] if ballot_data.voter_sets is not None else frozenset()
         )
-        first = row[0]
 
         if len(first) > 1:
             ballot_str = str(
                 RankBallot(
-                    ranking=tuple(c_set for c_set in row if c_set != tilde),
+                    ranking=ranking,
                     weight=weight,
                 )
             )
@@ -108,11 +107,7 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
         if cand == "~":
             continue
 
-        clean_ranking = tuple(s for s in row if s != tilde)
-
-        cand_dict[cand].append(
-            RankBallot(ranking=clean_ranking, weight=weight, voter_set=voter_set)
-        )
+        cand_dict[cand].append(RankBallot(ranking=ranking, weight=weight, voter_set=voter_set))
 
     return cand_dict
 
@@ -373,46 +368,7 @@ def first_place_votes(
     )
 
 
-def _mentions_from_ballots(
-    profile: RankProfile,
-) -> dict[Candidate, float]:
-    """
-    Sum candidate mentions over ranked ballots, preserving weight arithmetic until export.
-
-    Each occurrence contributes the ballot's weight. Fraction weights accumulate exactly;
-    completed totals are converted to floats. Float weights use math.fsum. Zero-weight ballots
-    contribute nothing.
-
-    Args:
-        profile (RankProfile): Profile whose ballot rankings are counted.
-
-    Returns:
-        dict[Candidate, float]: Mention totals for every profile candidate, including zeros.
-
-    Raises:
-        TypeError: The profile is not a RankProfile or a ballot has no ranking.
-    """
-    from votekit.pref_profile import RankProfile
-
-    contributions: dict[Candidate, list[Numeric]] = {c: [] for c in profile.candidates}
-    if not isinstance(profile, RankProfile):
-        raise TypeError("Profile must be of type RankProfile.")
-    for ballot in profile.ballots:
-        if ballot.ranking is None:
-            raise TypeError("Ballots must have rankings.")
-        # a candidate mentioned only on zero-weight ballots is absent from profile.candidates,
-        # and the ballot contributes nothing anyway
-        if ballot.weight == 0:
-            continue
-        for s in ballot.ranking:
-            for cand in s:
-                contributions[cand].append(ballot.weight)
-    if profile._matrix.voter_weight_data.has_fraction_weights:
-        return {candidate: float(sum(weights)) for candidate, weights in contributions.items()}
-    return {candidate: math.fsum(weights) for candidate, weights in contributions.items()}
-
-
-def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
+def _mentions_from_matrix(profile: RankProfile) -> dict[Candidate, float]:
     """
     Calculate total mentions from matrix IDs without materializing ballots.
 
@@ -432,13 +388,13 @@ def _mentions_from_df(profile: RankProfile) -> dict[Candidate, float]:
         TypeError: If any ballot has no ranking, i.e. all its ranking positions are padding.
     """
     from votekit.pref_profile import RankProfile
-    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, TILDE_SET_ID
+    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID
 
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
 
     matrix = profile._matrix
-    if np.any(np.all(matrix.rankings == TILDE_SET_ID, axis=1)):
+    if not matrix.has_rankings().all():
         raise TypeError("Ballots must have rankings.")
 
     weights = matrix.voter_weight_data.weights
@@ -469,8 +425,8 @@ def mentions(profile: RankProfile) -> dict[Candidate, float]:
     a tied position receives the full weight, and a candidate ranked in multiple positions of
     one ballot is counted once per position.
 
-    Computes from the profile's ballot list when it is already materialized and from the
-    underlying matrix otherwise. Fraction totals remain exact until conversion to floats.
+    Computes from the authoritative matrix regardless of whether ballots have been materialized.
+    Fraction totals remain exact until conversion to floats.
 
     Args:
         profile (RankProfile): RankProfile of ballots.
@@ -489,10 +445,7 @@ def mentions(profile: RankProfile) -> dict[Candidate, float]:
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
 
-    if "ballots" in profile.__dict__:
-        return _mentions_from_ballots(profile)
-
-    return _mentions_from_df(profile)
+    return _mentions_from_matrix(profile)
 
 
 def borda_scores(

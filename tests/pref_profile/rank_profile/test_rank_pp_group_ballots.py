@@ -47,8 +47,15 @@ def test_matrix_grouping_preserves_first_appearance_weights_and_voters(seed, fra
     ]
     rows = rng.integers(0, len(candidate_sets), size=(40, 3))
     rankings = np.empty(rows.shape, dtype=object)
+
     for position, row in enumerate(rows):
+        padding = np.flatnonzero(row == 1)
+
+        if padding.size:
+            row[padding[0] :] = 1
+
         rankings[position] = [candidate_sets[index] for index in row]
+
     source = pd.DataFrame(rankings, columns=["Ranking_1", "Ranking_2", "Ranking_3"])
     source["Weight"] = pd.Series(
         [
@@ -65,6 +72,7 @@ def test_matrix_grouping_preserves_first_appearance_weights_and_voters(seed, fra
     ranking_columns = list(profile._matrix.ranking_columns)
     expected_weights = {}
     expected_voters = {}
+
     for ranking, weight, voters in zip(
         map(tuple, rankings), source["Weight"], source["Voter Set"], strict=True
     ):
@@ -93,7 +101,9 @@ def test_matrix_grouping_preserves_first_appearance_weights_and_voters(seed, fra
 
 
 @pytest.mark.parametrize("num_ballots", [0, 2])
-def test_grouping_needs_no_dataframe_export_or_public_profile_constructor(monkeypatch, num_ballots):
+def test_grouping_needs_no_dataframe_conversion_or_public_profile_constructor(
+    monkeypatch, num_ballots
+):
     profile = RankProfile(
         ballots=[RankBallot(ranking=[{"A"}], weight=Fraction(1, 3))] * num_ballots,
         candidates=("A", "unused"),
@@ -106,9 +116,11 @@ def test_grouping_needs_no_dataframe_export_or_public_profile_constructor(monkey
     with monkeypatch.context() as patch:
         patch.setattr(RankProfile, "to_df", unexpected_call)
         patch.setattr(RankProfile, "__init__", unexpected_call)
+
         grouped = profile.group_ballots()
 
     expected_ballots = (RankBallot(ranking=[{"A"}], weight=Fraction(2, 3)),) if num_ballots else ()
+
     assert grouped.ballots == expected_ballots
     assert grouped.candidates == profile.candidates
     assert grouped.max_ranking_length == 3

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterator
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -59,6 +60,13 @@ def _normalize_score_df_candidates(
 
 
 class ScoreProfile(PreferenceProfile):
+    """
+    Store scored ballots with nonnegative scores and matrix-owned storage.
+
+    NaN denotes an unscored candidate. Construction raises ValueError for negative scores,
+    including scores on zero-weight ballots; election-specific limits are validated separately.
+    """
+
     _matrix: ScoreMatrix
 
     def __new__(cls, **kwargs) -> Self:
@@ -389,44 +397,45 @@ class ScoreProfile(PreferenceProfile):
         candidates_cast = self.__find_candidates_cast_from_init_score_df(df)
         return df, candidates_cast
 
+    def get_ballot(self, row: int) -> ScoreBallot:
+        """
+        Materialize one ballot without constructing or caching the full ballot tuple.
+
+        Args:
+            row (int): Positional row index, with negative indices counted from the end.
+                Source dataframe labels do not affect positional lookup.
+
+        Returns:
+            ScoreBallot: Ballot with the stored weight and voters, including zero-weight rows.
+
+        Raises:
+            IndexError: The row is outside the profile.
+        """
+        scores = self._matrix.get_scores(row)
+        ballot_data = self._matrix.voter_weight_data
+        voters = ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else frozenset()
+        return ScoreBallot(scores=scores or None, weight=ballot_data.weights[row], voter_set=voters)
+
+    def iter_ballots(self) -> Iterator[ScoreBallot]:
+        """
+        Yield ballots in source row order without materializing or caching the full tuple.
+
+        Yields:
+            ScoreBallot: One ballot at a time, including zero-weight rows. Each iteration builds
+                fresh ballot objects from the matrix; an existing ballot cache is not used.
+        """
+        for row in range(len(self._matrix)):
+            yield self.get_ballot(row)
+
     @cached_property
-    def ballots(self: ScoreProfile) -> tuple[ScoreBallot, ...]:
+    def ballots(self) -> tuple[ScoreBallot, ...]:
         """
         Materialize and cache ballots directly from matrix rows in source order.
 
         Returns:
             tuple[ScoreBallot, ...]: Ballots with weights and voters, including zero-weight rows.
         """
-        matrix = self._matrix
-        ballot_data = matrix.voter_weight_data
-        column_positions = {
-            candidate: column for column, candidate in enumerate(matrix.score_columns)
-        }
-        candidate_columns = [
-            (candidate, column_positions[candidate])
-            for candidate in self.candidates
-            if candidate in column_positions
-        ]
-
-        ballots: list[ScoreBallot] = []
-        for row_index, score_row in enumerate(matrix.scores):
-            scores = {
-                candidate: score_row[column]
-                for candidate, column in candidate_columns
-                if not np.isnan(score_row[column])
-            }
-            voters = (
-                ballot_data.voter_sets[row_index]
-                if ballot_data.voter_sets is not None
-                else frozenset()
-            )
-            ballots.append(
-                ScoreBallot(
-                    scores=scores or None, weight=ballot_data.weights[row_index], voter_set=voters
-                )
-            )
-
-        return tuple(ballots)
+        return tuple(self.iter_ballots())
 
     def __add__(self, other):
         """

@@ -5,6 +5,7 @@ import pickle
 import re
 import urllib.request
 import warnings
+from collections.abc import Iterator
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Self, Sequence, Union, cast, overload
@@ -329,8 +330,50 @@ class PreferenceProfile:
     def copy(self) -> Self:
         raise NotImplementedError
 
+    def get_ballot(self, row: int) -> Ballot:
+        """
+        Materialize one ballot without constructing or caching the full ballot tuple.
+
+        Args:
+            row (int): Positional row index, with negative indices counted from the end.
+                Source dataframe labels do not affect positional lookup.
+
+        Returns:
+            Ballot: Ballot with the stored weight and voters, including zero-weight rows.
+                The concrete profile determines the ballot type.
+
+        Raises:
+            IndexError: The row is outside the profile.
+            NotImplementedError: The profile does not implement ballot access.
+        """
+        raise NotImplementedError
+
+    def iter_ballots(self) -> Iterator[Ballot]:
+        """
+        Iterate over ballots without materializing or caching the full ballot tuple.
+
+        Returns:
+            Iterator[Ballot]: Fresh ballots in source row order, including zero-weight rows.
+                An existing ballot cache is not used. The concrete profile determines the
+                ballot type.
+
+        Raises:
+            NotImplementedError: The profile does not implement ballot iteration.
+        """
+        raise NotImplementedError
+
     @property
     def ballots(self) -> tuple[Ballot, ...]:
+        """
+        Materialize and cache all ballots in source row order.
+
+        Returns:
+            tuple[Ballot, ...]: Ballots with stored weights and voters, including zero-weight
+                rows. The concrete profile determines the ballot type.
+
+        Raises:
+            NotImplementedError: The profile does not implement ballot access.
+        """
         raise NotImplementedError
 
     def to_pickle(self, fpath: Union[str, PathLike, Path]):

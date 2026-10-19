@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -170,7 +174,7 @@ def test_cleaned_profile_eq():
 
 
 @pytest.mark.parametrize("from_df", [False, True], ids=["ballots", "dataframe"])
-def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool) -> None:
+def test_constructor_owns_metadata_and_to_df_returns_detached_snapshots(from_df: bool) -> None:
     parent = clean_1
     retained_df = clean_2.to_df()
     indices = list(retained_df.index)
@@ -213,9 +217,11 @@ def test_constructor_owns_metadata_and_exports_detached_snapshots(from_df: bool)
     exported_df["Voter Set"] = pd.Series(
         [frozenset({"other voter"})] * len(exported_df), index=exported_df.index, dtype=object
     )
+
     assert not np.shares_memory(
         exported_df.index.to_numpy(), cleaned._matrix.voter_weight_data.ballot_index
     )
+
     exported_df.rename(index={first_index: 99}, inplace=True)
     exported_df.index.name = "Changed index"
 
@@ -252,3 +258,32 @@ def test_grouping_returns_ordinary_profile_with_reset_indices(from_df: bool) -> 
     assert grouped.total_ballot_wt == cleaned.total_ballot_wt
     assert grouped == ScoreProfile(ballots=cleaned.ballots).group_ballots()
     pd.testing.assert_frame_equal(cleaned.to_df(), retained_df)
+
+
+@pytest.mark.parametrize("labels", [[0, 1], [7, 7], [10, 20]])
+def test_cleaned_score_validation_reads_parent_labels(
+    labels: list[int], forbid_dataframe_conversion: Callable[[], None]
+) -> None:
+    ballot = ScoreBallot(scores={"A": 1})
+    source_df = ScoreProfile(ballots=[ballot, ballot]).to_df()
+    source_df.index = pd.Index(labels, name="Ballot Index")
+    parent = ScoreProfile(df=source_df, candidates=("A",), max_ranking_length=1)
+
+    forbid_dataframe_conversion()
+
+    cleaned = CleanedScoreProfile(
+        parent_profile=parent,
+        ballots=[ballot, ballot],
+        df_index_column=labels,
+        unaltr_idxs=set(labels),
+    )
+
+    assert cleaned.parent_profile is parent
+
+    stored_labels = cleaned._matrix.voter_weight_data.ballot_index
+
+    assert stored_labels is not None
+    assert stored_labels.tolist() == labels
+
+    with pytest.raises(ValueError, match="not a subset"):
+        CleanedScoreProfile(parent_profile=parent, df_index_column=[], unaltr_idxs={99})

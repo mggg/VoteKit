@@ -88,7 +88,9 @@ def test_score_grouping_preserves_first_appearance_weights_voters_and_metadata(
 
 
 @pytest.mark.parametrize("num_ballots", [0, 2])
-def test_score_grouping_needs_no_export_or_public_constructor(monkeypatch, num_ballots):
+def test_score_grouping_needs_no_dataframe_conversion_or_public_constructor(
+    monkeypatch, num_ballots
+):
     profile = ScoreProfile(
         ballots=[ScoreBallot(scores={"B": 2}, weight=Fraction(1, 3))] * num_ballots,
         candidates=("unused", "B", "A"),
@@ -101,6 +103,7 @@ def test_score_grouping_needs_no_export_or_public_constructor(monkeypatch, num_b
         patch.setattr(ScoreProfile, "to_df", unexpected_call)
         patch.setattr(type(profile._matrix), "to_df", unexpected_call)
         patch.setattr(ScoreProfile, "__init__", unexpected_call)
+
         grouped = profile.group_ballots()
 
     assert type(grouped) is ScoreProfile
@@ -109,6 +112,7 @@ def test_score_grouping_needs_no_export_or_public_constructor(monkeypatch, num_b
     assert grouped.total_ballot_wt == Fraction(num_ballots, 3)
     assert grouped.num_ballots == (1 if num_ballots else 0)
     assert grouped._matrix.voter_weight_data.voter_sets is None
+
     with pytest.raises(AttributeError, match="frozen"):
         grouped.candidates = ()
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol, Self, runtime_checkable
 
+import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
 from votekit.pref_profile.profile_matrix.shared_data import ProfileVoterWeightData
 from votekit.types import Candidate
@@ -61,9 +63,14 @@ class ProfileMatrix(Protocol):
         """
         ...
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, *, rows: NDArray[np.intp] | None = None) -> pd.DataFrame:
         """
         Export stored ballot data using the concrete matrix's public dataframe schema.
+
+        Args:
+            rows (NDArray[np.intp] | None, optional): Positional rows in output order, allowing
+                repeats and negative indices. Defaults to None for all rows. Preserve source
+                labels, including implicit row labels, when selecting rows.
 
         Returns:
             pd.DataFrame: Ballot rows in stored order, with decoded candidate data, shared columns,

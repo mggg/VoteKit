@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self, Sequence
 
 import numpy as np
@@ -14,7 +14,8 @@ from votekit._df_schema import (
 from votekit.pref_profile.profile_matrix.shared_data import (
     ProfileVoterWeightData,
     _arrays_equal,
-    _attach_ballot_columns,
+    _attach_index_voterset_and_weight_columns,
+    _concatenate_voter_weight_data,
 )
 from votekit.types import Candidate
 
@@ -32,7 +33,7 @@ class ScoreMatrix:
         voter_weight_data (_ProfileVoterWeightData): Shared data with one entry per ballot.
         scores (NDArray): Two-dimensional floating-point array with one row per ballot and
             one column per score column. NaN means unscored. Empty dimensions are supported;
-            score ranges and finiteness are not constrained by this constructor.
+            negative scores are rejected. Positive infinity is retained.
         score_columns (tuple[Candidate, ...]): Unique candidate name for each score column,
             in array order. Weight and Voter Set are reserved and cannot be score columns.
         candidates (tuple[Candidate, ...]): Profile candidate universe, which may include
@@ -44,6 +45,7 @@ class ScoreMatrix:
     scores: NDArray
     score_columns: tuple[Candidate, ...]
     candidates: tuple[Candidate, ...]
+    _declared_score_columns: tuple[tuple[Candidate, int], ...] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         """
@@ -51,7 +53,8 @@ class ScoreMatrix:
 
         Raises:
             TypeError: Scores are not an array or column names have unsupported types.
-            ValueError: The score dtype, dimensions, or column mappings are invalid.
+            ValueError: Scores are negative, or the dtype, dimensions, or column mappings
+                are invalid.
         """
         self._validate_score_array()
         self._validate_score_columns()
@@ -64,6 +67,16 @@ class ScoreMatrix:
         object.__setattr__(self, "score_columns", tuple(self.score_columns))
         object.__setattr__(self, "candidates", tuple(self.candidates))
 
+        column_positions = {
+            candidate: column for column, candidate in enumerate(self.score_columns)
+        }
+        declared_columns = tuple(
+            (candidate, column_positions[candidate])
+            for candidate in self.candidates
+            if candidate in column_positions
+        )
+        object.__setattr__(self, "_declared_score_columns", declared_columns)
+
     def _validate_score_array(self) -> None:
         """
         Check floating-point scores and alignment with weights and score columns.
@@ -71,7 +84,7 @@ class ScoreMatrix:
         Raises:
             TypeError: Scores are not a NumPy array.
             ValueError: Scores are not a two-dimensional floating-point array or row/column counts
-                disagree with the shared data or score labels.
+                disagree with the shared data or score labels, or a score is negative.
         """
         if not isinstance(self.scores, np.ndarray):
             raise TypeError(f"scores must be a numpy array, not {type(self.scores)}.")
@@ -92,6 +105,9 @@ class ScoreMatrix:
                 f"scores must have the same number of columns as score_columns: "
                 f"{self.scores.shape[1]} != {len(self.score_columns)}"
             )
+
+        if np.any(self.scores < 0):
+            raise ValueError("Scores must be non-negative.")
 
     def _validate_score_columns(self) -> None:
         """
@@ -144,8 +160,8 @@ class ScoreMatrix:
         Raises:
             KeyError: A required shared column is missing.
             TypeError: Score values cannot be converted to floats or column names are unsupported.
-            ValueError: Score conversion fails or column mappings or shared-data structure are
-                invalid.
+            ValueError: Scores are negative, conversion fails, or column mappings or shared-data
+                structure are invalid.
             ProfileError: Shared weight validation rejects a value.
         """
         score_columns = tuple(
@@ -175,17 +191,23 @@ class ScoreMatrix:
             and self.candidates == other.candidates
         )
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(self, *, rows: NDArray[np.intp] | None = None) -> pd.DataFrame:
         """
         Export scores to a new dataframe in stored candidate-column order.
+
+        Args:
+            rows (NDArray[np.intp] | None, optional): Positional row indices in output order.
+                Repeated and negative indices are supported. Defaults to None for all rows.
+                Source ballot labels are preserved, including implicit labels.
 
         Returns:
             pd.DataFrame: Writable score columns followed by Voter Set and Weight. Score values
                 have independent storage. The index is named Ballot Index and uses retained labels
                 when present; its label storage is independent of the matrix.
         """
-        df = pd.DataFrame(self.scores, columns=list(self.score_columns), copy=True)
-        return _attach_ballot_columns(df, self.voter_weight_data)
+        scores = self.scores if rows is None else self.scores[rows]
+        df = pd.DataFrame(scores, columns=list(self.score_columns), copy=True)
+        return _attach_index_voterset_and_weight_columns(df, self.voter_weight_data, rows=rows)
 
     def copy(self) -> ScoreMatrix:
         """
@@ -199,6 +221,58 @@ class ScoreMatrix:
             scores=self.scores,
             score_columns=self.score_columns,
             candidates=self.candidates,
+        )
+
+    def get_scores(self, row: int) -> dict[Candidate, float]:
+        """
+        Decode one ballot's scores in declared candidate order, retaining explicit zeros.
+
+        Args:
+            row (int): Positional row index, with negative indices counted from the end.
+
+        Returns:
+            dict[Candidate, float]: Fresh dictionary excluding NaNs and undeclared candidates.
+                An empty dictionary means the row has no scores for declared candidates.
+
+        Raises:
+            IndexError: The row is outside the matrix.
+        """
+        scores = self.scores[row]
+        return {
+            candidate: float(scores[column])
+            for candidate, column in self._declared_score_columns
+            if not np.isnan(scores[column])
+        }
+
+    def score_bounds_by_ballot(self) -> tuple[NDArray, NDArray]:
+        """
+        Find each ballot's minimum and maximum scores among declared candidates.
+
+        Returns:
+            tuple[NDArray, NDArray]: Independent minimum and maximum arrays in source row order,
+                preserving the score dtype. Both bounds are NaN for an entirely unscored row.
+                Explicit zero scores and scores on zero-weight rows are included.
+        """
+        columns = [column for _, column in self._declared_score_columns]
+        scores = self.scores[:, columns]
+
+        return (
+            np.fmin.reduce(scores, axis=1, initial=np.nan),
+            np.fmax.reduce(scores, axis=1, initial=np.nan),
+        )
+
+    def sum_scores_by_ballot(self) -> NDArray[np.float64]:
+        """
+        Sum each ballot's declared scores without applying ballot weights.
+
+        Returns:
+            NDArray[np.float64]: Independent totals in source row order, computed with NumPy's
+                float64 reduction over declared candidate columns. Missing scores contribute zero;
+                entirely unscored rows total zero.
+        """
+        columns = [column for _, column in self._declared_score_columns]
+        return np.array(
+            np.nansum(self.scores[:, columns], axis=1, dtype=np.float64), dtype=np.float64
         )
 
     def get_candidates_cast(self) -> frozenset[Candidate]:
@@ -263,3 +337,37 @@ class ScoreMatrix:
             score_columns=self.score_columns,
             candidates=self.candidates,
         )
+
+
+def _concatenate_score_matrices(
+    matrices: Sequence[ScoreMatrix], candidates: tuple[Candidate, ...]
+) -> ScoreMatrix:
+    """
+    Concatenate score rows, aligning columns to the combined candidate universe.
+
+    Args:
+        matrices (Sequence[ScoreMatrix]): Nonempty sequence of matrices in source row order.
+        candidates (tuple[Candidate, ...]): Output column order and candidate universe.
+
+    Returns:
+        ScoreMatrix: Owned combined arrays with reset labels. Columns outside a source's
+            declared candidate universe are excluded from that source's rows.
+    """
+    data = _concatenate_voter_weight_data([matrix.voter_weight_data for matrix in matrices])
+    scores = np.full((len(data), len(candidates)), np.nan)
+    candidate_columns = {candidate: column for column, candidate in enumerate(candidates)}
+
+    offset = 0
+    for matrix in matrices:
+        end = offset + len(matrix)
+        for column, candidate in enumerate(matrix.score_columns):
+            if candidate in matrix.candidates:
+                scores[offset:end, candidate_columns[candidate]] = matrix.scores[:, column]
+        offset = end
+
+    return ScoreMatrix(
+        voter_weight_data=data,
+        scores=scores,
+        score_columns=candidates,
+        candidates=candidates,
+    )

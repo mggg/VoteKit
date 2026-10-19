@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fractions import Fraction
 from typing import cast
 
@@ -432,6 +434,21 @@ def test_rank_matrix_constructor_rejects_non_integer_ids(dtype):
         )
 
 
+@pytest.mark.parametrize("ranking", [[-1, 0], [0, -1, 0], [-1, -2], [0, -1, -2]])
+@pytest.mark.parametrize("weight", [0.0, 1.0])
+def test_rank_matrix_rejects_positions_after_end_sentinel(
+    ranking: list[int], weight: float
+) -> None:
+    with pytest.raises(ValueError, match="can only trail"):
+        RankMatrix(
+            voter_weight_data=ProfileVoterWeightData(np.array([weight]), None, WeightKind.FLOAT),
+            rankings=np.array([ranking]),
+            cand_sets=(frozenset(), frozenset({"~"}), frozenset({"A"})),
+            ranking_columns=tuple(f"Ranking_{i + 1}" for i in range(len(ranking))),
+            candidates=("A",),
+        )
+
+
 @pytest.mark.parametrize("candidate_set_id", [-3, 1], ids=["below-empty", "past-last-set"])
 def test_rank_matrix_constructor_rejects_out_of_bounds_ids(candidate_set_id: int):
     with pytest.raises(ValueError, match=r"(?i)id"):
@@ -496,7 +513,7 @@ def test_score_matrix_constructor_rejects_invalid_column_mapping(
 def test_rank_matrix_constructor_preserves_reserved_ids_ties_and_mixed_candidates():
     matrix = RankMatrix(
         voter_weight_data=_make_voter_weight_data(),
-        rankings=np.array([[-2, -1, 0]], dtype=np.int32),
+        rankings=np.array([[-2, 0, -1]], dtype=np.int32),
         cand_sets=(frozenset(), frozenset({"~"}), frozenset({1, "1"})),
         ranking_columns=("Ranking_1", "Ranking_2", "Ranking_3"),
         candidates=(1, "1", "unranked"),
@@ -513,8 +530,8 @@ def test_rank_matrix_constructor_preserves_reserved_ids_ties_and_mixed_candidate
     assert matrix.max_candidates_ranked() == 2
     assert matrix.to_df()[["Ranking_1", "Ranking_2", "Ranking_3"]].iloc[0].tolist() == [
         frozenset(),
-        frozenset({"~"}),
         frozenset({1, "1"}),
+        frozenset({"~"}),
     ]
 
 
@@ -709,7 +726,7 @@ def test_score_matrix_constructor_rejects_reserved_column_names(candidate: str):
         ScoreMatrix(_make_voter_weight_data(), np.ones((1, 1)), (candidate,), (candidate,))
 
 
-def test_score_matrix_constructor_owns_metadata_and_exports_writable_scores():
+def test_score_matrix_constructor_owns_metadata_and_to_df_returns_writable_scores():
     score_columns = ["A"]
     candidates = ["A", "B"]
     matrix = ScoreMatrix(
@@ -723,18 +740,20 @@ def test_score_matrix_constructor_owns_metadata_and_exports_writable_scores():
 
     assert matrix.score_columns == ("A",)
     assert matrix.candidates == ("A", "B")
+
     with pytest.raises(ValueError, match="read-only"):
         matrix.scores[0, 0] = 99.0
 
     exported = matrix.to_df()
     exported.loc[0, "A"] = 99.0
+
     assert matrix.scores[0, 0] == 1.0
     assert matrix.to_df().loc[0, "A"] == 1.0
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_score_matrix_constructor_preserves_floating_score_values(dtype):
-    scores = np.array([[np.nan, 0.0, -1.0, np.inf, -np.inf]], dtype=dtype)
+    scores = np.array([[np.nan, 0.0, 1.0, np.inf, 2.0]], dtype=dtype)
     candidates = ("A", "B", "C", "D", "E")
     matrix = ScoreMatrix(_make_voter_weight_data(), scores, candidates, candidates)
 
@@ -758,8 +777,22 @@ def test_score_matrix_constructor_accepts_unused_undeclared_column(score: float)
     np.testing.assert_array_equal(matrix.scores, [[score]])
 
 
+@pytest.mark.parametrize("score", [-1.0, -np.inf])
+@pytest.mark.parametrize("weight", [0.0, 1.0])
+def test_score_matrix_rejects_negative_scores_even_on_zero_weight_rows(
+    score: float, weight: float
+) -> None:
+    with pytest.raises(ValueError, match="Scores must be non-negative"):
+        ScoreMatrix(
+            voter_weight_data=ProfileVoterWeightData(np.array([weight]), None, WeightKind.FLOAT),
+            scores=np.array([[score]]),
+            score_columns=("A",),
+            candidates=("A",),
+        )
+
+
 def test_score_matrix_constructor_rejects_undeclared_negative_score():
-    with pytest.raises(ValueError, match="outside the declared candidates"):
+    with pytest.raises(ValueError, match="non-negative"):
         ScoreMatrix(_make_voter_weight_data(), np.array([[-1.0]]), ("B",), ("A",))
 
 
@@ -771,6 +804,52 @@ def test_score_matrix_from_df_owns_score_values():
     assert matrix.scores[0, 0] == 1.0
 
 
+@pytest.mark.parametrize("matrix_type", [RankMatrix, ScoreMatrix])
+@pytest.mark.parametrize("labels", [None, [7, 7]])
+@pytest.mark.parametrize("rows", [[-1, 0, 1], []])
+@pytest.mark.parametrize("with_voters", [False, True])
+def test_selected_rows_to_df_matches_full_dataframe_and_owns_storage(
+    matrix_type: type[RankMatrix] | type[ScoreMatrix],
+    labels: list[int] | None,
+    rows: list[int],
+    with_voters: bool,
+) -> None:
+    voter_sets = None
+
+    if with_voters:
+        voter_sets = np.empty(2, dtype=object)
+        voter_sets[:] = [frozenset({"v"}), frozenset()]
+
+    data = ProfileVoterWeightData(
+        weights=np.array([Fraction(1, 3), Fraction(2, 3)], dtype=object),
+        voter_sets=voter_sets,
+        weight_kind=WeightKind.FRACTION,
+        ballot_index=None if labels is None else np.array(labels),
+    )
+    matrix: RankMatrix | ScoreMatrix
+
+    if matrix_type is RankMatrix:
+        matrix = RankMatrix(
+            data,
+            np.array([[0], [-1]]),
+            (frozenset(), frozenset({"~"}), frozenset({"A"})),
+            ("Ranking_1",),
+            ("A",),
+        )
+    else:
+        matrix = ScoreMatrix(data, np.array([[0.0], [np.nan]]), ("A",), ("A",))
+
+    before = matrix.to_df()
+    selected = matrix.to_df(rows=np.array(rows, dtype=np.intp))
+
+    pd.testing.assert_frame_equal(selected, before.iloc[rows])
+
+    if rows:
+        selected.iloc[0, -1] = 99
+
+    pd.testing.assert_frame_equal(matrix.to_df(), before)
+
+
 @pytest.mark.parametrize("weight", [2.0, Fraction(2, 3)])
 @pytest.mark.parametrize(
     "profile_type, ballot_type, payload, column, replacement",
@@ -779,7 +858,7 @@ def test_score_matrix_from_df_owns_score_values():
         (ScoreProfile, ScoreBallot, {"scores": {"A": 3}}, "A", 99.0),
     ],
 )
-def test_profile_dataframe_exports_are_detached(
+def test_profile_to_df_returns_detached_dataframes(
     profile_type, ballot_type, payload, column, replacement, weight
 ):
     ballot = ballot_type(**payload, weight=weight, voter_set={"voter"})
@@ -793,9 +872,11 @@ def test_profile_dataframe_exports_are_detached(
     exported.at[37, "Weight"] = 9
     exported.at[37, "Voter Set"] = frozenset({"other voter"})
     exported.at[37, column] = replacement
+
     assert not np.shares_memory(
         exported.index.to_numpy(), profile._matrix.voter_weight_data.ballot_index
     )
+
     exported.index = pd.Index([99], name="Ballot Index")
 
     pd.testing.assert_frame_equal(profile.to_df(), expected)
@@ -839,11 +920,12 @@ def test_fraction_weight_type_error_summarizes_invalid_entries():
 @pytest.mark.parametrize(
     "profile_type", [RankProfile, ScoreProfile, CleanedRankProfile, CleanedScoreProfile]
 )
-def test_df_warns_and_delegates_to_explicit_export(
+def test_df_warns_and_delegates_to_to_df(
     profile_type: type[PreferenceProfile], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     profile = profile_type()
     snapshot = pd.DataFrame({"Weight": [2.0]})
+
     monkeypatch.setattr(profile_type, "to_df", lambda self: snapshot)
 
     with pytest.warns(
@@ -890,6 +972,35 @@ def test_rank_matrix_constructor_rejects_duplicate_candidate_sets(rankings):
             ranking_columns=("Ranking_1",),
             candidates=("A",),
         )
+
+
+def test_rank_matrix_weight_replacement_owns_weights_and_checks_candidates() -> None:
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=0)])
+    matrix = profile._matrix
+    weights = np.array([0.5])
+
+    replacement = matrix.with_weights(weights)
+
+    weights[0] = 99
+
+    assert replacement.voter_weight_data.weights[0] == 0.5
+    assert not replacement.voter_weight_data.weights.flags.writeable
+    assert replacement.rankings is matrix.rankings
+    assert replacement.voter_weight_data.voter_sets is matrix.voter_weight_data.voter_sets
+    assert replacement.candidates == ("A",)
+    assert matrix.candidates == ()
+    assert matrix.voter_weight_data.weights[0] == 0
+
+    restricted = RankMatrix(
+        voter_weight_data=matrix.voter_weight_data,
+        rankings=matrix.rankings,
+        cand_sets=matrix.cand_sets,
+        ranking_columns=matrix.ranking_columns,
+        candidates=("B",),
+    )
+
+    with pytest.raises(ProfileError, match="not a subset"):
+        restricted.with_weights(np.array([1.0]))
 
 
 @pytest.mark.parametrize("weights", [np.array([1.0, 2.0]), np.array([[1.0]])])

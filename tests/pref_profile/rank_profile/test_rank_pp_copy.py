@@ -10,7 +10,7 @@ from votekit.pref_profile import RankProfile
 
 @pytest.mark.parametrize("weight", [2.0, Fraction(2, 3)])
 @pytest.mark.parametrize("cleaned", [False, True])
-def test_copy_shares_storage_but_preserves_independent_profile_and_exports(
+def test_copy_shares_storage_but_preserves_independent_profile_and_dataframes(
     weight, cleaned, monkeypatch
 ):
     source_df = RankProfile(
@@ -23,19 +23,22 @@ def test_copy_shares_storage_but_preserves_independent_profile_and_exports(
     ).to_df()
     source_df.index = pd.Index([17, 17], name="Ballot Index")
     profile = RankProfile(df=source_df, candidates=("B", "unused", 1, "A"), max_ranking_length=3)
+
     if cleaned:
         profile = remove_and_condense_rank_profile("A", profile, remove_zero_weight_ballots=False)
+
     expected_df = profile.to_df()
     expected_ballots = profile.ballots
 
     def reject_round_trip(*args, **kwargs):
         raise AssertionError(
-            "Copy must not export or reconstruct a profile through its public constructor"
+            "Copy must not call to_df() or reconstruct a profile through its public constructor"
         )
 
     with monkeypatch.context() as patch:
         patch.setattr(RankProfile, "to_df", reject_round_trip)
         patch.setattr(RankProfile, "__init__", reject_round_trip)
+
         copied = profile.copy()
 
     assert type(copied) is RankProfile
@@ -53,8 +56,10 @@ def test_copy_shares_storage_but_preserves_independent_profile_and_exports(
     exported = copied.to_df()
     exported["Weight"] = 99.0
     exported["Ranking_1"] = pd.Series([frozenset({"unused"})] * len(exported), index=exported.index)
+
     pd.testing.assert_frame_equal(profile.to_df(), expected_df)
     pd.testing.assert_frame_equal(copied.to_df(), expected_df)
+
     with pytest.raises(AttributeError, match="Cannot modify frozen instance"):
         copied.candidates = ()
 

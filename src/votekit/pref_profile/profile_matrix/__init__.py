@@ -5,7 +5,9 @@ from .shared_data import EMPTY_VOTER_SET, WeightKind
 from .shared_data import ProfileVoterWeightData as ProfileVoterWeightData
 from .shared_data import _arrays_equal as _arrays_equal
 from .shared_data import _as_fraction as _as_fraction
-from .shared_data import _attach_ballot_columns as _attach_ballot_columns
+from .shared_data import (
+    _attach_index_voterset_and_weight_columns as _attach_index_voterset_and_weight_columns,
+)
 from .shared_data import _non_default_index as _non_default_index
 from .shared_data import _numeric_weights_to_float64 as _numeric_weights_to_float64
 from .shared_data import _standardize_weights as _standardize_weights
