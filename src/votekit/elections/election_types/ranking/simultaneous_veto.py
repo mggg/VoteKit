@@ -8,7 +8,9 @@ from typing import Literal, Optional, cast
 import numpy as np
 from typing_extensions import Sentinel
 
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.constants import TOL_EPSILON
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -133,7 +135,7 @@ class SimultaneousVeto(RankingElection):
         self.return_all_tied_winners = return_all_tied_winners
 
         grouped_profile = profile.group_ballots()
-        self._df = grouped_profile.df.copy()
+        self._df = grouped_profile.to_df()
         self.candidates = frozenset(grouped_profile.candidates_cast)
         self._eliminated: set[Candidate] = set("~")
 
@@ -143,7 +145,7 @@ class SimultaneousVeto(RankingElection):
         # unmentioned candidates are considered tied for last place
         assert grouped_profile.max_ranking_length is not None
         self._max_ranking_length: int = grouped_profile.max_ranking_length
-        self._ranking_cols = [f"Ranking_{i}" for i in range(1, self._max_ranking_length + 1)]
+        self._ranking_cols = list(grouped_profile._matrix.ranking_columns)
         self._unlisted_candidates_by_ballot = tuple(
             self.candidates - (frozenset.union(*ballot[self._ranking_cols]))
             for _, ballot in self._df.iterrows()
@@ -342,7 +344,7 @@ class SimultaneousVeto(RankingElection):
         """
         veto_matrix = np.zeros((n_candidates, n_ballots))
         for ballot_idx in np.arange(n_ballots, dtype=np.intp):
-            veto_weight = self._df["Weight"].iloc[ballot_idx]
+            veto_weight = self._df[WEIGHT_COLUMN].iloc[ballot_idx]
             vetoes = self._get_vetoes(ballot_idx)
             veto_indices = [self._candidate_to_idx[c] for c in vetoes]
             veto_weight /= len(veto_indices)
@@ -580,7 +582,7 @@ class SimultaneousVeto(RankingElection):
         delta = np.min(self._scores[mask] / self._veto_pressure[mask])
         self._scores -= delta * self._veto_pressure
         # handle floating point imprecision:
-        self._scores[np.abs(self._scores) < 1e-10] = 0
+        self._scores[np.abs(self._scores) <= TOL_EPSILON] = 0
 
         eliminated_candidate: Candidate | Sentinel | None = None
         if np.any(self._scores):

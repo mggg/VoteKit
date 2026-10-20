@@ -1,5 +1,4 @@
 from fractions import Fraction
-from typing import Any, cast
 
 import pytest
 
@@ -69,11 +68,12 @@ def test_ballot_coerce_wt_to_float():
     assert isinstance(ScoreBallot(weight=3.2).weight, float)
 
 
-def test_ballot_coerces_out_of_contract_fraction_weight_to_float():
-    ballot = ScoreBallot(weight=cast(Any, Fraction(1, 3)))
+def test_score_ballot_factory_preserves_fraction_weight():
+    ballot = Ballot(scores={"A": 1}, weight=Fraction(1, 3))
 
-    assert isinstance(ballot.weight, float)
-    assert ballot.weight == float(Fraction(1, 3))
+    assert isinstance(ballot, ScoreBallot)
+    assert isinstance(ballot.weight, Fraction)
+    assert ballot.weight == Fraction(1, 3)
 
 
 def test_ballot_strip_whitespace():

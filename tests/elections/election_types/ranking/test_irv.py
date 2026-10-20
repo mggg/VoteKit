@@ -202,8 +202,8 @@ def test_profiles():
     e = IRV(test_profile)
     for i in range(len(e.election_states)):
         if e.get_profile(i) != profile_list[i]:
-            print(e.get_profile(i).df.to_string())
-            print(profile_list[i].df.to_string())
+            print(e.get_profile(i).to_df().to_string())
+            print(profile_list[i].to_df().to_string())
             print()
     assert [e.get_profile(i) for i in range(len(e.election_states))] == profile_list
 

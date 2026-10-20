@@ -65,8 +65,8 @@ def test_state_list():
 def test_get_profile():
     e = Limited(profile_no_tied_limited, n_seats=3, budget=2)
     assert e.get_profile(0) == profile_no_tied_limited
-    print(e.get_profile(1).df.to_string())
-    print(profile_no_tied_limited_round_1.df.to_string())
+    print(e.get_profile(1).to_df().to_string())
+    print(profile_no_tied_limited_round_1.to_df().to_string())
     assert e.get_profile(1) == profile_no_tied_limited_round_1
 
 
@@ -156,7 +156,7 @@ def test_validate_profile():
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 1, "C": 1})])
         Limited(profile, n_seats=2, budget=2)
 
-    with pytest.raises(TypeError, match="must have non-negative scores."):
+    with pytest.raises(ValueError, match="Scores must be non-negative."):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
         Limited(profile, n_seats=1)
 

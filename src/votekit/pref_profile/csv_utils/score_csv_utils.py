@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from votekit._df_schema import VOTER_SET_COLUMN, WEIGHT_COLUMN
 from votekit.types import Candidate
 
 from ...ballot import ScoreBallot
@@ -273,7 +274,7 @@ def _validate_score_csv_ballot_header_row(
             )
         )
 
-    if "Weight" not in header_row:
+    if WEIGHT_COLUMN not in header_row:
         raise ValueError(
             (
                 f"csv file is improperly formatted. Row {COLUMN_NAMES_ROW} should include"
@@ -281,8 +282,8 @@ def _validate_score_csv_ballot_header_row(
             )
         )
 
-    if (include_voter_set and "Voter Set" not in header_row) or (
-        not include_voter_set and "Voter Set" in header_row
+    if (include_voter_set and VOTER_SET_COLUMN not in header_row) or (
+        not include_voter_set and VOTER_SET_COLUMN in header_row
     ):
         raise ValueError(
             (

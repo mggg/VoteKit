@@ -36,10 +36,10 @@ case.
     
     
     print("IC profile:")
-    print(ic_profile.df)
+    print(ic_profile.to_df())
     print()
     print("IAC profile:")
-    print(iac_profile.df)
+    print(iac_profile.to_df())
 
 
 .. parsed-literal::

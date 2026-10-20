@@ -23,6 +23,12 @@ import apportionment.methods as apportion
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
@@ -210,12 +216,12 @@ def _inner_name_bradley_terry(
             ballot_pool[j] = np.array(ranking)
 
         df = pd.DataFrame(ballot_pool)
-        df.index.name = "Ballot Index"
-        df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-        df["Weight"] = 1
+        df.index.name = BALLOT_INDEX_NAME
+        df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+        df[WEIGHT_COLUMN] = 1
         df.insert(
             len(df.columns),
-            "Voter Set",
+            VOTER_SET_COLUMN,
             pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
         )
         pp = RankProfile(
@@ -490,7 +496,7 @@ def name_bt_profile_generator(
         pp += profile
 
     if group_ballots:
-        pp.group_ballots()
+        pp = pp.group_ballots()
     return pp
 
 
@@ -542,7 +548,7 @@ def name_bt_profile_generator_using_mcmc(
         pp += profile
 
     if group_ballots:
-        pp.group_ballots()
+        pp = pp.group_ballots()
     return pp
 
 

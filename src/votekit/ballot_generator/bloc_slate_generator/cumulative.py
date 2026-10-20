@@ -17,6 +17,7 @@ from numpy.random import Generator
 
 from votekit.ballot import ScoreBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.constants import TOL_EPSILON
 from votekit.pref_profile import ScoreProfile
 
 # ===========================================================
@@ -68,7 +69,7 @@ def _inner_name_cumulative(
 
         # config.get_combined_preference_intervals_by_bloc() should ensure normalization
         p = np.array([pref.interval[c] for c in cands], dtype=float)
-        assert abs(p.sum() - 1.0) < 1e-10, "PreferenceInterval not normalized"
+        assert abs(p.sum() - 1.0) <= TOL_EPSILON, "PreferenceInterval not normalized"
 
         # Vectorized: one multinomial per ballot -> shape (num_ballots, n_cands)
         # Each row sums to n_voters and the entries are counts for each candidate

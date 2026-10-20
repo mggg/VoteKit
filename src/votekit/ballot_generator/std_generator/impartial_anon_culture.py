@@ -12,6 +12,7 @@ from collections import Counter
 from functools import lru_cache
 from typing import Optional, Sequence
 
+from votekit._df_schema import BALLOT_INDEX_NAME, RANKING_COLUMN_PREFIX
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
@@ -214,7 +215,11 @@ def iac_profile_generator(
         }
     )
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    unused_ranking_columns = [
+        f"{RANKING_COLUMN_PREFIX}{rank}" for rank in range(max_ballot_length + 1, num_cands + 1)
+    ]
+    pp_df = pp_df.drop(columns=unused_ranking_columns)
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=max_ballot_length,

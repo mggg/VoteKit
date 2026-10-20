@@ -5,6 +5,7 @@ from typing import Literal, Optional
 
 import numpy as np
 
+from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
@@ -93,15 +94,13 @@ class _IterativeVetoBase(RankingElection, ABC):
         self._pv_validate_input(grouped_profile)
         self._rng = random.Random(rng_seed)
 
-        self._df = grouped_profile.df.copy()
+        self._df = grouped_profile.to_df()
         assert grouped_profile.max_ranking_length is not None
-        self._ranking_cols = [
-            f"Ranking_{i}" for i in range(1, grouped_profile.max_ranking_length + 1)
-        ]
+        self._ranking_cols = list(grouped_profile._matrix.ranking_columns)
         self._rankings = self._df[self._ranking_cols].values
         # a ballot with weight w is a bin containing w voters
         # cumulative sum defines the boundaries of each bin, so we can index against it
-        self._cumsum = self._df["Weight"].cumsum().to_numpy()
+        self._cumsum = self._df[WEIGHT_COLUMN].cumsum().to_numpy()
 
         num_voters = int(grouped_profile.total_ballot_wt)
         self._voter_order = self._rng.sample(range(num_voters), num_voters)

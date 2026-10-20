@@ -6,6 +6,12 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.pref_profile import RankProfile
 
 
@@ -184,34 +190,36 @@ def __format_df(
 
     """
     mutated_df = mutated_df.copy()
-    renamed_columns = {r_col: f"Ranking_{i + 1}" for i, r_col in enumerate(rank_cols)}
+    renamed_columns = {
+        r_col: f"{RANKING_COLUMN_PREFIX}{i + 1}" for i, r_col in enumerate(rank_cols)
+    }
 
     if weight_col is not None:
-        renamed_columns.update({weight_col: "Weight"})
+        renamed_columns.update({weight_col: WEIGHT_COLUMN})
     else:
-        mutated_df["Weight"] = 1
+        mutated_df[WEIGHT_COLUMN] = 1
 
     if id_col is not None:
-        renamed_columns.update({id_col: "Voter Set"})
+        renamed_columns.update({id_col: VOTER_SET_COLUMN})
     else:
         mutated_df.insert(
             len(mutated_df.columns),
-            "Voter Set",
+            VOTER_SET_COLUMN,
             pd.Series(
                 [set() for _ in range(len(mutated_df))], dtype=object, index=mutated_df.index
             ),
         )
 
     mutated_df.rename(columns=renamed_columns, inplace=True)
-    mutated_df.index.name = "Ballot Index"
+    mutated_df.index.name = BALLOT_INDEX_NAME
 
-    str_rank_cols = [c for c in mutated_df.columns if str(c).startswith("Ranking_")]
-    mutated_df = mutated_df[str_rank_cols + ["Voter Set", "Weight"]]
+    str_rank_cols = [c for c in mutated_df.columns if str(c).startswith(RANKING_COLUMN_PREFIX)]
+    mutated_df = mutated_df[str_rank_cols + [VOTER_SET_COLUMN, WEIGHT_COLUMN]]
     mutated_df = __format_ranking_cols(mutated_df, str_rank_cols)
 
-    mutated_df["Weight"] = mutated_df["Weight"].astype(float)
+    mutated_df[WEIGHT_COLUMN] = mutated_df[WEIGHT_COLUMN].astype(float)
 
-    mutated_df["Voter Set"] = mutated_df["Voter Set"].map(
+    mutated_df[VOTER_SET_COLUMN] = mutated_df[VOTER_SET_COLUMN].map(
         lambda x: {x} if not isinstance(x, set) else x
     )
     return mutated_df, str_rank_cols

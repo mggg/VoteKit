@@ -648,9 +648,9 @@ which ballots were altered along the way.
         """
         adj_idxs = set().union(*[p.nonempty_altr_idxs for p in find_all_parents(profile)[:-1]])
     
-        adj_and_tab_idxs = list(adj_idxs.intersection(profile.df.index))
+        adj_and_tab_idxs = list(adj_idxs.intersection(profile.to_df().index))
     
-        return sum(profile.df.loc[adj_and_tab_idxs, "Weight"])
+        return sum(profile.to_df().loc[adj_and_tab_idxs, "Weight"])
     
     
     num_adj_and_tabulated = adjusted_and_tabulated(cleaned_profile_3)

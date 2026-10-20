@@ -1,6 +1,9 @@
+from fractions import Fraction
+
+import numpy as np
 import pytest
 
-from votekit.ballot import Ballot
+from votekit.ballot import Ballot, RankBallot, ScoreBallot
 
 
 def test_ballot_init():
@@ -79,3 +82,55 @@ def test_ballot_negative_weight():
 def test_rank_and_score():
     with pytest.raises(TypeError, match="Only one of ranking or scores can be provided."):
         Ballot(ranking=[{"A"}], scores={"A": 1})
+
+
+def test_ballot_rejects_bool_and_non_real_weight():
+    with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
+        Ballot(weight=True)
+
+    with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
+        Ballot(weight="2")  # type: ignore[arg-type]
+
+
+def test_ballot_rejects_nan_and_infinite_weight():
+    with pytest.raises(ValueError, match="cannot be NaN or infinity"):
+        Ballot(weight=float("nan"))
+
+    with pytest.raises(ValueError, match="cannot be NaN or infinity"):
+        Ballot(weight=float("inf"))
+
+
+def test_ballot_accepts_large_rational_weight():
+    big = Fraction(10**400)
+
+    assert RankBallot(ranking=["A"], weight=big).weight == big
+
+
+@pytest.mark.parametrize("ballot_type", [Ballot, RankBallot, ScoreBallot])
+@pytest.mark.parametrize("weight", [Fraction(1, 3), Fraction(10**400)])
+def test_all_ballot_types_preserve_fraction_weights(ballot_type, weight):
+    ballot = ballot_type(weight=weight)
+
+    assert isinstance(ballot.weight, Fraction)
+    assert ballot.weight == weight
+
+
+@pytest.mark.parametrize("ballot_type", [Ballot, RankBallot, ScoreBallot])
+@pytest.mark.parametrize("weight", [2**53 + 1, np.int64(2**53 + 1), np.uint64(2**64 - 1), 10**400])
+def test_ballot_rejects_lossy_integer_weight_conversion(ballot_type, weight):
+    with pytest.raises(ValueError, match="represented exactly as float64"):
+        ballot_type(weight=weight)
+
+
+@pytest.mark.parametrize("ballot_type", [Ballot, RankBallot, ScoreBallot])
+@pytest.mark.parametrize("weight_type", [np.float16, np.float32, np.longdouble])
+def test_ballot_rejects_unsupported_floating_weight_types(ballot_type, weight_type):
+    with pytest.raises(TypeError, match="Python float or NumPy float64"):
+        ballot_type(weight=weight_type(1.5))
+
+
+@pytest.mark.parametrize("ballot_type", [Ballot, RankBallot, ScoreBallot])
+def test_ballot_accepts_explicitly_rounded_weight(ballot_type):
+    ballot = ballot_type(weight=float(2**53 + 1))
+
+    assert ballot.weight == float(2**53)

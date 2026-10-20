@@ -10,6 +10,7 @@ import random
 from collections import Counter
 from typing import Optional, Sequence
 
+from votekit._df_schema import BALLOT_INDEX_NAME
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -67,7 +68,7 @@ def _generate_profile_optimized_non_short(
     ]
     ballots_as_counter = Counter(ballots_as_ind)
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=len(candidates),
@@ -119,7 +120,7 @@ def _generate_profile_optimized_with_short(
     # Instantiate the preference profile using a dataframe
     ballots_as_counter = Counter(ballots_as_cand_ind)
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=len(candidates),

@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from abc import abstractmethod
 from typing import Callable, Optional
+
+import numpy as np
 
 from votekit.elections.election_state import ElectionState
 from votekit.models import Election
@@ -60,7 +64,7 @@ class RankingElection(Election[RankProfile]):
 
     def _validate_profile(self, profile: RankProfile):
         """
-        Validates that a profile contains appropriate ballots for the election.
+        Validate that the profile is nonempty and each ballot ranks at least one candidate.
 
         Args:
             profile (RankProfile): Profile of ballots.
@@ -68,25 +72,18 @@ class RankingElection(Election[RankProfile]):
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
 
-        if profile.df.empty:
+        matrix = profile._matrix
+        if not len(matrix):
             raise ProfileError("Profile must contain at least one ballot.")
 
-        if profile.max_ranking_length is None or profile.max_ranking_length < 1:
+        if profile.max_ranking_length < 1:
             raise ProfileError("Profile must contain at least one ranked candidate.")
 
-        assert profile.max_ranking_length is not None
-        ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-        try:
-            np_arr = profile.df[ranking_cols].to_numpy()
-            tilde = frozenset("~")
-            for row in np_arr:
-                if (row == tilde).all():
-                    # TODO: Put a better error message here
-                    raise RuntimeError
-        except (KeyError, RuntimeError):
-            for ballot in profile.ballots:
-                if ballot.ranking is None:
-                    raise TypeError(f"Ballot {ballot} has no ranking.")
+        unranked_rows = np.flatnonzero(~matrix.has_ranked_candidates())
+        if unranked_rows.size:
+            row = int(unranked_rows[0])
+            ballot = profile.get_ballot(row)
+            raise TypeError(f"Ballot {ballot} has no ranking.")
 
     @abstractmethod
     def _run_step(

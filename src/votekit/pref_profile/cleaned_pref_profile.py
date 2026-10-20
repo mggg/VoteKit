@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from dataclasses import replace
 
 import pandas as pd
 
@@ -15,6 +16,8 @@ class CleanedRankProfile(RankProfile):
     that track the indices of the ballot dataframe, and how they are changed by different cleaning
     rules. It also retains the parent profile of the CleanedRankProfile, allowing for full recovery
     of the cleaning steps.
+
+    Construction copies the index-label list and provenance sets supplied by the caller.
 
     A ballot is considered altered by a cleaning function when its ranking or weight are not
     equivalent to their values prior to cleaning. A ballot is considered empty when its ranking
@@ -52,11 +55,11 @@ class CleanedRankProfile(RankProfile):
             before cleaning, so you need to recurse to get the original, uncleaned profile.
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
         no_wt_altr_idxs (set[int], optional): The indices of ballots whose positive weight is set
-            to zero as a result of cleaning. Indices are with respect to ``parent_profile.df``.
+            to zero as a result of cleaning. Indices are with respect to ``parent_profile.to_df()``.
         no_rank_altr_idxs (set[int], optional): Indices of ballots whose rankings consist of only
             ``frozenset()`` (empty set), ``frozenset({'~'})`` (special character tilde), or mix of
             both after cleaning, and is not a member of the ``unaltr_idxs`` (ballots identical
-            before and after cleaning). Indices are with respect to ``parent_profile.df``.
+            before and after cleaning). Indices are with respect to ``parent_profile.to_df()``.
         nonempty_altr_idxs (set[int], optional):  Indices of ballots that are not a member of
             ``unaltr_idxs`` (ballots identical before and after cleaning) and their ranking contains
             at least one ranking position with ``frozenset(<SET_OF_CANDS>``) where ``<SET_OF_CAND>``
@@ -64,14 +67,13 @@ class CleanedRankProfile(RankProfile):
         unaltr_idxs (set[int], optional):  Set of indices of ballots that are identical before and
             after cleaning. Includes dropped ballots whose ranking and weight are unaltered by
             cleaning but their index is removed from the cleaned profile. Indices are with respect
-            to ``parent_profile.df``.
+            to ``parent_profile.to_df()``.
 
 
     """
 
     def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls)
-        return instance
+        return super().__new__(cls, **kwargs)
 
     def __init__(
         self,
@@ -84,15 +86,15 @@ class CleanedRankProfile(RankProfile):
         **kwargs,
     ):
         self.parent_profile = parent_profile
-        self.df_index_column = df_index_column
-        self.no_wt_altr_idxs = no_wt_altr_idxs
-        self.no_rank_altr_idxs = no_rank_altr_idxs
-        self.nonempty_altr_idxs = nonempty_altr_idxs
-        self.unaltr_idxs = unaltr_idxs
+        self.df_index_column = df_index_column.copy()
+        self.no_wt_altr_idxs = no_wt_altr_idxs.copy()
+        self.no_rank_altr_idxs = no_rank_altr_idxs.copy()
+        self.nonempty_altr_idxs = nonempty_altr_idxs.copy()
+        self.unaltr_idxs = unaltr_idxs.copy()
 
         self._indices_must_match_parent_df()
         super().__init__(**kwargs)
-        self._reindex_ballot_df()
+        self._reindex_matrix()
 
     def _indices_must_match_parent_df(self) -> None:
         """
@@ -103,6 +105,12 @@ class CleanedRankProfile(RankProfile):
             ValueError: union of indices is not equal to the parent df index.
 
         """
+        parent_data = self.parent_profile._matrix.voter_weight_data
+        parent_index = (
+            parent_data.ballot_index
+            if parent_data.ballot_index is not None
+            else range(len(parent_data))
+        )
         index_sets = [
             self.no_wt_altr_idxs,
             self.no_rank_altr_idxs,
@@ -110,8 +118,8 @@ class CleanedRankProfile(RankProfile):
             self.unaltr_idxs,
         ]
 
-        if not self.no_wt_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.no_wt_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.no_wt_altr_idxs.issubset(parent_index):
+            set_minus = self.no_wt_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "no_wt_altr_idxs is not a subset of the"
@@ -120,8 +128,8 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-        if not self.no_rank_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.no_rank_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.no_rank_altr_idxs.issubset(parent_index):
+            set_minus = self.no_rank_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "no_rank_altr_idxs is not a subset of the"
@@ -131,8 +139,8 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-        if not self.nonempty_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.nonempty_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.nonempty_altr_idxs.issubset(parent_index):
+            set_minus = self.nonempty_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "nonempty_altr_idxs is not a subset of the"
@@ -142,8 +150,8 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-        if not self.unaltr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.unaltr_idxs.difference(self.parent_profile.df.index)
+        if not self.unaltr_idxs.issubset(parent_index):
+            set_minus = self.unaltr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "unaltr_idxs is not a subset of the"
@@ -153,8 +161,8 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-        if set().union(*index_sets) != set(self.parent_profile.df.index):
-            sym_dif = set().union(*index_sets).symmetric_difference(self.parent_profile.df.index)
+        if set().union(*index_sets) != set(parent_index):
+            sym_dif = set().union(*index_sets).symmetric_difference(parent_index)
             raise ValueError(
                 (
                     "Union of ballot indices must equal the parent profile df index "
@@ -162,21 +170,22 @@ class CleanedRankProfile(RankProfile):
                 )
             )
 
-    def _reindex_ballot_df(self) -> None:
+    def _reindex_matrix(self) -> None:
         """
-        Reindex the df to keep track of which ballots are which.
+        Store retained parent ballot indices in the authoritative matrix.
 
         Raises:
             ValueError: If df_index_column does not have the same length as the ballot list.
 
         """
-        if len(self.df) != len(self.df_index_column):
+        if len(self._matrix) != len(self.df_index_column):
             raise ValueError("df_index_column does not have the same length as the ballot list.")
 
-        df_copy = self.df.copy()
-        df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = "Ballot Index"
-        object.__setattr__(self, "df", df_copy)
+        data = replace(
+            self._matrix.voter_weight_data, ballot_index=pd.Index(self.df_index_column).to_numpy()
+        )
+        matrix = replace(self._matrix, voter_weight_data=data)
+        object.__setattr__(self, "_matrix", matrix)
 
     def group_ballots(self) -> RankProfile:
         warnings.warn(
@@ -202,6 +211,8 @@ class CleanedScoreProfile(ScoreProfile):
     rules. It also retains the parent profile of the CleanedScoreProfile, allowing for full recovery
     of the cleaning steps.
 
+    Construction copies the index-label list and provenance sets supplied by the caller.
+
     Args:
         ballots (tuple[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
         candidates (tuple[Candidate], optional): Tuple of candidates. Defaults to empty tuple.
@@ -213,22 +224,21 @@ class CleanedScoreProfile(ScoreProfile):
         df_index_column (list[int]): The indices of the ballots in the df from the parent profile.
         no_wt_altr_idxs (set[int], optional): Set of indices of ballots that have
             0 weight as a result of cleaning. Indices are with respect
-            to ``parent_profile.df``.
+            to ``parent_profile.to_df()``.
         no_scores_altr_idxs (set[int], optional): Set of indices of
             ballots that have no scores as a result of cleaning. Indices are with
-            respect to ``parent_profile.df``.
+            respect to ``parent_profile.to_df()``.
         nonempty_altr_idxs (set[int], optional):  Set of indices of ballots that
             have been altered but still have weight and (ranking or score) as a result of cleaning.
-            Indices are with respect to ``parent_profile.df``.
+            Indices are with respect to ``parent_profile.to_df()``.
         unaltr_idxs (set[int], optional):  Set of indices of ballots that have
-            been unaltered by cleaning. Indices are with respect to ``parent_profile.df``.
+            been unaltered by cleaning. Indices are with respect to ``parent_profile.to_df()``.
 
 
     """
 
     def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls)
-        return instance
+        return super().__new__(cls, **kwargs)
 
     def __init__(
         self,
@@ -241,15 +251,15 @@ class CleanedScoreProfile(ScoreProfile):
         **kwargs,
     ):
         self.parent_profile = parent_profile
-        self.df_index_column = df_index_column
-        self.no_wt_altr_idxs = no_wt_altr_idxs
-        self.no_scores_altr_idxs = no_scores_altr_idxs
-        self.nonempty_altr_idxs = nonempty_altr_idxs
-        self.unaltr_idxs = unaltr_idxs
+        self.df_index_column = df_index_column.copy()
+        self.no_wt_altr_idxs = no_wt_altr_idxs.copy()
+        self.no_scores_altr_idxs = no_scores_altr_idxs.copy()
+        self.nonempty_altr_idxs = nonempty_altr_idxs.copy()
+        self.unaltr_idxs = unaltr_idxs.copy()
 
         self._indices_must_match_parent_df()
         super().__init__(**kwargs)
-        self._reindex_ballot_df()
+        self._reindex_matrix()
 
     def _indices_must_match_parent_df(self) -> None:
         """
@@ -260,6 +270,12 @@ class CleanedScoreProfile(ScoreProfile):
             ValueError: union of indices is not equal to the parent df index.
 
         """
+        parent_data = self.parent_profile._matrix.voter_weight_data
+        parent_index = (
+            parent_data.ballot_index
+            if parent_data.ballot_index is not None
+            else range(len(parent_data))
+        )
         index_sets = [
             self.no_wt_altr_idxs,
             self.no_scores_altr_idxs,
@@ -267,8 +283,8 @@ class CleanedScoreProfile(ScoreProfile):
             self.unaltr_idxs,
         ]
 
-        if not self.no_wt_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.no_wt_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.no_wt_altr_idxs.issubset(parent_index):
+            set_minus = self.no_wt_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "no_wt_altr_idxs is not a subset of the"
@@ -277,8 +293,8 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-        if not self.no_scores_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.no_scores_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.no_scores_altr_idxs.issubset(parent_index):
+            set_minus = self.no_scores_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "no_scores_altr_idxs is not a subset of the"
@@ -288,8 +304,8 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-        if not self.nonempty_altr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.nonempty_altr_idxs.difference(self.parent_profile.df.index)
+        if not self.nonempty_altr_idxs.issubset(parent_index):
+            set_minus = self.nonempty_altr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "nonempty_altr_idxs is not a subset of the"
@@ -299,8 +315,8 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-        if not self.unaltr_idxs.issubset(self.parent_profile.df.index):
-            set_minus = self.unaltr_idxs.difference(self.parent_profile.df.index)
+        if not self.unaltr_idxs.issubset(parent_index):
+            set_minus = self.unaltr_idxs.difference(parent_index)
             raise ValueError(
                 (
                     "unaltr_idxs is not a subset of the"
@@ -310,8 +326,8 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-        if set().union(*index_sets) != set(self.parent_profile.df.index):
-            sym_dif = set().union(*index_sets).symmetric_difference(self.parent_profile.df.index)
+        if set().union(*index_sets) != set(parent_index):
+            sym_dif = set().union(*index_sets).symmetric_difference(parent_index)
             raise ValueError(
                 (
                     "Union of ballot indices must equal the parent profile df index "
@@ -319,21 +335,22 @@ class CleanedScoreProfile(ScoreProfile):
                 )
             )
 
-    def _reindex_ballot_df(self) -> None:
+    def _reindex_matrix(self) -> None:
         """
-        Reindex the df to keep track of which ballots are which.
+        Store retained parent ballot indices in the authoritative matrix.
 
         Raises:
             ValueError: If df_index_column does not have the same length as the ballot list.
 
         """
-        if len(self.df) != len(self.df_index_column):
+        if len(self._matrix) != len(self.df_index_column):
             raise ValueError("df_index_column does not have the same length as the ballot list.")
 
-        df_copy = self.df.copy()
-        df_copy.index = pd.Index(self.df_index_column)
-        df_copy.index.name = "Ballot Index"
-        object.__setattr__(self, "df", df_copy)
+        data = replace(
+            self._matrix.voter_weight_data, ballot_index=pd.Index(self.df_index_column).to_numpy()
+        )
+        matrix = replace(self._matrix, voter_weight_data=data)
+        object.__setattr__(self, "_matrix", matrix)
 
     def group_ballots(self) -> ScoreProfile:
         warnings.warn(

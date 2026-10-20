@@ -81,7 +81,7 @@ all to ranked, you could do so as follows.
     ranked_profile = PreferenceProfile(ballots=ranked_ballots)
     
     
-    print("Ranked profile\n", ranked_profile.df)
+    print("Ranked profile\n", ranked_profile.to_df())
 
 
 .. parsed-literal::
@@ -339,7 +339,7 @@ known as “plumping”).
     profile = bg.name_cumulative_profile_generator(config, total_points=m)
     
     # profile = cumu.generate_profile(number_of_ballots=100)
-    print(profile.df)
+    print(profile.to_df())
 
 
 .. parsed-literal::

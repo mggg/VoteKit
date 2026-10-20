@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import random
 from typing import Optional
 
-from votekit.ballot import ScoreBallot
+import numpy as np
+
 from votekit.cleaning import remove_cand_score_profile
+from votekit.constants import TOL_EPSILON
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.exceptions import ProfileError
@@ -25,8 +29,10 @@ class GeneralRating(Election[ScoreProfile]):
         profile (ScoreProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
+            Scores may exceed the limit by at most TOL_EPSILON (1e-10).
         budget (float, optional): Budget per ballot limit. Defaults to None, in which
-            case voters can score each candidate independently.
+            case voters can score each candidate independently. Totals may exceed the budget
+            by at most TOL_EPSILON (1e-10) to allow for floating-point rounding.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
         rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
@@ -66,9 +72,9 @@ class GeneralRating(Election[ScoreProfile]):
         if per_candidate_limit <= 0:
             raise ValueError("per_candidate_limit must be positive.")
         self.per_candidate_limit = per_candidate_limit
-        if budget and budget <= 0:
+        if budget is not None and budget <= 0:
             raise ValueError("budget must be positive.")
-        if budget and per_candidate_limit > budget:
+        if budget is not None and per_candidate_limit > budget + TOL_EPSILON:
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
@@ -103,29 +109,36 @@ class GeneralRating(Election[ScoreProfile]):
 
         Raises:
             ProfileError: If profile is not a ScoreProfile or is empty.
-            TypeError: If a ballot has no scores, negative scores, or violates limits.
+            TypeError: If a ballot has no scores or violates the score limit or budget.
         """
         if not isinstance(profile, ScoreProfile):
             raise ProfileError("Profile must be of type ScoreProfile.")
 
-        if profile.df.empty:
+        matrix = profile._matrix
+        if not len(matrix):
             raise ProfileError("Profile must contain at least one ballot.")
 
-        for b in profile.ballots:
-            if not isinstance(b, ScoreBallot):
-                raise TypeError(f"Ballot {b} must be of type ScoreBallot")
-            elif b.scores is None:
-                raise TypeError("All ballots must have score dictionary.")
-            elif any(score > self.per_candidate_limit for score in b.scores.values()):
-                raise TypeError(
-                    f"Ballot {b} violates score limit {self.per_candidate_limit} per candidate."
-                )
-            elif any(score < 0 for score in b.scores.values()):
-                raise TypeError(f"Ballot {b} must have non-negative scores.")
+        _, maximum = matrix.score_bounds_by_ballot()
+        missing_scores = np.isnan(maximum)
+        above_limit = maximum > self.per_candidate_limit + TOL_EPSILON
+        above_budget = np.zeros(len(matrix), dtype=bool)
+        if self.budget is not None:
+            above_budget = matrix.sum_scores_by_ballot() > self.budget + TOL_EPSILON
 
-            if self.budget:
-                if sum(b.scores.values()) > self.budget:
-                    raise TypeError(f"Ballot {b} violates total score budget {self.budget}.")
+        invalid_rows = np.flatnonzero(missing_scores | above_limit | above_budget)
+        if not invalid_rows.size:
+            return
+
+        row = int(invalid_rows[0])
+        if missing_scores[row]:
+            raise TypeError("All ballots must have score dictionary.")
+
+        ballot = profile.get_ballot(row)
+        if above_limit[row]:
+            raise TypeError(
+                f"Ballot {ballot} violates score limit {self.per_candidate_limit} per candidate."
+            )
+        raise TypeError(f"Ballot {ballot} violates total score budget {self.budget}.")
 
     def _is_finished(self):
         # single round election
@@ -192,6 +205,7 @@ class Rating(GeneralRating):
         profile (ScoreProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
+            Scores may exceed the limit by at most TOL_EPSILON (1e-10).
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
         rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same

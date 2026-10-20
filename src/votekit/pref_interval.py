@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import math
 from types import MappingProxyType
 from typing import Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
 
+from votekit.constants import TOL_EPSILON
 from votekit.types import Candidate
 
 
@@ -31,7 +33,7 @@ def combine_preference_intervals(
 
     Raises:
         ValueError: If the intervals have disjoint candidate sets.
-        ValueError: If the proportions do not sum to 1.
+        ValueError: If the proportions do not sum to 1 within TOL_EPSILON.
     """
     if not (
         len(frozenset.union(*[pi.candidates for pi in intervals]))
@@ -39,7 +41,7 @@ def combine_preference_intervals(
     ):
         raise ValueError("Intervals must have disjoint candidate sets")
 
-    if round(sum(proportions), 8) != 1:
+    if not math.isclose(sum(proportions), 1.0, rel_tol=0.0, abs_tol=TOL_EPSILON):
         raise ValueError("Proportions must sum to 1.")
 
     return PreferenceInterval(
@@ -176,6 +178,9 @@ class PreferenceInterval:
         self.interval = MappingProxyType({c: s / summ for c, s in self.interval.items()})
 
     def __eq__(self, other):
+        """
+        Compare normalized candidate supports using the absolute tolerance TOL_EPSILON.
+        """
         if not isinstance(other, PreferenceInterval):
             return False
 
@@ -183,9 +188,8 @@ class PreferenceInterval:
             return False
 
         else:
-            # Round to 8 decimal places to avoid floating point issues
             return all(
-                round(other.interval[key], 8) == round(value, 8)
+                math.isclose(other.interval[key], value, rel_tol=0.0, abs_tol=TOL_EPSILON)
                 for key, value in self.interval.items()
             )
 

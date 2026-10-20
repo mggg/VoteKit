@@ -87,8 +87,8 @@ def test_get_profile():
     e = Alaska(test_profile, m_1=3, m_2=2)
     for i in range(len(e.election_states)):
         if i == 2:
-            print(e.get_profile(2).df.to_string())
-            print(profiles[2].df.to_string())
+            print(e.get_profile(2).to_df().to_string())
+            print(profiles[2].to_df().to_string())
         assert e.get_profile(i) == profiles[i]
         print(i)
     # assert [e.get_profile(i) for i in range(len(e.election_states))] == profiles

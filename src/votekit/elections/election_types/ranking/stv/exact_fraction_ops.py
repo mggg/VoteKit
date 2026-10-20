@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from fractions import Fraction
 from numbers import Integral, Real
 from typing import Any, Callable, cast
 
+import numpy as np
+
 from votekit.pref_profile import RankProfile
+from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, END_OF_RANKING_ID
 from votekit.types import Candidate, Numeric
 
 
@@ -67,20 +72,20 @@ def convert_profile_weights(
     Returns:
         RankProfile: Profile with converted weights and unchanged rankings and candidates.
     """
-    converted_df = profile.df.copy()
-    converted_df["Weight"] = converted_df["Weight"].map(converter)
-    converted_profile = RankProfile(
-        df=converted_df,
-        candidates=profile.candidates,
-        max_ranking_length=profile.max_ranking_length,
-    )
-    assert isinstance(converted_profile, RankProfile)
-    return converted_profile
+    weights = profile._matrix.voter_weight_data.weights
+    converted_weights = np.empty(len(weights), dtype=object)
+
+    for idx, weight in enumerate(weights):
+        converted_weights[idx] = converter(weight)
+
+    return profile._with_weights(converted_weights)
 
 
 def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     Compute exact first-place totals for an exact STV profile.
+
+    Empty and tilde first positions contribute no votes, matching the float STV scorer.
 
     Warning:
         The profile must already have passed STV validation. Tied ranking positions are not
@@ -93,13 +98,15 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
         dict[Candidate, Fraction]: First-place total for every candidate, including zero totals.
     """
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
-    if profile._df.empty:
+    if profile._matrix.rankings.size == 0:
         return scores
 
-    for candidate_id, weight in zip(profile._df["Ranking_1"], profile._df["Weight"]):
-        if candidate_id == -1:
+    for candidate_set_id, weight in zip(
+        profile._matrix.rankings[:, 0], profile._matrix.voter_weight_data.weights
+    ):
+        if candidate_set_id in (EMPTY_SET_ID, END_OF_RANKING_ID):
             continue
-        candidate_set = profile.id_candidate_map[candidate_id]
+        candidate_set = profile._matrix.get_cand_set_from_id(candidate_set_id)
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
@@ -120,22 +127,32 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
 
     Returns:
         dict[Candidate, Fraction]: Exact Borda score for every candidate.
+
+    Raises:
+        ValueError: A ballot has an empty ranking position, including on zero-weight ballots.
     """
+    if (profile._matrix.rankings == EMPTY_SET_ID).any():
+        raise ValueError("Cannot compute Borda scores for a ballot with an empty ranking position.")
+
     scores = {candidate: Fraction(0) for candidate in profile.candidates_cast}
-    assert profile.max_ranking_length is not None
-    ranking_columns = [f"Ranking_{rank}" for rank in range(1, profile.max_ranking_length + 1)]
-    candidates_by_id = {}
-    for candidate_id, candidate_set in profile.id_candidate_map.items():
-        if candidate_id == -1:
+    if profile._matrix.rankings.size == 0:
+        return scores
+
+    candidates_by_set_id = {}
+    for candidate_set_id, candidate_set in profile._matrix.iter_candidate_sets():
+        if candidate_set_id in (EMPTY_SET_ID, END_OF_RANKING_ID):
             continue
         assert len(candidate_set) == 1
-        candidates_by_id[candidate_id] = next(iter(candidate_set))
+        candidates_by_set_id[candidate_set_id] = next(iter(candidate_set))
 
-    ranking_rows = profile._df[ranking_columns].itertuples(index=False, name=None)
-    for candidate_ids, weight in zip(ranking_rows, profile._df["Weight"]):
+    for candidate_set_ids, weight in zip(
+        profile._matrix.rankings, profile._matrix.voter_weight_data.weights
+    ):
         assert isinstance(weight, Fraction)
-        for rank, candidate_id in enumerate(candidate_ids):
-            if candidate_id == -1:
+        for rank, candidate_set_id in enumerate(candidate_set_ids):
+            if candidate_set_id == END_OF_RANKING_ID:
                 break
-            scores[candidates_by_id[candidate_id]] += weight * (profile.max_ranking_length - rank)
+            scores[candidates_by_set_id[candidate_set_id]] += weight * (
+                profile.max_ranking_length - rank
+            )
     return scores

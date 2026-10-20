@@ -9,6 +9,12 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -153,7 +159,7 @@ class NumpySTVBase(ABC):
         Returns:
             tuple[NDArray, NDArray]: The ballot matrix and weights vector.
         """
-        df = pf.df.copy()
+        df = pf.to_df()
         candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
         candidate_to_index[frozenset(["~"])] = int(
             NumpySTVSentinel.BLANK_RANKING.value
@@ -188,7 +194,7 @@ class NumpySTVBase(ABC):
         )
         ballot_matrix[:, :num_cols] = mapped
 
-        wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
+        wt_vec: NDArray = df[WEIGHT_COLUMN].astype(np.float64).to_numpy()
 
         return ballot_matrix, wt_vec
 
@@ -519,18 +525,20 @@ class NumpySTVBase(ABC):
         obj = lut[out.astype(np.int16, copy=False) + 128]  # dtype=object, frozensets
 
         # --- 5) to DataFrame with Ranking_i columns ---
-        data = {f"Ranking_{i + 1}": obj[:, i] for i in range(n_cols)}
+        data = {f"{RANKING_COLUMN_PREFIX}{i + 1}": obj[:, i] for i in range(n_cols)}
         df = pd.DataFrame(data)
 
         # --- 6) Ballot Index column & set as index ---
-        df.insert(0, "Ballot Index", np.arange(n_rows, dtype=int))
-        df.set_index("Ballot Index", inplace=True)
+        df.insert(0, BALLOT_INDEX_NAME, np.arange(n_rows, dtype=int))
+        df.set_index(BALLOT_INDEX_NAME, inplace=True)
 
         # --- 7) Voter Set: empty set per row (distinct objects) ---
-        df["Voter Set"] = pd.Series([set() for _ in range(n_rows)], dtype=object, index=df.index)
+        df[VOTER_SET_COLUMN] = pd.Series(
+            [set() for _ in range(n_rows)], dtype=object, index=df.index
+        )
 
         # --- 8) Weight column ---
-        df["Weight"] = wt_vec.astype(np.float64, copy=False)
+        df[WEIGHT_COLUMN] = wt_vec.astype(np.float64, copy=False)
 
         return RankProfile(
             max_ranking_length=self.profile.max_ranking_length,

@@ -235,8 +235,8 @@ abstract base class in `src/votekit/models.py`.
 
 ### Profile types
 
-`RankProfile`, `ScoreProfile`, and `PreferenceProfile` are all defined in
-`src/votekit/pref_profile/pref_profile.py`.
+`RankProfile`, `ScoreProfile`, and `PreferenceProfile` are defined in separate modules under
+`src/votekit/pref_profile/pref_profile/` and exported from `votekit.pref_profile`.
 
 - Use `RankProfile` when your election requires ranked ballots. `RankingElection._validate_profile`
   enforces this automatically.

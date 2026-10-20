@@ -14,7 +14,7 @@ profile = ScoreProfile(
     ),
     candidates=("A", "B", "C", "D", "E"),
 )
-df = profile.df
+df = profile.to_df()
 
 
 def test_from_df():
@@ -36,8 +36,7 @@ def test_from_df_init_errors():
 
     with pytest.raises(
         ProfileError,
-        match="Profile cannot contain RankBallots and ScoreBallots. "
-        "There are 1 ScoreBallots and 1 RankBallots.",
+        match="ScoreProfile requires ScoreBallots; ballot at index 0 is RankBallot.",
     ):
         ScoreProfile(ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1})))
 
@@ -75,3 +74,63 @@ def test_from_df_validation_errors():
             df=df,
             candidates=["A", "B", "C"],
         )
+
+
+@pytest.mark.parametrize("declared_candidates", [(" A ", " unused "), ("A", "unused")])
+def test_from_df_normalizes_candidate_identities_without_mutating_input(declared_candidates):
+    source = (
+        ScoreProfile(
+            ballots=[ScoreBallot(scores={"A": 2}), ScoreBallot(scores={"B": 3}, weight=0)],
+        )
+        .to_df()
+        .copy()
+    )
+    source["unused"] = float("nan")
+    source = source.rename(columns={"A": " A ", "B": " B ", "unused": " unused "})
+    original = source.copy(deep=True)
+
+    result = ScoreProfile(df=source, candidates=declared_candidates)
+
+    assert result.candidates == result._matrix.candidates == ("A", "unused")
+    assert result.candidates_cast == ("A",)
+    assert result._matrix.score_columns == ("A", "B", "unused")
+    assert result.ballots[0].scores == {"A": 2}
+    assert result.to_df()["B"].tolist()[1] == 3
+    pd.testing.assert_frame_equal(source, original)
+
+
+@pytest.mark.parametrize("second_column", ["A", " A "])
+def test_from_df_rejects_colliding_score_column_names(second_column):
+    source = pd.DataFrame(
+        [[1.0, 2.0, frozenset(), 1.0]], columns=["A", second_column, "Voter Set", "Weight"]
+    )
+    source.index.name = "Ballot Index"
+
+    with pytest.raises(ProfileError, match="same identity after stripping whitespace"):
+        ScoreProfile(df=source, candidates=["A"])
+
+
+@pytest.mark.parametrize("column", [" Weight ", " Voter Set "])
+def test_from_df_rejects_score_columns_normalizing_to_shared_names(column):
+    source = (
+        ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})]).to_df().rename(columns={"A": column})
+    )
+
+    with pytest.raises(ProfileError, match="reserved dataframe column names"):
+        ScoreProfile(df=source, candidates=[column])
+
+
+def test_from_df_normalization_preserves_integer_and_string_candidates():
+    source = (
+        ScoreProfile(ballots=[ScoreBallot(scores={1: 2, "A": 3})])
+        .to_df()
+        .rename(columns={"A": " 1 "})
+    )
+
+    with pytest.warns(UserWarning, match="both str and int"):
+        result = ScoreProfile(df=source, candidates=[1, " 1 "])
+
+    assert result.candidates == result._matrix.candidates == (1, "1")
+
+    with pytest.warns(UserWarning, match="both str and int"):
+        assert result.ballots[0].scores == {1: 2, "1": 3}

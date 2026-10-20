@@ -37,3 +37,15 @@ def test_pp_excede_ranking_length():
             ballots=(RankBallot(ranking=(frozenset({"A"}), frozenset({"B"}))),),
             max_ranking_length=1,
         )
+
+
+@pytest.mark.parametrize("candidates", [("A", " A "), (" A", "A ")])
+def test_declared_candidate_normalization_rejects_collisions(candidates):
+    with pytest.raises(ProfileError, match="same identity after stripping whitespace"):
+        RankProfile(candidates=candidates)
+
+
+@pytest.mark.parametrize("candidate", [" ~ ", " Ranking_0 "])
+def test_declared_candidate_normalization_rejects_reserved_names(candidate):
+    with pytest.raises((ValueError, ProfileError), match="reserved"):
+        RankProfile(candidates=[candidate])

@@ -18,7 +18,6 @@ from votekit.ballot_generator.bloc_slate_generator.config.collections import (
     SlateCandMap,
 )
 from votekit.ballot_generator.bloc_slate_generator.config.validation import (
-    FLOAT_TOL,
     UNSET_VALUE,
     BlocProportionMapping,
     CohesionMapping,
@@ -34,6 +33,7 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
     convert_cohesion_map_to_cohesion_df,
     convert_preference_map_to_preference_df,
 )
+from votekit.constants import TOL_EPSILON
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit.types import Candidate
 from votekit.utils import (
@@ -447,7 +447,7 @@ class BlocSlateConfig:
                 errors.append(
                     ValueError(
                         f"Bloc proportions currently sum to {bloc_ser.sum():.6f} "
-                        f"when they should sum to 1 within tolerance {FLOAT_TOL:g}."
+                        f"when they should sum to 1 within tolerance {TOL_EPSILON:g}."
                     )
                 )
 
@@ -1107,7 +1107,7 @@ class BlocSlateConfig:
             cand_list = list(cand_lst_proxy)
             totals = normalized_df[cand_list].sum(axis=1)
             zero_sum_blocs = totals.index[
-                np.isclose(totals.to_numpy(dtype=float), 0.0, atol=FLOAT_TOL)
+                np.isclose(totals.to_numpy(dtype=float), 0.0, rtol=0.0, atol=TOL_EPSILON)
             ]
             if len(zero_sum_blocs) > 0:
                 raise ValueError(
@@ -1142,7 +1142,9 @@ class BlocSlateConfig:
         mask = _unset_mask(cohesion_values)
         normalized_df = self.cohesion_df.mask(mask, 0.0)
         totals = normalized_df.sum(axis=1)
-        zero_sum_blocs = totals.index[np.isclose(totals.to_numpy(dtype=float), 0.0, atol=FLOAT_TOL)]
+        zero_sum_blocs = totals.index[
+            np.isclose(totals.to_numpy(dtype=float), 0.0, rtol=0.0, atol=TOL_EPSILON)
+        ]
         if len(zero_sum_blocs) > 0:
             raise ValueError(
                 f"cohesion_df row for bloc '{zero_sum_blocs[0]}' sums to 0 after "

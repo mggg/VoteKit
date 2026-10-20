@@ -1,13 +1,38 @@
 import itertools as it
 
+import pytest
+
 from votekit.ballot_generator import (
     BlocSlateConfig,
     name_bt_profile_generator,
+    name_bt_profile_generator_using_mcmc,
     name_bt_profiles_by_bloc_generator,
 )
 from votekit.ballot_generator.bloc_slate_generator.name_bradley_terry import _calc_prob as bt_prob
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 from votekit.pref_profile import RankProfile
+
+
+@pytest.mark.parametrize(
+    "generator", [name_bt_profile_generator, name_bt_profile_generator_using_mcmc]
+)
+def test_name_bt_retains_grouped_result_and_can_disable_grouping(generator):
+    config = BlocSlateConfig(
+        n_voters=20,
+        slate_to_candidates={"slate": ["A", "B"]},
+        bloc_proportions={"bloc": 1.0},
+        preference_mapping={"bloc": {"slate": PreferenceInterval({"A": 0.6, "B": 0.4})}},
+        cohesion_mapping={"bloc": {"slate": 1.0}},
+    )
+
+    ungrouped = generator(config, group_ballots=False, rng_seed=42)
+    grouped = generator(config, group_ballots=True, rng_seed=42)
+
+    assert ungrouped.num_ballots == 20
+    assert grouped.num_ballots <= 2
+    assert grouped.total_ballot_wt == ungrouped.total_ballot_wt == 20
+    assert grouped.candidates == ungrouped.candidates
+    assert grouped.ballots == ungrouped.group_ballots().ballots
 
 
 def test_NBT_completion():
