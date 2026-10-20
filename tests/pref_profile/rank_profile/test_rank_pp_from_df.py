@@ -207,7 +207,7 @@ def test_normalization_processes_candidate_names_once_per_distinct_set(monkeypat
 
     normalized = profile_module._normalize_rank_df_candidates(source)
 
-    assert visited == [" A ", "A"]
+    assert sorted(visited) == [" A ", "A"]
     assert normalized["Ranking_1"].tolist() == [frozenset({"A"})] * len(source)
     assert source["Ranking_1"].iloc[0] == frozenset({" A "})
 

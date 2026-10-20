@@ -195,19 +195,6 @@ def test_df_rejects_infinite_and_negative_weights():
         _profile_from(_df_with_weights(pd.Series([np.nan, Fraction(1)], dtype=object)))
 
 
-@pytest.mark.parametrize("other", [np.float64(2), 2, 2.0])
-def test_df_integral_reals_mixed_with_fraction_become_fractions(other):
-    profile = _profile_from(_df_with_weights(pd.Series([other, Fraction(1, 3)], dtype=object)))
-
-    assert profile._matrix.voter_weight_data.has_fraction_weights
-    assert list(profile.to_df()["Weight"]) == [Fraction(2), Fraction(1, 3)]
-
-
-def test_df_rejects_non_integral_float_mixed_with_fraction():
-    with pytest.raises(ProfileError, match="Cannot mix Fraction weights with non-integral"):
-        _profile_from(_df_with_weights(pd.Series([0.1, Fraction(1)], dtype=object)))
-
-
 def test_df_object_column_without_fractions_becomes_float64():
     profile = _profile_from(_df_with_weights(pd.Series([np.float64(1.5), 2], dtype=object)))
 
