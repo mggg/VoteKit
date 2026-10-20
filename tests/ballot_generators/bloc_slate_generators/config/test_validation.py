@@ -1,5 +1,7 @@
 """Validation and conversion tests for bloc-slate config primitives."""
 
+from __future__ import annotations
+
 import math
 
 import numpy as np
@@ -15,6 +17,8 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
     typecheck_cohesion_mapping,
     typecheck_preference,
 )
+from votekit.ballot_generator.bloc_slate_generator.config.validation import _unset_mask
+from votekit.constants import TOL_EPSILON
 
 #   typecheck_bloc_proportion_mapping
 # =====================================
@@ -327,3 +331,9 @@ def test_convert_preference_mapping_unions_candidates_and_fills_unset_with_minus
     assert set(df.columns) == {"A", "B", "C"}
     assert df.loc["bloc2", "A"] == -1.0
     assert pd.api.types.is_numeric_dtype(df["A"].dtype)
+
+
+def test_unset_sentinel_has_no_relative_tolerance() -> None:
+    values = np.array([-1.0, -1.0 + TOL_EPSILON / 2, -1.0 + 2 * TOL_EPSILON, -1.0 + 1e-6])
+
+    np.testing.assert_array_equal(_unset_mask(values), [True, True, False, False])

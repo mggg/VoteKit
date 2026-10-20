@@ -10,6 +10,7 @@ from typing_extensions import Sentinel
 
 from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.constants import TOL_EPSILON
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -581,7 +582,7 @@ class SimultaneousVeto(RankingElection):
         delta = np.min(self._scores[mask] / self._veto_pressure[mask])
         self._scores -= delta * self._veto_pressure
         # handle floating point imprecision:
-        self._scores[np.abs(self._scores) < 1e-10] = 0
+        self._scores[np.abs(self._scores) <= TOL_EPSILON] = 0
 
         eliminated_candidate: Candidate | Sentinel | None = None
         if np.any(self._scores):

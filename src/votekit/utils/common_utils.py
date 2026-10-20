@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from votekit.pref_profile import RankProfile, ScoreProfile
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
+from votekit.constants import FLOAT_DECIMAL_PLACES
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
@@ -228,7 +229,9 @@ def _score_dict_from_rankings_df_no_ties(
             continue
         candidate = next(iter(candidate_set))
         if candidate in scores:
-            scores[candidate] = float(round(set_totals[set_id - EMPTY_SET_ID], 10))
+            scores[candidate] = float(
+                round(set_totals[set_id - EMPTY_SET_ID], FLOAT_DECIMAL_PLACES)
+            )
     return scores
 
 
@@ -312,7 +315,7 @@ def score_dict_from_score_vector(
                 allocation = sum(local_score_vector) / position_size
 
             for candidate in candidate_set:
-                scores[candidate] += round(allocation * weight, 10)
+                scores[candidate] += round(allocation * weight, FLOAT_DECIMAL_PLACES)
             score_offset += position_size
 
     return scores

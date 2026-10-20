@@ -9,11 +9,13 @@ from typing import Any, Optional, Union, cast
 import numpy as np
 import pandas as pd
 
+from votekit.constants import TOL_EPSILON
 from votekit.pref_interval import PreferenceInterval
 from votekit.types import Candidate
 
 UNSET_VALUE = -1.0
-FLOAT_TOL = 1e-8
+# Retain the exported name for callers of the configuration package.
+FLOAT_TOL = TOL_EPSILON
 
 
 class ConfigurationWarning(UserWarning):
@@ -106,7 +108,7 @@ def _unset_mask(values: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A boolean array where True indicates the value is an unset sentinel value.
     """
-    return np.isclose(values, UNSET_VALUE, atol=FLOAT_TOL)
+    return np.isclose(values, UNSET_VALUE, rtol=0.0, atol=TOL_EPSILON)
 
 
 def _invalid_negative_values(values: np.ndarray) -> list[float]:
@@ -133,7 +135,7 @@ def _sum_differs_from_one(value: float) -> bool:
     Returns:
         bool: True if value is not within tolerance of 1.0, False otherwise.
     """
-    return abs(float(value) - 1.0) > FLOAT_TOL
+    return abs(float(value) - 1.0) > TOL_EPSILON
 
 
 def _first_error_probability_row(
@@ -266,7 +268,7 @@ def convert_bloc_proportion_map_to_series(
         raise ValueError(
             "Bloc proportions currently sum to "
             f"{bloc_series.sum():0.6f} when they should sum to 1 within tolerance "
-            f"{FLOAT_TOL:g}."
+            f"{TOL_EPSILON:g}."
         )
 
     # Quick normalize in case of fp errors

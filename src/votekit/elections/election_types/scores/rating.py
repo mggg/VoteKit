@@ -6,6 +6,7 @@ from typing import Optional
 import numpy as np
 
 from votekit.cleaning import remove_cand_score_profile
+from votekit.constants import TOL_EPSILON
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.exceptions import ProfileError
@@ -28,8 +29,10 @@ class GeneralRating(Election[ScoreProfile]):
         profile (ScoreProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
+            Scores may exceed the limit by at most TOL_EPSILON (1e-10).
         budget (float, optional): Budget per ballot limit. Defaults to None, in which
-            case voters can score each candidate independently.
+            case voters can score each candidate independently. Totals may exceed the budget
+            by at most TOL_EPSILON (1e-10) to allow for floating-point rounding.
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
         rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
@@ -71,7 +74,7 @@ class GeneralRating(Election[ScoreProfile]):
         self.per_candidate_limit = per_candidate_limit
         if budget is not None and budget <= 0:
             raise ValueError("budget must be positive.")
-        if budget is not None and per_candidate_limit > budget:
+        if budget is not None and per_candidate_limit > budget + TOL_EPSILON:
             raise ValueError("per_candidate_limit must be less than or equal to budget.")
         self.budget = budget
         self.tiebreak = tiebreak
@@ -117,10 +120,10 @@ class GeneralRating(Election[ScoreProfile]):
 
         _, maximum = matrix.score_bounds_by_ballot()
         missing_scores = np.isnan(maximum)
-        above_limit = maximum > self.per_candidate_limit
+        above_limit = maximum > self.per_candidate_limit + TOL_EPSILON
         above_budget = np.zeros(len(matrix), dtype=bool)
         if self.budget is not None:
-            above_budget = matrix.sum_scores_by_ballot() > self.budget
+            above_budget = matrix.sum_scores_by_ballot() > self.budget + TOL_EPSILON
 
         invalid_rows = np.flatnonzero(missing_scores | above_limit | above_budget)
         if not invalid_rows.size:
@@ -202,6 +205,7 @@ class Rating(GeneralRating):
         profile (ScoreProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.
         per_candidate_limit (float, optional): Rating per candidate limit. Defaults to 1.
+            Scores may exceed the limit by at most TOL_EPSILON (1e-10).
         tiebreak (str, optional): Tiebreak method to use. Options are None and 'random'.
             Defaults to None, in which case a tie raises a ValueError.
         rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same

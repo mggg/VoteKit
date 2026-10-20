@@ -29,13 +29,13 @@ from warnings import warn
 import pandas as pd
 
 from votekit.ballot_generator.bloc_slate_generator.config.validation import (
-    FLOAT_TOL,
     BlocProportionMapping,
     ConfigurationWarning,
     _sum_differs_from_one,
     convert_bloc_proportion_map_to_series,
     typecheck_bloc_proportion_mapping,
 )
+from votekit.constants import TOL_EPSILON
 from votekit.types import Candidate
 from votekit.utils import (
     SourceWithAttribute,
@@ -449,7 +449,7 @@ class BlocProportions(MutableMapping[str, float]):
                 warn(
                     "Bloc proportions currently sum to "
                     f"{total:.6f} when they should sum to 1 within tolerance "
-                    f"{FLOAT_TOL:g}.",
+                    f"{TOL_EPSILON:g}.",
                     ConfigurationWarning,
                 )
 

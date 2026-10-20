@@ -1,5 +1,7 @@
 """Collection wrapper tests for bloc-slate config."""
 
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
@@ -11,6 +13,7 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
     ConfigurationWarning,
     SlateCandMap,
 )
+from votekit.constants import TOL_EPSILON
 
 #   _CandListProxy
 # ==================
@@ -399,17 +402,21 @@ def bp_silent_true():
 
 def test_init_from_dict_valid_normalized_to_series_float():
     parent = _make_parent(False)
-    bp = BlocProportions(parent, {"b1": 0.3000000004, "b2": 0.699999996})
+    bp = BlocProportions(parent, {"b1": 0.3, "b2": 0.7 - TOL_EPSILON / 2})
     s = bp.to_series()
     assert s.dtype == float
     assert set(s.index) == {"b1", "b2"}
     assert pytest.approx(float(s.sum()), rel=0, abs=1e-12) == 1.0
 
 
-def test_init_from_dict_sum_not_one_raises():
+@pytest.mark.parametrize(
+    "proportions", [{"b1": 0.2, "b2": 0.2}, {"b1": 0.3000000004, "b2": 0.699999996}]
+)
+def test_init_from_dict_sum_not_one_raises(proportions: dict[str, float]) -> None:
     parent = _make_parent(False)
+
     with pytest.raises(ValueError, match="sum to 1"):
-        BlocProportions(parent, {"b1": 0.2, "b2": 0.2})
+        BlocProportions(parent, proportions)
 
 
 def test_init_from_series_casts_to_float_and_accepts_numeric():

@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
+from votekit.constants import TOL_EPSILON
 from votekit.elections import STV, Borda, GeneralRating
 from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
 from votekit.pref_profile.profile_matrix import RankMatrix, ScoreMatrix
@@ -185,16 +186,20 @@ def test_rating_validation_distinguishes_zero_from_missing_scores(
 
 
 @pytest.mark.parametrize(
-    "budget,exceeds_budget",
-    [(np.nextafter(1.75, 0.0), True), (1.75, False), (np.nextafter(1.75, np.inf), False)],
+    "total,exceeds_budget",
+    [
+        (1.0 + TOL_EPSILON / 2, False),
+        (1.0 + TOL_EPSILON, False),
+        (np.nextafter(1.0 + TOL_EPSILON, np.inf), True),
+    ],
 )
-def test_rating_budget_compares_totals_without_tolerance(
-    budget: float,
+def test_rating_budget_allows_absolute_tolerance(
+    total: float,
     exceeds_budget: bool,
     forbid_materialization: None,
 ) -> None:
-    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1.0, "B": 0.5, "C": 0.25})])
-    validator = _rating_validator(limit=1.0, budget=budget)
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": total})])
+    validator = _rating_validator(limit=2.0, budget=1.0)
 
     if exceeds_budget:
         with pytest.raises(TypeError, match="total score budget"):
@@ -246,3 +251,9 @@ def test_rating_reports_only_the_first_offending_ballot(monkeypatch: pytest.Monk
 def test_rating_rejects_zero_budget() -> None:
     with pytest.raises(ValueError, match="budget must be positive"):
         GeneralRating(ScoreProfile(), budget=0)
+
+
+def test_rating_limits_allow_float_tolerance() -> None:
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1.0 + TOL_EPSILON})])
+
+    GeneralRating(profile, per_candidate_limit=1.0 + TOL_EPSILON / 2, budget=1.0)

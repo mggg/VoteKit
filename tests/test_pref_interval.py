@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import pytest
 
+from votekit.constants import TOL_EPSILON
 from votekit.pref_interval import PreferenceInterval, combine_preference_intervals
 
 
@@ -58,6 +61,16 @@ def test_eq():
     # not same interval
     assert interval_1 != interval_3
 
+    within_tolerance = PreferenceInterval(
+        {"A": 0.2 + TOL_EPSILON / 2, "B": 0.3 - TOL_EPSILON / 2, "C": 0.5}
+    )
+    outside_tolerance = PreferenceInterval(
+        {"A": 0.2 + 2 * TOL_EPSILON, "B": 0.3 - 2 * TOL_EPSILON, "C": 0.5}
+    )
+
+    assert interval_2 == within_tolerance
+    assert interval_2 != outside_tolerance
+
 
 def test_combine_error():
     interval_1 = PreferenceInterval(interval={"A": 2, "B": 3, "C": 6})
@@ -68,7 +81,7 @@ def test_combine_error():
         combine_preference_intervals([interval_1, interval_2], [1 / 2, 1 / 2])
 
     with pytest.raises(ValueError, match="Proportions must sum to 1."):
-        combine_preference_intervals([interval_1, interval_3], [2 / 3, 4 / 3])
+        combine_preference_intervals([interval_1, interval_3], [0.5, 0.5 + 2 * TOL_EPSILON])
 
 
 def test_combine():
