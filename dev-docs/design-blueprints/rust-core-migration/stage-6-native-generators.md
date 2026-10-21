@@ -1,156 +1,238 @@
-# Stage 6: native generators and prepared Bradley–Terry sampling
+# Stage 6: direct matrix generators and Bradley–Terry sampling
 
-## Decision and scope
+## Goal
 
-Implemented: costly Bradley–Terry model construction, exact and MCMC sampling, random draws,
-and ranking assembly execute in Rust. Prepared exact sampling also groups rows natively and uses
-numeric profile construction. MCMC retains DataFrame-based profile construction/combination and
-public profile grouping. Python retains configuration validation, labels, and bloc apportionment. Other generators use selected native kernels
-where appropriate, including spatial distances, bounded impartial-culture decoding, slate
-Plackett–Luce operations, and cumulative assembly. Their Python/NumPy paths remain useful;
-custom spatial metrics and unsupported numerical cases retain compatible behavior.
+Construct matrices directly from sampled numeric results and port the Python/NumPy Bradley–Terry
+implementation to Rust. The sampling algorithms are assumed to be implemented before this
+migration; this stage develops their ownership, bindings, and integration with profile storage.
 
-Generator acceleration is an explicit extension of the original profile/election migration.
-It does not imply rewriting every generator or replacing a fast NumPy primitive merely because
-a Rust implementation is possible.
+Direct construction removes intermediate ballots and DataFrames. Porting preparation and sampling
+lets their buffers become Rust-owned profile storage without a Python array round trip.
+[ADR 0001](../../ADRs/0001-profile-array-ownership.md) establishes ownership of those buffers.
 
-## Exact model and reusable ownership
+## Feature flow
 
-Exact name Bradley–Terry sampling uses subset dynamic programming instead of enumerating every
-permutation. For remaining candidates `S` and supports `w`, the partition recurrence is
-`Z(S) = sum(w[i] ** (len(S) - 1) * Z(S - {i}) for i in S)`, with `Z(empty) = 1`.
-Conditional sampling uses those partitions in log space. Setup takes `O(C * 2**C)` work and
-`O(2**C)` table storage rather than factorial enumeration. “Exact” describes the sampled model,
-not rational arithmetic; this algorithm uses floating-point calculations and is distinct from MCMC.
+One generation call captures independent inputs, prepares the required sampling state, and builds
+a profile from sampled buffers. Subgraphs separate those responsibilities while showing which
+state crosses the Python/Rust boundary. Solid arrows show execution or returned data; dashed
+arrows show retained inputs or preparation. The diagram shows one RNG stream; per-bloc stream and
+batching contracts are described below.
 
-Slate Bradley–Terry uses a count-state table with `product(slate_size + 1)` states. Its states
-represent sequences of slate symbols, so adding a multiplicity factor for interchangeable copies
-would change the distribution. Candidate ordering within each slate and the slate sequence
-assembly also run natively. Positive supports use stable log-space calculations; zero-support
-candidates within a slate form a uniformly shuffled tail. A name model with multiple zero supports
-has zero total mass and is rejected; a sole zero can occupy the final position.
+```mermaid
+flowchart TD
+    START(["START: call a generator"])
+    subgraph CAPTURE["Configuration and owned input capture"]
+        CONFIG["PYTHON: mutable BlocSlateConfig"]
+        INPUT["PYTHON: copy and validate inputs once<br/>Owned parameters, labels, counts, and options"]
+        EDIT["Later configuration edits"]
+        NEXT["Capture new inputs on a subsequent call"]
+        CONFIG --> INPUT
+        CONFIG --> EDIT --> NEXT
+    end
 
-`PreparedBradleyTerry` snapshots a validated configuration, including the candidate universe,
-bloc order, model, and voter count. It apportions voters once and owns all bloc partition tables
-at the same time. Repeated samples reuse those tables. Later edits to the input configuration do
-not change the sampler. There is no global cache, implicit cache invalidation, or per-call voter
-count override. MCMC remains a separate native sampling route rather than using exact partitions.
+    subgraph PREPARATION["Deterministic BT preparation"]
+        MODEL{"BT model?"}
+        NAME["RUST: name-BT subset completion tables"]
+        SLATE["RUST: slate-BT count completion tables"]
+        TABLES["RUST: immutable prepared state<br/>Reusable for identical preparation inputs"]
+        MODEL -->|Name| NAME --> TABLES
+        MODEL -->|Slate| SLATE --> TABLES
+    end
 
-Build partition masses and cumulative conditional probabilities in the same ascending-state pass,
-sharing the shifted exponentials. Name states use subset bitmasks. Slate states reuse the interaction
-sums of the slower-changing counts within each mixed-radix block; calculate the fastest-changing
-count's contribution directly to avoid accumulating add/subtract error across states.
+    subgraph SAMPLING["Sampling and RNG ownership"]
+        SEED["PYTHON: draw seed material from parent RNG"]
+        RNG["RUST: initialize ChaCha8 stream"]
+        SAMPLE["RUST: conditional BT sampling<br/>Apply specified zero-support tail policy"]
+        OTHER["Other generators: model-specific sampling<br/>Produce candidate IDs, counts, or scores"]
+        SEED -->|"Python → Rust: seed"| RNG --> SAMPLE
+    end
 
-Cache dense conditional tables when they fit the 32 MiB cap. Larger tables retain log-space
-conditional calculation during sampling; the partition state limit is unchanged. Use the same
-checked size calculation for allocation and preparation admission. Sampling cached tables uses
-one uniform draw and a short cumulative-probability scan per position without recomputing
-exponentials. The cache changes setup and memory costs, not the model, slate multiplicities, or
-the generator-to-profile boundary. Ordinary nonprepared native sampling allocates no conditional
-cache. Compact transition storage was tested and removed; the retained construction improvements
-and complete before/after timings are recorded in the
-[probability construction follow-up](../../../reports/bt-probabilities-first-three-2026-09-18.md).
+    subgraph ASSEMBLY["Direct matrix assembly"]
+        BUFFERS["RUST: assemble buffers and combine blocs<br/>Group when requested"]
+        MATRIX["RUST: checked matrix construction<br/>Own generated buffers directly"]
+        PROFILE["PYTHON: attach captured metadata<br/>and publish generated profile"]
+        BUFFERS --> MATRIX
+        MATRIX -->|"Rust → Python: handle"| PROFILE
+    end
 
-The important public signatures are:
-
-```python
-class PreparedBradleyTerry:
-    def __init__(self, config: BlocSlateConfig,
-                 model: Literal["name", "slate"] = "name"): ...
-
-    def sample(self, *, group_ballots: bool = True,
-               rng_seed: Optional[int] = None,
-               rng: Optional[random.Random] = None) -> RankProfile: ...
+    START --> CONFIG
+    INPUT -->|"BT: Python → Rust parameters"| MODEL
+    TABLES -->|Preparation ready| SEED
+    TABLES -.-> SAMPLE
+    INPUT -->|Other models| OTHER
+    SAMPLE --> BUFFERS
+    OTHER -->|Sampled values; cross binding if Python-owned| BUFFERS
+    INPUT -.-> PROFILE
+    class CONFIG,INPUT,EDIT,NEXT,SEED,PROFILE python;
+    class NAME,SLATE,TABLES,RNG,SAMPLE,BUFFERS,MATRIX rust;
+    class START start;
+    classDef python fill:#e8f0ff,stroke:#356ac3,color:#111;
+    classDef rust fill:#fff0df,stroke:#b86b25,color:#111;
+    classDef start fill:#d9f2df,stroke:#26783b,color:#111;
 ```
 
-`sample_by_bloc` takes the same options as `sample` and returns a dictionary of profiles using the
-same ballot draws. Default one-shot exact generators use the prepared implementation internally, so model
-logic and validation have one home even when setup cannot be amortized.
+## Rust work
 
-## Randomness and grouped output
+Port the Python/NumPy name-BT subset tables, slate-BT count tables, and conditional samplers. Rust
+sampling uses a seed supplied by Python and returns buffers directly to Rust profile storage. Move
+numeric assembly of sampled IDs and counts into Rust matrix construction, including grouping and
+combination of bloc outputs.
 
-Passing `rng` or `rng_seed`, including zero, produces deterministic results for a fixed package
-version and initial RNG state. Supplying both is invalid. Bradley–Terry uses a native ChaCha12
-stream initialized from the caller's Python RNG. Prepared sampling consumes one native seed per
-bloc, including blocs apportioned zero ballots. This deliberately does not reproduce the old
-Python stream across package versions. Native generator randomness is separate from ordinary
-STV's preserved Python tiebreak RNG.
+## Python work
 
-Prepared exact sampling accumulates grouped counts natively and emits rankings in first-occurrence
-order. The default one-shot exact generators use this same path.
-Grouping does not change the random draws; grouped and ungrouped samples represent the same
-weighted rankings. This scoped BT ordering change avoids inheriting pandas sorting of ranking
-sets. It does not change the public `group_ballots` operation's separate compatibility contract.
+Implement atomic `BlocSlateConfig` edits and owned generation-input capture. Preserve the one-off
+generator functions, configuration diagnostics, candidate labels, and parent RNG. Replace
+ballot/DataFrame assembly with direct matrix construction where that provides a useful
+intermediate step. Use the Python/NumPy sampling implementation as the behavioral reference and
+connect its public entry points to the Rust port. Other generators retain their model-specific
+sampling code while adopting the same matrix construction path.
 
-MCMC streams proposals rather than allocating complete proposal/random buffers. Preserve its
-specified burn-in, retention positions, and deterministic consumption within the version. Model
-errors and native execution failures surface directly, without a retry through another sampler.
+## Configuration editing and generation inputs
 
-## Profiles as the generator/election boundary
+[ADR 0007](../../ADRs/0007-bloc-slate-configuration.md) describes configuration editing and owned
+generation inputs. Sampling needs validated inputs independent of later configuration edits; that
+capture boundary can be developed with the sampler. The broader editing improvements can proceed
+alongside it without becoming a prerequisite for every generator port.
 
-Prepared samples and the default one-shot exact generators pass rankings and counts to the checked
-numeric profile constructor from
-[stage 2](stage-2-array-storage.md), avoiding DataFrame and ballot-object round trips. Owned copies
-and public metadata semantics still apply; generated arrays are not trusted merely because their
-producer is native.
+The following work develops those responsibilities and can be divided to suit the implementation:
 
-Generators expose profiles, not election results. Keep generator model parameters and sampling
-state independent of election rules, quotas, tiebreaks, and workspaces. Election methods consume
-the common profile representation without knowing which generator produced it. A caller composes
-the operations through their ordinary APIs:
+1. Centralize structural updates in the configuration. Prepare dependent tables and recipe changes
+   before publication, keeping collection wrappers attached without recursive setters or
+   invalidation flags.
+2. Implement recipe lifetime and independent copying, preserving malformed direct table edits for
+   validation to report.
+3. Construct private immutable generation inputs with owned nested data. The prototype's
+   `_prepare_generation_inputs()` and `_GenerationInputs` provide a starting point, not a public
+   API.
+4. Capture once per public call. Combined and by-bloc implementations receive the same validated
+   inputs rather than recapturing the mutable configuration through nested calls.
+5. Test failed updates, retained collection references, intermediate-state warnings, independent
+   copies, malformed tables, recipe transitions, and sampling failures. Subsequent edits must
+   leave captured inputs unchanged and be checked on the next call. Isolate capture behavior in
+   tests so changes to seeded output can be attributed to sampling changes rather than
+   configuration edits.
 
-```python
-sampler = PreparedBradleyTerry(config)
-profile = sampler.sample(rng_seed=123)
-election = STV(profile, n_seats=3, tiebreak="random", rng_seed=456)
-winners = election.get_elected()
-```
+### Input capture flow
 
-Both sampling and supported election execution remain native internally. The intervening profile
-owns NumPy-backed storage; numeric construction avoids ballot objects and DataFrames. Preserve this
-boundary when optimizing storage or conversion instead of adding a generator-specific election API.
+Capture occurs once per public call. Configuration remains editable, but subsequent edits cannot
+change the inputs or prepared state used by the current call.
 
-## Memory admission
+## Direct matrix construction
 
-Rust owns size estimation because it knows the table, grouping, and output layouts.
-Use checked arithmetic for state products, row counts, byte counts, and platform-size conversion,
-and fallible allocation for large buffers. Exact table-state and output-size limits bound work
-before allocating; MCMC also has a checked work limit. The current constants and detailed estimates
-live with the implementation rather than becoming public API guarantees.
+Keep sampled rankings as candidate IDs and counts until assembly, then translate once to
+matrix-local singleton set IDs and combine bloc outputs before constructing the profile.
+Throughout this process, preserve candidate metadata, requested grouping, and sampling semantics.
 
-Preparation budgets all bloc tables concurrently, not only the largest single table. Each sample
-checks current available memory again. Resident prepared tables are already reflected in that
-availability and must not be charged twice. Grouping estimates assume worst-case distinct rankings
-and include retained keys/counts alongside output arrays. Elections separately admit their own
-workspace and history allocations against current availability, which already reflects any
-resident sampler tables and profiles. Generator estimates must not depend on an election algorithm.
+Impartial culture, impartial anonymous culture, spatial models, name Plackett–Luce, name BT, and
+shared slate assembly provide useful starting points. Port them individually or together where
+shared construction makes a combined change easier to understand. Cumulative generators can
+construct score matrices from count arrays, and existing NumPy sampling primitives can feed this
+construction path directly.
 
-Admission uses a conservative share of available host memory and discoverable Linux cgroup limits,
-including constrained ancestors. It is a heuristic, not a reservation: concurrent allocation and
-platform information gaps mean no absolute OOM guarantee is possible. Initial sample preflight
-runs before extracting seeds from a supplied RNG. The binding rechecks admission afterward, so a
-later failure need not leave that RNG untouched.
+Batching bounds temporary allocations although ungrouped output still grows with requested rows.
+When grouping is requested, aggregate duplicate rankings before profile construction while
+preserving weight and order. Slate-pattern counts alone do not determine complete ballot counts
+because within-slate identity assignments may produce different rankings from the same pattern.
 
-## Verification and measured consequences
+## Porting the Python/NumPy Bradley–Terry implementation
 
-Check small exact distributions against exhaustive mathematical references, and test slate
-multiplicity, zero supports, underflow, deterministic seeds, caller-RNG advancement, MCMC retention,
-and errors. Compare grouped/ungrouped weighted rankings and one-shot/prepared sampling. Verify
-configuration snapshots, repeated calls, independent samplers, by-bloc results, and memory refusal
-before large allocation. Check that generated profiles work through ordinary election APIs,
-including native and Python execution, without changing their input profiles.
+This outline assumes name-BT subset tables, slate-BT count tables, and conditional sampling
+already have a Python/NumPy implementation. Use that implementation and its tests as the reference
+for the Rust port, including zero-support tails, within-slate identity assignment, numerical
+stabilization, and preparation reuse. Algorithm development is separate from this migration.
 
-Measure table preparation separately from repeated draws, numeric profile construction, STV, and
-the complete pipeline. Report voter count and stored row count separately: 100,000 sampled voters
-may collapse to far fewer grouped rankings. Include integer weights produced by the generator in
-public STV benchmarks. Memory checks should be tested with constrained availability and fresh
-process measurements, not only small inputs that happen to fit.
+Port the preparation and sampling operations behind the existing generator functions. Preserve the
+sampling distribution and supported input behavior while adapting storage and random streams to
+Rust. The implementation may organize tables and traversal differently without turning the port
+into another algorithm-design phase.
 
-Prepared tables and numeric profile construction reduce repeated setup and object construction. After those
-changes, generation can still dominate a BT-to-STV workload, so a faster STV kernel may produce
-only a modest pipeline improvement. The
-[Bradley–Terry report](../../../reports/rust-bradley-terry-2026-09-16.md) and
-[prepared sampling report](../../../reports/native-election-core-2026-09-17.md) preserve the
-measurements and model corrections behind these choices. Their direct generator-to-election
-experiments are historical; that API was removed as recorded in the
-[separation report](../../../reports/generator-election-separation-2026-09-17.md).
+## Private preparation and reuse
+
+Keep one-off generator functions as the public interface. Their implementation separates input
+capture, table preparation, sampling, and matrix construction. Preparation retains owned
+parameters rather than a live configuration; name tables are reusable only for identical supports
+and indexing. New Dirichlet draws generally require new tables.
+
+Voter count and bloc apportionment belong to each generation call, not to completion-table
+identity. Combined and by-bloc entry points share the model implementation and captured inputs. A
+public prepared-sampler object and implicit global caches remain deferred.
+
+Start from the preparation and reuse behavior of the Python/NumPy implementation. Conditional
+caches, fused preparation, and mixed-radix traversal remain implementation choices within that
+sampling contract.
+
+Shared-prefix count sampling is separate algorithm work unless the Python implementation already
+provides it. Preserve the existing MCMC option and its burn-in and retained-sample semantics; a
+failed allocation must not silently select a different sampler.
+
+### BT preparation flow
+
+The Python/NumPy reference defines the completion weights and conditional probabilities. Rust
+preparation preserves those distributions without consuming randomness; name and slate BT use
+different state spaces.
+
+## Randomness and Rust integration
+
+Python owns the parent RNG and draws the seed material for Rust's ChaCha8 RNG, after which
+sampling proceeds without a Python call per draw. Input capture and deterministic preparation
+consume no randomness. Given a documented seed or initial state, sampling is reproducible within a
+fixed package version though samples may change between minor versions.
+
+As the sampler is integrated, define seed encoding and draw boundaries, per-bloc streams,
+zero-ballot bloc behavior, batching, and random tail tiebreaks. Test the relationship between
+combined/by-bloc and grouped/ungrouped calls. Post-sampling grouping can preserve the draw
+sequence; direct count sampling requires its own documented stream behavior. Neither a global RNG
+nor implicit reseeding is introduced. Election tiebreak streams retain their separate contract.
+
+Port completion tables and conditional sampling to Rust, using the Python/NumPy implementation and
+its small enumerated cases to check the distribution. Python retains configuration validation and
+labels; Rust owners retain tables and numeric results. Those results enter a profile directly,
+with alignment and candidate/weight invariants checked before publication. Generators remain
+independent of quotas, election policies, and mutable workspaces.
+
+### Sampling and matrix assembly flow
+
+For BT, sampling starts with prepared completion tables. Other generators can enter matrix
+assembly with their own sampled IDs, counts, or scores. This diagram shows one stream; seed
+encoding, per-bloc streams, batching, and random tail tiebreaks retain the contracts described
+above.
+
+Preparation is independent of the sampling RNG. Reusing valid tables does not require retaining
+the editable configuration or reusing an advanced RNG.
+
+## Resource admission
+
+Carry forward the Python implementation's resource policy, adapting allocation estimates to Rust
+storage for preparation, all resident bloc tables, temporary allocations, grouping, and output.
+One float64 value per name subset requires 8 MiB at 20 candidates, 256 MiB at 25, and 8 GiB at 30,
+before other storage. Batching cannot reduce this table requirement.
+
+Use checked arithmetic to calculate state products, byte counts, and platform conversions,
+followed by fallible large allocations where possible. Grouped output must be budgeted for the
+worst-case number of distinct rankings rather than an assumed duplicate rate. When allocating a
+new sample, check current availability without charging resident tables twice.
+
+Host and applicable cgroup limits can guide conservative refusal but do not reserve memory.
+Specify which failures precede caller RNG consumption; later allocation failures need not roll
+back an advanced RNG. Resource errors propagate without changing the model or sampler. Select
+concrete limits from the production representation and its allocation requirements.
+
+## Verification
+
+Compare Rust preparation and conditional probabilities against the Python/NumPy implementation.
+Reuse its small exhaustive-enumeration cases to check name and slate normalizers and ranking
+probabilities. Check conditional sums and products along positive-support rankings. Include uneven
+supports, zero-support tails, single candidates/slates, multiplicity, and underflow-resistant
+calculations. Test multiple-zero cases against the Python implementation's explicit tail rule
+rather than the undefined unmodified model. Different RNG algorithms need not produce identical
+Python and Rust samples; verify each implementation's seeded behavior and their common
+distribution separately.
+
+Verify captured-input independence, repeated batches, deterministic seeds, parent RNG state,
+grouping, by-bloc composition, MCMC retention, and refusal before large allocations. Generated
+profiles must work through ordinary election APIs.
+
+Verify the full generation-to-election path, including float/Fraction weights, sampled voter
+count, and stored row count after grouping. Rust activation requires reference correctness and the
+specified tail/RNG behavior. Public prepared samplers and implicit caches remain outside the
+initial migration.

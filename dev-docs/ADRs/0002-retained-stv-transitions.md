@@ -1,47 +1,69 @@
-# 0002: Retain ordinary IRV and fractional STV transitions
-
-Status: implemented; independent review reconciled. The later native election-core migration
-supersedes the Python round-orchestration portion of this decision, as described below.
+# 0002: Retained election workspaces and deterministic replay of STV
 
 ## Context
 
-Ordinary STV rebuilt profiles every round and reconstructed history by rerunning policy decisions.
-Those decisions include Python label ordering and random tiebreaks. Native code cannot substitute
-its own candidate order without changing outcomes or subsequent random draws.
+An STV count changes weights, candidate activity, and each ballot's current position while its
+underlying rankings remain fixed. Rebuilding profiles between rounds repeatedly materializes that
+unchanged data. Reconstructing rounds by rerunning the election also risks repeating randomness or
+callback side effects.
 
 ## Decision
 
-For eligible built-in IRV/STV elections, Python coordinates existing quota, winner/loser, ordering,
-and tiebreak policy. An election-local numeric workspace retains input rankings, weights, active
-candidates, live row order, and typed transitions. Rust handles ballot-scale tallying, transfers,
-filtering, and replay. Python retains labels and provenance. Each checked transition returns its
-new generation and candidate summary; invalid or stale transitions fail before mutation.
+### Counting and replay
 
-History replays recorded transitions into a fresh workspace without invoking policy helpers.
-Public profiles are materialized on demand. Exact arithmetic, custom subclasses and callbacks,
-random transfers, zero-weight input rows, and unsupported inputs retain their compatible Python
-election path.
+Rust controls supported counts and implements the existing built-in STV policy. Each count retains
+a workspace that shares immutable profile storage and owns changing weights, cursors, candidate
+activity, live row order, and transitions. Ordinary rounds do not construct public profiles.
 
-Record finish as an explicit transition. In the baseline, finishing below quota because all
-remaining candidates fill the seats eagerly returned an empty RankProfile, but history could
-instead rerun elimination, retain an elected candidate, and consume another random draw. Retained
-history now returns the actual empty RankProfile, including width zero and no cleaning parent.
+An internal `STVRuleSet` supplies the quota, next-action, transfer, and tiebreak policies. Each
+policy uses a Rust implementation or a Python callback with the same operation-specific contract.
+Rust implementations execute without entering Python. The rule set selects actions and their
+order; the runner validates and applies them to the workspace. Its first implementation preserves
+existing STV behavior.
+
+The transition log records transfer factors, row transformations, callback effects, and terminal
+completion as they occur. By applying these records to the original input, replay preserves row
+multiplicity, exhaustion behavior, and cleaned-profile provenance without repeating decisions,
+random draws, or callbacks. Each count retains its own workspace and replay state even when
+several counts share an input.
+
+### Public history
+
+Published `ElectionState` values, including their owned score and tiebreak mappings, form an
+immutable sequence of completed rounds. All queries, election length, and negative indexing refer
+to that sequence, so `get_step()` pairs each reconstructed profile with its recorded summary.
+History assembly remains private; callers receive detached, editable values when they export a
+state as a dictionary.
+
+### Python extensions
+
+Custom Python behavior enters the Rust runner at defined policy events, including tiebreaks and
+transfers. Election and elimination selection invoke the configured tiebreak only when a tie
+prevents selection, supplying the pending action as part of the context. The runner releases
+incompatible Rust borrows before invoking a callback, then validates its result and records its
+effects before continuing. Callbacks may inspect completed rounds and receive materialized
+profiles or ballots when needed, but cannot advance the count recursively or access a partially
+applied transition.
+
+Execution eligibility is determined before counting or RNG consumption. Custom subclasses that
+replace the counting algorithm retain Python execution unless they participate in the runner.
+Their existing reconstruction behavior may repeat callbacks and is outside the deterministic
+replay guarantee. Once Rust execution starts, failures propagate without a Python retry.
 
 ## Consequences
 
-Policy still crosses the Python boundary each round with candidate-scale data. This avoids a
-second suspend/resume policy protocol while keeping numerical state in Rust. Full history remains
-more expensive than the election alone because it constructs public profiles and parent chains.
-The finish correction deliberately changes defective baseline history structure; winners and
-forward execution remain unchanged. Adversarial review accepted both decisions with transition,
-ordering, replay, and RNG invariance checks required.
+Counting and history materialization have separate costs. Retaining callback results may require
+additional storage, especially when a custom transfer cannot be represented by a scalar factor.
+Those results become part of the persistence contract.
 
-## Evolution: native round orchestration
+Immutable history removes the ability to edit published states or reorder completed rounds.
+Composite elections must construct replacement summaries when renumbering rounds. Extending
+retained replay to legacy custom algorithms will require records or snapshots sufficient to
+reproduce their outputs.
 
-The retained transition and replay contracts remain in force. The subsequent implementation moves
-ordinary IRV/STV progression into a synchronous Rust runner, with attached Python label ordering
-and call-scoped tiebreak helpers. It does not introduce a suspend/resume protocol. A PyO3
-`ElectionCore` also owns common queries and lazily materializes the mutable public history list;
-Python election subclasses retain their existing execution hooks. See the updated
-[election architecture](../design-blueprints/rust-core-migration/stage-4-election-state.md) for
-current ownership, eligibility, history mutation, and persistence contracts.
+The [election-state plan](../design-blueprints/rust-core-migration/stage-4-election-state.md)
+specifies the transition records, callback interface, and compatibility checks. Its
+[workflow and dispatch sketch](../design-blueprints/rust-core-migration/stage-4-election-state.md#rule-set-orchestration)
+shows the Rust/Python boundary. Municipal rule implementations and a public rule-registration API
+remain separate work. FastSTV is unchanged during this migration, with deprecation planned for
+4.0.

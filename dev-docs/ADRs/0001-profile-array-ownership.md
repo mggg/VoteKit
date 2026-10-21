@@ -1,33 +1,63 @@
-# 0001: Profiles own arrays and expose detached snapshots
-
-Status: implemented; independent review reconciled.
+# 0001: Rust ownership of profile storage
 
 ## Context
 
-Internal consumers depended on cached public DataFrames and ballots. Mutating a cache could
-change later results while other cached attributes described the original profile. Ranked codes
-identify entire ranking sets, including ties and explicit empty positions; they are not candidate
-indices. Scored frames can mix integer, unsigned, nullable, floating, and object columns.
+As profiles pass between generators, transformations, and elections, their numeric representation
+must remain valid without repeated conversion or dependence on mutable caller input. The common
+`RankMatrix` and `ScoreMatrix` interfaces provide the boundary at which to establish that
+ownership.
 
 ## Decision
 
-Built-in profiles own private arrays, row metadata, and a complete frame schema. Ranked codes use
-signed int64 with profile-local set meanings and -1 reserved for padding. Each scored column keeps
-its own dtype. A native float64 matrix is constructed only after eligibility checks. Public frames,
-ballots, and code dictionaries are detached snapshots. Internal readers use private data or fresh
-compatibility adapters; unknown profile subclasses retain dynamic public accessors.
+Rust owns the authoritative numeric storage behind the Python matrix interfaces: candidate-set
+IDs, numeric membership, and weights for ranked matrices, and score values, column mappings, and
+weights for scored matrices. Where Python retains labels, frozen voter sets, or provenance,
+construction establishes their alignment with the matrix rows.
 
-Persist the authoritative storage in versioned pickle state, ignoring derived public caches.
-Continue loading the old encoded-frame state, including cleaned parents and index metadata.
+Public constructors validate and copy caller-owned buffers so subsequent edits cannot alter the
+profile. Once ownership is established, internal constructors can move or share validated Rust
+allocations, checking only the fields affected by a transformation. Copies and transformations
+therefore share unchanged immutable storage while derived caches remain attached to the matrix
+from which they were computed.
+
+Elections share immutable profile storage but own their changing weights, cursors, candidate
+activity, row order, and transitions. Independent counts cannot alter one another's state.
+
+DataFrame conversion remains with the Python adapters. This allows the protocol to include
+`from_df` and `to_df` while the Rust interface operates on numeric values. Encoding may invoke
+Python normalization while attached to the interpreter; after the values enter Rust ownership,
+computation may detach.
+
+Public NumPy exports return independent copies. A shared-view API is deferred until it can
+guarantee both the allocation's lifetime and the absence of writable aliases.
+
+## Considered Alternatives
+
+Borrowing Python-owned NumPy arrays would support individual Rust operations with little binding
+overhead. It would, however, leave generators and exact arithmetic to reconcile Python-owned
+storage with their Rust results. This is particularly important for avoiding the round-trip
+
+```mermaid
+Python Fractions -> Rust GMP Rationals -> Python Fractions
+```
+
+Rust ownership gives these operations a common representation.
+
+Caching a Rust-owned copy beside a Python matrix would amortize conversion across repeated calls
+but retain both representations for the profile's lifetime.
 
 ## Consequences
 
-Mutating a public snapshot no longer changes computation, copies, or serialized profile values.
-Native operations pay a checked copy at their boundary. Per-column score storage avoids the
-precision loss of stacking uint64(2**63 + 1) and signed integers into float64, but adds temporary
-matrix memory for eligible native operations. General frame schemas and exact weights remain
-available through compatibility adapters. Successful common numeric operations avoid public frame
-and ballot construction.
+Rust generators and transformations can return profiles without exporting and reimporting their
+numeric buffers. Repeated elections reuse the same immutable input while retaining independent
+workspaces.
 
-The per-column variation from the blueprint was accepted by an adversarial design reviewer after
-reproducing the precision-loss case. See the [implementation report](../../reports/rust-migration.md).
+Because `.rankings` and `.weights` become copying exports, computational consumers must move to
+matrix operations to avoid repeated full-buffer allocations. Compatibility exports remain
+available during the migration, with hot paths moved behind the interface.
+
+Ownership verification concerns value preservation, isolation, lifetime, and shared Rust
+allocations rather than Python array identity. The
+[storage plan](../design-blueprints/rust-core-migration/stage-2-array-storage.md) and
+[Rust integration plan](../design-blueprints/rust-core-migration/stage-5-rust-execution.md)
+specify construction, persistence, and binding requirements.
