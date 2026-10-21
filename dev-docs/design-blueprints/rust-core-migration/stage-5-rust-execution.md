@@ -1,114 +1,147 @@
-# Stage 5: native boundaries, dispatch, and distribution
+# Stage 5: Rust boundaries, dispatch, and distribution
 
-## Decision and status
+## Goal
 
-Implemented: one mixed Maturin distribution exposes the private `votekit._votekit_core` extension.
-Supported scoring, ranked cleaning, validation, ordinary IRV/STV, and generator operations use
-Rust behind Python interfaces. Native scored cleaning exists but remains opt-in for measurement;
-NumPy is the default because the complete native operation did not show a consistent benefit.
+Ship the Python package and private `votekit._votekit_core` extension as one distribution under
+[ADR 0003](../../ADRs/0003-private-rust-distribution.md). Rust operations remain behind the
+profile and matrix interfaces. Activation requires behavioral parity and working installed
+artifacts on the supported platforms.
 
-Local verification covers Linux x86_64 with CPython 3.13. The configured platform wheel matrix
-still requires hosted CI before release acceptance. A working local build is not evidence that
-all distribution targets pass.
+## Feature flow
 
-## Native ownership boundary
+Bindings and distribution accompany each Rust feature. The first subgraph follows a runtime call;
+the second shows how the implementation reaches installed packages. The labeled connection denotes
+a build dependency, not a runtime step.
 
-Use PyO3 and rust-numpy for typed extraction. Numeric kernels receive checked Rust values, not
-ballots, DataFrames, or arbitrary Python callbacks. A PyO3 boundary object may own Python labels
-and states, as `ElectionCore` does, provided that ownership participates in Python GC and remains
-outside detached numeric work. “No Python references” applies to numeric algorithm state, not
-every struct in the extension.
+```mermaid
+flowchart TD
+    START(["START: integrate a Rust-backed feature"])
+    subgraph BINDINGS["Operation bindings and dispatch"]
+        CONTRACT["Establish ownership, errors, and callback contracts"]
+        CALL["PYTHON: facade operation"]
+        ELIGIBLE{"Supported Rust path?"}
+        FALLBACK["PYTHON: compatible implementation"]
+        BINDING["PyO3: validate and establish ownership<br/>before detached execution"]
+        COMPUTE["RUST: execute against owned storage"]
+        RESULT["PYTHON: wrap result and metadata"]
+        ERROR["PYTHON: propagate error without retry"]
+        CONTRACT --> CALL --> ELIGIBLE
+        ELIGIBLE -->|No| FALLBACK
+        ELIGIBLE -->|Yes| BINDING --> COMPUTE
+        COMPUTE -->|Success| RESULT
+        COMPUTE -->|Failure| ERROR
+    end
 
-At entry, copy private NumPy inputs into Rust-owned buffers before detached execution. Retain
-those buffers for a complete election or prepared sampler lifetime. This costs bandwidth and
-transient memory but establishes ownership without trusting a read-only flag or caller lifetime.
-Independent elections own independent mutable workspaces; there is no shared workspace pool or
-process-wide sampler cache.
+    subgraph DISTRIBUTION["Build and installed-artifact verification"]
+        BUILD["Maturin mixed build<br/>Python package and private Rust extension"]
+        GMP["GMP linkage, libraries, licenses,<br/>and source-build prerequisites"]
+        WHEEL["Supported-platform wheels"]
+        SOURCE["Source distribution<br/>Rust sources and Cargo.lock"]
+        CHECK["Install outside the checkout<br/>Verify imports and feature behavior"]
+        GMP --> BUILD
+        BUILD --> WHEEL --> CHECK
+        BUILD --> SOURCE --> CHECK
+    end
 
-Validate dimensions, dtype, strides/byte order, code membership, candidate bounds, offset and
-metadata alignment, and allocation arithmetic. A wrapper can select a compatible Python path
-for a valid but unsupported representation. A malformed direct private binding call must return
-a deterministic error instead of indexing unchecked data or panicking.
+    START --> CONTRACT
+    BINDING -->|Implementation included in build| BUILD
+    class CALL,FALLBACK,RESULT,ERROR python;
+    class COMPUTE rust;
+    class START start;
+    classDef python fill:#e8f0ff,stroke:#356ac3,color:#111;
+    classDef rust fill:#fff0df,stroke:#b86b25,color:#111;
+    classDef start fill:#d9f2df,stroke:#26783b,color:#111;
+```
 
-General ranked kernels receive ranking-set codes and numeric membership information. Singleton
-elections receive dense candidate indices. Neither layout changes public code dictionaries.
-Weights become `f64` only under the operation's coercion and eligibility contract. Metadata stays
-with the Python profile adapter; native cleaning returns row classifications and transformed
-numeric data from which the adapter restores index labels and provenance.
+## Rust work
+
+Develop the private PyO3 extension alongside the first Rust owners and operations. Carry a small
+operation through the binding and an installed package early, then extend array adaptation,
+exception translation, Python reference handling, detached execution, and GMP linkage as they are
+needed. Packaging and binding constraints can then inform the design while it is still taking
+shape.
+
+## Python work
+
+Wire the facades and dispatch into the extension, replace Hatchling with the Maturin mixed build,
+and update package contents and release configuration. Preserve public imports, typing
+information, extras, and bundled data. Add installed-wheel and source-distribution checks outside
+the checkout.
+
+## Rust ownership boundary
+
+Python adapters validate external input and transfer owned values into Rust matrices. Internal
+results may move or share validated allocations without a NumPy export/import cycle. PyO3 and
+rust-numpy provide the binding and array adaptation; validation covers dimensions, dtype, byte
+order, strides, membership, bounds, alignment, and allocation arithmetic.
+
+Before computation detaches, ownership must establish the allocation's lifetime and immutability;
+a read-only NumPy flag provides neither guarantee. Public exports therefore copy while private
+operations use Rust methods and shared immutable allocations. Where binding owners retain Python
+references, they also provide GC and callback lifetime handling.
+
+General ranked operations consume set IDs and membership tables. Singleton elections impose
+narrower preconditions while sharing the same rankings. Python retains labels and provenance
+through explicit row maps and group membership. Internal indices never substitute for public
+identities.
 
 ## Execution and policy
 
-Standalone operations cross the boundary for a complete calculation. Validation scanners return
-enough context to reconstruct an offending ballot only at an error boundary. Numeric validation
-must preserve constructor/schema checks and the public order of failures; bypassing those checks
-because the ranking matrix looks valid is incorrect.
+Bindings expose complete operations or batches of queries, returning the offending row and context
+when validation fails so Python can materialize just the ballot needed for the error. Preserve
+error precedence while distinguishing general profile validity from eligibility for a Rust
+operation.
 
-The [native election runner](stage-4-election-state.md) owns ordinary progression synchronously.
-It uses attached Python set operations for label-dependent order and call-scoped Python helpers
-for existing tiebreak policies. Numeric scans, transfers, and replay remain Rust work. There is
-no public backend argument and no second suspend/resume protocol. Native history uses recorded
-choices rather than invoking those helpers again.
+The Rust runner follows [stage 4](stage-4-election-state.md): built-in policy executes in Rust,
+and explicit Python hooks supply custom behavior. Hook results are validated and their effects
+retained for replay. Unsupported custom algorithms retain Python execution with its existing
+reconstruction limits. GMP supplies exact arithmetic for the Rust implementation.
 
-Exact arithmetic, custom transfers, random surplus transfers, unported variants, custom election
-or profile subclasses, and unsupported values retain Python execution. A Python election can
-still use an independently eligible native scorer or cleaner. Direct storage access must honor
-the separate dynamic-access contract of unknown profile subclasses.
+Select execution before mutation or RNG consumption. Rust failures propagate without retry, and a
+missing extension is an installation error after Rust ownership is activated. A private reference
+override may support differential tests, but must state whether it changes kernels, storage, or
+both.
 
-Resolve eligibility before execution or RNG consumption. Do not catch a native error and rerun
-in Python: validation errors, allocation failures, invalid callback responses, and implementation
-defects must surface once. Missing or unloadable native code is an installation error. The private
-`force_python` route selects reference numerical execution for differential tests; it does not
-make the package extension-free because shared election ownership still uses `ElectionCore`.
+### Operation binding flow
 
-## Activation and evidence
-
-Compare native operations with both the pinned baseline and the retained Python/NumPy predecessor.
-Include setup, extraction, native copies, Python policy calls, and public result construction in
-end-to-end measurements. A faster isolated kernel does not justify a slower public default.
-Do not invent size cutoffs without workload evidence that both paths satisfy the same contract.
-
-Exercise real caller types, especially integer-weight output from generators, before claiming a
-workflow benefits from Rust. Measure tie-heavy inputs and separate execution, numerical replay,
-and public materialization. Preserve summation order and per-entry-point rounding; using Rust
-does not authorize reassociation or an incremental reduction with different floating-point results.
-
-The `stv-cursors` Cargo feature is a default-off experiment. It adds per-row positions and summary
-caching, with the additional memory included in admission estimates. Its comparisons preserve
-ordinary STV policies. It is not a public runtime backend setting or a completed default switch.
+Dispatch selects a supported path before mutation or random draws. Once Rust execution begins,
+failures propagate without retrying through Python. Policy callbacks use the separate event
+boundary described in stage 4.
 
 ## Distribution contract
 
-Maturin builds one extension per wheel, preserving `src/votekit`, package metadata, extras,
-`py.typed`, and generator JSON data. Source distributions include Rust source and `Cargo.lock`.
-The documented toolchain is Rust 1.88.0; dependencies and licenses are recorded in
-`rust/DEPENDENCIES.md`. Source builds/development require Rust and the native toolchain, while
-supported wheel installations require no compiler.
+Replace Hatchling with a Maturin mixed build while preserving `src/votekit`, public imports,
+metadata, extras, `py.typed`, and generator JSON data. Include Rust sources and `Cargo.lock` in
+source distributions. Record GMP and binding dependencies, licenses, linkage, bundled-library
+requirements, and source-build prerequisites.
 
-The release configuration covers CPython 3.11, 3.12, and 3.13 across Linux glibc x86_64/aarch64,
-macOS x86_64/arm64, and Windows x86_64. Each cell must install and exercise its wheel outside the
-checkout. Source distributions must also build and run outside the checkout. Other targets depend
-on source-build support; PyPy, free-threaded Python, and a separate pure-Python distribution are
-not promised by this architecture.
+The initial release target is CPython 3.11–3.13 on Linux glibc x86_64/aarch64, macOS x86_64/arm64,
+and Windows x86_64. Reconfirm that matrix and the minimum Rust toolchain during implementation.
+PyPy, free-threaded Python, WASM, and a separate pure-Python distribution are outside the initial
+scope.
 
-Retain existing publishing authorization and trusted-publishing controls. Updating this blueprint
-or building artifacts does not authorize publishing a release. See
-[ADR 0003](../../ADRs/0003-private-rust-distribution.md) for the distribution decision.
+Supported wheels require no compiler on the user's machine although development and source builds
+use the documented toolchain. To verify that distinction, install each release target's wheel
+outside the checkout and exercise ordinary and exact computation, with equivalent independent
+build checks for source distributions. Existing publishing authorization and trusted-publishing
+controls remain in force.
+
+### Distribution flow
+
+The mixed build ships Python and Rust together. Exact support brings GMP's linkage and
+distribution requirements into that build. Verify the wheel and source distribution outside the
+checkout so local files cannot conceal missing package contents.
 
 ## Verification required for release
 
-Native unit tests exercise valid/invalid construction, bounds, empty dimensions, exhaustion,
-transitions, transfer arithmetic, replay, and checked allocation sizes. Numeric algorithms should
-be testable without Python initialization. Binding tests additionally cover Python ownership,
-callback errors/reentrancy, GC, and serialization.
+Rust unit tests cover valid and invalid construction, empty dimensions, bounds, sentinels,
+transformations, exact arithmetic, replay, and allocation checks. Binding tests add ownership,
+exports, callback mutation and errors, reentrancy, GC, and persistence.
 
-Python parity tests compare full public structure and error behavior with native execution forced
-on and off, including exact/fallback cases, subclass dispatch, mutable snapshots, row and candidate
-order, and RNG state. Vary Python hash seeds where set order affects transitions. Test independent
-elections for accidental shared mutation without parallelizing one election's reductions.
+Python differential tests compare values, metadata, contractual order, extensions, exceptions, and
+RNG state. Include arbitrary-size rationals within the total cap and vary hash seeds where label
+iteration affects behavior.
 
-Installed-artifact smoke tests must load the extension, exercise native scoring and ordinary
-IRV/STV in floating and exact modes, verify custom fallbacks, and materialize history. Check package
-data and existing
-optional-import smoke tests as their dependencies permit. Importing the Python package alone is
-not a native smoke test. Retain raw timings and fresh-process memory measurements with build and
-dependency metadata; do not describe incomplete platform checks as a completed release gate.
+Installed-artifact tests exercise construction, transformations, ordinary and exact elections,
+fallback hooks, and replay. These checks establish support for the distributed artifacts rather
+than only the development build.

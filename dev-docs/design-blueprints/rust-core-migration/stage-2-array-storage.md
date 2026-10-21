@@ -1,232 +1,246 @@
-# Stage 2: authoritative array-backed profiles
+# Stage 2: authoritative profile matrices
 
 ## Goal
 
-Make the existing numeric ranking representation authoritative outside pandas. Ranked profiles own a
-ballots-by-ranking-positions integer array, while scored profiles own separate ordered score columns
-that retain their individual dtypes. The public classes continue to accept ballots and DataFrames
-and produce the same labeled representations, with the snapshot semantics defined in the engineering
-notes.
+Replace numeric storage behind the existing `RankMatrix` and `ScoreMatrix` interfaces with
+Rust-owned buffers. Each profile keeps one authoritative numeric owner, and Python continues to
+provide labeled construction, metadata, and public materialization.
 
-Ranked and scored storage are separate activation checkpoints. Each must include its constructor,
-materialization, copy, persistence, cleaned-profile metadata, and affected internal readers. A
-partially migrated profile with two writable sources of truth is not eligible for release.
+Ranked and scored profiles can migrate independently. Each migration covers construction,
+transformations, exports, persistence, and affected readers so that ordinary operations do not
+require a second Python matrix. [ADR 0001](../../ADRs/0001-profile-array-ownership.md) defines
+ownership, [ADR 0004](../../ADRs/0004-matrix-representation-and-operations.md) defines
+representation, and [ADR 0006](../../ADRs/0006-profile-exports-and-provenance.md) defines exports
+and provenance.
 
-Status: ranked and scored storage, detached materialization, and persistence are implemented.
-The numeric constructor below was added with native generator integration.
+## Feature flow
 
-## Constraints inherited from the baseline
+Construction establishes the owner used by queries, exports, and persistence. Each feature
+occupies one subgraph; public construction and restoration converge on checked Rust storage. Solid
+arrows show execution or returned data, and dashed arrows show retained references.
 
-`PreferenceProfile.__new__` dispatches to ranked or scored classes based on the supplied ballots
-or DataFrame columns. Preserve that factory behavior, including empty construction and rejection
-of mixed ballot families. Neither a new public storage argument nor a new profile class is
-needed.
+```mermaid
+flowchart TD
+    START(["START: construct a profile"])
+    subgraph CONSTRUCTION["Construction and ownership"]
+        INPUT["PYTHON: normalize and encode input"]
+        META["PYTHON: owned labels, voters, and provenance"]
+        BUILD["RUST: validate and establish owned numeric storage"]
+        MATRIX["RUST: immutable matrix owner"]
+        PROFILE["PYTHON: publish profile facade"]
+        INPUT --> META
+        INPUT -->|"Python → Rust: encoded values"| BUILD
+        BUILD --> MATRIX
+        MATRIX -->|"Rust → Python: handle"| PROFILE
+        META --> PROFILE
+        PROFILE -.-> MATRIX
+        PROFILE -.-> META
+    end
 
-Ranked cells preserve candidate sets exactly, including explicit empty sets and repeated
-candidates in separate positions. Preserve width checks based on `max_ranking_length` and
-`max_candidates_ranked`; do not confuse the number of ranking positions with the number of
-candidates contained in those positions. Input validation must retain its baseline ordering.
+    subgraph EXPORTS["Queries and detached exports"]
+        REQUEST{"Requested representation?"}
+        QUERY["RUST: compute requested scalar, mask, or decoded row"]
+        SMALL["PYTHON: return query result"]
+        COPY["RUST: copy numeric values<br/>Convert exact weights to Python Fractions"]
+        ARRAY["CALLER: independent writable array"]
+        ROWS["RUST: select and decode requested rows"]
+        WRAP["PYTHON: attach selected labels and voters"]
+        EXPORT["CALLER: independent DataFrame or ballots"]
+        REQUEST -->|Query| QUERY
+        QUERY -->|"Rust → Python"| SMALL
+        REQUEST -->|NumPy array| COPY --> ARRAY
+        REQUEST -->|DataFrame or ballots| ROWS
+        ROWS -->|"Rust → Python"| WRAP --> EXPORT
+    end
 
-Scored DataFrames may preserve zero entries which `ScoreBallot` materialization subsequently drops.
-Candidate inference, column order, weight types, and public DataFrame dtypes can depend on the input
-path. The storage constructor must carry enough information to reconstruct those values. Converting
-every numeric column to `float64` would lose those distinctions.
+    subgraph PERSISTENCE["Serialization and restoration"]
+        SAVE["Serialize numeric values and Python metadata"]
+        PAYLOAD["Versioned payload<br/>No Rust pointers"]
+        READ["PYTHON: read supported payload version"]
+        ALIGN["PYTHON: check restored metadata alignment"]
+        RESTORED["PYTHON: restore profile and required relationships"]
+        SAVE --> PAYLOAD --> READ
+        ALIGN --> RESTORED
+    end
 
-`CleanedRankProfile` and `CleanedScoreProfile` override the displayed row indices after ordinary
-profile initialization. Those public indices, their parent links, and their index categories
-are part of the input to this migration, not optional reporting information.
-
-## Relationship to existing acceleration
-
-Use the stage-1 numeric interface as the access boundary. Its ranked codes now refer directly to
-owned arrays instead of extracted DataFrame columns. Existing election adapters can share these
-immutable codes and construct their own candidate-index workspace when needed.
-
-The baseline FastSTV padded `int8` matrix does not become profile storage. Its extra sentinel column
-and exhaustion conventions are engine details. Stage-3 integration replaced its unchecked narrow
-casts with wider private candidate and position indices.
-
-## Design decisions and tradeoffs
-
-### Storage and constructors
-
-A small ranked storage value owns the code array, code meanings, weights, and row metadata. A
-corresponding scored value owns score columns, weights, and metadata. Their constructors enforce
-alignment so callers cannot independently replace a weight vector or code table. The profile keeps
-its public candidate declarations and existing derived properties. Unknown profile subtypes retain
-the dynamic-access compatibility route specified in the engineering notes. Direct numeric consumers
-recognize the built-in ranked, scored, and cleaned types explicitly.
-
-The minimum ranked layout is conceptually:
-
-```text
-ranking_codes[B, L] : int64
-ranking_sets       : code -> frozenset of public candidate labels
-weights[B]         : original numeric values, including Fraction where present
-ballot_index[B]    : public index labels and index metadata
-voter_sets[B]      : privately owned immutable membership
+    START --> INPUT
+    PROFILE --> REQUEST
+    MATRIX -.-> QUERY
+    MATRIX -.-> COPY
+    MATRIX -.-> ROWS
+    META -.-> WRAP
+    PROFILE --> SAVE
+    READ -->|"Python → Rust: numeric values"| BUILD
+    MATRIX -->|Restored matrix handle| ALIGN
+    READ -->|Restored metadata| ALIGN
+    class INPUT,META,PROFILE,SMALL,WRAP,READ,ALIGN,RESTORED python;
+    class BUILD,MATRIX,QUERY,COPY,ROWS rust;
+    class START,ARRAY,EXPORT start;
+    classDef python fill:#e8f0ff,stroke:#356ac3,color:#111;
+    classDef rust fill:#fff0df,stroke:#b86b25,color:#111;
+    classDef start fill:#d9f2df,stroke:#26783b,color:#111;
 ```
 
-`B` counts stored rows, not total ballot weight or distinct rankings. `L` follows the baseline
-width contract. Empty profiles need explicit dimensions and public column metadata; an empty
-array alone does not establish whether construction should yield a ranked, scored, or base
-profile.
+## Rust work
 
-Ranked codes use the signed 64-bit representation in the engineering notes. Weight and score storage
-preserves accepted values in separate columns, including extension arrays and object arrays when
-needed. A homogeneous matrix is only an operation-local conversion after eligibility and coercion
-checks; mixed signed/unsigned integers can otherwise lose precision. Preserve per-column dtype
-metadata needed for public DataFrame reconstruction, including accepted extension dtypes. Converting
-a large integer or extended-precision input through a float and casting it back is not lossless
-preservation.
+Implement immutable rank and score owners for candidate-set membership, score-column mapping,
+float64 weights, and GMP rationals. These owners also perform structural queries, row decoding,
+and checked construction, allowing Rust results to share immutable allocations and serialized
+values to be restored into validated storage.
 
-Preserve accepted extra DataFrame columns and their order as auxiliary column data. The ranked
-DataFrame constructor can retain columns beyond the declared ranking width, so silently dropping
-them would change `.df` and some consumers. Keep nonstandard schemas on the compatible operation
-path until their numeric interpretation is established. Auxiliary columns do not enter the ordinary
-election matrix and do not require another authoritative DataFrame.
+## Python work
 
-Although this compatibility path is slower than ordinary `float64` storage, it preserves the public
-DataFrame constructor's accepted inputs while keeping the common case compact. Later checkpoints may
-accelerate additional numeric cases.
+Keep public constructors, DataFrame adapters, candidate labels, voter metadata, and provenance in
+Python. Replace the numeric fields behind `RankMatrix` and `ScoreMatrix` with Rust owners and
+route their methods through the binding. Update exports and persistence adapters to preserve
+public values and relationships. Ranked and scored facades may migrate independently; stage 3
+ports the matrix computations behind the consumer interfaces established in stage 1.
 
-### Checked numeric construction
+## Public and internal construction
 
-Generators and numeric callers can avoid labeled DataFrames and ballot objects through:
+Preserve `PreferenceProfile` dispatch to ranked or scored profiles, including empty construction
+and mixed-ballot rejection. Python adapters own candidate-name normalization and DataFrame schema
+interpretation. The matrix owns validated numeric structure and aligned shared data. Fused Rust
+encoding may normalize distinct sets while attached, avoiding a normalized full-frame
+intermediate.
 
-```python
-@classmethod
-def from_rankings_array(
-    cls, rankings: np.ndarray, weights: np.ndarray, *,
-    candidates: Sequence[Candidate],
-) -> RankProfile: ...
-```
+Public array construction validates and copies caller data, establishing the ownership on which
+internal construction relies. A validated matrix can then be wrapped without re-parsing DataFrames
+or ballots, as the current `_from_matrix` methods do when establishing metadata and freezing the
+profile. The Rust equivalent may transfer or share immutable buffers while still checking changed
+weights, candidate membership, and alignment.
 
-This built-in `RankProfile` constructor accepts two-dimensional `int64` candidate indices and
-aligned one-dimensional numeric weights. It checks bounds, trailing `-1` padding, no repeated
-candidate within a row, canonical labels, and finite nonnegative weights. It rejects subclass
-construction. These stricter inputs do not change the general labeled constructors' ability to
-represent ties, repeats, or explicit empty sets.
+Generators may use trusted internal construction. A public constructor from dense singleton IDs is
+optional; if introduced, it must distinguish candidate IDs from ranking-set IDs and specify
+padding and duplicate handling without narrowing the general matrix contract.
 
-The constructor owns copies, derives profile-local singleton codes, preserves weight dtype and
-safe totals, and reconstructs ordinary public metadata. Dense candidate indices are not exposed
-as public ranking-set codes. Generated grouped counts therefore stay integers until an eligible
-election explicitly converts its workspace weights.
+### Construction flow
 
-### Materialization and remaining Python consumers
+Stage 1 supplies the Python interface and input conventions. Construction establishes the Rust
+owner before the facade publishes it; the original caller cannot mutate the stored values.
 
-Implement `.df` directly from the storage, translating each ranking code through its table.
-Implement `.ballots` from rows and metadata without calling `.df` first. The two properties remain
-lazy and may be cached independently. Preserve public column order, index name, scalar types,
-padding labels, and ballot construction behavior.
+## Representation
 
-Keep the authoritative mappings private and expose the existing dictionary attributes as
-detached snapshots. Internal code must use the private table. Calling `copy()`, grouping,
-addition, equality, and serialization after a caller edits a public cache must still operate on
-the authoritative profile.
+Ranked storage contains a two-dimensional candidate-set ID array, a dense unique membership table,
+typed weights, and aligned metadata. Reserved IDs are -2 for empty and -1 for end-of-ranking;
+ordinary IDs start at zero. End sentinels trail. Membership uses internal candidate IDs while
+Python preserves string/integer labels, declared order, and zero-weight-only undeclared labels.
 
-Some consumers will remain DataFrame-based until stage 3 or later. Give those consumers a private
-fresh materialization route that reads the storage and returns a detached DataFrame. Move all
-internal readers identified in stage 1 either to numeric access or to that route before activating
-the profile family. For built-in profiles they must not consult an edited `.df` or `.ballots`
-cache. For unknown subtypes, preserve the baseline overridden accessors instead of forcing fresh
-materialization from private storage. Compatibility materialization is an explicit cost, not a
-second authoritative store.
+Scored storage contains a float64 matrix and its score-column mapping. Public input of another
+numeric dtype is accepted when conversion preserves its values and rejected otherwise. Check
+representability before narrowing; a rounded result cannot establish that its source was exact.
+The direct Python matrix currently retains supplied floating dtypes, so document this deliberate
+storage and acceptance change. Negative values are invalid, signed zeros are canonicalized, and
+NaN means missing. Explicit zeros and positive infinity remain supported. NaN payload bits and
+original pandas column dtypes are not preserved. This score conversion policy does not widen
+weight acceptance.
 
-Retain `_df` temporarily as a derived encoded-frame adapter for legacy internal readers, with
-detached metadata and no write-through behavior. Do not cache another complete encoded frame unless
-a measured consumer requires it. Remove production reads and then the adapter as the later
-checkpoints replace them. Deserializing old `_df` state remains supported independently.
+Weight variants and conversion rules follow
+[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md). GMP-backed exact storage retains
+arbitrary-size rationals; Python Fraction arrays become exports or compatibility inputs rather
+than a second authoritative exact vector.
 
-### Provenance and profile operations
+Rust total-weight queries and validation use scalar Neumaier summation for float64 weights and
+rational summation for exact weights. Share the float accumulator with the mentions operation in
+stage 3. Python callers obtain the total through the matrix interface rather than exporting
+weights to repeat the reduction.
 
-Move public ballot index labels into the storage rather than reproducing the cleaned-profile
-override on a cached DataFrame. Update cleaned constructors and category validation to use that
-metadata. The category sets must remain subsets covering the parent labels as the baseline requires,
-without assuming they are disjoint.
+Retain width, ranking-column labels, score-column order, declared candidates, voters, and source
+row labels required by the current matrix contract. Round trips preserve ballot meaning rather
+than every original DataFrame dtype, index metadata attribute, or historical code assignment.
+Nondefault labels are independent of physical positions, including duplicate and noninteger
+labels.
 
-Copy may share immutable ranking and score buffers, but the returned profile must have independent
-mutable public snapshots. Addition reconciles profile-local code tables and reproduces the
-baseline candidate order and width rules. Grouping remains explicit and returns the baseline
-profile type, index reset, summed weights, and voter-set unions. Until their numeric ports are
-ready, these operations can use the fresh compatibility materialization route.
+## Operations and exports
 
-## Implementation boundaries
+Preserve the common protocol and concrete ranked/scored operations. Queries such as
+`has_rankings`, `has_ranked_candidates`, `has_ties`, score bounds, and totals should run against
+Rust storage and return only their requested results. Operations must not depend on exporting
+entire matrices first.
 
-### Module ownership
+`to_df()` returns a fresh detached export; `.df` is its deprecated alias. Matrix row selection is
+applied before decoding, preserving selected source labels and order. `get_ballot` and
+`iter_ballots` materialize requested ballots directly. Full `.ballots` materialization remains
+available for callers that request it. Built-in computation reads the matrix, so neither a cached
+ballot tuple nor a cached `_df` is needed as an internal representation.
 
-Put concrete storage values and checked construction in `pref_profile/_storage.py`. Keep public
-factory dispatch, CSV methods, and profile properties in `pref_profile.py`, and update
-`cleaned_pref_profile.py` to obtain provenance from storage. A private constructor such as
-`_from_storage` can wrap a validated result without reconstructing ballots or rerunning public
-parsing. It must still establish the subclass metadata required by a cleaned profile.
+Public array exports copy, including the independent-copy contract of `to_matrix`. Internal
+operations may share immutable allocations. Shared public views remain deferred pending a lifetime
+and aliasing contract.
 
-Do not eagerly precompute every possible election cache. Retain cheap construction facts needed
-by several consumers, such as dimensions and observed code sizes. Derive specialized candidate
-indices when the corresponding consumer asks for them, with cache ownership tied to immutable
-storage rather than a mutable public dictionary.
+Each transformation preserves its existing contract: copying and weight replacement share
+unchanged storage, grouping retains first-appearance order and weight/voter semantics, and
+addition reconciles set tables or score columns. Alongside the numeric result, Rust operations
+return the row correspondence Python needs to restore metadata.
 
-### Persistence transition
+### Query and export flow
 
-Introduce explicit versioned pickle state for profiles using Python and NumPy values. Persist
-authoritative data and subclass metadata, not public caches, native handles, or an election
-workspace. The new release reads the pinned baseline format and the new format; old releases
-are not required to read the new format. CSV remains the existing interchange representation.
+Queries use the Rust owner directly. Public array exports receive independent writable storage;
+DataFrames and ballots combine selected numeric values with the corresponding Python metadata.
 
-For baseline pickles without a format version, recover rankings or scores and weights from `_df` and
-the stored code tables. For cleaned subclasses, recover public index labels from `df_index_column`
-and their parent/category attributes rather than the old internal frame index. To preserve snapshot
-semantics, ignore ordinary cached `.df` and `.ballots` values when they disagree with authoritative
-data. Restore objects through a private checked path before freezing attributes and discarding stale
-cached totals.
+## Provenance and subclass behavior
 
-Support baseline payloads with no caches, either cache populated, both populated, and cleaned parent
-chains. Structurally inconsistent payloads, such as a ranking code absent from its table or a
-mismatched provenance length, receive a clear deserialization error. Do not attempt to guess a
-repaired ranking from conflicting caches. The baseline tables themselves are the only available
-record of code meanings, so values lost to prior in-place corruption cannot be recovered.
+Keep cleaned parents, altered-index categories, and row-label mapping outside mutable exports.
+Because filtering, grouping, and concatenation transform these relationships differently, each
+operation must publish its metadata with the numeric result and preserve any category overlaps
+permitted by cleaning semantics.
 
-Pickle remains a trusted Python serialization mechanism. These structural checks do not turn it
-into a safe format for untrusted data. The migration does not change the URL-loading interface.
+Audit supported profile overrides before switching a consumer. An extension may require a
+compatible Python path even when the built-in type can execute natively. Detached exports remain
+independent of the authoritative profile on either path.
 
-## Implementation checkpoints
+## Module ownership
 
-1. Implement owned storage, private construction, and round-trip tests without switching public
-   construction.
-2. Activate ranked storage together with ranked materialization, exact weights, cleaned indices,
-   old-pickle loading, and the complete inventory of ranked internal readers.
-3. Activate scored storage with the corresponding numeric, missing-value, dtype, metadata, and
-   reader guarantees.
+Use `pref_profile/profile_matrix/` for matrix behavior and `pref_profile/pref_profile/` for public
+profile construction and materialization. Keep shared weight/voter/index handling with its current
+owner. The common protocol specifies Python-facing behavior; Rust traits can describe the narrower
+numerical operations without pandas dependencies.
 
-The ranked and scored activation order may be reversed if implementation dependencies favor it.
-Both storage checkpoints depend on stage 1. Their representation does not require Rust, although
-the current mixed distribution includes the native extension.
+Wire Rust construction through these modules, with internal dispatch and concrete ranked/scored
+operations. Production integration does not use process-global monkey patches or a public backend
+registry.
+
+## Persistence transition
+
+Add explicit versioned state containing authoritative values and provenance, not handles to Rust
+objects, workspace caches, or public snapshots. Read baseline and new formats; old releases need
+not read new formats. Capture baseline pickle fixtures before changing the implementation.
+
+For old encoded-frame payloads, recover code meanings and weights from the authoritative fields.
+Cleaned labels and parents require their own restoration path; do not infer them from a historical
+internal RangeIndex. Ignore derived caches when authoritative data is present. Reject inconsistent
+shapes or missing code meanings rather than guessing a repaired ballot from conflicting caches.
+
+Use checked restoration before freezing or publishing the result. Test cached/uncached baseline
+objects, cleaned parent chains, new Rust values, and copy/deepcopy relationships. Pickle remains
+restricted to trusted input.
+
+### Persistence flow
+
+Serialization records values and metadata rather than Rust pointers. Restoration validates the
+numeric payload and its metadata alignment before publishing a profile.
+
+## Suggested implementation steps
+
+1. Document existing matrix semantics and identify remaining direct-array consumers and exports.
+2. Introduce Rust ranked ownership with adapters, structural queries, sharing, and persistence.
+3. Introduce Rust scored ownership with equivalent column/missing-value and metadata behavior.
+4. Port transformations and remove repeated Rust-to-NumPy-to-Rust conversion paths.
+
+The profile families may activate in either order. A migrated family must own its values once;
+unmigrated families can continue using Python matrices. Stage 1 covers Python consumer wiring,
+stage 3 covers Rust computation ports, and stage 5 provides packaging.
 
 ## Verification
 
-Run profile, ballot, cleaning, CSV, pickle, mixed-label, and exact-STV tests. Compare DataFrames
-structurally, including dtypes and index metadata, and compare ballot sequences without first
-grouping them. Check empty profiles and explicit unused candidates as separate cases.
+Test input mutation, export mutation, Rust ownership lifetime, independent elections, and shared
+immutable copies. Verify values and metadata rather than Python array object identity. Include
+empty dimensions, zero-weight rows, ties, repeats, mixed labels, NaN/zero/infinite scores, and
+Fraction weights. Cover lossless score conversion and rejected narrowing, including finite values
+that would overflow or underflow in float64. Reuse current validation for nonnumeric and other
+invalid inputs.
 
-Test edits to the original constructor input and to each returned public representation. Verify
-that a numeric tally, `copy()`, serialization, and a second election remain unchanged. Include
-mutable sets inside DataFrame cells and mutable score dictionaries inside ballot snapshots.
-Verify that requesting `.ballots` does not populate `.df`, and that numeric consumers need neither.
-
-Load the frozen stage-1 pickle fixtures and assert metadata, values, types, parents, and row
-indices directly. Round-trip the new format with and without caches populated. Exercise the
-existing generators, loaders, plots, metrics, and profile utilities through their public APIs,
-including the remaining compatibility consumers.
-
-Measure construction, memory before and after each public cache, repeated elections on one profile,
-and old-pickle load time. Include the temporary compatibility adapters in end-to-end measurements.
-Apply the stage-1 regression gates to total process memory, including retained snapshots, so a
-smaller array cannot conceal an increase in overall memory use.
-
-## Exit criteria
-
-Each activated profile family has one authoritative store, preserves the baseline representation
-and public structure, and implements the documented snapshot change consistently. Existing
-pickle state remains readable. Internal consumers of built-in profiles no longer rely on a
-writable public cache, and ordinary numeric access constructs no labeled DataFrame. Unknown
-profile subtypes retain their documented dynamic-access compatibility route.
+Prove successful numeric operations do not populate public DataFrames or complete ballot tuples.
+An activated matrix preserves its accepted public contract, maintains one numeric owner, and
+supports aligned provenance without consulting a mutable public snapshot. Verify export isolation,
+persistence round trips, and sharing of unchanged Rust-owned allocations.

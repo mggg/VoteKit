@@ -1,165 +1,100 @@
-# Native exact STV
+# Exact STV in Rust
 
-## Contract and scope
+## Exact arithmetic contract
 
-Move supported `STV(..., exact=True)` and `IRV(..., exact=True)` execution to Rust without
-converting rational weights, tallies, transfer factors, or quotas through floating point.
-Generators still return profiles; election methods accept those profiles independently.
-Keep custom election subclasses, custom/random transfers, and unsupported profile layouts on the
-existing Python exact implementation. Admission requires strictly positive input weights and a
-positive quota. Custom `Fraction` subclasses keep Python arithmetic so their hooks are honored.
-Exact dispatch requires `native_enabled()`; `force_python()` always selects the
-original eager exact reference, never the float-only Python retained runner.
+The Rust implementations of `STV(..., exact=True)` and `IRV(..., exact=True)` keep weights,
+tallies, transfer factors, and quotas rational throughout the count. The implementation reduces
+repeated work and conversion while preserving exact decisions and public Fraction results.
+[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md) defines representation and conversion
+policy; [ADR 0002](../../ADRs/0002-retained-stv-transitions.md) defines count and replay
+separation.
 
-Use an internal `ExactWeight` with inline `Ratio<u128>` values and `BigRational` overflow fallback.
-Reuse the rational library's checked arithmetic, including intermediate products and subtraction;
-promote before overflow can affect a value. Reduced results may return to inline storage. Numeric
-ordering must compare values across representations, never enum discriminants. Enable PyO3's existing
-arbitrary-precision conversions for output. Validate integer numerator/denominator pairs before constructing
-ratios so malformed private calls cannot trigger a zero-denominator panic. Arbitrary-size inputs
-must not silently narrow or fall back to floats.
+Preserve arbitrary-size integers and exact public Fraction values within the profile's `2**50`
+total-weight cap. That cap bounds value, not denominator size or arithmetic complexity. Reject
+nonintegral floats at exact conversion rather than guessing the rational the caller intended.
+Supported custom behavior uses Python hooks within the Rust runner. Unsupported custom algorithms
+retain compatible Python execution selected before counting and its existing reconstruction
+limits. Rust errors never cause a floating or Python retry.
 
-## Ownership and execution
+## Rust and Python responsibilities
 
-Reuse the existing retained workspace and STV runner with two concrete numeric instantiations.
-A small internal numeric trait owns zero/one, checked domain validation, score reporting, surplus
-factors, and accumulation/multiplication. Float reporting keeps the existing ten-place rounding;
-exact reporting preserves the rational value. Avoid a second copy of the election algorithm.
+Rust owns exact values, arithmetic, tallying, transfers, and recorded exact transitions. Python
+validates public inputs, supplies supported custom hooks, and exposes results as `Fraction`
+values. The binding converts arbitrary-size integers without narrowing; intermediate Rust
+arithmetic does not round-trip through Python. Stages 2, 4, and 5 integrate these responsibilities
+into storage, elections, and the distribution respectively.
 
-Separate row-weight storage from the round algorithm. Floating weights stay per row with ordered
-reductions. Exact weights retain immutable base values and shared cumulative transfer factors.
-Rows with the same factor and next candidate contribute their base-weight sum times that factor;
-they remain distinct rows in the workspace and replay. Each elected candidate splits only its
-affected rows, even when multiple winners shared a factor before a simultaneous transfer.
+## Authoritative input and execution
 
-Use reference-counted immutable factors to bound persistent allocations by the original row count.
-A transfer-local identity cache pins both old and new factors until its bucket is complete, so
-allocation addresses cannot be reused as another group's identity. Cast ordering still comes from
-live-row traversal; hash-table iteration may reorder exact additions only. When every row shares
-one factor, sum base values directly and apply that factor once per candidate.
+The exact matrix owns GMP rational weights and immutable ranking-set IDs. A count shares that
+storage directly, avoiding a second Rust profile cached beside Python-owned arrays. Elections own
+changing exact weights or factors, activity, row order, cursors, and transitions. General profiles
+remain capable of ties and empty positions; singleton eligibility belongs to the count adapter.
 
-```rust
-struct Workspace<N = f64> { /* rankings, weights, live rows, transitions */ }
-struct RoundState<N = f64> { /* ranked groups, scores, tiebreak records */ }
-enum NativeHistory {
-    Empty,
-    Floating(CompletedRun<f64>),
-    Exact(CompletedRun<ExactWeight>),
-}
-// Kept behind ExactWeight so callers cannot construct invalid inline ratios.
-enum Representation {
-    Small(Ratio<u128>),
-    Big(BigRational),
-}
-struct SharedExactWeights {
-    base: Vec<ExactWeight>,
-    factors: Vec<Arc<ExactWeight>>,
-}
-struct NativeRankedProfile {
-    rankings: Arc<[i64]>,
-    width: usize,
-    weights: Vec<u64>,
-    candidates: usize,
-    total: u128,
-}
-struct CandidatePiles<N> {
-    first: Vec<Option<usize>>,
-    rows: Vec<Vec<usize>>,
-    totals: Vec<N>,
-}
-```
+Floating and exact implementations can share election mechanics while keeping their numeric
+operations and reduction rules explicit. Exact addition permits regrouping without rounding, but
+aggregation must still preserve row identity, cast order, voter metadata, and the information
+needed for public replay.
 
-`ElectionCore` keeps the numeric history variant and the existing optional public Python list.
-Exact summaries become Python `Fraction` objects lazily. Once materialized, edits to that real
-list continue to govern summary queries. Replay uses the original exact input and recorded exact
-transitions without rerunning tiebreaks. Preserve candidate ordering, row multiplicity and order,
-empty rankings after simultaneous transfers, elimination provenance, and terminal empty profiles.
-Serialization must restore exact weights and transitions without narrowing, while accepting existing
-version-one floating/Python history payloads. Exact version-two payloads encode weights and factors
-as validated integer pairs, with size admission before extraction. Replay budgets distinct input
-denominators times every recorded factor denominator. Factors must lie in [0, 1] and contribute
-once per occurrence: repeated 1/3 transfers can produce 1/9.
-Restore into a temporary owner and replace the core only after successful validation and replay.
-Replay materializes each row's base value times its shared factor. Serialization continues to store
-original weights and transitions, never allocation identities or grouping caches.
+Keep quota and score comparisons exact within the Rust runner, sorting GMP rationals without
+repeatedly converting them to Python Fractions. Convert scores at public boundaries and when
+custom Python hooks need them, keeping intermediate tallies in Rust. If a numerical tiebreak
+requires a profile, wrap the validated exact matrix rather than reconstructing ballots or a
+DataFrame.
 
-Keep Python label/set ordering and the existing Python RNG policies. Exact loser ties rank initial
-exact tallies and randomize unresolved groups. Exact winner ties use random/lexicographic policy
-or exact current first-place/Borda scores. Python callbacks may resolve policies at tie events;
-the retained numerical loop and transfer arithmetic execute in Rust. Reuse the exact Python tie
-helpers, including tied-frozenset iteration and seeded RNG consumption. For numeric winner policies,
-construct a rational `RankProfile` from ballots at the tie event; the numeric-array constructor
-does not accept object-dtype Fraction weights. Callbacks are call-scoped and must not create
-retained election-reference cycles.
+Record actual exact transfer factors, actions, and supported callback effects. Retained replay
+derives row values from original input and transitions without new policy decisions, randomness,
+or callback invocation. A custom transformation may require retained values rather than a scalar
+factor. Preserve simultaneous-transfer survival rules, zero/empty rows where required, cleaning
+provenance, and terminal profile behavior.
 
-Cache an immutable `NativeRankedProfile` snapshot on supported built-in integer-weight profiles.
-This is a generic candidate-index profile owner, independent of any generator or election method.
-Rust validates its singleton rankings and positive `u64` weights, accumulates the total in checked
-`u128`, and calculates the exact quota with integer division. Election workspaces share its ranking
-buffer but own their changing state. Discard the cache during profile serialization and restoration.
-Repeated elections reuse validation and indexing; memory admission still runs for every election.
+## GMP implementation
 
-Construct Python `Fraction` weights for the initial profile only when replay requests round zero.
-Other exact inputs retain the Python validation/conversion boundary: share immutable ranking storage
-where supported and retain frame conversion for unusual layouts or custom numeric types. Preserve
-the converted profile's candidate order and metadata. Nonintegral floats remain invalid.
+Use GMP with a pinned binding and build configuration. Integration verifies supported wheel and
+source builds, dependency obligations, integer conversion, and allocation handling.
 
-Exact workspaces cache first-choice row piles and totals. After a transition, route rows from removed
-candidates and recompute only the affected candidates' totals using shared factors. Keep the existing
-live-row sequence authoritative for cast ordering, simultaneous-transfer survival, and replay. Rebuild
-pile row IDs in that sequence; the optimization removes repeated arithmetic, not every full-row scan.
-Floating workspaces retain ordered reductions. Transition validation checks cast membership without
-performing rational tallies whose totals would be discarded.
+The following optimizations can reduce allocation and arithmetic without changing the exact model:
 
-## Allocation safety
+- Intern repeated exact inputs before allocating large rational objects; preserve validation for
+  distinct inputs and supported custom numeric behavior.
+- Share transfer multipliers and retain immutable base weights where that reduces repeated work.
+- Group compatible denominator contributions during tallying while retaining source-row identity.
+- Use bounded dense factor/candidate lookups with checked sparse fallbacks.
+- Advance affected ballots through their remaining suffix rather than repeatedly scanning
+  prefixes.
+- Update exact totals incrementally where the invariant and full transition semantics are proved.
+- Avoid repeated Python/Rust integer conversion and redundant Fraction reduction on export.
 
-Recheck native allocation admission at election entry. Include rational input limb sizes, stored
-weights, round summaries, transfer factors and replay scratch in an overflow-checked estimate.
-Admit Python integer payload sizes before extracting big integers; use a list of strict integer
-numerator/denominator pairs, not unchecked PyO3 rational extraction. Admit input copies first, then
-calculate the execution bound from extracted pairs. Reject negative numerators and nonpositive
-denominators before constructing a ratio.
+Rational-to-float conversion, when an explicit public operation requests it, must follow the
+Python contract including rounding and overflow. A backend's default conversion may differ; check
+nearest-even ties, subnormals, and overflow instead of relying on library defaults.
 
-For execution admission, all live denominators divide a common denominator D. Bound its initial
-bit length by the product of distinct input denominators (ignore ones), and bound total weight T
-by the sum of input numerators. A transfer multiplies the common denominator by at most T*D, so
-iterate `b_next = 2*b + t + 2` at most `n_seats` times. Numerators are bounded by T times the new
-common denominator. Charge several simultaneous rational copies per row, candidate-square summary
-and factor storage, arithmetic scratch, and numeric matrix buffers using checked arithmetic.
-The shared-factor backend budgets sixteen rational slots and 512 bytes of bookkeeping per original
-row, in addition to ranking/cursor buffers. This covers original and replay base/input arrays,
-per-row factor allocations, overlapping old/new factors while splitting, grouped base sums and
-hash-table slack. Retired rows can retain factors, but retained factor count remains bounded by
-original rows rather than the number of rounds. Bounds also cover cumulative factors before
-cancellation with base weights.
-The bookkeeping allowance also covers cached first choices, candidate-pile capacities and temporary
-routing changes. Admit the immutable native profile copy separately before allocating it; integer
-execution derives the same rational-growth bound directly from integer bit lengths.
-Overflow or a bound above the memory budget produces `MemoryError`, never a float retry. This can
-reject a workload whose reduced fractions would fit. Large native buffers use fallible reservation
-where supported. Big-integer arithmetic can allocate internally;
-available-memory admission is conservative rather than an OOM guarantee. The bound covers the full
-run and deterministic replay, including promotion to arbitrary precision; it introduces no silent
-precision limit. Inline rationals are a performance choice, not a reduced memory-admission promise.
+## Allocation, persistence, and failure behavior
 
-## Verification and timing
+Validate numerator/denominator payloads before constructing GMP rationals: denominators must be
+positive and weights nonnegative. Check integer sizes and byte counts before expensive extraction
+or allocation where possible. A malformed private call must not reach a zero-denominator panic.
 
-Compare the complete public result to the Python exact reference: round scores and dict order,
-winners, eliminated/remaining groups, tiebreak records and RNG state, every replayed profile,
-mutable history, pickling/deepcopy, and custom-hook fallback. Cover large numerators/denominators,
-near ties below float precision, sequential and simultaneous transfers, exact Borda/first-place
-policies, partial rankings, both quotas, malformed native inputs and memory refusals.
+Account for input limbs, exact base values, shared factors, summaries, transition logs, lookup
+storage, and replay scratch. Use checked arithmetic and fallible large-buffer reservation.
+Conservative available-memory admission is not a guarantee against allocation failure inside a
+big-integer dependency or elsewhere in the process.
 
-Benchmark ordinary public `STV` on the same profiles with Python exact, Rust exact, and Rust float.
-Use prepared exact BT only to generate ordinary profiles, record table setup separately, and time
-both STV alone and generation plus STV. Include 1k/10k/100k voters, nine candidates, three seats,
-plus a rational-weight case. Report warmups, repetitions, stored rows, conversions, and raw samples.
+Validate denominator-growth estimates against the factor representation and allowed transitions
+before using products of input denominators or transfer bounds for admission. Such bounds can
+reject work whose reduced fractions would fit, so document their conservatism and derive per-row
+allowances from the production layout.
 
-Implementation results, review findings, and timings are recorded in the
-[exact STV report](../../../reports/native-exact-stv-2026-09-18.md).
-Storage reuse and checked inline arithmetic are measured in the
-[exact STV speed report](../../../reports/exact-stv-speed-2026-09-18.md).
-Shared transfer factors are measured in the
-[shared-factor report](../../../reports/exact-shared-factors-2026-09-18.md).
-Integer profile snapshots and candidate piles are measured in the
-[native speed report](../../../reports/native-speed-next-2026-09-18.md).
+Persist canonical exact values and transitions rather than allocation identities or grouping
+caches. Repeated factors contribute once per occurrence; two one-third transfers can produce a
+one-ninth multiplier. Restore into a temporary checked owner and publish only after validation.
+Keep source labels and Python parent relationships aligned with replayed numeric rows.
+
+## Verification
+
+Compare complete public results with the current Python exact reference: round scores, candidate
+and dictionary order where contractual, tiebreaks, final RNG state, every replayed profile,
+cleaned provenance, exceptions, and custom fallback behavior. Cover sequential/simultaneous
+transfers, near ties below float precision, arbitrary-size values, partial rankings, both
+supported quotas, malformed private payloads, memory refusal, and independent counts sharing one
+matrix.

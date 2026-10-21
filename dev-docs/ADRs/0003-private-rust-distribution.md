@@ -1,32 +1,40 @@
-# 0003: Ship a private Rust core in the VoteKit distribution
-
-Status: implemented; platform CI verification pending.
+# 0003: A private Rust extension in the VoteKit distribution
 
 ## Context
 
-Array ownership removes repeated DataFrame reconstruction but Python ballot loops still dominate
-scoring, cleaning, and ordinary elections. A native extension also changes installation portability
-and must be built and checked as part of the distribution.
+With authoritative profile storage in Rust, the extension is a required component of VoteKit. The
+distribution must deliver the Python interface and its implementation together, including the
+libraries needed for exact arithmetic.
 
 ## Decision
 
-Use Maturin for one mixed distribution, preserving `src/votekit` and exposing the private module
-`votekit._votekit_core`. PyO3 and rust-numpy provide bindings and typed arrays. Rust copies inputs
-while attached, owns no Python references in numeric algorithm state, and detaches numeric execution.
-The later PyO3 `ElectionCore` boundary owner retains labels and public states with GC support; those
-references remain outside detached numerical work.
-Public wrappers select native support before execution. Native errors surface directly; a missing
-extension is an installation error. A scoped private Python override supports differential tests.
+Use Maturin to build a single mixed distribution containing `src/votekit` and the private
+extension `votekit._votekit_core`, with PyO3 bindings and rust-numpy array adaptation. The
+distribution preserves public imports, package metadata, extras, typing information, and bundled
+generator data.
 
-Keep Cargo.lock in source distributions, test with Rust 1.88.0, and publish the dependency inventory
-in `rust/DEPENDENCIES.md`. Build CPython 3.11, 3.12, and 3.13 wheels for Linux glibc x86_64/aarch64,
-macOS x86_64/arm64, and Windows x86_64. Every release cell installs its wheel and runs the native
-smoke script. Source distributions build outside the checkout. Existing publishing authorization
-and trusted-publishing checks remain in force.
+A missing or unloadable extension is an installation error once Rust storage is activated.
+Compatible Python execution remains available for unsupported operations within the mixed package;
+there is no separate extension-free distribution. Private reference modes may support differential
+testing.
+
+Source distributions include Rust sources and `Cargo.lock`. Release builds record dependency
+versions and satisfy the distribution obligations of GMP and its bindings. Supported wheels
+require no compiler on the user's machine; source builds require the documented Rust and C
+toolchains.
+
+The initial target is CPython 3.11–3.13 on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
+Windows x86_64, with the final release matrix and minimum toolchain confirmed during
+implementation. Support for each target requires installed-wheel tests outside the checkout that
+exercise construction, computation, and replay. Source builds receive equivalent verification
+under the existing release authorization and trusted-publishing controls.
 
 ## Consequences
 
-Supported wheel users need no compiler; source builds and development require Rust and a C toolchain.
-The local verification covers Linux x86_64/Python 3.13. Other matrix cells require hosted CI before
-release acceptance. No release is published by this implementation. Numba remains for the supported
-pairwise kernel and existing FastSTV implementation. Exact and uncommon numeric cases stay in Python.
+The mixed build replaces Hatchling and makes Rust packaging a prerequisite for activation.
+GMP-backed arithmetic must work from installed artifacts, not only from a development environment
+with system libraries available.
+
+Numba remains a dependency while pairwise computation and FastSTV require it. The
+[distribution plan](../design-blueprints/rust-core-migration/stage-5-rust-execution.md) defines
+build, installation, and release verification.
