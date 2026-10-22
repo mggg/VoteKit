@@ -33,7 +33,7 @@ def test_init_from_parent_class():
 def test_ballot_is_frozen():
     b = ScoreBallot()
     with pytest.raises(AttributeError, match="is frozen"):
-        b.scores = {"A": 2}
+        setattr(b, "scores", {"A": 2})
     with pytest.raises(AttributeError, match="is frozen"):
         b.weight = 2
     with pytest.raises(AttributeError, match="is frozen"):
@@ -176,7 +176,7 @@ def test_invalid_candidate_type_ballot():
     with pytest.raises(
         TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreBallot.scores"
     ):
-        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type]
+        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_negative_integer_candidate_ballot():
@@ -188,7 +188,7 @@ def test_negative_integer_candidate_ballot():
 
 def test_non_mapping_scores_ballot_raises_error():
     with pytest.raises(TypeError, match="Scores must be a mapping of candidates to score values."):
-        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type]
+        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_colon_in_cand_name_ballot_raises_error():

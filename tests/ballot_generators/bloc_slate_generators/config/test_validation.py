@@ -70,12 +70,12 @@ def test_typecheck_bloc_prop_mapping_valid():
 
 def test_typecheck_bloc_prop_mapping_rejects_non_mapping():
     with pytest.raises(TypeError, match="must be a mapping"):
-        typecheck_bloc_proportion_mapping(42)  # type: ignore[arg-type]
+        typecheck_bloc_proportion_mapping(42)  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_typecheck_bloc_prop_mapping_rejects_non_str_key():
     with pytest.raises(TypeError, match="must be a 'str'"):
-        typecheck_bloc_proportion_mapping({1: 0.2})  # type: ignore[dict-item]
+        typecheck_bloc_proportion_mapping({1: 0.2})  # type: ignore[dict-item, ty:invalid-argument-type]
 
 
 def test_typecheck_bloc_prop_mapping_rejects_nonfinite_or_bool_values():
@@ -173,15 +173,15 @@ def test_typecheck_cohesion_mapping_nested_dict_happy_and_errors():
     good = {"b1": {"s1": 0.5, "s2": 0.5}, "b2": {"s1": 0.25, "s2": 0.75}}
     typecheck_cohesion_mapping(good)  # no raise
     with pytest.raises(TypeError, match="must be a mapping"):
-        typecheck_cohesion_mapping(123)  # not a mapping  # type: ignore[arg-type]
+        typecheck_cohesion_mapping(123)  # type: ignore[arg-type, ty:invalid-argument-type]
     with pytest.raises(TypeError, match="must be a mapping"):
         typecheck_cohesion_mapping(
-            {"b1": ["s1", 0.5]}  # type: ignore[dict-item]
+            {"b1": ["s1", 0.5]}  # type: ignore[dict-item, ty:invalid-argument-type]
         )  # inner not mapping
     with pytest.raises(TypeError, match="Bloc keys must be a 'str'"):
-        typecheck_cohesion_mapping({1: {"s1": 0.5}})  # type: ignore[dict-item]  # bloc key not str
+        typecheck_cohesion_mapping({1: {"s1": 0.5}})  # type: ignore[dict-item, ty:invalid-argument-type]  # bloc key not str
     with pytest.raises(TypeError, match="slate keys must be a 'str'"):
-        typecheck_cohesion_mapping({"b1": {1: 0.5}})  # type: ignore[dict-item]  # slate key not str
+        typecheck_cohesion_mapping({"b1": {1: 0.5}})  # type: ignore[dict-item, ty:invalid-argument-type]  # slate key not str
     with pytest.raises(TypeError, match="must be a finite real"):
         typecheck_cohesion_mapping({"b1": {"s1": float("inf")}})  # non-finite
 
@@ -219,7 +219,7 @@ def test_convert_cohesion_mapping_to_df_shape_and_fill():
     assert list(out.index) == ["b1", "b2"]
     assert set(out.columns) == {"s1", "s2"}
     assert out.loc["b2", "s2"] == -1.0
-    assert out.dtypes.eq(float).all()  # type: ignore[union-attr]
+    assert out.dtypes.eq(float).all()  # type: ignore[union-attr, ty:invalid-argument-type]
 
 
 # -----------------------------
@@ -266,18 +266,18 @@ def test_typecheck_preference_mapping_happy_and_errors():
     typecheck_preference(good)  # no raise
 
     with pytest.raises(TypeError):
-        typecheck_preference(3.14)  # type: ignore[arg-type]
+        typecheck_preference(3.14)  # type: ignore[arg-type, ty:invalid-argument-type]
     with pytest.raises(TypeError):
-        typecheck_preference({1: {"slate1": {"A": 1.0}}})  # type: ignore[dict-item]  # bloc not str
+        typecheck_preference({1: {"slate1": {"A": 1.0}}})  # type: ignore[dict-item, ty:invalid-argument-type]  # bloc not str
     with pytest.raises(TypeError):
         typecheck_preference(
-            {"bloc": [("slate1", {"A": 1.0})]}  # type: ignore[dict-item]
+            {"bloc": [("slate1", {"A": 1.0})]}  # type: ignore[dict-item, ty:invalid-argument-type]
         )  # inner not mapping
     with pytest.raises(TypeError):
-        typecheck_preference({"bloc": {1: {"A": 1.0}}})  # type: ignore[dict-item]  # slate not str
+        typecheck_preference({"bloc": {1: {"A": 1.0}}})  # type: ignore[dict-item, ty:invalid-argument-type]  # slate not str
     with pytest.raises(TypeError):
         typecheck_preference(
-            {"bloc": {"slate": {1.0: 1.0}}}  # type: ignore[dict-item]
+            {"bloc": {"slate": {1.0: 1.0}}}  # type: ignore[dict-item, ty:invalid-argument-type]
         )  # candidate name not str nor int
     with pytest.raises(TypeError):
         typecheck_preference({"bloc": {"slate": {"A": float("inf")}}})  # non-finite
@@ -314,7 +314,7 @@ def test_typecheck_preference_else_branch_unexpected_item_type():
     with pytest.raises(
         TypeError, match=r"expected Mapping\[Candidate, float\|int\] or PreferenceInterval"
     ):
-        typecheck_preference(prefs)  # type: ignore[dict-item]
+        typecheck_preference(prefs)  # type: ignore[dict-item, ty:invalid-argument-type]
 
 
 # ===========================================

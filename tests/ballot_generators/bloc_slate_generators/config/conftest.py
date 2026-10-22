@@ -110,7 +110,7 @@ def extra_profile_settings():
     pref_df_empty = pd.DataFrame()
 
     # Extra stray column 'Z' → should be dropped by the updater
-    pref_df_with_extra_col = pref_df_base.assign(Z={"bloc_1": 0.0, "bloc_2": 0.0})  # type: ignore[call-arg]
+    pref_df_with_extra_col = pref_df_base.assign(Z={"bloc_1": 0.0, "bloc_2": 0.0})  # type: ignore[call-arg, ty:invalid-argument-type]
 
     # Same columns, different order → should be reordered to match config.candidates
     pref_df_out_of_order = pref_df_base[["B", "A", "Y", "X"]].copy()

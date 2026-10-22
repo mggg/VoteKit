@@ -835,7 +835,7 @@ def score_profile_from_ballot_scores(
             raise TypeError(f"Ballot {ballot} has no scores.")
         else:
             for c, score in ballot.scores.items():
-                scores[c] += score * ballot.weight
+                scores[c] += float(score * ballot.weight)
 
     return scores
 
@@ -1075,12 +1075,12 @@ def sort_candidates_pseudo_lexicographically(candidates: Iterable[Candidate]) ->
             except ValueError:
                 return False
 
-        def sort_mixed_cands(cand):
+        def sort_mixed_cands(cand: Candidate) -> tuple[int, int | float, str]:
             if isinstance(cand, str) and cand.strip().lower() == "nan":
                 return (2, 0, cand)
             elif isinstance(cand, int):
                 return (0, cand, "")
-            elif isinstance(cand, str):
+            else:
                 if cand.isdigit():
                     str_as_int_cand = int(cand)
                     return (0, str_as_int_cand, cand)

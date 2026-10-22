@@ -30,7 +30,7 @@ def elected_set(election: SimultaneousVeto) -> frozenset[Candidate]:
     return frozenset(c for s in election.get_elected() for c in s)
 
 
-def eliminated_order(election: SimultaneousVeto) -> tuple[str, ...]:
+def eliminated_order(election: SimultaneousVeto) -> tuple[Candidate, ...]:
     """Return eliminated candidates in order of elimination (first eliminated first)."""
     result = []
     for state in election.election_states:

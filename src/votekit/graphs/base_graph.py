@@ -47,6 +47,8 @@ class Graph(ABC):
 
         for _ in range(k):
             weight = 0
+            max_ball = None
+            max_center = None
             if len(cast_ballots) == 0:
                 break
             for center in cast_ballots:
@@ -60,6 +62,7 @@ class Graph(ABC):
                     max_center = center
                     max_ball = ball
 
+            assert max_ball is not None
             not_cast_in_max_ball = set(max_ball.nodes).difference(cast_ballots)
             max_ball.remove_nodes_from(not_cast_in_max_ball)
             max_balls[max_center] = (max_ball, weight)

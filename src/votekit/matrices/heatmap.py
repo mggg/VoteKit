@@ -107,19 +107,16 @@ def _add_text_to_heatmap(
         font_size = cell_font_size
     else:
         fig = heatmap.get_figure()
-        if fig:
-            fig.canvas.draw()
+        assert fig is not None
+        fig.canvas.draw()
 
-            # ignoring type error, ty not up to date with matplotlib get_renderer
-            renderer = fig.canvas.get_renderer()  # type: ignore[attr-defined]
+        # bounding box in display coords
+        bbox = heatmap.get_window_extent()
+        width_pts = bbox.width
 
-            # bounding box in display coords
-            bbox = heatmap.get_window_extent(renderer=renderer)
-            width_pts = bbox.width
+        cell_width_pts = width_pts / ncols
 
-            cell_width_pts = width_pts / ncols
-
-            font_size = int(cell_width_pts / max_chars)
+        font_size = int(cell_width_pts / max_chars)
 
     for i in range(nrows):
         for j in range(ncols):

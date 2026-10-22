@@ -28,6 +28,9 @@ class TestElection(Election):
 
         super().__init__(profile, score_function=score, sort_high_low=sort_high_low)
 
+    def _validate_params(self, profile: RankProfile) -> None:
+        pass
+
     def _validate_profile(self, profile):
         for ballot in profile.ballots:
             if not ballot.ranking:

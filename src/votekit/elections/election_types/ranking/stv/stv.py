@@ -26,13 +26,16 @@ from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
     to_exact_fraction_weight,
 )
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
-    ElectionPlay,
+    DefaultPlay,
+    EliminationPlay,
     NumpyElectionDataTracker,
     NumpySTVBase,
     NumpySTVSentinel,
     QuotaType,
+    STVPlay,
     TiebreakType,
     TransferType,
+    WinnerPlay,
 )
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer, random_transfer
@@ -433,7 +436,7 @@ class NumpyInnerSTV(NumpySTVBase):
         self, data: NumpyElectionDataTracker
     ) -> tuple[
         list[NDArray],
-        list[ElectionPlay],
+        list[STVPlay],
         list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
@@ -445,7 +448,7 @@ class NumpyInnerSTV(NumpySTVBase):
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
+            play_by_play (list[STVPlay]): List of dictionaries representing the actions
                  taken in each round.
             tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
@@ -458,7 +461,7 @@ class NumpyInnerSTV(NumpySTVBase):
         ncands = len(self.candidates)
 
         fpv_scores_by_round = []
-        play_by_play: list[ElectionPlay] = []
+        play_by_play: list[STVPlay] = []
         round_number = 0
         quota = self.threshold
         ballot_weight_sitting_with_winners = 0.0
@@ -498,7 +501,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 )
                 mutant_engine = self._update_because_winner(winners, tallies, quota, *mutant_engine)
                 play_by_play.append(
-                    ElectionPlay(
+                    WinnerPlay(
                         round_number=int(round_number),
                         winners=[int(c) for c in winners],
                         wt_vec=mutant_engine[1].copy(),
@@ -520,7 +523,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 still_standing = [int(i) for i in range(ncands) if i not in eliminated_or_exhausted]
                 winner_list += still_standing
                 play_by_play.append(
-                    ElectionPlay(
+                    DefaultPlay(
                         round_number=int(round_number),
                         winners=still_standing,
                         round_type="default",
@@ -535,7 +538,7 @@ class NumpyInnerSTV(NumpySTVBase):
             loser_idx, mutant_record = self._find_loser(tallies, round_number, *mutant_record)
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
             play_by_play.append(
-                ElectionPlay(
+                EliminationPlay(
                     round_number=int(round_number),
                     loser=[int(loser_idx)],
                     round_type="elimination",

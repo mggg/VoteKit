@@ -113,8 +113,8 @@ class BoostedRandomDictator(RankingElection):
 
         if store_states:
             elected = (frozenset({winning_candidate}),)
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            assert self.score_function is not None
+            scores = self.score_function(new_profile)
             remaining = score_dict_to_ranking(scores)
 
             new_state = ElectionState(
