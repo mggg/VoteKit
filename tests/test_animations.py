@@ -204,7 +204,7 @@ def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
     diff = np.abs(arr1 - arr2)
     mean_diff = np.mean(diff)
 
-    return mean_diff <= tolerance
+    return bool(mean_diff <= tolerance)
 
 
 def run_animation_snapshot_test(

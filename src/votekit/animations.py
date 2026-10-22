@@ -646,7 +646,7 @@ class STVAnimation:
     @staticmethod
     def _is_notebook() -> bool:
         try:
-            return get_ipython().__class__.__name__ == "ZMQInteractiveShell"  # type: ignore[name-defined]
+            return get_ipython().__class__.__name__ == "ZMQInteractiveShell"  # type: ignore[name-defined, ty:unresolved-reference]
         except NameError:
             return False
 

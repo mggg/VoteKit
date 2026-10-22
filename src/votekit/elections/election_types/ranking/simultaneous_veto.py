@@ -131,7 +131,7 @@ class SimultaneousVeto(RankingElection):
         self.candidate_weights = candidate_weights
         self.tiebreak = tiebreak
         self._rng = random.Random(rng_seed)
-        self.scoring_tie_convention = scoring_tie_convention
+        self.scoring_tie_convention: Literal["high", "average", "low"] = scoring_tie_convention
         self.return_all_tied_winners = return_all_tied_winners
 
         grouped_profile = profile.group_ballots()

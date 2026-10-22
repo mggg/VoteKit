@@ -399,7 +399,7 @@ def _sum_mentions_from_ballots(profile: RankProfile) -> dict[Candidate, float]:
 
 @pytest.mark.slow
 def test_mentions_large_profile_matches_ballot_reference():
-    profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
+    profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
 
     assert mentions(profile) == _sum_mentions_from_ballots(profile)
 
@@ -986,7 +986,7 @@ def test_sort_mixed_cands_lexicographically():
 def test_sort_non_valid_type_cand_raises_error():
     cands = ["1", 1, 1.0]
     with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
-        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_sort_nan_cand_at_end_of_list():
@@ -1009,7 +1009,7 @@ def test_validate_candidate_names_errors_on_colon_in_candidate():
 def test_validate_candidate_names_errors_non_str_int_candidate():
     invalid_candidates_list = ["A", 1.0]
     with pytest.raises(TypeError, match=r"Non-string/integer candidate\(s\) found in"):
-        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type]
+        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_validate_candidate_names_errors_on_negative_int_candidate():

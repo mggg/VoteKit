@@ -91,14 +91,15 @@ class _CandListProxy(MutableSequence[Candidate]):
         value: Candidate | Iterable[Candidate],
     ) -> None:
         new = list(self.__owner._data[self.__key])
-        if isinstance(index, slice):  # pragma: no cover
+        if isinstance(index, slice):
             if isinstance(value, (Candidate, bytes)) or not isinstance(value, Iterable):
                 raise TypeError("Slice assignment requires an iterable of str and/or int")
+            values = list(value)
             _validate_candidate_names(
-                list(value),
+                values,
                 SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
-            new[index] = [x for x in value]
+            new[index] = values
         else:
             _validate_candidate_names(
                 [value]
@@ -106,6 +107,8 @@ class _CandListProxy(MutableSequence[Candidate]):
                 else value,
                 SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
+            if not isinstance(value, Candidate):
+                raise TypeError("Index assignment requires a str or int candidate")
             new[operator.index(index)] = value
         self.__owner[self.__key] = new
 

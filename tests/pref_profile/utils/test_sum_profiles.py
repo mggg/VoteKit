@@ -94,7 +94,7 @@ def test_sum_one_profile_no_list_raises_type_error():
         candidates=["A", "B", "C", "D"],
     )
     with pytest.raises(TypeError, match="has no len()"):
-        sum_profiles(profile)  # type: ignore[arg-type]
+        sum_profiles(profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
     profile = RankProfile(
         ballots=[
@@ -107,7 +107,7 @@ def test_sum_one_profile_no_list_raises_type_error():
         max_ranking_length=3,
     )
     with pytest.raises(TypeError, match="has no len()"):
-        sum_profiles(profile)  # type: ignore[arg-type]
+        sum_profiles(profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_sum_score_profiles():

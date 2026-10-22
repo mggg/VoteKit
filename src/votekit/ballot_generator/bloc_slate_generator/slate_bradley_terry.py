@@ -321,7 +321,7 @@ def _inner_slate_bradley_terry(
         # number of voters in this bloc
         n_ballots = ballots_per_bloc[bloc]
         non_zero_slate_set = {
-            slate for slate in config.slates if config.cohesion_df.loc[bloc][slate] > 0
+            slate for slate in config.slates if cast(float, config.cohesion_df.at[bloc, slate]) > 0
         }
 
         zero_slate_set = set(config.slates) - non_zero_slate_set

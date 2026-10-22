@@ -207,7 +207,7 @@ def _convert_slate_ballot_type_to_ranking(
 def _convert_slate_ballots_to_profile(
     config: BlocSlateConfig,
     bloc: str,
-    slate_ballots: list[tuple[str, ...]],
+    slate_ballots: Sequence[Sequence[str]],
     *,
     numpy_rng: Generator | None = None,
 ) -> RankProfile:
@@ -219,7 +219,7 @@ def _convert_slate_ballots_to_profile(
         config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
-        slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
+        slate_ballots (Sequence[Sequence[str]]): List of slate ballot types.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.
 

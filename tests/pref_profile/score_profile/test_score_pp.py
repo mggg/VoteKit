@@ -158,7 +158,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
             ballots=[
                 ScoreBallot(scores={1: 1}),
             ],
-            candidates=[1, 1.0],  # type: ignore[arg-type]
+            candidates=[1, 1.0],  # type: ignore[arg-type, ty:invalid-argument-type]
         )
 
 

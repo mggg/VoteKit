@@ -156,7 +156,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
     ):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
-            candidates=["A", 1.0],  # type: ignore[arg-type]
+            candidates=["A", 1.0],  # type: ignore[arg-type, ty:invalid-argument-type]
         )
 
 

@@ -102,9 +102,27 @@ def _normalize_rank_df_candidates(df: pd.DataFrame, context: str = "ranking cell
     return normalized_df
 
 
-class RankProfile(PreferenceProfile):
+class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
+    """
+    Store ranked ballots in a frozen profile backed by a RankMatrix, including when empty.
+
+    This specializes PreferenceProfile with RankMatrix and RankBallot. Shared candidate and
+    weight validation follows the PreferenceProfile contract.
+
+    Args:
+        ballots (Sequence[Ballot], optional): Ranked ballots. Other ballot types are rejected.
+            Defaults to empty tuple.
+        candidates (Sequence[Candidate], optional): Declared candidates. Defaults to empty tuple,
+            which infers candidates from positive-weight ballots or dataframe rows.
+        max_ranking_length (int, optional): Maximum permitted ranking length. Defaults to 0,
+            which infers the length from ballots. A nonempty dataframe requires an explicit
+            nonzero length. None is not supported.
+        df (pd.DataFrame, optional): Ranked ballot dataframe, supplied instead of ballots.
+            Defaults to an empty dataframe.
+        include_zero_score (None, optional): Unused compatibility argument. Defaults to None.
+    """
+
     max_ranking_length: int
-    _matrix: RankMatrix
 
     def __new__(cls, **kwargs) -> Self:
         """
@@ -117,7 +135,7 @@ class RankProfile(PreferenceProfile):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int | None = None,
+        max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: None = None,
     ):
@@ -132,7 +150,7 @@ class RankProfile(PreferenceProfile):
             candidates, f"{type(self).__name__}.candidates"
         )
 
-        self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
+        self.max_ranking_length = max_ranking_length
 
         if df.equals(pd.DataFrame()):
             rank_df, self.candidates_cast = self._init_from_rank_ballots(
@@ -349,8 +367,7 @@ class RankProfile(PreferenceProfile):
             df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
-            ProfileError: max_ranking_length must be provided.
-            ProfileError: Candidates must be provided.
+            ProfileError: A nonempty dataframe was supplied with max_ranking_length set to 0.
         """
         boiler_plate = "When providing a dataframe and no ballot list to the init method, "
         if len(df) == 0:
@@ -456,13 +473,13 @@ class RankProfile(PreferenceProfile):
 
     def _find_max_ranking_length(self) -> int:
         """
-        Compute and set the maximum ranking length of the profile.
+        Resolve a zero ranking limit from the matrix, or retain the explicit limit.
 
         Returns:
-            int: Max ranking length.
+            int: Maximum ranking length; zero for an empty matrix with no ranking positions.
 
         """
-        if self.max_ranking_length == 0 or self.max_ranking_length is None:
+        if self.max_ranking_length == 0:
             return self._matrix.num_ranking_positions
 
         return self.max_ranking_length
@@ -673,7 +690,6 @@ class RankProfile(PreferenceProfile):
             candidate_mapping (dict[Candidate, str]): Maps candidate names to
                 prefixes. Candidates can be strings, integers, or mix of both.
         """
-        assert self.max_ranking_length is not None
         data_col_names = list(self._matrix.ranking_columns)
         # NOTE: CSV layout puts Weight before Voter Set, the reverse of df. CSV does not affect the
         # df column order. Don't reorder here: from_csv reads Weight by position, so existing CSVs
@@ -747,16 +763,19 @@ class RankProfile(PreferenceProfile):
         return None
 
     @classmethod
-    def from_csv(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
+    def from_csv(cls, fpath: str | PathLike | Path) -> Self:
         """
-        Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+        Load a ranked profile from the CSV format produced by ``to_csv``.
 
         Args:
             fpath (str | PathLike | Path): Path to csv.
 
+        Returns:
+            Self: Profile constructed using the class this method is called on.
+
         Raises:
             ValueError: If csv is improperly formatted for VoteKit.
-            ProfileError: If read profile has no rankings or scores.
+            ProfileError: If the loaded ballots or candidates violate profile constraints.
 
         """
         with open(str(fpath), "r") as file:

@@ -80,9 +80,9 @@ class Alaska(RankingElection):
         self.m_1 = m_1
         self.m_2 = m_2
         self.transfer = transfer
-        self.quota = quota
+        self.quota: QuotaType | None = quota
         self.simultaneous = simultaneous
-        self.tiebreak = tiebreak
+        self.tiebreak: TiebreakType | None = tiebreak
         self._rng = random.Random(rng_seed)
         self._plurality_seed = self._rng.getrandbits(32)
         self._stv_seed = self._rng.getrandbits(32)

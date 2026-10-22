@@ -2,6 +2,7 @@ import itertools as it
 import math
 import re
 from collections import Counter
+from typing import cast
 
 import pytest
 
@@ -45,13 +46,9 @@ def compute_sbt_slate_ballot_distribution(config: BlocSlateConfig, bloc: str):
         for idx, slate in enumerate(slate_ballot_type):
             for other_slate in slate_ballot_type[idx + 1 :]:
                 if slate != other_slate:
-                    slate_ballot_dist[slate_ballot_type] *= float(
-                        config.cohesion_df.loc[bloc][slate]
-                        / (
-                            config.cohesion_df.loc[bloc][slate]
-                            + config.cohesion_df.loc[bloc][other_slate]
-                        )
-                    )
+                    cohesion = cast(float, config.cohesion_df.at[bloc, slate])
+                    other_cohesion = cast(float, config.cohesion_df.at[bloc, other_slate])
+                    slate_ballot_dist[slate_ballot_type] *= cohesion / (cohesion + other_cohesion)
 
     return {
         slate_ballot_type: mass / sum(slate_ballot_dist.values())

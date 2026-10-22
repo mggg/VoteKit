@@ -164,6 +164,7 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
     assert constructions == 1
     assert type(result) is CleanedRankProfile
     assert result.parent_profile is profile
+    assert isinstance(result.parent_profile, CleanedRankProfile)
     assert result.parent_profile.parent_profile is parent
     assert result.candidates == expected.candidates
     assert result.candidates_cast == expected.candidates_cast

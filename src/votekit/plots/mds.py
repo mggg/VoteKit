@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,13 +9,15 @@ from votekit.pref_profile import PreferenceProfile
 
 
 # Helper function for MDS Plot
-def distance_matrix(pp_arr: list[PreferenceProfile], distance: Callable[..., int], *args, **kwargs):
+def distance_matrix(
+    pp_arr: Sequence[PreferenceProfile], distance: Callable[..., int], *args, **kwargs
+):
     """
     Creates pairwise distance matrix between ``PreferenceProfile`` objects. The :math:`(i,j)` entry
     is the pairwise distance between :math:`i`th and the :math:`j`th ``PreferenceProfile``.
 
     Args:
-        pp_arr (list[PreferenceProfiles]): List of ``PreferenceProfiles``.
+        pp_arr (Sequence[PreferenceProfile]): Profiles to compare.
         distance (Callable[..., int]): Callable distance function type. See distances.py in the
             metrics module.
         *args: args to be passed to the distance function.
@@ -36,7 +38,7 @@ def distance_matrix(pp_arr: list[PreferenceProfile], distance: Callable[..., int
 
 
 def compute_MDS(
-    data: dict[str, list[PreferenceProfile]],
+    data: Mapping[str, Sequence[PreferenceProfile]],
     distance: Callable[..., int],
     random_seed: int = 47,
     *args,
@@ -47,8 +49,8 @@ def compute_MDS(
     ``plot_mds`` to allow users to flexibly use the coordinates.
 
     Args:
-        data (dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and
-            value being list of PreferenceProfiles.
+        data (Mapping[str, Sequence[PreferenceProfile]]): Mapping from string labels to
+            sequences of PreferenceProfiles.
             eg. ``{'PL with alpha = 4': list[PreferenceProfile]}``
         distance (Callable[..., int]): Distance function. See distance.py.
         random_seed (int, optional): An integer seed to allow for reproducible MDS plots.
@@ -72,7 +74,8 @@ def compute_MDS(
         n_components=2,
         metric_mds=True,
         metric="precomputed",
-        n_init=4,
+        # sklearn infers str from its unannotated sentinel default, but accepts int.
+        n_init=4,  # pyright: ignore[reportArgumentType]
         init="random",
         max_iter=3000,
         eps=1e-9,
@@ -80,7 +83,8 @@ def compute_MDS(
         normalized_stress="auto",
         random_state=random_seed,
     )
-    pos = mds.fit(np.array(dist_matrix)).embedding_
+    pos = mds.fit_transform(np.array(dist_matrix))
+    assert pos is not None
 
     coord_dict = {}
     start_pos = 0

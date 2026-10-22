@@ -10,6 +10,7 @@ The main API functions in this module are:
 """
 
 from numbers import Real
+from typing import cast
 
 import apportionment.methods as apportion
 import numpy as np
@@ -158,7 +159,7 @@ def _inner_slate_plackett_luce(
         n_ballots = ballots_per_bloc[bloc]
 
         non_zero_slate_set = {
-            slate for slate in config.slates if config.cohesion_df.loc[bloc][slate] > 0
+            slate for slate in config.slates if cast(float, config.cohesion_df.at[bloc, slate]) > 0
         }
 
         zero_slate_set = set(config.slates) - non_zero_slate_set
