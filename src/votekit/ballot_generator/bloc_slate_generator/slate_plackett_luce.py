@@ -15,6 +15,7 @@ from typing import cast
 import apportionment.methods as apportion
 import numpy as np
 from numpy.random import Generator
+from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
@@ -63,7 +64,7 @@ def _sample_pl_slate_ballots(
     ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
 
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    rand_unif_seqs = numpy_rng.uniform(size=(num_ballots, num_candidates))
+    rand_unif_seqs: NDArray[np.float64] = numpy_rng.uniform(size=(num_ballots, num_candidates))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -81,7 +82,8 @@ def _sample_pl_slate_ballots(
             )
         cohesion_values_og.append(float(cohesion_value))
 
-    for i, rand_unif_seq in enumerate(rand_unif_seqs):
+    for i in range(num_ballots):
+        rand_unif_seq = rand_unif_seqs[i, :]
         cohesion_values = np.array(cohesion_values_og)
         distribution_bins: list[float] = [0.0] + np.cumsum(cohesion_values).tolist()
         ballot_type: list[str] = [""] * num_candidates

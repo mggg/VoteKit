@@ -2100,7 +2100,7 @@ def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):
     cfg = BlocSlateConfig(**valid_config, n_voters=100, silent=True)
 
     cands = list(cfg.slate_to_candidates["slate_1"])  # e.g., ["A", "B"]
-    row = cfg.preference_df.loc["bloc_1", cands]  # type: ignore[union-attr, ty:invalid-argument-type]
+    row = cfg.preference_df.loc["bloc_1", cands]
     cfg.preference_df.loc["bloc_1", cands] = row * 0.5  # now sums != 1
 
     with pytest.raises(ValueError, match=r"must\s+sum to 1, got"):

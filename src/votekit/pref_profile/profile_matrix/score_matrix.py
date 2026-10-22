@@ -258,8 +258,8 @@ class ScoreMatrix:
         scores = self.scores[:, columns]
 
         return (
-            np.fmin.reduce(scores, axis=1, initial=np.nan),
-            np.fmax.reduce(scores, axis=1, initial=np.nan),
+            np.fmin.reduce(scores, axis=1, initial=np.nan, out=...),
+            np.fmax.reduce(scores, axis=1, initial=np.nan, out=...),
         )
 
     def sum_scores_by_ballot(self) -> NDArray[np.float64]:
