@@ -5,11 +5,12 @@ import textwrap
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import List, Literal, Mapping, Optional, Sequence, cast
+from typing import Literal, cast
 
 import manim
 from manim import (
@@ -61,7 +62,7 @@ class ColorPalette:
     Note that any provided alpha channel information will be ignored.
 
     Attributes:
-        bar_fills (List[ParsableManimColor]): Colors for candidate bars (cycles through list).
+        bar_fills (list[ParsableManimColor]): Colors for candidate bars (cycles through list).
         bar_outline (ParsableManimColor): Color for bar outlines.
         winner (ParsableManimColor): Color for boxes around winner names and winner bars.
         offscreen_candidate_fill (ParsableManimColor): Color for candidates not shown on screen.
@@ -71,7 +72,7 @@ class ColorPalette:
         text_regular (ParsableManimColor): Color for regular text.
     """
 
-    bar_fills: List[ParsableManimColor]
+    bar_fills: list[ParsableManimColor]
     bar_outline: ParsableManimColor
     winner: ParsableManimColor
     offscreen_candidate_fill: ParsableManimColor
@@ -171,11 +172,11 @@ class _EliminationOffscreenEvent(_AnimationEvent):
     Attributes:
         support_transferred (Mapping[Candidate, float]): A dictionary mapping names of candidates
             to the total amount of support they received from the eliminations.
-        round_numbers (List[int]): The rounds of the election process associated to this event.
+        round_numbers (list[int]): The rounds of the election process associated to this event.
     """
 
     support_transferred: Mapping[Candidate, float]
-    round_numbers: List[int]
+    round_numbers: list[int]
 
     def get_message(self) -> str:
         if len(self.round_numbers) == 1:
@@ -231,14 +232,14 @@ class STVAnimation:
             elected candidates appearing on-screen. If ``"winners"``, focus only the elected
             candidates. If ``"viable"``, focus only the candidates with more mentions than the
             election threshold. If ``"all"``, focus all candidates. Defaults to ``"viable"``.
-        nicknames (Optional[dict[Candidate,str] | dict[str, str] | dict[int, str]], optional):
+        nicknames (dict[Candidate, str] | dict[str, str] | dict[int, str] | None, optional):
             A dictionary mapping candidate names to candidate "nicknames" to be used in the
             animation instead. Candidates can be strings, integers, or mix of both.
             The keys of ``nicknames`` need not contain every candidate,
             only the ones for which the user would like to provide a nickname.
             Candidates can be strings, integers, or mix of both.
-        candidate_colors (Optional[Mapping[Candidate, ParsableManimColor]
-            | Mapping[str, ParsableManimColor]] | Mapping[int, ParsableManimColor], optional):
+        candidate_colors (Mapping[Candidate, ParsableManimColor] | Mapping[str, ParsableManimColor]
+            | Mapping[int, ParsableManimColor] | None, optional):
             A dictionary mapping candidate names to colors that should represent them in the
             animation. Candidates can be strings, integers, or mix of both.
             The colors in ``candidate_colors`` will override the bar fill colors provided by
@@ -264,7 +265,7 @@ class STVAnimation:
         candidate_dict (dict[Candidate, dict[Candidate, object]]): A dictionary mapping
             each candidate name to a dictionary recording that candidate's support, display name,
             and color. Candidates can be strings, integers, or mix of both.
-        events (List[_AnimationEvent]): A list of animation events in order of occurrence.
+        events (list[_AnimationEvent]): A list of animation events in order of occurrence.
         font (str): The name of a font that the user prefers to use if available.
         delay_mult (float): A multiplier for the delay times between animations.
             Lower numbers mean shorter delays.
@@ -279,7 +280,7 @@ class STVAnimation:
     def __init__(
         self,
         election: STV,
-        title: Optional[str] = None,
+        title: str | None = None,
         focus: list[Candidate]
         | list[str]
         | list[int]
@@ -287,12 +288,11 @@ class STVAnimation:
         | set[str]
         | set[int]
         | Literal["winners", "viable", "all"] = "viable",
-        nicknames: Optional[dict[Candidate, str] | dict[str, str] | dict[int, str]] = None,
-        candidate_colors: Optional[
-            Mapping[Candidate, ParsableManimColor]
-            | Mapping[str, ParsableManimColor]
-            | Mapping[int, ParsableManimColor]
-        ] = None,
+        nicknames: dict[Candidate, str] | dict[str, str] | dict[int, str] | None = None,
+        candidate_colors: Mapping[Candidate, ParsableManimColor]
+        | Mapping[str, ParsableManimColor]
+        | Mapping[int, ParsableManimColor]
+        | None = None,
         color_palette: ColorPalette = DARK_PALETTE,
         font: str = "",
         delay_mult: float = 1.0,
@@ -366,7 +366,7 @@ class STVAnimation:
         if len(self.events) == 0:
             raise ValueError("Tried creating animation with no animation event.")
         self.title = title
-        self._video_path: Optional[Path] = None
+        self._video_path: Path | None = None
         self.font = font
         self.delay_mult = delay_mult
         self.animation_duration = animation_duration
@@ -424,7 +424,7 @@ class STVAnimation:
                 color_index += 1
         return candidate_dict
 
-    def _make_event_list(self, election: STV) -> List[_AnimationEvent]:
+    def _make_event_list(self, election: STV) -> list[_AnimationEvent]:
         """
         Processes an STV election into a condensed list of animation events.
 
@@ -432,13 +432,13 @@ class STVAnimation:
             election (STV): The STV election to process.
 
         Returns:
-            List[_AnimationEvent]: A list of the events of the election which are
+            list[_AnimationEvent]: A list of the events of the election which are
                 worthy of animation.
 
         Raises:
             ValueError: If multiple candidates are eliminated in the same election round.
         """
-        events: List[_AnimationEvent] = []
+        events: list[_AnimationEvent] = []
         for round_number, election_round in enumerate(election.election_states[1:], start=1):
             # Nothing happens in election round 0
             elected_candidates = [c for s in election_round.elected for c in s]
@@ -504,7 +504,7 @@ class STVAnimation:
         self,
         election: STV,
         round_number: int,
-        cands_transferred_from: List[Candidate],
+        cands_transferred_from: list[Candidate],
         event_type: Literal["win", "elimination"],
     ) -> dict[Candidate, dict[Candidate, float]]:
         """
@@ -514,7 +514,7 @@ class STVAnimation:
         Args:
             election (STV): The election.
             round_number (int): The number of the round in question.
-            cands_transferred_from (List[Candidate]): A list of the names of the elected or
+            cands_transferred_from (list[Candidate]): A list of the names of the elected or
                 eliminated candidates. Candidates can be strings, integers, or mix of both.
             event_type (Literal["win", "elimination"]): ``"win"`` if candidates
                 were elected this round, ``"elimination"`` otherwise.
@@ -586,7 +586,7 @@ class STVAnimation:
 
         return transfers
 
-    def _condense_offscreen_events(self, events: List[_AnimationEvent]) -> List[_AnimationEvent]:
+    def _condense_offscreen_events(self, events: list[_AnimationEvent]) -> list[_AnimationEvent]:
         """
         Take a list of events and condense any consecutive offscreen events into one
         summarizing event.
@@ -595,14 +595,14 @@ class STVAnimation:
         this function will condense them into one offscreen elimination of three candidates.
 
         Args:
-            events (List[_AnimationEvent]): A list of animation events to be condensed.
+            events (list[_AnimationEvent]): A list of animation events to be condensed.
 
         Returns:
-            List[_AnimationEvent]: A condensed list of animation events.
+            list[_AnimationEvent]: A condensed list of animation events.
         """
         if len(events) == 0:
             return []
-        return_events: List[_AnimationEvent] = [events[0]]
+        return_events: list[_AnimationEvent] = [events[0]]
         for event in events[1:]:
             # Unless the next and previous events were both offscreen, just add
             # the next event to the list
@@ -731,8 +731,8 @@ class ElectionScene(manim.Scene):
         candidate_dict (dict[Candidate,dict]): A dictionary mapping each candidate
             to a dictionary of attributes of the candidate.
             Candidates can be strings, integers, or mix of both.
-        events (List[_AnimationEvent]): A list of animation events to be constructed and rendered.
-        title (Optional[str], optional): A string to be displayed at the beginning of the
+        events (list[_AnimationEvent]): A list of animation events to be constructed and rendered.
+        title (str | None, optional): A string to be displayed at the beginning of the
             animation as a title screen. If ``None``, the animation will skip the title
             screen. Defaults to ``None``.
         color_palette (ColorPalette, optional): A color scheme to use in the animation.
@@ -748,8 +748,8 @@ class ElectionScene(manim.Scene):
     def __init__(
         self,
         candidate_dict: dict[Candidate, dict],
-        events: List[_AnimationEvent],
-        title: Optional[str] = None,
+        events: list[_AnimationEvent],
+        title: str | None = None,
         color_palette: ColorPalette = DARK_PALETTE,
         font: str = "",
         delay_mult: float = 1.0,
@@ -778,7 +778,7 @@ class ElectionScene(manim.Scene):
 
         self.quota_line = None
         self.ticker_tape_line = None
-        self.ticker_tape: List[Text] = []
+        self.ticker_tape: list[Text] = []
         self.font = self._determine_font(font)
         self.delay_mult = delay_mult
         self.animation_duration = animation_duration
@@ -1122,8 +1122,8 @@ class ElectionScene(manim.Scene):
             from_candidate_name,
             cand_transferred_from,
         ) in cands_transferred_from.items():
-            old_bars: List[Rectangle] = cand_transferred_from["bars"]
-            new_bars: List[Rectangle] = []
+            old_bars: list[Rectangle] = cand_transferred_from["bars"]
+            new_bars: list[Rectangle] = []
             transformations = []
             destinations = event.support_transferred[from_candidate_name]
             candidate_color = cand_transferred_from["color"]

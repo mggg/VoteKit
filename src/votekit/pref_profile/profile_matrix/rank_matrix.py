@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator, Sequence
 from copy import copy as shallow_copy
 from dataclasses import dataclass
-from typing import Iterator, Self, Sequence
+from typing import Self
 
 import numpy as np
 import pandas as pd

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from fractions import Fraction
 from numbers import Integral, Real
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import numpy as np
 

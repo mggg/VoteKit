@@ -1,6 +1,6 @@
 import warnings
+from collections.abc import Sequence
 from itertools import combinations
-from typing import Optional, Sequence
 
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -66,7 +66,7 @@ def winner_sets_r_representation_scores(
     profile: RankProfile,
     n_seats: int,
     r: int,
-    candidate_list: Optional[Sequence[Candidate]] = None,
+    candidate_list: Sequence[Candidate] | None = None,
 ) -> dict[frozenset, float]:
     """
     Return r-representation score for all possible winner sets. This computes the share

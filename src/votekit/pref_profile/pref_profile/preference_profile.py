@@ -5,10 +5,10 @@ import pickle
 import re
 import urllib.request
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Self, Sequence, Union, cast, overload
+from typing import TYPE_CHECKING, Self, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -175,9 +175,9 @@ class PreferenceProfile:
         ballots: Sequence[Ballot] = tuple(),
         candidates_cast: Sequence[Candidate] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: Optional[int] = None,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
-        include_zero_score: Optional[bool] = None,
+        include_zero_score: bool | None = None,
     ):
         self.candidates_cast = _normalize_unique_candidates(
             candidates_cast, f"{type(self).__name__}.candidates_cast"
@@ -376,12 +376,12 @@ class PreferenceProfile:
         """
         raise NotImplementedError
 
-    def to_pickle(self, fpath: Union[str, PathLike, Path]):
+    def to_pickle(self, fpath: str | PathLike | Path):
         """
         Saves profile to pickle file.
 
         Args:
-            fpath (Union[str, os.PathLike, pathlib.Path]): File path to save profile to.
+            fpath (str | os.PathLike | pathlib.Path): File path to save profile to.
 
         Raises:
             ValueError: File path must be provided.
@@ -392,12 +392,12 @@ class PreferenceProfile:
             pickle.dump(self, f)
 
     @classmethod
-    def from_pickle(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+    def from_pickle(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
         """
         Reads profile from pickle file.
 
         Args:
-            fpath (Union[str, os.PathLike, pathlib.Path]): File path to profile. Can be a url.
+            fpath (str | os.PathLike | pathlib.Path): File path to profile. Can be a url.
         """
         fpath = str(fpath)
         if not os.path.isfile(fpath):

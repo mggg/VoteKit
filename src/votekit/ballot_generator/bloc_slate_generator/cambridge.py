@@ -10,7 +10,6 @@ The main API functions in this module are:
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import apportionment.methods as apportion
 import numpy as np
@@ -39,7 +38,7 @@ def _sample_historical_slate_ballots(
     ],  # TODO: in next major release, make sure this naming aligns with how the user sets the
     # majority/minority groups
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ):
     """
     Sample historical slate ballots fort a given bloc using the Cambridge model.
@@ -204,7 +203,7 @@ def _inner_cambridge_sampler(
     majority_bloc: str,
     minority_bloc: str,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate profiles by bloc using Cambridge model.
@@ -315,8 +314,8 @@ def _validate_slates_and_blocs(
 
 def _determine_and_validate_majority_and_minority_blocs(
     config: BlocSlateConfig,
-    majority_bloc: Optional[str],
-    minority_bloc: Optional[str],
+    majority_bloc: str | None,
+    minority_bloc: str | None,
 ) -> tuple[str, str]:
     """
     Determines the majority and minority groups for the Cambridge model.
@@ -329,10 +328,10 @@ def _determine_and_validate_majority_and_minority_blocs(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        majority_bloc (Optional[str]): Name of the group in the config corresponding to the
+        majority_bloc (str | None): Name of the group in the config corresponding to the
             historical majority group. Defaults to None, in which case the majority
             group is determined by the bloc proportions.
-        minority_bloc (Optional[str]): Name of the group in the config corresponding to the
+        minority_bloc (str | None): Name of the group in the config corresponding to the
             historical minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
 
@@ -385,14 +384,12 @@ def _determine_and_validate_majority_and_minority_blocs(
 def cambridge_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    majority_bloc: Optional[
-        str
-    ] = None,  # TODO: in next major release, consider using majority_slate instead of majority_bloc
-    minority_bloc: Optional[
-        str
-    ] = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
+    majority_bloc: str
+    | None = None,  # TODO: in next major release, consider using majority_slate instead of majority_bloc
+    minority_bloc: str
+    | None = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
@@ -411,15 +408,15 @@ def cambridge_profiles_by_bloc_generator(
 
 
     Kwargs:
-        majority_bloc (Optional[str]): Name of the group in the config corresponding to the
+        majority_bloc (str | None): Name of the group in the config corresponding to the
             historical majority group. Defaults to None, in which case the majority
             group is determined by the bloc proportions.
-        minority_bloc (Optional[str]): Name of the group in the config corresponding to the
+        minority_bloc (str | None): Name of the group in the config corresponding to the
             historical minority group. Defaults to None, in which case the minority
             group is determined by the bloc proportions.
         group_ballots (bool): If True, groups identical ballots in the resulting profiles.
             Defaults to True.
-        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+        rng_seed (int | None): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
 
@@ -449,10 +446,10 @@ def cambridge_profiles_by_bloc_generator(
 def cambridge_profile_generator(
     config: BlocSlateConfig,
     *,
-    majority_bloc: Optional[str] = None,
-    minority_bloc: Optional[str] = None,
+    majority_bloc: str | None = None,
+    minority_bloc: str | None = None,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generates a RankProfile using historical RCV elections

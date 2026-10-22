@@ -1,10 +1,10 @@
 import itertools
 import random
+from collections.abc import Sequence
 
 import numpy as np
 import pytest
 from joblib import Parallel, delayed
-from typing_extensions import Sequence
 
 from votekit.ballot import RankBallot
 from votekit.elections import PluralityVeto, SerialVeto

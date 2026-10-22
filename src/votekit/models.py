@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Callable, Generic, Optional, TypeVar
+from collections.abc import Callable
+from typing import Generic, TypeVar
 
 import pandas as pd
 
@@ -41,7 +42,7 @@ class Election(Generic[P]):
     def __init__(
         self,
         profile: P,
-        score_function: Optional[Callable[[P], CandidateNumericDict]] = None,
+        score_function: Callable[[P], CandidateNumericDict] | None = None,
         sort_high_low: bool = True,
     ):
         self._validate_params_and_profile(profile)

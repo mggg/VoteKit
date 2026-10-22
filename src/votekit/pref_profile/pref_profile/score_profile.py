@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Self, Sequence, Tuple, Union, cast
+from typing import Self, cast
 
 import numpy as np
 import pandas as pd
@@ -80,7 +80,7 @@ class ScoreProfile(PreferenceProfile):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: Optional[int] = None,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
         for index, ballot in enumerate(ballots):
@@ -194,7 +194,7 @@ class ScoreProfile(PreferenceProfile):
 
     def __init_score_ballot_data(
         self, ballots: Sequence[ScoreBallot]
-    ) -> Tuple[int, dict[str | int, list]]:
+    ) -> tuple[int, dict[str | int, list]]:
         """
         Create the ballot data objects.
 
@@ -202,7 +202,7 @@ class ScoreProfile(PreferenceProfile):
             ballots (Sequence[ScoreBallot]): Ballots in dataframe row order.
 
         Returns:
-            Tuple[int, dict[str | int, list]]: Ballot count and allocated column lists.
+            tuple[int, dict[str | int, list]]: Ballot count and allocated column lists.
                 Declared candidate columns begin with NaN for unscored entries.
         """
         num_ballots = len(ballots)
@@ -641,7 +641,7 @@ class ScoreProfile(PreferenceProfile):
         return None
 
     @classmethod
-    def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+    def from_csv(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
         """
         Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
 

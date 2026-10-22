@@ -1,7 +1,7 @@
 import random
 from abc import ABC, abstractmethod
 from functools import cached_property, partial
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 
@@ -59,7 +59,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[Candidate]): The set of candidates in the election.
             Candidates can be strings, integers, or mix of both.
-        tiebreak_order (Optional[tuple[frozenset[str]]]): The candidate ordering used to break
+        tiebreak_order (tuple[frozenset[str]] | None): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
 
     Raises:
@@ -76,7 +76,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         n_seats: int | None = None,
         tiebreak: Literal["first_place", "borda", "random", "lex"] = "first_place",
         scoring_tie_convention: Literal["high", "low", "average"] = "average",
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -458,7 +458,7 @@ class PluralityVeto(_IterativeVetoBase):
         n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[Candidate]): The set of candidates in the election.
             Candidates can be strings, integers, or mix of both.
-        tiebreak_order (Optional[tuple[frozenset[Candidate]]]): The candidate ordering used to break
+        tiebreak_order (tuple[frozenset[Candidate]] | None): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
             Candidates can be strings, integers, or mix of both.
 
@@ -545,7 +545,7 @@ class SerialVeto(_IterativeVetoBase):
         n_seats (int): The number of seats to be filled in the election.
         candidates (frozenset[Candidate]): The set of candidates in the election.
             Candidates can be strings, integers, or mix of both.
-        tiebreak_order (Optional[tuple[frozenset[Candidate]]]): The candidate ordering used to break
+        tiebreak_order (tuple[frozenset[Candidate]] | None): The candidate ordering used to break
             last-place ties when processing vetoes. ``None`` if ``tiebreak`` = 'random'.
             Candidates can be strings, integers, or mix of both.
 

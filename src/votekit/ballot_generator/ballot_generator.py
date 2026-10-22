@@ -1,7 +1,6 @@
 import math
 import random
 from abc import abstractmethod
-from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -91,7 +90,7 @@ class BallotGenerator:
         cohesion_parameters: dict,
         alphas: dict,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **data,
     ):
         """
@@ -152,7 +151,7 @@ class BallotGenerator:
     @abstractmethod
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple, dict]:
+    ) -> PreferenceProfile | tuple | dict:
         """
         Generates a ``PreferenceProfile``.
 
@@ -164,12 +163,12 @@ class BallotGenerator:
                 you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Union[PreferenceProfile, Tuple]
+            PreferenceProfile | tuple
         """
         pass
 
     @staticmethod
-    def _round_num(num: float, *, rng: Optional[random.Random] = None) -> int:
+    def _round_num(num: float, *, rng: random.Random | None = None) -> int:
         """
 
         Rounds up or down a float randomly.

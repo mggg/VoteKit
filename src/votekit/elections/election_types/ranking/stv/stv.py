@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from fractions import Fraction
 from functools import partial
-from typing import Callable, Literal, Optional, TypeAlias, Union, cast
+from typing import Literal, TypeAlias, cast
 from warnings import warn
 
 import numpy as np
@@ -84,7 +85,7 @@ class NumpyInnerSTV(NumpySTVBase):
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize an STV election with advanced options.
@@ -560,7 +561,7 @@ class FastSTV(NumpyInnerSTV):
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -620,7 +621,7 @@ class AlbanySTV(NumpyInnerSTV):
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -676,7 +677,7 @@ class FastIRV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize a fast IRV election.
@@ -722,7 +723,7 @@ class FastSequentialRCV(NumpyInnerSTV):
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -762,7 +763,7 @@ class FastSequentialRCV(NumpyInnerSTV):
 
 
 TransferFn: TypeAlias = Callable[
-    [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
+    [Candidate, Numeric, tuple[RankBallot] | list[RankBallot], int],
     tuple[RankBallot, ...],
 ]
 """Signature for STV transfer functions.
@@ -794,7 +795,7 @@ class STV(RankingElection):
         simultaneous: bool = True,
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
         **kwargs,
     ):
@@ -1291,7 +1292,7 @@ class IRV(STV):
         quota: QuotaType | None = "droop",
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
     ):
         """
@@ -1342,7 +1343,7 @@ class SequentialRCV(STV):
         simultaneous: bool = True,
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
         **kwargs,
     ):
@@ -1378,7 +1379,7 @@ class SequentialRCV(STV):
         def _transfer(
             winner: Candidate,
             _fpv: Numeric,
-            ballots: Union[tuple[RankBallot], list[RankBallot]],
+            ballots: tuple[RankBallot] | list[RankBallot],
             _threshold: int,
         ) -> tuple[RankBallot, ...]:
             """
@@ -1388,7 +1389,7 @@ class SequentialRCV(STV):
                 winner (Candidate): The candidate to remove from ballots.
                     Candidate can be a string or integer.
                 _fpv (float): The number of first-place votes the winner had.
-                ballots (Union[tuple[RankBallot], list[RankBallot]]): The ballots to transfer.
+                ballots (tuple[RankBallot] | list[RankBallot]): The ballots to transfer.
                 _threshold (int): The threshold for election in this round.
 
             Returns:

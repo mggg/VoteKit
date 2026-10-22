@@ -12,7 +12,8 @@ The main API functions in this module are:
     clustered multi-dimensional spacial model where voters are clustered around candidates.
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, cast
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ def onedim_spacial_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a 1D spatial rank profile.
@@ -89,14 +90,14 @@ def onedim_spacial_profile_generator(
 def spacial_profile_and_positions_generator(
     number_of_ballots: int,
     candidates: Sequence[Candidate],
-    voter_dist: Optional[Callable[..., np.ndarray]] = None,
-    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-    candidate_dist: Optional[Callable[..., np.ndarray]] = None,
-    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    voter_dist: Callable[..., np.ndarray] | None = None,
+    voter_dist_kwargs: dict[str, Any] | None = None,
+    candidate_dist: Callable[..., np.ndarray] | None = None,
+    candidate_dist_kwargs: dict[str, Any] | None = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    rng_seed: Optional[int] = None,
-) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
+    rng_seed: int | None = None,
+) -> tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a spatial rank profile and sampled positions.
 
@@ -120,14 +121,14 @@ def spacial_profile_and_positions_generator(
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw each voter position. If none provided, ``np.random.uniform`` with
             rng_seed will be used.
-        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+        voter_dist_kwargs (dict[str, Any] | None, optional): Keyword arguments
             passed to ``voter_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, ``np.random.uniform``
             with rng_seed will be used.
-        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+        candidate_dist_kwargs (dict[str, Any] | None, optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
@@ -139,7 +140,7 @@ def spacial_profile_and_positions_generator(
             non-deterministic results.
 
     Returns:
-        Tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
+        tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
@@ -220,14 +221,14 @@ def spacial_profile_and_positions_generator(
 def clustered_spacial_profile_and_positions_generator(
     number_of_ballots: dict[Candidate, int] | dict[str, int] | dict[int, int],
     candidates: CandidateList,
-    voter_dist: Optional[Callable[..., np.ndarray]] = None,
-    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-    candidate_dist: Optional[Callable[..., np.ndarray]] = None,
-    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    voter_dist: Callable[..., np.ndarray] | None = None,
+    voter_dist_kwargs: dict[str, Any] | None = None,
+    candidate_dist: Callable[..., np.ndarray] | None = None,
+    candidate_dist_kwargs: dict[str, Any] | None = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    rng_seed: Optional[int] = None,
-) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
+    rng_seed: int | None = None,
+) -> tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a clustered spatial rank profile and sampled positions.
 
@@ -253,7 +254,7 @@ def clustered_spacial_profile_and_positions_generator(
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw voter positions centered at each candidate location. If none provided,
             will use ``np.random.normal`` with rng_seed.
-        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+        voter_dist_kwargs (dict[str, Any] | None, optional): Keyword arguments
             passed to ``voter_dist`` while generating voter positions. If None,
             uses ``{"loc": 0, "std": np.array(1.0), "size": np.array(2.0)}``
             for ``np.random.normal`` and ``{}`` for other supported
@@ -261,7 +262,7 @@ def clustered_spacial_profile_and_positions_generator(
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, will use
             ``np.random.uniform`` with rng_seed.
-        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+        candidate_dist_kwargs (dict[str, Any] | None, optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
@@ -273,7 +274,7 @@ def clustered_spacial_profile_and_positions_generator(
             non-deterministic results.
 
     Returns:
-        Tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
+        tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position

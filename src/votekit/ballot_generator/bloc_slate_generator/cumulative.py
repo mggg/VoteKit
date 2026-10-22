@@ -9,8 +9,6 @@ The main API functions in this module are:
     name-Cumulative model.
 """
 
-from typing import Optional
-
 import apportionment.methods as apportion
 import numpy as np
 from numpy.random import Generator
@@ -26,7 +24,7 @@ from votekit.pref_profile import ScoreProfile
 
 
 def _inner_name_cumulative(
-    config: BlocSlateConfig, total_points: int, *, numpy_rng: Optional[Generator] = None
+    config: BlocSlateConfig, total_points: int, *, numpy_rng: Generator | None = None
 ) -> dict[str, ScoreProfile]:
     """
     Inner function to generate cumulative profiles by bloc using the name-Cumulative model.
@@ -91,9 +89,9 @@ def _inner_name_cumulative(
 def name_cumulative_profile_generator(
     config: BlocSlateConfig,
     *,
-    total_points: Optional[int] = None,
+    total_points: int | None = None,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> ScoreProfile:
     """
     Generates a ScoreProfile using the name-Cumulative.
@@ -106,11 +104,11 @@ def name_cumulative_profile_generator(
             working with a bloc-slate ballot generator.
 
     Kwargs:
-        total_points (Optional[int]): The total number of points to distribute among candidates.
+        total_points (int | None): The total number of points to distribute among candidates.
             If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
-        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+        rng_seed (int | None): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
 
@@ -140,9 +138,9 @@ def name_cumulative_profile_generator(
 def name_cumulative_ballot_generator_by_bloc(
     config: BlocSlateConfig,
     *,
-    total_points: Optional[int] = None,
+    total_points: int | None = None,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, ScoreProfile]:
     """
     Generates a dictionary mapping bloc names to ScoreProfiles using the name-Cumulative model.
@@ -155,11 +153,11 @@ def name_cumulative_ballot_generator_by_bloc(
             working with a bloc-slate ballot generator.
 
     Kwargs:
-        total_points (Optional[int]): The total number of points to distribute among candidates.
+        total_points (int | None): The total number of points to distribute among candidates.
             If None, defaults to the number of candidates in the configuration. Defaults to None.
         group_ballots (bool): If True, groups identical ballots in the resulting profile.
             Defaults to True.
-        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+        rng_seed (int | None): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
 

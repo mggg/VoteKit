@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Sequence
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,7 @@ def _fast_sample_without_replacement(
     weights: NDArray,
     n_samples: int,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> np.ndarray:
     """
     Sample without replacement from a distribution given by the weights.
@@ -104,7 +104,7 @@ def _construct_slate_to_candidate_ordering_arrays(
     bloc: str,
     n_samples: int,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> dict[str, np.ndarray]:
     """
     Create candidate orderings within each slate based on preference intervals.
@@ -209,7 +209,7 @@ def _convert_slate_ballots_to_profile(
     bloc: str,
     slate_ballots: list[tuple[str, ...]],
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> RankProfile:
     """
     Convert slate ballot types to a preference profile, filling out
@@ -272,7 +272,7 @@ def _append_zero_slate_symbols(
     n_ballots: int,
     config: BlocSlateConfig,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Append zero cohesion slate symbols to the end of slate ballot types.

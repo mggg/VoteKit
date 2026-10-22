@@ -61,7 +61,7 @@ def partitions_with_permutations_of_size(set_, subset_size):
         subset_size (int): The size of the subsets for which to generate partitions.
 
     Returns:
-        List[List[List]]: A list of all partitions with permutations of the specified subset size.
+        list[list[list]]: A list of all partitions with permutations of the specified subset size.
     """
 
     def partitions(set_):

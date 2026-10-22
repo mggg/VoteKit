@@ -1,5 +1,7 @@
 """Configuration model and utilities for bloc-slate ballot generators."""
 
+from types import FunctionType
+
 from votekit.ballot_generator.bloc_slate_generator.config.collections import (
     BlocProportions,
     SlateCandMap,
@@ -42,10 +44,10 @@ __all__ = [
     "BlocSlateConfig",
 ]
 
-# Patch __module__ on every exported symbol so that Sphinx autodoc displays
+# Patch __module__ on exported classes and functions so that Sphinx autodoc displays
 # the canonical public import path instead of the full internal path where
 # each object is defined.
 for _name in __all__:
     _obj = globals().get(_name)
-    if _obj is not None and hasattr(_obj, "__module__"):
+    if isinstance(_obj, (type, FunctionType)):
         _obj.__module__ = __name__

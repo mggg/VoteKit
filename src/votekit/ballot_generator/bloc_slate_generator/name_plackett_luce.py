@@ -9,8 +9,6 @@ The main API functions in this module are:
     name-Plackett-Luce model.
 """
 
-from typing import Optional
-
 import apportionment.methods as apportion
 import numpy as np
 import pandas as pd
@@ -33,8 +31,8 @@ from votekit.pref_profile import RankProfile
 def _inner_name_plackett_luce(
     config: BlocSlateConfig,
     *,
-    ballot_length: Optional[int] = None,
-    numpy_rng: Optional[Generator] = None,
+    ballot_length: int | None = None,
+    numpy_rng: Generator | None = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles by bloc using the name-Plackett-Luce model.
@@ -45,7 +43,7 @@ def _inner_name_plackett_luce(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        ballot_length (Optional[int]): Number of ranking positions allowed per ballot. If None,
+        ballot_length (int | None): Number of ranking positions allowed per ballot. If None,
             this is set to the total number of candidates in the configuration. Defaults to None.
         numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
             for reproducible results. Defaults to None for non-deterministic results.
@@ -124,9 +122,9 @@ def _inner_name_plackett_luce(
 def name_pl_profile_generator(
     config: BlocSlateConfig,
     *,
-    # ballot_length: Optional[int] = None,
+    # ballot_length: int | None = None,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generates a merged preference profile using the name-Plackett-Luce model.
@@ -165,9 +163,9 @@ def name_pl_profile_generator(
 def name_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    # ballot_length: Optional[int] = None,
+    # ballot_length: int | None = None,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to preference profiles by bloc using the

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Literal, NotRequired, Optional, TypeAlias, TypedDict
+from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -114,7 +114,7 @@ class NumpySTVBase(ABC):
         n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize the numpy STV base.

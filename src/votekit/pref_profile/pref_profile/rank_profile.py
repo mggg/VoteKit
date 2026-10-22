@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Self, Sequence, Tuple, Union, cast
+from typing import Self, cast
 
 import numpy as np
 import pandas as pd
@@ -117,7 +117,7 @@ class RankProfile(PreferenceProfile):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: Optional[int] = None,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: None = None,
     ):
@@ -249,7 +249,7 @@ class RankProfile(PreferenceProfile):
     def __init_rank_ballot_data(
         self,
         rank_ballots: Sequence[RankBallot],
-    ) -> Tuple[int, dict[str, list]]:
+    ) -> tuple[int, dict[str, list]]:
         """
         Create the ballot data objects.
 
@@ -257,7 +257,7 @@ class RankProfile(PreferenceProfile):
             rank_ballots (Sequence[RankBallot]): Ballots in dataframe row order.
 
         Returns:
-            Tuple[int, dict[str, list]]: Ballot count and allocated shared/ranking column lists.
+            tuple[int, dict[str, list]]: Ballot count and allocated shared/ranking column lists.
                 Ranking slots begin with tilde markers for unranked positions.
         """
         num_ballots = len(rank_ballots)
@@ -747,12 +747,12 @@ class RankProfile(PreferenceProfile):
         return None
 
     @classmethod
-    def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+    def from_csv(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
         """
         Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
 
         Args:
-            fpath (Union[str, PathLike, Path]): Path to csv.
+            fpath (str | PathLike | Path): Path to csv.
 
         Raises:
             ValueError: If csv is improperly formatted for VoteKit.

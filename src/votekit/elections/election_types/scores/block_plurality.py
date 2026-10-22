@@ -1,5 +1,4 @@
 import warnings
-from typing import Optional
 
 from votekit.elections.election_types.scores import GeneralRating
 from votekit.pref_profile import ScoreProfile
@@ -27,10 +26,10 @@ class _ScoreBlockPlurality(GeneralRating):
         self,
         profile: ScoreProfile,
         n_seats: int = 1,
-        budget: Optional[int] = None,
-        tiebreak: Optional[str] = None,
+        budget: int | None = None,
+        tiebreak: str | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         if budget is None or budget == 0:
             budget = n_seats
@@ -64,10 +63,10 @@ class BlocPlurality(_ScoreBlockPlurality):
         self,
         profile: ScoreProfile,
         n_seats: int = 1,
-        budget: Optional[int] = None,
-        tiebreak: Optional[str] = None,
+        budget: int | None = None,
+        tiebreak: str | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         warnings.warn(
             "BlocPlurality has been renamed to BlockPlurality. "
