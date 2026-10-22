@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Literal, NotRequired, TypeAlias, TypedDict
+from typing import Any, Literal, NotRequired, TypeAlias, TypedDict, cast
 
 import numpy as np
 import pandas as pd
@@ -34,6 +34,30 @@ class ElectionPlay(TypedDict):
     threshold: NotRequired[float]
 
 
+class _RoundPlay(TypedDict):
+    round_number: int
+    threshold: NotRequired[float]
+
+
+class WinnerPlay(_RoundPlay):
+    round_type: Literal["election"]
+    winners: list[int]
+    wt_vec: NDArray
+
+
+class DefaultPlay(_RoundPlay):
+    round_type: Literal["default"]
+    winners: list[int]
+
+
+class EliminationPlay(_RoundPlay):
+    round_type: Literal["elimination"]
+    loser: list[int]
+
+
+STVPlay: TypeAlias = WinnerPlay | DefaultPlay | EliminationPlay
+
+
 class NumpySTVSentinel(Enum):
     """
     Enum for sentinel values in the ballot matrix.
@@ -59,7 +83,7 @@ class NumpyElectionDataTracker:
         wt_vec (NDArray): Starting weight vector for each ballot row.
         initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
         fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
-        play_by_play (list[ElectionPlay]): Per-round action log used for legacy outputs.
+        play_by_play (list[STVPlay]): Per-round action log used for legacy outputs.
         tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
             Tiebreak resolutions by round.
         candidate_sets_by_fpv (list[set[int]], optional): Cached FPV clusters for tiebreaking.
@@ -70,7 +94,7 @@ class NumpyElectionDataTracker:
     wt_vec: NDArray
     initial_fpv_scores: NDArray
     fpv_by_round: list[NDArray] = field(default_factory=list)
-    play_by_play: list[ElectionPlay] = field(default_factory=list)
+    play_by_play: list[STVPlay] = field(default_factory=list)
     tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = field(
         default_factory=list
     )
@@ -179,7 +203,7 @@ class NumpySTVBase(ABC):
             except KeyError:
                 raise TypeError(f"Found invalid entry: {cell}")
 
-        mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
+        mapped = cast(NDArray, np.frompyfunc(map_cell, 1, 1)(cells)).astype(np.int8)
 
         # Add padding. A lot of the election logic needs at least one entry in each row of the
         # ballot matrix to be negative.
@@ -267,7 +291,7 @@ class NumpySTVBase(ABC):
         self, data: NumpyElectionDataTracker
     ) -> tuple[
         list[NDArray],
-        list[ElectionPlay],
+        list[STVPlay],
         list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
@@ -283,7 +307,7 @@ class NumpySTVBase(ABC):
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the
+            play_by_play (list[STVPlay]): List of dictionaries representing the
                 actions taken in each round.
             tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
@@ -364,7 +388,7 @@ class NumpySTVBase(ABC):
         list_of_winners = [
             [c for c in play["winners"]]
             for play in self._data.play_by_play[:round_number]
-            if play["round_type"] in {"election", "default"}
+            if play["round_type"] == "election" or play["round_type"] == "default"
         ]
         return tuple(frozenset([self.candidates[c] for c in w_list]) for w_list in list_of_winners)
 
@@ -453,7 +477,7 @@ class NumpySTVBase(ABC):
             if play["round_type"] == "elimination":
                 status_df.at[self.candidates[play["loser"][0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[play["loser"][0]], "Round"] = play["round_number"] + 1
-            elif play["round_type"] in {"election", "default"}:
+            elif play["round_type"] == "election" or play["round_type"] == "default":
                 for c in play["winners"]:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = play["round_number"] + 1

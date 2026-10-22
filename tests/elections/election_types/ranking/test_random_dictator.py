@@ -44,6 +44,7 @@ def test_random_dictator_simple():
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in candidates}
 
@@ -86,6 +87,7 @@ def test_random_dictator_4_candidates_without_ties():
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in candidates}
 
@@ -122,6 +124,7 @@ def test_random_dictator_4_candidates_with_ties():
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in candidates}
 
@@ -156,6 +159,7 @@ def test_random_dictator_4_candidates_large_sample(all_possible_ranked_ballots):
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(test_profile, seed) for seed in seeds
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in candidates}
 

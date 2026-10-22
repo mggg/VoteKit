@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
-from votekit.elections import BlockPlurality, ElectionState
+from votekit.elections import BlockPlurality, Election, ElectionState
 from votekit.pref_profile import RankProfile, ScoreProfile
 
 profile_no_tied_bloc_plurality = ScoreProfile(
@@ -52,6 +52,23 @@ states = [
 def test_init():
     e = BlockPlurality(profile_no_tied_bloc_plurality, n_seats=2)
     assert e.get_elected() == (frozenset({"A"}), frozenset({"B"}))
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        RankProfile(ballots=[RankBallot(ranking=["A"])]),
+        ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})]),
+    ],
+)
+def test_factory_preserves_election_inheritance_and_returns_concrete_election(profile):
+    assert issubclass(BlockPlurality, Election)
+
+    election = BlockPlurality(profile)
+
+    assert isinstance(election, Election)
+    assert not isinstance(election, BlockPlurality)
+    assert election.get_elected() == (frozenset({"A"}),)
 
 
 def test_ties():
@@ -326,7 +343,7 @@ def test_ranked_errors():
         BlockPlurality(ranked_profile_no_tied, n_seats=1, budget=5)
 
     with pytest.raises(TypeError, match="profile must be a RankProfile or ScoreProfile"):
-        BlockPlurality("not a profile")  # type: ignore[invalid-argument-type]
+        BlockPlurality("not a profile")  # type: ignore[invalid-argument-type, ty:invalid-argument-type]
 
 
 def test_ranked_validate_profile():

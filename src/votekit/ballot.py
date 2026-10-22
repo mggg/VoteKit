@@ -4,7 +4,7 @@ import math
 from collections.abc import Iterable, Mapping, Sequence
 from fractions import Fraction
 from numbers import Integral, Real
-from typing import overload
+from typing import Self, overload
 
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
 from votekit.utils import SourceWithAttribute, _validate_candidate_names
@@ -122,7 +122,7 @@ class Ballot:
         scores: None = None,
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
-        include_zero_score: None = None,
+        include_zero_score: bool = False,
     ) -> RankBallot: ...
 
     @overload
@@ -145,7 +145,7 @@ class Ballot:
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
         include_zero_score: bool = False,
-    ) -> Ballot: ...
+    ) -> Self: ...
 
     def __new__(
         cls,
@@ -155,13 +155,13 @@ class Ballot:
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
         include_zero_score: bool = False,
-    ):
+    ) -> Ballot:
         if ranking is not None and scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
         elif ranking is not None:
-            return super().__new__(RankBallot)
+            return object.__new__(RankBallot)
         elif scores is not None:
-            return super().__new__(ScoreBallot)
+            return object.__new__(ScoreBallot)
 
         return super().__new__(cls)
 

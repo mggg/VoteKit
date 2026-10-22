@@ -223,14 +223,14 @@ def test_invalid_bare_candidate_type_ballot():
     with pytest.raises(
         TypeError, match=r"Non-string\/integer candidate\(s\) found in RankBallot.ranking."
     ):
-        RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+        RankBallot(ranking=[1.5, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_invalid_wrapped_candidate_type_ballot():
     with pytest.raises(
         TypeError, match=r"Non-string/integer candidate\(s\) found in RankBallot.ranking"
     ):
-        RankBallot(ranking=[{1.5}, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type]
+        RankBallot(ranking=[{1.5}, {"B", 1}, "D", {2}, 3], weight=1, voter_set={"A"})  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_negative_integer_candidate_ballot():
@@ -242,7 +242,7 @@ def test_negative_integer_candidate_ballot():
 
 def test_non_sequence_ranking_ballot_raises_error():
     with pytest.raises(TypeError, match="ranking must be a Sequence with a guaranteed order."):
-        RankBallot(ranking={4, 3, 2, 1}, weight=1, voter_set={"A"})  # type: ignore[arg-type]
+        RankBallot(ranking={4, 3, 2, 1}, weight=1, voter_set={"A"})  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_bool_candidate_ballot_raises_error():

@@ -59,15 +59,25 @@ def _normalize_score_df_candidates(
     return df.rename(columns=column_mapping)
 
 
-class ScoreProfile(PreferenceProfile):
+class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
     """
     Store scored ballots with nonnegative scores and matrix-owned storage.
 
     NaN denotes an unscored candidate. Construction raises ValueError for negative scores,
     including scores on zero-weight ballots; election-specific limits are validated separately.
-    """
 
-    _matrix: ScoreMatrix
+    This specializes PreferenceProfile with ScoreMatrix and ScoreBallot. Even an empty profile
+    has a score matrix. Its max_ranking_length attribute is always None.
+
+    Args:
+        ballots (Sequence[Ballot], optional): Scored ballots. Other ballot types are rejected.
+            Defaults to empty tuple.
+        candidates (Sequence[Candidate], optional): Declared candidates. Defaults to empty tuple,
+            which infers candidates from positive-weight ballots. Required for a nonempty dataframe.
+        max_ranking_length (int, optional): Unused compatibility argument. Defaults to 0.
+        df (pd.DataFrame, optional): Score ballot dataframe, supplied instead of ballots.
+            Defaults to an empty dataframe.
+    """
 
     def __new__(cls, **kwargs) -> Self:
         """
@@ -80,7 +90,7 @@ class ScoreProfile(PreferenceProfile):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int | None = None,
+        max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
     ):
         for index, ballot in enumerate(ballots):
@@ -311,9 +321,7 @@ class ScoreProfile(PreferenceProfile):
             df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
-            ValueError: One of contains_rankings and contains_scores must be True.
-            ValueError: If contains_rankings is True, max_ranking_length must be provided.
-            ValueError: Candidates must be provided.
+            ProfileError: Candidates were not provided for a nonempty dataframe.
         """
         boiler_plate = "When providing a dataframe and no ballot list to the init method, "
         if len(df) == 0:
@@ -641,16 +649,19 @@ class ScoreProfile(PreferenceProfile):
         return None
 
     @classmethod
-    def from_csv(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
+    def from_csv(cls, fpath: str | PathLike | Path) -> Self:
         """
-        Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+        Load a score profile from the CSV format produced by ``to_csv``.
 
         Args:
-            fpath (str): Path to csv.
+            fpath (str | PathLike | Path): Path to csv.
+
+        Returns:
+            Self: Profile constructed using the class this method is called on.
 
         Raises:
             ValueError: If csv is improperly formatted for VoteKit.
-            ProfileError: If read profile has no rankings or scores.
+            ProfileError: If the loaded ballots or candidates violate profile constraints.
 
         """
         with open(str(fpath), "r") as file:

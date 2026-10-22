@@ -1,9 +1,16 @@
 from fractions import Fraction
+from typing import assert_type
 
 import numpy as np
 import pytest
 
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+
+
+def test_ballot_constructor_return_types():
+    assert type(assert_type(Ballot(), Ballot)) is Ballot
+    assert type(assert_type(RankBallot(), RankBallot)) is RankBallot
+    assert type(assert_type(ScoreBallot(), ScoreBallot)) is ScoreBallot
 
 
 def test_ballot_init():
@@ -89,7 +96,7 @@ def test_ballot_rejects_bool_and_non_real_weight():
         Ballot(weight=True)
 
     with pytest.raises(TypeError, match="must be a float, int, or Fraction"):
-        Ballot(weight="2")  # type: ignore[arg-type]
+        Ballot(weight="2")  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_ballot_rejects_nan_and_infinite_weight():
