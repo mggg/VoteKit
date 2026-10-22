@@ -1,6 +1,5 @@
 from collections import Counter
 from collections.abc import Sequence
-from numbers import Real
 
 import pytest
 
@@ -35,21 +34,16 @@ def compute_probability_of_ballot_by_slate(
 
     Returns:
         float: The probability of the ballot by slate.
-
-    Raises:
-        TypeError: A slate's cohesion value is not numeric.
     """
 
     num_cands_seen_per_slate = {slate: 0 for slate in config.slates}
     num_cands_per_slate = {
         slate: len(cand_list) for slate, cand_list in config.slate_to_candidates.items()
     }
-    prob_of_slate: dict[str, float] = {}
-    for slate in config.slates:
-        cohesion_value = config.cohesion_df.loc[bloc, slate]
-        if not isinstance(cohesion_value, Real):
-            raise TypeError(f"Expected numeric cohesion for slate {slate!r}.")
-        prob_of_slate[slate] = float(cohesion_value)
+    cohesion_values = config.cohesion_df.loc[bloc, list(config.slates)].to_numpy(dtype=float)
+    prob_of_slate = {
+        slate: float(value) for slate, value in zip(config.slates, cohesion_values, strict=True)
+    }
 
     ballot_prob = 1.0
     for i, slate in enumerate(slate_ballot_type):
