@@ -1,7 +1,6 @@
 import math
 import random
 from fractions import Fraction
-from typing import Optional, Union
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import RankProfile
@@ -11,7 +10,7 @@ from votekit.types import Candidate, Numeric
 def fractional_transfer(
     winner: Candidate,
     fpv: Numeric,
-    ballots: Union[tuple[RankBallot], list[RankBallot]],
+    ballots: tuple[RankBallot] | list[RankBallot],
     threshold: int,
 ) -> tuple[RankBallot, ...]:
     """
@@ -21,7 +20,7 @@ def fractional_transfer(
         winner (Candidate): Candidate to transfer votes from.
             Candidate can be a string or integer.
         fpv (Numeric): Number of first place votes for winning candidate.
-        ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
+        ballots (tuple[RankBallot] | list[RankBallot]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
 
     Returns:
@@ -58,10 +57,10 @@ def fractional_transfer(
 def random_transfer(
     winner: Candidate,
     fpv: Numeric,
-    ballots: Union[tuple[RankBallot], list[RankBallot]],
+    ballots: tuple[RankBallot] | list[RankBallot],
     threshold: int,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> tuple[RankBallot, ...]:
     """
     Cambridge-style transfer where transfer ballots are selected randomly.
@@ -71,7 +70,7 @@ def random_transfer(
         winner (Candidate): Candidate to transfer votes from.
             Candidates can be strings, integers, or mix of both.
         fpv (Numeric): Number of first place votes for winning candidate.
-        ballots (Union[tuple[RankBallot], list[RankBallot]]): List of Ballot objects.
+        ballots (tuple[RankBallot] | list[RankBallot]): List of Ballot objects.
         threshold (int): Value required to be elected, used to calculate transfer value.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.

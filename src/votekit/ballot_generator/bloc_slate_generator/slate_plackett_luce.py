@@ -9,12 +9,12 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
-from numbers import Real
-from typing import Optional
+from typing import cast
 
 import apportionment.methods as apportion
 import numpy as np
 from numpy.random import Generator
+from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
@@ -34,7 +34,7 @@ def _sample_pl_slate_ballots(
     bloc: str,
     non_zero_slate_set: set[str],
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Returns a list of slate ballots; each ballot is a list of slate names (strings)
@@ -63,7 +63,7 @@ def _sample_pl_slate_ballots(
     ballots: list[tuple[str, ...]] = [tuple() for _ in range(num_ballots)]
 
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    rand_unif_seqs = numpy_rng.uniform(size=(num_ballots, num_candidates))
+    rand_unif_seqs: NDArray[np.float64] = numpy_rng.uniform(size=(num_ballots, num_candidates))
 
     def which_bin(dist_bins: list[float], flip: float) -> int:
         for i, left in enumerate(dist_bins[:-1]):
@@ -71,18 +71,14 @@ def _sample_pl_slate_ballots(
                 return i
         return len(dist_bins) - 2
 
-    slates = list(sorted(non_zero_slate_set))
-    cohesion_values_og: list[float] = []
-    for slate in slates:
-        cohesion_value = config.cohesion_df.loc[bloc, slate]
-        if not isinstance(cohesion_value, Real) or isinstance(cohesion_value, bool):
-            raise TypeError(
-                f"Cohesion must be numeric. Found {type(cohesion_value)!r} for slate {slate!r}."
-            )
-        cohesion_values_og.append(float(cohesion_value))
+    slates = sorted(non_zero_slate_set)
+    cohesion_values_og: NDArray[np.float64] = config.cohesion_df.loc[bloc, slates].to_numpy(
+        dtype=np.float64
+    )
 
-    for i, rand_unif_seq in enumerate(rand_unif_seqs):
-        cohesion_values = np.array(cohesion_values_og)
+    for i in range(num_ballots):
+        rand_unif_seq = rand_unif_seqs[i, :]
+        cohesion_values = cohesion_values_og.copy()
         distribution_bins: list[float] = [0.0] + np.cumsum(cohesion_values).tolist()
         ballot_type: list[str] = [""] * num_candidates
         slate_count = {s: 0 for s in slates}
@@ -114,7 +110,7 @@ def _sample_pl_slate_ballots(
 def _inner_slate_plackett_luce(
     config: BlocSlateConfig,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles by bloc using the slate-Plackett-Luce model.
@@ -129,7 +125,7 @@ def _inner_slate_plackett_luce(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
+        ballot_length (int | None): Number of votes allowed per ballot. If None, this is
             set to the total number of candidates in the configuration. Defaults to None.
         rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
@@ -159,7 +155,7 @@ def _inner_slate_plackett_luce(
         n_ballots = ballots_per_bloc[bloc]
 
         non_zero_slate_set = {
-            slate for slate in config.slates if config.cohesion_df.loc[bloc][slate] > 0
+            slate for slate in config.slates if cast(float, config.cohesion_df.at[bloc, slate]) > 0
         }
 
         zero_slate_set = set(config.slates) - non_zero_slate_set
@@ -196,7 +192,7 @@ def slate_pl_profile_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generates a merged preference profile using the slate-Plackett-Luce model.
@@ -238,7 +234,7 @@ def slate_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to preference profiles using the slate-Plackett-Luce

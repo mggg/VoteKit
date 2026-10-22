@@ -22,7 +22,8 @@ VoteKit uses:
 - [uv](https://astral.sh/uv/) for environment and dependency management
 - [go-task](https://taskfile.dev/) for common development commands
 - [ruff](https://astral.sh/ruff/) for linting, import sorting, and formatting
-- [ty](https://github.com/astral-sh/ty) for type checking
+- [ty](https://github.com/astral-sh/ty) and [Pyright](https://github.com/microsoft/pyright)
+  for type checking, run in that order
 - [pytest](https://docs.pytest.org/) for tests
 - [pre-commit](https://pre-commit.com/) for local quality checks
 
@@ -83,7 +84,8 @@ If you already have `uv` on your `PATH`, the equivalent direct commands are:
 uv run ruff check --select I --fix src tests
 uv run ruff format src tests
 uv run ruff check src tests
-uv run ty check src tests
+uv run ty check src tests scripts
+uv run pyright src tests scripts
 uv run pytest tests
 uv run pytest tests --runslow
 uv run pytest tests --cov=src/votekit --cov-report=term-missing

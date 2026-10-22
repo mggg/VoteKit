@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from numbers import Real
-from typing import Literal, Optional, cast
+from typing import Literal, cast
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -116,7 +116,7 @@ class SimultaneousVeto(RankingElection):
         scoring_tie_convention: Literal["high", "average", "low"] = "average",
         return_all_tied_winners: bool = False,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -131,7 +131,7 @@ class SimultaneousVeto(RankingElection):
         self.candidate_weights = candidate_weights
         self.tiebreak = tiebreak
         self._rng = random.Random(rng_seed)
-        self.scoring_tie_convention = scoring_tie_convention
+        self.scoring_tie_convention: Literal["high", "average", "low"] = scoring_tie_convention
         self.return_all_tied_winners = return_all_tied_winners
 
         grouped_profile = profile.group_ballots()
@@ -404,7 +404,7 @@ class SimultaneousVeto(RankingElection):
             cached_pos = self._max_ranking_length - 1
 
         ballot = self._df.iloc[ballot_idx]
-        ranking = ballot[self._ranking_cols].values
+        ranking = ballot[self._ranking_cols].to_numpy(dtype=object)
 
         for pos in range(cached_pos, -1, -1):
             vetoes = ranking[pos] - self._eliminated

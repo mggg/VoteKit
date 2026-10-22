@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Sequence
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,7 @@ def _fast_sample_without_replacement(
     weights: NDArray,
     n_samples: int,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> np.ndarray:
     """
     Sample without replacement from a distribution given by the weights.
@@ -104,7 +104,7 @@ def _construct_slate_to_candidate_ordering_arrays(
     bloc: str,
     n_samples: int,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> dict[str, np.ndarray]:
     """
     Create candidate orderings within each slate based on preference intervals.
@@ -207,9 +207,9 @@ def _convert_slate_ballot_type_to_ranking(
 def _convert_slate_ballots_to_profile(
     config: BlocSlateConfig,
     bloc: str,
-    slate_ballots: list[tuple[str, ...]],
+    slate_ballots: Sequence[Sequence[str]],
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> RankProfile:
     """
     Convert slate ballot types to a preference profile, filling out
@@ -219,7 +219,7 @@ def _convert_slate_ballots_to_profile(
         config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
-        slate_ballots (list[tuple[str, ...]]): List of slate ballot types.
+        slate_ballots (Sequence[Sequence[str]]): List of slate ballot types.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.
 
@@ -272,7 +272,7 @@ def _append_zero_slate_symbols(
     n_ballots: int,
     config: BlocSlateConfig,
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Append zero cohesion slate symbols to the end of slate ballot types.

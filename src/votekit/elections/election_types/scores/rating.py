@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from typing import Optional
 
 import numpy as np
 
@@ -45,10 +44,10 @@ class GeneralRating(Election[ScoreProfile]):
         profile: ScoreProfile,
         n_seats: int | None = None,
         per_candidate_limit: float | None = None,
-        budget: Optional[float] = None,
-        tiebreak: Optional[str] = None,
+        budget: float | None = None,
+        tiebreak: str | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})
@@ -218,9 +217,9 @@ class Rating(GeneralRating):
         profile: ScoreProfile,
         n_seats: int | None = None,
         per_candidate_limit: float | None = None,
-        tiebreak: Optional[str] = None,
+        tiebreak: str | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats", "k": "per_candidate_limit"})

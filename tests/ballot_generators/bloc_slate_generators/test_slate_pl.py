@@ -1,5 +1,5 @@
 from collections import Counter
-from numbers import Real
+from collections.abc import Sequence
 
 import pytest
 
@@ -22,7 +22,7 @@ def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[Candidate], ...]:
 
 
 def compute_probability_of_ballot_by_slate(
-    bloc: str, config: BlocSlateConfig, slate_ballot_type: list[str]
+    bloc: str, config: BlocSlateConfig, slate_ballot_type: Sequence[str]
 ):
     """
     Compute the probability of a ballot by slate given the sPL model.
@@ -30,25 +30,20 @@ def compute_probability_of_ballot_by_slate(
     Args:
         bloc (str): The bloc for which to compute the probability of the ballot.
         config (BlocSlateConfig): The configuration for the bloc-slate type model.
-        slate_ballot_type (list[str]): The slate ballot type for which to compute the probability.
+        slate_ballot_type (Sequence[str]): The slate ballot type to compute the probability of.
 
     Returns:
         float: The probability of the ballot by slate.
-
-    Raises:
-        ValueError: If a tie occurs in the ballot.
     """
 
     num_cands_seen_per_slate = {slate: 0 for slate in config.slates}
     num_cands_per_slate = {
         slate: len(cand_list) for slate, cand_list in config.slate_to_candidates.items()
     }
-    prob_of_slate: dict[str, float] = {}
-    for slate in config.slates:
-        cohesion_value = config.cohesion_df.loc[bloc, slate]
-        if not isinstance(cohesion_value, Real):
-            raise TypeError(f"Expected numeric cohesion for slate {slate!r}.")
-        prob_of_slate[slate] = float(cohesion_value)
+    cohesion_values = config.cohesion_df.loc[bloc, list(config.slates)].to_numpy(dtype=float)
+    prob_of_slate = {
+        slate: float(value) for slate, value in zip(config.slates, cohesion_values, strict=True)
+    }
 
     ballot_prob = 1.0
     for i, slate in enumerate(slate_ballot_type):

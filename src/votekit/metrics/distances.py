@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 from scipy.optimize import linprog
@@ -400,7 +400,7 @@ def earth_mover_dist(pp1: RankProfile, pp2: RankProfile) -> float:
 def lp_dist(
     pp1: RankProfile,
     pp2: RankProfile,
-    p_value: Optional[Union[int, str]] = 1,
+    p_value: int | str | None = 1,
 ) -> int:
     r"""
     Computes the :math:`L_p` distance between two profiles.
@@ -410,7 +410,7 @@ def lp_dist(
     Args:
         pp1 (RankProfile): RankProfile for first profile.
         pp2 (RankProfile): RankProfile for second profile.
-        p_value (Union[int, str], optional): :math:`L_p` distance parameter. Use "inf" for
+        p_value (int | str, optional): :math:`L_p` distance parameter. Use "inf" for
             :math:`\infty`.
 
     Returns:

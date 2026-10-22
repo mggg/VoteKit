@@ -2,7 +2,28 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot
-from votekit.pref_profile.utils import convert_row_to_rank_ballot
+from votekit.pref_profile import RankProfile
+from votekit.pref_profile.utils import _df_to_rank_ballot_tuple, convert_row_to_rank_ballot
+
+
+@pytest.mark.parametrize(
+    "ballots",
+    [
+        (),
+        (
+            RankBallot(ranking=[{"A"}, {"B"}], weight=2, voter_set={"Chris"}),
+            RankBallot(weight=0),
+        ),
+    ],
+)
+def test_dataframe_to_ballots_preserves_order_weights_and_empty_rankings(ballots):
+    profile = RankProfile(ballots=ballots, candidates=("A", "B"))
+
+    result = _df_to_rank_ballot_tuple(
+        profile.to_df(), profile.candidates, profile.max_ranking_length
+    )
+
+    assert result == ballots
 
 
 def test_convert_row_to_rank_ballot():

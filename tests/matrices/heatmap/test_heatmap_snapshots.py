@@ -76,7 +76,7 @@ CASES = [
         ),
         id="heatmap_positive.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_positive.png",
             tolerance=2,
         ),
@@ -90,7 +90,7 @@ CASES = [
         ),
         id="heatmap_diverging.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_diverging.png",
             tolerance=2,
         ),
@@ -108,7 +108,7 @@ CASES = [
         ),
         id="heatmap_custom_cmap.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_custom_cmap.png",
             tolerance=2,
         ),
@@ -123,7 +123,7 @@ CASES = [
         ),
         id="heatmap_no_values_no_colorbar.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_no_values_no_colorbar.png",
             tolerance=2,
         ),
@@ -140,7 +140,7 @@ CASES = [
         ),
         id="heatmap_with_nan_inf.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_with_nan_inf.png",
             tolerance=2,
         ),
@@ -159,7 +159,7 @@ CASES = [
         ),
         id="heatmap_rotations_decimals.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_rotations_decimals.png",
             tolerance=2,
         ),
@@ -174,7 +174,7 @@ CASES = [
         ),
         id="heatmap_heavy_grid.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_heavy_grid.png",
             tolerance=2,
         ),
@@ -193,7 +193,7 @@ CASES = [
         ),
         id="heatmap_custom_seq_nan_inf.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_custom_seq_nan_inf.png",
             tolerance=2,
         ),
@@ -211,7 +211,7 @@ CASES = [
         ),
         id="heatmap_all_negative_custom_map.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_all_negative_custom_map.png",
             tolerance=2,
         ),
@@ -241,7 +241,7 @@ CASES = [
         ),
         id="heatmap_legends_location_font.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_legends_location_right.png",
             tolerance=3,
         ),
@@ -258,7 +258,7 @@ CASES = [
         ),
         id="heatmap_small_cell_font.png",
         marks=pytest.mark.mpl_image_compare(
-            baseline_dir="tests/snapshots/heatmap",
+            baseline_dir="../../snapshots/heatmap",
             filename="heatmap_small_cell_font.png",
             tolerance=2,
         ),
