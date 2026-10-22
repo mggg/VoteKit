@@ -16,6 +16,10 @@ def sync_contributing_doc() -> None:
         "[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)",
         f"[CODE_OF_CONDUCT.md]({CODE_OF_CONDUCT_LINK})",
     )
+    text = text.replace(
+        "STYLE-GUIDE.md",
+        "https://github.com/mggg/VoteKit/blob/main/STYLE-GUIDE.md",
+    )
 
     generated_text = GENERATED_HEADER + text
 

@@ -4,8 +4,8 @@ Thanks for your interest in contributing to VoteKit! Contributions of all sizes 
 including bug reports, documentation improvements, tests, examples, and new features.
 
 If you are planning anything larger than a small bug fix or documentation change, please contact
-`code@mggg.org` before you start coding so the maintainers can help you line up with the
-current roadmap and target branch.
+`code@mggg.org` before you start coding so the maintainers can help you line up with the current
+roadmap and target branch.
 
 ## Ways to contribute
 
@@ -115,9 +115,12 @@ Small pull requests are much easier to review and merge than large, mixed change
 Researchers rely on VoteKit and its results, so contributors have a heightened responsibility for
 the correctness and clarity of every change.
 
-- Core implementation and business logic in `src/votekit/` must be written by humans. AI tools may
-  provide inline assistance (e.g., an editor copilot) and may be used to navigate and deepen
-  understanding of the codebase and domain material (e.g., with chat agents). Contributors should
+- Core implementation and business logic in `src/votekit/` must be primarily written by humans. AI
+  tools may provide inline assistance (e.g., an editor copilot) and may be used to navigate and
+  deepen understanding of the codebase and domain material (e.g., with chat agents). They may also
+  be used to assist with mechanical refactoring tasks (e.g., renaming, reformatting, or moving
+  code), or for generating single functions or small helpers, but the contributor must review and
+  understand every line of code that is generated or rewritten by AI tools. Contributors should
   not delegate the generation or rewriting of core implementation code to agentic coding tools.
   For example, Codex GUI/CLI, Claude GUI/CLI, Cursor v3+, and similar tools should not be asked to
   generate or substantially rewrite that code.
@@ -127,70 +130,20 @@ the correctness and clarity of every change.
   that it meaningfully tests the intended behavior.
 - Docstrings may be developed jointly by humans and AI. The person responsible for the pull
   request must read, edit, and review every AI-assisted docstring for accuracy, thoroughness, and
-  compliance with the documentation and formatting guidelines below.
+  compliance with the [coding style guide](STYLE-GUIDE.md).
 
 The person responsible for a pull request remains accountable for all of its contents, regardless
 of which tools assisted in preparing it.
 
 ## Code style guidelines
 
-VoteKit is a mixed but steadily modernizing Python 3.11+ codebase. When contributing, prefer
-the current conventions below and avoid style-only churn in unrelated files.
+Follow the [VoteKit coding style guide](STYLE-GUIDE.md) for organization, naming, Python types,
+validation, ownership, numerical code, and Rust boundary conventions. It also defines the
+[docstring and comment format](STYLE-GUIDE.md#comments-docstrings-and-prose).
 
-- Follow the repo tooling first: Ruff defines the baseline style for formatting, import order,
-  and linting.
-- Use absolute imports in all implementation files. Relative imports are only used in `__init__.py`
-  files for re-exporting. For example, prefer `from votekit.elections.election_state import
-ElectionState` over `from ..election_state import ElectionState`.
-- Keep lines at roughly 100 characters to match the configured formatter and linter settings.
-- Add type annotations for function parameters and return values. Run `uv run ty check src tests`
-  on changes that add or reshape APIs.
-- Prefer modern type syntax in new or substantially updated code, such as `str | None` instead of
-  `Optional[str]`. Older files still contain pre-3.10 style hints, and you do not need to rewrite
-  them unless you are already editing that area for a substantive reason.
-- Use descriptive `snake_case` names for variables and functions, `PascalCase` for classes, and
-  `UPPER_SNAKE_CASE` for module-level constants.
-- Keep functions focused. Small helpers are preferred over long functions with several distinct
-  responsibilities.
-- Put validation and obvious guard clauses near the top of a function. This pattern is common
-  across the election, profile, and utility modules.
-- Prefer straightforward control flow over extra abstraction. This codebase generally favors clear
-  data flow and targeted helpers over deep inheritance or unnecessary indirection.
-- Match the surrounding file when touching older modules. Consistency within a file is more
-  important than forcing a full-file style migration.
-- Use comments sparingly. Prefer names and small helper functions to explain intent, and reserve
-  comments for non-obvious logic or domain-specific reasoning.
-
-### Docstrings
-
-Public classes, functions, and methods should have docstrings that follow the project’s existing
-Google-style variant with a 100 character per line limit. For example:
-
-```python
-def foo(arg1: str | None, arg2: int = 3) -> str:
-    """
-    Brief description (try to stay under 100 characters).
-
-    More details if needed.
-
-    Args:
-        arg1 (str | None): Description.
-        arg2 (int, optional): Description. Defaults to 3.
-
-    Returns:
-        str: Description of the returned value.
-
-    Raises:
-        ValueError: Description of the failure mode.
-    """
-```
-
-Docstring conventions used throughout the repository:
-
-- Put the summary on its own line inside the docstring.
-- Include `Args`, `Returns`, and `Raises` when they apply.
-- Document optional parameters and default behavior explicitly.
-- Add examples only when they help clarify non-obvious usage.
+Apply the guide to new and substantially changed code without style-only churn in unrelated files.
+Ruff remains the authority for Python formatting, import order, and linting; run the checks listed
+above alongside the relevant tests.
 
 ## Testing guidelines
 
@@ -238,8 +191,8 @@ abstract base class in `src/votekit/models.py`.
 `RankProfile`, `ScoreProfile`, and `PreferenceProfile` are defined in separate modules under
 `src/votekit/pref_profile/pref_profile/` and exported from `votekit.pref_profile`.
 
-- Use `RankProfile` when your election requires ranked ballots. `RankingElection._validate_profile`
-  enforces this automatically.
+- Use `RankProfile` when your election requires ranked ballots.
+  `RankingElection._validate_profile` enforces this automatically.
 - Use `ScoreProfile` when your election requires score ballots.
 - `PreferenceProfile` is the common base class. Avoid accepting it directly in new election
   classes unless the method genuinely supports both ballot types.
@@ -249,13 +202,13 @@ abstract base class in `src/votekit/models.py`.
 Every `Election` subclass must implement three abstract methods:
 
 **`_validate_profile(self, profile)`** — called at construction before any election logic runs.
-Raise `ProfileError` for wrong profile type and `ValueError` for invalid configurations
-(e.g. fewer candidates than seats). `RankingElection` provides a default implementation that
-checks for a `RankProfile` and valid rankings; override only if you need stricter checks.
+Raise `ProfileError` for wrong profile type and `ValueError` for invalid configurations (e.g.
+fewer candidates than seats). `RankingElection` provides a default implementation that checks for
+a `RankProfile` and valid rankings; override only if you need stricter checks.
 
-**`_is_finished(self) -> bool`** — return `True` when no further rounds are needed.
-For single-round elections, check `len(self.election_states) == 2` (round 0 is the initial state).
-For iterative elections, check whether enough candidates have been elected.
+**`_is_finished(self) -> bool`** — return `True` when no further rounds are needed. For
+single-round elections, check `len(self.election_states) == 2` (round 0 is the initial state). For
+iterative elections, check whether enough candidates have been elected.
 
 **`_run_step(self, profile, prev_state, store_states=False) -> profile`** — run one round of the
 election and return the updated profile. When `store_states=True`, build an `ElectionState` and
@@ -281,15 +234,15 @@ self.election_states.append(new_state)
 ```
 
 Candidates and sets follow a consistent ordering convention: tuples are ordered best-to-worst
-(highest score first for `remaining`, first-elected first for `elected`), and frozensets within
-a tuple represent tied candidates.
+(highest score first for `remaining`, first-elected first for `elected`), and frozensets within a
+tuple represent tied candidates.
 
 ### Passing a `score_function`
 
 If your election uses scores to rank candidates each round, pass a `score_function` to
 `super().__init__`. This function takes a profile and returns a `dict[str, float]` mapping
-candidates to their scores. The base class uses it to populate round-0 scores and sort the
-initial `remaining` tuple. Utilities like `score_dict_from_score_vector` and
+candidates to their scores. The base class uses it to populate round-0 scores and sort the initial
+`remaining` tuple. Utilities like `score_dict_from_score_vector` and
 `score_profile_from_ballot_scores` in `src/votekit/utils.py` cover the most common cases.
 
 If your election has no meaningful per-round scores (e.g. a Condorcet method), pass
@@ -297,17 +250,9 @@ If your election has no meaningful per-round scores (e.g. a Condorcet method), p
 
 ### Error message conventions
 
-Error messages should state what constraint was violated and echo the offending value where
-helpful. Use f-strings with constants rather than hardcoded strings:
-
-```python
-# Preferred
-raise ValueError(f"n_seats ({self.n_seats}) must be positive.")
-raise ValueError(f"tiebreak '{tiebreak}' is not a valid option. Choose from {VALID_TIEBREAKS}.")
-
-# Avoid
-raise ValueError("Invalid input.")
-```
+Follow the style guide's [validation and failure conventions](
+STYLE-GUIDE.md#ownership-validation-and-failures). Preserve the election-specific exception types
+described above.
 
 Validation and guard clauses belong at the top of `__init__`, before the call to
 `super().__init__`.
