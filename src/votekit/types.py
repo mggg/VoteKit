@@ -1,5 +1,6 @@
+from collections.abc import Iterable, Mapping, Sequence
 from fractions import Fraction
-from typing import Iterable, Mapping, Optional, Sequence, TypeAlias
+from typing import TypeAlias
 
 # ---------------------------------------------------------------------------
 # Candidate Types
@@ -21,11 +22,11 @@ CandidateList: TypeAlias = list[Candidate] | list[str] | list[int]
 # ---------------------------------------------------------------------------
 # Ballot Types: Ranking and Scores
 # ---------------------------------------------------------------------------
-Ranking: TypeAlias = Optional[tuple[frozenset[Candidate], ...]]
-RankingLike: TypeAlias = Optional[Sequence[Candidate | Iterable[Candidate]]]
-ScoresLike: TypeAlias = Optional[
-    Mapping[Candidate, float | int] | Mapping[str, float | int] | Mapping[int, float | int]
-]
+Ranking: TypeAlias = tuple[frozenset[Candidate], ...] | None
+RankingLike: TypeAlias = Sequence[Candidate | Iterable[Candidate]] | None
+ScoresLike: TypeAlias = (
+    Mapping[Candidate, float | int] | Mapping[str, float | int] | Mapping[int, float | int] | None
+)
 
 # ---------------------------------------------------------------------------
 # Profile Bar Plot Types

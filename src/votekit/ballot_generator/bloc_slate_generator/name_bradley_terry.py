@@ -17,7 +17,7 @@ import itertools as it
 import math
 import random
 import sys
-from typing import Mapping, Optional
+from collections.abc import Mapping
 
 import apportionment.methods as apportion
 import numpy as np
@@ -152,7 +152,7 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
 
 
 def _inner_name_bradley_terry(
-    config: BlocSlateConfig, *, rng: Optional[random.Random] = None
+    config: BlocSlateConfig, *, rng: random.Random | None = None
 ) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using direct sampling.
@@ -244,9 +244,9 @@ def _bradley_terry_mcmc(
     seed_ballot: RankBallot,
     verbose: bool = False,
     burn_in_time: int = 0,
-    chain_length: Optional[int] = None,
+    chain_length: int | None = None,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ):
     """
     Sample from BT distribution for a given preference interval using MCMC. Defaults
@@ -259,7 +259,7 @@ def _bradley_terry_mcmc(
         seed_ballot (RankBallot):  the seed ballot for the Markov chain
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
@@ -360,8 +360,8 @@ def _inner_name_bradley_terry_mcmc(
     *,
     verbose: bool = False,
     burn_in_time: int = 0,
-    chain_length: Optional[int] = None,
-    rng: Optional[random.Random] = None,
+    chain_length: int | None = None,
+    rng: random.Random | None = None,
 ) -> dict[str, RankProfile]:
     """
     Sample from the BT distribution using Markov Chain Monte Carlo.
@@ -373,7 +373,7 @@ def _inner_name_bradley_terry_mcmc(
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
@@ -381,7 +381,7 @@ def _inner_name_bradley_terry_mcmc(
             instance for reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        Union[RankProfile, Tuple]
+        RankProfile | tuple
     """
     bloc_lst = config.blocs
 
@@ -431,7 +431,7 @@ def name_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generate preference profiles by bloc using the name-BradleyTerry model.
@@ -467,7 +467,7 @@ def name_bt_profile_generator(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
@@ -506,8 +506,8 @@ def name_bt_profile_generator_using_mcmc(
     group_ballots=True,
     verbose: bool = False,
     burn_in_time: int = 0,
-    chain_length: Optional[int] = None,
-    rng_seed: Optional[int] = None,
+    chain_length: int | None = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a preference profile using MCMC sampling from the name-BradleyTerry model.
@@ -522,11 +522,11 @@ def name_bt_profile_generator_using_mcmc(
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
-        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+        rng_seed (int | None): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
 
@@ -558,8 +558,8 @@ def name_bt_profiles_by_bloc_generator_using_mcmc(
     group_ballots=True,
     verbose: bool = False,
     burn_in_time: int = 0,
-    chain_length: Optional[int] = None,
-    rng_seed: Optional[int] = None,
+    chain_length: int | None = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generate a preference profile dictionary by bloc using MCMC sampling from the
@@ -575,11 +575,11 @@ def name_bt_profiles_by_bloc_generator_using_mcmc(
         verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
         burn_in_time (int): the number of ballots discarded in the beginning of the chain.
             Defaults to 0.
-        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.
-        rng_seed (Optional[int]): Seed for random number generator. An integer seed produces the
+        rng_seed (int | None): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
             non-deterministic results.
 
@@ -626,7 +626,7 @@ def _bradley_terry_mcmc_shortcut(
         sub_sample_length (int): how many attempts at swaps to make before saving ballot
         seed_ballot: Ballot, the seed ballot for the Markov chain
         burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (Optional[int]): the length of the Markov Chain. Ballots are subsampled every
+        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
             chain_length//n_ballots steps from the chain until the desired number of ballots is
             reached. Defaults to None which sets the chain_length to the number of ballots in
             the config.

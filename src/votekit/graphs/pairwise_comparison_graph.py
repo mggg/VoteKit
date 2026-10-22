@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from functools import cache
 from itertools import combinations
-from typing import Optional, Sequence, cast
+from typing import cast
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -400,8 +401,8 @@ class PairwiseComparisonGraph(nx.DiGraph):
 
     def draw(
         self,
-        ax: Optional[Axes] = None,
-        candidate_list: Optional[list[str]] = None,
+        ax: Axes | None = None,
+        candidate_list: list[str] | None = None,
     ) -> Axes:
         """
         Draws pairwise comparison graph.

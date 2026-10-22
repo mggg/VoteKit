@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,7 +36,7 @@ def distance_matrix(pp_arr: list[PreferenceProfile], distance: Callable[..., int
 
 
 def compute_MDS(
-    data: Dict[str, list[PreferenceProfile]],
+    data: dict[str, list[PreferenceProfile]],
     distance: Callable[..., int],
     random_seed: int = 47,
     *args,
@@ -47,7 +47,7 @@ def compute_MDS(
     ``plot_mds`` to allow users to flexibly use the coordinates.
 
     Args:
-        data (Dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and
+        data (dict[str, list[PreferenceProfile]]): Dictionary with key being a string label and
             value being list of PreferenceProfiles.
             eg. ``{'PL with alpha = 4': list[PreferenceProfile]}``
         distance (Callable[..., int]): Distance function. See distance.py.
@@ -95,8 +95,8 @@ def compute_MDS(
 
 def plot_MDS(
     coord_dict: dict,
-    ax: Optional[Axes] = None,
-    plot_kwarg_dict: Optional[dict] = None,
+    ax: Axes | None = None,
+    plot_kwarg_dict: dict | None = None,
     legend: bool = True,
     title: bool = True,
 ):

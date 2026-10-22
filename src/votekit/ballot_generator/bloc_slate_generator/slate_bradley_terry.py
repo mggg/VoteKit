@@ -17,7 +17,8 @@ import itertools as it
 import math
 import random
 import sys
-from typing import Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 import apportionment.methods as apportion
 import numpy as np
@@ -131,7 +132,7 @@ def _sample_bt_slate_ballots_deterministic(
     n_ballots: int,
     non_zero_slate_set: set[str],
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
@@ -212,7 +213,7 @@ def _sample_bt_slate_ballots_mcmc(
     n_ballots: int,
     non_zero_slate_set: set[str],
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
@@ -278,7 +279,7 @@ def _inner_slate_bradley_terry(
     config: BlocSlateConfig,
     use_mcmc: bool = False,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles using the slate-BradleyTerry model.
@@ -367,7 +368,7 @@ def _inner_slate_bradley_terry(
 
 
 def slate_bt_profile_generator(
-    config: BlocSlateConfig, *, group_ballots=True, rng_seed: Optional[int] = None
+    config: BlocSlateConfig, *, group_ballots=True, rng_seed: int | None = None
 ) -> RankProfile:
     """
     Generate a preference profile using the name-BradleyTerry model.
@@ -414,7 +415,7 @@ def slate_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generate a dictionary mapping bloc names to ranked preference profiles using the
@@ -458,7 +459,7 @@ def slate_bt_profile_generator_using_mcmc(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a ranked preference profile using the slate-BradleyTerry model.
@@ -510,7 +511,7 @@ def slate_bt_profiles_by_bloc_generator_using_mcmc(
     config: BlocSlateConfig,
     *,
     group_ballots=True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generate a dictionary mapping bloc names to ranked preference profiles using the

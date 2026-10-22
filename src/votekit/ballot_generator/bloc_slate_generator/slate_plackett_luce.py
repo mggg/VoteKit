@@ -10,7 +10,6 @@ The main API functions in this module are:
 """
 
 from numbers import Real
-from typing import Optional
 
 import apportionment.methods as apportion
 import numpy as np
@@ -34,7 +33,7 @@ def _sample_pl_slate_ballots(
     bloc: str,
     non_zero_slate_set: set[str],
     *,
-    numpy_rng: Optional[Generator] = None,
+    numpy_rng: Generator | None = None,
 ) -> list[tuple[str, ...]]:
     """
     Returns a list of slate ballots; each ballot is a list of slate names (strings)
@@ -114,7 +113,7 @@ def _sample_pl_slate_ballots(
 def _inner_slate_plackett_luce(
     config: BlocSlateConfig,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Inner function to generate preference profiles by bloc using the slate-Plackett-Luce model.
@@ -129,7 +128,7 @@ def _inner_slate_plackett_luce(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        ballot_length (Optional[int]): Number of votes allowed per ballot. If None, this is
+        ballot_length (int | None): Number of votes allowed per ballot. If None, this is
             set to the total number of candidates in the configuration. Defaults to None.
         rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
@@ -196,7 +195,7 @@ def slate_pl_profile_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generates a merged preference profile using the slate-Plackett-Luce model.
@@ -238,7 +237,7 @@ def slate_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
     group_ballots: bool = True,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
     Generates a dictionary mapping bloc names to preference profiles using the slate-Plackett-Luce

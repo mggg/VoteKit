@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_types.ranking.block_plurality import _RankedBlockPlurality
@@ -37,13 +37,13 @@ class BlockPlurality(Election):
 
     def __init__(
         self,
-        profile: Union[RankProfile, ScoreProfile],
+        profile: RankProfile | ScoreProfile,
         n_seats: int | None = None,
-        budget: Optional[int] = None,
-        tiebreak: Optional[str] = None,
+        budget: int | None = None,
+        tiebreak: str | None = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ) -> None:
         # Never called; __new__ returns a different type.
@@ -52,13 +52,13 @@ class BlockPlurality(Election):
 
     def __new__(
         cls,
-        profile: Union[RankProfile, ScoreProfile],
+        profile: RankProfile | ScoreProfile,
         n_seats: int | None = None,
-        budget: Optional[int] = None,
-        tiebreak: Optional[str] = None,
+        budget: int | None = None,
+        tiebreak: str | None = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ) -> _RankedBlockPlurality | _ScoreBlockPlurality:
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})

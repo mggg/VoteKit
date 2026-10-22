@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import copy as shallow_copy
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
 from math import fsum
-from typing import Any, Self, Sequence, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import pandas as pd

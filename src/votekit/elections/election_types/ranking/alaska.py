@@ -1,6 +1,7 @@
 import random
+from collections.abc import Callable
 from functools import partial
-from typing import Callable, Literal, Optional, Union
+from typing import Literal
 
 from votekit.ballot import RankBallot
 from votekit.cleaning import remove_and_condense_rank_profile
@@ -30,7 +31,7 @@ class Alaska(RankingElection):
             round. Defaults to 2.
         m_2 (int, optional): Number of seats to elect in STV round, i.e. number of overall winners.
             Defaults to 1.
-        transfer (Callable[[Candidate, float], Union[tuple[Ballot], list[Ballot]], int],
+        transfer (Callable[[Candidate, float], tuple[Ballot] | list[Ballot], int],
             tuple[Ballot,...]], optional):
             Transfer method. Defaults to fractional transfer.
             Function signature is elected candidate, their number of first-place votes, the list of
@@ -60,7 +61,7 @@ class Alaska(RankingElection):
         m_1: int = 2,
         m_2: int = 1,
         transfer: Callable[
-            [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
+            [Candidate, Numeric, tuple[RankBallot] | list[RankBallot], int],
             tuple[RankBallot, ...],
         ] = fractional_transfer,
         quota: QuotaType | None = "droop",
@@ -68,7 +69,7 @@ class Alaska(RankingElection):
         tiebreak: TiebreakType | None = None,
         fpv_tie_convention: Literal["high", "low", "average"] = "average",
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         if m_1 <= 0:
             raise ValueError("m_1 must be positive.")

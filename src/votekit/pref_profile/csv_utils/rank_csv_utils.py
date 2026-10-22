@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Tuple
-
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
 from votekit.types import Candidate
 
@@ -17,7 +15,7 @@ VALID_TYPE_MAP = {"str": str, "int": int}
 
 def _parse_profile_data_from_rank_csv(
     csv_data: list[list[str]],
-) -> Tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
+) -> tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
     """
     Parse the profile data from a PreferenceProfile csv.
 
@@ -25,7 +23,7 @@ def _parse_profile_data_from_rank_csv(
         csv_data (list[list[str]]): Data from csv.
 
     Returns:
-        Tuple[dict[str, str] | dict[str, Candidate], int,  bool, list[int]]:
+        tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
             inv_candidate_mapping, max_ranking_length,
             includes_voter_set, break_indices
             Candidates can be strings, integers, or mix of both.
