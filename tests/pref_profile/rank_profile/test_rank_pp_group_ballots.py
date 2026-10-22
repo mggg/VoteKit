@@ -3,6 +3,7 @@ from fractions import Fraction
 import numpy as np
 import pandas as pd
 import pytest
+from numpy.typing import NDArray
 
 from votekit.ballot import RankBallot
 from votekit.pref_profile import ProfileError, RankProfile
@@ -45,10 +46,11 @@ def test_matrix_grouping_preserves_first_appearance_weights_and_voters(seed, fra
         frozenset({"A"}),
         frozenset({1, "A"}),
     ]
-    rows = rng.integers(0, len(candidate_sets), size=(40, 3))
+    rows: NDArray[np.int64] = rng.integers(0, len(candidate_sets), size=(40, 3))
     rankings = np.empty(rows.shape, dtype=object)
 
-    for position, row in enumerate(rows):
+    for position in range(len(rows)):
+        row = rows[position, :]
         padding = np.flatnonzero(row == 1)
 
         if padding.size:

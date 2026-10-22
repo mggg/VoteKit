@@ -6,44 +6,44 @@ authors = [{name = "MGGG", email =  "code@mggg.org"}]
 readme = "README.md"
 requires-python = ">=3.11, <3.14"
 dependencies = [
-    "scipy (>=1.16.1, <2.0)",
+    "scipy (>=1.17.1, <2.0)",
     "pydantic (>=2.11.9, <3.0)",
     "networkx (>=3.5, <4.0)",
     "jinja2 (>=3.1.6, <4.0)",
-    "matplotlib (>=3.10.5, <4.0)",
+    "matplotlib (>=3.11.2, <4.0)",
     "pandas (>2.2)",
     "apportionment (>=1.0, <2.0)",
     "scikit-learn (>=1.7.1, <2.0)",
     "numpy (>=2.3.3, <3.0)",
     "seaborn (>=0.13.2,<0.14.0)",
     "types-seaborn (>=0.13.2.20250728,<0.14.0.0)",
-    "numba (>=0.62.1,<0.62.2)",
+    "numba (>=0.68.0,<0.69.0)",
     "types-networkx (>=3.5.0.20250728,<4.0.0.0)",
     "psutil (>=7.1.0,<8.0.0)",
     "types-psutil (>=7.0.0.20250822,<8.0.0.0)",
 ]
 
 [project.optional-dependencies]
-animation = ["manim (>=0.19.0, <0.20.0)"]
+animation = ["manim (>=0.22.0, <0.23.0)"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.13.2,<0.14.0",
-    "pytest>=8.4.2,<9.0.0",
+    "ruff>=0.17.2,<0.18.0",
+    "pytest>=9.1.1,<10.0.0",
     "pytest-cov>=7.0.0,<8.0.0",
     "pre-commit>=4.3.0,<5.0.0",
     "ipython>=9.6.0,<10.0.0",
     "recommonmark>=0.7.1,<0.8.0",
-    "ipykernel>=6.30.1,<7.0.0",
+    "ipykernel>=7.4.0,<8.0.0",
     "ty>=0.0.91",
-    "scipy-stubs>=1.16.1.0,<2.0.0",
-    "pytest-mpl>=0.17.0,<0.18.0",
-    "pillow>=11.2.0,<12.0.0",
+    "scipy-stubs>=1.17.1.5,<2.0.0",
+    "pytest-mpl>=0.19.0,<0.20.0",
+    "pillow>=11.2.0,<14.0.0",
     "pytest-xdist>=3.8.0",
     "pyright>=1.1.414",
 ]
 docs = [
-    "sphinx>=8.2.3,<9.0.0",
+    "sphinx>=9.0.4,<10.0.0",
     "sphinx-copybutton>=0.5.2,<0.6.0",
     "recommonmark>=0.7.1,<0.8.0",
     "sphinx-rtd-theme>=3.0.2,<4.0.0",

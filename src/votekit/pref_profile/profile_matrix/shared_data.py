@@ -299,7 +299,11 @@ class ProfileVoterWeightData:
         else:
             weights = cast(
                 NDArray[np.float64],
-                np.bincount(group_ids, weights=self.weights, minlength=len(first_rows_idx)),
+                np.bincount(
+                    group_ids,
+                    weights=cast(NDArray[np.float64], self.weights),
+                    minlength=len(first_rows_idx),
+                ),
             )
 
         voter_sets = None

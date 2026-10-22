@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
+from matplotlib.typing import LegendLocType
 
 from votekit.types import CategoryLabel, CategoryLabelList, CategoryLabelMapping, DataMapping
 from votekit.utils import COLOR_LIST, check_for_equivalent_str_int_labels
@@ -454,7 +455,7 @@ def _add_data_sets_legend_bar_plot(
     categories_legend: CategoryLabelMapping | None,
     threshold_kwds: list[dict] | None,
     legend_font_size: float,
-    legend_loc: str,
+    legend_loc: LegendLocType,
     legend_bbox_to_anchor: tuple[float, float],
 ) -> tuple[Axes, Legend | None]:
     """
@@ -470,7 +471,7 @@ def _add_data_sets_legend_bar_plot(
         threshold_kwds (list[dict], optional): List of plotting
             keywords for the horizontal lines.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
+        legend_loc (LegendLocType): The location parameter to pass to ``Axes.legend(loc=)``.
         legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
 
     Returns:
@@ -510,7 +511,7 @@ def _add_categories_legend_bar_plot(
     ax: Axes,
     categories_legend: CategoryLabelMapping,
     legend_font_size: float,
-    legend_loc: str,
+    legend_loc: LegendLocType,
     legend_bbox_to_anchor: tuple[float, float],
     data_set_legend: Legend | None,
 ) -> Axes:
@@ -522,7 +523,7 @@ def _add_categories_legend_bar_plot(
         categories_legend (dict[str | int, str] | dict[str, str] | dict[int, str]):
             Dictionary mapping x-axis categories to description in legend.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
+        legend_loc (LegendLocType): The location parameter to pass to ``Axes.legend(loc=)``.
         legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
         data_set_legend (Legend, optional): The data set legend. Defaults to None.
 

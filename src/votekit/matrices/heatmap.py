@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap, TwoSlopeNorm
+from matplotlib.typing import LegendLocType
 
 
 def _validate_heatmap_inputs(
@@ -152,7 +153,7 @@ def _add_legend_to_heatmap(
     row_and_col_legends: dict[str, str],
     ax: Axes,
     legend_font_size: float,
-    legend_loc: str,
+    legend_loc: LegendLocType,
     legend_bbox_to_anchor: tuple[float, float],
 ) -> Axes:
     """
@@ -163,7 +164,7 @@ def _add_legend_to_heatmap(
             legend descriptions.
         ax (matplotlib.axes.Axes): The matplotlib axis to add the legend to.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc (str): The location to place the legend.
+        legend_loc (LegendLocType): The location to place the legend.
         legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
 
     Returns:
@@ -218,7 +219,7 @@ def matrix_heatmap(
     cell_divider_color: str = "white",
     show_colorbar: bool = False,
     legend_font_size: float = 10.0,
-    legend_location: str = "center left",
+    legend_location: LegendLocType = "center left",
     legend_bbox_to_anchor: tuple[float, float] = (1.03, 0.5),
 ) -> Axes:
     """
@@ -256,7 +257,8 @@ def matrix_heatmap(
             Defaults to "white".
         show_colorbar (bool): Whether to show the colorbar for the heatmap. Defaults to False.
         legend_font_size (float): The font size to use for the legend. Defaults to 10.0.
-        legend_location (str): The location to place the legend. Defaults to "center left".
+        legend_location (LegendLocType): The location to place the legend.
+            Defaults to "center left".
         legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
             Defaults to (1.03, 0.5).
 

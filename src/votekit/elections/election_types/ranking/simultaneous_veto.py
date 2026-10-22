@@ -404,7 +404,7 @@ class SimultaneousVeto(RankingElection):
             cached_pos = self._max_ranking_length - 1
 
         ballot = self._df.iloc[ballot_idx]
-        ranking = ballot[self._ranking_cols].values
+        ranking = ballot[self._ranking_cols].to_numpy(dtype=object)
 
         for pos in range(cached_pos, -1, -1):
             vetoes = ranking[pos] - self._eliminated
