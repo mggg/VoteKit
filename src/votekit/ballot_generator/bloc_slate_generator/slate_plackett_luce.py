@@ -9,7 +9,6 @@ The main API functions in this module are:
     slate-Plackett-Luce model.
 """
 
-from numbers import Real
 from typing import cast
 
 import apportionment.methods as apportion
@@ -72,19 +71,14 @@ def _sample_pl_slate_ballots(
                 return i
         return len(dist_bins) - 2
 
-    slates = list(sorted(non_zero_slate_set))
-    cohesion_values_og: list[float] = []
-    for slate in slates:
-        cohesion_value = config.cohesion_df.loc[bloc, slate]
-        if not isinstance(cohesion_value, Real) or isinstance(cohesion_value, bool):
-            raise TypeError(
-                f"Cohesion must be numeric. Found {type(cohesion_value)!r} for slate {slate!r}."
-            )
-        cohesion_values_og.append(float(cohesion_value))
+    slates = sorted(non_zero_slate_set)
+    cohesion_values_og: NDArray[np.float64] = config.cohesion_df.loc[bloc, slates].to_numpy(
+        dtype=np.float64
+    )
 
     for i in range(num_ballots):
         rand_unif_seq = rand_unif_seqs[i, :]
-        cohesion_values = np.array(cohesion_values_og)
+        cohesion_values = cohesion_values_og.copy()
         distribution_bins: list[float] = [0.0] + np.cumsum(cohesion_values).tolist()
         ballot_type: list[str] = [""] * num_candidates
         slate_count = {s: 0 for s in slates}
