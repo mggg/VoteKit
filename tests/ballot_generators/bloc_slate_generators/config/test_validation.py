@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import get_type_hints
 
 import numpy as np
 import pandas as pd
@@ -10,6 +11,10 @@ import pytest
 
 from votekit import PreferenceInterval
 from votekit.ballot_generator.bloc_slate_generator.config import (
+    BlocProportionMapping,
+    BlocPropotionMapping,
+    CohesionMapping,
+    PreferenceMapping,
     convert_bloc_proportion_map_to_series,
     convert_cohesion_map_to_cohesion_df,
     convert_preference_map_to_preference_df,
@@ -19,6 +24,17 @@ from votekit.ballot_generator.bloc_slate_generator.config import (
 )
 from votekit.ballot_generator.bloc_slate_generator.config.validation import _unset_mask
 from votekit.constants import TOL_EPSILON
+
+
+def test_public_type_aliases_resolve_in_annotations():
+    assert BlocPropotionMapping is BlocProportionMapping
+    assert (
+        get_type_hints(typecheck_bloc_proportion_mapping)["bloc_prop_mapping"]
+        == BlocProportionMapping
+    )
+    assert get_type_hints(typecheck_cohesion_mapping)["cohesion_mapping"] == CohesionMapping
+    assert get_type_hints(typecheck_preference)["pref_mapping"] == PreferenceMapping
+
 
 #   typecheck_bloc_proportion_mapping
 # =====================================

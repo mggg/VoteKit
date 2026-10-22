@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from numbers import Real
-from typing import Literal, Optional, cast
+from typing import Literal, cast
 
 import numpy as np
 from typing_extensions import Sentinel
@@ -116,7 +116,7 @@ class SimultaneousVeto(RankingElection):
         scoring_tie_convention: Literal["high", "average", "low"] = "average",
         return_all_tied_winners: bool = False,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})

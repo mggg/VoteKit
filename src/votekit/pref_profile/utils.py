@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
+from collections.abc import Sequence
 from functools import partial
-from typing import Optional, Sequence, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -31,7 +32,7 @@ from votekit.utils import sort_candidates_pseudo_lexicographically
 
 def _convert_ranking_cols_to_ranking(
     row: pd.Series, max_ranking_length: int
-) -> Optional[tuple[frozenset, ...]]:
+) -> tuple[frozenset, ...] | None:
     """
     Convert the ranking cols to a ranking tuple in profile.to_df().
 
@@ -40,7 +41,7 @@ def _convert_ranking_cols_to_ranking(
         max_ranking_length (int, optional): The maximum length of a ranking.
 
     Returns:
-        Optional[tuple[frozenset, ...]]: Ranking of ballot.
+        tuple[frozenset, ...] | None: Ranking of ballot.
 
     Raises:
         ValueError: NaN values can only trail on a ranking.
@@ -318,9 +319,9 @@ def _ordered_profile_rows(
 def profile_df_head(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool | None = True,
+    percents: bool | None = False,
+    totals: bool | None = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
@@ -367,9 +368,9 @@ def profile_df_head(
 def profile_df_tail(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool | None = True,
+    percents: bool | None = False,
+    totals: bool | None = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """

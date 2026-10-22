@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 
@@ -40,7 +40,7 @@ class RankingElection(Election[RankProfile]):
         self,
         profile: RankProfile,
         n_seats: int = 1,
-        score_function: Optional[Callable[[RankProfile], CandidateNumericDict]] = None,
+        score_function: Callable[[RankProfile], CandidateNumericDict] | None = None,
         sort_high_low: bool = True,
     ):
         if n_seats <= 0:

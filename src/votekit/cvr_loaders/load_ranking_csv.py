@@ -1,7 +1,6 @@
 import os
 import warnings
 from pathlib import Path
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -71,16 +70,14 @@ def __validate_weight_col_values(df: pd.DataFrame, weight_col: int):
                 raise ValueError(f"Weight {weight} in row {idx} must be able to be cast to float.")
 
 
-def __validate_distinct_cols(
-    rank_cols: list[int], id_col: Optional[int], weight_col: Optional[int]
-):
+def __validate_distinct_cols(rank_cols: list[int], id_col: int | None, weight_col: int | None):
     """
     Validate that the column indices are distinct.
 
     Args:
         rank_cols (list[int]): The list of ranking column indices.
-        id_col (Optional[int]): The index of the Voter ID column.
-        weight_col (Optional[int]): The index of the Weight column.
+        id_col (int | None): The index of the Voter ID column.
+        weight_col (int | None): The index of the Weight column.
 
     Raises:
         ValueError: If the id column index is in rank_cols.
@@ -98,8 +95,8 @@ def __validate_distinct_cols(
 def __validate_columns(
     df: pd.DataFrame,
     rank_cols: list[int],
-    id_col: Optional[int],
-    weight_col: Optional[int],
+    id_col: int | None,
+    weight_col: int | None,
 ):
     """
     Validate that the columns of the csv are correctly formatted.
@@ -107,7 +104,7 @@ def __validate_columns(
     Args:
         df (pd.DataFrame): The dataframe of the csv.
         rank_cols (list[int]): The list of ranking column indices.
-        id_col (Optional[int]): The index of the Voter ID column.
+        id_col (int | None): The index of the Voter ID column.
 
     Raises:
         ValueError: If a column index is not in the dataframe.
@@ -172,8 +169,8 @@ def __format_ranking_cols(mutated_df: pd.DataFrame, rank_cols: list[str]) -> pd.
 def __format_df(
     mutated_df: pd.DataFrame,
     rank_cols: list[int],
-    id_col: Optional[int],
-    weight_col: Optional[int],
+    id_col: int | None,
+    weight_col: int | None,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Formats the column names and datatypes.
@@ -226,7 +223,7 @@ def __format_df(
 
 
 def __find_and_validate_cands(
-    df: pd.DataFrame, rank_cols: list[str], candidates: Optional[list[str]]
+    df: pd.DataFrame, rank_cols: list[str], candidates: list[str] | None
 ) -> list[str]:
     """
     Finds the candidates in the csv and validates that they match the provided list.
@@ -234,7 +231,7 @@ def __find_and_validate_cands(
     Args:
         df (pd.DataFrame): The dataframe of the csv.
         rank_cols (list[str]): The list of ranking column labels.
-        candidates (Optional[list[str]]): The list of candidates.
+        candidates (list[str] | None): The list of candidates.
 
 
     Returns:
@@ -272,14 +269,14 @@ def __find_and_validate_cands(
 
 
 def load_ranking_csv(
-    path_or_url: Union[str, os.PathLike, Path],
+    path_or_url: str | os.PathLike | Path,
     rank_cols: list[int],
     *,
-    weight_col: Optional[int] = None,
-    id_col: Optional[int] = None,
-    candidates: Optional[list[str]] = None,
+    weight_col: int | None = None,
+    id_col: int | None = None,
+    candidates: list[str] | None = None,
     delimiter: str = ",",
-    header_row: Optional[int] = None,
+    header_row: int | None = None,
     print_profile: bool = True,
 ) -> RankProfile:
     """
@@ -287,17 +284,17 @@ def load_ranking_csv(
     voters as rows.
 
     Args:
-        path_or_url (Union[str, os.PathLike, pathlib.Path]): Path or url to cvr file.
+        path_or_url (str | os.PathLike | pathlib.Path): Path or url to cvr file.
         rank_cols (list[int]): List of column indices that contain rankings. Column indexing
             starts from 0, in order from top to bottom rank.
-        weight_col (Optional[int]): The column position for ballot weights. Defaults to None, which
+        weight_col (int | None): The column position for ballot weights. Defaults to None, which
             implies each row has weight 1. Cannot be provided if ``id_col`` is also provided.
-        id_col (Optional[int]): Index for the column with voter ids. Defaults to None.
+        id_col (int | None): Index for the column with voter ids. Defaults to None.
             Cannot be provided if ``weight_col`` is also provided.
-        candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
+        candidates (list[str] | None): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
-        delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
-        header_row (Optional[int]): The row containing the column names, below which the data
+        delimiter (str | None): The character that separates entries. Defaults to a comma.
+        header_row (int | None): The row containing the column names, below which the data
             begins. Defaults to None, in which case row 0 is considered to be the first ballot.
         print_profile (bool): Whether or not to print the loaded profile. Defaults to True. Useful
             for debugging.
@@ -361,11 +358,11 @@ def load_csv(
     path_or_url: str,
     rank_cols: list[int],
     *,
-    weight_col: Optional[int] = None,
-    id_col: Optional[int] = None,
-    candidates: Optional[list[str]] = None,
+    weight_col: int | None = None,
+    id_col: int | None = None,
+    candidates: list[str] | None = None,
     delimiter: str = ",",
-    header_row: Optional[int] = None,
+    header_row: int | None = None,
     print_profile: bool = True,
 ) -> RankProfile:
     """
@@ -376,14 +373,14 @@ def load_csv(
         path_or_url (str): Path or url to cvr file.
         rank_cols (list[int]): List of column indices that contain rankings. Column indexing
             starts from 0, in order from top to bottom rank.
-        weight_col (Optional[int]): The column position for ballot weights. Defaults to None, which
+        weight_col (int | None): The column position for ballot weights. Defaults to None, which
             implies each row has weight 1. Cannot be provided if ``id_col`` is also provided.
-        id_col (Optional[int]): Index for the column with voter ids. Defaults to None.
+        id_col (int | None): Index for the column with voter ids. Defaults to None.
             Cannot be provided if ``weight_col`` is also provided.
-        candidates (Optional[list[str]]): List of candidate names. Defaults to None, in which case
+        candidates (list[str] | None): List of candidate names. Defaults to None, in which case
             names are inferred from the CVR.
-        delimiter (Optional[str]): The character that separates entries. Defaults to a comma.
-        header_row (Optional[int]): The row containing the column names, below which the data
+        delimiter (str | None): The character that separates entries. Defaults to a comma.
+        header_row (int | None): The row containing the column names, below which the data
             begins. Defaults to None, in which case row 0 is considered to be the first ballot.
         print_profile (bool): Whether or not to print the loaded profile. Defaults to True. Useful
             for debugging.

@@ -4,9 +4,10 @@ import inspect
 import math
 import random
 import warnings
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from itertools import permutations
-from typing import TYPE_CHECKING, Iterable, Literal, Optional, Sequence, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 import numpy as np
 import pandas as pd
@@ -453,7 +454,7 @@ def mentions(profile: RankProfile) -> dict[Candidate, float]:
 
 def borda_scores(
     profile: RankProfile,
-    borda_max: Optional[int] = None,
+    borda_max: int | None = None,
     tie_convention: Literal["high", "average", "low"] = "low",
 ) -> dict[Candidate, float]:
     r"""
@@ -491,12 +492,12 @@ def borda_scores(
 
 def tiebreak_set(
     set_to_tiebreak: frozenset[Candidate],
-    profile: Optional[RankProfile] = None,
+    profile: RankProfile | None = None,
     tiebreak: str = "random",
     scoring_tie_convention: Literal["high", "average", "low"] = "low",
-    backup_tiebreak_convention: Optional[str] = None,
+    backup_tiebreak_convention: str | None = None,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> tuple[frozenset[Candidate], ...]:
     """
     Break a single set of candidates into multiple sets each with a single candidate according
@@ -590,10 +591,10 @@ def tiebreak_set(
 
 def tiebroken_ranking(
     ranking: tuple[frozenset[Candidate], ...],
-    profile: Optional[RankProfile] = None,
+    profile: RankProfile | None = None,
     tiebreak: str = "random",
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...], dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]
 ]:
@@ -673,14 +674,14 @@ def score_dict_to_ranking(
 def elect_cands_from_set_ranking(
     ranking: Sequence[frozenset[Candidate] | set[Candidate] | set[str] | set[int]],
     n_seats: int,
-    profile: Optional[RankProfile] = None,
-    tiebreak: Optional[str] = None,
+    profile: RankProfile | None = None,
+    tiebreak: str | None = None,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> tuple[
     tuple[frozenset[Candidate], ...],
     tuple[frozenset[Candidate], ...],
-    Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
+    tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]] | None,
 ]:
     """
     Given a ranking, elect the top n_seats candidates in the ranking.
@@ -703,7 +704,7 @@ def elect_cands_from_set_ranking(
 
     Returns:
         tuple[tuple[frozenset[Candidate]]], list[tuple[frozenset[Candidate]],
-            Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]:
+            tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]] | None:
             A list-of-sets of elected candidates, a list-of-sets of remaining candidates,
             and a tuple whose first entry is a tie set and whose second entry is the resolution of
             the tie. If no ties were broken, the tuple returns None.
@@ -721,7 +722,7 @@ def elect_cands_from_set_ranking(
     num_elected = 0
     elected: list[frozenset[Candidate]] = []
     i = 0
-    tiebreak_ranking: Optional[tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = None
+    tiebreak_ranking: tuple[frozenset[Candidate], tuple[frozenset[Candidate], ...]] | None = None
 
     while num_elected < n_seats:
         elected.append(ranking_fs[i])

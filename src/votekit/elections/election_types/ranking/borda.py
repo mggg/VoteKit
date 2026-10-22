@@ -1,6 +1,7 @@
 import random
+from collections.abc import Sequence
 from functools import partial
-from typing import Literal, Optional, Sequence
+from typing import Literal
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -43,10 +44,10 @@ class Borda(RankingElection):
         self,
         profile: RankProfile,
         n_seats: int | None = None,
-        score_vector: Optional[Sequence[float]] = None,
-        tiebreak: Optional[str] = None,
+        score_vector: Sequence[float] | None = None,
+        tiebreak: str | None = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})

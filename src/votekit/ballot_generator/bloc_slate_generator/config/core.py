@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from numbers import Real
 from pprint import pformat
 from textwrap import indent
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 from warnings import warn
 
 import numpy as np
@@ -51,21 +51,21 @@ class BlocSlateConfig:
 
     Args:
         n_voters (int): The total number of voters to simulate. Must be > 0.
-        slate_to_candidates (Optional[Mapping[str, Sequence[Candidate]]]): A mapping of slate names
+        slate_to_candidates (Mapping[str, Sequence[Candidate]] | None): A mapping of slate names
             to sequences of candidate names. Each slate must have a non-empty list of candidates,
             and no candidate may appear in more than one slate. If None, defaults to an empty
             mapping. Candidates can be strings, integers, or mix of both.
-        bloc_proportions (Optional[BlocProportionMapping]): A mapping of voter bloc names to
+        bloc_proportions (BlocProportionMapping | None): A mapping of voter bloc names to
             their proportions in the electorate. The proportions must be non-negative and sum to 1.
             If None, defaults to an empty mapping.
-        preference_mapping (Optional[PreferenceMapping]): A nested mapping of voter bloc names
+        preference_mapping (PreferenceMapping | None): A nested mapping of voter bloc names
             to slate names to either PreferenceInterval or Mapping[Candidate, float|int]
             representing the preference scores for each candidate in the slate. Each bloc must have
             a mapping for every slate defined in slate_to_candidates, and no candidate may appear
             in more than one slate. The scores for each bloc and slate must be non-negative and sum
             to 1. If None, defaults to an empty mapping.
             Candidates can be strings, integers, or mix of both.
-        cohesion_mapping (Optional[CohesionMapping]): A mapping of voter bloc names to
+        cohesion_mapping (CohesionMapping | None): A mapping of voter bloc names to
             mappings of slate names to their cohesion parameters. The cohesion parameters must be
             non-negative and sum to 1 for each bloc. If None, defaults to an empty mapping.
         allow_zero_support_candidates (bool): If True, permits candidates to have zero support in
@@ -119,23 +119,23 @@ class BlocSlateConfig:
     cohesion_df: pd.DataFrame
     allow_zero_support_candidates: bool
     silent: bool
-    __alphas: Optional[pd.DataFrame]
+    __alphas: pd.DataFrame | None
 
     # Similar to mutex so are warned about what is writing to preference_df
     __clear_alpha_bool: bool
 
     # Something to help make sure that the preference_df is updated correctly when the candidates
     # or slates change
-    _current_preference_df_slate_cand_mapping: Optional[dict[str, list[Candidate]]]
+    _current_preference_df_slate_cand_mapping: dict[str, list[Candidate]] | None
 
     def __init__(
         self,
         *,
         n_voters: int,
-        slate_to_candidates: Optional[Mapping[str, Sequence[Candidate]]] = None,
-        bloc_proportions: Optional[BlocProportionMapping] = None,
-        preference_mapping: Optional[PreferenceMapping] = None,
-        cohesion_mapping: Optional[CohesionMapping] = None,
+        slate_to_candidates: Mapping[str, Sequence[Candidate]] | None = None,
+        bloc_proportions: BlocProportionMapping | None = None,
+        preference_mapping: PreferenceMapping | None = None,
+        cohesion_mapping: CohesionMapping | None = None,
         allow_zero_support_candidates: bool = False,
         silent: bool = False,
     ) -> None:
@@ -469,7 +469,7 @@ class BlocSlateConfig:
         bloc_name: str,
         cand_list: list[Candidate],
         row_vals: pd.Series,
-    ) -> Optional[Exception]:
+    ) -> Exception | None:
         """
         Return the first probability-row error for a preference row, if any.
 
@@ -486,7 +486,7 @@ class BlocSlateConfig:
             row_vals (pd.Series): Preference row values for a single bloc and slate.
 
         Returns:
-            Optional[Exception]: The first detected error, else None.
+            Exception | None: The first detected error, else None.
         """
         return _first_error_probability_row(
             row_vals,
@@ -512,7 +512,7 @@ class BlocSlateConfig:
         bloc_name: str,
         cand_list: list[Candidate],
         row_vals: pd.Series,
-    ) -> Optional[Exception]:
+    ) -> Exception | None:
         """
         Return a zero-support error for a preference row when strict mode is enabled.
 
@@ -523,7 +523,7 @@ class BlocSlateConfig:
             row_vals (pd.Series): Preference row values for a single bloc and slate.
 
         Returns:
-            Optional[Exception]: A strict-mode non-positive support error, else None.
+            Exception | None: A strict-mode non-positive support error, else None.
         """
         if self.allow_zero_support_candidates:
             return None
@@ -625,7 +625,7 @@ class BlocSlateConfig:
         *,
         bloc_name: str,
         row_vals: pd.Series,
-    ) -> Optional[Exception]:
+    ) -> Exception | None:
         """
         Return the first probability-row error for a cohesion row, if any.
 
@@ -634,7 +634,7 @@ class BlocSlateConfig:
             row_vals (pd.Series): Cohesion row values for a single bloc.
 
         Returns:
-            Optional[Exception]: The first detected error, else None.
+            Exception | None: The first detected error, else None.
         """
         return _first_error_probability_row(
             row_vals,
@@ -1334,13 +1334,13 @@ class BlocSlateConfig:
     # ===================
 
     def __keycheck_dirichlet_alphas(
-        self, alphas: Union[pd.DataFrame, Mapping[str, Mapping[str, Union[float, int]]]]
+        self, alphas: pd.DataFrame | Mapping[str, Mapping[str, float | int]]
     ) -> None:
         """
         Check that the given Dirichlet alphas have the correct keys and values.
 
         Args:
-            alphas (Union[pd.DataFrame, Mapping[str, Mapping[str, Union[float, int]]]]):
+            alphas (pd.DataFrame | Mapping[str, Mapping[str, float | int]]):
                 The Dirichlet alphas to check.
 
         Raises:
@@ -1417,15 +1417,15 @@ class BlocSlateConfig:
 
     def set_dirichlet_alphas(
         self,
-        alphas: Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame],
+        alphas: Mapping[str, Mapping[str, float | int]] | pd.DataFrame,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ) -> None:
         """
         Set the Dirichlet alphas for the configuration and resample the preference intervals.
 
         Args:
-            alphas (Union[Mapping[str, Mapping[str, Union[float, int]]], pd.DataFrame]): A mapping
+            alphas (Mapping[str, Mapping[str, float | int]] | pd.DataFrame): A mapping
                 of bloc names to mappings of slate names to their Dirichlet alpha values. Each bloc
                 must have a mapping for every slate defined in slate_to_candidates. All alpha
                 values must be positive finite reals.
@@ -1461,12 +1461,12 @@ class BlocSlateConfig:
         """Remove the Dirichlet alphas from the configuration."""
         self.__alphas = None
 
-    def read_dirichlet_alphas(self) -> Optional[pd.DataFrame]:
+    def read_dirichlet_alphas(self) -> pd.DataFrame | None:
         """
         Get a copy of the current Dirichlet alphas.
 
         Returns:
-            Optional[pd.DataFrame]: A DataFrame with blocs as the index and slates as columns,
+            pd.DataFrame | None: A DataFrame with blocs as the index and slates as columns,
             containing the Dirichlet alpha values for each slate in each bloc, or None if
             Dirichlet alphas have not been set.
         """
@@ -1475,7 +1475,7 @@ class BlocSlateConfig:
     def resample_preference_intervals_from_dirichlet_alphas(
         self,
         *,
-        numpy_rng: Optional[Generator] = None,
+        numpy_rng: Generator | None = None,
     ) -> None:
         """
         Resample the preference intervals for each bloc from the current Dirichlet alphas.

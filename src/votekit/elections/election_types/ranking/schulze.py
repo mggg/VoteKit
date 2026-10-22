@@ -1,5 +1,4 @@
 import random
-from typing import Optional
 
 import networkx as nx
 import numpy as np
@@ -47,7 +46,7 @@ class Schulze(RankingElection):
         tiebreak: str = "lexicographic",
         n_seats: int | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
