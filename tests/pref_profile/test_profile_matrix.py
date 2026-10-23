@@ -1032,6 +1032,47 @@ def test_replacement_weights_own_input_buffer():
     assert not replaced.weights.flags.writeable
 
 
+@pytest.mark.parametrize("labels", [None, [8, 8, 20]])
+def test_rank_matrix_apply_mask_selects_rows_and_keeps_labels(labels: list[int] | None) -> None:
+    df = RankProfile(
+        ballots=[RankBallot(ranking=[{c}], weight=w) for c, w in [("A", 1), ("B", 2), ("A", 3)]]
+    ).to_df()
+    if labels is not None:
+        df.index = pd.Index(labels, name="Ballot Index")
+    matrix = RankProfile(df=df, candidates=("A", "B"), max_ranking_length=1)._matrix
+    mask = np.array([True, False, True])
+
+    masked = matrix.apply_mask(mask)
+
+    pd.testing.assert_frame_equal(masked.to_df(), matrix.to_df()[mask])
+
+
+def test_rank_matrix_apply_mask_owns_rows_and_shares_metadata() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=1), RankBallot(ranking=[{"B"}], weight=2)]
+    )
+    matrix = profile._matrix
+
+    masked = matrix.apply_mask(np.array([False, True]))
+
+    assert masked.voter_weight_data.weights.tolist() == [2.0]
+    assert masked.voter_weight_data.ballot_index is not None
+    assert masked.voter_weight_data.ballot_index.tolist() == [1]
+    assert not masked.rankings.flags.writeable
+    assert not masked.voter_weight_data.weights.flags.writeable
+    assert masked.cand_sets is matrix.cand_sets
+    assert masked.candidates is matrix.candidates
+    assert len(matrix) == 2
+
+
+@pytest.mark.parametrize("mask", [np.ones(1, dtype=bool), np.ones((2, 1), dtype=bool)])
+def test_rank_matrix_mask_rejects_wrong_shape(mask):
+    matrix = RankProfile(ballots=[RankBallot(ranking=[{"A"}]), RankBallot(ranking=[{"B"}])])._matrix
+
+    with pytest.raises(ValueError, match="mask must have shape"):
+        matrix.apply_mask(mask)
+
+
 @pytest.mark.parametrize("fraction_weights", [False, True])
 def test_score_matrix_grouping_canonicalizes_nan_keys_but_preserves_source_scores(fraction_weights):
     nan_values = np.array([0x7FF8000000000001, 0xFFF8000000000002], dtype=np.uint64).view(

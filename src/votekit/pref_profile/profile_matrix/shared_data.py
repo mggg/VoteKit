@@ -379,6 +379,43 @@ class ProfileVoterWeightData:
                 ballot_index=self.ballot_index,
             )
 
+    def apply_mask(self, mask: NDArray[np.bool_]) -> ProfileVoterWeightData:
+        """
+        Apply boolean mask to select rows while retaining their source index labels.
+
+        A selection of validated rows remains valid, so construction is bypassed. Masked arrays are
+        new storage and are marked read-only.
+
+        Args:
+            mask (NDArray[np.bool_]): Boolean mask with one entry per ballot.
+
+        Returns:
+            ProfileVoterWeightData: Selected rows with explicit ballot labels.  A default index
+                (stored as None) is materialized as source positions, so the kept rows retain their
+                original labels instead of being renumbered from zero.
+
+        Raises:
+            ValueError: The mask is not one flag per ballot.
+        """
+        if mask.shape != (len(self),):
+            raise ValueError(f"mask must have shape ({len(self)},), not {mask.shape}.")
+
+        labels = self.ballot_index if self.ballot_index is not None else np.arange(len(self))
+        weights = self.weights[mask]
+        voter_sets = None if self.voter_sets is None else self.voter_sets[mask]
+        ballot_index = labels[mask]
+
+        for column in (weights, voter_sets, ballot_index):
+            if column is not None:
+                column.setflags(write=False)
+
+        data = shallow_copy(self)
+        object.__setattr__(data, "weights", weights)
+        object.__setattr__(data, "voter_sets", voter_sets)
+        object.__setattr__(data, "ballot_index", ballot_index)
+
+        return data
+
 
 def _validate_total_ballot_weight(weights: NDArray[np.float64] | NDArray[np.object_]) -> None:
     """

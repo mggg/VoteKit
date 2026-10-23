@@ -11,34 +11,35 @@ from votekit.cleaning import (
     remove_cand_rank_profile,
 )
 from votekit.cleaning.rank_profiles_cleaning import (
-    condense_ranking_row,
-    remove_cand_from_ranking_row,
+    _condense_ranking_row,
+    _remove_cand_from_ranking_row,
 )
 from votekit.pref_profile import CleanedRankProfile, RankProfile
 
-profile_no_ties = RankProfile(
-    ballots=[
-        RankBallot(
-            ranking=[
-                {"A"},
-            ],
-            weight=1,
-        ),
-        RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
-        RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
-    ]
-)
 
-profile_with_ties = RankProfile(
-    ballots=[
-        RankBallot(ranking=[{"A", "B"}], weight=1),
-        RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
-        RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
-    ]
-)
+@pytest.fixture
+def profile_no_ties():
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}], weight=1),
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=1 / 2),
+            RankBallot(ranking=[{"C"}, {"B"}, {"A"}], weight=3),
+        ]
+    )
 
 
-def test_remove_and_condense():
+@pytest.fixture
+def profile_with_ties():
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A", "B"}], weight=1),
+            RankBallot(ranking=[{"A", "B", "C"}], weight=1 / 2),
+            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=3),
+        ]
+    )
+
+
+def test_remove_and_condense(profile_no_ties):
     cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
@@ -52,16 +53,18 @@ def test_remove_and_condense():
     assert cleaned_profile.no_rank_altr_idxs == {0}
     assert cleaned_profile.nonempty_altr_idxs == {1, 2}
     assert cleaned_profile.unaltr_idxs == set()
+    assert set(cleaned_profile.candidates) == {"B", "C"}
+    assert cleaned_profile.max_ranking_length == profile_no_ties.max_ranking_length
 
 
-def test_remove_then_condense_equivalence():
+def test_remove_then_condense_equivalence(profile_no_ties):
     cleaned_profile_1 = remove_and_condense_rank_profile("A", profile_no_ties)
     cleaned_profile_2 = condense_rank_profile(remove_cand_rank_profile("A", profile_no_ties))
 
     assert cleaned_profile_1 == cleaned_profile_2
 
 
-def test_remove_mult_cands():
+def test_remove_mult_cands(profile_no_ties):
     cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_no_ties)
 
     assert isinstance(cleaned_profile, CleanedRankProfile)
@@ -81,7 +84,7 @@ def test_remove_mult_cands():
     assert cleaned_profile.unaltr_idxs == set()
 
 
-def test_remove_and_condense_with_ties():
+def test_remove_and_condense_with_ties(profile_with_ties):
     cleaned_profile = remove_and_condense_rank_profile(["A", "B"], profile_with_ties)
     assert isinstance(cleaned_profile, CleanedRankProfile)
     assert cleaned_profile.parent_profile == profile_with_ties
@@ -127,7 +130,7 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
 
     intermediate = clean_rank_profile(
         profile,
-        lambda row: condense_ranking_row(remove_cand_from_ranking_row(["A"], row)),
+        lambda row: _condense_ranking_row(_remove_cand_from_ranking_row(["A"], row)),
         remove_null,
         remove_zero,
         retain_original_candidate_list=True,
@@ -161,7 +164,8 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
             "A", profile, remove_null, remove_zero, retain_candidates
         )
 
-    assert constructions == 1
+    # The cleaned profile is built from its matrix, never through the public constructor.
+    assert constructions == 0
     assert type(result) is CleanedRankProfile
     assert result.parent_profile is profile
     assert result.parent_profile.parent_profile is parent
@@ -194,3 +198,19 @@ def test_remove_and_condense_all_candidates(retain_candidates):
     assert result.candidates == (("A",) if retain_candidates else ())
     assert result.no_rank_altr_idxs == {0}
     assert result.parent_profile is profile
+
+
+def test_remove_and_condense_reduce_candidates_list(profile_no_ties):
+    cleaned_profile = remove_and_condense_rank_profile("A", profile_no_ties)
+
+    assert set(cleaned_profile.candidates) != set(profile_no_ties.candidates)
+    assert set(cleaned_profile.candidates) == {"B", "C"}
+
+
+def test_remove_and_condense_reduce_max_ranking_length(profile_no_ties):
+    cleaned_profile = remove_and_condense_rank_profile(
+        "A", profile_no_ties, reduce_max_ranking_length=True
+    )
+
+    assert cleaned_profile.max_ranking_length != profile_no_ties.max_ranking_length
+    assert cleaned_profile.max_ranking_length == 2
