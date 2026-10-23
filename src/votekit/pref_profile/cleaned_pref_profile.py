@@ -6,6 +6,7 @@ from dataclasses import replace
 import pandas as pd
 
 from votekit.pref_profile.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile.profile_matrix import RankMatrix
 
 
 class CleanedRankProfile(RankProfile):
@@ -85,6 +86,80 @@ class CleanedRankProfile(RankProfile):
         unaltr_idxs: set[int] = set(),
         **kwargs,
     ):
+        self._init_provenance(
+            parent_profile,
+            df_index_column,
+            no_wt_altr_idxs,
+            no_rank_altr_idxs,
+            nonempty_altr_idxs,
+            unaltr_idxs,
+        )
+        super().__init__(**kwargs)
+        self._reindex_matrix()
+
+    @staticmethod
+    def _from_cleaned_matrix(
+        matrix: RankMatrix,
+        *,
+        max_ranking_length: int,
+        parent_profile: RankProfile | CleanedRankProfile,
+        no_wt_altr_idxs: set[int],
+        no_rank_altr_idxs: set[int],
+        nonempty_altr_idxs: set[int],
+        unaltr_idxs: set[int],
+    ) -> CleanedRankProfile:
+        """
+        Create a CleanedRankProfile from a cleaned RankMatrix, bypassing the constructor.
+
+        Args:
+            matrix (RankMatrix): Validated cleaned matrix. Its ballot labels, or source positions
+                when it has none, become ``df_index_column``.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns.
+            parent_profile (RankProfile | CleanedRankProfile): The profile that was cleaned.
+            no_wt_altr_idxs (set[int]): Indices of ballots whose weight cleaning set to zero.
+            no_rank_altr_idxs (set[int]): Indices of altered ballots left with no ranking.
+            nonempty_altr_idxs (set[int]): Indices of altered ballots that still rank candidates.
+            unaltr_idxs (set[int]): Indices of ballots unchanged by cleaning.
+
+        Returns:
+            CleanedRankProfile: Profile storing a revalidated copy of the matrix with
+                ``df_index_column`` as its ballot labels, and copied provenance sets.
+
+        Raises:
+            ValueError: An index set does not match the parent profile's index, or
+                max_ranking_length differs from the number of ranking columns.
+        """
+        labels = matrix.voter_weight_data.ballot_index
+        df_index_column = list(range(len(matrix))) if labels is None else labels.tolist()
+
+        profile = object.__new__(CleanedRankProfile)
+        profile._init_provenance(
+            parent_profile,
+            df_index_column,
+            no_wt_altr_idxs,
+            no_rank_altr_idxs,
+            nonempty_altr_idxs,
+            unaltr_idxs,
+        )
+        profile._init_from_matrix(matrix, max_ranking_length=max_ranking_length)
+        profile._reindex_matrix()
+        return profile
+
+    def _init_provenance(
+        self,
+        parent_profile: RankProfile | CleanedRankProfile,
+        df_index_column: list[int],
+        no_wt_altr_idxs: set[int],
+        no_rank_altr_idxs: set[int],
+        nonempty_altr_idxs: set[int],
+        unaltr_idxs: set[int],
+    ) -> None:
+        """
+        Copy and validate the parent profile and the index sets describing how ballots changed.
+
+        Raises:
+            ValueError: An index set does not match the parent profile's index.
+        """
         self.parent_profile = parent_profile
         self.df_index_column = df_index_column.copy()
         self.no_wt_altr_idxs = no_wt_altr_idxs.copy()
@@ -93,8 +168,6 @@ class CleanedRankProfile(RankProfile):
         self.unaltr_idxs = unaltr_idxs.copy()
 
         self._indices_must_match_parent_df()
-        super().__init__(**kwargs)
-        self._reindex_matrix()
 
     def _indices_must_match_parent_df(self) -> None:
         """

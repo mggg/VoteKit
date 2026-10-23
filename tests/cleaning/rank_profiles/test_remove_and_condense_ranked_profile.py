@@ -11,8 +11,8 @@ from votekit.cleaning import (
     remove_cand_rank_profile,
 )
 from votekit.cleaning.rank_profiles_cleaning import (
-    condense_ranking_row,
-    remove_cand_from_ranking_row,
+    _condense_ranking_row,
+    _remove_cand_from_ranking_row,
 )
 from votekit.pref_profile import CleanedRankProfile, RankProfile
 
@@ -130,7 +130,7 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
 
     intermediate = clean_rank_profile(
         profile,
-        lambda row: condense_ranking_row(remove_cand_from_ranking_row(["A"], row)),
+        lambda row: _condense_ranking_row(_remove_cand_from_ranking_row(["A"], row)),
         remove_null,
         remove_zero,
         retain_original_candidate_list=True,
@@ -164,7 +164,8 @@ def test_remove_and_condense_constructs_once_with_equivalent_provenance(
             "A", profile, remove_null, remove_zero, retain_candidates
         )
 
-    assert constructions == 1
+    # The cleaned profile is built from its matrix, never through the public constructor.
+    assert constructions == 0
     assert type(result) is CleanedRankProfile
     assert result.parent_profile is profile
     assert result.parent_profile.parent_profile is parent

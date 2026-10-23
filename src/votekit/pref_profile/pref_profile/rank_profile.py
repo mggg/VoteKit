@@ -807,14 +807,34 @@ class RankProfile(PreferenceProfile):
             RankProfile: A RankProfile object.
         """
         profile = object.__new__(RankProfile)
-        profile._matrix = matrix
-        profile.candidates = matrix.candidates
-        profile.max_ranking_length = max_ranking_length
-        profile.candidates_cast = tuple(
+        profile._init_from_matrix(matrix, max_ranking_length=max_ranking_length)
+        return profile
+
+    def _init_from_matrix(self, matrix: RankMatrix, *, max_ranking_length: int) -> None:
+        """
+        Set matrix-derived attributes and freeze the profile, bypassing ballot or df parsing.
+
+        Args:
+            matrix (RankMatrix): Validated matrix whose candidates become the profile's candidates.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns.
+
+        Raises:
+            ValueError: max_ranking_length differs from the number of ranking columns.
+        """
+        if len(matrix.ranking_columns) != max_ranking_length:
+            raise ValueError(
+                "max_ranking_length must be equivalent to number of ranking columns in"
+                f" matrix, got {max_ranking_length}, expected"
+                f" {len(matrix.ranking_columns)}."
+            )
+
+        self._matrix = matrix
+        self.candidates = matrix.candidates
+        self.max_ranking_length = max_ranking_length
+        self.candidates_cast = tuple(
             sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())
         )
-        profile._finalize_profile()
-        return profile
+        self._finalize_profile()
 
     def to_matrix(self) -> RankMatrix:
         """
