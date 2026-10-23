@@ -445,11 +445,14 @@ class ScoreProfile(PreferenceProfile):
 
     def __sub__(self, other):
         """
-        Subtract the ballot weights of another profile, matched by identical
-        scores. Voter sets of the minuend are retained.
+        Remove the ballots of another profile, matched by identical scores.
+
+        See ``subtract_profiles``: the result is grouped, and ballots whose weight is exhausted
+        are removed. Voter sets of this profile are retained.
 
         Raises:
-            ValueError: A ballot weight would become negative.
+            ValueError: A subtracted weight cannot be represented exactly in this profile's
+                weights.
         """
         return _subtract_score_profiles(self, other)
 
