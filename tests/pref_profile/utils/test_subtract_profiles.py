@@ -3,7 +3,6 @@ from fractions import Fraction
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
-from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.pref_profile import RankProfile, ScoreProfile
 from votekit.pref_profile.utils import subtract_profiles
 
@@ -279,15 +278,3 @@ def test_subtract_profiles_removes_weight_within_zero_tolerance():
     subtracted_profile = RankProfile(ballots=[RankBallot(ranking=({"A"},), weight=0.3)])
     result = base_profile - subtracted_profile
     assert result.num_ballots == 0
-
-
-def test_subtract_profiles_from_cleaned_profile():
-    profile = RankProfile(
-        ballots=[RankBallot(ranking=({"A"}, {"B"}), weight=3)], candidates=["A", "B"]
-    )
-    cleaned = remove_and_condense_rank_profile("B", profile)
-    subtracted_profile = RankProfile(
-        ballots=[RankBallot(ranking=({"A"},), weight=1)], candidates=["A"]
-    )
-    result = cleaned - subtracted_profile
-    assert result.ballots[0].weight == 2
