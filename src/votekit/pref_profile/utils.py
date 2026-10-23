@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
+from dataclasses import replace
+from fractions import Fraction
 from functools import partial
-from typing import Optional, Sequence, cast
+from typing import Optional, Sequence, TypeVar, cast
 
 import numpy as np
 import pandas as pd
@@ -18,15 +20,22 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.constants import TOL_EPSILON
 from votekit.pref_profile.profile_matrix import (
     EMPTY_SET_ID,
     END_OF_RANKING_ID,
+    ProfileVoterWeightData,
+    RankMatrix,
     ScoreMatrix,
+    WeightKind,
 )
 from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
 from votekit.pref_profile.profile_matrix.score_matrix import _concatenate_score_matrices
+from votekit.pref_profile.profile_matrix.shared_data import _as_fraction
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
+
+MatrixT = TypeVar("MatrixT", RankMatrix, ScoreMatrix)
 
 
 def _convert_ranking_cols_to_ranking(
@@ -585,3 +594,268 @@ def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
             f"Cannot sum profiles of type {type(profiles[0]).__name__}. "
             "List can only contain RankProfiles or ScoreProfiles."
         )
+
+
+def subtract_profiles(
+    base_profile: PreferenceProfile,
+    subtracted_profiles: PreferenceProfile | Sequence[PreferenceProfile],
+) -> PreferenceProfile:
+    """
+    Subtracts the ballots of one or more profiles from a base profile, matched by identical
+    rankings or scores.
+
+    The base profile is grouped, then each group loses the combined weight of the matching
+    subtracted ballots. A ballot is exhausted when its weight goes to 0. A ballot group whose weight
+    is exhausted is removed; any weight left over from the subtracted ballots is ignored, as are
+    subtracted ballots with no match in the base. Rankings match when they are equal after padding
+    with ``frozenset({'~'})``, so profiles with different ranking lengths can be subtracted. The
+    result keeps the base profile's candidates, ranking length, voter sets, and weight
+    representation.
+
+    Args:
+        base_profile (PreferenceProfile): The profile being subtracted from.
+        subtracted_profiles (PreferenceProfile | Sequence[PreferenceProfile]): The profile or
+            profiles whose ballots are removed from ``base_profile``.
+
+    Returns:
+        PreferenceProfile: The grouped base profile with the subtracted ballots removed.
+
+    Raises:
+        TypeError: The profiles are not all RankProfiles or all ScoreProfiles.
+        ValueError: ``subtracted_profiles`` is an empty sequence, or a subtracted weight cannot
+            be represented exactly in the base profile's weight representation, e.g. a
+            non-integral float subtracted from Fraction weights, or ``Fraction(1, 3)``
+            subtracted from float weights.
+        ProfileError: The subtracted profiles mix Fraction weights with non-integral float
+            weights, so they cannot be summed.
+    """
+
+    from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+
+    if not isinstance(base_profile, (RankProfile, ScoreProfile)):
+        raise TypeError(
+            f"Cannot subtract profiles of type {type(base_profile).__name__}. "
+            "Only RankProfiles or ScoreProfiles are supported."
+        )
+
+    if isinstance(subtracted_profiles, PreferenceProfile):
+        subtracted_profile = subtracted_profiles
+    else:
+        subtracted_profile = sum_profiles(subtracted_profiles)
+
+    if isinstance(base_profile, RankProfile):
+        return _subtract_rank_profiles(base_profile, subtracted_profile)
+
+    return _subtract_score_profiles(base_profile, subtracted_profile)
+
+
+def _as_weight_kind(subtracted_matrix: MatrixT, base_kind: WeightKind) -> MatrixT:
+    """
+    Convert a subtracted matrix's weights to the base profile's representation without rounding.
+
+    Args:
+        subtracted_matrix (RankMatrix | ScoreMatrix): Matrix of a subtracted profile.
+        base_kind (WeightKind): Weight representation of the base profile. Can be FRACTION or FLOAT.
+
+    Returns:
+        RankMatrix | ScoreMatrix: Matrix with weights stored as the base profile's weights kind.
+
+    Raises:
+        ValueError: A weight cannot be represented exactly as the base profile's weights kind.
+    """
+    data = subtracted_matrix.voter_weight_data
+    if data.weight_kind is base_kind:
+        return subtracted_matrix
+
+    if base_kind is WeightKind.FRACTION:
+        weights = np.empty(len(data), dtype=object)
+        weights[:] = [_as_fraction(weight) for weight in data.weights]
+    else:
+        weights = data.weights.astype(np.float64)
+        for weight, float_weight in zip(data.weights, weights):
+            if Fraction(float_weight) != weight:
+                raise ValueError(
+                    f"Cannot subtract weight {weight} from float weights without rounding. "
+                    "Use Fraction weights in the base profile to subtract it exactly."
+                )
+
+    return replace(subtracted_matrix, voter_weight_data=data.with_weights(weights))
+
+
+def _subtract_grouped_weights(
+    base_data: ProfileVoterWeightData,
+    first_rows: NDArray[np.intp],
+    group_ids: NDArray[np.intp],
+    subtracted_weights: NDArray,
+) -> tuple[NDArray[np.intp], ProfileVoterWeightData]:
+    """
+    Group the base profile rows and subtract the weight of matching rows in subtracted_weights.
+
+    The exhausted groups are dropped from the grouped rankings array and grouped shared data.
+    The group_ids are numbered in first-appeaerance order where the base profile ballots come first
+    followed by the subtracted profile's ballots. Base profile's group IDs will always be a subset
+    or subtracted profile's group IDs. Subtracted profile's non-matching group IDs will be greater
+    in value than any of base profile's group IDs.
+
+    Args:
+        base_data (ProfileVoterWeightData): Shared data of the base profile.
+        first_rows (NDArray[np.intp]): Representative row of each group of a combined matrix
+            whose leading rows are the base profile's rows.
+        group_ids (NDArray[np.intp]): Group of each combined row. Groups are numbered in
+            first-appearance order, so the base rows use exactly groups ``0..k-1``.
+        subtracted_weights (NDArray): Weights of the combined rows after the base rows, in the
+            base profile's weight representation.
+
+    Returns:
+        tuple[NDArray[np.intp], ProfileVoterWeightData]: Representative base row of each
+            retained group, and the grouped shared data with the subtracted weight removed.
+    """
+    num_base_rows = len(base_data)
+    base_group_ids = group_ids[:num_base_rows]
+    num_base_groups = int(base_group_ids.max(initial=-1)) + 1
+    grouped_base_data = base_data.group_rows(first_rows[:num_base_groups], base_group_ids)
+
+    subtracted_group_ids = group_ids[num_base_rows:]
+    matched_groups = subtracted_group_ids < num_base_groups
+    weights_to_subtract = np.zeros(num_base_groups, dtype=grouped_base_data.weights.dtype)
+    np.add.at(
+        weights_to_subtract,
+        subtracted_group_ids[matched_groups],
+        subtracted_weights[matched_groups],
+    )
+    remaining_group_weights = np.subtract(grouped_base_data.weights, weights_to_subtract)
+
+    # Floating-point subtraction can leave a residue of an exhausted ballot. Drop with tolerance.
+    zero_tolerance = 0 if grouped_base_data.weight_kind is WeightKind.FRACTION else TOL_EPSILON
+    keep_groups = np.array(
+        (weights_to_subtract == 0) | (remaining_group_weights > zero_tolerance), dtype=np.bool_
+    )
+    voter_sets = (
+        None if grouped_base_data.voter_sets is None else grouped_base_data.voter_sets[keep_groups]
+    )
+
+    return first_rows[:num_base_groups][keep_groups], ProfileVoterWeightData(
+        remaining_group_weights[keep_groups], voter_sets, grouped_base_data.weight_kind
+    )
+
+
+def _subtract_rank_profiles(
+    base_profile: PreferenceProfile, subtracted_profile: PreferenceProfile
+) -> RankProfile:
+    """
+    Helper function for subtract_profiles that subtracts RankProfiles.
+
+    Ballots in the subtracted profile are removed from the grouped base profile in accordance with
+    their weight. If a ballot in the subtracted profile does not exist in the base profile, the base
+    profile is unaltered. If the weight of a base profile's ballot is exhausted, the ballot is
+    removed entirely and any remaining weight of that ballot in the subtracted profile is ignored.
+
+    Args:
+        base_profile (PreferenceProfile): Base profile to remove ballots from.
+        subtracted_profile (PreferenceProfile): Profile with ballots to subtract from the base
+            profile.
+
+    Returns:
+        RankProfile: Grouped base profile with the subtracted profile's ballots removed.
+
+    Raises:
+        TypeError: Both profiles must be of type RankProfile.
+        ValueError: A subtracted weight cannot be represented exactly in the base's weights.
+    """
+    from votekit.pref_profile.pref_profile import RankProfile
+
+    if not isinstance(base_profile, RankProfile) or not isinstance(subtracted_profile, RankProfile):
+        raise TypeError(
+            f"Both profiles must be of the same type, RankProfile. Got "
+            f"{type(base_profile).__name__} and {type(subtracted_profile).__name__}."
+        )
+
+    base_matrix = base_profile._matrix
+    subtract_matrix = _as_weight_kind(
+        subtracted_profile._matrix, base_matrix.voter_weight_data.weight_kind
+    )
+
+    # Concatenation maps every profile onto one candidate-set table and pads rankings with
+    # end-of-ranking markers, so equal rankings fall into one group across profiles.
+    candidates = tuple(set(base_matrix.candidates).union(subtract_matrix.candidates))
+    width = max(base_matrix.num_ranking_positions, subtract_matrix.num_ranking_positions)
+    combined = _concatenate_rank_matrices([base_matrix, subtract_matrix], candidates, width)
+    first_rows, group_ids = combined._group_ranking_rows()
+
+    rows, data = _subtract_grouped_weights(
+        base_matrix.voter_weight_data,
+        first_rows,
+        group_ids,
+        combined.voter_weight_data.weights[len(base_matrix) :],  # subtract_matrix weights
+    )
+    matrix = RankMatrix(
+        voter_weight_data=data,
+        rankings=base_matrix.rankings[rows],
+        cand_sets=base_matrix.cand_sets,
+        ranking_columns=base_matrix.ranking_columns,
+        candidates=base_matrix.candidates,
+    )
+    return RankProfile._from_matrix(matrix, max_ranking_length=base_profile.max_ranking_length)
+
+
+def _subtract_score_profiles(
+    base_profile: PreferenceProfile, subtracted_profile: PreferenceProfile
+) -> ScoreProfile:
+    """
+    Helper function for subtract_profiles that subtracts ScoreProfiles.
+
+    Ballots in the subtracted profile are removed from the grouped base profile in accordance with
+    their weight. If a ballot in the subtracted profile does not exist in the base profile, the base
+    profile is unaltered. If the weight of a base profile's ballot is exhausted, the ballot is
+    removed entirely and any remaining weight of that ballot in the subtracted profile is ignored.
+
+    Args:
+        base_profile (PreferenceProfile): Base profile to remove ballots from.
+        subtracted_profile (PreferenceProfile): Profile with ballots to subtract from the base
+            profile.
+
+    Returns:
+        ScoreProfile: Grouped base profile with the subtracted profile's ballots removed.
+
+    Raises:
+        TypeError: Both profiles must be of type ScoreProfile.
+        ValueError: A subtracted weight cannot be represented exactly in the base's weights.
+    """
+    from votekit.pref_profile.pref_profile import ScoreProfile
+
+    if not isinstance(base_profile, ScoreProfile) or not isinstance(
+        subtracted_profile, ScoreProfile
+    ):
+        raise TypeError(
+            f"Both profiles must be of the same type, ScoreProfile. Got "
+            f"{type(base_profile).__name__} and {type(subtracted_profile).__name__}."
+        )
+
+    base_matrix = base_profile._matrix
+    other_matrix = _as_weight_kind(
+        subtracted_profile._matrix, base_matrix.voter_weight_data.weight_kind
+    )
+
+    # Concatenation aligns score columns by candidate, leaving unscored entries as NaN, which
+    # grouping treats as equal.
+    candidates = tuple(
+        sort_candidates_pseudo_lexicographically(
+            set(base_matrix.candidates).union(other_matrix.candidates)
+        )
+    )
+    combined = _concatenate_score_matrices([base_matrix, other_matrix], candidates)
+    first_rows, group_ids = combined._group_score_rows()
+
+    rows, data = _subtract_grouped_weights(
+        base_matrix.voter_weight_data,
+        first_rows,
+        group_ids,
+        combined.voter_weight_data.weights[len(base_matrix) :],
+    )
+    matrix = ScoreMatrix(
+        voter_weight_data=data,
+        scores=base_matrix.scores[rows],
+        score_columns=base_matrix.score_columns,
+        candidates=base_matrix.candidates,
+    )
+    return ScoreProfile._from_matrix(matrix)
