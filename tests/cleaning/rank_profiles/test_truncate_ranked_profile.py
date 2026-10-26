@@ -48,7 +48,7 @@ def test_truncate_at_cand_rank_profile_default_behavior(profile):
     assert set(cleaned_profile.candidates) == set(("A", "B", "C"))
 
 
-def test_truncate_at_cand_rank_profile_can_retain_empty_and_zero_weight_ballots(profile):
+def test_truncate_at_cand_rank_profile_can_retain_null_and_zero_weight_ballots(profile):
     cleaned_profile = truncate_at_cand_rank_profile(
         "overvote",
         profile,
