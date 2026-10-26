@@ -10,7 +10,7 @@ from .rank_profiles_cleaning import (
     remove_ballots_with_cand_rank_profile,
     remove_cand_rank_profile,
     remove_repeat_cands_rank_profile,
-    truncate_rank_profile,
+    truncate_at_cand_rank_profile,
 )
 from .score_ballots_cleaning import remove_cand_score_ballot
 from .score_profiles_cleaning import clean_score_profile, remove_cand_score_profile
@@ -24,7 +24,7 @@ __all__ = [
     "remove_cand_rank_ballot",
     "condense_rank_ballot",
     "remove_repeat_cands_rank_ballot",
-    "truncate_rank_profile",
+    "truncate_at_cand_rank_profile",
     "remove_cand_score_ballot",
     "clean_score_profile",
     "remove_cand_score_profile",
