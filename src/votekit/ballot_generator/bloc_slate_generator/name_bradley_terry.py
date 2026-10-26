@@ -750,6 +750,74 @@ def _bradley_terry_mcmc_shortcut(
 # ————————————————————————————————————————————————————————————————————————————————————————————————
 
 
+_DP_NAME_BT_BATCH_SIZE = 65_536
+
+
+def _check_dp_name_bt_memory(n_candidates: int, n_voters: int, *, group_ballots: bool) -> None:
+    """Check the estimated peak allocation against currently available RAM.
+
+    Estimate CDF preparation, batched sampling, and profile construction separately, then
+    allow 50% headroom above the largest peak for allocator and library overhead. Blocs share
+    the output array and prepare their CDFs sequentially, so only one table is counted.
+    Grouping assumes every ranking is distinct. This check cannot reserve memory against
+    concurrent allocations by other processes.
+
+    Args:
+        n_candidates (int): Number of candidates in each complete ranking.
+        n_voters (int): Total rows to generate across all blocs.
+        group_ballots (bool): Whether to include grouping buffers and the grouped profile.
+
+    Raises:
+        ValueError: Subset masks or array dimensions exceed the supported integer widths.
+        MemoryError: The estimated peak with headroom exceeds available RAM.
+    """
+    max_candidates = min(32, np.iinfo(np.intp).bits - 2)
+    if n_candidates > max_candidates:
+        raise ValueError(
+            f"DP name-BradleyTerry supports at most {max_candidates} candidates with its "
+            "uint32 subset masks and platform array-index width."
+        )
+
+    float_bytes = np.dtype(np.float64).itemsize
+    index_bytes = np.dtype(int).itemsize
+    n_subsets = 1 << n_candidates
+    largest_subset_count = math.comb(n_candidates, n_candidates // 2)
+    ranking_bytes = n_voters * n_candidates * index_bytes
+    cdf_bytes = n_subsets * n_candidates * float_bytes
+
+    # Log totals, uint32 masks, uint8 sizes, and the mask selecting a subset size.
+    subset_vector_bytes = n_subsets * (float_bytes + 4 + 1 + 1)
+    # Consecutive working matrices can coexist, along with indexed vectors and arithmetic results.
+    preparation_work_bytes = largest_subset_count * (
+        2 * n_candidates * float_bytes + 8 * index_bytes
+    )
+    preparation_peak = ranking_bytes + cdf_bytes + subset_vector_bytes + preparation_work_bytes
+
+    buffer_rows = min(_DP_NAME_BT_BATCH_SIZE, n_voters)
+    sampling_buffer_bytes = buffer_rows * (
+        n_candidates * (float_bytes + 1) + 2 * index_bytes + 2 * float_bytes
+    )
+    sampling_peak = ranking_bytes + cdf_bytes + n_voters * index_bytes + sampling_buffer_bytes
+
+    # Include owned rankings, candidate-discovery copies, weights, and validation temporaries.
+    construction_peak = 4 * ranking_bytes + n_voters * (4 * index_bytes + 4 * float_bytes)
+    if group_ballots:
+        # Sorting and row selection can retain both profiles plus row keys and index arrays.
+        construction_peak = 6 * ranking_bytes + n_voters * (12 * index_bytes + 4 * float_bytes)
+
+    estimated_peak = max(preparation_peak, sampling_peak, construction_peak)
+    required_bytes = (3 * estimated_peak + 1) // 2
+    available_gib = system_memory()["available_gib"]
+    if required_bytes > available_gib * 2**30:
+        raise MemoryError(
+            f"Not enough memory for DP name-BradleyTerry with {n_candidates} candidates and "
+            f"{n_voters} voters. Estimated peak is {estimated_peak / 2**30:.3f} GiB; "
+            f"{required_bytes / 2**30:.3f} GiB is required including 50% headroom, "
+            f"but only {available_gib:.3f} GiB is available. "
+            "Reduce the candidate or voter count, or use the MCMC generator."
+        )
+
+
 def _make_candidate_sets(candidates: list[Candidate]) -> tuple[frozenset[Candidate], ...]:
     """
     Given a list of candidates, returns a tuple of frozensets representing all possible
@@ -771,7 +839,7 @@ def _build_cdf_matrix(candidates: tuple[Candidate, ...], candidate_supports: NDA
 
     log_supports = np.log(candidate_supports)
 
-    log_total_suffix_weight = np.array([float("-inf")] * n_dp_subsets, dtype=np.float64)
+    log_total_suffix_weight = np.full(n_dp_subsets, -np.inf, dtype=np.float64)
 
     # If there are no candidates remaining to select, then the probability of selecting the empty
     # set is 1.
@@ -822,6 +890,61 @@ def _build_cdf_matrix(candidates: tuple[Candidate, ...], candidate_supports: NDA
     return cdf_matrix
 
 
+def _sample_rankings_from_cdf(
+    cdf_matrix: NDArray[np.float64],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    """Fill encoded rankings using bounded sampling buffers.
+
+    Args:
+        cdf_matrix (NDArray[np.float64]): Conditional CDFs indexed by remaining-candidate
+            bitmasks, with one column per candidate. The empty-subset row is unused.
+        rankings (NDArray[np.intp]): Writable output with one row per voter and one column
+            per ranking position. Candidate IDs follow CDF column order.
+        rng (np.random.Generator): Generator advanced in position order, then voter order.
+    """
+    n_voters, n_candidates = rankings.shape
+    batch_size = _DP_NAME_BT_BATCH_SIZE
+    buffer_rows = min(batch_size, n_voters)
+    candidate_bits = np.left_shift(1, np.arange(n_candidates, dtype=int))
+    remaining_subset_masks = np.full(n_voters, len(cdf_matrix) - 1, dtype=int)
+
+    voter_cdf_rows = np.empty((buffer_rows, n_candidates), dtype=np.float64)
+    passed_thresholds = np.empty((buffer_rows, n_candidates), dtype=bool)
+    chosen_candidate_ids = np.empty(buffer_rows, dtype=int)
+
+    # Keep positions outside batches so batching preserves the seeded rankings.
+    for position in range(n_candidates):
+        for start in range(0, n_voters, batch_size):
+            stop = min(start + batch_size, n_voters)
+            n_batch_voters = stop - start
+            batch_subset_masks = remaining_subset_masks[start:stop]
+            np.take(
+                cdf_matrix,
+                batch_subset_masks,
+                axis=0,
+                out=voter_cdf_rows[:n_batch_voters],
+                mode="clip",
+            )
+
+            draws = rng.random(n_batch_voters)
+            np.greater_equal(
+                draws[:, None],
+                voter_cdf_rows[:n_batch_voters],
+                out=passed_thresholds[:n_batch_voters],
+            )
+            np.sum(
+                passed_thresholds[:n_batch_voters],
+                axis=1,
+                dtype=int,
+                out=chosen_candidate_ids[:n_batch_voters],
+            )
+
+            rankings[start:stop, position] = chosen_candidate_ids[:n_batch_voters]
+            batch_subset_masks -= candidate_bits[chosen_candidate_ids[:n_batch_voters]]
+
+
 def dp_name_bt_profile_generator(
     config: BlocSlateConfig,
     *,
@@ -830,8 +953,9 @@ def dp_name_bt_profile_generator(
 ) -> RankProfile:
     """Generate name-BradleyTerry rankings using subset dynamic programming.
 
-    Prepare one conditional CDF per populated bloc and sample its voters together.
-    Candidate supports must be strictly positive.
+    Prepare one conditional CDF per populated bloc and sample voters in bounded batches.
+    Candidate supports must be strictly positive. Before allocating the output or CDF, check
+    that estimated peak memory plus 50% headroom fits in currently available RAM.
 
     Args:
         config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
@@ -844,14 +968,15 @@ def dp_name_bt_profile_generator(
         RankProfile: Complete rankings with the declared candidate order and total voter weight.
 
     Raises:
-        ValueError: A populated bloc has nonfinite or nonpositive candidate support.
+        ValueError: A populated bloc has nonfinite or nonpositive candidate support, or the
+            candidate count exceeds the subset-mask or array-index width.
+        MemoryError: Estimated memory requirements exceed currently available RAM.
     """
     config.is_valid(raise_errors=True)
     candidates = tuple(config.candidates)
     blocs = tuple(config.blocs)
     n_candidates = len(candidates)
-    n_dp_subsets = 1 << n_candidates
-    candidate_bits = np.left_shift(1, np.arange(n_candidates, dtype=int))
+    _check_dp_name_bt_memory(n_candidates, config.n_voters, group_ballots=group_ballots)
     rng = np.random.default_rng(rng_seed)
 
     bloc_counts = apportion.compute(
@@ -881,45 +1006,7 @@ def dp_name_bt_profile_generator(
         cdf_matrix = _build_cdf_matrix(candidates, supports)
         bloc_rankings = ranking_matrix[row_start : row_start + n_bloc_voters]
 
-        remaining_subset_masks = np.full(
-            n_bloc_voters,
-            n_dp_subsets - 1,
-            dtype=int,
-        )
-        voter_cdf_rows = np.empty(
-            (n_bloc_voters, n_candidates),
-            dtype=np.float64,
-        )
-        passed_thresholds = np.empty(
-            (n_bloc_voters, n_candidates),
-            dtype=bool,
-        )
-        chosen_candidate_ids = np.empty(n_bloc_voters, dtype=int)
-
-        for position in range(n_candidates):
-            np.take(
-                cdf_matrix,
-                remaining_subset_masks,
-                axis=0,
-                out=voter_cdf_rows,
-                mode="clip",
-            )
-
-            draws = rng.random(n_bloc_voters)
-            np.greater_equal(
-                draws[:, None],
-                voter_cdf_rows,
-                out=passed_thresholds,
-            )
-            np.sum(
-                passed_thresholds,
-                axis=1,
-                dtype=int,
-                out=chosen_candidate_ids,
-            )
-
-            bloc_rankings[:, position] = chosen_candidate_ids
-            remaining_subset_masks -= candidate_bits[chosen_candidate_ids]
+        _sample_rankings_from_cdf(cdf_matrix, bloc_rankings, rng)
 
         row_start += n_bloc_voters
         del cdf_matrix  # Release this bloc's table before preparing the next one.
