@@ -4,363 +4,45 @@ Generate ranked preference profiles using the slate-BradleyTerry model.
 The main API functions in this module are:
 
 - `slate_bt_profile_generator`: Generates a single preference profile using the slate-BradleyTerry
-    model.
+  model.
 - `slate_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
-    slate-BradleyTerry model.
+  slate-BradleyTerry model.
 - `slate_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC
-    sampling from the slate-BradleyTerry model.
+  sampling from the slate-BradleyTerry model.
 - `slate_bt_profiles_by_bloc_generator_using_mcmc`: Generates preference profiles by bloc using
-    MCMC sampling from the slate-BradleyTerry model.
+  MCMC sampling from the slate-BradleyTerry model.
 """
 
-import itertools as it
+from __future__ import annotations
+
 import math
-import random
-import sys
-from collections.abc import Sequence
-from typing import cast
 
 import apportionment.methods as apportion
 import numpy as np
 from numpy.typing import NDArray
 
+from votekit.ballot_generator.bloc_slate_generator._slate_bt_mcmc import (
+    slate_bt_profile_generator_using_mcmc,
+    slate_bt_profiles_by_bloc_generator_using_mcmc,
+)
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _append_zero_slate_symbols,
-    _convert_slate_ballots_to_profile,
-    _lexicographic_symbol_tuple_iterator,
+    _fast_sample_without_replacement,
 )
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
+from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, RankMatrix, WeightKind
+from votekit.types import Candidate
 
-# ====================================================
-# ================= Helper Functions =================
-# ====================================================
+# Mark intentional re-export of the MCMC-based generators for public API preservation.
+__all__ = [
+    "slate_bt_profile_generator",
+    "slate_bt_profiles_by_bloc_generator",
+    "slate_bt_profile_generator_using_mcmc",
+    "slate_bt_profiles_by_bloc_generator_using_mcmc",
+]
 
-
-def _count_pairs_a_before_b(x_array: NDArray, a: str, b: str) -> int:
-    """
-    Count the number of times a appears before b in x_array.
-
-    Args:
-        x_array (NDArray): 1D numpy array of strings.
-        a (str): The string to count before b.
-        b (str): The string to count after a.
-
-    Returns:
-        int: The number of times a appears before b in x_array.
-    """
-    cumulative_a = np.cumsum(x_array == a)
-    ret = int(cumulative_a[x_array == b].sum())
-    return ret
-
-
-def _slate_bt_numerator_computation_single_bloc(
-    ballot_type: Sequence[str], slate_cohesion_dict_for_single_bloc: dict[str, float]
-):
-    """
-    Compute the numerator of the probability of a given ballot type for a single bloc.
-
-    Args:
-        ballot_type (Sequence[str]): A tuple of strings representing the ballot type.
-        slate_cohesion_dict_for_single_bloc (dict[str, float]): A dictionary mapping slate
-            names to their cohesion parameters for a single bloc.
-
-    Returns:
-        float: The numerator of the probability of the given ballot type.
-    """
-    # for each slate pair (i,j), count times slate i appears above slate j
-    # component is then (cohesion[i] / (cohesion[i] + cohesion[j])) ^ count(i above j)
-    all_slates = frozenset(slate_cohesion_dict_for_single_bloc.keys())
-    ballot_arr = np.array(ballot_type)
-    result = 1.0
-    for slate, other_slate in it.permutations(all_slates, 2):
-        result *= pow(
-            slate_cohesion_dict_for_single_bloc[slate]
-            / (
-                slate_cohesion_dict_for_single_bloc[slate]
-                + slate_cohesion_dict_for_single_bloc[other_slate]
-            ),
-            _count_pairs_a_before_b(ballot_arr, slate, other_slate),
-        )
-
-    return result
-
-
-def _compute_ballot_type_dist(
-    config: BlocSlateConfig, bloc: str, non_zero_slate_set: set[str]
-) -> dict[tuple[str, ...], float]:
-    """
-    Compute the probability distribution for ballot types for a given voter bloc.
-    Only includes slates on the ballot type with non-zero cohesion for the given bloc.
-
-    Args:
-        config (BlocSlateConfig): The configuration for the bloc-slate type model.
-        bloc (str): The voter bloc for which to compute the ballot type distribution.
-        non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-
-    Returns:
-        dict[tuple[str, ...], float]: A dictionary mapping ballot types (as tuples of
-            slate names) to their probabilities.
-    """
-
-    slate_list = [
-        s_name for s_name in non_zero_slate_set for c_name in config.slate_to_candidates[s_name]
-    ]
-
-    bloc_series = config.cohesion_df.loc[bloc]
-    bloc_series.index = bloc_series.index.astype(str)
-    bloc_series = bloc_series.astype(float)
-    bloc_series = bloc_series[bloc_series != 0]  # type: ignore
-
-    slate_cohesion_dict_for_bloc: dict[str, float] = cast(dict[str, float], bloc_series.to_dict())
-
-    pmf = {}
-    for ballot_type in _lexicographic_symbol_tuple_iterator(slate_list):
-        if ballot_type not in pmf:
-            pmf[ballot_type] = _slate_bt_numerator_computation_single_bloc(
-                ballot_type, slate_cohesion_dict_for_bloc
-            )
-
-    summ = sum(pmf.values())
-    return {b: v / summ for b, v in pmf.items()}
-
-
-def _sample_bt_slate_ballots_deterministic(
-    config: BlocSlateConfig,
-    bloc_name: str,
-    n_ballots: int,
-    non_zero_slate_set: set[str],
-    *,
-    rng: random.Random | None = None,
-) -> list[tuple[str, ...]]:
-    """
-    Generates ballot types (e.g. AABABB) for a given bloc using the slate Bradley-Terry model.
-    Randomly permutes slates with zero cohesion at the end of the ballot type.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        bloc_name (str): The name of the voter bloc for which to generate ballot types.
-        n_ballots (int): The number of ballots to generate.
-        non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        list[tuple[str]]: A list of ballot types, where each ballot type is represented
-            as a tuple of slate names.
-    """
-    pdf = _compute_ballot_type_dist(config, bloc_name, non_zero_slate_set)
-    b_types: list[tuple[str, ...]] = list(pdf.keys())
-    probs = list(pdf.values())
-
-    rng = random.Random() if rng is None else rng
-    sampled_indices = rng.choices(range(len(b_types)), k=n_ballots, weights=probs)
-
-    ballots = [b_types[i] for i in sampled_indices]
-
-    return ballots
-
-
-def _check_slate_bt_memory(config: BlocSlateConfig) -> None:
-    """
-    Check if there is enough memory to generate the profile using the slate-BradleyTerry model.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-
-    Raises:
-        ValueError: If there are more than 12! possible ballot types.
-        MemoryError: If there is not enough memory to generate the pmf.
-    """
-    n_cands = len(config.candidates)
-    slate_counts = {slate: len(cands) for slate, cands in config.slate_to_candidates.items()}
-    total_arrangements = math.factorial(n_cands) / math.prod(
-        math.factorial(count) for count in slate_counts.values()
-    )
-    if total_arrangements > math.factorial(12):
-        raise ValueError(
-            "Given the number of candidates and slates you have entered, there appears to be "
-            f"{total_arrangements:.2e} possible ballot types. This is beyond the standard limit "
-            f"of 12! = {math.factorial(12)}. Please reduce the number of candidates or use the "
-            "MCMC version of this generator instead."
-        )
-
-    mem = system_memory()
-    pmf_size = total_arrangements
-    candidate_with_longest_name = max(config.candidates, key=sys.getsizeof)
-    est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
-    est_bytes_profile = (
-        config.n_voters * n_cands * sys.getsizeof(frozenset({candidate_with_longest_name}))
-    )
-    est_bytes = float(est_bytes_pmf + est_bytes_profile)
-
-    # fudge factor for overhead. Just tuned to a couple of machines, but gives pretty close
-    # upper bound on memory usage while leaving room for other processes
-    est_bytes *= 1.5
-    if est_bytes > mem["available_gib"] * 2**30:
-        raise MemoryError(
-            f"Not enough memory to generate the profile. Estimated memory usage is "
-            f"{est_bytes / 2**30:.1f} GiB, but only {mem['available_gib']:.1f} GiB is available."
-        )
-
-
-def _sample_bt_slate_ballots_mcmc(
-    config: BlocSlateConfig,
-    bloc_name: str,
-    n_ballots: int,
-    non_zero_slate_set: set[str],
-    *,
-    rng: random.Random | None = None,
-) -> list[tuple[str, ...]]:
-    """
-    Generates ballot types (e.g. AABABB) for a given bloc using a Markov Chain Monte Carlo (MCMC)
-    estimation of the slate Bradley-Terry model.
-    Only generates ballots for slates that have non-zero cohesion for the given bloc.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        bloc_name (str): The name of the voter bloc for which to generate ballot types.
-        n_ballots (int): The number of ballots to generate.
-        non_zero_slate_set (set[str]): Set of slates with non-zero cohesion for the given bloc.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        list[tuple[str]]: A list of ballot types, where each ballot type is represented
-            as a tuple of slate names.
-    """
-
-    # AABABB like
-    seed_ballot_type = [
-        slate for slate in sorted(non_zero_slate_set) for c in config.slate_to_candidates[slate]
-    ]
-    # randomly permute the seed ballot type
-    rng = random.Random() if rng is None else rng
-    seed_ballot_type = rng.sample(seed_ballot_type, len(seed_ballot_type))
-
-    ballots: list[tuple[str, ...]] = [("~",) for _ in range(n_ballots)]
-    current_ranking = seed_ballot_type
-    # presample swap indices
-    swap_indices = [
-        (j1, j1 + 1) for j1 in rng.choices(range(len(seed_ballot_type) - 1), k=n_ballots)
-    ]
-
-    for i in range(n_ballots):
-        j1, j2 = swap_indices[i]
-        current_slate, new_slate = current_ranking[j1], current_ranking[j2]
-
-        # swap probability is how much voters in given bloc tend to prefer current slate
-        # over how much they tend to prefer new slate
-        cohesion_j1 = config.cohesion_df[current_slate].loc[bloc_name]
-        cohesion_j2 = config.cohesion_df[new_slate].loc[bloc_name]
-        acceptance_prob = cohesion_j2 / cohesion_j1  # Doesn't matter if above 1
-
-        if rng.random() < acceptance_prob:
-            current_ranking[j1], current_ranking[j2] = (
-                current_ranking[j2],
-                current_ranking[j1],
-            )
-
-        ballots[i] = tuple(current_ranking.copy())
-
-    return ballots
-
-
-# ===========================================================
-# ================= Interior Work Functions =================
-# ===========================================================
-
-
-def _inner_slate_bradley_terry(
-    config: BlocSlateConfig,
-    use_mcmc: bool = False,
-    *,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Inner function to generate preference profiles using the slate-BradleyTerry model.
-
-    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
-    Candidates with zero support are randomly permuted at the end of the candidate ordering.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        use_mcmc (bool): If True, use MCMC to sample ballot types. Defaults to False.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-    Returns:
-        dict[str, RankProfile]: A dictionary mapping bloc names to their corresponding
-            generated preference profiles.
-    """
-    # Save on repeated calls to computed property
-    bloc_lst = config.blocs
-
-    bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
-    )
-    if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
-
-        bloc_counts = [bloc_counts]
-
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-
-    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    numpy_rng = np.random.default_rng(seed=rng_seed)
-    rng = random.Random(rng_seed)
-
-    for bloc in bloc_lst:
-        # number of voters in this bloc
-        n_ballots = ballots_per_bloc[bloc]
-        non_zero_slate_set = {
-            slate for slate in config.slates if cast(float, config.cohesion_df.at[bloc, slate]) > 0
-        }
-
-        zero_slate_set = set(config.slates) - non_zero_slate_set
-
-        if use_mcmc:
-            slate_ballots = _sample_bt_slate_ballots_mcmc(
-                config=config,
-                bloc_name=bloc,
-                n_ballots=n_ballots,
-                non_zero_slate_set=non_zero_slate_set,
-                rng=rng,
-            )
-        else:
-            slate_ballots = _sample_bt_slate_ballots_deterministic(
-                config=config,
-                bloc_name=bloc,
-                n_ballots=n_ballots,
-                non_zero_slate_set=non_zero_slate_set,
-                rng=rng,
-            )
-
-        if len(zero_slate_set) != 0:
-            slate_ballots = _append_zero_slate_symbols(
-                slate_ballots,
-                zero_slate_set,
-                n_ballots,
-                config,
-                numpy_rng=numpy_rng,
-            )
-
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config,
-            bloc,
-            slate_ballots,
-            numpy_rng=numpy_rng,
-        )
-
-    return pref_profile_by_bloc
-
+_DP_SLATE_BT_BATCH_SIZE = 65_536
 
 # =================================================
 # ================= API Functions =================
@@ -368,189 +50,801 @@ def _inner_slate_bradley_terry(
 
 
 def slate_bt_profile_generator(
-    config: BlocSlateConfig, *, group_ballots=True, rng_seed: int | None = None
+    config: BlocSlateConfig,
+    *,
+    group_ballots: bool = True,
+    rng_seed: int | None = None,
 ) -> RankProfile:
-    """
-    Generate a preference profile using the name-BradleyTerry model.
+    r"""
+    Generate a preference profile using the slate-BradleyTerry model.
 
-    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
-    using the cohesion parameters for each slate and the candidate counts of those slates (so
-    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
+    The model separates preferences between slates from preferences among candidates within a
+    slate. A complete candidate ranking determines a sequence of slate symbols, such as AABABB,
+    and an ordering of the candidates belonging to each slate. Cohesion determines the
+    distribution over slate sequences, while candidate supports determine the independent
+    within-slate orderings.
 
-    Once the ballot type is sampled, the candidate names for each of the positions is filled
-    out by sampling without replacement within each slate according to the preference interval
-    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
+    For the current bloc, let :math:`a_j>0` be slate :math:`j`'s cohesion and let
+    :math:`\mathcal G` contain all distinct slate sequences with one occurrence per candidate in
+    each slate. For :math:`m` candidates, a sequence :math:`G=(g_1,\ldots,g_m)\in\mathcal G` has
+    unnormalized weight
 
-    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
-    Candidates with zero support are randomly permuted at the end of the candidate ordering.
+    .. math::
+
+        q(G)=\prod_{u<v:\,g_u\ne g_v}\frac{a_{g_u}}{a_{g_u}+a_{g_v}}.
+
+    Only comparisons between different slates contribute to this weight. Normalizing over
+    :math:`\mathcal G` gives the sequence probability:
+
+    .. math::
+
+        P(G)=\frac{q(G)}{\sum_{G'\in\mathcal G}q(G')}.
+
+    For two candidates from slate A and one from slate B, the possible sequences are AAB, ABA, and
+    BAA. Their weights share a denominator, leaving relative weights
+    :math:`a_A^2`, :math:`a_Aa_B`, and :math:`a_B^2`. With cohesions in the ratio
+    :math:`3:2`, these sequences therefore have probabilities :math:`9/19`, :math:`6/19`, and
+    :math:`4/19`.
+
+    Within each slate, candidates follow the Plackett-Luce distribution defined by their
+    preference interval for the bloc. If slate :math:`j` has :math:`M_j` candidates with positive
+    supports :math:`s_i`, its candidate ordering :math:`R_j=(r_1,\ldots,r_{M_j})` has probability
+
+    .. math::
+
+        P(R_j)=\prod_{u=1}^{M_j}\frac{s_{r_u}}{\sum_{v=u}^{M_j}s_{r_v}}.
+
+    A complete ranking :math:`R` uniquely determines its slate sequence :math:`G(R)` and each
+    within-slate ordering :math:`R_j`. These choices are independent, so its probability is
+    :math:`P(R)=P(G(R))\prod_j P(R_j)`.
+
+    When permitted by the configuration, zero-support candidates form an independently uniform
+    shuffle at the end of their slate's candidate ordering. Slates with zero cohesion follow all
+    positive-cohesion slates, with a uniform distribution over distinct tail sequences having the
+    required slate counts. Within-slate candidate preferences still apply to those tail positions.
+    Both tail policies apply before identical ballots are grouped.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        config (BlocSlateConfig): Slate membership, bloc proportions, cohesion, candidate
+            supports, and voter count.
+        group_ballots (bool, optional): Combine identical complete rankings and sum their weights.
+            Defaults to True.
+        rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None. Seeded
+            samples differ from the enumeration sampler but are reproducible for identical inputs.
 
     Returns:
-        RankProfile: Generated preference profile.
+        RankProfile: Complete rankings with the declared candidate order and total voter weight.
+
+    Raises:
+        ValueError: The configuration is invalid or array sizes exceed the platform index width.
+        MemoryError: Estimated peak memory exceeds currently available RAM.
     """
-    _check_slate_bt_memory(config)
-
     config.is_valid(raise_errors=True)
-    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(rng_seed)
+    rankings, _ = _sample_slate_bt_rankings(config, candidates, rng, group_ballots=group_ballots)
 
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
-
-    if group_ballots:
-        profile = profile.group_ballots()
-
-    return profile
+    return _build_profile_from_rankings(rankings, candidates, group_ballots=group_ballots)
 
 
 def slate_bt_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    group_ballots=True,
+    group_ballots: bool = True,
     rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
     """
-    Generate a dictionary mapping bloc names to ranked preference profiles using the
-    slate-BradleyTerry model.
+    Generate slate-BradleyTerry preference profiles separately for each bloc.
 
-    This model first samples a ballot type (e.g. AABABB) according the the Bradley-Terry model
-    using the cohesion parameters for each slate and the candidate counts of those slates (so
-    the utilities of each of the candidates in a slate are assumed to be uniform in this stage).
-
-    Once the ballot type is sampled, the candidate names for each of the positions is filled
-    out by sampling without replacement within each slate according to the preference interval
-    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
-
-    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
-    Candidates with zero support are randomly permuted at the end of the candidate ordering.
+    Use the same distribution, zero-support policies, and random stream as
+    ``slate_bt_profile_generator``. Both APIs sample the same rankings for a given seed. Blocs
+    follow configuration order and share one seeded NumPy generator. Grouping combines identical
+    complete rankings within each bloc.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        config (BlocSlateConfig): Slate membership, bloc proportions, cohesion, supports, and
+            voter count.
+        group_ballots (bool, optional): Combine identical rankings within each bloc. Defaults to
+            True.
+        rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None.
 
     Returns:
-        dict[str, RankProfile]: Generated preference profiles by bloc.
+        dict[str, RankProfile]: Profiles in bloc order, retaining the declared candidate universe.
+
+    Raises:
+        ValueError: The configuration is invalid or array sizes exceed the platform index width.
+        MemoryError: Estimated peak memory exceeds currently available RAM.
     """
-    _check_slate_bt_memory(config)
     config.is_valid(raise_errors=True)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(rng_seed)
+    rankings, bloc_rows = _sample_slate_bt_rankings(
+        config, candidates, rng, group_ballots=group_ballots
+    )
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, rng_seed=rng_seed)
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
-
-    return pp_by_bloc
+    return {
+        bloc: _build_profile_from_rankings(rankings[rows], candidates, group_ballots=group_ballots)
+        for bloc, rows in bloc_rows.items()
+    }
 
 
-def slate_bt_profile_generator_using_mcmc(
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
+
+
+def _sample_slate_bt_rankings(
     config: BlocSlateConfig,
+    candidates: tuple[Candidate, ...],
+    rng: np.random.Generator,
     *,
-    group_ballots=True,
-    rng_seed: int | None = None,
+    group_ballots: bool,
+) -> tuple[NDArray[np.intp], dict[str, slice]]:
+    """
+    Sample complete candidate rankings into consecutive rows for each apportioned bloc.
+
+    Huntington apportionment determines the row count for each bloc. Each bloc prepares its own
+    slate-count table, samples slate sequences, and fills them with candidate IDs before the next
+    bloc begins. Only one CDF table is retained at a time. The returned slices let both public
+    APIs construct profiles from the same samples without drawing again.
+
+    Args:
+        config (BlocSlateConfig): Validated configuration.
+        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
+        rng (np.random.Generator): Random stream shared by all blocs.
+        group_ballots (bool): Whether to include grouping in the memory estimate.
+
+    Returns:
+        tuple[NDArray[np.intp], dict[str, slice]]: Complete rankings and each bloc's source rows.
+    """
+    slates = tuple(config.slates)
+    blocs = tuple(config.blocs)
+    slate_counts = np.array([len(config.slate_to_candidates[slate]) for slate in slates], dtype=int)
+    cohesion = config.cohesion_df.loc[list(blocs), list(slates)].to_numpy(dtype=np.float64)
+    _check_dp_slate_bt_memory(slate_counts, cohesion, config.n_voters, group_ballots=group_ballots)
+
+    bloc_counts = apportion.compute(
+        "huntington",
+        [config.bloc_proportions[bloc] for bloc in blocs],
+        config.n_voters,
+    )
+    if isinstance(bloc_counts, int):
+        bloc_counts = [bloc_counts]
+
+    ranking_matrix = np.empty((config.n_voters, len(candidates)), dtype=int)
+    bloc_rows: dict[str, slice] = {}
+    row_start = 0
+
+    for bloc, n_bloc_voters, bloc_cohesion in zip(blocs, bloc_counts, cohesion, strict=True):
+        rows = slice(row_start, row_start + n_bloc_voters)
+        bloc_rows[bloc] = rows
+        row_start += n_bloc_voters
+
+        if n_bloc_voters == 0:
+            continue
+
+        slate_sequences = _sample_bloc_slate_sequences(
+            slate_counts, bloc_cohesion, n_voters=n_bloc_voters, rng=rng
+        )
+        _fill_slate_candidate_rankings(
+            config=config,
+            bloc=bloc,
+            candidates=candidates,
+            slate_sequences=slate_sequences,
+            rankings=ranking_matrix[rows],
+            rng=rng,
+        )
+
+    return ranking_matrix, bloc_rows
+
+
+def _sample_bloc_slate_sequences(
+    slate_counts: NDArray[np.intp],
+    cohesion: NDArray[np.float64],
+    n_voters: int,
+    rng: np.random.Generator,
+) -> NDArray[np.intp]:
+    """
+    Sample positive-cohesion slate sequences and append uniformly shuffled zero-cohesion symbols.
+
+    A bloc's slate sequence consists of a positive-cohesion prefix followed by a zero-cohesion
+    tail. Only the positive-cohesion slates enter ``_build_cdf_matrix``, so its columns use a
+    local slate order. ``_sample_sequences_from_cdf`` draws the prefix in that order, after which
+    the sampled IDs are mapped back to the configuration's full slate order. For example, if only
+    A and C have positive cohesion among slates ``(A, B, C)``, their local IDs ``(0, 1)`` become
+    configuration IDs ``(0, 2)``.
+
+    The remaining positions contain one symbol per candidate from each zero-cohesion slate. An
+    independent shuffle of these repeated symbols makes every distinct tail sequence equally
+    likely because each sequence corresponds to the same number of permutations of the individual
+    occurrences. These tails are appended before candidate identities are assigned and before
+    ballots are grouped. The prefix no longer needs its CDF table at that point, so the table is
+    released before allocating tail-sampling buffers.
+
+    Args:
+        slate_counts (NDArray[np.intp]): Candidate count for every slate in configuration order.
+        cohesion (NDArray[np.float64]): Aligned, validated cohesion values for one bloc.
+        n_voters (int): Number of slate sequences to draw.
+        rng (np.random.Generator): Random stream advanced by prefix and tail sampling.
+
+    Returns:
+        NDArray[np.intp]: Complete slate-ID sequences, one row per ballot.
+    """
+    positive_cohesion_slate_ids = np.flatnonzero(cohesion > 0)
+    zero_cohesion_slate_ids = np.flatnonzero(cohesion == 0)
+    positive_slate_counts = slate_counts[positive_cohesion_slate_ids]
+    n_positive_candidates = int(positive_slate_counts.sum())
+    n_candidates = int(slate_counts.sum())
+
+    slate_sequences = np.empty((n_voters, n_candidates), dtype=int)
+    positive_slate_sequences = slate_sequences[:, :n_positive_candidates]
+    cdf_matrix, count_strides = _build_cdf_matrix(
+        positive_slate_counts, cohesion[positive_cohesion_slate_ids]
+    )
+    _sample_sequences_from_cdf(cdf_matrix, count_strides, positive_slate_sequences, rng)
+
+    del cdf_matrix  # Tail sampling does not need to retain the DP table.
+
+    zero_cohesion_symbols = np.repeat(
+        zero_cohesion_slate_ids, slate_counts[zero_cohesion_slate_ids]
+    )
+    for batch_start in range(0, n_voters, _DP_SLATE_BT_BATCH_SIZE):
+        batch_sequences = slate_sequences[batch_start : batch_start + _DP_SLATE_BT_BATCH_SIZE]
+        batch_positive_sequences = batch_sequences[:, :n_positive_candidates]
+        batch_positive_sequences[:] = positive_cohesion_slate_ids[batch_positive_sequences]
+
+        if len(zero_cohesion_symbols):
+            tail_symbols_by_voter = np.broadcast_to(
+                zero_cohesion_symbols, (len(batch_sequences), len(zero_cohesion_symbols))
+            )
+            rng.permuted(
+                tail_symbols_by_voter,
+                axis=1,
+                out=batch_sequences[:, n_positive_candidates:],
+            )
+
+    return slate_sequences
+
+
+def _fill_slate_candidate_rankings(
+    config: BlocSlateConfig,
+    bloc: str,
+    candidates: tuple[Candidate, ...],
+    slate_sequences: NDArray[np.intp],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    r"""
+    Fill each slate's positions with a Plackett-Luce ordering of its candidate IDs.
+
+    A slate sequence determines where each slate's candidates belong, but their identities still
+    need an order. For each slate, ``_sample_slate_candidate_orderings`` draws one candidate
+    ordering per voter. The corresponding positions in that voter's slate sequence then receive
+    those candidate IDs from left to right. For example, sequence ABA and within-slate orders
+    ``(a2, a1)`` and ``(b1,)`` produce the candidate ranking ``(a2, b1, a1)``.
+
+    Every row contains the same number of occurrences of a given slate, allowing its positions to
+    form a rectangular array with one row per voter. Indexed assignment fills those positions in
+    batches, bounding the temporary position and ordering arrays. Slate sequences remain separate
+    from the candidate output because a slate ID and a candidate ID can have the same integer
+    value. The batch size determines how positive-support draws and zero-support tail shuffles
+    interleave, so changing it can change seeded candidate rankings even when the slate sequences
+    remain identical.
+
+    Args:
+        config (BlocSlateConfig): Validated slate membership and preference intervals.
+        bloc (str): Bloc whose within-slate supports apply.
+        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
+        slate_sequences (NDArray[np.intp]): Complete slate-ID sequences in configuration order.
+        rankings (NDArray[np.intp]): Aligned writable output, filled in place with candidate IDs.
+        rng (np.random.Generator): Random stream advanced in slate order, then batch order.
+    """
+    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
+    preference_intervals = config.get_preference_intervals_for_bloc(bloc)
+
+    for slate_id, slate in enumerate(config.slates):
+        slate_candidates = config.slate_to_candidates[slate]
+        slate_candidate_ids = np.array(
+            [candidate_to_id[candidate] for candidate in slate_candidates], dtype=int
+        )
+        slate_candidate_supports = np.array(
+            [preference_intervals[slate].interval[candidate] for candidate in slate_candidates],
+            dtype=np.float64,
+        )
+
+        for batch_start in range(0, len(rankings), _DP_SLATE_BT_BATCH_SIZE):
+            batch_stop = min(batch_start + _DP_SLATE_BT_BATCH_SIZE, len(rankings))
+            batch_slate_sequences = slate_sequences[batch_start:batch_stop]
+            batch_rankings = rankings[batch_start:batch_stop]
+            n_batch_voters = len(batch_rankings)
+
+            # Each row contains the same number of occurrences of this slate.
+            _, slate_positions = np.nonzero(batch_slate_sequences == slate_id)
+            slate_positions_by_voter = slate_positions.reshape(
+                n_batch_voters, len(slate_candidates)
+            )
+
+            candidate_orderings = _sample_slate_candidate_orderings(
+                slate_candidate_ids,
+                slate_candidate_supports,
+                n_voters=n_batch_voters,
+                rng=rng,
+            )
+            voter_rows = np.arange(n_batch_voters)[:, None]
+            batch_rankings[voter_rows, slate_positions_by_voter] = candidate_orderings
+
+
+def _sample_slate_candidate_orderings(
+    candidate_ids: NDArray[np.intp],
+    candidate_supports: NDArray[np.float64],
+    *,
+    n_voters: int,
+    rng: np.random.Generator,
+) -> NDArray[np.intp]:
+    r"""
+    Sample within-slate Plackett-Luce orders followed by uniformly shuffled zero-support tails.
+
+    Positive-support candidates follow the weighted ordering sampled by
+    ``_fast_sample_without_replacement``. Its returned indices are mapped to the supplied
+    candidate IDs. Zero-support candidates are shuffled independently and placed after the
+    positive-support candidates within their slate.
+
+    Args:
+        candidate_ids (NDArray[np.intp]): IDs of the candidates belonging to one slate.
+        candidate_supports (NDArray[np.float64]): Aligned, validated finite nonnegative supports.
+        n_voters (int): Number of independent candidate orderings to draw.
+        rng (np.random.Generator): Random stream advanced by uniform draws, then tail shuffles.
+
+    Returns:
+        NDArray[np.intp]: One complete ordering of the supplied candidate IDs per voter.
+    """
+    positive_support_mask = candidate_supports > 0
+    positive_candidate_ids = candidate_ids[positive_support_mask]
+    zero_support_candidate_ids = candidate_ids[candidate_supports == 0]
+    n_positive_candidates = len(positive_candidate_ids)
+
+    candidate_orderings = np.empty((n_voters, len(candidate_ids)), dtype=int)
+    arrival_order = _fast_sample_without_replacement(
+        candidate_supports[positive_support_mask], n_voters, numpy_rng=rng
+    )
+    candidate_orderings[:, :n_positive_candidates] = positive_candidate_ids[arrival_order]
+
+    if len(zero_support_candidate_ids):
+        tail_candidates_by_voter = np.broadcast_to(
+            zero_support_candidate_ids, (n_voters, len(zero_support_candidate_ids))
+        )
+        rng.permuted(
+            tail_candidates_by_voter,
+            axis=1,
+            out=candidate_orderings[:, n_positive_candidates:],
+        )
+
+    return candidate_orderings
+
+
+def _build_profile_from_rankings(
+    rankings: NDArray[np.intp],
+    candidates: tuple[Candidate, ...],
+    *,
+    group_ballots: bool,
 ) -> RankProfile:
     """
-    Generate a ranked preference profile using the slate-BradleyTerry model.
-
-    This model is mainly useful when then number of possible ballot types is too large
-    to compute the full probability distribution on the present hardware (e.g. more than 12!
-    possible ballot types).
-
-    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
-    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
-    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
-    the swap according to the ratio of the cohesion parameters of the two slates being swapped
-    within a given block.
-
-    Once the ballot type is sampled, the candidate names for each of the positions is filled
-    out by sampling without replacement within each slate according to the preference interval
-    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
-
-    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
-    Candidates with zero support are randomly permuted at the end of the candidate ordering.
+    Construct a RankProfile from sampled candidate IDs with unit ballot weights.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
+        candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
+        group_ballots (bool): Whether to combine identical rankings in the returned profile.
 
     Returns:
-        RankProfile: Generated preference profile.
+        RankProfile: Profile with independent ranking storage and the requested grouping.
     """
-    config.is_valid(raise_errors=True)
+    voter_weight_data = ProfileVoterWeightData(
+        weights=np.ones(len(rankings), dtype=np.float64),
+        voter_sets=None,
+        weight_kind=WeightKind.FLOAT,
+    )
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
+    matrix = RankMatrix.from_candidate_ids(
+        voter_weight_data=voter_weight_data,
+        rankings=rankings,
+        candidates=candidates,
+    )
 
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
-
-    if group_ballots:
-        profile = profile.group_ballots()
-
-    return profile
+    profile = RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))
+    return profile.group_ballots() if group_ballots else profile
 
 
-def slate_bt_profiles_by_bloc_generator_using_mcmc(
-    config: BlocSlateConfig,
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
+
+
+def _check_dp_slate_bt_memory(
+    slate_counts: NDArray[np.intp],
+    cohesion: NDArray[np.float64],
+    n_voters: int,
     *,
-    group_ballots=True,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
+    group_ballots: bool,
+) -> None:
     """
-    Generate a dictionary mapping bloc names to ranked preference profiles using the
-    slate-BradleyTerry model.
+    Check count-table preparation, sampling, and profile construction against available RAM.
 
-    This model is mainly useful when then number of possible ballot types is too large
-    to compute the full probability distribution on the present hardware (e.g. more than 12!
-    possible ballot types).
+    The relevant memory requirement is the largest simultaneous allocation during preparation,
+    sampling, or profile construction. Blocs prepare their positive-cohesion tables sequentially,
+    so only one table is counted at a time alongside the retained ranking arrays. Sampling also
+    needs temporary slate sequences, within-slate candidate orders, and batch buffers. Profile
+    construction requires owned copies, and optional grouping is estimated with every row
+    distinct.
 
-    The MCMC version of this model uses a Markov Chain Monte Carlo method to sample
-    ballot types according to the slate-BradleyTerry model. After selecting a seed ballot,
-    the model proposes swaps of adjacent slates in the ballot type and accepts or rejects
-    the swap according to the ratio of the cohesion parameters of the two slates being swapped
-    within a given block.
-
-    Once the ballot type is sampled, the candidate names for each of the positions is filled
-    out by sampling without replacement within each slate according to the preference interval
-    of that slate in the given bloc (i.e. according to the name-Plackett-Luce model).
-
-    Slates with zero cohesion for the given bloc are randomly permuted at the end of the ballot.
-    Candidates with zero support are randomly permuted at the end of the candidate ordering.
+    These estimates are compared with currently available RAM before the large arrays are
+    allocated. The check can reject a request whose expected peak already exceeds that amount, but
+    it cannot reserve memory against subsequent allocations by other processes.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        slate_counts (NDArray[np.intp]): Candidate counts for all slates.
+        cohesion (NDArray[np.float64]): Bloc-by-slate cohesion values in matching order.
+        n_voters (int): Total output rows across blocs.
+        group_ballots (bool): Whether to include grouping buffers and the grouped profile.
+
+    Raises:
+        ValueError: Array byte sizes exceed the platform index width.
+        MemoryError: The estimated peak exceeds currently available RAM.
+    """
+    index_bytes = np.dtype(np.intp).itemsize
+    float_bytes = np.dtype(np.float64).itemsize
+    n_candidates = sum(int(count) for count in slate_counts)
+    ranking_bytes = n_voters * n_candidates * index_bytes
+    max_array_bytes = np.iinfo(np.intp).max
+
+    if ranking_bytes > max_array_bytes:
+        raise ValueError("Slate-BT ranking storage exceeds the platform array-index width.")
+
+    preparation_peak_bytes = 0
+    sampling_peak_bytes = 0
+    n_batch_voters = min(n_voters, _DP_SLATE_BT_BATCH_SIZE)
+    retained_ranking_bytes = 3 * ranking_bytes
+
+    for bloc_cohesion in cohesion:
+        positive_slate_counts = slate_counts[bloc_cohesion > 0]
+        n_slates = len(positive_slate_counts)
+        n_states = math.prod(int(count) + 1 for count in positive_slate_counts)
+        cdf_bytes = n_states * n_slates * float_bytes
+
+        if cdf_bytes > max_array_bytes:
+            raise ValueError("Slate-BT count table exceeds the platform array-index width.")
+
+        # Log contributions, log totals, and count-state indexing temporaries.
+        preparation_work_bytes = n_states * (n_slates * float_bytes + 10 * index_bytes)
+        bloc_preparation_bytes = retained_ranking_bytes + cdf_bytes + preparation_work_bytes
+        preparation_peak_bytes = max(preparation_peak_bytes, bloc_preparation_bytes)
+
+        cdf_and_comparison_row_bytes = n_slates * (float_bytes + 1)
+        sampling_buffer_bytes = n_batch_voters * (cdf_and_comparison_row_bytes + 3 * index_bytes)
+        voter_state_bytes = n_voters * index_bytes
+        bloc_sampling_bytes = (
+            retained_ranking_bytes + cdf_bytes + voter_state_bytes + sampling_buffer_bytes
+        )
+        sampling_peak_bytes = max(sampling_peak_bytes, bloc_sampling_bytes)
+
+    # Slate positions, candidate permutations, exponential keys, and indexed copies.
+    candidate_ordering_work_bytes = n_batch_voters * n_candidates * (8 * index_bytes + 1)
+    ordering_peak_bytes = retained_ranking_bytes + candidate_ordering_work_bytes
+
+    profile_row_metadata_bytes = n_voters * (4 * index_bytes + 4 * float_bytes)
+    construction_peak_bytes = 4 * ranking_bytes + profile_row_metadata_bytes
+    if group_ballots:
+        grouping_row_metadata_bytes = n_voters * (12 * index_bytes + 4 * float_bytes)
+        construction_peak_bytes = 6 * ranking_bytes + grouping_row_metadata_bytes
+
+    estimated_peak_bytes = max(
+        preparation_peak_bytes,
+        sampling_peak_bytes,
+        ordering_peak_bytes,
+        construction_peak_bytes,
+    )
+    available_gib = system_memory()["available_gib"]
+
+    if estimated_peak_bytes > available_gib * 2**30:
+        raise MemoryError(
+            f"Not enough memory for DP slate-BradleyTerry. Estimated peak is "
+            f"{estimated_peak_bytes / 2**30:.3f} GiB; only {available_gib:.3f} GiB is available. "
+            "Reduce slate sizes or voter count, or use the MCMC generator."
+        )
+
+
+def _build_cdf_matrix(
+    slate_counts: NDArray[np.intp], cohesion: NDArray[np.float64]
+) -> tuple[NDArray[np.float64], NDArray[np.intp]]:
+    r"""
+    Build conditional slate-choice CDFs for every vector of remaining slate counts.
+
+    Sampling a slate sequence one position at a time requires the probability of choosing each
+    slate next, given how many of its candidates remain. Candidate identities do not affect this
+    choice: two prefixes that leave the same counts have the same distribution over subsequent
+    slate symbols. The table prepares that distribution for every possible remaining-count vector.
+
+    Let :math:`d` be the number of positive-cohesion slates, with cohesions :math:`a_j>0`, and let
+    :math:`\mathbf c=(c_0,\ldots,c_{d-1})` contain their remaining counts. A suffix has
+    :math:`k=\sum_j c_j` symbols. Every possible suffix with those counts has the same denominator
+    in the pairwise BT formula, so normalization cancels that denominator. Each comparison between
+    different slates then contributes only the cohesion of whichever slate appears first. Write
+    :math:`Z(\mathbf c)` for the sum of these reduced weights over all distinct suffix sequences.
+
+    To find this total without enumerating the suffixes, group them by their first symbol. A
+    suffix beginning with slate :math:`j` places that symbol ahead of :math:`k-c_j` symbols from
+    other slates, contributing :math:`a_j^{k-c_j}`. The remaining factors form the weight of a
+    suffix with counts :math:`\mathbf c-\mathbf e_j`, where :math:`\mathbf e_j` has a one in
+    position :math:`j` and zeros elsewhere. Summing first within each group and then across
+    possible first symbols gives
+
+    .. math::
+
+        Z(\mathbf 0)=1,\qquad
+        Z(\mathbf c)=\sum_{j:c_j>0}a_j^{k-c_j}Z(\mathbf c-\mathbf e_j).
+
+    No factor :math:`c_j` is needed because these branches distinguish slate symbols, not
+    candidate identities. For counts corresponding to AAB, there is one branch beginning with A,
+    whose continuations are AB and BA. Treating the two A occurrences as separate choices would
+    count those same sequences twice. Candidate identities receive their own orderings later.
+
+    Every term uses a total for one fewer remaining symbol, which determines the order of
+    preparation. The empty suffix has one ordering with weight one. A suffix containing only one
+    slate also has weight one because it contains no comparisons between different slates.
+    Starting from these cases, the implementation processes states by increasing total count. For
+    two A symbols and one B symbol with cohesions :math:`a_A=3` and :math:`a_B=2`, it first
+    obtains :math:`Z(1,1)=3+2=5` and :math:`Z(2,0)=1`, then combines them:
+
+    .. math::
+
+        Z(2,1)=3^1Z(1,1)+2^2Z(2,0)=15+4=19.
+
+    The first contribution accounts for AAB and ABA, whose reduced weights are nine and six. The
+    second accounts for BAA, whose weight is four. Dividing each contribution by their total gives
+    first-choice probabilities :math:`15/19` for A and :math:`4/19` for B. The same reasoning
+    applies after any fixed prefix: its internal comparisons and comparisons with the remaining
+    symbols contribute a common factor to every continuation. That factor cancels, leaving
+
+    .. math::
+
+        p(j\mid\mathbf c)=\frac{a_j^{k-c_j}Z(\mathbf c-\mathbf e_j)}{Z(\mathbf c)}.
+
+    Although the resulting probabilities may be ordinary-sized numbers, the products used to
+    obtain them can underflow when cohesions are small or overflow when unnormalized cohesions are
+    large. Computing their logarithms preserves the information needed to form the ratios without
+    constructing those products. ``log_total_suffix_weight`` stores
+    :math:`L(\mathbf c)=\log Z(\mathbf c)`, and ``log_next_slate_weights`` holds each available
+    slate's contribution :math:`(k-c_j)\log a_j+L(\mathbf c-\mathbf e_j)`. Log-sum-exp combines
+    these contributions into :math:`L(\mathbf c)`. Subtracting that total and exponentiating
+    produces the conditional probabilities. Exhausted slates have log contribution minus infinity
+    and therefore probability zero.
+
+    These totals and probabilities need one array row for each count vector. With initial counts
+    :math:`\mathbf M=(M_0,\ldots,M_{d-1})`, slate :math:`j` can have any count from zero through
+    :math:`M_j`, giving it :math:`M_j+1` possible values. Treating each count as a digit encodes
+    the vector as a single integer. Unlike decimal notation, the digits can have different bases,
+    so this is a mixed-radix encoding. ``count_radices`` contains those bases, while
+    ``count_strides`` contains the place value of each digit:
+
+    .. math::
+
+        h_0=1,\qquad h_j=\prod_{i<j}(M_i+1),\qquad
+        b(\mathbf c)=\sum_j c_jh_j.
+
+    For the AAB example, A's count has three possible values and B's has two. Their strides are
+    therefore :math:`(1,3)`, and :math:`b(c_A,c_B)=c_A+3c_B`. The six array rows represent
+
+    .. math::
+
+        \begin{array}{c|rrrrrr}
+        b(\mathbf c) & 0 & 1 & 2 & 3 & 4 & 5 \\
+        \mathbf c & (0,0) & (1,0) & (2,0) & (0,1) & (1,1) & (2,1)
+        \end{array}
+
+    The initial counts occupy row five. Choosing A subtracts its stride of one, reaching row four
+    for counts :math:`(1,1)`; choosing B subtracts three, reaching row two for counts
+    :math:`(2,0)`. Both preparation and sampling can therefore locate the next state by subtracting
+    the chosen slate's stride. Row zero represents the empty suffix and is never sampled.
+
+    Each nonempty row stores cumulative conditional probabilities in slate order. In the example,
+    row five is :math:`(15/19,1)` and row four is :math:`(3/5,1)`. An exhausted slate contributes
+    no probability, so its column leaves the cumulative value unchanged. Every row should end at
+    one because it includes all possible next choices. Dividing by the final cumulative value
+    corrects small floating point accumulation errors before the row is stored.
+
+    There are :math:`N=\prod_j(M_j+1)` states and :math:`d` columns, so the retained float64 table
+    occupies :math:`8dN` bytes in addition to the strides and temporary preparation buffers.
+    Transition calculations take :math:`O(dN)` work. Selecting states by total count also scans
+    the state vector once for each of the :math:`m=\sum_j M_j` positions, taking :math:`O(mN)`
+    additional work.
+
+    Args:
+        slate_counts (NDArray[np.intp]): Positive candidate counts in local slate-ID order.
+        cohesion (NDArray[np.float64]): Aligned finite, positive cohesion values. The caller
+            validates inputs and checks memory before allocating the table.
 
     Returns:
-        dict[str, RankProfile]: Generated preference profiles by bloc.
+        tuple[NDArray[np.float64], NDArray[np.intp]]: An ``(N, d)`` conditional CDF table and the
+            stride to subtract when each slate is chosen.
     """
-    config.is_valid(raise_errors=True)
+    n_slates = len(slate_counts)
+    n_candidates = int(slate_counts.sum())
+    count_radices = slate_counts + 1
+    count_strides = np.ones(n_slates, dtype=int)
+    np.cumprod(count_radices[:-1], out=count_strides[1:])
 
-    pp_by_bloc = _inner_slate_bradley_terry(config, use_mcmc=True, rng_seed=rng_seed)
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+    n_states = math.prod(int(radix) for radix in count_radices)
+    count_state_ids = np.arange(n_states, dtype=int)
+    n_candidates_by_state = np.zeros(n_states, dtype=int)
 
-    return pp_by_bloc
+    for count_radix, count_stride in zip(count_radices, count_strides, strict=True):
+        remaining_slate_counts = (count_state_ids // count_stride) % count_radix
+        n_candidates_by_state += remaining_slate_counts
+
+    log_cohesion = np.log(cohesion)
+    log_total_suffix_weight = np.full(n_states, -np.inf)
+
+    # The empty suffix has one ordering with weight one.
+    log_total_suffix_weight[0] = 0
+
+    cdf_matrix = np.zeros((n_states, n_slates), dtype=np.float64)
+
+    for n_remaining_candidates in range(1, n_candidates + 1):
+        states_with_n_remaining_candidates = count_state_ids[
+            n_candidates_by_state == n_remaining_candidates
+        ]
+        n_selected_states = len(states_with_n_remaining_candidates)
+        log_next_slate_weights = np.full((n_selected_states, n_slates), -np.inf)
+
+        for slate_id, count_stride in enumerate(count_strides):
+            remaining_slate_counts = (
+                states_with_n_remaining_candidates // count_stride
+            ) % count_radices[slate_id]
+            slate_is_available = remaining_slate_counts > 0
+
+            successor_state_ids = (
+                states_with_n_remaining_candidates[slate_is_available] - count_stride
+            )
+            n_candidates_in_other_slates = (
+                n_remaining_candidates - remaining_slate_counts[slate_is_available]
+            )
+            log_next_slate_weights[slate_is_available, slate_id] = (
+                n_candidates_in_other_slates * log_cohesion[slate_id]
+                + log_total_suffix_weight[successor_state_ids]
+            )
+
+        log_state_totals = np.empty(n_selected_states, dtype=np.float64)
+        np.logaddexp.reduce(log_next_slate_weights, axis=1, out=log_state_totals)
+        log_total_suffix_weight[states_with_n_remaining_candidates] = log_state_totals
+
+        # Reuse the working array for probabilities, then cumulative probabilities.
+        state_cdfs = log_next_slate_weights
+        state_cdfs -= log_state_totals[:, None]
+
+        np.exp(state_cdfs, out=state_cdfs)
+        np.cumsum(state_cdfs, axis=1, out=state_cdfs)
+
+        state_cdfs /= state_cdfs[:, -1:]
+
+        cdf_matrix[states_with_n_remaining_candidates] = state_cdfs
+        del state_cdfs, log_next_slate_weights
+
+    return cdf_matrix, count_strides
+
+
+def _sample_sequences_from_cdf(
+    cdf_matrix: NDArray[np.float64],
+    count_strides: NDArray[np.intp],
+    sequences: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    r"""
+    Fill slate sequences using conditional CDFs and one remaining-count state per voter.
+
+    The table prepared by ``_build_cdf_matrix`` gives the next-slate distribution for every vector
+    of remaining counts. Sampling therefore keeps one state index per voter: look up its CDF,
+    choose a slate, subtract that slate's stride, and continue from the resulting state. For
+    :math:`n` voters and :math:`m` positions, the function writes these choices into the supplied
+    :math:`(n,m)` array as zero-based slate IDs in CDF column order.
+
+    A CDF row divides :math:`[0,1)` into intervals whose lengths are the next-slate probabilities.
+    A uniform draw selects the first column whose cumulative probability exceeds it. Consider the
+    preparation example with two A symbols, one B symbol, and cohesions :math:`(3,2)`. Its initial
+    counts :math:`(2,1)` have state index five and CDF :math:`(15/19,1)`. A draw of :math:`0.5`
+    lies in A's interval, so it selects slate ID zero. Subtracting A's stride of one changes the
+    state index to four, representing remaining counts :math:`(1,1)`.
+
+    The next lookup uses row four, whose CDF is :math:`(3/5,1)`. A draw of :math:`0.8` selects B,
+    whose ID is one and whose stride is three. The state becomes one, representing counts
+    :math:`(1,0)`, so A is the only remaining choice. Its selection completes the sequence ABA,
+    stored as ``(0, 1, 0)``, and brings the state index to zero. Each step removes one occurrence
+    of an available slate, ensuring that the final sequence contains the required counts.
+
+    The probability of that path is :math:`(15/19)(2/5)(1)=6/19`, matching ABA's reduced weight
+    divided by the total completion weight. More generally, each conditional probability contains
+    the next state's completion total in its numerator and the current state's total in its
+    denominator. Multiplying along a path cancels the intermediate totals, leaving the sequence's
+    reduced weight divided by the initial total. The conditional choices thus reproduce the
+    slate-BT distribution up to the approximation in the stored float64 probabilities.
+
+    To make these choices for many voters at once, the implementation finds the selected column by
+    counting the CDF entries at or below each draw. Because the row is nondecreasing, those are
+    precisely the entries preceding the first larger threshold. For row :math:`(3/5,1)` and draw
+    :math:`0.8`, the comparisons give ``(True, False)``. Their sum is one, selecting B. With
+    :math:`d` slates, the rule is
+
+    .. math::
+
+        j=\sum_{i=0}^{d-1}\mathbf 1\{\mathrm{cdf}[b(\mathbf c),i]\leq u\}.
+
+    Exhausted slates fit the same rule because their intervals have length zero. If A has been
+    exhausted and B remains, the row is :math:`(0,1)`. Even a draw of exactly zero gives
+    ``(True, False)`` and selects B. Counting thresholds equal to the draw skips zero-width
+    intervals instead of accidentally selecting an exhausted slate. The final threshold is one,
+    while draws are strictly below one, so the selected column remains within the table.
+
+    Different voters can reach different states at the same position. ``voter_cdf_rows`` gathers
+    the appropriate row for each voter in a batch, and ``draws[:, None]`` aligns each draw with
+    that voter's thresholds. Comparing across columns and summing gives one slate ID per voter.
+    Those IDs are written to the output, and their strides update the state indices for the next
+    position.
+
+    Batching bounds these temporary arrays without changing which draws reach which voters.
+    Positions form the outer loop, so all voters receive their first draw before any receives a
+    second one. Changing the batch size therefore preserves the slate sequences for a fixed random
+    stream. Every position consumes a draw, including a forced final symbol. Apart from the
+    prepared table and output, the function retains one state index per voter and buffers for
+    :math:`b` voters, using :math:`O(n+bd)` auxiliary storage. Comparing all :math:`d` thresholds
+    at each of :math:`m` positions takes :math:`O(nmd)` work.
+
+    Args:
+        cdf_matrix (NDArray[np.float64]): Prepared CDF rows indexed by remaining-count state.
+            Nonempty rows end at one and assign zero probability to exhausted slates.
+        count_strides (NDArray[np.intp]): State decrement for each CDF column.
+        sequences (NDArray[np.intp]): Writable output with one row per voter and one column per
+            positive-cohesion candidate, filled in place with local slate IDs.
+        rng (np.random.Generator): Random stream advanced in position order, then voter order.
+    """
+    n_voters, n_positions = sequences.shape
+    batch_size = _DP_SLATE_BT_BATCH_SIZE
+    buffer_rows = min(batch_size, n_voters)
+    n_slates = len(count_strides)
+    remaining_state_ids = np.full(n_voters, len(cdf_matrix) - 1, dtype=int)
+
+    voter_cdf_rows = np.empty((buffer_rows, n_slates), dtype=np.float64)
+    passed_thresholds = np.empty(voter_cdf_rows.shape, dtype=bool)
+    chosen_slate_ids = np.empty(buffer_rows, dtype=int)
+
+    # Keep positions outside batches so batching preserves the seeded slate sequences.
+    for position in range(n_positions):
+        for batch_start in range(0, n_voters, batch_size):
+            batch_stop = min(batch_start + batch_size, n_voters)
+            n_batch_voters = batch_stop - batch_start
+            batch_state_ids = remaining_state_ids[batch_start:batch_stop]
+
+            batch_cdf_rows = voter_cdf_rows[:n_batch_voters]
+            batch_passed_thresholds = passed_thresholds[:n_batch_voters]
+            batch_chosen_slate_ids = chosen_slate_ids[:n_batch_voters]
+            np.take(
+                cdf_matrix,
+                batch_state_ids,
+                axis=0,
+                out=batch_cdf_rows,
+                mode="clip",
+            )
+
+            draws = rng.random(n_batch_voters)
+            np.greater_equal(
+                draws[:, None],
+                batch_cdf_rows,
+                out=batch_passed_thresholds,
+            )
+            np.sum(
+                batch_passed_thresholds,
+                axis=1,
+                dtype=int,
+                out=batch_chosen_slate_ids,
+            )
+
+            sequences[batch_start:batch_stop, position] = batch_chosen_slate_ids
+            batch_state_ids -= count_strides[batch_chosen_slate_ids]

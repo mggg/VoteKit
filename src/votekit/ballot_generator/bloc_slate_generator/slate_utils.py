@@ -39,13 +39,13 @@ def _lexicographic_symbol_tuple_iterator(
     # sort lexicographically
     current_symbol_perm = sorted(symbol_list)
 
-    # Idea here is to make the smallest possible change to the between steps that increases
-    # the lexicographic cost (so we will find the next thing in the lexicographic ordering)
+    # Idea here is to make the smallest possible change to the between steps that increases the
+    # lexicographic cost (so we will find the next thing in the lexicographic ordering)
     while True:
         yield tuple(current_symbol_perm)
 
-        # find the longest non-increasing suffix (fails when you have reverse lex order and returns)
-        # start from the right and stop when you find a[i] < a[i+1]
+        # find the longest non-increasing suffix (fails when you have reverse lex order and
+        # returns) start from the right and stop when you find a[i] < a[i+1]
         i = n - 2
         while i >= 0 and current_symbol_perm[i] >= current_symbol_perm[i + 1]:
             i -= 1
@@ -69,34 +69,49 @@ def _lexicographic_symbol_tuple_iterator(
 
 
 def _fast_sample_without_replacement(
-    weights: NDArray,
+    weights: NDArray[np.float64],
     n_samples: int,
     *,
     numpy_rng: Generator | None = None,
-) -> np.ndarray:
-    """
-    Sample without replacement from a distribution given by the weights.
-    All weights must be non-zero, and the sample will be a sorted list of indices
-    corresponding to the weights.
+) -> NDArray[np.intp]:
+    r"""
+    Sample complete weighted rankings without replacement, returning candidate indices.
 
-    Algorithm A from https://doi.org/10.1016/j.ipl.2005.11.003
+    Each next candidate has probability proportional to its weight among those remaining. For
+    independent uniform draws :math:`U_i`, sorting :math:`U_i^{1/w_i}` from largest to smallest
+    produces this Plackett-Luce distribution. Forming those powers directly can underflow for
+    small weights, collapsing distinct keys to zero and biasing the resulting order.
+
+    Instead, sort :math:`\log(-\log U_i)-\log w_i` from smallest to largest. These are the log
+    arrival times of independent exponential variables with rates :math:`w_i`, giving the same
+    ordering without forming the powers or dividing by small weights. An exact uniform draw of
+    zero gives an infinite arrival time and places that candidate last.
+
+    This method of weighted sampling without replacement is Algorithm A from
+    https://doi.org/10.1016/j.ipl.2005.11.003.
 
     Args:
-        weights (np.NDArray): The weights of the distribution.
-        n_samples (int): Number of samples to generate.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
-            for reproducible results. Defaults to None for non-deterministic results.
+        weights (NDArray[np.float64]): One-dimensional, finite, strictly positive candidate
+            weights. They need not sum to one. The caller is expected to validate these
+            conditions.
+        n_samples (int): Number of independent complete rankings to generate.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance for
+            reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        np.ndarray: The sampled indices, n_samples x n_cands.
+        NDArray[np.intp]: An ``(n_samples, len(weights))`` array with each row containing every
+            candidate index once, in sampled preference order.
     """
     n_cands = len(weights)
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    uniform = numpy_rng.uniform(0, 1, size=(n_samples, n_cands))
-    uniform = uniform ** (1 / weights)
-    # want the largest values to be first
-    indices = np.flip(np.argsort(uniform, axis=1), axis=1)
-    return indices
+    log_arrival_times = numpy_rng.uniform(0, 1, size=(n_samples, n_cands))
+    with np.errstate(divide="ignore"):
+        np.log(log_arrival_times, out=log_arrival_times)
+        log_arrival_times *= -1
+        np.log(log_arrival_times, out=log_arrival_times)
+
+    log_arrival_times -= np.log(weights)
+    return np.argsort(log_arrival_times, axis=1)
 
 
 def _construct_slate_to_candidate_ordering_arrays(
@@ -107,24 +122,24 @@ def _construct_slate_to_candidate_ordering_arrays(
     numpy_rng: Generator | None = None,
 ) -> dict[str, np.ndarray]:
     """
-    Create candidate orderings within each slate based on preference intervals.
-    Orders non-zero support candidates by sampling without replacement according to the
-    preference intervals. Randomly permutes candidates with 0 support at the end of the
-    ordering.
+    Create candidate orderings within each slate based on preference intervals. Orders non-zero
+    support candidates by sampling without replacement according to the preference intervals.
+    Randomly permutes candidates with 0 support at the end of the ordering.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         bloc (str): The name of the bloc.
         n_samples (int): Number of candidate orderings to generate.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
-            for reproducible results. Defaults to None for non-deterministic results.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance for
+            reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
         dict[str, np.ndarray]: A dictionary mapping slate names to an n_samples x n_cands matrix
             of candidate orderings.
     """
     results: dict[str, np.ndarray] = {}
+    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
     pref_intervals_by_slate_dict = config.get_preference_intervals_for_bloc(bloc)
 
     for slate in config.slates:
@@ -136,9 +151,17 @@ def _construct_slate_to_candidate_ordering_arrays(
         )
 
         cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
-        distribution = np.array([preference_interval[c] for c in candidates])
-        indices = _fast_sample_without_replacement(distribution, n_samples, numpy_rng=numpy_rng)
-        cand_ordering[:, : len(candidates)] = cands_list[indices]
+        distribution = np.array([preference_interval[c] for c in candidates], dtype=np.float64)
+        positive_ids = np.flatnonzero(distribution > 0)
+        zero_ids = np.flatnonzero(distribution == 0)
+        indices = _fast_sample_without_replacement(
+            distribution[positive_ids], n_samples, numpy_rng=rng
+        )
+        cand_ordering[:, : len(positive_ids)] = cands_list[positive_ids[indices]]
+
+        if len(zero_ids):
+            tail_candidates = np.broadcast_to(cands_list[zero_ids], (n_samples, len(zero_ids)))
+            rng.permuted(tail_candidates, axis=1, out=cand_ordering[:, len(positive_ids) :])
 
         results[slate] = cand_ordering
 
@@ -212,8 +235,8 @@ def _convert_slate_ballots_to_profile(
     numpy_rng: Generator | None = None,
 ) -> RankProfile:
     """
-    Convert slate ballot types to a preference profile, filling out
-    candidate orderings for each slate.
+    Convert slate ballot types to a preference profile, filling out candidate orderings for each
+    slate.
 
     Args:
         config (BlocSlateConfig): Configuratioxn object containing all necessary parameters for
@@ -275,8 +298,8 @@ def _append_zero_slate_symbols(
     numpy_rng: Generator | None = None,
 ) -> list[tuple[str, ...]]:
     """
-    Append zero cohesion slate symbols to the end of slate ballot types.
-    Randomly permutes the zero cohesion slate symbols for each ballot.
+    Append zero cohesion slate symbols to the end of slate ballot types. Randomly permutes the
+    zero cohesion slate symbols for each ballot.
 
     Args:
         ballots (list[tuple[str, ...]]): List of slate ballot types.
@@ -284,11 +307,12 @@ def _append_zero_slate_symbols(
         n_ballots (int): The number of ballots to generate.
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
-            for reproducible results. Defaults to None for non-deterministic results.
+        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance for
+            reproducible results. Defaults to None for non-deterministic results.
 
     Returns:
-        list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols appended.
+        list[list[str, ...]]: List of slate ballot types with zero cohesion slate symbols
+            appended.
     """
     zero_slate_symbols = [
         slate for slate in sorted(zero_slate_set) for c in config.slate_to_candidates[slate]

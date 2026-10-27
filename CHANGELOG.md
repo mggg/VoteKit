@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Changed
 
+- Direct slate-BradleyTerry generators now use count-based dynamic programming, batched sampling,
+  and matrix-based profile construction for any number of slates. A peak-memory estimate replaces
+  the permutation-count cutoff.
 - Direct name-BradleyTerry generators now use subset dynamic programming and batched NumPy
   sampling, with matrix-based profile construction and a memory estimate replacing the
   12-candidate cutoff.
@@ -20,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   still have positive total support.
 
 ## Fixed
+
+- Shared within-slate weighted sampling now uses log arrival times to avoid underflow bias for
+  small supports.
+- Slate generators now uniformly shuffle zero-support candidates at the end of each slate's
+  candidate ordering, as documented, rather than leaving their order to a tied sort.
 
 ## [3.5.0] - 2026-08-06
 
