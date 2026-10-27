@@ -4,13 +4,13 @@ Generate ranked preference profiles using the name-BradleyTerry model.
 The main API functions in this module are:
 
 - `name_bt_profile_generator`: Generates a single preference profile using the name-BradleyTerry
-    model.
+  model.
 - `name_bt_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
-    name-BradleyTerry model.
+  name-BradleyTerry model.
 - `name_bt_profile_generator_using_mcmc`: Generates a single preference profile using MCMC
-    sampling from the name-BradleyTerry model.
+  sampling from the name-BradleyTerry model.
 - `name_bt_profiles_by_bloc_generator_using_mcmc`: Generates preference profiles by bloc using
-    MCMC sampling from the name-BradleyTerry model.
+  MCMC sampling from the name-BradleyTerry model.
 """
 
 from __future__ import annotations
@@ -53,13 +53,14 @@ def name_bt_profile_generator(
 
     The full distribution is defined over all complete rankings of the declared candidates.
 
-    Let :math:`C` contain :math:`n` candidates with positive supports :math:`s_i`. Let
+    Let :math:`C` contain :math:`m` candidates with positive supports :math:`s_i`. Let
 
     .. math::
 
-        \pi=(\pi_1,\ldots,\pi_n)
+        R=(r_1,\ldots,r_m)\in S_C
 
-    denote a complete ranking from first to last.
+    denote a complete ranking from first to last, where :math:`S_C` is the symmetric group on
+    :math:`C`, represented here as all orderings of its candidates.
 
     The pairwise Bradley–Terry probability is
 
@@ -67,41 +68,45 @@ def name_bt_profile_generator(
 
         P(i\succ j)=\frac{s_i}{s_i+s_j}.
 
-    Multiplying the pairwise factors consistent with ranking :math:`\pi` gives its unnormalized
+    Multiplying the pairwise factors consistent with ranking :math:`R` gives its unnormalized
     ranking weight:
 
     .. math::
 
-        q(\pi) = \prod_{1\le r<t\le n} \frac{s_{\pi_r}}{s_{\pi_r}+s_{\pi_t}}.
+        q(R) = \prod_{1\le a<b\le m} \frac{s_{r_a}}{s_{r_a}+s_{r_b}}.
 
     The probability distribution over all complete rankings is then computed by normalizing the
     weights:
 
     .. math::
 
-        P(\pi) = \frac{q(\pi)} {\sum_{\sigma\in S_C}q(\sigma)}.
+        P(R) = \frac{q(R)}{\sum_{R'\in S_C}q(R')}.
 
-    Where :math:`S_C` is the set of all permutations of the candidates.
-
-    For three candidates, the denominator expands to
+    Every ranking contains the same pairwise denominator, so that factor cancels when the weights
+    are normalized. Equivalently, use the weights
 
     .. math::
 
-        Z = s_A^2s_B+s_A^2s_C +s_B^2s_A+s_B^2s_C +s_C^2s_A+s_C^2s_B,
+        w(R)=\prod_{j=1}^m s_{r_j}^{m-j},
+        \qquad Z(C)=\sum_{R'\in S_C}w(R'),
+        \qquad P(R)=\frac{w(R)}{Z(C)}.
+
+    For the three-candidate set :math:`\{A,B,C\}`, this reduced normalizer expands to
+
+    .. math::
+
+        Z(\{A,B,C\}) = s_A^2s_B+s_A^2s_C +s_B^2s_A+s_B^2s_C +s_C^2s_A+s_C^2s_B,
 
     so, for example,
 
     .. math::
 
-        P(A\succ B\succ C)=\frac{s_A^2s_B}{Z}.
+        P(A\succ B\succ C)=\frac{s_A^2s_B}{Z(\{A,B,C\})}.
 
-    Zero support is rejected unless ``config.allow_zero_support_candidates`` is True. When
-    enabled, sample each bloc's positive-support candidates from the distribution above, then
-    append a uniformly random permutation of its zero-support candidates independently for
-    each ballot. Group identical complete rankings only after appending these tails. A single
-    zero-support candidate therefore always appears last. This defines an extension of the
-    model when multiple candidates have zero support; each bloc must retain positive total
-    support. Both prefix and tail sampling use the seeded generator.
+    If ``config.allow_zero_support_candidates`` is True, sample the positive-support candidates
+    first, then append an independent uniform shuffle of the zero-support candidates to each
+    ballot before grouping. This extends the model to multiple zero-support candidates. Each bloc
+    must retain positive total support; zero support is otherwise rejected.
 
     Args:
         config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
@@ -134,12 +139,9 @@ def name_bt_profiles_by_bloc_generator(
 ) -> dict[str, RankProfile]:
     """Generate name-BradleyTerry preference profiles separately for each bloc.
 
-    Use the same DP distribution and random stream as ``name_bt_profile_generator``. Blocs follow
-    configuration order and share one seeded NumPy generator. When zero support is enabled in the
-    configuration, each ballot ranks its bloc's positive-support candidates first and appends an
-    independent, uniformly random permutation of the zero-support candidates. Grouping then
-    combines identical complete rankings within each bloc. Each bloc must retain positive total
-    support.
+    Use the same distribution, zero-support policy, and random stream as
+    ``name_bt_profile_generator``. Blocs follow configuration order and share one seeded NumPy
+    generator. Grouping combines identical complete rankings within each bloc.
 
     Args:
         config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
@@ -182,7 +184,14 @@ def _sample_name_bt_rankings(
     *,
     group_ballots: bool,
 ) -> tuple[NDArray[np.intp], dict[str, slice]]:
-    """Sample complete rankings into one array, retaining each bloc's source rows.
+    """
+    Sample complete rankings into one array, retaining each bloc's source rows.
+
+    Huntington apportionment assigns an integer voter count to each bloc before ranking sampling
+    begins. Each bloc then uses its own combined preference interval to prepare conditional
+    ranking probabilities. Its voters occupy consecutive rows in configuration order, so the
+    combined and per-bloc APIs can use the same samples without another draw. All blocs share one
+    random generator; a separate DP table is prepared for each interval.
 
     Args:
         config (BlocSlateConfig): Validated configuration with positive total support per bloc.
@@ -247,7 +256,13 @@ def _sample_bloc_rankings(
     rankings: NDArray[np.intp],
     rng: np.random.Generator,
 ) -> None:
-    """Fill a bloc's rankings with BT prefixes and independent uniform zero-support tails.
+    """
+    Sample a bloc's complete rankings from its conditional next-candidate probabilities.
+
+    Prepare the CDF table with ``_build_cdf_matrix`` and draw rankings with
+    ``_sample_rankings_from_cdf``. Map sampled indices back to the full candidate order and apply
+    the zero-support tail policy described in ``name_bt_profile_generator`` before returning the
+    completed rows for profile construction and optional grouping.
 
     Args:
         candidates (tuple[Candidate, ...]): Full candidate universe in matrix-ID order.
@@ -381,7 +396,130 @@ def _check_dp_name_bt_memory(
 def _build_cdf_matrix(
     candidates: tuple[Candidate, ...], candidate_supports: NDArray[np.float64]
 ) -> NDArray[np.float64]:
-    """Build conditional next-candidate CDFs for every remaining-candidate subset.
+    r"""
+    Build conditional next-candidate CDFs for every remaining-candidate subset.
+
+    Sampling a ranking one position at a time requires the probability of choosing each candidate
+    next, given those still unranked. This table prepares those probabilities for every possible
+    remaining subset. Let :math:`C` contain :math:`m` candidates with positive supports
+    :math:`s_i`, and let :math:`U\subseteq C` contain the :math:`k` candidates still available.
+    Its possible suffix rankings are the elements :math:`R=(r_1,\ldots,r_k)` of the symmetric
+    group :math:`S_U`. Because the pairwise BT formula assigns the same denominator to every
+    ranking of :math:`U`, that denominator cancels during normalization, leaving the reduced
+    ranking weights and their total:
+
+    .. math::
+
+        w(R)=\prod_{j=1}^k s_{r_j}^{k-j},
+        \qquad Z(U)=\sum_{R'\in S_U}w(R').
+
+    To compute this total without enumerating every ranking, partition the suffixes by their first
+    candidate. A suffix beginning with :math:`i` contributes :math:`s_i^{k-1}` from that position
+    because :math:`i` precedes each of the other :math:`k-1` candidates. The remaining factors
+    form the weight of a ranking of :math:`U\setminus\{i\}`, so summing over all suffixes
+    beginning with :math:`i` gives :math:`s_i^{k-1}Z(U\setminus\{i\})`. Summing these
+    contributions over the possible first candidates yields the recurrence
+
+    .. math::
+
+        Z(\varnothing)=1,\qquad
+        Z(U)=\sum_{i\in U}s_i^{k-1}Z(U\setminus\{i\}).
+
+    Every term refers to a smaller subset, which determines the order of computation. The empty
+    set and each singleton have one ordering with no pairwise comparisons and therefore weight
+    one. Starting from these totals, the implementation works through subsets of increasing size,
+    reusing the totals already computed. For supports
+    :math:`s_A=3`, :math:`s_B=2`, and :math:`s_C=1`, the singleton totals first give
+
+    .. math::
+
+        Z(\{A,B\})=5,\qquad Z(\{A,C\})=4,\qquad Z(\{B,C\})=3.
+
+    Each first choice from the three-candidate set leaves one of these pairs. Their totals are now
+    available, so the next calculation combines three stored values to obtain the weight of all
+    six complete rankings:
+
+    .. math::
+
+        Z(\{A,B,C\})
+        =3^2Z(\{B,C\})+2^2Z(\{A,C\})+1^2Z(\{A,B\})
+        =27+16+5=48.
+
+    The same contributions determine the next-candidate probabilities: the weight of all suffixes
+    beginning with :math:`i` is divided by the weight of all suffixes. Any fixed prefix
+    contributes a common factor that cancels from this ratio, so only the remaining set :math:`U`
+    matters:
+
+    .. math::
+
+        p(i\mid U)=\frac{s_i^{k-1}Z(U\setminus\{i\})}{Z(U)}
+        \quad (i\in U).
+
+    Although this ratio may be well within float64's range, its numerator and denominator can be
+    too small to represent. With 24 candidates each having support :math:`1/24`, for example, a
+    complete ranking has weight :math:`(1/24)^{276}`, below the smallest positive float64 value,
+    yet each candidate's first-choice probability is :math:`1/24`. Computing the weights directly
+    would lose the information needed to recover that probability. The implementation instead
+    stores their logarithms, turning products into sums and powers into multiplication. This also
+    avoids overflow when unnormalized supports produce very large weights.
+
+    In this representation, ``log_total_suffix_weight`` holds :math:`L(U)=\log Z(U)`, and the
+    contribution of candidate :math:`i` becomes
+
+    .. math::
+
+        \ell_i(U)=
+        \begin{cases}
+            (k-1)\log s_i+L(U\setminus\{i\}), & i\in U,\\
+            -\infty, & i\notin U.
+        \end{cases}
+
+    These contributions are stored in ``log_next_cand_weights``. Applying ``np.logaddexp.reduce``
+    computes :math:`L(U)=\log\sum_i\exp(\ell_i(U))` without first exponentiating the unnormalized
+    weights. Normalization then takes place by subtraction, giving
+    :math:`p(i\mid U)=\exp(\ell_i(U)-L(U))` without forming the potentially unrepresentable
+    numerator or denominator. Thus, the earlier example is evaluated using log totals of zero for
+    the empty set and singletons, followed by :math:`\log 5`,
+    :math:`\log 4`, and :math:`\log 3` for the pairs and :math:`\log 48` for the full set.
+    The final probabilities still have float64 precision, so extremely small probabilities may
+    round to zero.
+
+    Once these probabilities are known, the sampler needs to locate the row for its current
+    remaining subset. Each subset is encoded as an integer bitmask using the candidates'
+    zero-based positions in ``candidates``: bit :math:`2^i` is present exactly when candidate
+    :math:`i` belongs to :math:`U`. The mask :math:`b(U)=\sum_{i\in U}2^i` therefore assigns
+    every subset a unique row number between zero and :math:`2^m-1`.
+
+    For candidate order ``(A, B, C)``, the assigned bits are ``0b001``, ``0b010``, and ``0b100``.
+    Since binary notation places the lowest bit on the right, the three bit positions read from
+    left to right as C, B, A. The subset :math:`U=\{A,C\}` is therefore ``0b101``, with A and C
+    present and B absent:
+
+    .. math::
+
+        b(\{A,C\})=2^0+2^2=1+4=5.
+
+    Its cumulative probabilities occupy ``cdf_matrix[5]``. Choosing A next removes its bit, giving
+    ``5 - 1 = 4``, or ``0b100``, the row for :math:`\{C\}`. Subtraction is valid here because the
+    chosen candidate's bit is present. Sampling begins with the full set, whose mask is seven
+    (``0b111``) in this example, and ends at the empty set, whose mask is zero. Row zero is unused
+    because there is no next candidate to select.
+
+    Within each row, probabilities accumulate in candidate order to form the CDF:
+
+    .. math::
+
+        \mathrm{cdf}[b(U),j]=\sum_{i=0}^{j}p(i\mid U).
+
+    Each row retains a column for every candidate, including those absent from :math:`U`. An
+    absent candidate contributes no probability, so the cumulative value stays unchanged at its
+    column. The final entry should equal one because it includes all possible next choices.
+    Floating point accumulation can introduce a small discrepancy, so the implementation divides
+    each row by its final entry before storing it.
+
+    The table has :math:`2^m` rows and :math:`m` columns, requiring :math:`8m2^m` bytes of float64
+    storage. Preparing its entries takes :math:`O(m2^m)` work and requires temporary buffers in
+    addition to the retained table.
 
     Args:
         candidates (tuple[Candidate, ...]): Candidate identities in CDF column order.
@@ -389,7 +527,7 @@ def _build_cdf_matrix(
             most one zero. The caller must check the preparation memory requirement.
 
     Returns:
-        NDArray[np.float64]: A ``(2**n, n)`` CDF table indexed by subset bitmask. Absent
+        NDArray[np.float64]: A ``(2**m, m)`` CDF table indexed by subset bitmask. Absent
             candidates have zero probability, and the empty-subset row is unused.
     """
     n_candidates = len(candidates)
@@ -466,14 +604,113 @@ def _sample_rankings_from_cdf(
     rankings: NDArray[np.intp],
     rng: np.random.Generator,
 ) -> None:
-    """Fill encoded rankings using bounded sampling buffers.
+    r"""
+    Fill ranking rows by sampling successive candidates from their conditional CDFs.
+
+    The table prepared by ``_build_cdf_matrix`` gives the next-candidate distribution for every
+    remaining subset. Sampling a complete ranking therefore requires only a current subset and a
+    sequence of random draws: choose a candidate from that subset's CDF, remove the candidate, and
+    continue from the resulting subset. For :math:`n` voters and :math:`m` candidates, this
+    function writes those choices into the supplied :math:`(n,m)` array. Each entry is a
+    zero-based candidate ID in CDF column order.
+
+    Consider one voter whose remaining candidates form the set :math:`U`. Its bitmask
+    :math:`b(U)` identifies the CDF row, whose thresholds divide :math:`[0,1)` into intervals
+    with lengths equal to the next-candidate probabilities. A uniform draw selects an interval and
+    therefore its candidate. More precisely, for :math:`u\sim\operatorname{Uniform}[0,1)`, the
+    chosen candidate is the first whose cumulative probability exceeds the draw:
+
+    .. math::
+
+        j=\min\{i:u<\mathrm{cdf}[b(U),i]\}.
+
+    With candidate order ``(A, B, C)`` and supports :math:`(3,2,1)`, the first-choice weights from
+    the preparation example are :math:`(27,16,5)`. All three candidates are initially available,
+    so the mask is seven (``0b111``) and its CDF row is
+
+    .. math::
+
+        \mathrm{cdf}[7,:]=\left(\frac{27}{48},\frac{43}{48},1\right).
+
+    A draw of :math:`0.7` falls between the first two thresholds and selects B, whose ID is one.
+    Removing B's bit changes the mask from seven to :math:`7-2^1=5`, leaving A and C. Their
+    next-choice probabilities are :math:`3/4` and :math:`1/4`, but the row still has columns for
+    all three candidates:
+
+    .. math::
+
+        \mathrm{cdf}[5,:]=\left(\frac34,\frac34,1\right).
+
+    B's repeated threshold gives it an interval of length zero because it is no longer available.
+    A new draw of :math:`0.6` selects A and changes the mask to :math:`5-2^0=4`. Only C remains,
+    so the final choice completes the encoded ranking ``(1, 0, 2)``, or
+    :math:`B>A>C`. Every choice removes a present bit, ensuring that a candidate appears
+    exactly once. After the final choice the mask is zero and no further lookup is needed.
+
+    These conditional draws reproduce the BT ranking probabilities because each choice's
+    completion weight accounts for all possible continuations. For
+    :math:`R=(r_1,\ldots,r_m)\in S_C`, let :math:`U_t=\{r_t,\ldots,r_m\}` be the subset
+    remaining before position :math:`t`, with :math:`U_{m+1}=\varnothing`. Multiplying the
+    conditional probabilities gives
+
+    .. math::
+
+        P(R)
+        =\prod_{t=1}^{m}\frac{s_{r_t}^{m-t}Z(U_{t+1})}{Z(U_t)}
+        =\frac{\prod_{t=1}^{m}s_{r_t}^{m-t}}{Z(C)}.
+
+    Each numerator's suffix total cancels the next denominator, leaving only :math:`Z(C)` below
+    and :math:`Z(\varnothing)=1` above. In the example, the probability of B, then A, then C is
+    :math:`(16/48)(3/4)(1)=12/48`, matching the reduced ranking weight
+    :math:`s_B^2s_A=12` divided by :math:`Z(C)=48`. This identity describes the distribution
+    represented by the conditional probabilities; the implementation samples from their stored
+    float64 approximations.
+
+    To select a candidate, we need the index of the first CDF entry greater than the random draw.
+    We can find that index by counting how many entries precede it. Every preceding entry is less
+    than or equal to the draw, so comparing the draw with the entire row and counting the
+    successful comparisons gives the selected candidate's index:
+
+    .. math::
+
+        j=\sum_{i=0}^{m-1}\mathbf{1}\{\mathrm{cdf}[b(U),i]\leq u\}.
+
+    For example, the CDF row :math:`(27/48,43/48,1)` and a draw of :math:`0.7` produce
+    ``(True, False, False)``. Only the first threshold is at or below the draw, so the selected
+    column is one, corresponding to B. NumPy performs these comparisons for every voter in a batch
+    and sums each row to obtain one candidate ID per voter.
+
+    Repeated thresholds fit the same rule. After B has been selected, the remaining set
+    :math:`\{A,C\}` has CDF row :math:`(3/4,3/4,1)`. A occupies :math:`[0,3/4)`, and C
+    occupies :math:`[3/4,1)`; B has no interval because its probability is zero. At a draw of
+    exactly :math:`3/4`, the comparisons are ``(True, True, False)``, selecting column two, or C.
+    Counting entries equal to the draw ensures that we move past the entire repeated threshold and
+    never select its zero-probability columns.
+
+    Each voter needs a separate CDF lookup because earlier choices may leave different subsets.
+    Within a batch, ``voter_cdf_rows`` holds one such row per voter, and ``draws[:, None]`` aligns
+    each voter's draw with every threshold in that row. Comparing and summing across columns
+    produces one candidate ID per voter. The selected IDs are written to the current ranking
+    position, and each voter's mask is updated for the next position.
+
+    Batching limits the temporary CDF and comparison arrays without changing which draws reach
+    which voters. The outer loop visits ranking positions, and the inner loop visits consecutive
+    voter batches, so all voters receive their first draw before any receives a second one.
+    Changing the batch size preserves this assignment and therefore the seeded rankings. A draw is
+    consumed even for the forced final candidate. Apart from the shared CDF table and output,
+    storage consists of one subset mask per voter and reusable batch buffers. For a batch of
+    :math:`b` voters, auxiliary storage is :math:`O(n+bm)`; comparing all :math:`m` thresholds
+    at each of :math:`m` positions takes :math:`O(nm^2)` work.
 
     Args:
-        cdf_matrix (NDArray[np.float64]): Conditional CDFs indexed by remaining-candidate
-            bitmasks, with one column per candidate. The empty-subset row is unused.
-        rankings (NDArray[np.intp]): Writable output with one row per voter and one column per
-            ranking position. Candidate IDs follow CDF column order.
-        rng (np.random.Generator): Generator advanced in position order, then voter order.
+        cdf_matrix (NDArray[np.float64]): Prepared ``(2**m, m)`` conditional CDF table indexed by
+            subset bitmask. Nonempty-subset rows must be nondecreasing and end at one, with zero
+            probability for absent candidates. The empty-subset row is unused. These conditions
+            are assumed rather than validated here.
+        rankings (NDArray[np.intp]): Writable ``(n, m)`` output, filled in place with candidate
+            IDs in CDF column order. May be a view into a larger ranking array.
+        rng (np.random.Generator): Generator advanced by ``n*m`` draws in position order, then
+            voter order.
     """
     n_voters, n_candidates = rankings.shape
     batch_size = _DP_NAME_BT_BATCH_SIZE
