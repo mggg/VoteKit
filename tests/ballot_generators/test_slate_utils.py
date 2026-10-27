@@ -1,6 +1,65 @@
+from typing import cast
+
+import numpy as np
+import pytest
+
+from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
+    _construct_slate_to_candidate_ordering_arrays,
+    _fast_sample_without_replacement,
     _lexicographic_symbol_tuple_iterator,
 )
+from votekit.pref_interval import PreferenceInterval
+
+
+@pytest.mark.parametrize("small_weight", [1e-6, 1e-300, 1e-320])
+def test_weighted_rankings_preserve_order_for_tiny_weights_and_zero_draw(small_weight):
+    class FixedDraws:
+        def uniform(self, low, high, *, size):
+            assert size == (3, 3)
+            return np.array([[0.5, 0.9, 0.1], [0.5, 0.1, 0.9], [0.0, 0.9, 0.1]])
+
+    rankings = _fast_sample_without_replacement(
+        np.array([1.0, small_weight, 2 * small_weight]),
+        3,
+        numpy_rng=cast(np.random.Generator, FixedDraws()),
+    )
+
+    np.testing.assert_array_equal(rankings, [[0, 1, 2], [0, 2, 1], [1, 2, 0]])
+
+
+def test_weighted_rankings_match_power_order_and_preserve_random_draws():
+    weights = np.array([0.2, 0.3, 0.5])
+    reference_rng = np.random.default_rng(42)
+    sampling_rng = np.random.default_rng(42)
+    sorting_values = reference_rng.uniform(size=(1000, 3)) ** (1 / weights)
+    expected = np.flip(np.argsort(sorting_values, axis=1), axis=1)
+
+    rankings = _fast_sample_without_replacement(weights, 1000, numpy_rng=sampling_rng)
+
+    np.testing.assert_array_equal(rankings, expected)
+    assert sampling_rng.bit_generator.state == reference_rng.bit_generator.state
+
+
+def test_slate_candidate_orderings_shuffle_zero_support_tails():
+    config = BlocSlateConfig(
+        n_voters=1000,
+        allow_zero_support_candidates=True,
+        slate_to_candidates={"A": [7, "b", "c"]},
+        bloc_proportions={"bloc": 1.0},
+        preference_mapping={
+            "bloc": {"A": PreferenceInterval({7: 1.0, "b": 0, "c": 0}, allow_zero_support=True)}
+        },
+        cohesion_mapping={"bloc": {"A": 1.0}},
+    )
+
+    rankings = _construct_slate_to_candidate_ordering_arrays(
+        config, "bloc", 1000, numpy_rng=np.random.default_rng(42)
+    )["A"]
+
+    assert np.all(rankings[:, 0] == 7)
+    assert all(set(row) == {"b", "c"} for row in rankings[:, 1:])
+    assert np.mean(rankings[:, 1] == "b") == pytest.approx(0.5, abs=0.05)
 
 
 def test_lexicographic_symbol_tuple_iterator_empty():
