@@ -13,144 +13,161 @@ The main API functions in this module are:
     MCMC sampling from the name-BradleyTerry model.
 """
 
-import itertools as it
+from __future__ import annotations
+
 import math
-import random
-import sys
-from collections.abc import Mapping
 
 import apportionment.methods as apportion
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
 
-from votekit._df_schema import (
-    BALLOT_INDEX_NAME,
-    RANKING_COLUMN_PREFIX,
-    VOTER_SET_COLUMN,
-    WEIGHT_COLUMN,
+from votekit.ballot_generator.bloc_slate_generator._name_bt_mcmc import (
+    name_bt_profile_generator_using_mcmc as name_bt_profile_generator_using_mcmc,
 )
-from votekit.ballot import RankBallot
+from votekit.ballot_generator.bloc_slate_generator._name_bt_mcmc import (
+    name_bt_profiles_by_bloc_generator_using_mcmc as name_bt_profiles_by_bloc_generator_using_mcmc,
+)
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import (
-    ProfileVoterWeightData,
-    RankMatrix,
-    WeightKind,
-)
-from votekit.pref_profile.profile_matrix.rank_matrix import EMPTY_VOTER_SET, END_OF_RANKING_SET
+from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, RankMatrix, WeightKind
 from votekit.types import Candidate
 
-# ====================================================
-# ================= Helper Functions =================
-# ====================================================
+_DP_NAME_BT_BATCH_SIZE = 65_536
+
+# =================================================
+# ================= API Functions =================
+# =================================================
 
 
-def _calc_prob(permutations: list[tuple], cand_support_dict: dict) -> dict:
-    """
-    given a list of (possibly incomplete) rankings and the preference interval, \
-    calculates the probability of observing each ranking
+def name_bt_profile_generator(
+    config: BlocSlateConfig,
+    *,
+    group_ballots: bool = True,
+    rng_seed: int | None = None,
+) -> RankProfile:
+    r"""Generate a preference profile using the name-BradleyTerry model.
+
+    A ranking has probability proportional to the product of its pairwise preferences:
+    :math:`P(X>Y>Z) \propto P(X>Y)P(X>Z)P(Y>Z)`, where :math:`P(X>Y)=x/(x+y)`.
+
+    The full distribution is defined over all complete rankings of the declared candidates.
+
+    Let :math:`C` contain :math:`n` candidates with positive supports :math:`s_i`. Let
+
+    .. math::
+
+        \pi=(\pi_1,\ldots,\pi_n)
+
+    denote a complete ranking from first to last.
+
+    The pairwise Bradley–Terry probability is
+
+    .. math::
+
+        P(i\succ j)=\frac{s_i}{s_i+s_j}.
+
+    Multiplying the pairwise factors consistent with ranking :math:`\pi` gives its unnormalized
+    ranking weight:
+
+    .. math::
+
+        q(\pi) = \prod_{1\le r<t\le n} \frac{s_{\pi_r}}{s_{\pi_r}+s_{\pi_t}}.
+
+    The probability distribution over all complete rankings is then computed by normalizing the
+    weights:
+
+    .. math::
+
+        P(\pi) = \frac{q(\pi)} {\sum_{\sigma\in S_C}q(\sigma)}.
+
+    Where :math:`S_C` is the set of all permutations of the candidates.
+
+    For three candidates, the denominator expands to
+
+    .. math::
+
+        Z = s_A^2s_B+s_A^2s_C +s_B^2s_A+s_B^2s_C +s_C^2s_A+s_C^2s_B,
+
+    so, for example,
+
+    .. math::
+
+        P(A\succ B\succ C)=\frac{s_A^2s_B}{Z}.
+
+    Zero support is rejected unless ``config.allow_zero_support_candidates`` is True. When
+    enabled, sample each bloc's positive-support candidates from the distribution above, then
+    append a uniformly random permutation of its zero-support candidates independently for
+    each ballot. Group identical complete rankings only after appending these tails. A single
+    zero-support candidate therefore always appears last. This defines an extension of the
+    model when multiple candidates have zero support; each bloc must retain positive total
+    support. Both prefix and tail sampling use the seeded generator.
 
     Args:
-        permutations (list[tuple]): a list of permuted rankings
-        cand_support_dict (dict): a mapping from candidate to their \
-        support (preference interval)
+        config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
+        group_ballots (bool, optional): Combine identical rankings and sum their weights. Defaults
+            to True.
+        rng_seed (int | None, optional): Seed for NumPy's random generator. Defaults to None.
+            Negative integers use their absolute value.
 
     Returns:
-        dict: a mapping of the rankings to their probability
-    """
-    ranking_to_prob = {}
-    for ranking in permutations:
-        prob = 1
-        for i in range(len(ranking)):
-            cand_i = ranking[i]
-            greater_cand_support = cand_support_dict[cand_i]
-            for j in range(i + 1, len(ranking)):
-                cand_j = ranking[j]
-                cand_support = cand_support_dict[cand_j]
-                prob *= greater_cand_support / (greater_cand_support + cand_support)
-        ranking_to_prob[ranking] = prob
-    return ranking_to_prob
-
-
-def _make_bradley_terry_numerator(vals):
-    """
-    Given a list of values, returns the numerator of the Bradley-Terry probability
-    for a given ranking.
-
-    Args:
-        vals (list): a list of values corresponding to the candidates in the ranking
-
-    Returns:
-        float: the numerator of the Bradley-Terry probability
-    """
-    ret = 1.0
-    m = len(vals)
-
-    # Faster than math.prod
-    for i in range(m - 1):
-        ret *= vals[i] ** (m - i - 1)
-    return ret
-
-
-def _bradley_terry_pdf(dct: Mapping[Candidate, float]) -> dict[tuple[Candidate, ...], float]:
-    """
-    Given a dictionary of candidates and their support, returns the probability density function
-    over all possible rankings.
-
-    Args:
-        dct (Mapping[Candidate, float]): a mapping from candidate to their support
-            Candidates can be strings, integers, or mix of both.
-
-    Returns:
-        dict: a mapping of the rankings to their probability
-    """
-    weights = {
-        perm: _make_bradley_terry_numerator([dct[i] for i in perm])
-        for perm in it.permutations(dct.keys(), len(dct))
-    }
-    total_weight = sum(weights.values())
-
-    return {k: v / total_weight for k, v in weights.items()}
-
-
-def _check_name_bt_memory(config: BlocSlateConfig) -> None:
-    """
-    Check if there is enough memory to generate the profile using the name-BradleyTerry model.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
+        RankProfile: Complete rankings with the declared candidate order and total voter weight.
 
     Raises:
-        ValueError: If there are more than 12 candidates.
-        MemoryError: If there is not enough memory to generate the pmf.
+        ValueError: The configuration is invalid or a bloc's positive-support candidate count
+            exceeds the subset-mask or array-index width.
+        MemoryError: Estimated memory requirements exceed currently available RAM.
     """
-    n_cands = len(config.candidates)
-    if n_cands > 12:
-        raise ValueError(
-            "The name-BradleyTerry model is not recommended for more than 12 candidates due to "
-            "combinatorial explosion of generating the pmf."
-        )
+    config.is_valid(raise_errors=True)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(abs(rng_seed) if rng_seed is not None else None)
+    rankings, _ = _sample_name_bt_rankings(config, candidates, rng, group_ballots=group_ballots)
 
-    mem = system_memory()
-    pmf_size = math.factorial(n_cands)
-    candidate_with_longest_name = max(config.candidates, key=sys.getsizeof)
-    est_bytes_pmf = pmf_size * sys.getsizeof(candidate_with_longest_name) * n_cands
-    est_bytes_profile = (
-        config.n_voters * n_cands * sys.getsizeof(frozenset({candidate_with_longest_name}))
+    return _build_profile_from_rankings(rankings, candidates, group_ballots=group_ballots)
+
+
+def name_bt_profiles_by_bloc_generator(
+    config: BlocSlateConfig,
+    *,
+    group_ballots: bool = True,
+    rng_seed: int | None = None,
+) -> dict[str, RankProfile]:
+    """Generate name-BradleyTerry preference profiles separately for each bloc.
+
+    Use the same DP distribution and random stream as ``name_bt_profile_generator``. Blocs follow
+    configuration order and share one seeded NumPy generator. When zero support is enabled in the
+    configuration, each ballot ranks its bloc's positive-support candidates first and appends an
+    independent, uniformly random permutation of the zero-support candidates. Grouping then
+    combines identical complete rankings within each bloc. Each bloc must retain positive total
+    support.
+
+    Args:
+        config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
+        group_ballots (bool, optional): Combine identical rankings within each bloc. Defaults to
+            True.
+        rng_seed (int | None, optional): Seed for NumPy's random generator. Defaults to None.
+            Negative integers use their absolute value. Seeded results differ from the earlier
+            enumeration sampler.
+
+    Returns:
+        dict[str, RankProfile]: Profiles in bloc order, each retaining the declared candidates.
+
+    Raises:
+        ValueError: The configuration is invalid or a bloc's positive-support candidate count
+            exceeds the subset-mask or array-index width.
+        MemoryError: Estimated memory requirements exceed currently available RAM.
+    """
+    config.is_valid(raise_errors=True)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(abs(rng_seed) if rng_seed is not None else None)
+    rankings, bloc_rows = _sample_name_bt_rankings(
+        config, candidates, rng, group_ballots=group_ballots
     )
-    est_bytes = float(est_bytes_pmf + est_bytes_profile)
 
-    # fudge factor for overhead. Just tuned to a couple of machines, but gives pretty close
-    # upper bound on memory usage while leaving room for other processes
-    est_bytes *= 1.5
-    if est_bytes > mem["available_gib"] * 2**30:
-        raise MemoryError(
-            f"Not enough memory to generate the profile. Estimated memory usage is "
-            f"{est_bytes / 2**30:.1f} GiB, but only {mem['available_gib']:.1f} GiB is available."
-        )
+    return {
+        bloc: _build_profile_from_rankings(rankings[rows], candidates, group_ballots=group_ballots)
+        for bloc, rows in bloc_rows.items()
+    }
 
 
 # ===========================================================
@@ -158,638 +175,183 @@ def _check_name_bt_memory(config: BlocSlateConfig) -> None:
 # ===========================================================
 
 
-def _inner_name_bradley_terry(
-    config: BlocSlateConfig, *, rng: random.Random | None = None
-) -> dict[str, RankProfile]:
-    """
-    Sample from the BT distribution using direct sampling.
-
-    This is an interior helper function that does the bulk of the work for generating
-    name-BradleyTerry profiles. It is not recommended to use this function directly,
-    as it does not perform any memory checks or grouping of ballots.
+def _sample_name_bt_rankings(
+    config: BlocSlateConfig,
+    candidates: tuple[Candidate, ...],
+    rng: np.random.Generator,
+    *,
+    group_ballots: bool,
+) -> tuple[NDArray[np.intp], dict[str, slice]]:
+    """Sample complete rankings into one array, retaining each bloc's source rows.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
+        config (BlocSlateConfig): Validated configuration with positive total support per bloc.
+        candidates (tuple[Candidate, ...]): Candidate identities in matrix column order.
+        rng (np.random.Generator): Generator shared across blocs in configuration order.
+        group_ballots (bool): Whether to include grouping in the memory estimate.
 
     Returns:
-        dict[str, RankProfile]: Generated preference profiles by bloc.
-    """
-    n_candidates = len(config.candidates)
+        tuple[NDArray[np.intp], dict[str, slice]]: Encoded rankings and each bloc's row slice.
 
-    bloc_lst = config.blocs
+    Raises:
+        ValueError: A bloc has nonfinite or negative support, or too many positive-support
+            candidates for the subset-mask or array-index width.
+        MemoryError: Estimated memory requirements exceed currently available RAM.
+    """
+    blocs = tuple(config.blocs)
+    preference_intervals = config.get_combined_preference_intervals_by_bloc()
+    max_positive_candidates = max(
+        sum(support > 0 for support in interval.interval.values())
+        for interval in preference_intervals.values()
+    )
+    _check_dp_name_bt_memory(
+        len(candidates),
+        config.n_voters,
+        n_positive_candidates=max_positive_candidates,
+        group_ballots=group_ballots,
+    )
 
     bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
+        "huntington",
+        [config.bloc_proportions[bloc] for bloc in blocs],
+        config.n_voters,
     )
-    if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
-
+    if isinstance(bloc_counts, int):
         bloc_counts = [bloc_counts]
 
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
+    ranking_matrix = np.empty((config.n_voters, len(candidates)), dtype=int)
+    bloc_rows: dict[str, slice] = {}
+    row_start = 0
 
-    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
+    for bloc, n_bloc_voters in zip(blocs, bloc_counts, strict=True):
+        rows = slice(row_start, row_start + n_bloc_voters)
+        bloc_rows[bloc] = rows
+        row_start += n_bloc_voters
+        if n_bloc_voters == 0:
+            continue
 
-    pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = random.Random() if rng is None else rng
-
-    for bloc in config.bloc_proportions.keys():
-        n_ballots = ballots_per_bloc[bloc]
-
-        # Directly initialize the list using good memory trick
-        ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"), dtype=object)
-        single_bloc_pdf_dict = _bradley_terry_pdf(pref_interval_by_bloc_dict[bloc].interval)
-
-        # Directly use the keys and values from the dictionary for sampling
-        rankings, probs = zip(*single_bloc_pdf_dict.items())
-
-        # The return of this will be a numpy array, so we don't need to make it into a list
-        sampled_indices = np.array(
-            rng.choices(
-                range(len(rankings)),
-                k=n_ballots,
-                weights=probs,
-            ),
-            ndmin=1,
+        supports = np.array(
+            [preference_intervals[bloc].interval[candidate] for candidate in candidates],
+            dtype=np.float64,
         )
+        if not np.all(np.isfinite(supports) & (supports >= 0)):
+            raise ValueError(f"Bloc {bloc!r} requires finite, nonnegative candidate supports.")
+        _sample_bloc_rankings(candidates, supports, ranking_matrix[rows], rng)
 
-        for j, index in enumerate(sampled_indices):
-            ranking = [frozenset({cand}) for cand in rankings[index]]
-
-            ballot_pool[j] = np.array(ranking)
-
-        df = pd.DataFrame(ballot_pool)
-        df.index.name = BALLOT_INDEX_NAME
-        df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
-        df[WEIGHT_COLUMN] = 1
-        df.insert(
-            len(df.columns),
-            VOTER_SET_COLUMN,
-            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
-        )
-        pp = RankProfile(
-            candidates=config.candidates,
-            df=df,
-            max_ranking_length=n_candidates,
-        )
-        pp_by_bloc[bloc] = pp
-
-    return pp_by_bloc
+    return ranking_matrix, bloc_rows
 
 
-# TODO:
-# - Improve the subsampling scheme here (memory + speed)
-# - Construct ballots as tuples
-# - Other speed improvements
-def _bradley_terry_mcmc(
-    n_ballots: int,
-    pref_interval: Mapping[Candidate, float],
-    seed_ballot: RankBallot,
-    verbose: bool = False,
-    burn_in_time: int = 0,
-    chain_length: int | None = None,
-    *,
-    rng: random.Random | None = None,
-):
-    """
-    Sample from BT distribution for a given preference interval using MCMC. Defaults
-    to continuous sampling and no burn-in time.
+def _sample_bloc_rankings(
+    candidates: tuple[Candidate, ...],
+    supports: NDArray[np.float64],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    """Fill a bloc's rankings with BT prefixes and independent uniform zero-support tails.
 
     Args:
-        n_ballots (int): the number of ballots to sample
-        pref_interval (Mapping[Candidate, float]): the preference interval
-            to determine BT distribution. Candidate can be a str or int.
-        seed_ballot (RankBallot):  the seed ballot for the Markov chain
-        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
-        burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
-            chain_length//n_ballots steps from the chain until the desired number of ballots is
-            reached. Defaults to None which sets the chain_length to the number of ballots in
-            the config.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
+        candidates (tuple[Candidate, ...]): Full candidate universe in matrix-ID order.
+        supports (NDArray[np.float64]): Aligned, validated supports with a positive total.
+        rankings (NDArray[np.intp]): Writable output for this bloc's complete rankings.
+        rng (np.random.Generator): Generator advanced by prefix and tail sampling.
     """
+    positive_ids = np.flatnonzero(supports > 0)
+    zero_ids = np.flatnonzero(supports == 0)
+    positive_candidates = tuple(candidates[index] for index in positive_ids)
+    n_positive = len(positive_ids)
 
-    if chain_length is None:
-        chain_length = n_ballots
+    cdf_matrix = _build_cdf_matrix(positive_candidates, supports[positive_ids])
+    _sample_rankings_from_cdf(cdf_matrix, rankings[:, :n_positive], rng)
+    del cdf_matrix  # Tail sampling does not need to retain the DP table.
 
-    assert seed_ballot.ranking is not None
-    # check that seed ballot has no ties
-    for s in seed_ballot.ranking:
-        if len(s) > 1:
-            raise ValueError("Seed ballot contains ties")
+    if not len(zero_ids):
+        return
 
-    ballots = [RankBallot()] * n_ballots
-    accept = 0
-    current_ranking = list(seed_ballot.ranking)
-    n_candidates = len(current_ranking)
-
-    # presample swap indices
-    burn_in_time = burn_in_time  # int(10e5)
-    if verbose:
-        print(f"Burn in time: {burn_in_time}")
-    rng = random.Random() if rng is None else rng
-    swap_indices = [
-        (j1, j1 + 1) for j1 in rng.choices(range(n_candidates - 1), k=n_ballots + burn_in_time)
-    ]
-
-    for i in range(burn_in_time):
-        # choose adjacent pair to propose a swap
-        j1, j2 = swap_indices[i]
-        acceptance_prob = min(
-            1,
-            pref_interval[next(iter(current_ranking[j2]))]
-            / pref_interval[next(iter(current_ranking[j1]))],
-        )
-
-        # if you accept, make the swap
-        if rng.random() < acceptance_prob:
-            current_ranking[j1], current_ranking[j2] = (
-                current_ranking[j2],
-                current_ranking[j1],
-            )
-            accept += 1
-
-    # generate MCMC sample
-    for i in range(n_ballots):
-        # choose adjacent pair to propose a swap
-        j1, j2 = swap_indices[i]
-        acceptance_prob = min(
-            1,
-            pref_interval[next(iter(current_ranking[j2]))]
-            / pref_interval[next(iter(current_ranking[j1]))],
-        )
-
-        # if you accept, make the swap
-        if rng.random() < acceptance_prob:
-            current_ranking[j1], current_ranking[j2] = (
-                current_ranking[j2],
-                current_ranking[j1],
-            )
-            accept += 1
-
-        ballots[i] = RankBallot(ranking=current_ranking)
-
-    if verbose:
-        print(
-            f"Acceptance ratio as number accepted / total steps: "
-            f"{accept / (n_ballots + burn_in_time):.2}"
-        )
-
-    if -1 in ballots:
-        raise ValueError("Some element of ballots list is not a ballot.")
-
-    if n_ballots > chain_length:
-        raise ValueError("The Markov Chain length cannot be less than the number of ballots.")
-
-    if verbose:
-        print(f"The number of ballots before is {len(ballots)}")
-
-    # Subsample evenly ballots
-    ballots = [
-        ballots[i * chain_length // n_ballots + chain_length // (2 * n_ballots)]
-        for i in range(n_ballots)
-    ]
-
-    if verbose:
-        print(f"The number of ballots after is {len(ballots)}")
-
-    pp = RankProfile(ballots=ballots)
-    return pp
+    for start in range(0, len(rankings), _DP_NAME_BT_BATCH_SIZE):
+        batch = rankings[start : start + _DP_NAME_BT_BATCH_SIZE]
+        batch[:, :n_positive] = positive_ids[batch[:, :n_positive]]
+        tails = np.broadcast_to(zero_ids, (len(batch), len(zero_ids)))
+        rng.permuted(tails, axis=1, out=batch[:, n_positive:])
 
 
-def _inner_name_bradley_terry_mcmc(
-    config: BlocSlateConfig,
+def _build_profile_from_rankings(
+    rankings: NDArray[np.intp],
+    candidates: tuple[Candidate, ...],
     *,
-    verbose: bool = False,
-    burn_in_time: int = 0,
-    chain_length: int | None = None,
-    rng: random.Random | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Sample from the BT distribution using Markov Chain Monte Carlo.
-
-    Args:
-        number_of_ballots (int): The number of ballots to generate.
-
-    Kwargs:
-        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
-        burn_in_time (int): the number of ballots discarded in the beginning of the chain.
-            Defaults to 0.
-        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
-            chain_length//n_ballots steps from the chain until the desired number of ballots is
-            reached. Defaults to None which sets the chain_length to the number of ballots in
-            the config.
-        rng (random.Random, optional): Standard library random number generator. Pass a seeded
-            instance for reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        RankProfile | tuple
-    """
-    bloc_lst = config.blocs
-
-    bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
-    )
-    if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
-
-        bloc_counts = [bloc_counts]
-
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-
-    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
-    pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = random.Random() if rng is None else rng
-
-    for bloc in bloc_lst:
-        n_ballots = ballots_per_bloc[bloc]
-        pref_interval = pref_interval_by_bloc_dict[bloc]
-        pref_interval_dict = pref_interval.interval
-        cands = list(pref_interval.interval.keys())
-
-        seed_ballot = RankBallot(ranking=tuple([frozenset({c}) for c in cands]))
-        pp = _bradley_terry_mcmc(
-            n_ballots,
-            pref_interval_dict,
-            seed_ballot,
-            verbose=verbose,
-            burn_in_time=burn_in_time,
-            chain_length=chain_length,
-            rng=rng,
-        )
-
-        pp_by_bloc[bloc] = pp
-
-    return pp_by_bloc
-
-
-# =================================================
-# ================= API Functions =================
-# =================================================
-
-
-def name_bt_profiles_by_bloc_generator(
-    config: BlocSlateConfig,
-    *,
-    group_ballots=True,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Generate preference profiles by bloc using the name-BradleyTerry model.
-
-    The probability of sampling the ranking :math:`X>Y>Z` is proportional to
-    :math:`P(X>Y)*P(X>Z)*P(Y>Z)`. These individual probabilities are based on the preference
-    interval: :math: `P(X>Y) = x/(x+y)`.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-    Returns:
-        dict[str, RankProfile]: Generated preference profiles by bloc.
-    """
-    _check_name_bt_memory(config)
-    config.is_valid(raise_errors=True)
-    rng = random.Random(rng_seed)
-    pp_by_bloc = _inner_name_bradley_terry(config, rng=rng)
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
-
-    return pp_by_bloc
-
-
-def name_bt_profile_generator(
-    config: BlocSlateConfig,
-    *,
-    group_ballots=True,
-    rng_seed: int | None = None,
+    group_ballots: bool,
 ) -> RankProfile:
-    """
-    Generate a preference profile using the name-BradleyTerry model.
-
-    The probability of sampling the ranking :math:`X>Y>Z` is proportional to
-    :math:`P(X>Y)*P(X>Z)*P(Y>Z)`. These individual probabilities are based on the preference
-    interval: :math: `P(X>Y) = x/(x+y)`.
+    """Construct a RankProfile profile from sampled candidate IDs with unit ballot weights.
 
     Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
+        rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
+        candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
+        group_ballots (bool): Whether to combine identical rankings in the returned profile.
 
     Returns:
-        RankProfile: Generated preference profile.
+        RankProfile: Profile with independent ranking storage and the requested grouping.
     """
-    _check_name_bt_memory(config)
-    config.is_valid(raise_errors=True)
-    rng = random.Random(rng_seed)
-    pp_by_bloc = _inner_name_bradley_terry(config, rng=rng)
-
-    # combine the profiles
-    pp = RankProfile()
-    for profile in pp_by_bloc.values():
-        pp += profile
-
-    if group_ballots:
-        pp = pp.group_ballots()
-    return pp
-
-
-def name_bt_profile_generator_using_mcmc(
-    config: BlocSlateConfig,
-    *,
-    group_ballots=True,
-    verbose: bool = False,
-    burn_in_time: int = 0,
-    chain_length: int | None = None,
-    rng_seed: int | None = None,
-) -> RankProfile:
-    """
-    Generate a preference profile using MCMC sampling from the name-BradleyTerry model.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-
-    Kwargs:
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
-        burn_in_time (int): the number of ballots discarded in the beginning of the chain.
-            Defaults to 0.
-        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
-            chain_length//n_ballots steps from the chain until the desired number of ballots is
-            reached. Defaults to None which sets the chain_length to the number of ballots in
-            the config.
-        rng_seed (int | None): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-    Returns:
-        RankProfile: Generated preference profile.
-    """
-    config.is_valid(raise_errors=True)
-    rng = random.Random(rng_seed)
-    pp_by_bloc = _inner_name_bradley_terry_mcmc(
-        config,
-        verbose=verbose,
-        burn_in_time=burn_in_time,
-        chain_length=chain_length,
-        rng=rng,
-    )
-    # combine the profiles
-    pp = RankProfile()
-    for profile in pp_by_bloc.values():
-        pp += profile
-
-    if group_ballots:
-        pp = pp.group_ballots()
-    return pp
-
-
-def name_bt_profiles_by_bloc_generator_using_mcmc(
-    config: BlocSlateConfig,
-    *,
-    group_ballots=True,
-    verbose: bool = False,
-    burn_in_time: int = 0,
-    chain_length: int | None = None,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Generate a preference profile dictionary by bloc using MCMC sampling from the
-    name-BradleyTerry model.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-
-    Kwargs:
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        verbose (bool): If True, print the acceptance ratio of the chain. Defaults to False.
-        burn_in_time (int): the number of ballots discarded in the beginning of the chain.
-            Defaults to 0.
-        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
-            chain_length//n_ballots steps from the chain until the desired number of ballots is
-            reached. Defaults to None which sets the chain_length to the number of ballots in
-            the config.
-        rng_seed (int | None): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-    Returns:
-        dict[str, RankProfile]: Generated preference profiles by bloc.
-    """
-    config.is_valid(raise_errors=True)
-    rng = random.Random(rng_seed)
-    pp_by_bloc = _inner_name_bradley_terry_mcmc(
-        config,
-        verbose=verbose,
-        burn_in_time=burn_in_time,
-        chain_length=chain_length,
-        rng=rng,
+    voter_weight_data = ProfileVoterWeightData(
+        weights=np.ones(len(rankings), dtype=np.float64),
+        voter_sets=None,
+        weight_kind=WeightKind.FLOAT,
     )
 
-    if group_ballots:
-        for bloc in pp_by_bloc:
-            pp_by_bloc[bloc] = pp_by_bloc[bloc].group_ballots()
+    matrix = RankMatrix.from_candidate_ids(
+        voter_weight_data=voter_weight_data,
+        rankings=rankings,
+        candidates=candidates,
+    )
 
-    return pp_by_bloc
-
-
-# ===========================================================================
-# ================= Additional Functions Not Yet Integrated =================
-# ===========================================================================
+    profile = RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))
+    return profile.group_ballots() if group_ballots else profile
 
 
-def _bradley_terry_mcmc_shortcut(
-    n_ballots,
-    pref_interval,
-    seed_ballot,
-    verbose=False,
-    burn_in_time=0,
-    chain_length=None,
-    BURN_IN_TIME=100000,
-):
-    """
-    Sample from BT using MCMC on the shortcut ballot graph
-
-    Args:
-        n_ballots (int): the number of ballots to sample
-        pref_interval (dict): the preference interval to determine BT distribution
-        sub_sample_length (int): how many attempts at swaps to make before saving ballot
-        seed_ballot: Ballot, the seed ballot for the Markov chain
-        burn_in_time (int): the number of ballots discarded in the beginning of the chain
-        chain_length (int | None): the length of the Markov Chain. Ballots are subsampled every
-            chain_length//n_ballots steps from the chain until the desired number of ballots is
-            reached. Defaults to None which sets the chain_length to the number of ballots in
-            the config.
-    """
-    # NOTE: Most of this has been copied from `_bradley_terry_mcmc`
-    # TODO: Abstract the overlapping steps into another helper
-    # function, and just pass the indices / transition probability
-    # function
-
-    if chain_length is None:
-        chain_length = n_ballots
-
-    # check that seed ballot has no ties
-    for s in seed_ballot.ranking:
-        if len(s) > 1:
-            raise ValueError("Seed ballot contains ties")
-
-    ballots = [-1] * n_ballots
-    accept = 0
-    current_ranking = list(seed_ballot.ranking)
-    n_candidates = len(current_ranking)
-
-    if verbose:
-        print("MCMC on shortcut")
-
-    burn_in_time = burn_in_time
-    if verbose:
-        print(f"Burn in time: {burn_in_time}")
-
-    # precompute all the swap indices
-    swap_indices = [
-        tuple(sorted(random.sample(range(n_candidates), 2)))
-        for _ in range(n_ballots + burn_in_time)
-    ]
-
-    for i in range(burn_in_time):
-        # choose adjacent pair to propose a swap
-        j1, j2 = swap_indices[i]
-        j1_rank = j1 + 1
-        j2_rank = j2 + 1
-        if j2_rank <= j1_rank:
-            raise Exception("MCMC on Shortcut: invalid ranks found")
-
-        acceptance_prob = min(
-            1,
-            (pref_interval[next(iter(current_ranking[j2]))] ** (j2_rank - j1_rank))
-            / (pref_interval[next(iter(current_ranking[j1]))] ** (j2_rank - j1_rank)),
-        )
-
-        # if you accept, make the swap
-        if random.random() < acceptance_prob:
-            current_ranking[j1], current_ranking[j2] = (
-                current_ranking[j2],
-                current_ranking[j1],
-            )
-            accept += 1
-
-    # generate MCMC sample
-    for i in range(n_ballots):
-        # choose adjacent pair to propose a swap
-        j1, j2 = swap_indices[i]
-        j1_rank = j1 + 1
-        j2_rank = j2 + 1
-        if j2_rank <= j1_rank:
-            raise Exception("MCMC on Shortcut: invalid ranks found")
-
-        acceptance_prob = min(
-            1,
-            (pref_interval[next(iter(current_ranking[j2]))] ** (j2_rank - j1_rank))
-            / pref_interval[next(iter(current_ranking[j1]))] ** (j2_rank - j1_rank),
-        )
-
-        # if you accept, make the swap
-        if random.random() < acceptance_prob:
-            current_ranking[j1], current_ranking[j2] = (
-                current_ranking[j2],
-                current_ranking[j1],
-            )
-            accept += 1
-
-        ballots[i] = RankBallot(ranking=current_ranking)
-
-    if verbose:
-        print(
-            f"Acceptance ratio as number accepted / total steps: "
-            f"{accept / (n_ballots + BURN_IN_TIME):.2}"
-        )
-
-    if -1 in ballots:
-        raise ValueError("Some element of ballots list is not a ballot.")
-
-    if n_ballots > chain_length:
-        raise ValueError("The Markov Chain length cannot be less than the number of ballots.")
-
-    if verbose:
-        print(f"The number of ballots before is {len(ballots)}")
-
-    # Subsample evenly ballots
-    ballots = [
-        ballots[i * chain_length // n_ballots + chain_length // (2 * n_ballots)]
-        for i in range(n_ballots)
-    ]
-
-    if verbose:
-        print(f"The number of ballots after is {len(ballots)}")
-
-    pp = RankProfile(ballots=ballots)
-    return pp
+# ====================================================
+# ================= Helper Functions =================
+# ====================================================
 
 
-# ————————————————————————————————————————————————————————————————————————————————————————————————
-# ————————————————————————————————————————————————————————————————————————————————————————————————
-# ————————————————————————————————————————————————————————————————————————————————————————————————
-# ————————————————————————————————————————————————————————————————————————————————————————————————
-
-
-_DP_NAME_BT_BATCH_SIZE = 65_536
-
-
-def _check_dp_name_bt_memory(n_candidates: int, n_voters: int, *, group_ballots: bool) -> None:
+def _check_dp_name_bt_memory(
+    n_candidates: int, n_voters: int, *, n_positive_candidates: int, group_ballots: bool
+) -> None:
     """Check the estimated peak allocation against currently available RAM.
 
-    Estimate CDF preparation, batched sampling, and profile construction separately, then
-    allow 50% headroom above the largest peak for allocator and library overhead. Blocs share
-    the output array and prepare their CDFs sequentially, so only one table is counted.
-    Grouping assumes every ranking is distinct. This check cannot reserve memory against
-    concurrent allocations by other processes.
+    Estimate CDF preparation, batched sampling, and profile construction separately, then compare
+    the largest peak with available RAM. Blocs share the output array and prepare their CDFs
+    sequentially, so only the largest positive-support table is counted. The full candidate count
+    determines output and tail-buffer sizes. Grouping assumes every ranking is distinct. This
+    check cannot reserve memory against concurrent allocations by other processes.
 
     Args:
         n_candidates (int): Number of candidates in each complete ranking.
         n_voters (int): Total rows to generate across all blocs.
+        n_positive_candidates (int): Largest positive-support candidate count across blocs.
         group_ballots (bool): Whether to include grouping buffers and the grouped profile.
 
     Raises:
         ValueError: Subset masks or array dimensions exceed the supported integer widths.
-        MemoryError: The estimated peak with headroom exceeds available RAM.
+        MemoryError: The estimated peak exceeds available RAM.
     """
     max_candidates = min(32, np.iinfo(np.intp).bits - 2)
-    if n_candidates > max_candidates:
+    if n_positive_candidates > max_candidates:
         raise ValueError(
-            f"DP name-BradleyTerry supports at most {max_candidates} candidates with its "
+            f"DP name-BradleyTerry supports at most {max_candidates} positive-support candidates "
+            "per bloc with its "
             "uint32 subset masks and platform array-index width."
         )
 
     float_bytes = np.dtype(np.float64).itemsize
     index_bytes = np.dtype(int).itemsize
-    n_subsets = 1 << n_candidates
-    largest_subset_count = math.comb(n_candidates, n_candidates // 2)
+    n_subsets = 1 << n_positive_candidates
+    largest_subset_count = math.comb(n_positive_candidates, n_positive_candidates // 2)
     ranking_bytes = n_voters * n_candidates * index_bytes
-    cdf_bytes = n_subsets * n_candidates * float_bytes
+    cdf_bytes = n_subsets * n_positive_candidates * float_bytes
 
     # Log totals, uint32 masks, uint8 sizes, and the mask selecting a subset size.
     subset_vector_bytes = n_subsets * (float_bytes + 4 + 1 + 1)
     # Consecutive working matrices can coexist, along with indexed vectors and arithmetic results.
     preparation_work_bytes = largest_subset_count * (
-        2 * n_candidates * float_bytes + 8 * index_bytes
+        2 * n_positive_candidates * float_bytes + 8 * index_bytes
     )
     preparation_peak = ranking_bytes + cdf_bytes + subset_vector_bytes + preparation_work_bytes
 
@@ -806,28 +368,30 @@ def _check_dp_name_bt_memory(n_candidates: int, n_voters: int, *, group_ballots:
         construction_peak = 6 * ranking_bytes + n_voters * (12 * index_bytes + 4 * float_bytes)
 
     estimated_peak = max(preparation_peak, sampling_peak, construction_peak)
-    required_bytes = (3 * estimated_peak + 1) // 2
     available_gib = system_memory()["available_gib"]
-    if required_bytes > available_gib * 2**30:
+    if estimated_peak > available_gib * 2**30:
         raise MemoryError(
             f"Not enough memory for DP name-BradleyTerry with {n_candidates} candidates and "
             f"{n_voters} voters. Estimated peak is {estimated_peak / 2**30:.3f} GiB; "
-            f"{required_bytes / 2**30:.3f} GiB is required including 50% headroom, "
             f"but only {available_gib:.3f} GiB is available. "
             "Reduce the candidate or voter count, or use the MCMC generator."
         )
 
 
-def _make_candidate_sets(candidates: list[Candidate]) -> tuple[frozenset[Candidate], ...]:
+def _build_cdf_matrix(
+    candidates: tuple[Candidate, ...], candidate_supports: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """Build conditional next-candidate CDFs for every remaining-candidate subset.
+
+    Args:
+        candidates (tuple[Candidate, ...]): Candidate identities in CDF column order.
+        candidate_supports (NDArray[np.float64]): Aligned, finite, nonnegative supports with at
+            most one zero. The caller must check the preparation memory requirement.
+
+    Returns:
+        NDArray[np.float64]: A ``(2**n, n)`` CDF table indexed by subset bitmask. Absent
+            candidates have zero probability, and the empty-subset row is unused.
     """
-    Given a list of candidates, returns a tuple of frozensets representing all possible
-    subsets of the candidates, including the empty set and the full set.
-    """
-
-    return (EMPTY_VOTER_SET, END_OF_RANKING_SET, *[frozenset({s}) for s in candidates])
-
-
-def _build_cdf_matrix(candidates: tuple[Candidate, ...], candidate_supports: NDArray) -> NDArray:
     n_candidates = len(candidates)
 
     # For a 3-candidate example, the subsets are:
@@ -837,7 +401,8 @@ def _build_cdf_matrix(candidates: tuple[Candidate, ...], candidate_supports: NDA
     # Each candidate gets their own bit in the bitmask
     candidate_bit_assignments = [2**i for i in range(n_candidates)]
 
-    log_supports = np.log(candidate_supports)
+    log_supports = np.full(n_candidates, -np.inf, dtype=np.float64)
+    np.log(candidate_supports, out=log_supports, where=candidate_supports > 0)
 
     log_total_suffix_weight = np.full(n_dp_subsets, -np.inf, dtype=np.float64)
 
@@ -864,9 +429,15 @@ def _build_cdf_matrix(candidates: tuple[Candidate, ...], candidate_supports: NDA
                 states_with_n_remaining_candidates[cand_is_present] - cand_bit
             )
 
-            log_next_cand_weights[cand_is_present, cand_id] = (
-                n_remaining_candidates - 1
-            ) * log_supports[cand_id] + log_total_suffix_weight[successor_remaining_cand_set_masks]
+            if n_remaining_candidates == 1:
+                # The last candidate contributes weight one even when its support is zero.
+                log_next_cand_weights[cand_is_present, cand_id] = 0
+            else:
+                log_next_cand_weights[cand_is_present, cand_id] = (
+                    n_remaining_candidates - 1
+                ) * log_supports[cand_id] + log_total_suffix_weight[
+                    successor_remaining_cand_set_masks
+                ]
 
         log_subset_totals = np.empty(len(states_with_n_remaining_candidates), dtype=np.float64)
         np.logaddexp.reduce(
@@ -900,8 +471,8 @@ def _sample_rankings_from_cdf(
     Args:
         cdf_matrix (NDArray[np.float64]): Conditional CDFs indexed by remaining-candidate
             bitmasks, with one column per candidate. The empty-subset row is unused.
-        rankings (NDArray[np.intp]): Writable output with one row per voter and one column
-            per ranking position. Candidate IDs follow CDF column order.
+        rankings (NDArray[np.intp]): Writable output with one row per voter and one column per
+            ranking position. Candidate IDs follow CDF column order.
         rng (np.random.Generator): Generator advanced in position order, then voter order.
     """
     n_voters, n_candidates = rankings.shape
@@ -943,89 +514,3 @@ def _sample_rankings_from_cdf(
 
             rankings[start:stop, position] = chosen_candidate_ids[:n_batch_voters]
             batch_subset_masks -= candidate_bits[chosen_candidate_ids[:n_batch_voters]]
-
-
-def dp_name_bt_profile_generator(
-    config: BlocSlateConfig,
-    *,
-    group_ballots: bool = True,
-    rng_seed: int | None = None,
-) -> RankProfile:
-    """Generate name-BradleyTerry rankings using subset dynamic programming.
-
-    Prepare one conditional CDF per populated bloc and sample voters in bounded batches.
-    Candidate supports must be strictly positive. Before allocating the output or CDF, check
-    that estimated peak memory plus 50% headroom fits in currently available RAM.
-
-    Args:
-        config (BlocSlateConfig): Bloc proportions, candidate supports, and voter count.
-        group_ballots (bool, optional): Combine identical rankings and sum their weights.
-            Defaults to True.
-        rng_seed (int | None, optional): Seed for NumPy's random generator.
-            Defaults to None.
-
-    Returns:
-        RankProfile: Complete rankings with the declared candidate order and total voter weight.
-
-    Raises:
-        ValueError: A populated bloc has nonfinite or nonpositive candidate support, or the
-            candidate count exceeds the subset-mask or array-index width.
-        MemoryError: Estimated memory requirements exceed currently available RAM.
-    """
-    config.is_valid(raise_errors=True)
-    candidates = tuple(config.candidates)
-    blocs = tuple(config.blocs)
-    n_candidates = len(candidates)
-    _check_dp_name_bt_memory(n_candidates, config.n_voters, group_ballots=group_ballots)
-    rng = np.random.default_rng(rng_seed)
-
-    bloc_counts = apportion.compute(
-        "huntington",
-        [config.bloc_proportions[bloc] for bloc in blocs],
-        config.n_voters,
-    )
-    if isinstance(bloc_counts, int):
-        bloc_counts = [bloc_counts]
-
-    preference_intervals = config.get_combined_preference_intervals_by_bloc()
-
-    ranking_matrix = np.empty((config.n_voters, n_candidates), dtype=int)
-    row_start = 0
-
-    for bloc, n_bloc_voters in zip(blocs, bloc_counts, strict=True):
-        if n_bloc_voters == 0:
-            continue
-
-        supports = np.array(
-            [preference_intervals[bloc].interval[candidate] for candidate in candidates],
-            dtype=np.float64,
-        )
-        if not np.all(np.isfinite(supports) & (supports > 0)):
-            raise ValueError(f"Bloc {bloc!r} requires finite, positive candidate supports.")
-
-        cdf_matrix = _build_cdf_matrix(candidates, supports)
-        bloc_rankings = ranking_matrix[row_start : row_start + n_bloc_voters]
-
-        _sample_rankings_from_cdf(cdf_matrix, bloc_rankings, rng)
-
-        row_start += n_bloc_voters
-        del cdf_matrix  # Release this bloc's table before preparing the next one.
-
-    voter_weight_data = ProfileVoterWeightData(
-        weights=np.ones(config.n_voters, dtype=np.float64),
-        voter_sets=None,
-        weight_kind=WeightKind.FLOAT,
-    )
-    matrix = RankMatrix(
-        voter_weight_data=voter_weight_data,
-        rankings=ranking_matrix,
-        cand_sets=_make_candidate_sets(list(candidates)),
-        ranking_columns=tuple(f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)),
-        candidates=candidates,
-    )
-
-    profile = RankProfile._from_matrix(
-        matrix,
-        max_ranking_length=n_candidates,
-    )
-    return profile.group_ballots() if group_ballots else profile
