@@ -196,6 +196,54 @@ class RankMatrix:
                 )
 
     @classmethod
+    def from_candidate_ids(
+        cls,
+        *,
+        rankings: NDArray,
+        candidates: Sequence[Candidate],
+        voter_weight_data: ProfileVoterWeightData,
+    ) -> Self:
+        """
+        Construct singleton rankings whose candidate IDs follow the supplied candidate order.
+
+        Build the reserved empty and tilde entries followed by one singleton set per candidate.
+        Candidate index i is therefore also candidate-set ID i. Ranking columns follow the
+        array width, which may differ from the size of the candidate universe. Construction
+        validates and copies the rankings while reusing the validated shared-data block.
+
+        Args:
+            rankings (NDArray): Two-dimensional integer array of candidate indices. EMPTY_SET_ID
+                (-2) denotes an explicit empty position; END_OF_RANKING_ID (-1) ends a ranking
+                and may only be followed by that same sentinel. Empty dimensions are supported.
+            candidates (Sequence[Candidate]): Unique candidate identities in ID order. Names must
+                already be normalized. Tied candidate sets require the general constructor.
+            voter_weight_data (ProfileVoterWeightData): Shared data with one entry per ballot.
+
+        Returns:
+            Self: Matrix with owned rankings, singleton candidate sets, and Ranking_1 onward labels.
+
+        Raises:
+            TypeError: Rankings are not a NumPy array or candidate identities have invalid types.
+            ValueError: Ranking dimensions, dtype, IDs, row count, sentinel placement, or candidate
+                identities are invalid.
+        """
+        if not isinstance(rankings, np.ndarray):
+            raise TypeError(f"rankings must be a numpy array, not {type(rankings)}.")
+        if rankings.ndim != 2:
+            raise ValueError(f"rankings must be a 2D array, not {rankings.ndim}D: {rankings.shape}")
+
+        candidates = tuple(candidates)
+        return cls(
+            voter_weight_data=voter_weight_data,
+            rankings=rankings,
+            cand_sets=(EMPTY_VOTER_SET, END_OF_RANKING_SET, *(frozenset({c}) for c in candidates)),
+            ranking_columns=tuple(
+                f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(rankings.shape[1])
+            ),
+            candidates=candidates,
+        )
+
+    @classmethod
     def from_df(cls, df: pd.DataFrame, candidates: Sequence[Candidate]) -> Self:
         """
         Encode a ranking dataframe as owned ranking IDs and shared ballot data.

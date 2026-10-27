@@ -291,6 +291,64 @@ def _make_voter_weight_data(num_ballots: int = 1) -> ProfileVoterWeightData:
     )
 
 
+def test_rank_matrix_from_candidate_ids_preserves_encoding_and_owns_rankings():
+    rankings = np.array([[1, 0], [-2, -1]], dtype=np.int32)
+    candidates: list[Candidate] = [7, "A", "unranked"]
+    data = _make_voter_weight_data(2)
+
+    matrix = RankMatrix.from_candidate_ids(
+        rankings=rankings, candidates=candidates, voter_weight_data=data
+    )
+    rankings[0, 0] = -2
+    candidates[0] = "changed"
+
+    np.testing.assert_array_equal(matrix.rankings, [[1, 0], [-2, -1]])
+    assert not matrix.rankings.flags.writeable
+    assert matrix.voter_weight_data is data
+    assert matrix.candidates == (7, "A", "unranked")
+    assert matrix.cand_sets == (
+        frozenset(),
+        frozenset({"~"}),
+        frozenset({7}),
+        frozenset({"A"}),
+        frozenset({"unranked"}),
+    )
+    assert matrix.ranking_columns == ("Ranking_1", "Ranking_2")
+    assert matrix.to_df()["Ranking_1"].tolist() == [frozenset({"A"}), frozenset()]
+
+
+@pytest.mark.parametrize("shape", [(0, 0), (0, 2), (2, 0)])
+def test_rank_matrix_from_candidate_ids_accepts_empty_dimensions(shape: tuple[int, int]):
+    matrix = RankMatrix.from_candidate_ids(
+        rankings=np.empty(shape, dtype=np.intp),
+        candidates=("A", "B"),
+        voter_weight_data=_make_voter_weight_data(shape[0]),
+    )
+
+    assert matrix.rankings.shape == shape
+    assert len(matrix.ranking_columns) == shape[1]
+    assert matrix.candidates == ("A", "B")
+
+
+@pytest.mark.parametrize(
+    "rankings, error, message",
+    [
+        ([[0]], TypeError, "numpy array"),
+        (np.array([0]), ValueError, "2D array"),
+        (np.zeros((1, 1, 1), dtype=int), ValueError, "2D array"),
+        (np.array([[0.0]]), ValueError, "integer dtype"),
+        (np.array([[2]]), ValueError, "candidate-set IDs"),
+        (np.array([[0], [1]]), ValueError, "same number of rows"),
+        (np.array([[-1, 0]]), ValueError, "can only trail"),
+    ],
+)
+def test_rank_matrix_from_candidate_ids_rejects_invalid_rankings(rankings, error, message):
+    with pytest.raises(error, match=message):
+        RankMatrix.from_candidate_ids(
+            rankings=rankings, candidates=("A", "B"), voter_weight_data=_make_voter_weight_data()
+        )
+
+
 def test_rank_matrix_constructor_owns_rankings():
     rankings = np.array([[0]], dtype=np.int32)
     matrix = RankMatrix(
