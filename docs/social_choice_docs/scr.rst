@@ -226,6 +226,31 @@ the possibility of any distribution on rankings.
 Candidate Simplex Models
 ------------------------
 
+Name and Slate Models
+~~~~~~~~~~~~~~~~~~~~~
+
+The prefixes ``name`` and ``slate`` identify the objects governed by the model's distribution.
+Both families can use slate membership and cohesion parameters, so a name model does not imply
+that slate information is absent.
+
+* **Name models** combine cohesion-weighted preference intervals into one distribution of
+  candidate support. Name-PL and name-BT then use those supports to define a distribution over
+  candidate rankings.
+* **Slate models** define a distribution over sequences of slate labels. Candidate order within
+  each slate is sampled separately using PL, and those candidates fill the corresponding
+  positions in the slate sequence.
+
+For BT, this distinction changes the distribution: name-BT compares individual candidates, whereas
+slate-BT compares slate labels and uses PL within each slate. Generating labels first is therefore
+more than an implementation choice. Conversely, sampling a name-BT ranking one position at a time
+does not make it a slate model; the conditional choices still follow the distribution over
+candidate rankings.
+
+Name-Cumulative follows the name-model convention by allocating points using combined candidate
+supports. Here, ``cumulative`` identifies the ballot format, and the allocation follows a
+multinomial distribution. Unlike BT, allocating points to slates first and then to candidates can
+produce exactly the same distribution, as described below.
+
 Name-Plackett-Luce
 ~~~~~~~~~~~~~~~~~~
 
@@ -262,17 +287,33 @@ combined preference interval.
 Name-Cumulative
 ~~~~~~~~~~~~~~~
 
-The name-Cumulative model (n-C) samples ranked ballots as follows.
-Assume there are :math:`n` blocs of voters. Within a bloc, say bloc
-:math:`A`, voters have :math:`n` preference intervals, one for each
-slate of candidates. A bloc also has a fixed :math:`n`-tuple of cohesion
-parameters :math:`\pi_A = (\pi_{AA}, \pi_{AB},\dots)`; we require that
-:math:`\sum_B \pi_{AB}=1`. To generate a ballot for a voter in bloc
-:math:`A`, each preference interval :math:`I_B` is rescaled by the
-corresponding cohesion parameter :math:`\pi_{AB}`, and then concatenated
-to create one preference interval. To generate a ballot, voters sample
-with replacement from the combined interval as many times as determined
-by the length of the desired ballot.
+The name-Cumulative model (n-C) generates scored ballots by allocating a fixed number of points
+independently among candidates. For a voter in bloc :math:`A`, let :math:`\pi_{AB}` be the
+cohesion for slate :math:`B`, and let :math:`s_{Ai\mid B}` be candidate :math:`i`'s support in
+that bloc's normalized preference interval for the slate. The combined probability of assigning a
+point to that candidate is
+
+.. math::
+
+   p_{Ai}=\pi_{AB}s_{Ai\mid B}.
+
+With :math:`m` candidates and :math:`K` points per voter, the resulting score vector follows
+
+.. math::
+
+   (X_1,\ldots,X_m)\sim\operatorname{Multinomial}
+       (K; p_{A1},\ldots,p_{Am}).
+
+Each score counts how many points the candidate receives, so a voter can assign several points to
+the same candidate and the scores total :math:`K`. VoteKit uses ``total_points`` to set this
+total, defaulting to the number of candidates. Candidates receiving no points are left unscored in
+the returned profile.
+
+An equivalent construction first allocates the :math:`K` points among slates using a multinomial
+draw with probabilities :math:`\pi_{AB}`. Within each slate, it allocates those points among
+candidates using that slate's preference interval. A point reaches candidate :math:`i` with the
+same probability :math:`\pi_{AB}s_{Ai\mid B}` in either construction, and points are allocated
+independently. The resulting candidate counts therefore have the same multinomial distribution.
 
 Slate-Plackett-Luce
 ~~~~~~~~~~~~~~~~~~~

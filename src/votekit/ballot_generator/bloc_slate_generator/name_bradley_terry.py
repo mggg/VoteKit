@@ -208,14 +208,12 @@ def _sample_name_bt_rankings(
         tuple[NDArray[np.intp], dict[str, slice]]: Encoded rankings and each bloc's row slice.
 
     Raises:
-        ValueError: A bloc has nonfinite or negative support, or too many positive-support
-            candidates for the subset-mask or array-index width.
+        ValueError: Too many positive-support candidates for the subset-mask or array-index width.
         MemoryError: Estimated memory requirements exceed currently available RAM.
     """
-    preference_intervals = config.get_combined_preference_intervals_by_bloc()
+    supports_by_bloc = config.get_combined_candidate_support_arrays_by_bloc(candidates)
     max_positive_candidates = max(
-        sum(support > 0 for support in interval.interval.values())
-        for interval in preference_intervals.values()
+        int(np.count_nonzero(supports > 0)) for supports in supports_by_bloc.values()
     )
     _check_dp_name_bt_memory(
         len(candidates),
@@ -232,13 +230,7 @@ def _sample_name_bt_rankings(
         if n_bloc_voters == 0:
             continue
 
-        supports = np.array(
-            [preference_intervals[bloc].interval[candidate] for candidate in candidates],
-            dtype=np.float64,
-        )
-        if not np.all(np.isfinite(supports) & (supports >= 0)):
-            raise ValueError(f"Bloc {bloc!r} requires finite, nonnegative candidate supports.")
-        _sample_bloc_rankings(candidates, supports, ranking_matrix[rows], rng)
+        _sample_bloc_rankings(candidates, supports_by_bloc[bloc], ranking_matrix[rows], rng)
 
     return ranking_matrix, bloc_rows
 

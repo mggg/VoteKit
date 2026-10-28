@@ -128,22 +128,14 @@ def _sample_name_pl_rankings(
 
     Returns:
         tuple[NDArray[np.intp], dict[str, slice]]: Complete candidate-ID rankings and bloc rows.
-
-    Raises:
-        ValueError: A bloc has nonfinite or negative candidate support.
     """
     bloc_rows = _apportion_bloc_rows(config)
-    preference_intervals = config.get_combined_preference_intervals_by_bloc()
+    supports_by_bloc = config.get_combined_candidate_support_arrays_by_bloc(candidates)
     candidate_ids = np.arange(len(candidates))
     rankings = np.empty((config.n_voters, len(candidates)), dtype=int)
 
     for bloc, rows in bloc_rows.items():
-        supports = np.array(
-            [preference_intervals[bloc].interval[candidate] for candidate in candidates],
-            dtype=np.float64,
-        )
-        if not np.all(np.isfinite(supports) & (supports >= 0)):
-            raise ValueError(f"Bloc {bloc!r} requires finite, nonnegative candidate supports.")
+        supports = supports_by_bloc[bloc]
 
         for start in range(rows.start, rows.stop, BATCH_SIZE):
             stop = min(start + BATCH_SIZE, rows.stop)
