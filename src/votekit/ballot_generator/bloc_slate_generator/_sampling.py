@@ -30,7 +30,8 @@ def _sample_pl_rankings(
         candidate_ids (NDArray[np.intp]): Candidate IDs in support-vector order.
         candidate_supports (NDArray[np.float64]): Aligned, validated finite nonnegative supports.
         n_voters (int): Number of independent candidate orderings to draw.
-        rng (np.random.Generator): Random stream advanced by uniform draws, then tail shuffles.
+        rng (np.random.Generator): Random stream advanced by exponential draws, then tail
+            shuffles.
 
     Returns:
         NDArray[np.intp]: One complete ordering of the supplied candidate IDs per voter.
@@ -68,18 +69,21 @@ def _fast_sample_without_replacement(
     r"""
     Sample complete weighted rankings without replacement, returning candidate indices.
 
-    Each next candidate has probability proportional to its weight among those remaining. For
-    independent uniform draws :math:`U_i`, sorting :math:`U_i^{1/w_i}` from largest to smallest
-    produces this Plackett-Luce distribution. Forming those powers directly can underflow for
-    small weights, collapsing distinct keys to zero and biasing the resulting order.
+    Each candidate receives an independent exponential arrival time with rate equal to its weight.
+    The probability that candidate :math:`i` arrives first is :math:`w_i/\sum_j w_j`. After that
+    arrival, the memoryless property gives the same competition among the remaining candidates.
+    Sorting the arrival times therefore produces the Plackett-Luce distribution: each next
+    candidate is selected in proportion to its weight among those still available.
 
-    Instead, sort :math:`\log(-\log U_i)-\log w_i` from smallest to largest. These are the log
-    arrival times of independent exponential variables with rates :math:`w_i`, giving the same
-    ordering without forming the powers or dividing by small weights. An exact uniform draw of
-    zero gives an infinite arrival time and places that candidate last.
+    For unit-rate exponential draws :math:`E_i`, the arrival times are :math:`E_i/w_i`. Sorting
+    :math:`\log E_i-\log w_i` preserves their order without dividing by weights that may be very
+    small. An exact zero draw gives log arrival time :math:`-\infty` and places that candidate
+    first. Zero weights are excluded by the caller and handled separately as an unweighted tail.
 
-    This method of weighted sampling without replacement is Algorithm A from
-    https://doi.org/10.1016/j.ipl.2005.11.003.
+    This construction is equivalent to Algorithm A's weighted ordering in
+    https://doi.org/10.1016/j.ipl.2005.11.003: writing :math:`E_i=-\log U_i` shows that sorting
+    :math:`E_i/w_i` increasingly gives the same order as sorting :math:`U_i^{1/w_i}` decreasingly.
+    The logarithmic form avoids the underflow that can collapse those powers to tied zeros.
 
     Args:
         weights (NDArray[np.float64]): One-dimensional, finite, strictly positive candidate
@@ -95,10 +99,8 @@ def _fast_sample_without_replacement(
     """
     n_cands = len(weights)
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    log_arrival_times = numpy_rng.uniform(0, 1, size=(n_samples, n_cands))
+    log_arrival_times = numpy_rng.standard_exponential(size=(n_samples, n_cands))
     with np.errstate(divide="ignore"):
-        np.log(log_arrival_times, out=log_arrival_times)
-        log_arrival_times *= -1
         np.log(log_arrival_times, out=log_arrival_times)
 
     log_arrival_times -= np.log(weights)
