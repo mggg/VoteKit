@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Iterator, Sequence
 
 import numpy as np
@@ -10,6 +12,13 @@ from votekit._df_schema import (
     RANKING_COLUMN_PREFIX,
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    SAMPLING_BATCH_SIZE,
+    _sample_pl_rankings,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    _fast_sample_without_replacement as _fast_sample_without_replacement,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
@@ -68,50 +77,75 @@ def _lexicographic_symbol_tuple_iterator(
         current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
-def _fast_sample_without_replacement(
-    weights: NDArray[np.float64],
-    n_samples: int,
+def _fill_slate_candidate_rankings(
+    config: BlocSlateConfig,
+    bloc: str,
+    candidates: tuple[Candidate, ...],
+    slate_sequences: NDArray[np.intp],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
     *,
-    numpy_rng: Generator | None = None,
-) -> NDArray[np.intp]:
+    batch_size: int = SAMPLING_BATCH_SIZE,
+) -> None:
     r"""
-    Sample complete weighted rankings without replacement, returning candidate indices.
+    Fill each slate's positions with a Plackett-Luce ordering of its candidate IDs.
 
-    Each next candidate has probability proportional to its weight among those remaining. For
-    independent uniform draws :math:`U_i`, sorting :math:`U_i^{1/w_i}` from largest to smallest
-    produces this Plackett-Luce distribution. Forming those powers directly can underflow for
-    small weights, collapsing distinct keys to zero and biasing the resulting order.
+    A slate sequence determines where each slate's candidates belong, but their identities still
+    need an order. For each slate, ``_sample_pl_rankings`` draws one candidate
+    ordering per voter. The corresponding positions in that voter's slate sequence then receive
+    those candidate IDs from left to right. For example, sequence ABA and within-slate orders
+    ``(a2, a1)`` and ``(b1,)`` produce the candidate ranking ``(a2, b1, a1)``.
 
-    Instead, sort :math:`\log(-\log U_i)-\log w_i` from smallest to largest. These are the log
-    arrival times of independent exponential variables with rates :math:`w_i`, giving the same
-    ordering without forming the powers or dividing by small weights. An exact uniform draw of
-    zero gives an infinite arrival time and places that candidate last.
-
-    This method of weighted sampling without replacement is Algorithm A from
-    https://doi.org/10.1016/j.ipl.2005.11.003.
+    Every row contains the same number of occurrences of a given slate, allowing its positions to
+    form a rectangular array with one row per voter. Indexed assignment fills those positions in
+    batches, bounding the temporary position and ordering arrays. Slate sequences remain separate
+    from the candidate output because a slate ID and a candidate ID can have the same integer
+    value. The batch size determines how positive-support draws and zero-support tail shuffles
+    interleave, so changing it can change seeded candidate rankings even when the slate sequences
+    remain identical.
 
     Args:
-        weights (NDArray[np.float64]): One-dimensional, finite, strictly positive candidate
-            weights. They need not sum to one. The caller is expected to validate these
-            conditions.
-        n_samples (int): Number of independent complete rankings to generate.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance for
-            reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        NDArray[np.intp]: An ``(n_samples, len(weights))`` array with each row containing every
-            candidate index once, in sampled preference order.
+        config (BlocSlateConfig): Validated slate membership and preference intervals.
+        bloc (str): Bloc whose within-slate supports apply.
+        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
+        slate_sequences (NDArray[np.intp]): Complete slate-ID sequences in configuration order.
+        rankings (NDArray[np.intp]): Aligned writable output, filled in place with candidate IDs.
+        rng (np.random.Generator): Random stream advanced in slate order, then batch order.
+        batch_size (int): Maximum voters per ordering batch. Defaults to 65,536.
     """
-    n_cands = len(weights)
-    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    log_arrival_times = numpy_rng.uniform(0, 1, size=(n_samples, n_cands))
-    with np.errstate(divide="ignore"):
-        np.log(log_arrival_times, out=log_arrival_times)
-        log_arrival_times *= -1
-        np.log(log_arrival_times, out=log_arrival_times)
+    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
+    preference_intervals = config.get_preference_intervals_for_bloc(bloc)
 
-    log_arrival_times -= np.log(weights)
-    return np.argsort(log_arrival_times, axis=1)
+    for slate_id, slate in enumerate(config.slates):
+        slate_candidates = config.slate_to_candidates[slate]
+        slate_candidate_ids = np.array(
+            [candidate_to_id[candidate] for candidate in slate_candidates], dtype=int
+        )
+        slate_candidate_supports = np.array(
+            [preference_intervals[slate].interval[candidate] for candidate in slate_candidates],
+            dtype=np.float64,
+        )
+
+        for batch_start in range(0, len(rankings), batch_size):
+            batch_stop = min(batch_start + batch_size, len(rankings))
+            batch_slate_sequences = slate_sequences[batch_start:batch_stop]
+            batch_rankings = rankings[batch_start:batch_stop]
+            n_batch_voters = len(batch_rankings)
+
+            # Each row contains the same number of occurrences of this slate.
+            _, slate_positions = np.nonzero(batch_slate_sequences == slate_id)
+            slate_positions_by_voter = slate_positions.reshape(
+                n_batch_voters, len(slate_candidates)
+            )
+
+            candidate_orderings = _sample_pl_rankings(
+                slate_candidate_ids,
+                slate_candidate_supports,
+                n_voters=n_batch_voters,
+                rng=rng,
+            )
+            voter_rows = np.arange(n_batch_voters)[:, None]
+            batch_rankings[voter_rows, slate_positions_by_voter] = candidate_orderings
 
 
 def _construct_slate_to_candidate_ordering_arrays(
@@ -152,16 +186,10 @@ def _construct_slate_to_candidate_ordering_arrays(
 
         cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
         distribution = np.array([preference_interval[c] for c in candidates], dtype=np.float64)
-        positive_ids = np.flatnonzero(distribution > 0)
-        zero_ids = np.flatnonzero(distribution == 0)
-        indices = _fast_sample_without_replacement(
-            distribution[positive_ids], n_samples, numpy_rng=rng
+        indices = _sample_pl_rankings(
+            np.arange(len(candidates)), distribution, n_voters=n_samples, rng=rng
         )
-        cand_ordering[:, : len(positive_ids)] = cands_list[positive_ids[indices]]
-
-        if len(zero_ids):
-            tail_candidates = np.broadcast_to(cands_list[zero_ids], (n_samples, len(zero_ids)))
-            rng.permuted(tail_candidates, axis=1, out=cand_ordering[:, len(positive_ids) :])
+        cand_ordering[:] = cands_list[indices]
 
         results[slate] = cand_ordering
 
