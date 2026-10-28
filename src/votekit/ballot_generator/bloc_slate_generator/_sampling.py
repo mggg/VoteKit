@@ -14,7 +14,8 @@ BATCH_SIZE = 65_536
 def _fill_pl_rankings(
     candidate_ids: NDArray[np.intp],
     supports: NDArray[np.float64],
-    rankings: NDArray[np.intp],
+    *,
+    out: NDArray[np.intp],
     rng: np.random.Generator,
 ) -> None:
     """
@@ -22,13 +23,15 @@ def _fill_pl_rankings(
 
     Positive-support candidates enter the exponential race. Their sampled positions are mapped to
     the supplied candidate IDs directly in the output buffer. Zero-support candidates follow in an
-    independent uniform order on each row. Input IDs and supports remain unchanged.
+    independent uniform order on each row. Input IDs and supports remain unchanged. The caller
+    retains ownership of the output buffer, and the function retains no references to the arrays.
 
     Args:
         candidate_ids (NDArray[np.intp]): Candidate IDs in support-vector order.
         supports (NDArray[np.float64]): Aligned, validated finite, nonnegative supports.
-        rankings (NDArray[np.intp]): Writable output with one column per supplied candidate. May
-            be a view into a larger array. Callers batch rows to bound temporary storage.
+        out (NDArray[np.intp]): Writable output with one column per supplied candidate. Every
+            entry is overwritten. If this is a view, the corresponding entries in its backing
+            array are also modified. Callers batch rows to bound temporary storage.
         rng (np.random.Generator): Stream advanced by exponential draws, then tail shuffles.
     """
     has_positive_support = supports > 0
@@ -36,20 +39,20 @@ def _fill_pl_rankings(
     zero_candidate_ids = candidate_ids[~has_positive_support]
     n_positive_candidates = len(positive_candidate_ids)
     arrival_order = _fast_sample_without_replacement(
-        supports[has_positive_support], len(rankings), numpy_rng=rng
+        supports[has_positive_support], len(out), numpy_rng=rng
     )
     np.take(
         positive_candidate_ids,
         arrival_order,
-        out=rankings[:, :n_positive_candidates],
+        out=out[:, :n_positive_candidates],
         mode="clip",
     )
 
     if len(zero_candidate_ids):
         rng.permuted(
-            np.broadcast_to(zero_candidate_ids, (len(rankings), len(zero_candidate_ids))),
+            np.broadcast_to(zero_candidate_ids, (len(out), len(zero_candidate_ids))),
             axis=1,
-            out=rankings[:, n_positive_candidates:],
+            out=out[:, n_positive_candidates:],
         )
 
 

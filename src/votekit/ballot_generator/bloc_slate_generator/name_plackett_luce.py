@@ -147,6 +147,6 @@ def _sample_name_pl_rankings(
 
         for start in range(rows.start, rows.stop, BATCH_SIZE):
             stop = min(start + BATCH_SIZE, rows.stop)
-            _fill_pl_rankings(candidate_ids, supports, rankings[start:stop], rng)
+            _fill_pl_rankings(candidate_ids, supports, out=rankings[start:stop], rng=rng)
 
     return rankings, bloc_rows
