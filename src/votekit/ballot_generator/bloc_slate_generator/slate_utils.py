@@ -14,66 +14,12 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot_generator.bloc_slate_generator._sampling import (
-    _fast_sample_without_replacement as _fast_sample_without_replacement,
-)
-from votekit.ballot_generator.bloc_slate_generator._sampling import (
     _fill_pl_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
+from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 from votekit.types import Candidate
-
-
-def _lexicographic_symbol_tuple_iterator(
-    symbol_list: list[str],
-) -> Iterator[tuple[str, ...]]:
-    """
-    Given a set of symbols, generate all possible combinations of symbols.
-
-    Example:
-        symbol_list = ["A", "A", "B"]
-        returns {("A", "A", "B"), ("A", "B", "A"), ("B", "A", "A")}
-
-    Args:
-        symbol_list (list[str]): A list of symbols.
-
-    Returns:
-        set[tuple[str]]: A set of tuples of strings.
-    """
-    n = len(symbol_list)
-    if n == 0:
-        return
-
-    # sort lexicographically
-    current_symbol_perm = sorted(symbol_list)
-
-    # Idea here is to make the smallest possible change to the between steps that increases the
-    # lexicographic cost (so we will find the next thing in the lexicographic ordering)
-    while True:
-        yield tuple(current_symbol_perm)
-
-        # find the longest non-increasing suffix (fails when you have reverse lex order and
-        # returns) start from the right and stop when you find a[i] < a[i+1]
-        i = n - 2
-        while i >= 0 and current_symbol_perm[i] >= current_symbol_perm[i + 1]:
-            i -= 1
-        if i < 0:
-            return
-
-        # find rightmost element greater than a[i]. This may not be a[i+1] because of duplicates
-        j = n - 1
-        while current_symbol_perm[j] <= current_symbol_perm[i]:
-            j -= 1
-
-        # swap pivot with successor
-        current_symbol_perm[i], current_symbol_perm[j] = (
-            current_symbol_perm[j],
-            current_symbol_perm[i],
-        )
-
-        # reverse the suffix to get the next smallest lexicographic ordering (so the suffix should
-        # b in non-decreasing order now)
-        current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
 def _prepare_slate_candidate_arrays(
@@ -132,9 +78,10 @@ def _fill_slate_candidate_rankings(
     Args:
         candidate_arrays (tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]): Aligned
             candidate-ID and support arrays in slate-ID order, containing at least one slate.
-        slate_batches (Iterator[NDArray[np.intp]]): Batches of slate IDs with each slate occurring
-            once per candidate it contains on every row. Together the batches must contain exactly
-            as many rows as the output and have the same column count.
+        slate_batches (Iterator[NDArray[np.intp]]): Batches of slate IDs with no slate occurring
+            more often than its candidate count on any row. Short sequences have trailing
+            ``END_OF_RANKING_ID`` padding. Together the batches must contain exactly as many rows
+            as the output and have the same column count.
         rankings (NDArray[np.intp]): Writable candidate-ID output for the entire bloc. May be a
             view into a larger profile's array. Every row is filled in place.
         rng (np.random.Generator): Stream advanced in slate order within each batch, interleaved
@@ -157,30 +104,43 @@ def _fill_slate_candidate_batch(
     Fill one batch of slate positions with independently sampled candidate rankings.
 
     A reusable ordering buffer holds the candidate draws for one slate at a time. Its columns are
-    scattered into that slate's successive positions on each ballot. All temporary arrays belong
-    to this call and are released on return, before the caller prepares another batch.
+    scattered into that slate's successive positions on each ballot. A short sequence uses only
+    the beginning of the sampled candidate order and retains its trailing end sentinels. All
+    temporary arrays belong to this call and are released on return, before the caller prepares
+    another batch.
+
+    When ballots contain different numbers of slate occurrences, their matching positions still
+    arrive grouped by voter. Subtracting each voter's first offset numbers its occurrences from
+    zero, selecting the corresponding prefix of that voter's sampled candidate order.
 
     Args:
         candidate_arrays (tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]): Candidate-ID
             and support arrays in slate-ID order, containing at least one slate.
-        slate_sequences (NDArray[np.intp]): Slate IDs, with one occurrence per candidate from each
-            slate on every row. Read without modification.
+        slate_sequences (NDArray[np.intp]): Slate IDs with at most one occurrence per candidate
+            from each slate on every row, followed by end sentinels. Read without modification.
         rankings (NDArray[np.intp]): Writable candidate-ID output with the same shape as the
             sequences. Filled in place without retaining a reference to its storage.
         rng (np.random.Generator): Stream advanced in slate order within this batch.
     """
     max_slate_size = max(len(candidate_ids) for candidate_ids, _ in candidate_arrays)
-    voter_rows = np.arange(len(rankings))[:, None]
+    all_voter_rows = np.arange(len(rankings))[:, None]
     candidate_orderings = np.empty((len(rankings), max_slate_size), dtype=int)
+    rankings.fill(END_OF_RANKING_ID)
 
     for slate_id, (candidate_ids, supports) in enumerate(candidate_arrays):
         n_candidates = len(candidate_ids)
-        slate_positions = np.nonzero(slate_sequences == slate_id)[1]
-        slate_positions_by_voter = slate_positions.reshape(len(rankings), n_candidates)
-
         slate_orderings = candidate_orderings[:, :n_candidates]
-        _fill_pl_rankings(candidate_ids, supports, slate_orderings, rng)
-        rankings[voter_rows, slate_positions_by_voter] = slate_orderings
+        _fill_pl_rankings(candidate_ids, supports, out=slate_orderings, rng=rng)
+
+        voter_rows, slate_positions = np.nonzero(slate_sequences == slate_id)
+        if len(slate_positions) == len(rankings) * n_candidates:
+            slate_positions_by_voter = slate_positions.reshape(len(rankings), n_candidates)
+            rankings[all_voter_rows, slate_positions_by_voter] = slate_orderings
+        else:
+            counts_by_voter = np.bincount(voter_rows, minlength=len(rankings))
+            first_occurrence_by_voter = np.cumsum(counts_by_voter) - counts_by_voter
+            candidate_positions = np.arange(len(voter_rows)) - first_occurrence_by_voter[voter_rows]
+            rankings[voter_rows, slate_positions] = slate_orderings[voter_rows, candidate_positions]
 
 
 def _construct_slate_to_candidate_ordering_arrays(
@@ -222,7 +182,7 @@ def _construct_slate_to_candidate_ordering_arrays(
         cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
         distribution = np.array([preference_interval[c] for c in candidates], dtype=np.float64)
         indices = np.empty((n_samples, len(candidates)), dtype=int)
-        _fill_pl_rankings(np.arange(len(candidates)), distribution, indices, rng)
+        _fill_pl_rankings(np.arange(len(candidates)), distribution, out=indices, rng=rng)
         cand_ordering[:] = cands_list[indices]
 
         results[slate] = cand_ordering

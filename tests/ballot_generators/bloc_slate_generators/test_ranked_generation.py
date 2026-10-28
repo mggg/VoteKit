@@ -188,10 +188,10 @@ def test_pl_sampling_preserves_inputs_and_fills_strided_output(supports):
     candidate_ids = np.array([5, 2, 7, 9])
     weights = np.array(supports)
     expected = np.empty((23, 4), dtype=int)
-    _fill_pl_rankings(candidate_ids, weights, expected, np.random.default_rng(42))
+    _fill_pl_rankings(candidate_ids, weights, out=expected, rng=np.random.default_rng(42))
 
     storage = np.full((23, 8), -99, dtype=int)
-    _fill_pl_rankings(candidate_ids, weights, storage[:, ::2], np.random.default_rng(42))
+    _fill_pl_rankings(candidate_ids, weights, out=storage[:, ::2], rng=np.random.default_rng(42))
     np.testing.assert_array_equal(candidate_ids, [5, 2, 7, 9])
     np.testing.assert_array_equal(weights, supports)
     np.testing.assert_array_equal(storage[:, ::2], expected)

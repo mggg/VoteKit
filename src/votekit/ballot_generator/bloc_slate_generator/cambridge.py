@@ -5,108 +5,298 @@ The main API functions in this module are:
 
 - `cambridge_profile_generator`: Generates a single preference profile using the Cambridge model.
 - `cambridge_profiles_by_bloc_generator`: Generates preference profiles for each bloc using the
-    Cambridge model.
+  Cambridge model.
 """
 
+from __future__ import annotations
+
 import json
+from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import cast
 
-import apportionment.methods as apportion
 import numpy as np
-from numpy.random import Generator
+from numpy.typing import NDArray
 
+from votekit.ballot_generator.bloc_slate_generator._profile_construction import (
+    _apportion_bloc_rows,
+    _build_profile_from_rankings,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import BATCH_SIZE
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _convert_slate_ballots_to_profile,
+    _fill_slate_candidate_rankings,
+    _prepare_slate_candidate_arrays,
 )
 from votekit.pref_profile import RankProfile
+from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
+from votekit.types import Candidate
+
+# =================================================
+# ================= API Functions =================
+# =================================================
+
+
+def cambridge_profile_generator(
+    config: BlocSlateConfig,
+    *,
+    majority_bloc: str | None = None,
+    minority_bloc: str | None = None,
+    group_ballots: bool = True,
+    rng_seed: int | None = None,
+) -> RankProfile:
+    """
+    Generate a ranked profile from historical Cambridge, MA, RCV ballot patterns.
+
+    Each bloc's cohesion determines the probability that a ballot begins with the majority slate.
+    Conditional on that choice, its slate sequence is drawn from the corresponding historical
+    distribution. Sequences are reduced to the available slate sizes without extending short
+    ballots. Within each slate, candidate order follows Plackett-Luce on the bloc's supports;
+    zero-support candidates follow in a uniformly shuffled tail when zero support is enabled.
+
+    The model requires two blocs and two slates with corresponding names. Historical symbols W and
+    C map to the designated majority and minority groups. Grouping combines identical candidate
+    rankings after both the historical sequence and candidate order have been sampled.
+
+    Args:
+        config (BlocSlateConfig): Configuration specifying voter count, bloc proportions, slate
+            membership, cohesion, and within-slate candidate supports.
+        majority_bloc (str | None): Group corresponding to historical symbol W. Defaults to None;
+            if neither group is supplied, the larger bloc is the majority. If only one is
+            supplied, the other is inferred.
+        minority_bloc (str | None): Group corresponding to historical symbol C. Defaults to None.
+        group_ballots (bool): Whether to combine identical rankings and count their weights.
+            Defaults to True.
+        rng_seed (int | None): NumPy seed for reproducible output with identical inputs. Defaults
+            to None. Batched candidate sampling can change seeded output from the dataframe path.
+
+    Returns:
+        RankProfile: Generated rankings with the full candidate universe in configuration order.
+            Historical truncation is preserved, and total ballot weight equals
+            ``config.n_voters``.
+
+    Raises:
+        ValueError: The configuration does not have two correspondingly named blocs and slates,
+            the designated groups are invalid, or equal bloc proportions leave the groups
+            ambiguous.
+    """
+    config.is_valid(raise_errors=True)
+    _validate_slates_and_blocs(config)
+    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
+        config, majority_bloc, minority_bloc
+    )
+
+    candidates = tuple(config.candidates)
+    rankings, _ = _sample_cambridge_rankings(
+        config, candidates, majority_bloc, minority_bloc, np.random.default_rng(rng_seed)
+    )
+
+    return _build_profile_from_rankings(rankings, candidates, group_ballots=group_ballots)
+
+
+def cambridge_profiles_by_bloc_generator(
+    config: BlocSlateConfig,
+    *,
+    # TODO: in next major release, consider using majority_slate instead of majority_bloc
+    majority_bloc: str | None = None,
+    # TODO: in next major release, consider using minority_slate instead of minority_bloc
+    minority_bloc: str | None = None,
+    group_ballots: bool = True,
+    rng_seed: int | None = None,
+) -> dict[str, RankProfile]:
+    """
+    Generate one Cambridge-model profile per bloc from a shared set of sampled rankings.
+
+    The distribution and historical truncation follow ``cambridge_profile_generator``. Both public
+    functions sample the same rankings for a given configuration and seed. This function groups
+    within each bloc when requested and retains every bloc's full candidate universe.
+
+    Args:
+        config (BlocSlateConfig): Configuration specifying voter count, bloc proportions, slate
+            membership, cohesion, and within-slate candidate supports.
+        majority_bloc (str | None): Group corresponding to historical symbol W. Defaults to None;
+            if neither group is supplied, the larger bloc is the majority. If only one is
+            supplied, the other is inferred.
+        minority_bloc (str | None): Group corresponding to historical symbol C. Defaults to None.
+        group_ballots (bool): Whether to combine identical rankings within each bloc and count
+            their weights. Defaults to True.
+        rng_seed (int | None): NumPy seed for reproducible output with identical inputs. Defaults
+            to None. Batched candidate sampling can change seeded output from the dataframe path.
+
+    Returns:
+        dict[str, RankProfile]: Profiles in configuration bloc order, with voter counts determined
+            by Huntington apportionment. Each profile owns its matrix storage.
+
+    Raises:
+        ValueError: The configuration does not have two correspondingly named blocs and slates,
+            the designated groups are invalid, or equal bloc proportions leave the groups
+            ambiguous.
+    """
+    config.is_valid(raise_errors=True)
+    _validate_slates_and_blocs(config)
+    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
+        config, majority_bloc, minority_bloc
+    )
+
+    candidates = tuple(config.candidates)
+    rankings, bloc_rows = _sample_cambridge_rankings(
+        config, candidates, majority_bloc, minority_bloc, np.random.default_rng(rng_seed)
+    )
+
+    return {
+        bloc: _build_profile_from_rankings(rankings[rows], candidates, group_ballots=group_ballots)
+        for bloc, rows in bloc_rows.items()
+    }
+
+
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
+
+
+def _sample_cambridge_rankings(
+    config: BlocSlateConfig,
+    candidates: tuple[Candidate, ...],
+    majority_bloc: str,
+    minority_bloc: str,
+    rng: np.random.Generator,
+) -> tuple[NDArray[np.intp], dict[str, slice]]:
+    """
+    Sample historical slate sequences and fill candidate rankings in consecutive bloc rows.
+
+    Historical distributions are reduced and encoded once for the configuration. Each bloc then
+    samples from those tables using its cohesion and fills the slate positions with independently
+    drawn within-slate PL orders. Short historical ballots remain short. The returned array owns
+    its storage, and its row slices let either public API construct profiles from the same
+    samples.
+
+    Args:
+        config (BlocSlateConfig): Validated two-bloc, two-slate configuration.
+        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
+        majority_bloc (str): Configuration group corresponding to historical symbol W.
+        minority_bloc (str): Configuration group corresponding to historical symbol C.
+        rng (np.random.Generator): Stream shared by historical and candidate sampling in bloc
+            order.
+
+    Returns:
+        tuple[NDArray[np.intp], dict[str, slice]]: Candidate-ID rankings padded with end
+            sentinels, and the contiguous source rows for each bloc in configuration order.
+    """
+    data_directory = Path(__file__).resolve().parent / "data"
+    majority_pmf, minority_pmf = _reduce_ballot_pmfs(
+        data_directory / "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.json",
+        data_directory / "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json",
+        config,
+        majority_bloc,
+        minority_bloc,
+    )
+
+    slate_ids = {slate: index for index, slate in enumerate(config.slates)}
+    ballot_types = _encode_historical_ballot_types(
+        (*majority_pmf, *minority_pmf),
+        {"W": slate_ids[majority_bloc], "C": slate_ids[minority_bloc]},
+        len(candidates),
+    )
+    majority_probabilities = np.array(tuple(majority_pmf.values()), dtype=np.float64)
+    minority_probabilities = np.array(tuple(minority_pmf.values()), dtype=np.float64)
+
+    bloc_rows = _apportion_bloc_rows(config)
+    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
+    rankings = np.empty((config.n_voters, len(candidates)), dtype=np.intp)
+
+    for bloc, rows in bloc_rows.items():
+        candidate_arrays = _prepare_slate_candidate_arrays(config, bloc, candidate_to_id)
+        slate_batches = _sample_historical_slate_sequences(
+            ballot_types=ballot_types,
+            majority_probabilities=majority_probabilities,
+            minority_probabilities=minority_probabilities,
+            n_voters=rows.stop - rows.start,
+            majority_probability=cast(float, config.cohesion_df.loc[bloc, majority_bloc]),
+            rng=rng,
+        )
+        _fill_slate_candidate_rankings(candidate_arrays, slate_batches, rankings[rows], rng)
+
+    return rankings, bloc_rows
+
 
 # ====================================================
 # ================= Helper Functions =================
 # ====================================================
 
 
-def _sample_historical_slate_ballots(
-    ballots_per_bloc: dict[str, int],
-    bloc: str,
-    config: BlocSlateConfig,
-    reduced_historical_majority_ballot_pmf: dict[str, float],
-    reduced_historical_minority_ballot_pmf: dict[str, float],
-    majority_bloc: str,
-    historical_slate_to_config_slate: dict[
-        str, str
-    ],  # TODO: in next major release, make sure this naming aligns with how the user sets the
-    # majority/minority groups
-    *,
-    numpy_rng: Generator | None = None,
-):
+def _encode_historical_ballot_types(
+    ballot_types: Sequence[str],
+    historical_slate_ids: dict[str, int],
+    n_candidates: int,
+) -> NDArray[np.intp]:
     """
-    Sample historical slate ballots fort a given bloc using the Cambridge model.
+    Encode reduced historical ballot types as slate IDs with trailing end sentinels.
+
+    Each distinct type is encoded once, allowing sampled ballots to select rows without decoding
+    their symbols again. Historical ballots may stop before exhausting either slate; the remaining
+    positions retain the end sentinel instead of acquiring additional preferences.
 
     Args:
-        ballots_per_bloc (dict[str, int]): A dictionary mapping bloc names to the number of ballots
-            to sample for that bloc.
-        bloc (str): The name of the bloc to sample ballots for.
-        config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
-        reduced_historical_majority_ballot_pmf (dict[str, float]): A dictionary mapping
-            ballot types that begin with the historical majority slate to their frequencies
-            (i.e. probabilities). Ballots have been reduced to match the number of candidates in
-            the config.
-        reduced_historical_minority_ballot_pmf (dict[str, float]): A dictionary mapping
-            ballot types that begin with the historical minority slate to their frequencies
-            (i.e. probabilities). Ballots have been reduced to match the number of candidates in
-            the config.
-        majority_bloc (str): The name of the group in the config corresponding to the historical
-            majority slate.
-        historical_slate_to_config_slate (dict[str, str]): A dictionary mapping slate names in the
-            historical data to slate names in the config.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
-            for reproducible results. Defaults to None for non-deterministic results.
+        ballot_types (Sequence[str]): Historical W/C strings reduced to the configured slate
+            sizes.
+        historical_slate_ids (dict[str, int]): Mapping from W and C to configuration slate IDs.
+        n_candidates (int): Width of the returned table, including trailing padding.
 
     Returns:
-        list[tuple[str, ...]]: A list of slate ballots, where each ballot is a tuple of slate names
-            in the order they appear on that ballot.
+        NDArray[np.intp]: Owned table with one row per supplied type, in the same order. Unranked
+            positions contain ``END_OF_RANKING_ID``.
     """
-    numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-
-    n_ballots = ballots_per_bloc[bloc]
-
-    num_ballots_start_with_maj_slate = numpy_rng.binomial(
-        n_ballots, p=config.cohesion_df[majority_bloc].loc[bloc]
-    )
-
-    num_ballots_start_with_min_slate = n_ballots - num_ballots_start_with_maj_slate
-
-    hist_maj_ballots = list(reduced_historical_majority_ballot_pmf.keys())
-    hist_min_ballots = list(reduced_historical_minority_ballot_pmf.keys())
-    maj_slate_ballot_indices = numpy_rng.choice(
-        len(hist_maj_ballots),
-        size=num_ballots_start_with_maj_slate,
-        p=list(reduced_historical_majority_ballot_pmf.values()),
-    )
-
-    min_slate_ballot_indices = numpy_rng.choice(
-        len(hist_min_ballots),
-        size=num_ballots_start_with_min_slate,
-        p=list(reduced_historical_minority_ballot_pmf.values()),
-    )
-
-    slate_ballots = [
-        [
-            historical_slate_to_config_slate[historical_slate]
-            for historical_slate in hist_maj_ballots[slate_ballot_idx]
+    sequences = np.full((len(ballot_types), n_candidates), END_OF_RANKING_ID, dtype=np.intp)
+    for row, ballot_type in enumerate(ballot_types):
+        sequences[row, : len(ballot_type)] = [
+            historical_slate_ids[symbol] for symbol in ballot_type
         ]
-        for slate_ballot_idx in maj_slate_ballot_indices
-    ]
-    slate_ballots += [
-        [
-            historical_slate_to_config_slate[historical_slate]
-            for historical_slate in hist_min_ballots[slate_ballot_idx]
-        ]
-        for slate_ballot_idx in min_slate_ballot_indices
-    ]
 
-    return slate_ballots
+    return sequences
+
+
+def _sample_historical_slate_sequences(
+    ballot_types: NDArray[np.intp],
+    majority_probabilities: NDArray[np.float64],
+    minority_probabilities: NDArray[np.float64],
+    n_voters: int,
+    majority_probability: float,
+    rng: np.random.Generator,
+) -> Iterator[NDArray[np.intp]]:
+    """
+    Sample historical ballot types and yield independent batches of encoded slate sequences.
+
+    A binomial draw determines how many ballots begin with the majority slate. Those ballots
+    precede the minority-first ballots, and each group samples its own historical distribution.
+    All type indices are drawn before candidate placement begins, preserving the historical
+    sampler's ordering of binomial and categorical draws. Only the selected integer indices are
+    retained for the whole bloc; sequence rows are copied from the table one batch at a time.
+
+    Args:
+        ballot_types (NDArray[np.intp]): Encoded types with majority-first rows followed by
+            minority-first rows, in their respective probability-vector orders. Read unchanged.
+        majority_probabilities (NDArray[np.float64]): Probabilities for the majority-first types.
+        minority_probabilities (NDArray[np.float64]): Probabilities for the minority-first types.
+        n_voters (int): Number of sequences to sample.
+        majority_probability (float): Probability that a ballot begins with the majority slate.
+        rng (np.random.Generator): Stream advanced by the binomial draw, then majority-first and
+            minority-first type sampling.
+
+    Yields:
+        NDArray[np.intp]: Owned batches of slate IDs with trailing end sentinels. Each batch can
+            be consumed before the next is allocated without modifying the prepared table.
+    """
+    n_majority_first = rng.binomial(n_voters, p=majority_probability)
+    sampled_type_ids = np.empty(n_voters, dtype=np.intp)
+    sampled_type_ids[:n_majority_first] = rng.choice(
+        len(majority_probabilities), size=n_majority_first, p=majority_probabilities
+    )
+    sampled_type_ids[n_majority_first:] = len(majority_probabilities) + rng.choice(
+        len(minority_probabilities), size=n_voters - n_majority_first, p=minority_probabilities
+    )
+
+    for start in range(0, n_voters, BATCH_SIZE):
+        yield ballot_types[sampled_type_ids[start : start + BATCH_SIZE]]
 
 
 def _reduce_ballot(original_slate_ballot: str, w_count: int, c_count: int) -> str:
@@ -142,20 +332,20 @@ def _reduce_ballot_pmfs(
     minority_bloc: str,
 ) -> tuple[dict[str, float], dict[str, float]]:
     """
-    Reduces the ballot PMFs to match the number of candidates in the config.
-    Since the Cambridge data includes ballots that can be too long, i.e. have more
-    candidates than the given configuration, we need to "reduce" the ballots
-    to match the number of candidates in the config.
+    Reduces the ballot PMFs to match the number of candidates in the config. Since the Cambridge
+    data includes ballots that can be too long, i.e. have more candidates than the given
+    configuration, we need to "reduce" the ballots to match the number of candidates in the
+    config.
 
-    If a ballot is too long, we remove any further occurrences of the slate name.
-    Thus if we only have 2 W and 2 C candidates,"WWWCCWWCC" would be reduced to "WWCC".
+    If a ballot is too long, we remove any further occurrences of the slate name. Thus if we only
+    have 2 W and 2 C candidates,"WWWCCWWCC" would be reduced to "WWCC".
 
 
     Args:
-        historical_majority_ballot_data_path (Path): Path to the JSON file containing
-            historical majority ballot frequencies.
-        historical_minority_ballot_data_path (Path): Path to the JSON file containing
-            historical minority ballot frequencies.
+        historical_majority_ballot_data_path (Path): Path to the JSON file containing historical
+            majority ballot frequencies.
+        historical_minority_ballot_data_path (Path): Path to the JSON file containing historical
+            minority ballot frequencies.
         config (BlocSlateConfig): The configuration object for the bloc-slate ballot generator.
         majority_bloc (str): The name of the group in the config corresponding to the historical
             majority slate.
@@ -163,8 +353,8 @@ def _reduce_ballot_pmfs(
             minority slate.
 
     Returns:
-        tuple[dict[str, float], dict[str, float]]: A tuple containing the reduced
-            historical majority and minority ballot PMFs.
+        tuple[dict[str, float], dict[str, float]]: A tuple containing the reduced historical
+            majority and minority ballot PMFs.
     """
     w_count = len(config.slate_to_candidates[majority_bloc])
     c_count = len(config.slate_to_candidates[minority_bloc])
@@ -191,94 +381,6 @@ def _reduce_ballot_pmfs(
         reduced_historical_majority_ballot_pmf,
         reduced_historical_minority_ballot_pmf,
     )
-
-
-# ===========================================================
-# ================= Interior Work Functions =================
-# ===========================================================
-
-
-def _inner_cambridge_sampler(
-    config: BlocSlateConfig,
-    majority_bloc: str,
-    minority_bloc: str,
-    *,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Inner function to generate profiles by bloc using Cambridge model.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        majority_bloc (str): Name of the group in the config corresponding to the historical
-            majority group.
-        minority_bloc (str): Name of the group in the config corresponding to the historical
-            minority group.
-        rng_seed (int, optional)): seed for RNG, allows for reproducible results given the same
-            inputs. Seed set to None by default, different results will be generated each time.
-
-    Returns:
-        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects representing the generated preference profiles for each bloc.
-    """
-    historical_slate_to_config_slate = {
-        "W": majority_bloc,
-        "C": minority_bloc,
-    }
-
-    BASE_DIR = Path(__file__).resolve().parent
-    DATA_DIR = BASE_DIR / "data/"
-    historical_majority_ballot_data_path = Path(
-        DATA_DIR,
-        "Cambridge_09to17_ballot_types_start_with_W_ballots_distribution.json",
-    )
-
-    historical_minority_ballot_data_path = Path(
-        DATA_DIR,
-        "Cambridge_09to17_ballot_types_start_with_C_ballots_distribution.json",
-    )
-
-    reduced_historical_majority_ballot_pmf, reduced_historical_minority_ballot_pmf = (
-        _reduce_ballot_pmfs(
-            historical_majority_ballot_data_path,
-            historical_minority_ballot_data_path,
-            config,
-            majority_bloc,
-            minority_bloc,
-        )
-    )
-
-    bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
-    )
-    if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
-
-        bloc_counts = [bloc_counts]
-
-    bloc_lst = config.blocs
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-    pref_profile_by_bloc = {b: RankProfile() for b in bloc_lst}
-    numpy_rng = np.random.default_rng(seed=rng_seed)
-    for bloc in bloc_lst:
-        slate_ballots = _sample_historical_slate_ballots(
-            ballots_per_bloc,
-            bloc,
-            config,
-            reduced_historical_majority_ballot_pmf,
-            reduced_historical_minority_ballot_pmf,
-            majority_bloc,
-            historical_slate_to_config_slate,
-            numpy_rng=numpy_rng,
-        )
-
-        pref_profile_by_bloc[bloc] = _convert_slate_ballots_to_profile(
-            config, bloc, slate_ballots, numpy_rng=numpy_rng
-        )
-
-    return pref_profile_by_bloc
 
 
 def _validate_slates_and_blocs(
@@ -318,22 +420,21 @@ def _determine_and_validate_majority_and_minority_blocs(
     minority_bloc: str | None,
 ) -> tuple[str, str]:
     """
-    Determines the majority and minority groups for the Cambridge model.
-    Validates that the names are in the config and that the majority and minority groups
-    are distinct.
+    Determines the majority and minority groups for the Cambridge model. Validates that the names
+    are in the config and that the majority and minority groups are distinct.
 
-    If the majority and minority groups are not provided, they are determined by the
-    bloc proportions.
+    If the majority and minority groups are not provided, they are determined by the bloc
+    proportions.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
         majority_bloc (str | None): Name of the group in the config corresponding to the
-            historical majority group. Defaults to None, in which case the majority
-            group is determined by the bloc proportions.
+            historical majority group. Defaults to None, in which case the majority group is
+            determined by the bloc proportions.
         minority_bloc (str | None): Name of the group in the config corresponding to the
-            historical minority group. Defaults to None, in which case the minority
-            group is determined by the bloc proportions.
+            historical minority group. Defaults to None, in which case the minority group is
+            determined by the bloc proportions.
 
     Returns:
         tuple[str, str]: A tuple containing the majority and minority groups.
@@ -376,135 +477,5 @@ def _determine_and_validate_majority_and_minority_blocs(
     return majority_bloc, minority_bloc
 
 
-# =================================================
-# ================= API Functions =================
-# =================================================
-
-
-def cambridge_profiles_by_bloc_generator(
-    config: BlocSlateConfig,
-    *,
-    majority_bloc: str
-    | None = None,  # TODO: in next major release, consider using majority_slate instead of majority_bloc
-    minority_bloc: str
-    | None = None,  # TODO: in next major release, consider using minority_slate instead of minority_bloc
-    group_ballots: bool = True,
-    rng_seed: int | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Generates a dictionary mapping bloc names to RankProfiles using historical RCV elections
-    occurring in Cambridge, MA. The Cambridge data labels candidates with 'W' and 'C' which
-    correspond to the majority and minority slates, respectively. This model only works with
-    two blocs and two slates, which must have corresponding names.
-
-
-    Based on cohesion parameters, decides if a voter casts their top choice within a slate.
-    Then uses historical data; given their first choice, choose a
-    ballot type from the historical distribution.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-
-
-    Kwargs:
-        majority_bloc (str | None): Name of the group in the config corresponding to the
-            historical majority group. Defaults to None, in which case the majority
-            group is determined by the bloc proportions.
-        minority_bloc (str | None): Name of the group in the config corresponding to the
-            historical minority group. Defaults to None, in which case the minority
-            group is determined by the bloc proportions.
-        group_ballots (bool): If True, groups identical ballots in the resulting profiles.
-            Defaults to True.
-        rng_seed (int | None): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-    Returns:
-        dict[str, RankProfile]: A dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects representing the generated preference profiles for each bloc.
-    """
-    config.is_valid(raise_errors=True)
-    _validate_slates_and_blocs(config)
-    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
-        config, majority_bloc, minority_bloc
-    )
-
-    pp_by_bloc = _inner_cambridge_sampler(
-        config,
-        majority_bloc,
-        minority_bloc,
-        rng_seed=rng_seed,
-    )
-
-    if group_ballots:
-        for bloc, profile in pp_by_bloc.items():
-            pp_by_bloc[bloc] = profile.group_ballots()
-    return pp_by_bloc
-
-
-def cambridge_profile_generator(
-    config: BlocSlateConfig,
-    *,
-    majority_bloc: str | None = None,
-    minority_bloc: str | None = None,
-    group_ballots: bool = True,
-    rng_seed: int | None = None,
-) -> RankProfile:
-    """
-    Generates a RankProfile using historical RCV elections
-    occurring in Cambridge, MA. The Cambridge data labels candidates with 'W' and 'C' which
-    correspond to the majority and minority slates, respectively. This model only works with
-    two blocs and two slates, which must have corresponding names.
-
-
-    Based on cohesion parameters, decides if a voter casts their top choice within a slate.
-    Then uses historical data; given their first choice, choose a
-    ballot type from the historical distribution.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-
-    Kwargs:
-        majority_bloc (str): Name of the group in the config corresponding to the historical
-            majority group. Defaults to None, in which case the majority
-            group is determined by the bloc proportions.
-        minority_bloc (str): Name of the group in the config corresponding to the historical
-            minority group. Defaults to None, in which case the minority
-            group is determined by the bloc proportions.
-        group_ballots (bool): If True, groups identical ballots in the resulting profiles.
-            Defaults to True.
-        rng_seed (int): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
-
-
-    Returns:
-        RankProfile: A RankProfile object representing the aggregated generated preference profiles.
-    """
-    config.is_valid(raise_errors=True)
-    _validate_slates_and_blocs(config)
-    majority_bloc, minority_bloc = _determine_and_validate_majority_and_minority_blocs(
-        config, majority_bloc, minority_bloc
-    )
-
-    pp_by_bloc = _inner_cambridge_sampler(
-        config,
-        majority_bloc,
-        minority_bloc,
-        rng_seed=rng_seed,
-    )
-
-    profile = RankProfile()
-    for prof in pp_by_bloc.values():
-        profile += prof
-
-    if group_ballots:
-        profile = profile.group_ballots()
-
-    return profile
-
-
-# TODO create a more generic historical generator that CS will be a subclass of
-# this generator should allow for custom data, any num of slates, and unlinked blocs and slates
+# TODO create a more generic historical generator that CS will be a subclass of this generator
+# should allow for custom data, any num of slates, and unlinked blocs and slates

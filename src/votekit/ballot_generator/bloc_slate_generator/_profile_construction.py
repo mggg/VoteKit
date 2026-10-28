@@ -63,7 +63,8 @@ def _build_profile_from_rankings(
     tails have been sampled.
 
     Args:
-        rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
+        rankings (NDArray[np.intp]): Rankings encoded by position in ``candidates``, with trailing
+            ``END_OF_RANKING_ID`` padding for unranked positions.
         candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
         group_ballots (bool): Whether to combine identical rankings in the returned profile.
 

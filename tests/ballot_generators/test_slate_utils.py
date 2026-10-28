@@ -5,12 +5,13 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    _fast_sample_without_replacement,
+)
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _construct_slate_to_candidate_ordering_arrays,
-    _fast_sample_without_replacement,
     _fill_slate_candidate_rankings,
-    _lexicographic_symbol_tuple_iterator,
 )
 from votekit.pref_interval import PreferenceInterval
 
@@ -37,6 +38,27 @@ def test_slate_candidate_placement_finishes_each_batch_before_requesting_the_nex
     np.testing.assert_array_equal(rankings, [[10, 20, 11], [20, 10, 11], [10, 11, 20]])
     np.testing.assert_array_equal(first_sequences, [[0, 1, 0], [1, 0, 0]])
     np.testing.assert_array_equal(last_sequences, [[0, 0, 1]])
+
+
+def test_slate_candidate_placement_preserves_short_and_empty_rankings():
+    candidate_arrays = (
+        (np.array([10, 11]), np.array([1.0, 0.0])),
+        (np.array([20]), np.array([1.0])),
+    )
+    sequences = np.array([[0, -1, -1], [1, 0, -1], [-1, -1, -1], [0, 1, 0]])
+    original_sequences = sequences.copy()
+    storage = np.full((4, 6), -99, dtype=np.intp)
+    rankings = storage[:, ::2]
+
+    _fill_slate_candidate_rankings(
+        candidate_arrays, iter([sequences]), rankings, np.random.default_rng(42)
+    )
+
+    np.testing.assert_array_equal(
+        rankings, [[10, -1, -1], [20, 10, -1], [-1, -1, -1], [10, 20, 11]]
+    )
+    np.testing.assert_array_equal(storage[:, 1::2], -99)
+    np.testing.assert_array_equal(sequences, original_sequences)
 
 
 @pytest.mark.parametrize("small_weight", [1e-6, 1e-300, 1e-320])
@@ -87,51 +109,3 @@ def test_slate_candidate_orderings_shuffle_zero_support_tails():
     assert np.all(rankings[:, 0] == 7)
     assert all(set(row) == {"b", "c"} for row in rankings[:, 1:])
     assert np.mean(rankings[:, 1] == "b") == pytest.approx(0.5, abs=0.05)
-
-
-def test_lexicographic_symbol_tuple_iterator_empty():
-    result = list(_lexicographic_symbol_tuple_iterator([]))
-    assert result == []
-
-
-def test_lexicographic_symbol_tuple_iterator_single():
-    result = list(_lexicographic_symbol_tuple_iterator(["A"]))
-    assert result == [("A",)]
-
-
-def test_lexicographic_symbol_tuple_iterator_duplicates():
-    result = list(_lexicographic_symbol_tuple_iterator(["A", "A", "B"]))
-    expected = [("A", "A", "B"), ("A", "B", "A"), ("B", "A", "A")]
-    assert result == expected
-
-
-def test_lexicographic_symbol_tuple_iterator_multiple():
-    result = list(_lexicographic_symbol_tuple_iterator(["C", "A", "B"]))
-    expected = [
-        ("A", "B", "C"),
-        ("A", "C", "B"),
-        ("B", "A", "C"),
-        ("B", "C", "A"),
-        ("C", "A", "B"),
-        ("C", "B", "A"),
-    ]
-    assert result == expected
-
-
-def test_lexicographic_symbol_tuple_iterator_with_more_duplicates():
-    result = list(_lexicographic_symbol_tuple_iterator(["A", "B", "A", "C"]))
-    expected = [
-        ("A", "A", "B", "C"),
-        ("A", "A", "C", "B"),
-        ("A", "B", "A", "C"),
-        ("A", "B", "C", "A"),
-        ("A", "C", "A", "B"),
-        ("A", "C", "B", "A"),
-        ("B", "A", "A", "C"),
-        ("B", "A", "C", "A"),
-        ("B", "C", "A", "A"),
-        ("C", "A", "A", "B"),
-        ("C", "A", "B", "A"),
-        ("C", "B", "A", "A"),
-    ]
-    assert result == expected
