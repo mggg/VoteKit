@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Changed
 
+- Cumulative generators now construct score matrices directly from batched multinomial samples,
+  avoiding per-voter ballots and intermediate profile addition. Profiles retain the full
+  configured candidate universe; candidates receiving no points remain unscored.
 - Cambridge generators now encode historical ballot types once and construct profiles directly
   from candidate-ID matrices. Short ballots retain their historical lengths, and candidate
   metadata follows configuration order.
