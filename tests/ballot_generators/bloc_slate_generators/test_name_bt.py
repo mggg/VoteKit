@@ -38,7 +38,7 @@ def test_name_bt_retains_grouped_result_and_can_disable_grouping(generator):
     assert grouped.ballots == ungrouped.group_ballots().ballots
 
 
-@pytest.mark.parametrize("voters_per_bloc", [7, name_bt._DP_NAME_BT_BATCH_SIZE + 3])
+@pytest.mark.parametrize("voters_per_bloc", [7, name_bt.BATCH_SIZE + 3])
 @pytest.mark.parametrize("rng_seed", [42, -42])
 def test_dp_name_bt_preserves_seeded_rankings_across_batches_and_blocs(voters_per_bloc, rng_seed):
     config = BlocSlateConfig(
@@ -71,7 +71,7 @@ def test_dp_name_bt_preserves_seeded_rankings_across_batches_and_blocs(voters_pe
 
 @pytest.mark.parametrize(
     "n_candidates, n_voters, available_gib",
-    [(24, 100_000, 4.0), (2, 50_000_000, 1.0)],
+    [(24, 100_000, 3.0), (2, 50_000_000, 1.0)],
 )
 def test_dp_memory_check_includes_preparation_and_profile_copies(
     monkeypatch, n_candidates, n_voters, available_gib
@@ -197,7 +197,7 @@ def test_name_bt_ranks_a_zero_support_candidate_last(generator):
 
 
 def test_name_bt_randomizes_zero_support_tails_before_grouping(monkeypatch):
-    monkeypatch.setattr(name_bt, "_DP_NAME_BT_BATCH_SIZE", 37)
+    monkeypatch.setattr(name_bt, "BATCH_SIZE", 37)
     config = BlocSlateConfig(
         n_voters=12_000,
         slate_to_candidates={"slate": ["A", "B", "C", "D"]},
@@ -602,3 +602,18 @@ def test_NBT_3_bloc(do_ballot_probs_match_ballot_dist_rank_profile):
 #         bt.generate_profile_MCMC_even_subsample(
 #             number_of_ballots=number_of_ballots, chain_length=chain_length
 #         )
+
+
+def test_name_bt_memory_estimate_bounds_preparation_buffers(monkeypatch):
+    monkeypatch.setattr(name_bt, "system_memory", lambda: {"available_gib": 4.0})
+    name_bt._check_dp_name_bt_memory(24, 100_000, n_positive_candidates=24, group_ballots=False)
+
+
+@pytest.mark.parametrize("batch_size", [1, 7])
+@pytest.mark.parametrize("supports", [(3.0, 2.0, 1.0, 0.0), (1e-300, 1e-200, 0.1, 1.0)])
+def test_name_bt_preparation_batches_preserve_cdf(monkeypatch, batch_size, supports):
+    candidates = tuple(range(len(supports)))
+    expected = name_bt._build_cdf_matrix(candidates, np.array(supports))
+    monkeypatch.setattr(name_bt, "BATCH_SIZE", batch_size)
+    actual = name_bt._build_cdf_matrix(candidates, np.array(supports))
+    np.testing.assert_array_equal(actual, expected)

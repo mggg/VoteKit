@@ -13,6 +13,7 @@ from votekit.ballot_generator import (
     slate_bt_profiles_by_bloc_generator,
 )
 from votekit.ballot_generator.bloc_slate_generator import slate_bradley_terry as slate_bt
+from votekit.ballot_generator.bloc_slate_generator._sampling import _sample_cdf_sequences
 from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -375,16 +376,15 @@ def test_slate_dp_cdfs_preserve_scaling_and_exhausted_slates(scale):
         np.testing.assert_array_equal(probabilities[exhausted, slate], 0.0)
 
 
-def test_slate_sequence_sampling_preserves_counts_and_batch_draw_order(monkeypatch):
+def test_slate_sequence_sampling_preserves_counts_and_batch_draw_order():
     counts = np.array([2, 1, 3, 1], dtype=int)
     cdf, strides = slate_bt._build_cdf_matrix(counts, np.array([0.1, 0.2, 0.3, 0.4]))
     expected = np.empty((29, int(counts.sum())), dtype=int)
     actual = np.empty_like(expected)
     first_rng = np.random.default_rng(42)
     second_rng = np.random.default_rng(42)
-    slate_bt._sample_sequences_from_cdf(cdf, strides, expected, first_rng)
-    monkeypatch.setattr(slate_bt, "_DP_SLATE_BT_BATCH_SIZE", 4)
-    slate_bt._sample_sequences_from_cdf(cdf, strides, actual, second_rng)
+    _sample_cdf_sequences(cdf, strides, expected, first_rng, batch_size=len(expected))
+    _sample_cdf_sequences(cdf, strides, actual, second_rng, batch_size=4)
 
     np.testing.assert_array_equal(actual, expected)
     assert first_rng.random() == second_rng.random()
@@ -400,8 +400,8 @@ def test_slate_sequence_sampling_skips_exhausted_columns_at_zero_draw():
     counts = np.array([1, 2, 1], dtype=int)
     cdf, strides = slate_bt._build_cdf_matrix(counts, np.ones(3))
     actual = np.empty((1, 4), dtype=int)
-    slate_bt._sample_sequences_from_cdf(
-        cdf, strides, actual, cast(np.random.Generator, ZeroDraws())
+    _sample_cdf_sequences(
+        cdf, strides, actual, cast(np.random.Generator, ZeroDraws()), batch_size=1
     )
 
     np.testing.assert_array_equal(actual, [[0, 1, 1, 2]])
@@ -542,3 +542,32 @@ def test_slate_bt_within_slate_order_is_plackett_luce():
             expected_probability *= support / remaining_support
             remaining_support -= support
         assert ballot.weight / config.n_voters == pytest.approx(expected_probability, abs=0.01)
+
+
+@pytest.mark.parametrize("batch_size", [1, 7])
+def test_slate_bt_preparation_batches_preserve_cdf(monkeypatch, batch_size):
+    counts = np.array([3, 2, 1])
+    supports = np.array([1e-200, 0.1, 1.0])
+    expected, expected_strides = slate_bt._build_cdf_matrix(counts, supports)
+    monkeypatch.setattr(slate_bt, "BATCH_SIZE", batch_size)
+    actual, strides = slate_bt._build_cdf_matrix(counts, supports)
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(strides, expected_strides)
+
+
+def test_slate_bt_sequence_batches_prepare_one_table_and_own_their_rows(monkeypatch):
+    from unittest.mock import patch
+
+    monkeypatch.setattr(slate_bt, "BATCH_SIZE", 7)
+    with patch.object(slate_bt, "_build_cdf_matrix", wraps=slate_bt._build_cdf_matrix) as prepare:
+        batches = list(
+            slate_bt._iter_slate_sequence_batches(
+                np.array([2, 1, 2]), np.array([0.4, 0.6, 0.0]), 17, np.random.default_rng(42)
+            )
+        )
+    assert prepare.call_count == 1
+    assert [len(batch) for batch in batches] == [7, 7, 3]
+    sequences = np.concatenate(batches)
+    np.testing.assert_array_equal(np.sort(sequences[:, :3], axis=1), np.tile([0, 0, 1], (17, 1)))
+    np.testing.assert_array_equal(sequences[:, 3:], 2)
+    assert not np.shares_memory(batches[0], batches[1])

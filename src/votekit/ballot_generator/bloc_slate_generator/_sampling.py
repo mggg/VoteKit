@@ -8,56 +8,49 @@ import numpy as np
 from numpy.random import Generator
 from numpy.typing import NDArray
 
-SAMPLING_BATCH_SIZE = 65_536
+BATCH_SIZE = 65_536
 
 
-def _sample_pl_rankings(
+def _fill_pl_rankings(
     candidate_ids: NDArray[np.intp],
-    candidate_supports: NDArray[np.float64],
-    *,
-    n_voters: int,
+    supports: NDArray[np.float64],
+    rankings: NDArray[np.intp],
     rng: np.random.Generator,
-) -> NDArray[np.intp]:
-    r"""
-    Sample Plackett-Luce rankings followed by uniformly shuffled zero-support tails.
+) -> None:
+    """
+    Fill a batch with PL rankings followed by uniformly shuffled zero-support candidates.
 
-    Positive-support candidates follow the weighted ordering sampled by
-    ``_fast_sample_without_replacement``. Its returned indices are mapped to the supplied
-    candidate IDs. Zero-support candidates are shuffled independently and placed after the
-    positive-support candidates in each ranking.
+    Positive-support candidates enter the exponential race. Their sampled positions are mapped to
+    the supplied candidate IDs directly in the output buffer. Zero-support candidates follow in an
+    independent uniform order on each row. Input IDs and supports remain unchanged.
 
     Args:
         candidate_ids (NDArray[np.intp]): Candidate IDs in support-vector order.
-        candidate_supports (NDArray[np.float64]): Aligned, validated finite nonnegative supports.
-        n_voters (int): Number of independent candidate orderings to draw.
-        rng (np.random.Generator): Random stream advanced by exponential draws, then tail
-            shuffles.
-
-    Returns:
-        NDArray[np.intp]: One complete ordering of the supplied candidate IDs per voter.
+        supports (NDArray[np.float64]): Aligned, validated finite, nonnegative supports.
+        rankings (NDArray[np.intp]): Writable output with one column per supplied candidate. May
+            be a view into a larger array. Callers batch rows to bound temporary storage.
+        rng (np.random.Generator): Stream advanced by exponential draws, then tail shuffles.
     """
-    positive_support_mask = candidate_supports > 0
-    positive_candidate_ids = candidate_ids[positive_support_mask]
-    zero_support_candidate_ids = candidate_ids[candidate_supports == 0]
+    has_positive_support = supports > 0
+    positive_candidate_ids = candidate_ids[has_positive_support]
+    zero_candidate_ids = candidate_ids[~has_positive_support]
     n_positive_candidates = len(positive_candidate_ids)
-
-    candidate_orderings = np.empty((n_voters, len(candidate_ids)), dtype=int)
     arrival_order = _fast_sample_without_replacement(
-        candidate_supports[positive_support_mask], n_voters, numpy_rng=rng
+        supports[has_positive_support], len(rankings), numpy_rng=rng
     )
-    candidate_orderings[:, :n_positive_candidates] = positive_candidate_ids[arrival_order]
+    np.take(
+        positive_candidate_ids,
+        arrival_order,
+        out=rankings[:, :n_positive_candidates],
+        mode="clip",
+    )
 
-    if len(zero_support_candidate_ids):
-        tail_candidates_by_voter = np.broadcast_to(
-            zero_support_candidate_ids, (n_voters, len(zero_support_candidate_ids))
-        )
+    if len(zero_candidate_ids):
         rng.permuted(
-            tail_candidates_by_voter,
+            np.broadcast_to(zero_candidate_ids, (len(rankings), len(zero_candidate_ids))),
             axis=1,
-            out=candidate_orderings[:, n_positive_candidates:],
+            out=rankings[:, n_positive_candidates:],
         )
-
-    return candidate_orderings
 
 
 def _fast_sample_without_replacement(
@@ -97,14 +90,54 @@ def _fast_sample_without_replacement(
         NDArray[np.intp]: An ``(n_samples, len(weights))`` array with each row containing every
             candidate index once, in sampled preference order.
     """
-    n_cands = len(weights)
     numpy_rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-    log_arrival_times = numpy_rng.standard_exponential(size=(n_samples, n_cands))
+    log_arrival_times = numpy_rng.standard_exponential(size=(n_samples, len(weights)))
     with np.errstate(divide="ignore"):
         np.log(log_arrival_times, out=log_arrival_times)
 
     log_arrival_times -= np.log(weights)
     return np.argsort(log_arrival_times, axis=1)
+
+
+def _normalize_log_weights_to_cdf_in_place(
+    log_choice_weights: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """
+    Overwrite log choice weights with conditional CDFs and return independent log row totals.
+
+    Each choice weight accounts for every suffix beginning with that choice. Their sum gives the
+    state's completion total, whose logarithm is retained for subsequent DP calculations.
+    Subtracting that log total normalizes the choice weights without forming the potentially
+    extreme unnormalized products. Exponentiating and accumulating then gives the conditional CDF
+    in column order.
+
+    The choice-weight buffer is overwritten with these CDFs to avoid allocating another batch
+    matrix. Each row is divided by its final cumulative value so its endpoint is exactly one
+    despite accumulation error. The caller retains ownership of this buffer, whose original
+    contents are destroyed. The returned totals have their own storage, and the function retains
+    no references to either array. Writes into persistent DP tables remain with the caller.
+
+    Args:
+        log_choice_weights (NDArray[np.float64]): Writable batch with one row per state and one
+            column per choice. Each row has at least one finite weight; unavailable choices have
+            negative infinity. The buffer is overwritten with cumulative probabilities. If it is a
+            view, the corresponding entries in its backing array are also modified.
+
+    Returns:
+        NDArray[np.float64]: Newly allocated log sums of the original choice weights, one per
+            input row. Does not share storage with the overwritten input.
+    """
+    log_state_totals = np.empty(len(log_choice_weights), dtype=np.float64)
+    np.logaddexp.reduce(log_choice_weights, axis=1, out=log_state_totals)
+
+    state_cdfs = log_choice_weights
+    state_cdfs -= log_state_totals[:, None]
+    np.exp(state_cdfs, out=state_cdfs)
+
+    np.cumsum(state_cdfs, axis=1, out=state_cdfs)
+    state_cdfs /= state_cdfs[:, -1:]
+
+    return log_state_totals
 
 
 def _sample_cdf_sequences(
@@ -162,11 +195,14 @@ def _sample_cdf_sequences(
 
     Slate sequences use the same loop with a different encoding. A state records the number of
     occurrences remaining for each slate, and its decrements are the mixed-radix strides used to
-    encode those counts. With initial counts :math:`(2,1)`, the strides are :math:`(1,3)` and the
-    state index is :math:`2+3=5`. Selecting A subtracts one, giving index four for counts
-    :math:`(1,1)`. Selecting B next subtracts three, leaving index one for counts :math:`(1,0)`.
-    A final A reaches zero and completes ABA. Unlike a candidate bit, a slate's stride can be
-    subtracted repeatedly until its count reaches zero; the CDF then makes that slate unavailable.
+    encode those counts. For two A symbols, one B symbol, and cohesions :math:`(3,2)`, the initial
+    counts :math:`(2,1)` have strides :math:`(1,3)` and state index :math:`2+3=5`. The CDF row is
+    :math:`(15/19,1)`, so a draw of :math:`0.5` selects A. Subtracting its stride of one gives
+    index four for counts :math:`(1,1)`, whose CDF is :math:`(3/5,1)`. A draw of :math:`0.8` then
+    selects B and subtracts its stride of three, leaving index one for counts :math:`(1,0)`. A
+    final A reaches zero and completes ABA, stored as ``(0, 1, 0)``. Unlike a candidate bit, a
+    slate's stride can be subtracted repeatedly until its count reaches zero. The CDF then makes
+    that slate unavailable.
 
     These conditional draws reproduce the distribution encoded by the table. In the BT tables,
     each choice's completion weight accounts for all possible continuations. For a name-BT ranking
@@ -184,9 +220,10 @@ def _sample_cdf_sequences(
     Each numerator's suffix total cancels the next denominator, leaving only :math:`Z(C)` below
     and :math:`Z(\varnothing)=1` above. In the example, the probability of B, then A, then C is
     :math:`(16/48)(3/4)(1)=12/48`, matching its reduced ranking weight :math:`s_B^2s_A=12`
-    divided by :math:`Z(C)=48`. Slate-BT has the same cancellation over remaining-count states.
-    These identities describe the prepared distributions; sampling uses their stored float64
-    approximations.
+    divided by :math:`Z(C)=48`. Slate-BT has the same cancellation over remaining-count states:
+    the ABA path above has probability :math:`(15/19)(2/5)(1)=6/19`, matching its reduced weight
+    divided by the total completion weight. These identities describe the prepared distributions;
+    sampling uses their stored float64 approximations.
 
     To select a column, we need the index of the first CDF entry greater than the random draw. We
     can find that index by counting how many entries precede it. Every preceding entry is less

@@ -14,11 +14,10 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot_generator.bloc_slate_generator._sampling import (
-    SAMPLING_BATCH_SIZE,
-    _sample_pl_rankings,
+    _fast_sample_without_replacement as _fast_sample_without_replacement,
 )
 from votekit.ballot_generator.bloc_slate_generator._sampling import (
-    _fast_sample_without_replacement as _fast_sample_without_replacement,
+    _fill_pl_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
@@ -77,75 +76,111 @@ def _lexicographic_symbol_tuple_iterator(
         current_symbol_perm[i + 1 :] = reversed(current_symbol_perm[i + 1 :])
 
 
-def _fill_slate_candidate_rankings(
-    config: BlocSlateConfig,
-    bloc: str,
-    candidates: tuple[Candidate, ...],
-    slate_sequences: NDArray[np.intp],
-    rankings: NDArray[np.intp],
-    rng: np.random.Generator,
-    *,
-    batch_size: int = SAMPLING_BATCH_SIZE,
-) -> None:
-    r"""
-    Fill each slate's positions with a Plackett-Luce ordering of its candidate IDs.
+def _prepare_slate_candidate_arrays(
+    config: BlocSlateConfig, bloc: str, candidate_to_id: dict[Candidate, int]
+) -> tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]:
+    """
+    Capture candidate IDs and supports for each slate in configuration order.
 
-    A slate sequence determines where each slate's candidates belong, but their identities still
-    need an order. For each slate, ``_sample_pl_rankings`` draws one candidate
-    ordering per voter. The corresponding positions in that voter's slate sequence then receive
-    those candidate IDs from left to right. For example, sequence ABA and within-slate orders
-    ``(a2, a1)`` and ``(b1,)`` produce the candidate ranking ``(a2, b1, a1)``.
-
-    Every row contains the same number of occurrences of a given slate, allowing its positions to
-    form a rectangular array with one row per voter. Indexed assignment fills those positions in
-    batches, bounding the temporary position and ordering arrays. Slate sequences remain separate
-    from the candidate output because a slate ID and a candidate ID can have the same integer
-    value. The batch size determines how positive-support draws and zero-support tail shuffles
-    interleave, so changing it can change seeded candidate rankings even when the slate sequences
-    remain identical.
+    Candidate IDs use the profile's common universe. Each pair contains independent arrays for one
+    slate so batches reuse the same inputs without rereading the bloc configuration.
 
     Args:
-        config (BlocSlateConfig): Validated slate membership and preference intervals.
-        bloc (str): Bloc whose within-slate supports apply.
-        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
-        slate_sequences (NDArray[np.intp]): Complete slate-ID sequences in configuration order.
-        rankings (NDArray[np.intp]): Aligned writable output, filled in place with candidate IDs.
-        rng (np.random.Generator): Random stream advanced in slate order, then batch order.
-        batch_size (int): Maximum voters per ordering batch. Defaults to 65,536.
-    """
-    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
-    preference_intervals = config.get_preference_intervals_for_bloc(bloc)
+        config (BlocSlateConfig): Validated slate membership and within-slate preference
+            intervals.
+        bloc (str): Bloc whose candidate supports are captured.
+        candidate_to_id (dict[Candidate, int]): Position of every candidate in the output
+            profile's declared candidate universe.
 
-    for slate_id, slate in enumerate(config.slates):
+    Returns:
+        tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]: Candidate-ID and support arrays
+            for each slate in configuration order. Within each pair, entries follow that slate's
+            candidate order. The arrays own their storage and do not modify the configuration.
+    """
+    preference_intervals = config.get_preference_intervals_for_bloc(bloc)
+    candidate_arrays = []
+    for slate in config.slates:
         slate_candidates = config.slate_to_candidates[slate]
-        slate_candidate_ids = np.array(
-            [candidate_to_id[candidate] for candidate in slate_candidates], dtype=int
-        )
-        slate_candidate_supports = np.array(
+        candidate_ids = np.array([candidate_to_id[candidate] for candidate in slate_candidates])
+        supports = np.array(
             [preference_intervals[slate].interval[candidate] for candidate in slate_candidates],
             dtype=np.float64,
         )
+        candidate_arrays.append((candidate_ids, supports))
 
-        for batch_start in range(0, len(rankings), batch_size):
-            batch_stop = min(batch_start + batch_size, len(rankings))
-            batch_slate_sequences = slate_sequences[batch_start:batch_stop]
-            batch_rankings = rankings[batch_start:batch_stop]
-            n_batch_voters = len(batch_rankings)
+    return tuple(candidate_arrays)
 
-            # Each row contains the same number of occurrences of this slate.
-            _, slate_positions = np.nonzero(batch_slate_sequences == slate_id)
-            slate_positions_by_voter = slate_positions.reshape(
-                n_batch_voters, len(slate_candidates)
-            )
 
-            candidate_orderings = _sample_pl_rankings(
-                slate_candidate_ids,
-                slate_candidate_supports,
-                n_voters=n_batch_voters,
-                rng=rng,
-            )
-            voter_rows = np.arange(n_batch_voters)[:, None]
-            batch_rankings[voter_rows, slate_positions_by_voter] = candidate_orderings
+def _fill_slate_candidate_rankings(
+    candidate_arrays: tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...],
+    slate_batches: Iterator[NDArray[np.intp]],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    """
+    Fill a bloc's rankings from successive batches of slate sequences.
+
+    Each slate's candidate order follows PL on its positive supports, followed by a uniformly
+    shuffled zero-support tail. Assigning that order to successive occurrences of the slate
+    preserves both the slate sequence and the candidate distribution within it.
+
+    Batches fill consecutive output rows in iterator order. Candidate sampling finishes for one
+    batch before the next batch is requested, preserving the interleaving of slate and candidate
+    draws when both use the same RNG. Temporary candidate-ordering buffers are released before
+    advancing the iterator so they do not overlap the next batch's sequence preparation.
+
+    Args:
+        candidate_arrays (tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]): Aligned
+            candidate-ID and support arrays in slate-ID order, containing at least one slate.
+        slate_batches (Iterator[NDArray[np.intp]]): Batches of slate IDs with each slate occurring
+            once per candidate it contains on every row. Together the batches must contain exactly
+            as many rows as the output and have the same column count.
+        rankings (NDArray[np.intp]): Writable candidate-ID output for the entire bloc. May be a
+            view into a larger profile's array. Every row is filled in place.
+        rng (np.random.Generator): Stream advanced in slate order within each batch, interleaved
+            with any draws made by the sequence iterator.
+    """
+    next_row = 0
+    for slate_sequences in slate_batches:
+        stop = next_row + len(slate_sequences)
+        _fill_slate_candidate_batch(candidate_arrays, slate_sequences, rankings[next_row:stop], rng)
+        next_row = stop
+
+
+def _fill_slate_candidate_batch(
+    candidate_arrays: tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...],
+    slate_sequences: NDArray[np.intp],
+    rankings: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    """
+    Fill one batch of slate positions with independently sampled candidate rankings.
+
+    A reusable ordering buffer holds the candidate draws for one slate at a time. Its columns are
+    scattered into that slate's successive positions on each ballot. All temporary arrays belong
+    to this call and are released on return, before the caller prepares another batch.
+
+    Args:
+        candidate_arrays (tuple[tuple[NDArray[np.intp], NDArray[np.float64]], ...]): Candidate-ID
+            and support arrays in slate-ID order, containing at least one slate.
+        slate_sequences (NDArray[np.intp]): Slate IDs, with one occurrence per candidate from each
+            slate on every row. Read without modification.
+        rankings (NDArray[np.intp]): Writable candidate-ID output with the same shape as the
+            sequences. Filled in place without retaining a reference to its storage.
+        rng (np.random.Generator): Stream advanced in slate order within this batch.
+    """
+    max_slate_size = max(len(candidate_ids) for candidate_ids, _ in candidate_arrays)
+    voter_rows = np.arange(len(rankings))[:, None]
+    candidate_orderings = np.empty((len(rankings), max_slate_size), dtype=int)
+
+    for slate_id, (candidate_ids, supports) in enumerate(candidate_arrays):
+        n_candidates = len(candidate_ids)
+        slate_positions = np.nonzero(slate_sequences == slate_id)[1]
+        slate_positions_by_voter = slate_positions.reshape(len(rankings), n_candidates)
+
+        slate_orderings = candidate_orderings[:, :n_candidates]
+        _fill_pl_rankings(candidate_ids, supports, slate_orderings, rng)
+        rankings[voter_rows, slate_positions_by_voter] = slate_orderings
 
 
 def _construct_slate_to_candidate_ordering_arrays(
@@ -186,9 +221,8 @@ def _construct_slate_to_candidate_ordering_arrays(
 
         cands_list = np.array(list(candidates), dtype=object)  # candidates can be of mixed types
         distribution = np.array([preference_interval[c] for c in candidates], dtype=np.float64)
-        indices = _sample_pl_rankings(
-            np.arange(len(candidates)), distribution, n_voters=n_samples, rng=rng
-        )
+        indices = np.empty((n_samples, len(candidates)), dtype=int)
+        _fill_pl_rankings(np.arange(len(candidates)), distribution, indices, rng)
         cand_ordering[:] = cands_list[indices]
 
         results[slate] = cand_ordering
