@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import math
 
-import apportionment.methods as apportion
 import numpy as np
 from numpy.typing import NDArray
 
@@ -27,10 +26,14 @@ from votekit.ballot_generator.bloc_slate_generator._name_bt_mcmc import (
 from votekit.ballot_generator.bloc_slate_generator._name_bt_mcmc import (
     name_bt_profiles_by_bloc_generator_using_mcmc as name_bt_profiles_by_bloc_generator_using_mcmc,
 )
+from votekit.ballot_generator.bloc_slate_generator._profile_construction import (
+    _apportion_bloc_rows,
+    _build_profile_from_rankings,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import _sample_cdf_sequences
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, RankMatrix, WeightKind
 from votekit.types import Candidate
 
 _DP_NAME_BT_BATCH_SIZE = 65_536
@@ -207,7 +210,6 @@ def _sample_name_bt_rankings(
             candidates for the subset-mask or array-index width.
         MemoryError: Estimated memory requirements exceed currently available RAM.
     """
-    blocs = tuple(config.blocs)
     preference_intervals = config.get_combined_preference_intervals_by_bloc()
     max_positive_candidates = max(
         sum(support > 0 for support in interval.interval.values())
@@ -220,22 +222,11 @@ def _sample_name_bt_rankings(
         group_ballots=group_ballots,
     )
 
-    bloc_counts = apportion.compute(
-        "huntington",
-        [config.bloc_proportions[bloc] for bloc in blocs],
-        config.n_voters,
-    )
-    if isinstance(bloc_counts, int):
-        bloc_counts = [bloc_counts]
-
+    bloc_rows = _apportion_bloc_rows(config)
     ranking_matrix = np.empty((config.n_voters, len(candidates)), dtype=int)
-    bloc_rows: dict[str, slice] = {}
-    row_start = 0
 
-    for bloc, n_bloc_voters in zip(blocs, bloc_counts, strict=True):
-        rows = slice(row_start, row_start + n_bloc_voters)
-        bloc_rows[bloc] = rows
-        row_start += n_bloc_voters
+    for bloc, rows in bloc_rows.items():
+        n_bloc_voters = rows.stop - rows.start
         if n_bloc_voters == 0:
             continue
 
@@ -260,7 +251,7 @@ def _sample_bloc_rankings(
     Sample a bloc's complete rankings from its conditional next-candidate probabilities.
 
     Prepare the CDF table with ``_build_cdf_matrix`` and draw rankings with
-    ``_sample_rankings_from_cdf``. Map sampled indices back to the full candidate order and apply
+    ``_sample_cdf_sequences``. Map sampled indices back to the full candidate order and apply
     the zero-support tail policy described in ``name_bt_profile_generator`` before returning the
     completed rows for profile construction and optional grouping.
 
@@ -276,7 +267,14 @@ def _sample_bloc_rankings(
     n_positive = len(positive_ids)
 
     cdf_matrix = _build_cdf_matrix(positive_candidates, supports[positive_ids])
-    _sample_rankings_from_cdf(cdf_matrix, rankings[:, :n_positive], rng)
+    candidate_bits = np.left_shift(1, np.arange(n_positive, dtype=int))
+    _sample_cdf_sequences(
+        cdf_matrix,
+        candidate_bits,
+        rankings[:, :n_positive],
+        rng,
+        batch_size=_DP_NAME_BT_BATCH_SIZE,
+    )
     del cdf_matrix  # Tail sampling does not need to retain the DP table.
 
     if not len(zero_ids):
@@ -287,38 +285,6 @@ def _sample_bloc_rankings(
         batch[:, :n_positive] = positive_ids[batch[:, :n_positive]]
         tails = np.broadcast_to(zero_ids, (len(batch), len(zero_ids)))
         rng.permuted(tails, axis=1, out=batch[:, n_positive:])
-
-
-def _build_profile_from_rankings(
-    rankings: NDArray[np.intp],
-    candidates: tuple[Candidate, ...],
-    *,
-    group_ballots: bool,
-) -> RankProfile:
-    """Construct a RankProfile profile from sampled candidate IDs with unit ballot weights.
-
-    Args:
-        rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
-        candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
-        group_ballots (bool): Whether to combine identical rankings in the returned profile.
-
-    Returns:
-        RankProfile: Profile with independent ranking storage and the requested grouping.
-    """
-    voter_weight_data = ProfileVoterWeightData(
-        weights=np.ones(len(rankings), dtype=np.float64),
-        voter_sets=None,
-        weight_kind=WeightKind.FLOAT,
-    )
-
-    matrix = RankMatrix.from_candidate_ids(
-        voter_weight_data=voter_weight_data,
-        rankings=rankings,
-        candidates=candidates,
-    )
-
-    profile = RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))
-    return profile.group_ballots() if group_ballots else profile
 
 
 # ====================================================
@@ -597,157 +563,3 @@ def _build_cdf_matrix(
         cdf_matrix[states_with_n_remaining_candidates] = subset_cdfs
 
     return cdf_matrix
-
-
-def _sample_rankings_from_cdf(
-    cdf_matrix: NDArray[np.float64],
-    rankings: NDArray[np.intp],
-    rng: np.random.Generator,
-) -> None:
-    r"""
-    Fill ranking rows by sampling successive candidates from their conditional CDFs.
-
-    The table prepared by ``_build_cdf_matrix`` gives the next-candidate distribution for every
-    remaining subset. Sampling a complete ranking therefore requires only a current subset and a
-    sequence of random draws: choose a candidate from that subset's CDF, remove the candidate, and
-    continue from the resulting subset. For :math:`n` voters and :math:`m` candidates, this
-    function writes those choices into the supplied :math:`(n,m)` array. Each entry is a
-    zero-based candidate ID in CDF column order.
-
-    Consider one voter whose remaining candidates form the set :math:`U`. Its bitmask
-    :math:`b(U)` identifies the CDF row, whose thresholds divide :math:`[0,1)` into intervals
-    with lengths equal to the next-candidate probabilities. A uniform draw selects an interval and
-    therefore its candidate. More precisely, for :math:`u\sim\operatorname{Uniform}[0,1)`, the
-    chosen candidate is the first whose cumulative probability exceeds the draw:
-
-    .. math::
-
-        j=\min\{i:u<\mathrm{cdf}[b(U),i]\}.
-
-    With candidate order ``(A, B, C)`` and supports :math:`(3,2,1)`, the first-choice weights from
-    the preparation example are :math:`(27,16,5)`. All three candidates are initially available,
-    so the mask is seven (``0b111``) and its CDF row is
-
-    .. math::
-
-        \mathrm{cdf}[7,:]=\left(\frac{27}{48},\frac{43}{48},1\right).
-
-    A draw of :math:`0.7` falls between the first two thresholds and selects B, whose ID is one.
-    Removing B's bit changes the mask from seven to :math:`7-2^1=5`, leaving A and C. Their
-    next-choice probabilities are :math:`3/4` and :math:`1/4`, but the row still has columns for
-    all three candidates:
-
-    .. math::
-
-        \mathrm{cdf}[5,:]=\left(\frac34,\frac34,1\right).
-
-    B's repeated threshold gives it an interval of length zero because it is no longer available.
-    A new draw of :math:`0.6` selects A and changes the mask to :math:`5-2^0=4`. Only C remains,
-    so the final choice completes the encoded ranking ``(1, 0, 2)``, or
-    :math:`B>A>C`. Every choice removes a present bit, ensuring that a candidate appears
-    exactly once. After the final choice the mask is zero and no further lookup is needed.
-
-    These conditional draws reproduce the BT ranking probabilities because each choice's
-    completion weight accounts for all possible continuations. For
-    :math:`R=(r_1,\ldots,r_m)\in S_C`, let :math:`U_t=\{r_t,\ldots,r_m\}` be the subset
-    remaining before position :math:`t`, with :math:`U_{m+1}=\varnothing`. Multiplying the
-    conditional probabilities gives
-
-    .. math::
-
-        P(R)
-        =\prod_{t=1}^{m}\frac{s_{r_t}^{m-t}Z(U_{t+1})}{Z(U_t)}
-        =\frac{\prod_{t=1}^{m}s_{r_t}^{m-t}}{Z(C)}.
-
-    Each numerator's suffix total cancels the next denominator, leaving only :math:`Z(C)` below
-    and :math:`Z(\varnothing)=1` above. In the example, the probability of B, then A, then C is
-    :math:`(16/48)(3/4)(1)=12/48`, matching the reduced ranking weight
-    :math:`s_B^2s_A=12` divided by :math:`Z(C)=48`. This identity describes the distribution
-    represented by the conditional probabilities; the implementation samples from their stored
-    float64 approximations.
-
-    To select a candidate, we need the index of the first CDF entry greater than the random draw.
-    We can find that index by counting how many entries precede it. Every preceding entry is less
-    than or equal to the draw, so comparing the draw with the entire row and counting the
-    successful comparisons gives the selected candidate's index:
-
-    .. math::
-
-        j=\sum_{i=0}^{m-1}\mathbf{1}\{\mathrm{cdf}[b(U),i]\leq u\}.
-
-    For example, the CDF row :math:`(27/48,43/48,1)` and a draw of :math:`0.7` produce
-    ``(True, False, False)``. Only the first threshold is at or below the draw, so the selected
-    column is one, corresponding to B. NumPy performs these comparisons for every voter in a batch
-    and sums each row to obtain one candidate ID per voter.
-
-    Repeated thresholds fit the same rule. After B has been selected, the remaining set
-    :math:`\{A,C\}` has CDF row :math:`(3/4,3/4,1)`. A occupies :math:`[0,3/4)`, and C
-    occupies :math:`[3/4,1)`; B has no interval because its probability is zero. At a draw of
-    exactly :math:`3/4`, the comparisons are ``(True, True, False)``, selecting column two, or C.
-    Counting entries equal to the draw ensures that we move past the entire repeated threshold and
-    never select its zero-probability columns.
-
-    Each voter needs a separate CDF lookup because earlier choices may leave different subsets.
-    Within a batch, ``voter_cdf_rows`` holds one such row per voter, and ``draws[:, None]`` aligns
-    each voter's draw with every threshold in that row. Comparing and summing across columns
-    produces one candidate ID per voter. The selected IDs are written to the current ranking
-    position, and each voter's mask is updated for the next position.
-
-    Batching limits the temporary CDF and comparison arrays without changing which draws reach
-    which voters. The outer loop visits ranking positions, and the inner loop visits consecutive
-    voter batches, so all voters receive their first draw before any receives a second one.
-    Changing the batch size preserves this assignment and therefore the seeded rankings. A draw is
-    consumed even for the forced final candidate. Apart from the shared CDF table and output,
-    storage consists of one subset mask per voter and reusable batch buffers. For a batch of
-    :math:`b` voters, auxiliary storage is :math:`O(n+bm)`; comparing all :math:`m` thresholds
-    at each of :math:`m` positions takes :math:`O(nm^2)` work.
-
-    Args:
-        cdf_matrix (NDArray[np.float64]): Prepared ``(2**m, m)`` conditional CDF table indexed by
-            subset bitmask. Nonempty-subset rows must be nondecreasing and end at one, with zero
-            probability for absent candidates. The empty-subset row is unused. These conditions
-            are assumed rather than validated here.
-        rankings (NDArray[np.intp]): Writable ``(n, m)`` output, filled in place with candidate
-            IDs in CDF column order. May be a view into a larger ranking array.
-        rng (np.random.Generator): Generator advanced by ``n*m`` draws in position order, then
-            voter order.
-    """
-    n_voters, n_candidates = rankings.shape
-    batch_size = _DP_NAME_BT_BATCH_SIZE
-    buffer_rows = min(batch_size, n_voters)
-    candidate_bits = np.left_shift(1, np.arange(n_candidates, dtype=int))
-    remaining_subset_masks = np.full(n_voters, len(cdf_matrix) - 1, dtype=int)
-
-    voter_cdf_rows = np.empty((buffer_rows, n_candidates), dtype=np.float64)
-    passed_thresholds = np.empty((buffer_rows, n_candidates), dtype=bool)
-    chosen_candidate_ids = np.empty(buffer_rows, dtype=int)
-
-    # Keep positions outside batches so batching preserves the seeded rankings.
-    for position in range(n_candidates):
-        for start in range(0, n_voters, batch_size):
-            stop = min(start + batch_size, n_voters)
-            n_batch_voters = stop - start
-            batch_subset_masks = remaining_subset_masks[start:stop]
-            np.take(
-                cdf_matrix,
-                batch_subset_masks,
-                axis=0,
-                out=voter_cdf_rows[:n_batch_voters],
-                mode="clip",
-            )
-
-            draws = rng.random(n_batch_voters)
-            np.greater_equal(
-                draws[:, None],
-                voter_cdf_rows[:n_batch_voters],
-                out=passed_thresholds[:n_batch_voters],
-            )
-            np.sum(
-                passed_thresholds[:n_batch_voters],
-                axis=1,
-                dtype=int,
-                out=chosen_candidate_ids[:n_batch_voters],
-            )
-
-            rankings[start:stop, position] = chosen_candidate_ids[:n_batch_voters]
-            batch_subset_masks -= candidate_bits[chosen_candidate_ids[:n_batch_voters]]

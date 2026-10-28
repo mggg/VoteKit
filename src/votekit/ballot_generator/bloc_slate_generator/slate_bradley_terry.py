@@ -17,21 +17,24 @@ from __future__ import annotations
 
 import math
 
-import apportionment.methods as apportion
 import numpy as np
 from numpy.typing import NDArray
 
+from votekit.ballot_generator.bloc_slate_generator._profile_construction import (
+    _apportion_bloc_rows,
+    _build_profile_from_rankings,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import _sample_cdf_sequences
 from votekit.ballot_generator.bloc_slate_generator._slate_bt_mcmc import (
     slate_bt_profile_generator_using_mcmc,
     slate_bt_profiles_by_bloc_generator_using_mcmc,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
-    _fast_sample_without_replacement,
+    _fill_slate_candidate_rankings,
 )
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, RankMatrix, WeightKind
 from votekit.types import Candidate
 
 # Mark intentional re-export of the MCMC-based generators for public API preservation.
@@ -203,23 +206,11 @@ def _sample_slate_bt_rankings(
     cohesion = config.cohesion_df.loc[list(blocs), list(slates)].to_numpy(dtype=np.float64)
     _check_dp_slate_bt_memory(slate_counts, cohesion, config.n_voters, group_ballots=group_ballots)
 
-    bloc_counts = apportion.compute(
-        "huntington",
-        [config.bloc_proportions[bloc] for bloc in blocs],
-        config.n_voters,
-    )
-    if isinstance(bloc_counts, int):
-        bloc_counts = [bloc_counts]
-
+    bloc_rows = _apportion_bloc_rows(config)
     ranking_matrix = np.empty((config.n_voters, len(candidates)), dtype=int)
-    bloc_rows: dict[str, slice] = {}
-    row_start = 0
 
-    for bloc, n_bloc_voters, bloc_cohesion in zip(blocs, bloc_counts, cohesion, strict=True):
-        rows = slice(row_start, row_start + n_bloc_voters)
-        bloc_rows[bloc] = rows
-        row_start += n_bloc_voters
-
+    for (bloc, rows), bloc_cohesion in zip(bloc_rows.items(), cohesion, strict=True):
+        n_bloc_voters = rows.stop - rows.start
         if n_bloc_voters == 0:
             continue
 
@@ -233,6 +224,7 @@ def _sample_slate_bt_rankings(
             slate_sequences=slate_sequences,
             rankings=ranking_matrix[rows],
             rng=rng,
+            batch_size=_DP_SLATE_BT_BATCH_SIZE,
         )
 
     return ranking_matrix, bloc_rows
@@ -304,155 +296,6 @@ def _sample_bloc_slate_sequences(
             )
 
     return slate_sequences
-
-
-def _fill_slate_candidate_rankings(
-    config: BlocSlateConfig,
-    bloc: str,
-    candidates: tuple[Candidate, ...],
-    slate_sequences: NDArray[np.intp],
-    rankings: NDArray[np.intp],
-    rng: np.random.Generator,
-) -> None:
-    r"""
-    Fill each slate's positions with a Plackett-Luce ordering of its candidate IDs.
-
-    A slate sequence determines where each slate's candidates belong, but their identities still
-    need an order. For each slate, ``_sample_slate_candidate_orderings`` draws one candidate
-    ordering per voter. The corresponding positions in that voter's slate sequence then receive
-    those candidate IDs from left to right. For example, sequence ABA and within-slate orders
-    ``(a2, a1)`` and ``(b1,)`` produce the candidate ranking ``(a2, b1, a1)``.
-
-    Every row contains the same number of occurrences of a given slate, allowing its positions to
-    form a rectangular array with one row per voter. Indexed assignment fills those positions in
-    batches, bounding the temporary position and ordering arrays. Slate sequences remain separate
-    from the candidate output because a slate ID and a candidate ID can have the same integer
-    value. The batch size determines how positive-support draws and zero-support tail shuffles
-    interleave, so changing it can change seeded candidate rankings even when the slate sequences
-    remain identical.
-
-    Args:
-        config (BlocSlateConfig): Validated slate membership and preference intervals.
-        bloc (str): Bloc whose within-slate supports apply.
-        candidates (tuple[Candidate, ...]): Candidate identities in output-ID order.
-        slate_sequences (NDArray[np.intp]): Complete slate-ID sequences in configuration order.
-        rankings (NDArray[np.intp]): Aligned writable output, filled in place with candidate IDs.
-        rng (np.random.Generator): Random stream advanced in slate order, then batch order.
-    """
-    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
-    preference_intervals = config.get_preference_intervals_for_bloc(bloc)
-
-    for slate_id, slate in enumerate(config.slates):
-        slate_candidates = config.slate_to_candidates[slate]
-        slate_candidate_ids = np.array(
-            [candidate_to_id[candidate] for candidate in slate_candidates], dtype=int
-        )
-        slate_candidate_supports = np.array(
-            [preference_intervals[slate].interval[candidate] for candidate in slate_candidates],
-            dtype=np.float64,
-        )
-
-        for batch_start in range(0, len(rankings), _DP_SLATE_BT_BATCH_SIZE):
-            batch_stop = min(batch_start + _DP_SLATE_BT_BATCH_SIZE, len(rankings))
-            batch_slate_sequences = slate_sequences[batch_start:batch_stop]
-            batch_rankings = rankings[batch_start:batch_stop]
-            n_batch_voters = len(batch_rankings)
-
-            # Each row contains the same number of occurrences of this slate.
-            _, slate_positions = np.nonzero(batch_slate_sequences == slate_id)
-            slate_positions_by_voter = slate_positions.reshape(
-                n_batch_voters, len(slate_candidates)
-            )
-
-            candidate_orderings = _sample_slate_candidate_orderings(
-                slate_candidate_ids,
-                slate_candidate_supports,
-                n_voters=n_batch_voters,
-                rng=rng,
-            )
-            voter_rows = np.arange(n_batch_voters)[:, None]
-            batch_rankings[voter_rows, slate_positions_by_voter] = candidate_orderings
-
-
-def _sample_slate_candidate_orderings(
-    candidate_ids: NDArray[np.intp],
-    candidate_supports: NDArray[np.float64],
-    *,
-    n_voters: int,
-    rng: np.random.Generator,
-) -> NDArray[np.intp]:
-    r"""
-    Sample within-slate Plackett-Luce orders followed by uniformly shuffled zero-support tails.
-
-    Positive-support candidates follow the weighted ordering sampled by
-    ``_fast_sample_without_replacement``. Its returned indices are mapped to the supplied
-    candidate IDs. Zero-support candidates are shuffled independently and placed after the
-    positive-support candidates within their slate.
-
-    Args:
-        candidate_ids (NDArray[np.intp]): IDs of the candidates belonging to one slate.
-        candidate_supports (NDArray[np.float64]): Aligned, validated finite nonnegative supports.
-        n_voters (int): Number of independent candidate orderings to draw.
-        rng (np.random.Generator): Random stream advanced by uniform draws, then tail shuffles.
-
-    Returns:
-        NDArray[np.intp]: One complete ordering of the supplied candidate IDs per voter.
-    """
-    positive_support_mask = candidate_supports > 0
-    positive_candidate_ids = candidate_ids[positive_support_mask]
-    zero_support_candidate_ids = candidate_ids[candidate_supports == 0]
-    n_positive_candidates = len(positive_candidate_ids)
-
-    candidate_orderings = np.empty((n_voters, len(candidate_ids)), dtype=int)
-    arrival_order = _fast_sample_without_replacement(
-        candidate_supports[positive_support_mask], n_voters, numpy_rng=rng
-    )
-    candidate_orderings[:, :n_positive_candidates] = positive_candidate_ids[arrival_order]
-
-    if len(zero_support_candidate_ids):
-        tail_candidates_by_voter = np.broadcast_to(
-            zero_support_candidate_ids, (n_voters, len(zero_support_candidate_ids))
-        )
-        rng.permuted(
-            tail_candidates_by_voter,
-            axis=1,
-            out=candidate_orderings[:, n_positive_candidates:],
-        )
-
-    return candidate_orderings
-
-
-def _build_profile_from_rankings(
-    rankings: NDArray[np.intp],
-    candidates: tuple[Candidate, ...],
-    *,
-    group_ballots: bool,
-) -> RankProfile:
-    """
-    Construct a RankProfile from sampled candidate IDs with unit ballot weights.
-
-    Args:
-        rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
-        candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
-        group_ballots (bool): Whether to combine identical rankings in the returned profile.
-
-    Returns:
-        RankProfile: Profile with independent ranking storage and the requested grouping.
-    """
-    voter_weight_data = ProfileVoterWeightData(
-        weights=np.ones(len(rankings), dtype=np.float64),
-        voter_sets=None,
-        weight_kind=WeightKind.FLOAT,
-    )
-
-    matrix = RankMatrix.from_candidate_ids(
-        voter_weight_data=voter_weight_data,
-        rankings=rankings,
-        candidates=candidates,
-    )
-
-    profile = RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))
-    return profile.group_ballots() if group_ballots else profile
 
 
 # ====================================================
@@ -805,46 +648,6 @@ def _sample_sequences_from_cdf(
             positive-cohesion candidate, filled in place with local slate IDs.
         rng (np.random.Generator): Random stream advanced in position order, then voter order.
     """
-    n_voters, n_positions = sequences.shape
-    batch_size = _DP_SLATE_BT_BATCH_SIZE
-    buffer_rows = min(batch_size, n_voters)
-    n_slates = len(count_strides)
-    remaining_state_ids = np.full(n_voters, len(cdf_matrix) - 1, dtype=int)
-
-    voter_cdf_rows = np.empty((buffer_rows, n_slates), dtype=np.float64)
-    passed_thresholds = np.empty(voter_cdf_rows.shape, dtype=bool)
-    chosen_slate_ids = np.empty(buffer_rows, dtype=int)
-
-    # Keep positions outside batches so batching preserves the seeded slate sequences.
-    for position in range(n_positions):
-        for batch_start in range(0, n_voters, batch_size):
-            batch_stop = min(batch_start + batch_size, n_voters)
-            n_batch_voters = batch_stop - batch_start
-            batch_state_ids = remaining_state_ids[batch_start:batch_stop]
-
-            batch_cdf_rows = voter_cdf_rows[:n_batch_voters]
-            batch_passed_thresholds = passed_thresholds[:n_batch_voters]
-            batch_chosen_slate_ids = chosen_slate_ids[:n_batch_voters]
-            np.take(
-                cdf_matrix,
-                batch_state_ids,
-                axis=0,
-                out=batch_cdf_rows,
-                mode="clip",
-            )
-
-            draws = rng.random(n_batch_voters)
-            np.greater_equal(
-                draws[:, None],
-                batch_cdf_rows,
-                out=batch_passed_thresholds,
-            )
-            np.sum(
-                batch_passed_thresholds,
-                axis=1,
-                dtype=int,
-                out=batch_chosen_slate_ids,
-            )
-
-            sequences[batch_start:batch_stop, position] = batch_chosen_slate_ids
-            batch_state_ids -= count_strides[batch_chosen_slate_ids]
+    _sample_cdf_sequences(
+        cdf_matrix, count_strides, sequences, rng, batch_size=_DP_SLATE_BT_BATCH_SIZE
+    )
