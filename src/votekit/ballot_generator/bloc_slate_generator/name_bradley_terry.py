@@ -30,13 +30,15 @@ from votekit.ballot_generator.bloc_slate_generator._profile_construction import 
     _apportion_bloc_rows,
     _build_profile_from_rankings,
 )
-from votekit.ballot_generator.bloc_slate_generator._sampling import _sample_cdf_sequences
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    BATCH_SIZE,
+    _normalize_log_weights_to_cdf_in_place,
+    _sample_cdf_sequences,
+)
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
-
-_DP_NAME_BT_BATCH_SIZE = 65_536
 
 # =================================================
 # ================= API Functions =================
@@ -251,8 +253,8 @@ def _sample_bloc_rankings(
     Sample a bloc's complete rankings from its conditional next-candidate probabilities.
 
     Prepare the CDF table with ``_build_cdf_matrix`` and draw rankings with
-    ``_sample_cdf_sequences``. Map sampled indices back to the full candidate order and apply
-    the zero-support tail policy described in ``name_bt_profile_generator`` before returning the
+    ``_sample_cdf_sequences``. Map sampled indices back to the full candidate order and apply the
+    zero-support tail policy described in ``name_bt_profile_generator`` before returning the
     completed rows for profile construction and optional grouping.
 
     Args:
@@ -261,30 +263,30 @@ def _sample_bloc_rankings(
         rankings (NDArray[np.intp]): Writable output for this bloc's complete rankings.
         rng (np.random.Generator): Generator advanced by prefix and tail sampling.
     """
-    positive_ids = np.flatnonzero(supports > 0)
-    zero_ids = np.flatnonzero(supports == 0)
-    positive_candidates = tuple(candidates[index] for index in positive_ids)
-    n_positive = len(positive_ids)
+    positive_candidate_ids = np.flatnonzero(supports > 0)
+    zero_candidate_ids = np.flatnonzero(supports == 0)
+    positive_candidates = tuple(candidates[index] for index in positive_candidate_ids)
+    n_positive_candidates = len(positive_candidate_ids)
 
-    cdf_matrix = _build_cdf_matrix(positive_candidates, supports[positive_ids])
-    candidate_bits = np.left_shift(1, np.arange(n_positive, dtype=int))
+    cdf_matrix = _build_cdf_matrix(positive_candidates, supports[positive_candidate_ids])
+    candidate_bits = 1 << np.arange(n_positive_candidates, dtype=np.intp)
     _sample_cdf_sequences(
         cdf_matrix,
         candidate_bits,
-        rankings[:, :n_positive],
+        rankings[:, :n_positive_candidates],
         rng,
-        batch_size=_DP_NAME_BT_BATCH_SIZE,
+        batch_size=BATCH_SIZE,
     )
     del cdf_matrix  # Tail sampling does not need to retain the DP table.
 
-    if not len(zero_ids):
+    if not len(zero_candidate_ids):
         return
 
-    for start in range(0, len(rankings), _DP_NAME_BT_BATCH_SIZE):
-        batch = rankings[start : start + _DP_NAME_BT_BATCH_SIZE]
-        batch[:, :n_positive] = positive_ids[batch[:, :n_positive]]
-        tails = np.broadcast_to(zero_ids, (len(batch), len(zero_ids)))
-        rng.permuted(tails, axis=1, out=batch[:, n_positive:])
+    for start in range(0, len(rankings), BATCH_SIZE):
+        batch = rankings[start : start + BATCH_SIZE]
+        batch[:, :n_positive_candidates] = positive_candidate_ids[batch[:, :n_positive_candidates]]
+        tails = np.broadcast_to(zero_candidate_ids, (len(batch), len(zero_candidate_ids)))
+        rng.permuted(tails, axis=1, out=batch[:, n_positive_candidates:])
 
 
 # ====================================================
@@ -330,13 +332,14 @@ def _check_dp_name_bt_memory(
 
     # Log totals, uint32 masks, uint8 sizes, and the mask selecting a subset size.
     subset_vector_bytes = n_subsets * (float_bytes + 4 + 1 + 1)
-    # Consecutive working matrices can coexist, along with indexed vectors and arithmetic results.
-    preparation_work_bytes = largest_subset_count * (
-        2 * n_positive_candidates * float_bytes + 8 * index_bytes
+    # Successive selected-mask arrays can coexist; contribution matrices stay batch-sized.
+    preparation_rows = min(largest_subset_count, BATCH_SIZE)
+    preparation_work_bytes = 2 * largest_subset_count * 4 + preparation_rows * (
+        n_positive_candidates * float_bytes + 8 * index_bytes
     )
     preparation_peak = ranking_bytes + cdf_bytes + subset_vector_bytes + preparation_work_bytes
 
-    buffer_rows = min(_DP_NAME_BT_BATCH_SIZE, n_voters)
+    buffer_rows = min(BATCH_SIZE, n_voters)
     sampling_buffer_bytes = buffer_rows * (
         n_candidates * (float_bytes + 1) + 2 * index_bytes + 2 * float_bytes
     )
@@ -345,8 +348,9 @@ def _check_dp_name_bt_memory(
     # Include owned rankings, candidate-discovery copies, weights, and validation temporaries.
     construction_peak = 4 * ranking_bytes + n_voters * (4 * index_bytes + 4 * float_bytes)
     if group_ballots:
-        # Sorting and row selection can retain both profiles plus row keys and index arrays.
-        construction_peak = 6 * ranking_bytes + n_voters * (12 * index_bytes + 4 * float_bytes)
+        # Grouping retains raw rows, sorting buffers, and selected rows before matrix
+        # construction.
+        construction_peak = 5 * ranking_bytes + n_voters * (12 * index_bytes + 4 * float_bytes)
 
     estimated_peak = max(preparation_peak, sampling_peak, construction_peak)
     available_gib = system_memory()["available_gib"]
@@ -440,9 +444,9 @@ def _build_cdf_matrix(
             -\infty, & i\notin U.
         \end{cases}
 
-    These contributions are stored in ``log_next_cand_weights``. Applying ``np.logaddexp.reduce``
-    computes :math:`L(U)=\log\sum_i\exp(\ell_i(U))` without first exponentiating the unnormalized
-    weights. Normalization then takes place by subtraction, giving
+    These contributions are stored in ``log_next_candidate_weights``. Applying
+    ``np.logaddexp.reduce`` computes :math:`L(U)=\log\sum_i\exp(\ell_i(U))` without first
+    exponentiating the unnormalized weights. Normalization then takes place by subtraction, giving
     :math:`p(i\mid U)=\exp(\ell_i(U)-L(U))` without forming the potentially unrepresentable
     numerator or denominator. Thus, the earlier example is evaluated using log totals of zero for
     the empty set and singletons, followed by :math:`\log 5`,
@@ -500,10 +504,7 @@ def _build_cdf_matrix(
 
     # For a 3-candidate example, the subsets are:
     # [{}, {c1}, {c2}, {c1, c2}, {c3}, {c1, c3}, {c2, c3}, {c1, c2, c3}]
-    n_dp_subsets = 2**n_candidates
-
-    # Each candidate gets their own bit in the bitmask
-    candidate_bit_assignments = [2**i for i in range(n_candidates)]
+    n_dp_subsets = 1 << n_candidates
 
     log_supports = np.full(n_candidates, -np.inf, dtype=np.float64)
     np.log(candidate_supports, out=log_supports, where=candidate_supports > 0)
@@ -515,51 +516,81 @@ def _build_cdf_matrix(
     log_total_suffix_weight[0] = 0
 
     cdf_matrix = np.zeros((n_dp_subsets, n_candidates), dtype=np.float64)
-    states = np.arange(1 << n_candidates, dtype=np.uint32)
+    states = np.arange(n_dp_subsets, dtype=np.uint32)
     subset_sizes = np.bitwise_count(states)
 
     for n_remaining_candidates in range(1, n_candidates + 1):
         states_with_n_remaining_candidates = states[subset_sizes == n_remaining_candidates]
-        log_next_cand_weights = np.full(
-            (len(states_with_n_remaining_candidates), n_candidates),
-            -np.inf,
-            dtype=np.float64,
-        )
-
-        for cand_id, cand_bit in enumerate(candidate_bit_assignments):
-            cand_is_present = (states_with_n_remaining_candidates & cand_bit) != 0
-
-            successor_remaining_cand_set_masks = (
-                states_with_n_remaining_candidates[cand_is_present] - cand_bit
+        for start in range(0, len(states_with_n_remaining_candidates), BATCH_SIZE):
+            subset_masks = states_with_n_remaining_candidates[start : start + BATCH_SIZE]
+            _fill_name_bt_cdf_rows(
+                subset_masks=subset_masks,
+                n_remaining_candidates=n_remaining_candidates,
+                log_supports=log_supports,
+                log_total_suffix_weight=log_total_suffix_weight,
+                cdf_matrix=cdf_matrix,
             )
 
-            if n_remaining_candidates == 1:
-                # The last candidate contributes weight one even when its support is zero.
-                log_next_cand_weights[cand_is_present, cand_id] = 0
-            else:
-                log_next_cand_weights[cand_is_present, cand_id] = (
-                    n_remaining_candidates - 1
-                ) * log_supports[cand_id] + log_total_suffix_weight[
-                    successor_remaining_cand_set_masks
-                ]
-
-        log_subset_totals = np.empty(len(states_with_n_remaining_candidates), dtype=np.float64)
-        np.logaddexp.reduce(
-            log_next_cand_weights,
-            axis=1,
-            out=log_subset_totals,
-        )
-        log_total_suffix_weight[states_with_n_remaining_candidates] = log_subset_totals
-
-        # Reuse the working array for probabilities, then cumulative probabilities.
-        subset_cdfs = log_next_cand_weights
-        subset_cdfs -= log_subset_totals[:, None]
-
-        np.exp(subset_cdfs, out=subset_cdfs)
-        np.cumsum(subset_cdfs, axis=1, out=subset_cdfs)
-
-        subset_cdfs /= subset_cdfs[:, -1:]
-
-        cdf_matrix[states_with_n_remaining_candidates] = subset_cdfs
-
     return cdf_matrix
+
+
+def _fill_name_bt_cdf_rows(
+    subset_masks: NDArray[np.uint32],
+    n_remaining_candidates: int,
+    log_supports: NDArray[np.float64],
+    log_total_suffix_weight: NDArray[np.float64],
+    cdf_matrix: NDArray[np.float64],
+) -> None:
+    """
+    Compute and store suffix totals and next-candidate CDFs for a batch of subsets.
+
+    Choosing a candidate first contributes its support once for every other remaining candidate.
+    Multiplying that contribution by the remaining subset's completion weight accounts for all
+    suffixes beginning with that choice. In log space, this becomes an addition to the successor
+    subset's stored total. All subsets in the batch have the same size, and their successors must
+    already have been computed, so the rows can be evaluated together.
+
+    Summing the choice weights gives each subset's completion total. The function stores its
+    logarithm for subsequent subsets, then normalizes the choices and accumulates their
+    probabilities into a CDF. The temporary choice-weight array is reused throughout this
+    conversion and released when the function returns. Only the selected entries in the supplied
+    total-weight vector and CDF matrix are modified.
+
+    Args:
+        subset_masks (NDArray[np.uint32]): Nonempty subset bitmasks identifying the rows to fill.
+            Every mask contains exactly ``n_remaining_candidates`` set bits.
+        n_remaining_candidates (int): Number of candidates in each selected subset.
+        log_supports (NDArray[np.float64]): Log supports in candidate-ID order. Supports are
+            positive except for at most one zero, represented by negative infinity.
+        log_total_suffix_weight (NDArray[np.float64]): Writable log completion totals indexed by
+            subset bitmask. Successor entries must be initialized, including zero for the empty
+            subset. Selected entries are filled in place.
+        cdf_matrix (NDArray[np.float64]): Writable table indexed by subset bitmask and candidate
+            ID. Selected rows are filled in place, with zero probability for absent candidates and
+            a final cumulative probability of one.
+    """
+    n_candidates = len(log_supports)
+    log_next_candidate_weights = np.full(
+        (len(subset_masks), n_candidates),
+        -np.inf,
+        dtype=np.float64,
+    )
+
+    candidate_bits = 1 << np.arange(n_candidates, dtype=np.uint32)
+    for candidate_id, candidate_bit in enumerate(candidate_bits):
+        candidate_is_present = (subset_masks & candidate_bit) != 0
+        successor_subset_masks = subset_masks[candidate_is_present] - candidate_bit
+
+        if n_remaining_candidates == 1:
+            # The last candidate contributes weight one even when its support is zero.
+            log_next_candidate_weights[candidate_is_present, candidate_id] = 0
+        else:
+            log_first_candidate_weight = (n_remaining_candidates - 1) * log_supports[candidate_id]
+            log_next_candidate_weights[candidate_is_present, candidate_id] = (
+                log_first_candidate_weight + log_total_suffix_weight[successor_subset_masks]
+            )
+
+    log_state_totals = _normalize_log_weights_to_cdf_in_place(log_next_candidate_weights)
+
+    log_total_suffix_weight[subset_masks] = log_state_totals
+    cdf_matrix[subset_masks] = log_next_candidate_weights

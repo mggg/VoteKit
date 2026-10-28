@@ -1,15 +1,42 @@
+from collections.abc import Iterator
 from typing import cast
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _construct_slate_to_candidate_ordering_arrays,
     _fast_sample_without_replacement,
+    _fill_slate_candidate_rankings,
     _lexicographic_symbol_tuple_iterator,
 )
 from votekit.pref_interval import PreferenceInterval
+
+
+def test_slate_candidate_placement_finishes_each_batch_before_requesting_the_next():
+    candidate_arrays = (
+        (np.array([10, 11]), np.array([1.0, 0.0])),
+        (np.array([20]), np.array([1.0])),
+    )
+    rankings = np.full((3, 3), -1, dtype=np.intp)
+    first_sequences = np.array([[0, 1, 0], [1, 0, 0]])
+    last_sequences = np.array([[0, 0, 1]])
+
+    def sequence_batches() -> Iterator[NDArray[np.intp]]:
+        yield first_sequences
+        np.testing.assert_array_equal(rankings[:2], [[10, 20, 11], [20, 10, 11]])
+        np.testing.assert_array_equal(rankings[2], [-1, -1, -1])
+        yield last_sequences
+
+    _fill_slate_candidate_rankings(
+        candidate_arrays, sequence_batches(), rankings, np.random.default_rng(42)
+    )
+
+    np.testing.assert_array_equal(rankings, [[10, 20, 11], [20, 10, 11], [10, 11, 20]])
+    np.testing.assert_array_equal(first_sequences, [[0, 1, 0], [1, 0, 0]])
+    np.testing.assert_array_equal(last_sequences, [[0, 0, 1]])
 
 
 @pytest.mark.parametrize("small_weight", [1e-6, 1e-300, 1e-320])

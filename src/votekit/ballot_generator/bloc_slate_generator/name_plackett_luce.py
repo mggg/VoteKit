@@ -4,9 +4,9 @@ Generate ranked preference profiles using the name-Plackett-Luce model.
 The main API functions in this module are:
 
 - `name_pl_profile_generator`: Generates a single preference profile using the name-Plackett-Luce
-    model.
+  model.
 - `name_pl_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
-    name-Plackett-Luce model.
+  name-Plackett-Luce model.
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from votekit.ballot_generator.bloc_slate_generator._profile_construction import 
     _build_profile_from_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator._sampling import (
-    SAMPLING_BATCH_SIZE,
-    _sample_pl_rankings,
+    BATCH_SIZE,
+    _fill_pl_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
@@ -48,8 +48,8 @@ def name_pl_profile_generator(
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
+        group_ballots (bool): If True, group identical ballots in the returned profile and set the
+            weight accordingly. Defaults to True.
         rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None. An integer
             seed produces the same output for identical inputs. Seeded samples differ from the
             dataframe implementation.
@@ -75,15 +75,15 @@ def name_pl_profiles_by_bloc_generator(
     Generates a dictionary mapping bloc names to preference profiles by bloc using the
     name-Plackett-Luce model.
 
-    Use the distribution and zero-support policy described by ``name_pl_profile_generator``.
-    The combined and per-bloc functions sample the same rankings for a given seed. Grouping
-    combines identical complete rankings within each bloc.
+    Use the distribution and zero-support policy described by ``name_pl_profile_generator``. The
+    combined and per-bloc functions sample the same rankings for a given seed. Grouping combines
+    identical complete rankings within each bloc.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
+        group_ballots (bool): If True, group identical ballots in the returned profile and set the
+            weight accordingly. Defaults to True.
         rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None. An integer
             seed produces the same output for identical inputs. Seeded samples differ from the
             dataframe implementation.
@@ -116,10 +116,10 @@ def _sample_name_pl_rankings(
     """
     Sample complete PL rankings into consecutive rows for each apportioned bloc.
 
-    Each bloc uses its combined preference interval over the declared candidate universe.
-    Batches bound the temporary sampling arrays, and the returned row slices allow either
-    public API to construct its profiles from the same samples. Zero-support candidates follow
-    the positive-support ordering according to the shared sampler's tail policy.
+    Each bloc uses its combined preference interval over the declared candidate universe. Batches
+    bound the temporary sampling arrays, and the returned row slices allow either public API to
+    construct its profiles from the same samples. Zero-support candidates follow the
+    positive-support ordering according to the shared sampler's tail policy.
 
     Args:
         config (BlocSlateConfig): Validated bloc proportions, supports, and voter count.
@@ -145,10 +145,8 @@ def _sample_name_pl_rankings(
         if not np.all(np.isfinite(supports) & (supports >= 0)):
             raise ValueError(f"Bloc {bloc!r} requires finite, nonnegative candidate supports.")
 
-        for start in range(rows.start, rows.stop, SAMPLING_BATCH_SIZE):
-            stop = min(start + SAMPLING_BATCH_SIZE, rows.stop)
-            rankings[start:stop] = _sample_pl_rankings(
-                candidate_ids, supports, n_voters=stop - start, rng=rng
-            )
+        for start in range(rows.start, rows.stop, BATCH_SIZE):
+            stop = min(start + BATCH_SIZE, rows.stop)
+            _fill_pl_rankings(candidate_ids, supports, rankings[start:stop], rng)
 
     return rankings, bloc_rows

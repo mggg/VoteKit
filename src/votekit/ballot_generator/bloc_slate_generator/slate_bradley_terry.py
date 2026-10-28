@@ -16,6 +16,7 @@ The main API functions in this module are:
 from __future__ import annotations
 
 import math
+from collections.abc import Iterator
 
 import numpy as np
 from numpy.typing import NDArray
@@ -24,7 +25,11 @@ from votekit.ballot_generator.bloc_slate_generator._profile_construction import 
     _apportion_bloc_rows,
     _build_profile_from_rankings,
 )
-from votekit.ballot_generator.bloc_slate_generator._sampling import _sample_cdf_sequences
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    BATCH_SIZE,
+    _normalize_log_weights_to_cdf_in_place,
+    _sample_cdf_sequences,
+)
 from votekit.ballot_generator.bloc_slate_generator._slate_bt_mcmc import (
     slate_bt_profile_generator_using_mcmc,
     slate_bt_profiles_by_bloc_generator_using_mcmc,
@@ -32,6 +37,7 @@ from votekit.ballot_generator.bloc_slate_generator._slate_bt_mcmc import (
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _fill_slate_candidate_rankings,
+    _prepare_slate_candidate_arrays,
 )
 from votekit.ballot_generator.utils import system_memory
 from votekit.pref_profile import RankProfile
@@ -45,7 +51,6 @@ __all__ = [
     "slate_bt_profiles_by_bloc_generator_using_mcmc",
 ]
 
-_DP_SLATE_BT_BATCH_SIZE = 65_536
 
 # =================================================
 # ================= API Functions =================
@@ -207,51 +212,47 @@ def _sample_slate_bt_rankings(
     _check_dp_slate_bt_memory(slate_counts, cohesion, config.n_voters, group_ballots=group_ballots)
 
     bloc_rows = _apportion_bloc_rows(config)
-    ranking_matrix = np.empty((config.n_voters, len(candidates)), dtype=int)
+    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
+    rankings = np.empty((config.n_voters, len(candidates)), dtype=int)
 
     for (bloc, rows), bloc_cohesion in zip(bloc_rows.items(), cohesion, strict=True):
         n_bloc_voters = rows.stop - rows.start
         if n_bloc_voters == 0:
             continue
 
-        slate_sequences = _sample_bloc_slate_sequences(
+        candidate_arrays = _prepare_slate_candidate_arrays(config, bloc, candidate_to_id)
+        slate_batches = _iter_slate_sequence_batches(
             slate_counts, bloc_cohesion, n_voters=n_bloc_voters, rng=rng
         )
-        _fill_slate_candidate_rankings(
-            config=config,
-            bloc=bloc,
-            candidates=candidates,
-            slate_sequences=slate_sequences,
-            rankings=ranking_matrix[rows],
-            rng=rng,
-            batch_size=_DP_SLATE_BT_BATCH_SIZE,
-        )
+        _fill_slate_candidate_rankings(candidate_arrays, slate_batches, rankings[rows], rng)
 
-    return ranking_matrix, bloc_rows
+    return rankings, bloc_rows
 
 
-def _sample_bloc_slate_sequences(
+def _iter_slate_sequence_batches(
     slate_counts: NDArray[np.intp],
     cohesion: NDArray[np.float64],
     n_voters: int,
     rng: np.random.Generator,
-) -> NDArray[np.intp]:
+) -> Iterator[NDArray[np.intp]]:
     """
     Sample positive-cohesion slate sequences and append uniformly shuffled zero-cohesion symbols.
 
     A bloc's slate sequence consists of a positive-cohesion prefix followed by a zero-cohesion
     tail. Only the positive-cohesion slates enter ``_build_cdf_matrix``, so its columns use a
-    local slate order. ``_sample_sequences_from_cdf`` draws the prefix in that order, after which
-    the sampled IDs are mapped back to the configuration's full slate order. For example, if only
-    A and C have positive cohesion among slates ``(A, B, C)``, their local IDs ``(0, 1)`` become
+    local slate order. ``_sample_cdf_sequences`` draws the prefix in that order, after which the
+    sampled IDs are mapped back to the configuration's full slate order. For example, if only A
+    and C have positive cohesion among slates ``(A, B, C)``, their local IDs ``(0, 1)`` become
     configuration IDs ``(0, 2)``.
 
     The remaining positions contain one symbol per candidate from each zero-cohesion slate. An
     independent shuffle of these repeated symbols makes every distinct tail sequence equally
     likely because each sequence corresponds to the same number of permutations of the individual
     occurrences. These tails are appended before candidate identities are assigned and before
-    ballots are grouped. The prefix no longer needs its CDF table at that point, so the table is
-    released before allocating tail-sampling buffers.
+    ballots are grouped. The CDF is prepared once and retained while batches are yielded. Each
+    batch owns its storage so candidate placement can finish before the next batch is sampled.
+    Prefix draws, tail shuffles, and candidate placement share a stream; changing the batch size
+    can therefore change seeded rankings.
 
     Args:
         slate_counts (NDArray[np.intp]): Candidate count for every slate in configuration order.
@@ -259,8 +260,8 @@ def _sample_bloc_slate_sequences(
         n_voters (int): Number of slate sequences to draw.
         rng (np.random.Generator): Random stream advanced by prefix and tail sampling.
 
-    Returns:
-        NDArray[np.intp]: Complete slate-ID sequences, one row per ballot.
+    Yields:
+        NDArray[np.intp]: Independent batches of complete slate-ID sequences, one row per ballot.
     """
     positive_cohesion_slate_ids = np.flatnonzero(cohesion > 0)
     zero_cohesion_slate_ids = np.flatnonzero(cohesion == 0)
@@ -268,22 +269,25 @@ def _sample_bloc_slate_sequences(
     n_positive_candidates = int(positive_slate_counts.sum())
     n_candidates = int(slate_counts.sum())
 
-    slate_sequences = np.empty((n_voters, n_candidates), dtype=int)
-    positive_slate_sequences = slate_sequences[:, :n_positive_candidates]
     cdf_matrix, count_strides = _build_cdf_matrix(
         positive_slate_counts, cohesion[positive_cohesion_slate_ids]
     )
-    _sample_sequences_from_cdf(cdf_matrix, count_strides, positive_slate_sequences, rng)
-
-    del cdf_matrix  # Tail sampling does not need to retain the DP table.
-
     zero_cohesion_symbols = np.repeat(
         zero_cohesion_slate_ids, slate_counts[zero_cohesion_slate_ids]
     )
-    for batch_start in range(0, n_voters, _DP_SLATE_BT_BATCH_SIZE):
-        batch_sequences = slate_sequences[batch_start : batch_start + _DP_SLATE_BT_BATCH_SIZE]
+    for batch_start in range(0, n_voters, BATCH_SIZE):
+        n_batch_voters = min(BATCH_SIZE, n_voters - batch_start)
+        batch_sequences = np.empty((n_batch_voters, n_candidates), dtype=int)
         batch_positive_sequences = batch_sequences[:, :n_positive_candidates]
-        batch_positive_sequences[:] = positive_cohesion_slate_ids[batch_positive_sequences]
+        _sample_cdf_sequences(
+            cdf_matrix, count_strides, batch_positive_sequences, rng, batch_size=BATCH_SIZE
+        )
+        np.take(
+            positive_cohesion_slate_ids,
+            batch_positive_sequences,
+            out=batch_positive_sequences,
+            mode="clip",
+        )
 
         if len(zero_cohesion_symbols):
             tail_symbols_by_voter = np.broadcast_to(
@@ -295,7 +299,7 @@ def _sample_bloc_slate_sequences(
                 out=batch_sequences[:, n_positive_candidates:],
             )
 
-    return slate_sequences
+        yield batch_sequences
 
 
 # ====================================================
@@ -345,26 +349,32 @@ def _check_dp_slate_bt_memory(
 
     preparation_peak_bytes = 0
     sampling_peak_bytes = 0
-    n_batch_voters = min(n_voters, _DP_SLATE_BT_BATCH_SIZE)
-    retained_ranking_bytes = 3 * ranking_bytes
+    largest_cdf_bytes = 0
+    n_batch_voters = min(n_voters, BATCH_SIZE)
+    slate_sequence_bytes = n_batch_voters * n_candidates * index_bytes
+    retained_ranking_bytes = ranking_bytes + slate_sequence_bytes
 
     for bloc_cohesion in cohesion:
         positive_slate_counts = slate_counts[bloc_cohesion > 0]
         n_slates = len(positive_slate_counts)
         n_states = math.prod(int(count) + 1 for count in positive_slate_counts)
         cdf_bytes = n_states * n_slates * float_bytes
+        largest_cdf_bytes = max(largest_cdf_bytes, cdf_bytes)
 
         if cdf_bytes > max_array_bytes:
             raise ValueError("Slate-BT count table exceeds the platform array-index width.")
 
         # Log contributions, log totals, and count-state indexing temporaries.
-        preparation_work_bytes = n_states * (n_slates * float_bytes + 10 * index_bytes)
+        preparation_rows = min(n_states, BATCH_SIZE)
+        preparation_work_bytes = n_states * (float_bytes + 4 * index_bytes) + preparation_rows * (
+            n_slates * float_bytes + 10 * index_bytes
+        )
         bloc_preparation_bytes = retained_ranking_bytes + cdf_bytes + preparation_work_bytes
         preparation_peak_bytes = max(preparation_peak_bytes, bloc_preparation_bytes)
 
         cdf_and_comparison_row_bytes = n_slates * (float_bytes + 1)
         sampling_buffer_bytes = n_batch_voters * (cdf_and_comparison_row_bytes + 3 * index_bytes)
-        voter_state_bytes = n_voters * index_bytes
+        voter_state_bytes = n_batch_voters * index_bytes
         bloc_sampling_bytes = (
             retained_ranking_bytes + cdf_bytes + voter_state_bytes + sampling_buffer_bytes
         )
@@ -372,13 +382,13 @@ def _check_dp_slate_bt_memory(
 
     # Slate positions, candidate permutations, exponential keys, and indexed copies.
     candidate_ordering_work_bytes = n_batch_voters * n_candidates * (8 * index_bytes + 1)
-    ordering_peak_bytes = retained_ranking_bytes + candidate_ordering_work_bytes
+    ordering_peak_bytes = retained_ranking_bytes + largest_cdf_bytes + candidate_ordering_work_bytes
 
     profile_row_metadata_bytes = n_voters * (4 * index_bytes + 4 * float_bytes)
     construction_peak_bytes = 4 * ranking_bytes + profile_row_metadata_bytes
     if group_ballots:
         grouping_row_metadata_bytes = n_voters * (12 * index_bytes + 4 * float_bytes)
-        construction_peak_bytes = 6 * ranking_bytes + grouping_row_metadata_bytes
+        construction_peak_bytes = 5 * ranking_bytes + grouping_row_metadata_bytes
 
     estimated_peak_bytes = max(
         preparation_peak_bytes,
@@ -521,8 +531,7 @@ def _build_cdf_matrix(
     n_candidates_by_state = np.zeros(n_states, dtype=int)
 
     for count_radix, count_stride in zip(count_radices, count_strides, strict=True):
-        remaining_slate_counts = (count_state_ids // count_stride) % count_radix
-        n_candidates_by_state += remaining_slate_counts
+        n_candidates_by_state += (count_state_ids // count_stride) % count_radix
 
     log_cohesion = np.log(cohesion)
     log_total_suffix_weight = np.full(n_states, -np.inf)
@@ -536,118 +545,80 @@ def _build_cdf_matrix(
         states_with_n_remaining_candidates = count_state_ids[
             n_candidates_by_state == n_remaining_candidates
         ]
-        n_selected_states = len(states_with_n_remaining_candidates)
-        log_next_slate_weights = np.full((n_selected_states, n_slates), -np.inf)
-
-        for slate_id, count_stride in enumerate(count_strides):
-            remaining_slate_counts = (
-                states_with_n_remaining_candidates // count_stride
-            ) % count_radices[slate_id]
-            slate_is_available = remaining_slate_counts > 0
-
-            successor_state_ids = (
-                states_with_n_remaining_candidates[slate_is_available] - count_stride
+        for start in range(0, len(states_with_n_remaining_candidates), BATCH_SIZE):
+            selected_states = states_with_n_remaining_candidates[start : start + BATCH_SIZE]
+            _fill_slate_bt_cdf_rows(
+                count_state_ids=selected_states,
+                n_remaining_candidates=n_remaining_candidates,
+                count_radices=count_radices,
+                count_strides=count_strides,
+                log_cohesion=log_cohesion,
+                log_total_suffix_weight=log_total_suffix_weight,
+                cdf_matrix=cdf_matrix,
             )
-            n_candidates_in_other_slates = (
-                n_remaining_candidates - remaining_slate_counts[slate_is_available]
-            )
-            log_next_slate_weights[slate_is_available, slate_id] = (
-                n_candidates_in_other_slates * log_cohesion[slate_id]
-                + log_total_suffix_weight[successor_state_ids]
-            )
-
-        log_state_totals = np.empty(n_selected_states, dtype=np.float64)
-        np.logaddexp.reduce(log_next_slate_weights, axis=1, out=log_state_totals)
-        log_total_suffix_weight[states_with_n_remaining_candidates] = log_state_totals
-
-        # Reuse the working array for probabilities, then cumulative probabilities.
-        state_cdfs = log_next_slate_weights
-        state_cdfs -= log_state_totals[:, None]
-
-        np.exp(state_cdfs, out=state_cdfs)
-        np.cumsum(state_cdfs, axis=1, out=state_cdfs)
-
-        state_cdfs /= state_cdfs[:, -1:]
-
-        cdf_matrix[states_with_n_remaining_candidates] = state_cdfs
-        del state_cdfs, log_next_slate_weights
 
     return cdf_matrix, count_strides
 
 
-def _sample_sequences_from_cdf(
-    cdf_matrix: NDArray[np.float64],
+def _fill_slate_bt_cdf_rows(
+    count_state_ids: NDArray[np.intp],
+    n_remaining_candidates: int,
+    count_radices: NDArray[np.intp],
     count_strides: NDArray[np.intp],
-    sequences: NDArray[np.intp],
-    rng: np.random.Generator,
+    log_cohesion: NDArray[np.float64],
+    log_total_suffix_weight: NDArray[np.float64],
+    cdf_matrix: NDArray[np.float64],
 ) -> None:
-    r"""
-    Fill slate sequences using conditional CDFs and one remaining-count state per voter.
+    """
+    Compute and store suffix totals and next-slate CDFs for a batch of count states.
 
-    The table prepared by ``_build_cdf_matrix`` gives the next-slate distribution for every vector
-    of remaining counts. Sampling therefore keeps one state index per voter: look up its CDF,
-    choose a slate, subtract that slate's stride, and continue from the resulting state. For
-    :math:`n` voters and :math:`m` positions, the function writes these choices into the supplied
-    :math:`(n,m)` array as zero-based slate IDs in CDF column order.
+    Choosing a slate first contributes its cohesion once for every remaining candidate in another
+    slate. Multiplying that contribution by the successor state's completion weight accounts for
+    all suffix sequences beginning with that slate. Each choice removes one occurrence, so its
+    successor has one fewer remaining candidate and must already have been computed. No factor for
+    the chosen slate's remaining count is needed: the choices are distinct slate symbols, and
+    candidate identities are assigned after sampling the sequence.
 
-    A CDF row divides :math:`[0,1)` into intervals whose lengths are the next-slate probabilities.
-    A uniform draw selects the first column whose cumulative probability exceeds it. Consider the
-    preparation example with two A symbols, one B symbol, and cohesions :math:`(3,2)`. Its initial
-    counts :math:`(2,1)` have state index five and CDF :math:`(15/19,1)`. A draw of :math:`0.5`
-    lies in A's interval, so it selects slate ID zero. Subtracting A's stride of one changes the
-    state index to four, representing remaining counts :math:`(1,1)`.
-
-    The next lookup uses row four, whose CDF is :math:`(3/5,1)`. A draw of :math:`0.8` selects B,
-    whose ID is one and whose stride is three. The state becomes one, representing counts
-    :math:`(1,0)`, so A is the only remaining choice. Its selection completes the sequence ABA,
-    stored as ``(0, 1, 0)``, and brings the state index to zero. Each step removes one occurrence
-    of an available slate, ensuring that the final sequence contains the required counts.
-
-    The probability of that path is :math:`(15/19)(2/5)(1)=6/19`, matching ABA's reduced weight
-    divided by the total completion weight. More generally, each conditional probability contains
-    the next state's completion total in its numerator and the current state's total in its
-    denominator. Multiplying along a path cancels the intermediate totals, leaving the sequence's
-    reduced weight divided by the initial total. The conditional choices thus reproduce the
-    slate-BT distribution up to the approximation in the stored float64 probabilities.
-
-    To make these choices for many voters at once, the implementation finds the selected column by
-    counting the CDF entries at or below each draw. Because the row is nondecreasing, those are
-    precisely the entries preceding the first larger threshold. For row :math:`(3/5,1)` and draw
-    :math:`0.8`, the comparisons give ``(True, False)``. Their sum is one, selecting B. With
-    :math:`d` slates, the rule is
-
-    .. math::
-
-        j=\sum_{i=0}^{d-1}\mathbf 1\{\mathrm{cdf}[b(\mathbf c),i]\leq u\}.
-
-    Exhausted slates fit the same rule because their intervals have length zero. If A has been
-    exhausted and B remains, the row is :math:`(0,1)`. Even a draw of exactly zero gives
-    ``(True, False)`` and selects B. Counting thresholds equal to the draw skips zero-width
-    intervals instead of accidentally selecting an exhausted slate. The final threshold is one,
-    while draws are strictly below one, so the selected column remains within the table.
-
-    Different voters can reach different states at the same position. ``voter_cdf_rows`` gathers
-    the appropriate row for each voter in a batch, and ``draws[:, None]`` aligns each draw with
-    that voter's thresholds. Comparing across columns and summing gives one slate ID per voter.
-    Those IDs are written to the output, and their strides update the state indices for the next
-    position.
-
-    Batching bounds these temporary arrays without changing which draws reach which voters.
-    Positions form the outer loop, so all voters receive their first draw before any receives a
-    second one. Changing the batch size therefore preserves the slate sequences for a fixed random
-    stream. Every position consumes a draw, including a forced final symbol. Apart from the
-    prepared table and output, the function retains one state index per voter and buffers for
-    :math:`b` voters, using :math:`O(n+bd)` auxiliary storage. Comparing all :math:`d` thresholds
-    at each of :math:`m` positions takes :math:`O(nmd)` work.
+    The function evaluates these contributions in log space and stores their log total for
+    subsequent states. It then reuses the temporary choice-weight array to normalize and
+    accumulate the next-slate probabilities. Only the selected entries in the supplied
+    total-weight vector and CDF matrix are modified, and the temporary array is released when the
+    function returns.
 
     Args:
-        cdf_matrix (NDArray[np.float64]): Prepared CDF rows indexed by remaining-count state.
-            Nonempty rows end at one and assign zero probability to exhausted slates.
-        count_strides (NDArray[np.intp]): State decrement for each CDF column.
-        sequences (NDArray[np.intp]): Writable output with one row per voter and one column per
-            positive-cohesion candidate, filled in place with local slate IDs.
-        rng (np.random.Generator): Random stream advanced in position order, then voter order.
+        count_state_ids (NDArray[np.intp]): Nonempty mixed-radix count states identifying the rows
+            to fill. Each state contains ``n_remaining_candidates`` remaining slate occurrences.
+        n_remaining_candidates (int): Total number of candidate positions remaining in each state.
+        count_radices (NDArray[np.intp]): Initial slate counts plus one, in CDF column order.
+        count_strides (NDArray[np.intp]): Products of preceding radices in the same order.
+            Subtracting a slate's stride removes one occurrence from a state where it is present.
+        log_cohesion (NDArray[np.float64]): Logarithms of finite, positive slate cohesions in CDF
+            column order.
+        log_total_suffix_weight (NDArray[np.float64]): Writable log completion totals indexed by
+            count state. Successor entries must be initialized, including zero for the empty
+            state. Selected entries are filled in place.
+        cdf_matrix (NDArray[np.float64]): Writable table indexed by count state and slate ID.
+            Selected rows are filled in place, with zero probability for exhausted slates and a
+            final cumulative probability of one.
     """
-    _sample_cdf_sequences(
-        cdf_matrix, count_strides, sequences, rng, batch_size=_DP_SLATE_BT_BATCH_SIZE
-    )
+    n_slates = len(count_strides)
+    n_selected_states = len(count_state_ids)
+    log_next_slate_weights = np.full((n_selected_states, n_slates), -np.inf)
+
+    for slate_id, count_stride in enumerate(count_strides):
+        remaining_slate_counts = (count_state_ids // count_stride) % count_radices[slate_id]
+        slate_is_available = remaining_slate_counts > 0
+
+        successor_state_ids = count_state_ids[slate_is_available] - count_stride
+        n_candidates_in_other_slates = (
+            n_remaining_candidates - remaining_slate_counts[slate_is_available]
+        )
+        log_next_slate_weights[slate_is_available, slate_id] = (
+            n_candidates_in_other_slates * log_cohesion[slate_id]
+            + log_total_suffix_weight[successor_state_ids]
+        )
+
+    log_state_totals = _normalize_log_weights_to_cdf_in_place(log_next_slate_weights)
+
+    log_total_suffix_weight[count_state_ids] = log_state_totals
+    cdf_matrix[count_state_ids] = log_next_slate_weights

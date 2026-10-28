@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Changed
 
+- Direct PL and BT generators now group sampled rows before profile construction and bound slate
+  sequence and BT preparation buffers using a shared batch size.
 - Direct slate-BradleyTerry generators now use count-based dynamic programming, batched sampling,
   and matrix-based profile construction for any number of slates. A peak-memory estimate replaces
   the permutation-count cutoff.

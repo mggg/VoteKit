@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
 from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, RankMatrix, WeightKind
+from votekit.pref_profile.profile_matrix.rank_matrix import _group_ranking_rows
 from votekit.types import Candidate
 
 
@@ -57,6 +58,10 @@ def _build_profile_from_rankings(
     """
     Construct a RankProfile from sampled candidate IDs with unit ballot weights.
 
+    When grouping is requested, equal rows are counted before constructing owned matrix storage.
+    Representatives retain first-appearance order, and grouping takes place after zero-support
+    tails have been sampled.
+
     Args:
         rankings (NDArray[np.intp]): Complete rankings encoded by position in ``candidates``.
         candidates (tuple[Candidate, ...]): Candidate identities in their declared order.
@@ -65,11 +70,20 @@ def _build_profile_from_rankings(
     Returns:
         RankProfile: Profile with independent ranking storage and the requested grouping.
     """
+    if group_ballots:
+        first_rows, group_ids = _group_ranking_rows(rankings)
+        weights = np.bincount(group_ids, minlength=len(first_rows)).astype(np.float64)
+        rankings = rankings[first_rows]
+        del first_rows, group_ids
+    else:
+        weights = np.ones(len(rankings), dtype=np.float64)
+
     voter_weight_data = ProfileVoterWeightData(
-        weights=np.ones(len(rankings), dtype=np.float64),
+        weights=weights,
         voter_sets=None,
         weight_kind=WeightKind.FLOAT,
     )
+    del weights
 
     matrix = RankMatrix.from_candidate_ids(
         voter_weight_data=voter_weight_data,
@@ -77,5 +91,4 @@ def _build_profile_from_rankings(
         candidates=candidates,
     )
 
-    profile = RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))
-    return profile.group_ballots() if group_ballots else profile
+    return RankProfile._from_matrix(matrix, max_ranking_length=len(candidates))

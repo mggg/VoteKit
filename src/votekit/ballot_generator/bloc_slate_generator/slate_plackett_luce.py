@@ -11,6 +11,8 @@ The main API functions in this module are:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -18,14 +20,14 @@ from votekit.ballot_generator.bloc_slate_generator._profile_construction import 
     _apportion_bloc_rows,
     _build_profile_from_rankings,
 )
+from votekit.ballot_generator.bloc_slate_generator._sampling import BATCH_SIZE
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _fill_slate_candidate_rankings,
+    _prepare_slate_candidate_arrays,
 )
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
-
-_SLATE_PL_BATCH_SIZE = 4_096
 
 # =================================================
 # ================= API Functions =================
@@ -135,6 +137,7 @@ def _sample_slate_pl_rankings(
         tuple[NDArray[np.intp], dict[str, slice]]: Complete candidate-ID rankings and bloc rows.
     """
     bloc_rows = _apportion_bloc_rows(config)
+    candidate_to_id = {candidate: index for index, candidate in enumerate(candidates)}
     slates = tuple(config.slates)
     slate_counts = np.array([len(config.slate_to_candidates[slate]) for slate in slates])
     rankings = np.empty((config.n_voters, len(candidates)), dtype=int)
@@ -145,12 +148,11 @@ def _sample_slate_pl_rankings(
             continue
 
         cohesion = config.cohesion_df.loc[bloc, list(slates)].to_numpy(dtype=np.float64)
-        slate_sequences = _sample_bloc_slate_sequences(
+        candidate_arrays = _prepare_slate_candidate_arrays(config, bloc, candidate_to_id)
+        slate_batches = _iter_slate_sequence_batches(
             slate_counts, cohesion, n_voters=n_voters, rng=rng
         )
-        _fill_slate_candidate_rankings(
-            config, bloc, candidates, slate_sequences, rankings[rows], rng
-        )
+        _fill_slate_candidate_rankings(candidate_arrays, slate_batches, rankings[rows], rng)
 
     return rankings, bloc_rows
 
@@ -160,12 +162,12 @@ def _sample_slate_pl_rankings(
 # ====================================================
 
 
-def _sample_bloc_slate_sequences(
+def _iter_slate_sequence_batches(
     slate_counts: NDArray[np.intp],
     cohesion: NDArray[np.float64],
     n_voters: int,
     rng: np.random.Generator,
-) -> NDArray[np.intp]:
+) -> Iterator[NDArray[np.intp]]:
     r"""
     Sample slate-PL sequences by merging cumulative exponential arrivals for each slate.
 
@@ -201,11 +203,13 @@ def _sample_bloc_slate_sequences(
     these repeated symbols gives equal probability to each distinct tail sequence because every
     sequence corresponds to the same number of permutations of its individual occurrences.
 
-    Batches bound the waiting-time and sorting arrays while the complete integer output remains
-    allocated. For :math:`n` voters and :math:`m` positive-cohesion candidates, generating and
-    accumulating arrivals takes :math:`O(nm)` work before sorting each row. Prefix draws and tail
-    shuffles share one random stream, so changing the batch size can change seeded results when
-    zero-cohesion tails are present.
+    Batches bound the waiting-time, sorting, and slate-sequence arrays. Each yielded batch owns
+    its storage and can be filled with candidate identities before sampling the next batch. For
+    :math:`n` voters and :math:`m` positive-cohesion candidates, generating and accumulating
+    arrivals takes :math:`O(nm)` work before sorting each row. Prefix draws and tail shuffles
+    share one random stream, so changing the batch size can change seeded results when
+    zero-cohesion tails are present. Interleaving candidate sampling with these batches can also
+    change seeded results even when every cohesion is positive.
 
     Args:
         slate_counts (NDArray[np.intp]): Validated candidate counts in configuration slate order.
@@ -214,9 +218,9 @@ def _sample_bloc_slate_sequences(
         n_voters (int): Number of complete slate sequences to draw.
         rng (np.random.Generator): Stream advanced by exponential draws and tail shuffles.
 
-    Returns:
-        NDArray[np.intp]: Complete slate-ID sequences with one row per voter and one column per
-            candidate, using configuration slate IDs.
+    Yields:
+        NDArray[np.intp]: Independent batches of complete slate-ID sequences in configuration
+            slate order, with one column per candidate.
     """
     positive_slate_ids = np.flatnonzero(cohesion > 0)
     positive_counts = slate_counts[positive_slate_ids]
@@ -224,22 +228,14 @@ def _sample_bloc_slate_sequences(
     zero_slate_ids = np.flatnonzero(cohesion == 0)
     zero_symbols = np.repeat(zero_slate_ids, slate_counts[zero_slate_ids])
     n_positive_candidates = len(positive_symbols)
-    sequences = np.empty((n_voters, int(slate_counts.sum())), dtype=int)
+    n_candidates = int(slate_counts.sum())
+    log_cohesion = np.log(cohesion[positive_slate_ids])
 
-    for start in range(0, n_voters, _SLATE_PL_BATCH_SIZE):
-        batch = sequences[start : start + _SLATE_PL_BATCH_SIZE]
-        log_arrivals = rng.standard_exponential((len(batch), n_positive_candidates))
-        column_start = 0
-        for slate_id, count in zip(positive_slate_ids, positive_counts, strict=True):
-            slate_arrivals = log_arrivals[:, column_start : column_start + count]
-            np.cumsum(slate_arrivals, axis=1, out=slate_arrivals)
-            with np.errstate(divide="ignore"):
-                np.log(slate_arrivals, out=slate_arrivals)
-            slate_arrivals -= np.log(cohesion[slate_id])
-            column_start += count
-
-        arrival_order = np.argsort(log_arrivals, axis=1)
-        batch[:, :n_positive_candidates] = positive_symbols[arrival_order]
+    for start in range(0, n_voters, BATCH_SIZE):
+        batch = np.empty((min(BATCH_SIZE, n_voters - start), n_candidates), dtype=int)
+        _fill_positive_slate_sequences(
+            positive_counts, log_cohesion, positive_symbols, batch[:, :n_positive_candidates], rng
+        )
         if len(zero_symbols):
             rng.permuted(
                 np.broadcast_to(zero_symbols, (len(batch), len(zero_symbols))),
@@ -247,4 +243,41 @@ def _sample_bloc_slate_sequences(
                 out=batch[:, n_positive_candidates:],
             )
 
-    return sequences
+        yield batch
+
+
+def _fill_positive_slate_sequences(
+    slate_counts: NDArray[np.intp],
+    log_cohesion: NDArray[np.float64],
+    slate_symbols: NDArray[np.intp],
+    sequences: NDArray[np.intp],
+    rng: np.random.Generator,
+) -> None:
+    """
+    Fill one slate-PL batch by merging positive-cohesion slates' cumulative arrival times.
+
+    Each slate contributes one arrival per candidate, and sorting the combined arrivals gives its
+    positions in the sequence. Arrival and sorting arrays are local to this call so they are
+    released before tail shuffling or within-slate candidate sampling begins.
+
+    Args:
+        slate_counts (NDArray[np.intp]): Candidate counts for the positive-cohesion slates.
+        log_cohesion (NDArray[np.float64]): Aligned logarithms of finite, positive cohesions.
+        slate_symbols (NDArray[np.intp]): Slate IDs repeated according to their counts, with each
+            slate occupying a contiguous block in the same order as ``slate_counts``.
+        sequences (NDArray[np.intp]): Writable output with one column per symbol. Filled in place
+            without modifying the input counts, cohesions, or symbols.
+        rng (np.random.Generator): Stream advanced by one exponential draw per output entry.
+    """
+    log_arrivals = rng.standard_exponential(sequences.shape)
+    column_start = 0
+    for slate_log_cohesion, count in zip(log_cohesion, slate_counts, strict=True):
+        slate_arrivals = log_arrivals[:, column_start : column_start + count]
+        np.cumsum(slate_arrivals, axis=1, out=slate_arrivals)
+        with np.errstate(divide="ignore"):
+            np.log(slate_arrivals, out=slate_arrivals)
+        slate_arrivals -= slate_log_cohesion
+        column_start += count
+
+    arrival_order = np.argsort(log_arrivals, axis=1)
+    sequences[:] = slate_symbols[arrival_order]
