@@ -81,11 +81,11 @@ for persistence support.
 The Python matrix work has already introduced dense set IDs, float64/Fraction weight variants, the
 `2**50` total cap, nonnegative scores, first-appearance grouping, and fresh DataFrame exports. The
 Rust migration adds float64-only score storage with lossless input conversion, scalar Neumaier
-summation for total float weight and float mentions, immutable election history, and the specified
-generator tail and seed contracts. Neumaier replaces `math.fsum` in those two operations under
-[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md); SIMD summation is outside this
-implementation. `.df` is deprecated as of 3.6.0 and scheduled for removal in the next major
-release.
+summation for total float weight, float mentions, and grouped float weights, immutable election
+history, and the specified generator tail and seed contracts. Under
+[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md), Neumaier replaces `math.fsum` for totals
+and mentions and weighted `np.bincount` for grouping. SIMD summation is outside this implementation.
+`.df` is deprecated as of 3.6.0 and scheduled for removal in the next major release.
 
 Compatibility includes extension hooks, provenance, and election decisions under the documented
 arithmetic. Generator samples are reproducible within a fixed version but may change between minor
